@@ -13,10 +13,14 @@ export const OAK = { decel: 0.282, wallE: 0.70, viscous: 0.12 };
 // patch can be, and that roulette condemns one of.
 export const PALETTE = ['crimson', 'gold', 'teal', 'violet'];
 
-export function createWorld(seed) {
+// `rng` lets a caller (content/levels.js) pass in an RNG that's already drawn from — the
+// level grammar picks environment/power/surface off the front of the same seeded stream
+// that terrain generation and CPU aim continue from, so "a level is a seed" holds for
+// everything, not just the terrain.
+export function createWorld(seed, { rng } = {}) {
   return {
     seed,
-    rng: createRng(seed),
+    rng: rng ?? createRng(seed),
     events: createEvents(),
     time: 0,
     turn: 0,
