@@ -1,0 +1,94 @@
+/**
+ * The turn state machine (docs/DESIGN.md): AIM -> LAUNCH -> ROLL -> SETTLE -> RESOLVE ->
+ * DEGRADE -> AIM. The player drives AIM -> LAUNCH by calling `launch(vx, vy)`; everything
+ * after that is automatic. Emits `phase` on every transition and `win` once a level ends.
+ */
+import { checkWin, resolveEliminations } from './rules.js';
+
+const REST_EPS = 1e-3;
+
+export function createTurnMachine(world) {
+  let phase = 'AIM';
+  const cpuAim = new Map(); // marble -> pending {vx, vy}, set for the whole AIM phase
+
+  function setPhase(next) {
+    phase = next;
+    world.events.emit('phase', { phase, turn: world.turn });
+  }
+
+  // CPU marbles aim for open ground the instant AIM begins, same as the player would.
+  // No environment yet means no hazards to dodge — that arrives in M3+.
+  function beginAim() {
+    cpuAim.clear();
+    const margin = 0.1;
+    for (const m of world.marbles) {
+      if (!m.alive || m.isPlayer) continue;
+      const tx = world.rng.range(world.bounds.l + margin, world.bounds.r - margin);
+      const ty = world.rng.range(world.bounds.t + margin, world.bounds.b - margin);
+      const dx = tx - m.x;
+      const dy = ty - m.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const speed = Math.min(world.maxSpeed, 0.15 + dist * 0.9);
+      cpuAim.set(m, { vx: (dx / dist) * speed, vy: (dy / dist) * speed });
+    }
+    setPhase('AIM');
+  }
+
+  function launch(playerVx, playerVy) {
+    if (phase !== 'AIM') return;
+    for (const m of world.marbles) {
+      if (!m.alive) continue;
+      if (m.isPlayer) { m.vx = playerVx; m.vy = playerVy; }
+      else { const a = cpuAim.get(m); if (a) { m.vx = a.vx; m.vy = a.vy; } }
+    }
+    setPhase('LAUNCH');
+    setPhase('ROLL');
+  }
+
+  function allResting() {
+    return world.marbles.every(m => !m.alive || Math.hypot(m.vx, m.vy) < REST_EPS);
+  }
+
+  // Called once per physics tick from main.js, right after stepPhysics.
+  function afterPhysicsStep() {
+    if (phase !== 'ROLL' || !allResting()) return;
+    settle();
+  }
+
+  function settle() {
+    setPhase('SETTLE');
+    resolve();
+  }
+
+  function resolve() {
+    setPhase('RESOLVE');
+    // win check FIRST, before any elimination — a win can never be taken back afterward
+    let winner = checkWin(world);
+    if (!winner) {
+      resolveEliminations(world);
+      winner = checkWin(world);
+    }
+    if (winner) {
+      world.winner = winner;
+      setPhase('GAME_OVER');
+      world.events.emit('win', { winner });
+      return;
+    }
+    degrade();
+  }
+
+  function degrade() {
+    setPhase('DEGRADE');
+    world.turn++;
+    world.environment?.onTurnStart?.(world, world.turn);
+    beginAim();
+  }
+
+  beginAim();
+
+  return {
+    get phase() { return phase; },
+    launch,
+    afterPhysicsStep
+  };
+}

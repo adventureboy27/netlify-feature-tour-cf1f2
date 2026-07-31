@@ -30,6 +30,9 @@ export function createRenderer(canvas) {
       const x = m.px + (m.x - m.px) * alpha;
       const y = m.py + (m.y - m.py) * alpha;
       drawMarble(ctx, x, y, m.r);
+      // non-negotiable #6: the player is identified by a marker OUTSIDE the ball, never
+      // by colour — a slowly rotating white ring with four orbiting pips.
+      if (m.isPlayer) drawPlayerRing(ctx, x, y, m.r, world.time);
     }
 
     if (drag) drawAim(ctx, drag);
@@ -50,6 +53,30 @@ function drawMarble(ctx, x, y, r) {
   ctx.lineWidth = r * 0.06;
   ctx.strokeStyle = 'rgba(0,0,0,0.35)';
   ctx.stroke();
+}
+
+const RING_R_MUL = 1.6;
+const RING_ROT_SPEED = 0.6; // rad/s, "slowly rotating"
+const PIP_COUNT = 4;
+
+function drawPlayerRing(ctx, x, y, r, time) {
+  const ringR = r * RING_R_MUL;
+  ctx.beginPath();
+  ctx.arc(x, y, ringR, 0, Math.PI * 2);
+  ctx.lineWidth = r * 0.12;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.stroke();
+
+  const angle = time * RING_ROT_SPEED;
+  for (let i = 0; i < PIP_COUNT; i++) {
+    const a = angle + (i / PIP_COUNT) * Math.PI * 2;
+    const px = x + Math.cos(a) * ringR;
+    const py = y + Math.sin(a) * ringR;
+    ctx.beginPath();
+    ctx.arc(px, py, r * 0.16, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+  }
 }
 
 function drawAim(ctx, { originX, originY, x, y }) {

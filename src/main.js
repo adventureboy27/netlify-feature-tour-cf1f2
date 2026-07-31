@@ -1,13 +1,17 @@
 import { createWorld, addMarble, setBoardHeight } from './core/world.js';
 import { createLoop } from './core/loop.js';
 import { stepPhysics } from './sim/physics.js';
+import { createTurnMachine } from './sim/turn.js';
 import { createRenderer } from './render/canvas2d.js';
+import { createHud } from './render/hud.js';
 
 const SENSITIVITY = 3.0; // drag length in board-widths -> launch speed multiplier
 const MARBLE_R = 0.035;
+const MARBLE_COUNT = 5;
 
 const canvas = document.getElementById('board');
 const renderer = createRenderer(canvas);
+const hud = createHud(document.getElementById('hud'));
 const world = createWorld(Date.now() >>> 0);
 
 function resize() {
@@ -18,10 +22,21 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-const marble = addMarble(world, { x: 0.5, y: world.h / 2, r: MARBLE_R });
+// evenly spaced along the horizontal centre line, spacing far wider than 2r so nobody
+// starts overlapping regardless of aspect ratio
+const marbles = [];
+for (let i = 0; i < MARBLE_COUNT; i++) {
+  const x = 0.2 + i * 0.15;
+  marbles.push(addMarble(world, { x, y: world.h / 2, r: MARBLE_R, isPlayer: i === 0 }));
+}
+const player = marbles[0];
 
-// AIM: drag anywhere while the marble is at rest. Direction and length of the drag ARE
-// the launch direction and power — a flick, not a slingshot pull-back.
+const turn = createTurnMachine(world);
+world.events.on('phase', ({ turn: t, phase }) => hud.setPhase(t, phase));
+world.events.on('win', ({ winner }) => hud.setWinner(winner));
+
+// AIM: drag anywhere while it's the player's turn to aim. Direction and length of the
+// drag ARE the launch direction and power — a flick, not a slingshot pull-back.
 let drag = null;
 
 function toBoard(evt) {
@@ -32,12 +47,12 @@ function toBoard(evt) {
   };
 }
 
-function isResting(m) {
-  return Math.hypot(m.vx, m.vy) < 1e-3;
+function canAim() {
+  return turn.phase === 'AIM' && player.alive;
 }
 
 canvas.addEventListener('pointerdown', (evt) => {
-  if (!isResting(marble)) return;
+  if (!canAim()) return;
   const p = toBoard(evt);
   drag = { startX: p.x, startY: p.y, x: p.x, y: p.y };
   canvas.setPointerCapture(evt.pointerId);
@@ -55,23 +70,24 @@ canvas.addEventListener('pointerup', (evt) => {
   const dx = drag.x - drag.startX;
   const dy = drag.y - drag.startY;
   const len = Math.hypot(dx, dy);
-  if (len > 0.01) {
-    const speed = Math.min(world.maxSpeed, len * SENSITIVITY);
-    marble.vx = (dx / len) * speed;
-    marble.vy = (dy / len) * speed;
-  }
   drag = null;
   canvas.releasePointerCapture(evt.pointerId);
+  if (len <= 0.01 || !canAim()) return;
+  const speed = Math.min(world.maxSpeed, len * SENSITIVITY);
+  turn.launch((dx / len) * speed, (dy / len) * speed);
 });
 
 const loop = createLoop({
-  update: (dt) => stepPhysics(world, dt),
+  update: (dt) => {
+    stepPhysics(world, dt);
+    turn.afterPhysicsStep();
+  },
   render: (alpha) => {
     const aim = drag && {
-      originX: marble.x,
-      originY: marble.y,
-      x: marble.x + (drag.x - drag.startX),
-      y: marble.y + (drag.y - drag.startY)
+      originX: player.x,
+      originY: player.y,
+      x: player.x + (drag.x - drag.startX),
+      y: player.y + (drag.y - drag.startY)
     };
     renderer.draw(world, alpha, aim);
   }
@@ -79,4 +95,4 @@ const loop = createLoop({
 
 loop.start();
 
-if (import.meta.env.DEV) window.__TAW__ = { world, marble };
+if (import.meta.env.DEV) window.__TAW__ = { world, marbles, player, turn };

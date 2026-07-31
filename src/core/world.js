@@ -3,6 +3,7 @@
  * just read and write these fields directly.
  */
 import { createRng } from './rng.js';
+import { createEvents } from './events.js';
 
 // oak, the default surface (docs/DESIGN.md surfaces table). M1 only needs oak.
 export const OAK = { decel: 0.282, wallE: 0.70, viscous: 0.12 };
@@ -11,13 +12,17 @@ export function createWorld(seed) {
   return {
     seed,
     rng: createRng(seed),
+    events: createEvents(),
+    time: 0,
     turn: 0,
     w: 1,              // board width is always 1 board-width by definition
     h: 1,              // updated by main.js to match the canvas aspect ratio
     bounds: { l: 0, r: 1, t: 0, b: 1 },
     maxSpeed: 0.95,     // board-widths/sec, docs/DESIGN.md
+    ballE: 0.94,        // marble-on-marble restitution, docs/DESIGN.md
     surface: OAK,
-    marbles: []
+    marbles: [],
+    winner: null
   };
 }
 
@@ -26,8 +31,11 @@ export function setBoardHeight(world, h) {
   world.bounds.b = h;
 }
 
-export function addMarble(world, { x, y, r = 0.035 }) {
-  const m = { x, y, px: x, py: y, vx: 0, vy: 0, r, alive: true };
+export function addMarble(world, { x, y, r = 0.035, isPlayer = false }) {
+  const m = {
+    x, y, px: x, py: y, vx: 0, vy: 0, r,
+    mass: 1, alive: true, isPlayer, lethalCause: null
+  };
   world.marbles.push(m);
   return m;
 }

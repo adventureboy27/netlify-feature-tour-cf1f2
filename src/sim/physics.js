@@ -1,11 +1,13 @@
 /**
- * Integration, rolling resistance, wall bounce. One fixed tick (see core/loop.js) per call.
+ * Integration, rolling resistance, wall bounce, elastic marble-marble collisions. One fixed
+ * tick (see core/loop.js) per call.
  *
  * Rolling resistance is a constant deceleration plus a small viscous term, NEVER exponential
  * decay — pure exponential decay never actually reaches zero and reads as air hockey, not a
  * marble rolling to a stop on wood. The constant term guarantees it stops in finite time.
  */
 export function stepPhysics(world, dt) {
+  world.time += dt;
   const { decel, wallE, viscous } = world.surface;
   for (const m of world.marbles) {
     if (!m.alive) continue;
@@ -16,6 +18,7 @@ export function stepPhysics(world, dt) {
     applyRollingResistance(m, decel, viscous, dt);
     bounceOffWalls(m, world.bounds, wallE);
   }
+  resolveMarbleCollisions(world.marbles, world.ballE);
 }
 
 function applyRollingResistance(m, decel, viscous, dt) {
@@ -34,4 +37,48 @@ function bounceOffWalls(m, bounds, wallE) {
   else if (m.x + m.r > r) { m.x = r - m.r; m.vx = -m.vx * wallE; }
   if (m.y - m.r < t) { m.y = t + m.r; m.vy = -m.vy * wallE; }
   else if (m.y + m.r > b) { m.y = b - m.r; m.vy = -m.vy * wallE; }
+}
+
+// Pairwise circle-circle elastic collision: separate overlap by inverse mass, then apply
+// a restitution impulse along the contact normal. ballE = 0.94 by default (docs/DESIGN.md).
+function resolveMarbleCollisions(marbles, ballE) {
+  for (let i = 0; i < marbles.length; i++) {
+    const a = marbles[i];
+    if (!a.alive) continue;
+    for (let j = i + 1; j < marbles.length; j++) {
+      const b = marbles[j];
+      if (!b.alive) continue;
+
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy);
+      const minDist = a.r + b.r;
+      if (dist === 0 || dist >= minDist) continue;
+
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const invA = 1 / a.mass;
+      const invB = 1 / b.mass;
+      const totalInv = invA + invB;
+
+      const overlap = minDist - dist;
+      a.x -= nx * overlap * (invA / totalInv);
+      a.y -= ny * overlap * (invA / totalInv);
+      b.x += nx * overlap * (invB / totalInv);
+      b.y += ny * overlap * (invB / totalInv);
+
+      const relVx = b.vx - a.vx;
+      const relVy = b.vy - a.vy;
+      const velAlongNormal = relVx * nx + relVy * ny;
+      if (velAlongNormal > 0) continue; // already separating
+
+      const j2 = -(1 + ballE) * velAlongNormal / totalInv;
+      const ix = j2 * nx;
+      const iy = j2 * ny;
+      a.vx -= ix * invA;
+      a.vy -= iy * invA;
+      b.vx += ix * invB;
+      b.vy += iy * invB;
+    }
+  }
 }
