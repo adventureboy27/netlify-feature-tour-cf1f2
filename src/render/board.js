@@ -17,6 +17,21 @@ export function boardToScene(x, y, w, h) {
   return [x - w / 2, y - h / 2];
 }
 
+// THREE.Group.clear() only detaches children from the scene graph — it never frees their
+// GPU-side geometry/material buffers. Anything rebuilt repeatedly (most terrain, every turn)
+// has to dispose explicitly or it leaks for the rest of the session.
+function disposeGeometry(group) {
+  for (const child of group.children) child.geometry?.dispose();
+}
+
+function disposeGeometryAndMaterial(group) {
+  for (const child of group.children) {
+    child.geometry?.dispose();
+    if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
+    else child.material?.dispose();
+  }
+}
+
 export function createBoard() {
   const group = new THREE.Group();
 
@@ -49,6 +64,9 @@ export function createBoard() {
   // turn without changing world.w/h, so the rails need re-laying whenever bounds move too,
   // not just on resize. sumo (and anything else with rails:false) hides them entirely.
   function rebuildRails(world) {
+    // rails share railMat (created once above), so only geometry is per-rail and disposable
+    // here — disposing the material would break every rail built after this one.
+    disposeGeometry(rails);
     rails.clear();
     if (world.rails === false) return;
     const [l, t] = boardToScene(world.bounds.l, world.bounds.t, boardW, boardH);
@@ -64,6 +82,10 @@ export function createBoard() {
   // an environment's onTurnStart (shrinkRails, disc shrink) runs right before 'degrade' fires.
   function buildTerrain(world) {
     rebuildRails(world);
+    // unlike rails, every terrain mesh gets its own fresh material each rebuild — most
+    // environments call this every single turn, so an undisposed geometry+material pair
+    // here is a real, compounding GPU memory leak over a play session, not just untidy.
+    disposeGeometryAndMaterial(terrain);
     terrain.clear();
     const t = world.terrain;
     const toScene = (x, y) => boardToScene(x, y, boardW, boardH);

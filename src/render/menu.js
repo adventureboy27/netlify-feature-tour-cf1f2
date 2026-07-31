@@ -1,10 +1,31 @@
 /**
  * DOM overlays for level select and the end-of-level screen — kept out of the canvas/WebGL
- * entirely, same as hud.js. No persistence yet (docs/BUILD-ORDER.md M10 "save state"): the
- * unlock curve lives in memory for the session and resets on reload.
+ * entirely, same as hud.js. Unlock progress is persisted to localStorage (docs/BUILD-ORDER.md
+ * M10 "save state") so it survives a reload; a bad/missing/corrupt value just falls back to 0
+ * rather than ever throwing, since this is a nice-to-have, not something worth breaking on.
  */
+const SAVE_KEY = 'taw:highestUnlocked';
+
+function loadUnlocked() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    const n = Number(raw);
+    return Number.isInteger(n) && n >= 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveUnlocked(n) {
+  try {
+    localStorage.setItem(SAVE_KEY, String(n));
+  } catch {
+    // storage unavailable (private browsing, quota) — progress just won't persist
+  }
+}
+
 export function createMenu(el, { levelCount, onSelect, onEndless }) {
-  let highestUnlocked = 0;
+  let highestUnlocked = loadUnlocked();
 
   function render() {
     el.innerHTML = '';
@@ -40,7 +61,11 @@ export function createMenu(el, { levelCount, onSelect, onEndless }) {
   }
 
   function unlock(n) {
-    highestUnlocked = Math.max(highestUnlocked, Math.min(levelCount - 1, n));
+    const next = Math.max(highestUnlocked, Math.min(levelCount - 1, n));
+    if (next !== highestUnlocked) {
+      highestUnlocked = next;
+      saveUnlocked(highestUnlocked);
+    }
   }
 
   function show() {

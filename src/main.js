@@ -79,21 +79,21 @@ function canAim() {
 for (const el of [canvas3d, canvas2d]) {
   el.addEventListener('pointerdown', (evt) => {
     audio.resume();
-    if (!canAim()) return;
+    if (!canAim() || drag) return; // a second finger touching down must not hijack the aim
     const p = toBoard(evt);
-    drag = { startX: p.x, startY: p.y, x: p.x, y: p.y };
+    drag = { pointerId: evt.pointerId, startX: p.x, startY: p.y, x: p.x, y: p.y };
     el.setPointerCapture(evt.pointerId);
   });
 
   el.addEventListener('pointermove', (evt) => {
-    if (!drag) return;
+    if (!drag || evt.pointerId !== drag.pointerId) return;
     const p = toBoard(evt);
     drag.x = p.x;
     drag.y = p.y;
   });
 
   el.addEventListener('pointerup', (evt) => {
-    if (!drag) return;
+    if (!drag || evt.pointerId !== drag.pointerId) return;
     const dx = drag.x - drag.startX;
     const dy = drag.y - drag.startY;
     const len = Math.hypot(dx, dy);
@@ -102,6 +102,14 @@ for (const el of [canvas3d, canvas2d]) {
     if (len <= 0.01 || !canAim()) return;
     const speed = Math.min(current.world.maxSpeed, len * SENSITIVITY);
     current.turn.launch((dx / len) * speed, (dy / len) * speed);
+  });
+
+  // mobile: the OS can cancel an in-progress touch (an interrupting system gesture, an
+  // incoming call...). Without this, `drag` stays non-null forever and pointerdown's
+  // `|| drag` guard would permanently lock out aiming.
+  el.addEventListener('pointercancel', (evt) => {
+    if (!drag || evt.pointerId !== drag.pointerId) return;
+    drag = null;
   });
 }
 
@@ -125,6 +133,26 @@ const loop = createLoop({
     rollingBed.update(world);
   }
 });
+
+// ---- landscape lock ----
+// The Screen Orientation API's lock() only works in fullscreen/standalone contexts on most
+// mobile browsers, so it's a bonus attempt, not the mechanism this actually relies on: the
+// real lock is refusing to run the loop and showing this prompt instead. Gated on a
+// touch-primary device (matchMedia pointer:coarse) so a desktop window that happens to be
+// narrow is never affected — the board itself already adapts to any aspect ratio.
+const rotateOverlay = document.getElementById('rotate-overlay');
+function blockedByOrientation() {
+  return window.matchMedia('(pointer: coarse)').matches && window.innerHeight > window.innerWidth;
+}
+function updateOrientationGate() {
+  const blocked = blockedByOrientation();
+  rotateOverlay.style.display = blocked ? 'flex' : 'none';
+  if (blocked) loop.stop();
+  else if (current) loop.start();
+}
+window.addEventListener('resize', updateOrientationGate);
+window.addEventListener('orientationchange', updateOrientationGate);
+screen.orientation?.lock?.('landscape').catch(() => {});
 
 // ---- menu and end-of-level overlay ----
 
@@ -214,6 +242,7 @@ function startLevel(n) {
 }
 
 resize();
+updateOrientationGate();
 menu.show();
 
 if (import.meta.env.DEV) {
