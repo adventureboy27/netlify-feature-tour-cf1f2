@@ -147,17 +147,18 @@ function applyGutters(m, gutters, dt) {
 // wall, just against a circle. Domes use the surface's own wallE (a plain bump); bumpers
 // carry their own restitution, usually > 1 — a real pinball kick.
 export function resolveTerrainObstacles(world) {
+  if (world.power?.passThroughTerrain) return;
   const { domes, bumpers } = world.terrain;
   const wallE = world.surface.wallE;
   for (const m of world.marbles) {
     if (!m.alive || m.lethalCause) continue;
     for (const d of domes) {
       const force = bounceOffObstacle(m, d, wallE);
-      if (force > 0) world.events.emit('impact', { kind: 'dome', force });
+      if (force > 0) world.events.emit('impact', { kind: 'dome', force, x: m.x, y: m.y });
     }
     for (const b of bumpers) {
       const force = bounceOffObstacle(m, b, b.restitution);
-      if (force > 0) world.events.emit('impact', { kind: 'bumper', force });
+      if (force > 0) world.events.emit('impact', { kind: 'bumper', force, x: m.x, y: m.y });
     }
   }
 }

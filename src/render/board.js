@@ -11,6 +11,7 @@ import * as THREE from 'three';
 
 const RAIL_HEIGHT = 0.03;
 const RAIL_THICKNESS = 0.02;
+const BLACKOUT_TEX_HOLE_FRAC = 0.12; // the hole's radius as a fraction of the 6x6 plane
 
 export function boardToScene(x, y, w, h) {
   return [x - w / 2, y - h / 2];
@@ -131,9 +132,54 @@ export function createBoard() {
     }
 
     if (t.water) addWater(terrain, t.water, boardW, boardH);
+
+    // the handful of environments whose state doesn't live in world.terrain
+    if (world.quicksandPatches) {
+      for (const p of world.quicksandPatches) addDisc(terrain, toScene(p.x, p.y), p.r, 0x5a5228, 0.5, 0.0012);
+    }
+    if (world.meteorNext) {
+      addDiscRing(terrain, toScene(world.meteorNext.x, world.meteorNext.y), 0.05, 0xff783c, 0.008);
+    }
+    if (world.grinderAxis) {
+      const gx = world.grinderAxis === 'x'
+        ? world.bounds.l + world.grinderPos * (world.bounds.r - world.bounds.l) : world.w / 2;
+      const gy = world.grinderAxis === 'y'
+        ? world.bounds.t + world.grinderPos * (world.bounds.b - world.bounds.t) : world.h / 2;
+      const [sx, sz] = toScene(gx, gy);
+      const line = new THREE.Mesh(
+        new THREE.PlaneGeometry(world.grinderAxis === 'x' ? 0.015 : boardW, world.grinderAxis === 'x' ? boardH : 0.015),
+        new THREE.MeshStandardMaterial({ color: 0xc83c3c, emissive: 0x881010, emissiveIntensity: 0.5 })
+      );
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(sx, 0.003, sz);
+      terrain.add(line);
+    }
   }
 
-  return { group, layout, buildTerrain };
+  // "Visibility shrinks to a pool around your own marble." A big dark plane with a radial
+  // alpha hole cut into its texture, repositioned each frame to follow the player — cheaper
+  // than per-frame shader work, and the hole naturally keeps the player's own marble lit.
+  const blackout = new THREE.Mesh(
+    new THREE.PlaneGeometry(6, 6),
+    new THREE.MeshBasicMaterial({ map: makeBlackoutTexture(), transparent: true, depthWrite: true, depthTest: true })
+  );
+  blackout.rotation.x = -Math.PI / 2;
+  blackout.position.y = 0.2; // clear of marble + ring geometry (~0.11 tall at most), not just the floor
+  blackout.renderOrder = 10; // after opaque terrain/marbles, so it reliably composites on top
+  blackout.visible = false;
+  group.add(blackout);
+
+  function updateBlackout(world, playerScenePos) {
+    if (world.blackoutRadius == null || !playerScenePos) { blackout.visible = false; return; }
+    blackout.visible = true;
+    blackout.position.set(playerScenePos[0], 0.2, playerScenePos[1]);
+    // the texture's hole radius is fixed (see makeBlackoutTexture) — scale the plane so
+    // that fixed hole maps to the current, shrinking blackoutRadius in world units
+    const scale = world.blackoutRadius / BLACKOUT_TEX_HOLE_FRAC;
+    blackout.scale.set(scale, scale, 1);
+  }
+
+  return { group, layout, buildTerrain, updateBlackout };
 }
 
 function addRail(rails, mat, cx, cz, w, d) {
@@ -144,10 +190,10 @@ function addRail(rails, mat, cx, cz, w, d) {
   rails.add(rail);
 }
 
-function addDiscRing(group, [x, z], r) {
+function addDiscRing(group, [x, z], r, hex = 0x6b4a2a, tube = RAIL_THICKNESS * 0.6) {
   const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(r, RAIL_THICKNESS * 0.6, 8, 48),
-    new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.6, metalness: 0.1 })
+    new THREE.TorusGeometry(r, tube, 8, 48),
+    new THREE.MeshStandardMaterial({ color: hex, roughness: 0.6, metalness: 0.1 })
   );
   ring.rotation.x = Math.PI / 2;
   ring.position.set(x, RAIL_HEIGHT / 2, z);
@@ -185,6 +231,26 @@ function addWater(group, water, boardW, boardH) {
 
 const COLOUR_HEX = { crimson: 0xc8283c, gold: 0xdcb432, teal: 0x28a0a0, violet: 0x8c50c8 };
 function colourHex(colour) { return COLOUR_HEX[colour] ?? 0xbebebe; }
+
+// A soft-edged dark disc on transparent, sized so the visible hole is BLACKOUT_TEX_HOLE_FRAC
+// of the plane it's mapped onto — the plane is then scaled per frame in updateBlackout() to
+// make that fixed hole track blackout's actual (shrinking) radius.
+function makeBlackoutTexture() {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const holePx = size * BLACKOUT_TEX_HOLE_FRAC / 6; // plane is 6 units wide, texture is size px
+  const grad = ctx.createRadialGradient(size / 2, size / 2, holePx * 0.7, size / 2, size / 2, holePx);
+  grad.addColorStop(0, 'rgba(5,3,2,0)');
+  grad.addColorStop(1, 'rgba(5,3,2,0.985)');
+  ctx.fillStyle = grad;
+  // canvas radial gradients clamp to the last stop beyond their end radius, so this one
+  // fillRect covers the whole canvas: transparent hole in the middle, opaque dark everywhere
+  // past it.
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+}
 
 // Procedural oak: warm streaked grain for albedo, matching noise for roughness variation —
 // stands in for a real PBR set until one can be loaded from Poly Haven / ambientCG.

@@ -2,13 +2,23 @@
  * Power registry — imports the definitions from data/, exposes them as one list plus a
  * lookup. Game code reads powers through here, never straight from data/.
  */
-import { turbo, cannonball, molten, lead, cork, ghost, rest } from '../data/powers.js';
+import {
+  turbo, cannonball, molten, lead, cork, ghost,
+  hollow, magnetic, repulsor, sticky, english, splitshot, greased, feather, nitro,
+  rewind, bomb, anchor, blink, drill, frost, siphon, boomerang, shield, comet, shockwave,
+  rest
+} from '../data/powers.js';
 
-export const powers = [turbo, cannonball, molten, lead, cork, ghost, ...rest];
+export const powers = [
+  turbo, cannonball, molten, lead, cork, ghost,
+  hollow, magnetic, repulsor, sticky, english, splitshot, greased, feather, nitro,
+  rewind, bomb, anchor, blink, drill, frost, siphon, boomerang, shield, comet, shockwave,
+  ...rest
+];
 
-// Only these have hooks/stats meant to be used yet — the rest of `rest` is metadata
-// waiting on M8.
-export const implemented = [turbo, cannonball, molten, lead, cork, ghost];
+// All 26 have hooks/stats now (M8 finished the last 20) — `rest` stays as the landing spot
+// for anything added later.
+export const implemented = powers.slice(0, powers.length - rest.length);
 
 export function getPower(id) {
   return powers.find((p) => p.id === id) ?? null;

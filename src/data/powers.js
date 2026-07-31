@@ -26,6 +26,9 @@
  * collision at all, since by the time two marbles are touching it's too late for a hook to
  * un-happen a collision. Only `ghost` uses it.
  *
+ * `passThroughTerrain: true` (same idea, same reason) skips dome/bumper collision in
+ * sim/terrain.js. Only `drill` uses it.
+ *
  * `sfx.voice` is bound to the PLAYER's marble specifically, so you can hear yourself apart
  * from the pack. Anything speed-driven must be synthesised, not sampled.
  */
@@ -141,109 +144,326 @@ export const ghost = {
 };
 
 /* ------------------------------------------------------------------ */
-/* THE REST — metadata complete, hooks to implement                    */
-/* Implement in the order given in docs/BUILD-ORDER.md M7.             */
+/* M8 — the rest, all 20                                               */
 /* ------------------------------------------------------------------ */
 
-export const rest = [
-  { id:'hollow', name:'Hollow', blurb:'One hard hit shatters you.', exclusive:false,
-    stats:{ mass:0.4 },
-    spec:'Collisions above a force threshold are lethal in both directions. Everyone is ' +
-         'suddenly terrified of everyone.',
-    sfx:{ voice:'thin brittle ring', death:'full glass shatter' } },
+export const hollow = {
+  id: 'hollow', name: 'Hollow', blurb: 'One hard hit shatters you.', exclusive: false,
+  stats: { mass: 0.4 },
+  onMarbleHit(m, other, world, force) {
+    if (force < world.maxSpeed * 0.5) return;
+    m.lethalCause = 'shattered';
+    other.lethalCause = 'shattered';
+  },
+  sfx: { voice: 'thin brittle ring', death: 'full glass shatter' }
+};
 
-  { id:'magnetic', name:'Magnetic', blurb:'Marbles pull toward each other.', exclusive:false,
-    stats:{}, spec:'Continuous inverse-square attraction between marbles in onStep. They clump.',
-    sfx:{ voice:'deep hum that intensifies with proximity' } },
+// Inverse-square, but distSq is floored rather than just skipped below it — an unfloored
+// 1/distSq blows up as marbles close in, easily exceeding rolling resistance at contact
+// range and leaving a cluster that never fully damps out (found by testing magnet+magnetic
+// together: 40+ seconds and still not settled). The floor caps the force at close range
+// instead, so decay always eventually wins.
+const CLUMP_DIST_SQ_FLOOR = 0.01; // ~0.1 board-widths, well above two marbles' contact distance
 
-  { id:'repulsor', name:'Repulsor', blurb:'Marbles shove each other away.', exclusive:false,
-    stats:{}, spec:'Inverse of magnetic. Nobody can get near anybody. Brutal on a shrinking board.',
-    sfx:{ voice:'bass thump on each repulsion event' } },
+export const magnetic = {
+  id: 'magnetic', name: 'Magnetic', blurb: 'Marbles pull toward each other.', exclusive: false,
+  stats: {},
+  onStep(m, world, dt) {
+    for (const other of world.marbles) {
+      if (other === m || !other.alive) continue;
+      const dx = other.x - m.x, dy = other.y - m.y;
+      const distSq = Math.max(dx * dx + dy * dy, CLUMP_DIST_SQ_FLOOR);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 1e-6) continue;
+      const strength = 0.006 / distSq;
+      m.vx += (dx / dist) * strength * dt;
+      m.vy += (dy / dist) * strength * dt;
+    }
+  },
+  sfx: { voice: 'deep hum that intensifies with proximity' }
+};
 
-  { id:'sticky', name:'Sticky', blurb:'First thing you touch, you are stuck to.', exclusive:false,
-    stats:{}, spec:'Marbles weld into chains and move as one body. Chains inherit combined mass.',
-    sfx:{ voice:'tar squelch on contact, low drag drone while joined' } },
+export const repulsor = {
+  id: 'repulsor', name: 'Repulsor', blurb: 'Marbles shove each other away.', exclusive: false,
+  stats: {},
+  onStep(m, world, dt) {
+    for (const other of world.marbles) {
+      if (other === m || !other.alive) continue;
+      const dx = m.x - other.x, dy = m.y - other.y;
+      const distSq = Math.max(dx * dx + dy * dy, CLUMP_DIST_SQ_FLOOR);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 1e-6) continue;
+      const strength = 0.006 / distSq;
+      m.vx += (dx / dist) * strength * dt;
+      m.vy += (dy / dist) * strength * dt;
+    }
+  },
+  sfx: { voice: 'bass thump on each repulsion event' }
+};
 
-  { id:'english', name:'English', blurb:'Everything curves.', exclusive:false,
-    stats:{}, spec:'Constant lateral acceleration perpendicular to velocity. Sign per marble, ' +
-    'fixed for the level. Aim line must show the arc, not a straight line.',
-    sfx:{ voice:'tonal whistle bending with the curve' } },
+export const sticky = {
+  id: 'sticky', name: 'Sticky', blurb: 'First thing you touch, you are stuck to.', exclusive: false,
+  stats: {},
+  // Simplified weld: not full rigid-chain physics, a stiff spring holding the contact
+  // distance once welded — reads as "stuck together" without a rotation/chain solver.
+  onMarbleHit(m, other, world, force) {
+    if (m.stuckTo || force < 0.05) return;
+    m.stuckTo = other;
+  },
+  onStep(m, world, dt) {
+    if (!m.stuckTo || !m.stuckTo.alive) { m.stuckTo = null; return; }
+    const other = m.stuckTo;
+    const dx = other.x - m.x, dy = other.y - m.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const stretch = dist - (m.r + other.r);
+    m.vx += (dx / dist) * stretch * 8 * dt;
+    m.vy += (dy / dist) * stretch * 8 * dt;
+  },
+  sfx: { voice: 'tar squelch on contact, low drag drone while joined' }
+};
 
-  { id:'splitshot', name:'Splitshot', blurb:'You become two.', exclusive:true,
-    stats:{ radius:0.75 },
-    spec:'On first wall contact the marble splits into two half-size marbles, both yours. ' +
-         'Exclusive — changes the marble count, so it cannot stack with other powers.',
-    sfx:{ voice:'sharp fission crack, then two voices' } },
+export const english = {
+  id: 'english', name: 'English', blurb: 'Everything curves.', exclusive: false,
+  stats: {},
+  onLaunch(m, world) {
+    if (m.englishSign === undefined) m.englishSign = world.rng.next() < 0.5 ? 1 : -1;
+  },
+  onStep(m, world, dt) {
+    const speed = Math.hypot(m.vx, m.vy);
+    if (speed < 1e-4) return;
+    const px = -m.vy / speed, py = m.vx / speed;
+    const sign = m.englishSign ?? 1;
+    m.vx += px * 0.35 * sign * dt;
+    m.vy += py * 0.35 * sign * dt;
+  },
+  sfx: { voice: 'tonal whistle bending with the curve' }
+};
 
-  { id:'greased', name:'Greased', blurb:'Nothing transfers.', exclusive:false,
-    stats:{ ballE:0.15 },
-    spec:'Collisions barely move anyone. You slide off each other. Removes the whole ' +
-         'knock-them-out strategy for a level.',
-    sfx:{ voice:'slick frictionless squeal on contact' } },
+export const splitshot = {
+  id: 'splitshot', name: 'Splitshot', blurb: 'You become two.', exclusive: true,
+  stats: { radius: 0.75 },
+  // Doesn't call core/world.js's addMarble directly — content mutates world/marble state,
+  // it doesn't reach into the sim layer's constructors (docs/CLAUDE.md hook rules). Flags
+  // the split; sim/physics.js does the actual roster change once per tick.
+  onWallHit(m, world) {
+    if (m.hasSplit) return;
+    m.hasSplit = true;
+    world.pendingSplit = m;
+  },
+  sfx: { voice: 'sharp fission crack, then two voices' }
+};
 
-  { id:'feather', name:'Feather', blurb:'Everyone is weightless.', exclusive:false,
-    stats:{ mass:0.25, decelMul:0.7 },
-    spec:'Light and thrown around by everything. Bumpers and conveyors become dominant.',
-    sfx:{ voice:'hollow high ping' } },
+export const greased = {
+  id: 'greased', name: 'Greased', blurb: 'Nothing transfers.', exclusive: false,
+  stats: { ballE: 0.15 },
+  sfx: { voice: 'slick frictionless squeal on contact' }
+};
 
-  { id:'nitro', name:'Nitro', blurb:'A second kick mid-roll.', exclusive:false,
-    stats:{}, spec:'At roughly 45% of the roll, a burst re-accelerates the marble to ~70% of ' +
-    'launch speed. Wrecks everyone\'s distance judgement, including yours.',
-    sfx:{ voice:'turbo spool then blowoff valve' } },
+export const feather = {
+  id: 'feather', name: 'Feather', blurb: 'Everyone is weightless.', exclusive: false,
+  stats: { mass: 0.25, decelMul: 0.7 },
+  sfx: { voice: 'hollow high ping' }
+};
 
-  { id:'rewind', name:'Rewind', blurb:'One death per level does not count.', exclusive:true,
-    stats:{}, spec:'onDeath returns true once per level and snaps the marble back to its ' +
-    'position at the start of the turn. Exclusive — too strong stacked.',
-    sfx:{ voice:'tape rewind, reversed reverb' } },
+export const nitro = {
+  id: 'nitro', name: 'Nitro', blurb: 'A second kick mid-roll.', exclusive: false,
+  stats: {},
+  onLaunch(m) {
+    m.nitroLaunchSpeed = Math.hypot(m.vx, m.vy);
+    m.nitroFired = false;
+  },
+  onStep(m) {
+    if (m.nitroFired || !m.nitroLaunchSpeed) return;
+    const speed = Math.hypot(m.vx, m.vy);
+    if (speed <= 0 || speed > m.nitroLaunchSpeed * 0.45) return;
+    m.nitroFired = true;
+    const scale = (m.nitroLaunchSpeed * 0.7) / speed;
+    m.vx *= scale;
+    m.vy *= scale;
+  },
+  sfx: { voice: 'turbo spool then blowoff valve' }
+};
 
-  { id:'bomb', name:'Bomb', blurb:'You detonate where you stop.', exclusive:false,
-    stats:{}, spec:'On settle, a shockwave shoves every marble within radius. Can push others ' +
-    'into hazards — which means it can win the level for you or lose it.',
-    sfx:{ voice:'fuse hiss while rolling', settle:'blast + pressure wave' } },
+export const rewind = {
+  id: 'rewind', name: 'Rewind', blurb: 'One death per level does not count.', exclusive: true,
+  stats: {},
+  // "start of the turn" position is snapshotted in sim/turn.js's beginAim for every marble.
+  onDeath(m) {
+    if (m.rewindUsed) return false;
+    m.rewindUsed = true;
+    m.x = m.turnStartX ?? m.x;
+    m.y = m.turnStartY ?? m.y;
+    m.vx = 0;
+    m.vy = 0;
+    return true;
+  },
+  sfx: { voice: 'tape rewind, reversed reverb' }
+};
 
-  { id:'anchor', name:'Anchor', blurb:'Plant once. Nothing moves you.', exclusive:false,
-    stats:{}, spec:'One use per level: infinite mass for a turn. Immovable object on a ' +
-    'shrinking board.',
-    sfx:{ voice:'heavy clamp, then a dead solid thud on every impact' } },
+export const bomb = {
+  id: 'bomb', name: 'Bomb', blurb: 'You detonate where you stop.', exclusive: false,
+  stats: {},
+  onSettle(m, world) {
+    const RADIUS = 0.18, STRENGTH = 0.4;
+    for (const other of world.marbles) {
+      if (other === m || !other.alive) continue;
+      const dx = other.x - m.x, dy = other.y - m.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > RADIUS || dist < 1e-6) continue;
+      const falloff = 1 - dist / RADIUS;
+      other.vx += (dx / dist) * STRENGTH * falloff;
+      other.vy += (dy / dist) * STRENGTH * falloff;
+    }
+    world.events.emit('impact', { kind: 'bumper', force: STRENGTH, x: m.x, y: m.y });
+  },
+  sfx: { voice: 'fuse hiss while rolling', settle: 'blast + pressure wave' }
+};
 
-  { id:'blink', name:'Blink', blurb:'You jump before you roll.', exclusive:false,
-    stats:{}, spec:'On launch, teleport a short hop in the aim direction, then roll normally. ' +
-    'Lets you cross a hazard you could not roll over.',
-    sfx:{ voice:'electric snap, brief silence, then the roll' } },
+export const anchor = {
+  id: 'anchor', name: 'Anchor', blurb: 'Plant once. Nothing moves you.', exclusive: false,
+  stats: {},
+  // The one-flick-per-turn input model has no separate "plant" gesture, so this reads as a
+  // one-time automatic buff on a marble's second turn rather than a deliberate player choice.
+  onLaunch(m, world) {
+    if (m.anchorUsed) { m.mass = 1; return; }
+    if (world.turn < 1) return;
+    m.anchorUsed = true;
+    m.mass = 1e6;
+  },
+  sfx: { voice: 'heavy clamp, then a dead solid thud on every impact' }
+};
 
-  { id:'drill', name:'Drill', blurb:'You go through terrain.', exclusive:false,
-    stats:{}, spec:'Pass through pillars and bumpers, and fill small holes you cross — ' +
-    'repairing the board as you go. The only constructive power.',
-    sfx:{ voice:'whirring bore, pitch per speed' } },
+export const blink = {
+  id: 'blink', name: 'Blink', blurb: 'You jump before you roll.', exclusive: false,
+  stats: {},
+  onLaunch(m) {
+    const speed = Math.hypot(m.vx, m.vy);
+    if (speed < 1e-4) return;
+    const HOP = 0.06;
+    m.x += (m.vx / speed) * HOP;
+    m.y += (m.vy / speed) * HOP;
+    m.px = m.x;
+    m.py = m.y; // avoid a visible interpolation snap-line from the pre-hop position
+  },
+  sfx: { voice: 'electric snap, brief silence, then the roll' }
+};
 
-  { id:'frost', name:'Frost', blurb:'You leave ice behind you.', exclusive:false,
-    stats:{}, spec:'Your path becomes an ice trail with local friction override. Reshapes the ' +
-    'board for everyone, permanently.',
-    sfx:{ voice:'freezing crackle laid down behind the marble' } },
+export const drill = {
+  id: 'drill', name: 'Drill', blurb: 'You go through terrain.', exclusive: false,
+  stats: {},
+  passThroughTerrain: true, // sim/terrain.js skips dome/bumper collision for the level
+  onStep(m, world) {
+    const FILL_MAX_R = 0.045;
+    const holes = world.terrain.holes;
+    for (let i = holes.length - 1; i >= 0; i--) {
+      const h = holes[i];
+      if (h.r > FILL_MAX_R) continue;
+      if (Math.hypot(m.x - h.x, m.y - h.y) < h.r + m.r) holes.splice(i, 1);
+    }
+  },
+  sfx: { voice: 'whirring bore, pitch per speed' }
+};
 
-  { id:'siphon', name:'Siphon', blurb:'You steal speed.', exclusive:false,
-    stats:{}, spec:'On contact, take a share of the other marble\'s velocity instead of ' +
-    'exchanging it. They stop, you keep going.',
-    sfx:{ voice:'draining downward sweep on contact' } },
+export const frost = {
+  id: 'frost', name: 'Frost', blurb: 'You leave ice behind you.', exclusive: false,
+  stats: {},
+  onStep(m, world, dt) {
+    const speed = Math.hypot(m.vx, m.vy);
+    if (speed < 0.05) return;
+    m.frostTimer = (m.frostTimer ?? 0) + dt;
+    if (m.frostTimer < 0.08) return;
+    m.frostTimer = 0;
+    world.terrain.addIcePatch({ x: m.x, y: m.y, r: m.r * 1.5 });
+  },
+  sfx: { voice: 'freezing crackle laid down behind the marble' }
+};
 
-  { id:'boomerang', name:'Boomerang', blurb:'You come back.', exclusive:false,
-    stats:{}, spec:'Constant acceleration toward the launch point. The roll curves home. ' +
-    'Aim line must show the loop.',
-    sfx:{ voice:'rotating hum, doppler as it turns' } },
+export const siphon = {
+  id: 'siphon', name: 'Siphon', blurb: 'You steal speed.', exclusive: false,
+  stats: {},
+  onMarbleHit(m, other, world, force) {
+    if (force < 0.05) return;
+    const stolen = Math.hypot(other.vx, other.vy) * 0.6;
+    const base = Math.hypot(m.vx, m.vy) > 1e-4 ? m : other;
+    const baseLen = Math.hypot(base.vx, base.vy) || 1;
+    m.vx += (base.vx / baseLen) * stolen;
+    m.vy += (base.vy / baseLen) * stolen;
+    other.vx *= 0.15;
+    other.vy *= 0.15;
+  },
+  sfx: { voice: 'draining downward sweep on contact' }
+};
 
-  { id:'shield', name:'Shield', blurb:'Survive one lethal hit.', exclusive:false,
-    stats:{}, spec:'onDeath returns true once per level. Show the shield visually so the ' +
-    'player knows whether they still have it.',
-    sfx:{ voice:'bell chime absorbing the hit, glass ring decaying' } },
+export const boomerang = {
+  id: 'boomerang', name: 'Boomerang', blurb: 'You come back.', exclusive: false,
+  stats: {},
+  onLaunch(m) {
+    m.boomerangHome = { x: m.x, y: m.y };
+  },
+  onStep(m, world, dt) {
+    if (!m.boomerangHome) return;
+    const dx = m.boomerangHome.x - m.x, dy = m.boomerangHome.y - m.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1e-4) return;
+    m.vx += (dx / dist) * 0.25 * dt;
+    m.vy += (dy / dist) * 0.25 * dt;
+  },
+  sfx: { voice: 'rotating hum, doppler as it turns' }
+};
 
-  { id:'comet', name:'Comet', blurb:'You burn a trail.', exclusive:false,
-    stats:{ launchMul:1.4 },
-    spec:'A burning trail behind you becomes lethal terrain that fades over two turns. ' +
-    'Molten\'s aggressive sibling.',
-    sfx:{ voice:'roaring flame, gain tracks speed' } },
+export const shield = {
+  id: 'shield', name: 'Shield', blurb: 'Survive one lethal hit.', exclusive: false,
+  stats: {},
+  onDeath(m) {
+    if (m.shieldUsed) return false;
+    m.shieldUsed = true;
+    return true;
+  },
+  sfx: { voice: 'bell chime absorbing the hit, glass ring decaying' }
+};
 
-  { id:'shockwave', name:'Shockwave', blurb:'Your first wall hit moves everyone.', exclusive:false,
-    stats:{}, spec:'First rail contact per turn emits an expanding ring that shoves every ' +
-    'marble it passes. Turns a bank shot into a board-wide event.',
-    sfx:{ voice:'deep sonic boom, sub-bass ring expanding' } }
-];
+export const comet = {
+  id: 'comet', name: 'Comet', blurb: 'You burn a trail.', exclusive: false,
+  stats: { launchMul: 1.4 },
+  onStep(m, world, dt) {
+    const speed = Math.hypot(m.vx, m.vy);
+    if (speed >= 0.1) {
+      m.cometTimer = (m.cometTimer ?? 0) + dt;
+      if (m.cometTimer >= 0.06) {
+        m.cometTimer = 0;
+        const trail = world.terrain.addLava({ x: m.x, y: m.y, r: m.r * 1.3 });
+        trail.expiresOnTurn = world.turn + 2;
+      }
+    }
+    // powers have no onTurnStart, so expiry cleanup piggybacks on this per-tick hook —
+    // redundant across the 5 marbles calling it each tick, harmless given the array size
+    const lavas = world.terrain.lavas;
+    for (let i = lavas.length - 1; i >= 0; i--) {
+      if (lavas[i].expiresOnTurn !== undefined && world.turn >= lavas[i].expiresOnTurn) lavas.splice(i, 1);
+    }
+  },
+  sfx: { voice: 'roaring flame, gain tracks speed' }
+};
+
+export const shockwave = {
+  id: 'shockwave', name: 'Shockwave', blurb: 'Your first wall hit moves everyone.', exclusive: false,
+  stats: {},
+  onLaunch(m) { m.shockwaveFiredThisTurn = false; },
+  onWallHit(m, world) {
+    if (m.shockwaveFiredThisTurn) return;
+    m.shockwaveFiredThisTurn = true;
+    const RADIUS = 0.3, STRENGTH = 0.5;
+    for (const other of world.marbles) {
+      if (other === m || !other.alive) continue;
+      const dx = other.x - m.x, dy = other.y - m.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > RADIUS || dist < 1e-6) continue;
+      const falloff = 1 - dist / RADIUS;
+      other.vx += (dx / dist) * STRENGTH * falloff;
+      other.vy += (dy / dist) * STRENGTH * falloff;
+    }
+  },
+  sfx: { voice: 'deep sonic boom, sub-bass ring expanding' }
+};
+
+export const rest = [];

@@ -20,8 +20,7 @@
  * that has to track a continuous value.
  */
 
-import { addHole, addLava, growLava, shrinkRails, addBumper, addIcePatch,
-         addCrater, setWaterLine, addFissure, addConveyor } from '../sim/terrain.js';
+import { shrinkRails } from '../sim/terrain.js';
 
 /* ------------------------------------------------------------------ */
 /* THREE FULLY IMPLEMENTED EXEMPLARS — follow these patterns           */
@@ -231,97 +230,421 @@ export const tide = {
 };
 
 /* ------------------------------------------------------------------ */
-/* THE REST — metadata complete, hooks to implement                    */
-/* Implement in the order given in docs/BUILD-ORDER.md M6.             */
+/* M8 — the rest, all 19                                               */
 /* ------------------------------------------------------------------ */
 
-export const rest = [
-  { id:'crumble', name:'Crumbling Edge', blurb:'The outside is falling away.', soloOnly:false, severityCurve:12,
-    spec:'No rails. The outer ring of the board falls away turn by turn. A shrinking island ' +
-         'with sheer drops — rectangular cousin of sumo.',
-    sfx:{ bed:'distant rubble tumbling into nothing', stinger:'a slab letting go' } },
+export const crumble = {
+  id: 'crumble', name: 'Crumbling Edge', blurb: 'The outside is falling away.',
+  soloOnly: false, severityCurve: 12,
+  sfx: { bed: 'distant rubble tumbling into nothing', stinger: 'a slab letting go' },
+  onLevelStart(world) { world.rails = false; },
+  onTurnStart(world, turn) {
+    shrinkRails(world, 0.05 * (1 + turn * 0.05));
+    world.events.emit('degrade', { id: 'crumble', turn });
+  },
+  onStep(world) {
+    for (const m of world.marbles) {
+      if (!m.alive) continue;
+      if (m.x < world.bounds.l || m.x > world.bounds.r || m.y < world.bounds.t || m.y > world.bounds.b) {
+        m.lethalCause = 'fell';
+      }
+    }
+  }
+};
 
-  { id:'fault', name:'Fault', blurb:'The ground is cracking.', soloOnly:false, severityCurve:9,
-    spec:'Straight jagged chasms open along fault lines rather than round pits. The board ' +
-         'becomes a maze of narrow bridges.',
-    sfx:{ bed:'tectonic groan', stinger:'sharp crack, hard transient' } },
+export const fault = {
+  id: 'fault', name: 'Fault', blurb: 'The ground is cracking.',
+  soloOnly: false, severityCurve: 9,
+  sfx: { bed: 'tectonic groan', stinger: 'sharp crack, hard transient' },
+  onTurnStart(world, turn) {
+    const severity = Math.min(1, turn / this.severityCurve);
+    const count = 1 + Math.floor(severity * 1.5);
+    for (let i = 0; i < count; i++) {
+      const x1 = world.rng.range(world.bounds.l + 0.1, world.bounds.r - 0.1);
+      const y1 = world.rng.range(world.bounds.t + 0.1, world.bounds.b - 0.1);
+      const angle = world.rng.range(0, Math.PI * 2);
+      const len = 0.15 + severity * 0.15;
+      world.terrain.addFissure({
+        x1, y1, x2: x1 + Math.cos(angle) * len, y2: y1 + Math.sin(angle) * len,
+        width: 0.02 + severity * 0.02
+      });
+    }
+    world.events.emit('degrade', { id: 'fault', turn });
+  }
+};
 
-  { id:'freeze', name:'Deep Freeze', blurb:'It is icing over.', soloOnly:false, severityCurve:10,
-    spec:'Floor converts to ice patch by patch until the whole board is frictionless and ' +
-         'nobody can stop where they want.',
-    sfx:{ bed:'crystalline ringing into howling wind', stinger:'sharp freeze crack' } },
+export const freeze = {
+  id: 'freeze', name: 'Deep Freeze', blurb: 'It is icing over.',
+  soloOnly: false, severityCurve: 10,
+  sfx: { bed: 'crystalline ringing into howling wind', stinger: 'sharp freeze crack' },
+  onTurnStart(world, turn) {
+    const severity = Math.min(1, turn / this.severityCurve);
+    world.terrain.addIcePatch({
+      x: world.rng.range(world.bounds.l + 0.05, world.bounds.r - 0.05),
+      y: world.rng.range(world.bounds.t + 0.05, world.bounds.b - 0.05),
+      r: 0.08 + severity * 0.1
+    });
+    world.events.emit('degrade', { id: 'freeze', turn });
+  }
+};
 
-  { id:'ashfall', name:'Ashfall', blurb:'Debris is coming down.', soloOnly:false, severityCurve:8,
-    spec:'Rubble drops each turn, adding new bumps, pillars and blockers. Not lethal itself ' +
-         'but it wrecks every line you had planned.',
-    sfx:{ bed:'soft thudding rain of stone', stinger:'a heavy chunk landing' } },
+export const ashfall = {
+  id: 'ashfall', name: 'Ashfall', blurb: 'Debris is coming down.',
+  soloOnly: false, severityCurve: 8,
+  sfx: { bed: 'soft thudding rain of stone', stinger: 'a heavy chunk landing' },
+  onTurnStart(world, turn) {
+    const severity = Math.min(1, turn / this.severityCurve);
+    const count = 1 + Math.floor(severity * 2);
+    for (let i = 0; i < count; i++) {
+      world.terrain.addDome({
+        x: world.rng.range(world.bounds.l + 0.08, world.bounds.r - 0.08),
+        y: world.rng.range(world.bounds.t + 0.08, world.bounds.b - 0.08),
+        r: 0.025 + world.rng.range(0, 0.02)
+      });
+    }
+    world.events.emit('degrade', { id: 'ashfall', turn });
+  }
+};
 
-  { id:'rust', name:'Rust', blurb:'The rails are failing.', soloOnly:false, severityCurve:9,
-    spec:'Gaps open in the rails and widen. The edges stop being safe to bank off.',
-    sfx:{ bed:'metal fatigue creaking', stinger:'a snap, then a section falling' } },
+// Rust owns its own wall check instead of terrain-based hazards: gaps open at random points
+// around the whole perimeter, not fixed to terrain the generic hazard system already knows
+// about. world.rails = false disables the normal bounce; this onStep IS the wall now.
+function inRustGap(gaps, edge, frac) {
+  return gaps.some((g) => g.edge === edge && Math.abs(frac - g.center) < g.half);
+}
 
-  { id:'split', name:'The Split', blurb:'It is coming apart.', soloOnly:false, severityCurve:10,
-    spec:'A chasm opens down the middle and the two halves pull apart, widening every turn.',
-    sfx:{ bed:'deep tearing', stinger:'stone shearing' } },
+export const rust = {
+  id: 'rust', name: 'Rust', blurb: 'The rails are failing.',
+  soloOnly: false, severityCurve: 9,
+  sfx: { bed: 'metal fatigue creaking', stinger: 'a snap, then a section falling' },
+  onLevelStart(world) {
+    world.rails = false;
+    world.rustGaps = [];
+  },
+  onTurnStart(world, turn) {
+    const severity = Math.min(1, turn / this.severityCurve);
+    world.rustGaps.push({
+      edge: world.rng.pick(['l', 'r', 't', 'b']),
+      center: world.rng.range(0.15, 0.85),
+      half: 0.04 + severity * 0.05
+    });
+    world.events.emit('degrade', { id: 'rust', turn });
+  },
+  onStep(world) {
+    const { l, r, t, b } = world.bounds;
+    const wallE = world.surface.wallE;
+    for (const m of world.marbles) {
+      if (!m.alive || m.lethalCause) continue;
+      const effE = m.wallE ?? wallE;
+      if (m.x - m.r < l) {
+        if (inRustGap(world.rustGaps, 'l', (m.y - t) / (b - t))) m.lethalCause = 'fell';
+        else { m.x = l + m.r; m.vx = -m.vx * effE; }
+      } else if (m.x + m.r > r) {
+        if (inRustGap(world.rustGaps, 'r', (m.y - t) / (b - t))) m.lethalCause = 'fell';
+        else { m.x = r - m.r; m.vx = -m.vx * effE; }
+      }
+      if (m.y - m.r < t) {
+        if (inRustGap(world.rustGaps, 't', (m.x - l) / (r - l))) m.lethalCause = 'fell';
+        else { m.y = t + m.r; m.vy = -m.vy * effE; }
+      } else if (m.y + m.r > b) {
+        if (inRustGap(world.rustGaps, 'b', (m.x - l) / (r - l))) m.lethalCause = 'fell';
+        else { m.y = b - m.r; m.vy = -m.vy * effE; }
+      }
+    }
+  }
+};
 
-  { id:'magnet', name:'Magnet Core', blurb:'The centre is pulling.', soloOnly:false, severityCurve:11,
-    spec:'Continuous force toward the centre, stronger each turn. Vicious paired with ' +
-         'sinkhole. Implement in onStep as an acceleration, not a teleport.',
-    sfx:{ bed:'electromagnetic hum climbing in pitch', stinger:'coil surge' } },
+export const split = {
+  id: 'split', name: 'The Split', blurb: 'It is coming apart.',
+  soloOnly: false, severityCurve: 10,
+  sfx: { bed: 'deep tearing', stinger: 'stone shearing' },
+  onLevelStart(world) {
+    const vertical = world.rng.next() < 0.5;
+    const cx = world.w / 2, cy = world.h / 2;
+    world.splitChasm = vertical
+      ? world.terrain.addFissure({ x1: cx, y1: world.bounds.t, x2: cx, y2: world.bounds.b, width: 0.02 })
+      : world.terrain.addFissure({ x1: world.bounds.l, y1: cy, x2: world.bounds.r, y2: cy, width: 0.02 });
+  },
+  onTurnStart(world, turn) {
+    world.splitChasm.width += 0.015 * (1 + turn * 0.06);
+    world.events.emit('degrade', { id: 'split', turn });
+  }
+};
 
-  { id:'tilt', name:'Tilt', blurb:'The board is leaning.', soloOnly:false, severityCurve:10,
-    spec:'Constant acceleration in one direction, increasing each turn, with a rail gap on ' +
-         'the low side.',
-    sfx:{ bed:'timber straining under load', stinger:'a lurch' } },
+export const magnet = {
+  id: 'magnet', name: 'Magnet Core', blurb: 'The centre is pulling.',
+  soloOnly: false, severityCurve: 11,
+  sfx: { bed: 'electromagnetic hum climbing in pitch', stinger: 'coil surge' },
+  onLevelStart(world) { world.magnetStrength = 0; },
+  onTurnStart(world, turn) {
+    world.magnetStrength = 0.15 * (1 + turn * 0.15);
+    world.events.emit('degrade', { id: 'magnet', turn });
+  },
+  onStep(world, dt) {
+    const cx = world.w / 2, cy = world.h / 2;
+    for (const m of world.marbles) {
+      if (!m.alive || m.lethalCause) continue;
+      const dx = cx - m.x, dy = cy - m.y;
+      const d = Math.hypot(dx, dy);
+      if (d < 1e-6) continue;
+      m.vx += (dx / d) * world.magnetStrength * dt;
+      m.vy += (dy / d) * world.magnetStrength * dt;
+    }
+  }
+};
 
-  { id:'scorch', name:'Scorch', blurb:'The floor remembers where you stopped.', soloOnly:false, severityCurve:8,
-    spec:'Resting in the same region twice burns you. Forces constant movement. Mark regions ' +
-         'visibly after each settle.',
-    sfx:{ bed:'embers crackling', stinger:'ignition whoosh' } },
+export const tilt = {
+  id: 'tilt', name: 'Tilt', blurb: 'The board is leaning.',
+  soloOnly: false, severityCurve: 10,
+  sfx: { bed: 'timber straining under load', stinger: 'a lurch' },
+  onLevelStart(world) {
+    const angle = world.rng.pick([0, Math.PI / 2, Math.PI, Math.PI * 1.5]);
+    world.tiltDir = { x: Math.cos(angle), y: Math.sin(angle) };
+    world.tiltStrength = 0;
+    const { l, r, t, b } = world.bounds;
+    let seg;
+    if (angle === 0) seg = { x1: r, y1: t, x2: r, y2: b };
+    else if (Math.abs(angle - Math.PI / 2) < 0.01) seg = { x1: l, y1: b, x2: r, y2: b };
+    else if (Math.abs(angle - Math.PI) < 0.01) seg = { x1: l, y1: t, x2: l, y2: b };
+    else seg = { x1: l, y1: t, x2: r, y2: t };
+    world.tiltGap = world.terrain.addFissure({ ...seg, width: 0.015 });
+  },
+  onTurnStart(world, turn) {
+    world.tiltStrength = 0.12 * (1 + turn * 0.12);
+    world.tiltGap.width += 0.008;
+    world.events.emit('degrade', { id: 'tilt', turn });
+  },
+  onStep(world, dt) {
+    for (const m of world.marbles) {
+      if (!m.alive || m.lethalCause) continue;
+      m.vx += world.tiltDir.x * world.tiltStrength * dt;
+      m.vy += world.tiltDir.y * world.tiltStrength * dt;
+    }
+  }
+};
 
-  { id:'carousel', name:'Carousel', blurb:'The whole floor is turning.', soloOnly:true, severityCurve:10,
-    spec:'The board rotates, faster every turn, flinging marbles outward. Enough chaos alone.',
-    sfx:{ bed:'rising rotational whoosh with a doppler edge', stinger:'gear engaging' } },
+export const scorch = {
+  id: 'scorch', name: 'Scorch', blurb: 'The floor remembers where you stopped.',
+  soloOnly: false, severityCurve: 8,
+  sfx: { bed: 'embers crackling', stinger: 'ignition whoosh' },
+  // checkHazards (terrain.js) already runs every tick and catches a marble settling on an
+  // existing ARMED mark — this just needs to leave a fresh one so a second visit next time
+  // is caught too. Same primitive molten's power uses, just laid by the environment itself.
+  onSettle(world) {
+    for (const m of world.marbles) {
+      if (!m.alive) continue;
+      world.terrain.addScorch({ x: m.x, y: m.y, r: m.r * 2, armsOnTurn: world.turn + 1, source: 'scorch' });
+    }
+  },
+  onTurnStart(world, turn) {
+    world.events.emit('degrade', { id: 'scorch', turn });
+  }
+};
 
-  { id:'pinball', name:'Pinball', blurb:'Bumpers everywhere.', soloOnly:false, severityCurve:8,
-    spec:'Sprung bumpers spawn each turn and get springier. Restitution above 1 on contact.',
-    sfx:{ bed:'idle arcade hum', stinger:'spring and bell per bumper spawn' } },
+export const carousel = {
+  id: 'carousel', name: 'Carousel', blurb: 'The whole floor is turning.',
+  soloOnly: true, severityCurve: 10,
+  sfx: { bed: 'rising rotational whoosh with a doppler edge', stinger: 'gear engaging' },
+  onLevelStart(world) { world.carouselOmega = 0; },
+  onTurnStart(world, turn) {
+    world.carouselOmega = 0.3 * (1 + turn * 0.15);
+    world.events.emit('degrade', { id: 'carousel', turn });
+  },
+  onStep(world, dt) {
+    const cx = world.w / 2, cy = world.h / 2;
+    for (const m of world.marbles) {
+      if (!m.alive || m.lethalCause) continue;
+      const dx = m.x - cx, dy = m.y - cy;
+      m.vx += -dy * world.carouselOmega * dt;
+      m.vy += dx * world.carouselOmega * dt;
+    }
+  }
+};
 
-  { id:'shatter', name:'Shatter', blurb:'You are rolling on glass.', soloOnly:false, severityCurve:9,
-    spec:'Glass floor. Impacts crack it; cracks accumulate and panes eventually fall out, ' +
-         'becoming holes. The player creates their own hazards by playing.',
-    sfx:{ bed:'faint tension ring', stinger:'tinkling fracture, then a pane letting go' } },
+export const pinball = {
+  id: 'pinball', name: 'Pinball', blurb: 'Bumpers everywhere.',
+  soloOnly: false, severityCurve: 8,
+  sfx: { bed: 'idle arcade hum', stinger: 'spring and bell per bumper spawn' },
+  onTurnStart(world, turn) {
+    const severity = Math.min(1, turn / this.severityCurve);
+    world.terrain.addBumper({
+      x: world.rng.range(world.bounds.l + 0.08, world.bounds.r - 0.08),
+      y: world.rng.range(world.bounds.t + 0.08, world.bounds.b - 0.08),
+      r: 0.025, restitution: 1.2 + severity * 0.5
+    });
+    world.events.emit('degrade', { id: 'pinball', turn });
+  }
+};
 
-  { id:'grinder', name:'The Grinder', blurb:'Something is sweeping the board.', soloOnly:true, severityCurve:9,
-    spec:'A roller sweeps a line across the board between turns, faster each turn. Anything ' +
-         'in its path is out. Telegraph its next path during AIM.',
-    sfx:{ bed:'industrial motor, panned to follow the roller', stinger:'gear shift, speed up' } },
+export const shatter = {
+  id: 'shatter', name: 'Shatter', blurb: 'You are rolling on glass.',
+  soloOnly: false, severityCurve: 9,
+  sfx: { bed: 'faint tension ring', stinger: 'tinkling fracture, then a pane letting go' },
+  onLevelStart(world) {
+    world.shatterCracks = [];
+    world.events.on('impact', ({ kind, force, x, y }) => {
+      if ((kind !== 'marble' && kind !== 'rail') || force < 0.15) return;
+      world.shatterCracks.push({ x, y });
+      if (world.shatterCracks.length % 6 === 0) {
+        const recent = world.shatterCracks.slice(-6);
+        const cx = recent.reduce((s, c) => s + c.x, 0) / 6;
+        const cy = recent.reduce((s, c) => s + c.y, 0) / 6;
+        world.terrain.addHole({ x: cx, y: cy, r: 0.035 });
+      }
+    });
+  },
+  onTurnStart(world, turn) {
+    world.events.emit('degrade', { id: 'shatter', turn });
+  }
+};
 
-  { id:'blackout', name:'Blackout', blurb:'The lights are going.', soloOnly:true, severityCurve:8,
-    spec:'Visibility shrinks turn by turn to a pool around your own marble. Hazards stay ' +
-         'where they were — you just cannot see them. Never hide the player marble.',
-    sfx:{ bed:'hum draining out into near-silence; rolling bed becomes the main information', stinger:'a bank of lights cutting' } },
+export const grinder = {
+  id: 'grinder', name: 'The Grinder', blurb: 'Something is sweeping the board.',
+  soloOnly: true, severityCurve: 9,
+  sfx: { bed: 'industrial motor, panned to follow the roller', stinger: 'gear shift, speed up' },
+  onLevelStart(world) {
+    world.grinderAxis = world.rng.next() < 0.5 ? 'x' : 'y';
+    world.grinderPos = 0;
+    world.grinderDir = 1;
+  },
+  onTurnStart(world, turn) {
+    // telegraphed all through the coming AIM phase — position is on world, renderers draw it
+    world.grinderPos += world.grinderDir * 0.12 * (1 + turn * 0.06);
+    if (world.grinderPos > 1) { world.grinderPos = 1; world.grinderDir = -1; }
+    else if (world.grinderPos < 0) { world.grinderPos = 0; world.grinderDir = 1; }
+    const linePos = world.grinderAxis === 'x'
+      ? world.bounds.l + world.grinderPos * (world.bounds.r - world.bounds.l)
+      : world.bounds.t + world.grinderPos * (world.bounds.b - world.bounds.t);
+    for (const m of world.marbles) {
+      if (!m.alive) continue;
+      const p = world.grinderAxis === 'x' ? m.x : m.y;
+      if (Math.abs(p - linePos) < m.r + 0.015) m.lethalCause = 'crushed';
+    }
+    world.events.emit('degrade', { id: 'grinder', turn });
+  }
+};
 
-  { id:'quicksand', name:'Quicksand', blurb:'Patches that swallow.', soloOnly:false, severityCurve:9,
-    spec:'Spreading patches. Anything that comes to rest on one, or crosses too slowly, sinks.',
-    sfx:{ bed:'sucking gurgle', stinger:'a wet swallow' } },
+export const blackout = {
+  id: 'blackout', name: 'Blackout', blurb: 'The lights are going.',
+  soloOnly: true, severityCurve: 8,
+  sfx: {
+    bed: 'hum draining out into near-silence; rolling bed becomes the main information',
+    stinger: 'a bank of lights cutting'
+  },
+  onLevelStart(world) { world.blackoutRadius = 0.5; },
+  onTurnStart(world, turn) {
+    // never below a floor that still comfortably shows the player's own marble
+    world.blackoutRadius = Math.max(0.12, 0.5 - turn * 0.05);
+    world.events.emit('degrade', { id: 'blackout', turn });
+  }
+};
 
-  { id:'meteor', name:'Meteor', blurb:'Something is coming down.', soloOnly:false, severityCurve:10,
-    spec:'Impacts punch new craters. Telegraph each strike one full turn ahead with a marker ' +
-         'so it is a decision, not a punishment.',
-    sfx:{ bed:'ominous air pressure', stinger:'whistle in, colossal boom, debris' } },
+export const quicksand = {
+  id: 'quicksand', name: 'Quicksand', blurb: 'Patches that swallow.',
+  soloOnly: false, severityCurve: 9,
+  sfx: { bed: 'sucking gurgle', stinger: 'a wet swallow' },
+  onLevelStart(world) { world.quicksandPatches = []; },
+  onTurnStart(world, turn) {
+    const severity = Math.min(1, turn / this.severityCurve);
+    world.quicksandPatches.push({
+      x: world.rng.range(world.bounds.l + 0.08, world.bounds.r - 0.08),
+      y: world.rng.range(world.bounds.t + 0.08, world.bounds.b - 0.08),
+      r: 0.05 + severity * 0.03
+    });
+    world.events.emit('degrade', { id: 'quicksand', turn });
+  },
+  onStep(world) {
+    const SINK_SPEED = 0.12;
+    for (const m of world.marbles) {
+      if (!m.alive || m.lethalCause) continue;
+      for (const p of world.quicksandPatches) {
+        if (Math.hypot(m.x - p.x, m.y - p.y) > p.r) continue;
+        if (Math.hypot(m.vx, m.vy) < SINK_SPEED) { m.lethalCause = 'drowned'; break; }
+      }
+    }
+  }
+};
 
-  { id:'conveyor', name:'Conveyor', blurb:'The floor is moving.', soloOnly:false, severityCurve:9,
-    spec:'Belt strips push marbles along. More belts each turn, in conflicting directions.',
-    sfx:{ bed:'rubber drone, pitch per belt speed', stinger:'motor kicking in' } },
+export const meteor = {
+  id: 'meteor', name: 'Meteor', blurb: 'Something is coming down.',
+  soloOnly: false, severityCurve: 10,
+  sfx: { bed: 'ominous air pressure', stinger: 'whistle in, colossal boom, debris' },
+  onLevelStart(world) { world.meteorNext = null; },
+  onTurnStart(world, turn) {
+    if (world.meteorNext) {
+      world.terrain.addCrater({ x: world.meteorNext.x, y: world.meteorNext.y, r: 0.05 });
+      world.terrain.addHole({ x: world.meteorNext.x, y: world.meteorNext.y, r: 0.04 });
+    }
+    // telegraphed one full turn ahead, visible through the coming AIM — a decision, not a
+    // punishment
+    world.meteorNext = {
+      x: world.rng.range(world.bounds.l + 0.1, world.bounds.r - 0.1),
+      y: world.rng.range(world.bounds.t + 0.1, world.bounds.b - 0.1)
+    };
+    world.events.emit('degrade', { id: 'meteor', turn });
+  }
+};
 
-  { id:'windstorm', name:'Windstorm', blurb:'The wind is picking up.', soloOnly:false, severityCurve:10,
-    spec:'Directional force curving every roll, strengthening each turn, occasionally ' +
-         'changing direction. Show it with drifting particles.',
-    sfx:{ bed:'building gale, filtered noise tracking strength', stinger:'a gust' } },
+export const conveyor = {
+  id: 'conveyor', name: 'Conveyor', blurb: 'The floor is moving.',
+  soloOnly: false, severityCurve: 9,
+  sfx: { bed: 'rubber drone, pitch per belt speed', stinger: 'motor kicking in' },
+  onTurnStart(world, turn) {
+    const severity = Math.min(1, turn / this.severityCurve);
+    const horizontal = world.rng.next() < 0.5;
+    const dir = world.rng.next() < 0.5 ? 1 : -1;
+    const speed = 0.25 + severity * 0.15;
+    world.terrain.addConveyor({
+      x: world.rng.range(world.bounds.l + 0.1, world.bounds.r - 0.1),
+      y: world.rng.range(world.bounds.t + 0.1, world.bounds.b - 0.1),
+      w: horizontal ? 0.25 : 0.08, h: horizontal ? 0.08 : 0.25,
+      vx: horizontal ? dir * speed : 0, vy: horizontal ? 0 : dir * speed
+    });
+    world.events.emit('degrade', { id: 'conveyor', turn });
+  }
+};
 
-  { id:'vice', name:'The Vice', blurb:'Two walls are closing.', soloOnly:false, severityCurve:10,
-    spec:'Two opposite rails close in; the other two never move. Creates a long corridor ' +
-         'rather than a shrinking box — plays very differently from closing.',
-    sfx:{ bed:'hydraulic press, pressure building', stinger:'ram advancing one notch' } }
-];
+export const windstorm = {
+  id: 'windstorm', name: 'Windstorm', blurb: 'The wind is picking up.',
+  soloOnly: false, severityCurve: 10,
+  sfx: { bed: 'building gale, filtered noise tracking strength', stinger: 'a gust' },
+  onLevelStart(world) {
+    world.windAngle = world.rng.range(0, Math.PI * 2);
+    world.windStrength = 0;
+  },
+  onTurnStart(world, turn) {
+    world.windStrength = 0.1 * (1 + turn * 0.12);
+    if (world.rng.next() < 0.3) world.windAngle += world.rng.range(-1, 1);
+    world.events.emit('degrade', { id: 'windstorm', turn });
+  },
+  onStep(world, dt) {
+    const fx = Math.cos(world.windAngle) * world.windStrength;
+    const fy = Math.sin(world.windAngle) * world.windStrength;
+    for (const m of world.marbles) {
+      if (!m.alive || m.lethalCause) continue;
+      m.vx += fx * dt;
+      m.vy += fy * dt;
+    }
+  }
+};
+
+export const vice = {
+  id: 'vice', name: 'The Vice', blurb: 'Two walls are closing.',
+  soloOnly: false, severityCurve: 10,
+  sfx: { bed: 'hydraulic press, pressure building', stinger: 'ram advancing one notch' },
+  onLevelStart(world) { world.viceVertical = world.rng.next() < 0.5; },
+  onTurnStart(world, turn) {
+    const bite = 0.04 * (1 + turn * 0.07) * world.w;
+    if (world.viceVertical) { world.bounds.l += bite; world.bounds.r -= bite; }
+    else { world.bounds.t += bite; world.bounds.b -= bite; }
+    for (const m of world.marbles) {
+      if (!m.alive) continue;
+      if (m.x < world.bounds.l || m.x > world.bounds.r || m.y < world.bounds.t || m.y > world.bounds.b) {
+        m.lethalCause = 'crushed';
+      }
+    }
+    world.events.emit('degrade', { id: 'vice', turn });
+  }
+};
+
+export const rest = [];

@@ -19,13 +19,24 @@ export function resolveEliminations(world) {
   if (dying.length === 0) return;
 
   const aliveCount = world.marbles.filter(m => m.alive).length;
-  if (dying.length >= aliveCount) {
-    const spared = dying.find(m => m.isPlayer) ?? dying[0];
-    spared.lethalCause = null;
-    dying.splice(dying.indexOf(spared), 1);
+
+  // shield/rewind get first say — a power's onDeath can veto its own marble's death. The
+  // never-empty-the-board rule below is the backstop for whatever's left after that, not a
+  // substitute for it.
+  const stillDying = [];
+  for (const m of dying) {
+    const vetoed = world.power?.onDeath?.(m, world);
+    if (vetoed) m.lethalCause = null;
+    else stillDying.push(m);
   }
 
-  for (const m of dying) {
+  if (stillDying.length >= aliveCount) {
+    const spared = stillDying.find(m => m.isPlayer) ?? stillDying[0];
+    spared.lethalCause = null;
+    stillDying.splice(stillDying.indexOf(spared), 1);
+  }
+
+  for (const m of stillDying) {
     m.alive = false;
     world.events.emit('death', { marble: m, cause: m.lethalCause });
   }

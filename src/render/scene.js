@@ -9,7 +9,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { createBoard, boardToScene } from './board.js';
 import { createMarbleSystem } from './marbles.js';
 
-const MAX_MARBLES = 5;
+const MAX_MARBLES = 8; // 5 to start, plus headroom for splitshot growing the roster
 const FOV = 32;
 const ELEVATION = THREE.MathUtils.degToRad(58); // "fixed three-quarter top-down"
 const AZIMUTH = THREE.MathUtils.degToRad(-22);  // off-axis so rails read as having depth
@@ -73,6 +73,9 @@ export function createRenderer3D(canvas) {
     if (world.w !== lastW || world.h !== lastH) fitCamera(world);
 
     marbles.sync(world, alpha);
+
+    const player = world.marbles.find((m) => m.isPlayer && m.alive);
+    board.updateBlackout(world, player ? boardToScene(player.x, player.y, world.w, world.h) : null);
 
     if (drag) {
       const [ox, oz] = boardToScene(drag.originX, drag.originY, world.w, world.h);

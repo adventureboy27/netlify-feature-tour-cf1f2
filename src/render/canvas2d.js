@@ -39,7 +39,9 @@ export function createRenderer(canvas) {
     }
 
     drawTerrain(ctx, world);
+    drawEnvironmentExtras(ctx, world);
 
+    let playerX = null, playerY = null;
     for (const m of world.marbles) {
       if (!m.alive) continue;
       const x = m.px + (m.x - m.px) * alpha;
@@ -47,10 +49,16 @@ export function createRenderer(canvas) {
       drawMarble(ctx, x, y, m.r, m.colour);
       // non-negotiable #6: the player is identified by a marker OUTSIDE the ball, never
       // by colour — a slowly rotating white ring with four orbiting pips.
-      if (m.isPlayer) drawPlayerRing(ctx, x, y, m.r, world.time);
+      if (m.isPlayer) { drawPlayerRing(ctx, x, y, m.r, world.time); playerX = x; playerY = y; }
     }
 
     if (drag) drawAim(ctx, drag);
+
+    // blackout draws last, over everything except the (already-drawn) player marble+ring —
+    // "never hide the player marble"
+    if (world.blackoutRadius != null && playerX != null) {
+      drawBlackout(ctx, world, playerX, playerY);
+    }
   }
 
   return { resize, draw };
@@ -244,6 +252,58 @@ function drawTerrain(ctx, world) {
     ctx.fillStyle = armed ? 'rgba(255,80,20,0.6)' : 'rgba(60,40,30,0.6)';
     ctx.fill();
   }
+}
+
+// The handful of environments whose state doesn't live in world.terrain (quicksand's
+// patches, meteor's telegraph, grinder's sweep line) — drawn from world directly.
+function drawEnvironmentExtras(ctx, world) {
+  if (world.quicksandPatches) {
+    for (const p of world.quicksandPatches) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(90,80,40,0.5)';
+      ctx.fill();
+    }
+  }
+
+  if (world.meteorNext) {
+    ctx.beginPath();
+    ctx.arc(world.meteorNext.x, world.meteorNext.y, 0.05, 0, Math.PI * 2);
+    ctx.setLineDash([0.01, 0.01]);
+    ctx.strokeStyle = 'rgba(255,120,60,0.8)';
+    ctx.lineWidth = 0.005;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  if (world.grinderAxis) {
+    ctx.beginPath();
+    if (world.grinderAxis === 'x') {
+      const x = world.bounds.l + world.grinderPos * (world.bounds.r - world.bounds.l);
+      ctx.moveTo(x, world.bounds.t);
+      ctx.lineTo(x, world.bounds.b);
+    } else {
+      const y = world.bounds.t + world.grinderPos * (world.bounds.b - world.bounds.t);
+      ctx.moveTo(world.bounds.l, y);
+      ctx.lineTo(world.bounds.r, y);
+    }
+    ctx.strokeStyle = 'rgba(200,60,60,0.85)';
+    ctx.lineWidth = 0.015;
+    ctx.stroke();
+  }
+}
+
+// "Visibility shrinks to a pool around your own marble." Punches a hole in a dark overlay
+// using the evenodd fill rule rather than compositing tricks, so it stays simple canvas 2D.
+function drawBlackout(ctx, world, px, py) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, world.w, world.h);
+  ctx.moveTo(px + world.blackoutRadius, py);
+  ctx.arc(px, py, world.blackoutRadius, 0, Math.PI * 2, true);
+  ctx.fillStyle = 'rgba(5,3,2,0.98)';
+  ctx.fill('evenodd');
+  ctx.restore();
 }
 
 function drawWater(ctx, world, water) {

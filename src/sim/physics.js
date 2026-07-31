@@ -1,4 +1,5 @@
 import { applyTerrainForces, resolveTerrainObstacles, checkHazards, decelOverrideAt } from './terrain.js';
+import { addMarble } from '../core/world.js';
 
 /**
  * Integration, rolling resistance, wall bounce, elastic marble-marble collisions, and
@@ -41,6 +42,27 @@ export function stepPhysics(world, dt) {
   resolveMarbleCollisions(world);
   world.environment?.onStep?.(world, dt);
   checkHazards(world);
+  processPendingSplit(world);
+}
+
+// splitshot flags a split (world.pendingSplit = m) rather than creating the clone itself —
+// content mutates state, it doesn't call sim constructors (docs/CLAUDE.md hook rules). This
+// is the one place that actually grows the roster.
+function processPendingSplit(world) {
+  const m = world.pendingSplit;
+  if (!m) return;
+  world.pendingSplit = null;
+  m.r *= 0.6;
+  m.mass *= 0.6;
+  const clone = addMarble(world, {
+    x: m.x + m.r * 2, y: m.y, isPlayer: m.isPlayer,
+    r: m.r, mass: m.mass, decelMul: m.decelMul, launchMul: m.launchMul, wallE: m.wallE, ballE: m.ballE
+  });
+  clone.hasSplit = true;
+  clone.vx = -m.vx * 0.6;
+  clone.vy = -m.vy * 0.6 + 0.05;
+  m.vx *= 0.6;
+  m.vy *= 0.6;
 }
 
 function applyRollingResistance(m, decel, viscous, dt) {
@@ -64,7 +86,7 @@ function bounceOffWalls(m, world, wallE, power) {
   if (m.y - m.r < t) { force = Math.max(force, Math.abs(m.vy)); m.y = t + m.r; m.vy = -m.vy * effE; }
   else if (m.y + m.r > b) { force = Math.max(force, Math.abs(m.vy)); m.y = b - m.r; m.vy = -m.vy * effE; }
   if (force > 0) {
-    world.events.emit('impact', { kind: 'rail', force });
+    world.events.emit('impact', { kind: 'rail', force, x: m.x, y: m.y });
     power?.onWallHit?.(m, world, force);
   }
 }
@@ -117,7 +139,7 @@ function resolveMarbleCollisions(world) {
       b.vy += iy * invB;
 
       const force = Math.abs(velAlongNormal);
-      world.events.emit('impact', { kind: 'marble', force });
+      world.events.emit('impact', { kind: 'marble', force, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
       // each side gets a chance to react to what it hit — a mutual collision between two
       // marbles sharing the power (cannonball vs cannonball) fires it for both
       power?.onMarbleHit?.(a, b, world, force);

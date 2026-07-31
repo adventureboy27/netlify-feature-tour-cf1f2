@@ -7,9 +7,15 @@ import { checkWin, resolveEliminations } from './rules.js';
 import { assignRestColours } from './terrain.js';
 
 const REST_EPS = 1e-3;
+// A backstop, not a pacing target: with 676 environment x power combinations, some pairing
+// of continuous forces (e.g. magnet + magnetic, both pulling marbles together) can settle
+// into a state that never drops every marble below REST_EPS at once. Normal turns settle
+// in single-digit seconds; this only ever fires on a pairing that wouldn't otherwise end.
+const ROLL_TIMEOUT = 18;
 
 export function createTurnMachine(world) {
   let phase = 'AIM';
+  let rollStartTime = 0;
   const cpuAim = new Map(); // marble -> pending {vx, vy}, set for the whole AIM phase
 
   function setPhase(next) {
@@ -24,7 +30,11 @@ export function createTurnMachine(world) {
     cpuAim.clear();
     const margin = 0.1;
     for (const m of world.marbles) {
-      if (!m.alive || m.isPlayer) continue;
+      if (!m.alive) continue;
+      // "start of the turn" position, for anything that snaps a marble back (rewind)
+      m.turnStartX = m.x;
+      m.turnStartY = m.y;
+      if (m.isPlayer) continue;
       const tx = world.rng.range(world.bounds.l + margin, world.bounds.r - margin);
       const ty = world.rng.range(world.bounds.t + margin, world.bounds.b - margin);
       const dx = tx - m.x;
@@ -46,6 +56,7 @@ export function createTurnMachine(world) {
       else { const a = cpuAim.get(m); if (a) { m.vx = a.vx * m.launchMul; m.vy = a.vy * m.launchMul; } }
       world.power?.onLaunch?.(m, world);
     }
+    rollStartTime = world.time;
     setPhase('LAUNCH');
     setPhase('ROLL');
   }
@@ -58,7 +69,12 @@ export function createTurnMachine(world) {
 
   // Called once per physics tick from main.js, right after stepPhysics.
   function afterPhysicsStep() {
-    if (phase !== 'ROLL' || !allResting()) return;
+    if (phase !== 'ROLL') return;
+    const timedOut = world.time - rollStartTime > ROLL_TIMEOUT;
+    if (!allResting() && !timedOut) return;
+    if (timedOut) {
+      for (const m of world.marbles) { m.vx = 0; m.vy = 0; }
+    }
     settle();
   }
 
