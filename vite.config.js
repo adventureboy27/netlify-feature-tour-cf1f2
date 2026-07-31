@@ -1,20 +1,17 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: './',
+  root: '.',
+  server: { port: 5173 },
   build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
+    // three.js is the bulk of the bundle and changes far less often than app code — its own
+    // chunk means a gameplay-only deploy doesn't force players to redownload it.
     rollupOptions: {
       output: {
         manualChunks: {
-          phaser: ['phaser']
+          three: ['three']
         }
       }
     }
-  },
-  server: {
-    port: 3000,
-    open: true
   }
 });

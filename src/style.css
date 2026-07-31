@@ -1,0 +1,130 @@
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #17130f;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none; /* no pull-to-refresh / rubber-banding while flicking near an edge */
+  user-select: none;
+}
+
+#board3d, #board2d {
+  display: block;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none; /* belt-and-suspenders alongside html/body: some mobile browsers only
+                          honour touch-action on the element actually receiving the gesture */
+}
+
+/* visibility, not display: a display:none canvas reports clientWidth/Height as 0, which
+   would break resize() math for whichever renderer isn't currently active */
+#board2d {
+  visibility: hidden;
+}
+
+#hud {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  color: #eee7db;
+  font: 14px/1.4 monospace;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+
+.hud-env {
+  font-weight: bold;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.hud-power {
+  opacity: 0.9;
+  margin-bottom: 2px;
+}
+
+.hud-status {
+  opacity: 0.8;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(10, 7, 5, 0.88);
+  color: #eee7db;
+  font-family: monospace;
+  text-align: center;
+  padding: 24px;
+}
+
+.overlay h1 {
+  font-size: 40px;
+  letter-spacing: 4px;
+}
+
+.overlay h2 {
+  font-size: 28px;
+}
+
+.menu-sub {
+  opacity: 0.75;
+  max-width: 420px;
+}
+
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 56px);
+  gap: 10px;
+  justify-content: center;
+}
+
+.level-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  border: 1px solid #6b4a2a;
+  background: #3a2a1a;
+  color: #eee7db;
+  font: 16px/1 monospace;
+  cursor: pointer;
+}
+
+.level-btn:hover:not(:disabled) {
+  background: #52381f;
+}
+
+.level-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.endless-btn, .wide-btn {
+  width: auto;
+  height: auto;
+  padding: 12px 24px;
+  white-space: nowrap;
+}
+
+#rotate-overlay {
+  z-index: 100; /* above the menu/end overlays too — nothing is playable in portrait */
+  background: #0a0705;
+}
+
+.rotate-icon {
+  font-size: 48px;
+  animation: rotate-hint 1.6s ease-in-out infinite;
+}
+
+@keyframes rotate-hint {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-90deg); }
+}
