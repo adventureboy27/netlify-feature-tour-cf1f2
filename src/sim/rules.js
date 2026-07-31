@@ -38,6 +38,7 @@ export function resolveEliminations(world) {
 
   for (const m of stillDying) {
     m.alive = false;
+    m.diedAtTurn = world.turn; // round-stats bookkeeping (content/stats.js), not gameplay
     world.events.emit('death', { marble: m, cause: m.lethalCause });
   }
 }

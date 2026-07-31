@@ -51,13 +51,17 @@ export function setBoardHeight(world, h) {
 // default because they're effective-value overrides, not multipliers: null means "fall back
 // to the surface's / world's own default," where 1 would mean "force it to exactly 1.0."
 export function addMarble(world, {
-  x, y, r = 0.035, isPlayer = false,
+  x, y, r = 0.035, isPlayer = false, number = null,
   mass = 1, decelMul = 1, launchMul = 1, wallE = null, ballE = null
 }) {
   const m = {
     x, y, px: x, py: y, vx: 0, vy: 0, r,
-    mass, alive: true, isPlayer, lethalCause: null, colour: 'bare',
-    decelMul, launchMul, wallE, ballE
+    mass, alive: true, isPlayer, number, lethalCause: null, diedAtTurn: null, colour: 'bare',
+    decelMul, launchMul, wallE, ballE,
+    // damage is core sim state, not content (sim/damage.js) — always present, always starts
+    // clean, since a level recreates every marble from scratch (docs/CLAUDE.md: damage does
+    // not carry between levels)
+    damage: 0, topSpeed: 0
   };
   world.marbles.push(m);
   return m;

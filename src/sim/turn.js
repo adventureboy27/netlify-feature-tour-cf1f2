@@ -5,6 +5,7 @@
  */
 import { checkWin, resolveEliminations } from './rules.js';
 import { assignRestColours } from './terrain.js';
+import { launchMultiplier } from './damage.js';
 
 const REST_EPS = 1e-3;
 // A backstop, not a pacing target: with 676 environment x power combinations, some pairing
@@ -50,10 +51,13 @@ export function createTurnMachine(world) {
     if (phase !== 'AIM') return;
     // launchMul applies on top of the normal max-speed clamp, not before it — turbo is meant
     // to genuinely exceed what a flick can otherwise reach, not just make reaching it easier.
+    // damage's launchMultiplier applies to every marble alike, player or CPU — a battered
+    // marble can't put full power behind a shot regardless of who's aiming it.
     for (const m of world.marbles) {
       if (!m.alive) continue;
-      if (m.isPlayer) { m.vx = playerVx * m.launchMul; m.vy = playerVy * m.launchMul; }
-      else { const a = cpuAim.get(m); if (a) { m.vx = a.vx * m.launchMul; m.vy = a.vy * m.launchMul; } }
+      const dmgMul = launchMultiplier(m);
+      if (m.isPlayer) { m.vx = playerVx * m.launchMul * dmgMul; m.vy = playerVy * m.launchMul * dmgMul; }
+      else { const a = cpuAim.get(m); if (a) { m.vx = a.vx * m.launchMul * dmgMul; m.vy = a.vy * m.launchMul * dmgMul; } }
       world.power?.onLaunch?.(m, world);
     }
     rollStartTime = world.time;

@@ -4,6 +4,8 @@ import { stepPhysics } from './sim/physics.js';
 import { createTurnMachine } from './sim/turn.js';
 import { generateTerrain } from './sim/terrain.js';
 import { level, levelCount } from './content/levels.js';
+import { drawOpponents } from './content/roster.js';
+import { recordGame } from './content/stats.js';
 import { createRenderer } from './render/canvas2d.js';
 import { createRenderer3D } from './render/scene.js';
 import { createHud } from './render/hud.js';
@@ -220,11 +222,15 @@ function startLevel(n) {
   // A power applies to ALL FIVE marbles, not just the player — stats resolved once here and
   // baked into each marble (core/world.js), not looked up from world.power every tick.
   const powerStats = world.power?.stats ?? {};
+  // which 4 recurring opponents show up is drawn from the same seeded stream as everything
+  // else about this level (content/roster.js) — a replayed seed gets the same rivals back.
+  const opponentNumbers = drawOpponents(world.rng);
   const marbles = [];
   for (let i = 0; i < MARBLE_COUNT; i++) {
     const x = 0.2 + i * 0.15;
     marbles.push(addMarble(world, {
       x, y: world.h / 2, isPlayer: i === 0,
+      number: i === 0 ? null : opponentNumbers[i - 1], // the player is never numbered — non-negotiable #6
       r: MARBLE_R * (powerStats.radius ?? 1),
       mass: powerStats.mass ?? 1,
       decelMul: powerStats.decelMul ?? 1,
@@ -234,6 +240,7 @@ function startLevel(n) {
     }));
   }
   const player = marbles[0];
+  hud.setOpponents(opponentNumbers);
 
   generateTerrain(world, marbles.map((m) => ({ x: m.x, y: m.y })));
   world.environment?.onLevelStart?.(world);
@@ -246,7 +253,17 @@ function startLevel(n) {
     hud.setWinner(winner);
     if (winner.isPlayer && n < levelCount - 1) menu.unlock(n + 1);
     loop.stop();
-    endOverlay.show(winner, true);
+
+    // round + career stats (content/stats.js) — every marble that was in this level,
+    // including the player, gets folded into its own persistent record.
+    const participants = world.marbles.map((m) => ({
+      number: m.number, isPlayer: m.isPlayer, won: m === winner,
+      cause: m.lethalCause, topSpeed: m.topSpeed, damage: m.damage,
+      survivedTurns: m.alive ? world.turn : (m.diedAtTurn ?? world.turn)
+    }));
+    const stats = recordGame(participants);
+
+    endOverlay.show(winner, true, { participants, stats });
   });
 
   // world.events is a fresh bus per level — these route into the same persistent audio

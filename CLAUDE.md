@@ -16,10 +16,14 @@ and power systems, and the rules that keep the game fair.
 These came out of prototyping. Breaking them makes the game worse; if you think one should
 change, say so first rather than changing it.
 
-1. **The environment kills. Powers only change how you move.**
-   Elimination is always physical and always visible: you fell in a hole, you touched lava,
-   you left the board, you drowned, you got crushed by the closing walls. There are no
-   abstract eliminations like "nearest the wall is out."
+1. **Elimination is always physical and always visible.** The environment kills, or a marble
+   finally shatters from accumulated damage. Powers only change how you move — they still
+   cannot kill on their own. You fell in a hole, you touched lava, you left the board, you
+   drowned, you got crushed by the closing walls, or your marble broke apart from the damage
+   it had taken. There are no abstract eliminations like "nearest the wall is out."
+   *(Amended: damage-as-a-third-killer was a deliberate, discussed change — see sim/damage.js.
+   Before this, only the environment could end a marble; that was the original rule and
+   should not be loosened further without the same kind of explicit call.)*
 
 2. **Everything is announced before the level starts.**
    The player sees the environment and the power before the first flick. No per-turn dice
@@ -66,11 +70,14 @@ src/
     terrain.js      holes, lava, water, ramps, bumpers, gutters, ice patches
     turn.js         the turn state machine (see DESIGN.md)
     rules.js        elimination, win conditions, the non-negotiables above
+    damage.js       impact-force -> m.damage accrual, performance penalties, shatter-at-max
   content/
     environments.js registry, imports from data/
     powers.js       registry, imports from data/
     surfaces.js     oak / ice / sand / glass / granite friction + audio profiles
     levels.js       level grammar: seed -> environment + power + surface + terrain
+    roster.js       the pool of recurring numbered opponents a level draws 4 from
+    stats.js        localStorage-backed player + roster records, persists across sessions
   data/
     environments.js the 25 environment definitions
     powers.js       the 26 power definitions
@@ -129,6 +136,9 @@ Rules for content authors:
   `sim/rules.js` owns all elimination.
 - Powers must not kill. If a power ends a marble (Cannonball, Bomb), it applies a
   `lethal` flag and `rules.js` decides.
+- Damage (`sim/damage.js`) is neither an environment nor a power — it's always-on core
+  simulation state, like `m.mass`. It never sets `lethalCause` itself except at max damage
+  (a marble that's taken enough hits shatters); `sim/rules.js` still owns the actual kill.
 
 ---
 

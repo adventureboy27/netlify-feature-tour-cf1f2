@@ -2,7 +2,9 @@
  * Instanced-in-spirit glass spheres — one MeshPhysicalMaterial mesh per marble slot
  * (five is small enough that real GPU instancing isn't worth the complexity yet), each with
  * a cat's-eye core and, for the player only, the rotating ring + four pips (non-negotiable
- * #6). Reads world.marbles every frame and owns nothing else.
+ * #6). Opponents instead get a billboard number sprite (content/roster.js) — never a colour,
+ * same reasoning as the player's ring. A crack/scorch shell fades in with sim/damage.js's
+ * per-marble damage. Reads world.marbles every frame and owns nothing else.
  */
 import * as THREE from 'three';
 import { boardToScene } from './board.js';
@@ -43,10 +45,89 @@ export function createMarbleSystem(maxCount) {
       } else {
         slot.ring.visible = false;
       }
+
+      // opponents are identified by a number, never colour — same reasoning as non-negotiable
+      // #6 for the player: colour already changes (roulette, powers), a number doesn't.
+      if (m.number != null) {
+        slot.numberSprite.visible = true;
+        slot.numberSprite.material.map = getNumberTexture(m.number);
+      } else {
+        slot.numberSprite.visible = false;
+      }
+
+      // scorch/crack overlay fades in with accumulated damage (sim/damage.js) — never kills
+      // by itself here, just shows the wear that's building toward it.
+      slot.damageShell.visible = m.damage > 0.02;
+      slot.damageShell.material.opacity = m.damage;
     }
   }
 
   return { group, sync };
+}
+
+const numberTextureCache = new Map();
+function getNumberTexture(number) {
+  let tex = numberTextureCache.get(number);
+  if (tex) return tex;
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(10,7,5,0.8)';
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size * 0.46, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 26px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(number), size / 2, size / 2 + 1);
+  tex = new THREE.CanvasTexture(canvas);
+  numberTextureCache.set(number, tex);
+  return tex;
+}
+
+// One shared crack/scorch texture — cracks are randomly placed but the pattern itself doesn't
+// need to be unique per marble, only its opacity (driven by that marble's own damage) does.
+let sharedCrackTexture = null;
+function getCrackTexture() {
+  if (sharedCrackTexture) return sharedCrackTexture;
+  const size = 128;
+  let s = 5150;
+  const rand = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0xffffffff; };
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+  ctx.strokeStyle = 'rgba(20,10,5,0.9)';
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < 16; i++) {
+    let x = rand() * size, y = rand() * size;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    const segs = 2 + ((rand() * 3) | 0);
+    for (let j = 0; j < segs; j++) {
+      x += (rand() - 0.5) * size * 0.4;
+      y += (rand() - 0.5) * size * 0.4;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  for (let i = 0; i < 7; i++) {
+    const x = rand() * size, y = rand() * size, r = 4 + rand() * 9;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, 'rgba(15,8,4,0.6)');
+    grad.addColorStop(1, 'rgba(15,8,4,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  sharedCrackTexture = new THREE.CanvasTexture(canvas);
+  return sharedCrackTexture;
 }
 
 function makeSlot(parent) {
@@ -78,8 +159,25 @@ function makeSlot(parent) {
   const ring = buildRing(baseR);
   root.add(ring);
 
+  // thin shell just outside the glass surface — cracks/scorch fade in with damage, sync()
+  const damageShell = new THREE.Mesh(
+    new THREE.SphereGeometry(baseR * 1.03, 32, 24),
+    new THREE.MeshBasicMaterial({ map: getCrackTexture(), transparent: true, opacity: 0, depthWrite: false })
+  );
+  damageShell.visible = false;
+  root.add(damageShell);
+
+  // opponent number badge — a camera-facing sprite so it's always legible regardless of how
+  // the marble has rolled, hidden for the player (identified by the ring instead, never a
+  // number, same as never by colour).
+  const numberSprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: true }));
+  numberSprite.scale.set(baseR * 1.7, baseR * 1.7, 1);
+  numberSprite.position.set(0, baseR * 2.3, 0);
+  numberSprite.visible = false;
+  root.add(numberSprite);
+
   parent.add(root);
-  return { root, material, ring, baseR };
+  return { root, material, ring, damageShell, numberSprite, baseR };
 }
 
 function buildRing(baseR) {

@@ -46,10 +46,12 @@ export function createRenderer(canvas) {
       if (!m.alive) continue;
       const x = m.px + (m.x - m.px) * alpha;
       const y = m.py + (m.y - m.py) * alpha;
-      drawMarble(ctx, x, y, m.r, m.colour);
+      drawMarble(ctx, x, y, m.r, m.colour, m.damage);
       // non-negotiable #6: the player is identified by a marker OUTSIDE the ball, never
-      // by colour — a slowly rotating white ring with four orbiting pips.
+      // by colour — a slowly rotating white ring with four orbiting pips. Opponents instead
+      // get a number badge (content/roster.js) — same reasoning, never colour.
       if (m.isPlayer) { drawPlayerRing(ctx, x, y, m.r, world.time); playerX = x; playerY = y; }
+      else if (m.number != null) drawNumberBadge(ctx, x, y, m.r, m.number);
     }
 
     if (charge) {
@@ -79,7 +81,7 @@ function colourToCss(colour, alpha) {
   return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
 }
 
-function drawMarble(ctx, x, y, r, colour) {
+function drawMarble(ctx, x, y, r, colour, damage = 0) {
   const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
   if (colour && colour !== 'bare') {
     const [cr, cg, cb] = COLOUR_CSS[colour] ?? [190, 190, 190];
@@ -98,6 +100,47 @@ function drawMarble(ctx, x, y, r, colour) {
   ctx.lineWidth = r * 0.06;
   ctx.strokeStyle = 'rgba(0,0,0,0.35)';
   ctx.stroke();
+
+  if (damage > 0.02) drawDamageCracks(ctx, x, y, r, damage);
+}
+
+// deterministic per-position "random" crack layout (no RNG state to carry) — a few jagged
+// lines radiating out from fixed angles, only as visible as the marble's own damage.
+function drawDamageCracks(ctx, x, y, r, damage) {
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, damage);
+  ctx.strokeStyle = 'rgba(15,8,4,0.85)';
+  ctx.lineWidth = Math.max(0.5, r * 0.05);
+  const cracks = 5;
+  for (let i = 0; i < cracks; i++) {
+    const a = (i / cracks) * Math.PI * 2 + 0.6;
+    const len = r * (0.4 + 0.35 * ((i * 37) % 5) / 5);
+    const jag = r * 0.15;
+    const mx = x + Math.cos(a) * len * 0.55 + Math.sin(a) * jag;
+    const my = y + Math.sin(a) * len * 0.55 - Math.cos(a) * jag;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a) * r * 0.15, y + Math.sin(a) * r * 0.15);
+    ctx.lineTo(mx, my);
+    ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawNumberBadge(ctx, x, y, r, number) {
+  const bx = x, by = y - r * 1.7;
+  ctx.beginPath();
+  ctx.arc(bx, by, r * 0.55, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(10,7,5,0.8)';
+  ctx.fill();
+  ctx.lineWidth = r * 0.05;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `${Math.max(8, r * 0.6)}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(number), bx, by + r * 0.02);
 }
 
 const RING_R_MUL = 1.6;

@@ -9,8 +9,11 @@ export function createHud(el) {
   powerEl.className = 'hud-power';
   const statusEl = document.createElement('div');
   statusEl.className = 'hud-status';
+  const opponentsEl = document.createElement('div');
+  opponentsEl.className = 'hud-opponents';
   el.appendChild(envEl);
   el.appendChild(powerEl);
+  el.appendChild(opponentsEl);
   el.appendChild(statusEl);
 
   // launcher charge meter — a DOM bar, not drawn in WebGL/canvas2d, same "HUD stays out of
@@ -43,7 +46,10 @@ export function createHud(el) {
       statusEl.textContent = `turn ${turn} — ${phase}`;
     },
     setWinner(winner) {
-      statusEl.textContent = winner.isPlayer ? 'you win' : 'you lose';
+      statusEl.textContent = winner.isPlayer ? 'you win' : `you lose — marble #${winner.number} wins`;
+    },
+    setOpponents(numbers) {
+      opponentsEl.textContent = `Opponents: ${numbers.map((n) => `#${n}`).join('  ')}`;
     },
     // fraction null/undefined hides the bar (not charging); 0..1 while held; overheating
     // switches the fill colour so the last stretch before the flip reads as dangerous.

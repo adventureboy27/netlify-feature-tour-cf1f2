@@ -47,6 +47,12 @@ html, body {
   margin-bottom: 2px;
 }
 
+.hud-opponents {
+  opacity: 0.75;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
 .hud-status {
   opacity: 0.8;
 }
@@ -112,6 +118,28 @@ html, body {
   height: auto;
   padding: 12px 24px;
   white-space: nowrap;
+}
+
+.round-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  width: 100%;
+  max-width: 420px;
+  font-size: 13px;
+}
+
+.round-stats-row {
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.round-stats-row--player {
+  background: rgba(255, 200, 100, 0.14);
+  font-weight: bold;
 }
 
 .hud-charge-bar {
