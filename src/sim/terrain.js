@@ -151,17 +151,25 @@ export function resolveTerrainObstacles(world) {
   const wallE = world.surface.wallE;
   for (const m of world.marbles) {
     if (!m.alive || m.lethalCause) continue;
-    for (const d of domes) bounceOffObstacle(m, d, wallE);
-    for (const b of bumpers) bounceOffObstacle(m, b, b.restitution);
+    for (const d of domes) {
+      const force = bounceOffObstacle(m, d, wallE);
+      if (force > 0) world.events.emit('impact', { kind: 'dome', force });
+    }
+    for (const b of bumpers) {
+      const force = bounceOffObstacle(m, b, b.restitution);
+      if (force > 0) world.events.emit('impact', { kind: 'bumper', force });
+    }
   }
 }
 
+// Returns the impact force (magnitude of incoming normal velocity), or 0 if there was no
+// collision to report — lets callers emit an 'impact' event with a sensible force value.
 function bounceOffObstacle(m, obstacle, restitution) {
   const dx = m.x - obstacle.x;
   const dy = m.y - obstacle.y;
   const dist = Math.hypot(dx, dy);
   const minDist = m.r + obstacle.r;
-  if (dist === 0 || dist >= minDist) return;
+  if (dist === 0 || dist >= minDist) return 0;
 
   const nx = dx / dist, ny = dy / dist;
   const overlap = minDist - dist;
@@ -169,9 +177,10 @@ function bounceOffObstacle(m, obstacle, restitution) {
   m.y += ny * overlap;
 
   const vn = m.vx * nx + m.vy * ny;
-  if (vn >= 0) return; // already moving away
+  if (vn >= 0) return 0; // already moving away
   m.vx -= (1 + restitution) * vn * nx;
   m.vy -= (1 + restitution) * vn * ny;
+  return Math.abs(vn);
 }
 
 export function decelOverrideAt(world, x, y) {

@@ -6,6 +6,9 @@ import { generateTerrain } from './sim/terrain.js';
 import { createRenderer } from './render/canvas2d.js';
 import { createRenderer3D } from './render/scene.js';
 import { createHud } from './render/hud.js';
+import { createAudioEngine } from './audio/engine.js';
+import { createRollingBed } from './audio/beds.js';
+import { createImpactVoices } from './audio/impacts.js';
 
 const SENSITIVITY = 3.0; // drag length in board-widths -> launch speed multiplier
 const MARBLE_R = 0.035;
@@ -59,6 +62,17 @@ const turn = createTurnMachine(world);
 world.events.on('phase', ({ turn: t, phase }) => hud.setPhase(t, phase));
 world.events.on('win', ({ winner }) => hud.setWinner(winner));
 
+// M5: six-bus audio graph. AudioContext starts suspended under browser autoplay policy —
+// resumed on the player's first pointerdown below.
+const audio = createAudioEngine();
+const rollingBed = createRollingBed(audio.ctx, audio.buses.roll);
+const impactVoices = createImpactVoices(audio.ctx, audio.buses.impact);
+world.events.on('impact', (data) => impactVoices.playImpact(data));
+world.events.on('death', ({ cause }) => {
+  impactVoices.playDeath(cause);
+  audio.duck(['bed', 'roll'], 4, 400);
+});
+
 // AIM: drag anywhere while it's the player's turn to aim. Direction and length of the
 // drag ARE the launch direction and power — a flick, not a slingshot pull-back.
 let drag = null;
@@ -77,6 +91,7 @@ function canAim() {
 
 for (const el of [canvas3d, canvas2d]) {
   el.addEventListener('pointerdown', (evt) => {
+    audio.resume();
     if (!canAim()) return;
     const p = toBoard(evt);
     drag = { startX: p.x, startY: p.y, x: p.x, y: p.y };
@@ -117,9 +132,10 @@ const loop = createLoop({
     };
     if (mode === '3d') renderer3d.draw(world, alpha, aim);
     else renderer2d.draw(world, alpha, aim);
+    rollingBed.update(world);
   }
 });
 
 loop.start();
 
-if (import.meta.env.DEV) window.__TAW__ = { world, marbles, player, turn };
+if (import.meta.env.DEV) window.__TAW__ = { world, marbles, player, turn, audio, impactVoices };

@@ -27,11 +27,11 @@ export function stepPhysics(world, dt) {
     const decel = override ? override.decel : world.surface.decel;
     const viscous = override ? override.viscous : world.surface.viscous;
     applyRollingResistance(m, decel, viscous, dt);
-    bounceOffWalls(m, world.bounds, wallE);
+    bounceOffWalls(m, world, wallE);
   }
 
   resolveTerrainObstacles(world);
-  resolveMarbleCollisions(world.marbles, world.ballE);
+  resolveMarbleCollisions(world);
   checkHazards(world);
 }
 
@@ -45,17 +45,20 @@ function applyRollingResistance(m, decel, viscous, dt) {
   m.vy *= scale;
 }
 
-function bounceOffWalls(m, bounds, wallE) {
-  const { l, r, t, b } = bounds;
-  if (m.x - m.r < l) { m.x = l + m.r; m.vx = -m.vx * wallE; }
-  else if (m.x + m.r > r) { m.x = r - m.r; m.vx = -m.vx * wallE; }
-  if (m.y - m.r < t) { m.y = t + m.r; m.vy = -m.vy * wallE; }
-  else if (m.y + m.r > b) { m.y = b - m.r; m.vy = -m.vy * wallE; }
+function bounceOffWalls(m, world, wallE) {
+  const { l, r, t, b } = world.bounds;
+  let force = 0;
+  if (m.x - m.r < l) { force = Math.abs(m.vx); m.x = l + m.r; m.vx = -m.vx * wallE; }
+  else if (m.x + m.r > r) { force = Math.abs(m.vx); m.x = r - m.r; m.vx = -m.vx * wallE; }
+  if (m.y - m.r < t) { force = Math.max(force, Math.abs(m.vy)); m.y = t + m.r; m.vy = -m.vy * wallE; }
+  else if (m.y + m.r > b) { force = Math.max(force, Math.abs(m.vy)); m.y = b - m.r; m.vy = -m.vy * wallE; }
+  if (force > 0) world.events.emit('impact', { kind: 'rail', force });
 }
 
 // Pairwise circle-circle elastic collision: separate overlap by inverse mass, then apply
 // a restitution impulse along the contact normal. ballE = 0.94 by default (docs/DESIGN.md).
-function resolveMarbleCollisions(marbles, ballE) {
+function resolveMarbleCollisions(world) {
+  const marbles = world.marbles, ballE = world.ballE;
   for (let i = 0; i < marbles.length; i++) {
     const a = marbles[i];
     if (!a.alive || a.lethalCause) continue;
@@ -93,6 +96,8 @@ function resolveMarbleCollisions(marbles, ballE) {
       a.vy -= iy * invA;
       b.vx += ix * invB;
       b.vy += iy * invB;
+
+      world.events.emit('impact', { kind: 'marble', force: Math.abs(velAlongNormal) });
     }
   }
 }
