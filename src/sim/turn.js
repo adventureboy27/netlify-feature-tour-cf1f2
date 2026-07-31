@@ -4,6 +4,7 @@
  * after that is automatic. Emits `phase` on every transition and `win` once a level ends.
  */
 import { checkWin, resolveEliminations } from './rules.js';
+import { assignRestColours } from './terrain.js';
 
 const REST_EPS = 1e-3;
 
@@ -46,7 +47,9 @@ export function createTurnMachine(world) {
   }
 
   function allResting() {
-    return world.marbles.every(m => !m.alive || Math.hypot(m.vx, m.vy) < REST_EPS);
+    // a marble already condemned by terrain is frozen regardless of its stored velocity —
+    // it's falling, not rolling, and RESOLVE (not ROLL) is what actually removes it
+    return world.marbles.every(m => !m.alive || m.lethalCause || Math.hypot(m.vx, m.vy) < REST_EPS);
   }
 
   // Called once per physics tick from main.js, right after stepPhysics.
@@ -57,6 +60,7 @@ export function createTurnMachine(world) {
 
   function settle() {
     setPhase('SETTLE');
+    assignRestColours(world);
     resolve();
   }
 

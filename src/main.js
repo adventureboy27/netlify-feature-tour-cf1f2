@@ -2,6 +2,7 @@ import { createWorld, addMarble, setBoardHeight } from './core/world.js';
 import { createLoop } from './core/loop.js';
 import { stepPhysics } from './sim/physics.js';
 import { createTurnMachine } from './sim/turn.js';
+import { generateTerrain } from './sim/terrain.js';
 import { createRenderer } from './render/canvas2d.js';
 import { createHud } from './render/hud.js';
 
@@ -30,6 +31,10 @@ for (let i = 0; i < MARBLE_COUNT; i++) {
   marbles.push(addMarble(world, { x, y: world.h / 2, r: MARBLE_R, isPlayer: i === 0 }));
 }
 const player = marbles[0];
+
+// M3: seeded, non-lethal terrain so boards feel authored rather than empty. Lethal terrain
+// (holes, lava, water...) is always environment-driven — that's M6.
+generateTerrain(world, marbles.map(m => ({ x: m.x, y: m.y })));
 
 const turn = createTurnMachine(world);
 world.events.on('phase', ({ turn: t, phase }) => hud.setPhase(t, phase));

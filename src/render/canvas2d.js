@@ -25,11 +25,13 @@ export function createRenderer(canvas) {
     ctx.lineWidth = 0.01;
     ctx.strokeRect(0.005, 0.005, world.w - 0.01, world.h - 0.01);
 
+    drawTerrain(ctx, world);
+
     for (const m of world.marbles) {
       if (!m.alive) continue;
       const x = m.px + (m.x - m.px) * alpha;
       const y = m.py + (m.y - m.py) * alpha;
-      drawMarble(ctx, x, y, m.r);
+      drawMarble(ctx, x, y, m.r, m.colour);
       // non-negotiable #6: the player is identified by a marker OUTSIDE the ball, never
       // by colour — a slowly rotating white ring with four orbiting pips.
       if (m.isPlayer) drawPlayerRing(ctx, x, y, m.r, world.time);
@@ -41,11 +43,30 @@ export function createRenderer(canvas) {
   return { resize, draw };
 }
 
-function drawMarble(ctx, x, y, r) {
+const COLOUR_CSS = {
+  crimson: [200, 40, 60],
+  gold: [220, 180, 50],
+  teal: [40, 160, 160],
+  violet: [140, 80, 200]
+};
+
+function colourToCss(colour, alpha) {
+  const rgb = COLOUR_CSS[colour] ?? [190, 190, 190];
+  return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
+}
+
+function drawMarble(ctx, x, y, r, colour) {
   const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
-  grad.addColorStop(0, '#eaf6ff');
-  grad.addColorStop(0.5, '#9fd0e8');
-  grad.addColorStop(1, '#3f6b82');
+  if (colour && colour !== 'bare') {
+    const [cr, cg, cb] = COLOUR_CSS[colour] ?? [190, 190, 190];
+    grad.addColorStop(0, '#f5f5f5');
+    grad.addColorStop(0.5, `rgb(${cr},${cg},${cb})`);
+    grad.addColorStop(1, `rgb(${cr * 0.4 | 0},${cg * 0.4 | 0},${cb * 0.4 | 0})`);
+  } else {
+    grad.addColorStop(0, '#eaf6ff');
+    grad.addColorStop(0.5, '#9fd0e8');
+    grad.addColorStop(1, '#3f6b82');
+  }
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fillStyle = grad;
@@ -88,4 +109,135 @@ function drawAim(ctx, { originX, originY, x, y }) {
   ctx.setLineDash([0.015, 0.01]);
   ctx.stroke();
   ctx.setLineDash([]);
+}
+
+function drawTerrain(ctx, world) {
+  const t = world.terrain;
+
+  if (t.water) drawWater(ctx, world, t.water);
+
+  for (const p of t.colourPatches) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = colourToCss(p.colour, 0.55);
+    ctx.fill();
+  }
+
+  for (const l of t.lavas) {
+    const grad = ctx.createRadialGradient(l.x, l.y, l.r * 0.1, l.x, l.y, l.r);
+    grad.addColorStop(0, '#ffdd66');
+    grad.addColorStop(0.5, '#ff6a1f');
+    grad.addColorStop(1, '#7a1600');
+    ctx.beginPath();
+    ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  for (const h of t.holes) {
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2);
+    ctx.fillStyle = '#0a0705';
+    ctx.fill();
+    ctx.lineWidth = 0.004;
+    ctx.strokeStyle = '#1c130c';
+    ctx.stroke();
+  }
+
+  for (const c of t.craters) {
+    const grad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
+    grad.addColorStop(0, 'rgba(0,0,0,0.55)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  for (const p of t.icePatches) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(190,235,255,0.35)';
+    ctx.fill();
+    ctx.lineWidth = 0.003;
+    ctx.strokeStyle = 'rgba(220,245,255,0.6)';
+    ctx.stroke();
+  }
+
+  for (const r of t.ramps) {
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 0.004;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(r.x + r.dirX * r.r * 0.8, r.y + r.dirY * r.r * 0.8);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 0.006;
+    ctx.stroke();
+  }
+
+  for (const d of t.domes) {
+    const grad = ctx.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 0.3, d.r * 0.1, d.x, d.y, d.r);
+    grad.addColorStop(0, '#6b5238');
+    grad.addColorStop(1, '#3a2a1a');
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  for (const g of t.gutters) {
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fill();
+    ctx.setLineDash([0.008, 0.008]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 0.003;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  for (const b of t.bumpers) {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fillStyle = '#c94f4f';
+    ctx.fill();
+    ctx.lineWidth = 0.006;
+    ctx.strokeStyle = '#ffdede';
+    ctx.stroke();
+  }
+
+  for (const c of t.conveyors) {
+    ctx.fillStyle = 'rgba(90,70,50,0.5)';
+    ctx.fillRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h);
+  }
+
+  for (const f of t.fissures) {
+    ctx.beginPath();
+    ctx.moveTo(f.x1, f.y1);
+    ctx.lineTo(f.x2, f.y2);
+    ctx.strokeStyle = '#0a0705';
+    ctx.lineWidth = f.width;
+    ctx.stroke();
+  }
+
+  for (const s of t.scorches) {
+    const armed = world.turn >= s.armsOnTurn;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = armed ? 'rgba(255,80,20,0.6)' : 'rgba(60,40,30,0.6)';
+    ctx.fill();
+  }
+}
+
+function drawWater(ctx, world, water) {
+  const { edge, level } = water;
+  ctx.fillStyle = 'rgba(30,90,140,0.55)';
+  if (edge === 'l') ctx.fillRect(0, 0, level * world.w, world.h);
+  else if (edge === 'r') ctx.fillRect(world.w - level * world.w, 0, level * world.w, world.h);
+  else if (edge === 't') ctx.fillRect(0, 0, world.w, level * world.h);
+  else if (edge === 'b') ctx.fillRect(0, world.h - level * world.h, world.w, level * world.h);
 }

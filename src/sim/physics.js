@@ -1,24 +1,38 @@
+import { applyTerrainForces, resolveTerrainObstacles, checkHazards, decelOverrideAt } from './terrain.js';
+
 /**
- * Integration, rolling resistance, wall bounce, elastic marble-marble collisions. One fixed
- * tick (see core/loop.js) per call.
+ * Integration, rolling resistance, wall bounce, elastic marble-marble collisions, and
+ * terrain. One fixed tick (see core/loop.js) per call.
  *
  * Rolling resistance is a constant deceleration plus a small viscous term, NEVER exponential
  * decay — pure exponential decay never actually reaches zero and reads as air hockey, not a
  * marble rolling to a stop on wood. The constant term guarantees it stops in finite time.
+ *
+ * A marble with `lethalCause` already set is condemned but not yet eliminated (that's
+ * sim/rules.js, at RESOLVE) — it freezes in place rather than continuing to move or collide.
  */
 export function stepPhysics(world, dt) {
   world.time += dt;
-  const { decel, wallE, viscous } = world.surface;
+  const { wallE } = world.surface;
+
+  applyTerrainForces(world, dt);
+
   for (const m of world.marbles) {
-    if (!m.alive) continue;
+    if (!m.alive || m.lethalCause) continue;
     m.px = m.x;
     m.py = m.y;
     m.x += m.vx * dt;
     m.y += m.vy * dt;
+    const override = decelOverrideAt(world, m.x, m.y);
+    const decel = override ? override.decel : world.surface.decel;
+    const viscous = override ? override.viscous : world.surface.viscous;
     applyRollingResistance(m, decel, viscous, dt);
     bounceOffWalls(m, world.bounds, wallE);
   }
+
+  resolveTerrainObstacles(world);
   resolveMarbleCollisions(world.marbles, world.ballE);
+  checkHazards(world);
 }
 
 function applyRollingResistance(m, decel, viscous, dt) {
@@ -44,10 +58,10 @@ function bounceOffWalls(m, bounds, wallE) {
 function resolveMarbleCollisions(marbles, ballE) {
   for (let i = 0; i < marbles.length; i++) {
     const a = marbles[i];
-    if (!a.alive) continue;
+    if (!a.alive || a.lethalCause) continue;
     for (let j = i + 1; j < marbles.length; j++) {
       const b = marbles[j];
-      if (!b.alive) continue;
+      if (!b.alive || b.lethalCause) continue;
 
       const dx = b.x - a.x;
       const dy = b.y - a.y;
