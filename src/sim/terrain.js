@@ -265,7 +265,7 @@ export function generateTerrain(world, avoidPoints = []) {
     const spot = place();
     if (spot) {
       const angle = world.rng.range(0, Math.PI * 2);
-      world.terrain.addRamp({ ...spot, r: 0.08, dirX: Math.cos(angle), dirY: Math.sin(angle), strength: 0.4 });
+      world.terrain.addRamp({ ...spot, r: 0.05, dirX: Math.cos(angle), dirY: Math.sin(angle), strength: 0.18 });
     }
   }
   {

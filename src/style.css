@@ -8,10 +8,18 @@ html, body {
   touch-action: none;
 }
 
-#board {
+#board3d, #board2d {
   display: block;
+  position: fixed;
+  inset: 0;
   width: 100%;
   height: 100%;
+}
+
+/* visibility, not display: a display:none canvas reports clientWidth/Height as 0, which
+   would break resize() math for whichever renderer isn't currently active */
+#board2d {
+  visibility: hidden;
 }
 
 #hud {
