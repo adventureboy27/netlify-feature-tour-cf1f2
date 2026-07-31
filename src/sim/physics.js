@@ -10,6 +10,10 @@ import { applyTerrainForces, resolveTerrainObstacles, checkHazards, decelOverrid
  *
  * A marble with `lethalCause` already set is condemned but not yet eliminated (that's
  * sim/rules.js, at RESOLVE) — it freezes in place rather than continuing to move or collide.
+ *
+ * world.environment?.onStep runs continuous environment forces (magnet, wind, carousel) and
+ * any per-tick hazard check an environment needs (sumo's disc boundary) — after movement so
+ * it sees this tick's real positions, before terrain's own hazard check.
  */
 export function stepPhysics(world, dt) {
   world.time += dt;
@@ -27,11 +31,12 @@ export function stepPhysics(world, dt) {
     const decel = override ? override.decel : world.surface.decel;
     const viscous = override ? override.viscous : world.surface.viscous;
     applyRollingResistance(m, decel, viscous, dt);
-    bounceOffWalls(m, world, wallE);
+    if (world.rails !== false) bounceOffWalls(m, world, wallE);
   }
 
   resolveTerrainObstacles(world);
   resolveMarbleCollisions(world);
+  world.environment?.onStep?.(world, dt);
   checkHazards(world);
 }
 

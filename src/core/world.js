@@ -23,12 +23,14 @@ export function createWorld(seed) {
     w: 1,              // board width is always 1 board-width by definition
     h: 1,              // updated by main.js to match the canvas aspect ratio
     bounds: { l: 0, r: 1, t: 0, b: 1 },
+    rails: true,        // an environment (sumo) can turn these off entirely
+    disc: null,         // set by environments that replace the rectangle with a circle
     maxSpeed: 0.95,     // board-widths/sec, docs/DESIGN.md
     ballE: 0.94,        // marble-on-marble restitution, docs/DESIGN.md
     surface: OAK,
     palette: PALETTE,
     terrain: createTerrainStore(),
-    environment: null,  // wired up in M6
+    environment: null,
     marbles: [],
     winner: null
   };

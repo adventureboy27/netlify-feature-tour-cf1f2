@@ -126,38 +126,125 @@ export const roulette = {
 };
 
 /* ------------------------------------------------------------------ */
+/* M6 — the next four, implemented per docs/BUILD-ORDER.md order       */
+/* ------------------------------------------------------------------ */
+
+export const rot = {
+  id: 'rot',
+  name: 'Rot',
+  blurb: 'The floor is going soft.',
+  soloOnly: false,
+  severityCurve: 10,
+  sfx: {
+    bed: 'wet splintering, damp low rumble',
+    stinger: 'timber giving way'
+  },
+  onTurnStart(world, turn) {
+    // holes creep in from a random edge each turn, more and wider as it worsens
+    const severity = Math.min(1, turn / this.severityCurve);
+    const count = 1 + Math.floor(severity * 2);
+    for (let i = 0; i < count; i++) {
+      const edge = world.rng.pick(['l', 'r', 't', 'b']);
+      const inward = 0.03 + severity * 0.12;
+      const along = world.rng.range(0.05, 0.95);
+      let x, y;
+      if (edge === 'l') { x = world.bounds.l + inward; y = world.bounds.t + along * world.h; }
+      else if (edge === 'r') { x = world.bounds.r - inward; y = world.bounds.t + along * world.h; }
+      else if (edge === 't') { x = world.bounds.l + along * world.w; y = world.bounds.t + inward; }
+      else { x = world.bounds.l + along * world.w; y = world.bounds.b - inward; }
+      world.terrain.addHole({ x, y, r: 0.03 + severity * 0.04 });
+    }
+    world.events.emit('degrade', { id: 'rot', turn });
+  }
+};
+
+export const flow = {
+  id: 'flow',
+  name: 'The Flow',
+  blurb: 'The lava is spreading.',
+  soloOnly: false,
+  severityCurve: 9,
+  sfx: {
+    bed: 'thick bubbling, felt more than heard',
+    stinger: 'hiss and surge'
+  },
+  onLevelStart(world) {
+    const x = world.rng.range(world.bounds.l + 0.15, world.bounds.r - 0.15);
+    const y = world.rng.range(world.bounds.t + 0.15, world.bounds.b - 0.15);
+    world.flowPool = world.terrain.addLava({ x, y, r: 0.05 });
+  },
+  onTurnStart(world, turn) {
+    world.terrain.growLava(world.flowPool, 0.02 * (1 + turn * 0.05));
+    // every other turn a river breaks off the main pool, cutting a new crossing
+    if (turn % 2 === 0) {
+      const angle = world.rng.range(0, Math.PI * 2);
+      const dist = world.flowPool.r + 0.03;
+      world.terrain.addLava({
+        x: world.flowPool.x + Math.cos(angle) * dist,
+        y: world.flowPool.y + Math.sin(angle) * dist,
+        r: 0.02
+      });
+    }
+    world.events.emit('degrade', { id: 'flow', turn });
+  }
+};
+
+export const sinkhole = {
+  id: 'sinkhole',
+  name: 'Sinkhole',
+  blurb: 'Something opened in the middle.',
+  soloOnly: false,
+  severityCurve: 11,
+  sfx: {
+    bed: 'sub-bass drone that deepens each turn',
+    stinger: 'collapse'
+  },
+  onLevelStart(world) {
+    world.sinkholeVoid = world.terrain.addHole({ x: world.w / 2, y: world.h / 2, r: 0.04 });
+  },
+  onTurnStart(world, turn) {
+    world.sinkholeVoid.r += 0.018 * (1 + turn * 0.08);
+    world.events.emit('degrade', { id: 'sinkhole', turn });
+  }
+};
+
+export const tide = {
+  id: 'tide',
+  name: 'Rising Tide',
+  blurb: 'The water is coming in.',
+  soloOnly: false,
+  severityCurve: 10,
+  sfx: {
+    bed: 'lapping that gets closer and louder',
+    stinger: 'wave surge'
+  },
+  onLevelStart(world) {
+    world.tideEdge = world.rng.pick(['l', 'r', 't', 'b']);
+    world.terrain.setWaterLine({ edge: world.tideEdge, level: 0 });
+  },
+  onTurnStart(world, turn) {
+    // capped short of 1: always leaves a dry strip until very late, non-negotiable #5
+    // backstops the rest
+    world.terrain.setWaterLine({ edge: world.tideEdge, level: Math.min(0.85, 0.05 * turn) });
+    world.events.emit('degrade', { id: 'tide', turn });
+  }
+};
+
+/* ------------------------------------------------------------------ */
 /* THE REST — metadata complete, hooks to implement                    */
 /* Implement in the order given in docs/BUILD-ORDER.md M6.             */
 /* ------------------------------------------------------------------ */
 
 export const rest = [
-  { id:'rot', name:'Rot', blurb:'The floor is going soft.', soloOnly:false, severityCurve:10,
-    spec:'Holes open every turn, more and wider each time, creeping inward from the edges.',
-    sfx:{ bed:'wet splintering, damp low rumble', stinger:'timber giving way' } },
-
   { id:'crumble', name:'Crumbling Edge', blurb:'The outside is falling away.', soloOnly:false, severityCurve:12,
     spec:'No rails. The outer ring of the board falls away turn by turn. A shrinking island ' +
          'with sheer drops — rectangular cousin of sumo.',
     sfx:{ bed:'distant rubble tumbling into nothing', stinger:'a slab letting go' } },
 
-  { id:'flow', name:'The Flow', blurb:'The lava is spreading.', soloOnly:false, severityCurve:9,
-    spec:'One pool grows and sends rivers across the floor, cutting the board into regions ' +
-         'that get harder to travel between.',
-    sfx:{ bed:'thick bubbling, felt more than heard', stinger:'hiss and surge' } },
-
-  { id:'tide', name:'Rising Tide', blurb:'The water is coming in.', soloOnly:false, severityCurve:10,
-    spec:'Water advances from one side as a line. Submerged floor is lethal. Everyone is ' +
-         'pushed into a narrowing dry strip.',
-    sfx:{ bed:'lapping that gets closer and louder', stinger:'wave surge' } },
-
   { id:'fault', name:'Fault', blurb:'The ground is cracking.', soloOnly:false, severityCurve:9,
     spec:'Straight jagged chasms open along fault lines rather than round pits. The board ' +
          'becomes a maze of narrow bridges.',
     sfx:{ bed:'tectonic groan', stinger:'sharp crack, hard transient' } },
-
-  { id:'sinkhole', name:'Sinkhole', blurb:'Something opened in the middle.', soloOnly:false, severityCurve:11,
-    spec:'A void at dead centre widens relentlessly. Everyone gets squeezed to the ring.',
-    sfx:{ bed:'sub-bass drone that deepens each turn', stinger:'collapse' } },
 
   { id:'freeze', name:'Deep Freeze', blurb:'It is icing over.', soloOnly:false, severityCurve:10,
     spec:'Floor converts to ice patch by patch until the whole board is frictionless and ' +

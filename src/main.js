@@ -3,6 +3,7 @@ import { createLoop } from './core/loop.js';
 import { stepPhysics } from './sim/physics.js';
 import { createTurnMachine } from './sim/turn.js';
 import { generateTerrain } from './sim/terrain.js';
+import { getEnvironment, implemented as implementedEnvironments } from './content/environments.js';
 import { createRenderer } from './render/canvas2d.js';
 import { createRenderer3D } from './render/scene.js';
 import { createHud } from './render/hud.js';
@@ -53,10 +54,19 @@ for (let i = 0; i < MARBLE_COUNT; i++) {
 }
 const player = marbles[0];
 
+// M6: non-negotiable #2 — the environment is announced before the level starts. Level
+// grammar (weighted draws, unlocks) is M9; for now a seeded pick from the implemented set,
+// overridable with ?env=<id> for testing a specific one.
+const requestedEnv = new URLSearchParams(window.location.search).get('env');
+world.environment = getEnvironment(requestedEnv) ?? world.rng.pick(implementedEnvironments);
+hud.setEnvironment(world.environment);
+
 // M3: seeded, non-lethal terrain so boards feel authored rather than empty. Lethal terrain
-// (holes, lava, water...) is always environment-driven — that's M6.
+// (holes, lava, water...) is always environment-driven.
 generateTerrain(world, marbles.map(m => ({ x: m.x, y: m.y })));
-renderer3d.buildTerrain(world); // static per level — built once, not read fresh like canvas2d
+world.environment?.onLevelStart?.(world);
+renderer3d.buildTerrain(world); // static per level — rebuilt on 'degrade', not read fresh like canvas2d
+world.events.on('degrade', () => renderer3d.buildTerrain(world));
 
 const turn = createTurnMachine(world);
 world.events.on('phase', ({ turn: t, phase }) => hud.setPhase(t, phase));
@@ -138,4 +148,4 @@ const loop = createLoop({
 
 loop.start();
 
-if (import.meta.env.DEV) window.__TAW__ = { world, marbles, player, turn, audio, impactVoices };
+if (import.meta.env.DEV) window.__TAW__ = { world, marbles, player, turn, audio, impactVoices, renderer3d };

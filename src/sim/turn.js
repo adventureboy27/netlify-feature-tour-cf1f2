@@ -18,7 +18,8 @@ export function createTurnMachine(world) {
   }
 
   // CPU marbles aim for open ground the instant AIM begins, same as the player would.
-  // No environment yet means no hazards to dodge — that arrives in M3+.
+  // "Open ground" is still just "somewhere on the board" — dodging specific hazards is a
+  // smarter CPU than this milestone needs.
   function beginAim() {
     cpuAim.clear();
     const margin = 0.1;
@@ -60,7 +61,8 @@ export function createTurnMachine(world) {
 
   function settle() {
     setPhase('SETTLE');
-    assignRestColours(world);
+    assignRestColours(world);           // colour is a place — assign before the environment
+    world.environment?.onSettle?.(world); // sees the terrain-based deaths (like sinkhole would)
     resolve();
   }
 

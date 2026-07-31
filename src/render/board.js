@@ -41,19 +41,33 @@ export function createBoard() {
     boardH = world.h;
     floor.scale.set(boardW, boardH, 1);
     floor.position.set(0, 0, 0);
-
-    rails.clear();
-    addRail(rails, railMat, 0, -boardH / 2, boardW, RAIL_THICKNESS); // top
-    addRail(rails, railMat, 0, boardH / 2, boardW, RAIL_THICKNESS);  // bottom
-    addRail(rails, railMat, -boardW / 2, 0, RAIL_THICKNESS, boardH); // left
-    addRail(rails, railMat, boardW / 2, 0, RAIL_THICKNESS, boardH);  // right
+    rebuildRails(world);
   }
 
-  // static per level: rebuild once after sim/terrain.js's generateTerrain runs, not per frame
+  // Rails follow world.bounds, not the fixed board extent — closing shrinks bounds every
+  // turn without changing world.w/h, so the rails need re-laying whenever bounds move too,
+  // not just on resize. sumo (and anything else with rails:false) hides them entirely.
+  function rebuildRails(world) {
+    rails.clear();
+    if (world.rails === false) return;
+    const [l, t] = boardToScene(world.bounds.l, world.bounds.t, boardW, boardH);
+    const [r, b] = boardToScene(world.bounds.r, world.bounds.b, boardW, boardH);
+    const cx = (l + r) / 2, cz = (t + b) / 2;
+    addRail(rails, railMat, cx, t, r - l, RAIL_THICKNESS); // top
+    addRail(rails, railMat, cx, b, r - l, RAIL_THICKNESS); // bottom
+    addRail(rails, railMat, l, cz, RAIL_THICKNESS, b - t); // left
+    addRail(rails, railMat, r, cz, RAIL_THICKNESS, b - t); // right
+  }
+
+  // static per level, rebuilt on every 'degrade' — not per frame. Also re-lays rails, since
+  // an environment's onTurnStart (shrinkRails, disc shrink) runs right before 'degrade' fires.
   function buildTerrain(world) {
+    rebuildRails(world);
     terrain.clear();
     const t = world.terrain;
     const toScene = (x, y) => boardToScene(x, y, boardW, boardH);
+
+    if (world.disc) addDiscRing(terrain, toScene(world.disc.x, world.disc.y), world.disc.r);
 
     for (const p of t.colourPatches) addDisc(terrain, toScene(p.x, p.y), p.r, colourHex(p.colour), 0.65);
     for (const p of t.icePatches) addDisc(terrain, toScene(p.x, p.y), p.r, 0xbeebff, 0.35, 0.002);
@@ -128,6 +142,18 @@ function addRail(rails, mat, cx, cz, w, d) {
   rail.castShadow = true;
   rail.receiveShadow = true;
   rails.add(rail);
+}
+
+function addDiscRing(group, [x, z], r) {
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(r, RAIL_THICKNESS * 0.6, 8, 48),
+    new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.6, metalness: 0.1 })
+  );
+  ring.rotation.x = Math.PI / 2;
+  ring.position.set(x, RAIL_HEIGHT / 2, z);
+  ring.castShadow = true;
+  ring.receiveShadow = true;
+  group.add(ring);
 }
 
 function addDisc(group, [x, z], r, hex, opacity, yOffset = 0.001) {

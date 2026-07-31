@@ -21,9 +21,22 @@ export function createRenderer(canvas) {
     // floor
     ctx.fillStyle = '#3a2a1a';
     ctx.fillRect(0, 0, world.w, world.h);
-    ctx.strokeStyle = '#6b4a2a';
-    ctx.lineWidth = 0.01;
-    ctx.strokeRect(0.005, 0.005, world.w - 0.01, world.h - 0.01);
+
+    // rails follow world.bounds, not the fixed board extent — closing shrinks bounds every
+    // turn. sumo (and anything else with rails:false) draws a disc boundary instead.
+    if (world.rails !== false) {
+      const { l, r, t, b } = world.bounds;
+      ctx.strokeStyle = '#6b4a2a';
+      ctx.lineWidth = 0.01;
+      ctx.strokeRect(l + 0.005, t + 0.005, (r - l) - 0.01, (b - t) - 0.01);
+    }
+    if (world.disc) {
+      ctx.beginPath();
+      ctx.arc(world.disc.x, world.disc.y, world.disc.r, 0, Math.PI * 2);
+      ctx.strokeStyle = '#6b4a2a';
+      ctx.lineWidth = 0.012;
+      ctx.stroke();
+    }
 
     drawTerrain(ctx, world);
 

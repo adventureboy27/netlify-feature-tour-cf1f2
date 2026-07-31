@@ -1,14 +1,25 @@
 /**
  * DOM overlay — kept out of the canvas/WebGL entirely (docs/CLAUDE.md architecture).
- * M2 only needs enough of it to see the turn cycle and the winner while playtesting.
+ * Enough of it to see the environment announcement, the turn cycle, and the winner.
  */
 export function createHud(el) {
+  const envEl = document.createElement('div');
+  envEl.className = 'hud-env';
+  const statusEl = document.createElement('div');
+  statusEl.className = 'hud-status';
+  el.appendChild(envEl);
+  el.appendChild(statusEl);
+
   return {
+    // non-negotiable #2: the environment is announced before the level starts
+    setEnvironment(env) {
+      envEl.textContent = env ? `${env.name} — ${env.blurb}` : 'No environment';
+    },
     setPhase(turn, phase) {
-      el.textContent = `turn ${turn} — ${phase}`;
+      statusEl.textContent = `turn ${turn} — ${phase}`;
     },
     setWinner(winner) {
-      el.textContent = winner.isPlayer ? 'you win' : 'you lose';
+      statusEl.textContent = winner.isPlayer ? 'you win' : 'you lose';
     }
   };
 }
