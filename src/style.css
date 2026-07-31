@@ -114,6 +114,42 @@ html, body {
   white-space: nowrap;
 }
 
+.hud-charge-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 16px;
+  border: 1px solid rgba(238, 231, 219, 0.6);
+  border-radius: 8px;
+  background: rgba(10, 7, 5, 0.55);
+  overflow: hidden;
+}
+
+.hud-charge-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ffffff, #ffaa33);
+  transition: width 0.05s linear;
+}
+
+.hud-charge-fill--hot {
+  background: linear-gradient(90deg, #ffaa33, #ff2020);
+}
+
+.hud-overheat {
+  position: fixed;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%);
+  color: #ff4040;
+  font: bold 16px/1 monospace;
+  letter-spacing: 2px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  pointer-events: none;
+}
+
 #rotate-overlay {
   z-index: 100; /* above the menu/end overlays too — nothing is playable in portrait */
   background: #0a0705;

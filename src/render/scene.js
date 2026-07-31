@@ -39,8 +39,8 @@ export function createRenderer3D(canvas) {
   const marbles = createMarbleSystem(MAX_MARBLES);
   scene.add(marbles.group);
 
-  const aim = buildAimLine();
-  scene.add(aim.line);
+  const aim = buildAimIndicator();
+  scene.add(aim.group);
 
   let lastW = -1, lastH = -1;
 
@@ -69,21 +69,21 @@ export function createRenderer3D(canvas) {
     board.buildTerrain(world);
   }
 
-  function draw(world, alpha, drag) {
+  function draw(world, alpha, charge) {
     if (world.w !== lastW || world.h !== lastH) fitCamera(world);
 
     marbles.sync(world, alpha);
+    board.updateAnimations(world);
 
     const player = world.marbles.find((m) => m.isPlayer && m.alive);
     board.updateBlackout(world, player ? boardToScene(player.x, player.y, world.w, world.h) : null);
 
-    if (drag) {
-      const [ox, oz] = boardToScene(drag.originX, drag.originY, world.w, world.h);
-      const [tx, tz] = boardToScene(drag.x, drag.y, world.w, world.h);
-      aim.update(ox, oz, tx, tz);
-      aim.line.visible = true;
+    if (charge && player) {
+      const [cx, cz] = boardToScene(player.x, player.y, world.w, world.h);
+      aim.update(cx, cz, charge.angle, player.r * 2.4, charge.power, charge.overheating);
+      aim.group.visible = true;
     } else {
-      aim.line.visible = false;
+      aim.group.visible = false;
     }
 
     renderer.render(scene, camera);
@@ -116,19 +116,48 @@ function addLights(scene) {
   scene.add(fill);
 }
 
-function buildAimLine() {
-  const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
-  const mat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.02, gapSize: 0.015, transparent: true, opacity: 0.7 });
-  const line = new THREE.Line(geo, mat);
-  line.visible = false;
+// Direction is no longer a drag vector the player chooses freely — a marker races around
+// the marble and the player commits to wherever it is when they release (or when the
+// launcher overheats and commits for them). The marker's angular position on the circle IS
+// the direction readout; the radial line just makes that legible at a glance. Color rides
+// power: white -> orange -> red as charge builds, flashing red during overheat.
+function buildAimIndicator() {
+  const group = new THREE.Group();
 
-  function update(ox, oz, tx, tz) {
-    const positions = line.geometry.attributes.position;
-    positions.setXYZ(0, ox, 0.01, oz);
-    positions.setXYZ(1, tx, 0.01, tz);
-    positions.needsUpdate = true;
-    line.computeLineDistances();
+  const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+  const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+  const line = new THREE.Line(lineGeo, lineMat);
+  group.add(line);
+
+  const tipMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffaa33, emissiveIntensity: 0.9 });
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 8), tipMat);
+  group.add(tip);
+
+  group.visible = false;
+
+  function update(cx, cz, angle, radius, power, overheating) {
+    const tx = cx + Math.cos(angle) * radius;
+    const tz = cz + Math.sin(angle) * radius;
+    const pos = line.geometry.attributes.position;
+    pos.setXYZ(0, cx, 0.04, cz);
+    pos.setXYZ(1, tx, 0.04, tz);
+    pos.needsUpdate = true;
+    tip.position.set(tx, 0.04, tz);
+
+    const hex = overheating ? 0xff2020
+      : power < 0.5 ? lerpHex(0xffffff, 0xffaa33, power * 2)
+      : lerpHex(0xffaa33, 0xff2020, (power - 0.5) * 2);
+    lineMat.color.setHex(hex);
+    tipMat.color.setHex(hex);
+    tipMat.emissive.setHex(hex);
   }
 
-  return { line, update };
+  return { group, update };
+}
+
+function lerpHex(a, b, t) {
+  const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+  const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+  const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
+  return (r << 16) | (g << 8) | bl;
 }

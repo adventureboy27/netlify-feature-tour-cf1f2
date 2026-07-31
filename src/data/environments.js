@@ -23,6 +23,46 @@
 import { shrinkRails } from '../sim/terrain.js';
 
 /* ------------------------------------------------------------------ */
+/* Shared crush detection for closing/vice — see the comment on       */
+/* checkCrush below for why this can't just be "is anyone outside     */
+/* world.bounds".                                                      */
+/* ------------------------------------------------------------------ */
+
+const CRUSH_EPS = 0.01;    // board-widths — "touching" tolerance for wall/neighbor contact
+const CRUSH_SPEED = 0.02;  // board-widths/sec — below this counts as stuck, not just grazing
+const CRUSH_HOLD = 0.35;   // seconds pinned before it's fatal, so a normal bounce never counts
+
+// physics.js's bounceOffWalls re-clamps every marble to stay inside world.bounds on every
+// substep, so "is m.x outside bounds" can never be true once a marble has been caught by a
+// shrinking box — it always gets pushed back in before anyone can observe it outside. That
+// let closing/vice ship with walls that squeezed marbles together forever without ever
+// killing anyone. The real signal is contact: a marble pinned against a wall, unable to
+// roll away because a neighbor (or the wall on the far side) blocks it, held there long
+// enough that it's not just a bounce in progress.
+function checkCrush(world, dt) {
+  const { l, r, t, b } = world.bounds;
+  const inverted = r < l || b < t; // opposite walls have crossed — nothing could fit anymore
+  for (const m of world.marbles) {
+    if (!m.alive || m.lethalCause) continue;
+    if (inverted) { m.lethalCause = 'crushed'; continue; }
+
+    const pinnedToWall =
+      m.x - m.r <= l + CRUSH_EPS || m.x + m.r >= r - CRUSH_EPS ||
+      m.y - m.r <= t + CRUSH_EPS || m.y + m.r >= b - CRUSH_EPS;
+    const tooNarrowForThisMarble = (r - l) < 2 * m.r || (b - t) < 2 * m.r;
+    const blockedByNeighbor = world.marbles.some((other) =>
+      other !== m && other.alive &&
+      Math.hypot(other.x - m.x, other.y - m.y) <= m.r + other.r + CRUSH_EPS
+    );
+    const speed = Math.hypot(m.vx, m.vy);
+    const stuck = pinnedToWall && speed < CRUSH_SPEED && (tooNarrowForThisMarble || blockedByNeighbor);
+
+    m.crushTimer = stuck ? (m.crushTimer ?? 0) + dt : 0;
+    if (m.crushTimer >= CRUSH_HOLD) m.lethalCause = 'crushed';
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* THREE FULLY IMPLEMENTED EXEMPLARS — follow these patterns           */
 /* ------------------------------------------------------------------ */
 
@@ -49,7 +89,8 @@ export const closing = {
       }
     }
     world.events.emit('degrade', { id: 'closing', turn });
-  }
+  },
+  onStep(world, dt) { checkCrush(world, dt); }
 };
 
 export const sumo = {
@@ -644,7 +685,8 @@ export const vice = {
       }
     }
     world.events.emit('degrade', { id: 'vice', turn });
-  }
+  },
+  onStep(world, dt) { checkCrush(world, dt); }
 };
 
 export const rest = [];

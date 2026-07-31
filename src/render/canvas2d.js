@@ -12,7 +12,7 @@ export function createRenderer(canvas) {
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
   }
 
-  function draw(world, alpha, drag) {
+  function draw(world, alpha, charge) {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -52,7 +52,10 @@ export function createRenderer(canvas) {
       if (m.isPlayer) { drawPlayerRing(ctx, x, y, m.r, world.time); playerX = x; playerY = y; }
     }
 
-    if (drag) drawAim(ctx, drag);
+    if (charge) {
+      const player = world.marbles.find((m) => m.isPlayer && m.alive);
+      if (player) drawAim(ctx, player.x, player.y, player.r * 2.4, charge);
+    }
 
     // blackout draws last, over everything except the (already-drawn) player marble+ring —
     // "never hide the player marble"
@@ -121,15 +124,35 @@ function drawPlayerRing(ctx, x, y, r, time) {
   }
 }
 
-function drawAim(ctx, { originX, originY, x, y }) {
+// same "marker races around the marble, its position IS the direction" indicator as the 3D
+// renderer's buildAimIndicator (render/scene.js) — kept visually equivalent since 2/3 toggles
+// between them live (docs/BUILD-ORDER.md M4).
+function drawAim(ctx, cx, cy, radius, { angle, power, overheating }) {
+  const tx = cx + Math.cos(angle) * radius;
+  const ty = cy + Math.sin(angle) * radius;
+  const colour = overheating ? '#ff2020'
+    : power < 0.5 ? lerpHex('#ffffff', '#ffaa33', power * 2)
+    : lerpHex('#ffaa33', '#ff2020', (power - 0.5) * 2);
+
   ctx.beginPath();
-  ctx.moveTo(originX, originY);
-  ctx.lineTo(x, y);
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = 0.008;
-  ctx.setLineDash([0.015, 0.01]);
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(tx, ty);
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = 0.006;
   ctx.stroke();
-  ctx.setLineDash([]);
+
+  ctx.beginPath();
+  ctx.arc(tx, ty, 0.012, 0, Math.PI * 2);
+  ctx.fillStyle = colour;
+  ctx.fill();
+}
+
+function lerpHex(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ar = (pa >> 16) & 255, ag = (pa >> 8) & 255, ab = pa & 255;
+  const br = (pb >> 16) & 255, bg = (pb >> 8) & 255, bb = pb & 255;
+  const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bl})`;
 }
 
 function drawTerrain(ctx, world) {
