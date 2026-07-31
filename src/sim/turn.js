@@ -38,10 +38,13 @@ export function createTurnMachine(world) {
 
   function launch(playerVx, playerVy) {
     if (phase !== 'AIM') return;
+    // launchMul applies on top of the normal max-speed clamp, not before it — turbo is meant
+    // to genuinely exceed what a flick can otherwise reach, not just make reaching it easier.
     for (const m of world.marbles) {
       if (!m.alive) continue;
-      if (m.isPlayer) { m.vx = playerVx; m.vy = playerVy; }
-      else { const a = cpuAim.get(m); if (a) { m.vx = a.vx; m.vy = a.vy; } }
+      if (m.isPlayer) { m.vx = playerVx * m.launchMul; m.vy = playerVy * m.launchMul; }
+      else { const a = cpuAim.get(m); if (a) { m.vx = a.vx * m.launchMul; m.vy = a.vy * m.launchMul; } }
+      world.power?.onLaunch?.(m, world);
     }
     setPhase('LAUNCH');
     setPhase('ROLL');
@@ -62,6 +65,9 @@ export function createTurnMachine(world) {
   function settle() {
     setPhase('SETTLE');
     assignRestColours(world);           // colour is a place — assign before the environment
+    for (const m of world.marbles) {
+      if (m.alive) world.power?.onSettle?.(m, world);
+    }
     world.environment?.onSettle?.(world); // sees the terrain-based deaths (like sinkhole would)
     resolve();
   }

@@ -13,11 +13,13 @@ import { applyTerrainForces, resolveTerrainObstacles, checkHazards, decelOverrid
  *
  * world.environment?.onStep runs continuous environment forces (magnet, wind, carousel) and
  * any per-tick hazard check an environment needs (sumo's disc boundary) — after movement so
- * it sees this tick's real positions, before terrain's own hazard check.
+ * it sees this tick's real positions, before terrain's own hazard check. world.power?.onStep
+ * runs alongside it, per marble (turbo's engine voice tracks speed this way).
  */
 export function stepPhysics(world, dt) {
   world.time += dt;
   const { wallE } = world.surface;
+  const power = world.power;
 
   applyTerrainForces(world, dt);
 
@@ -28,10 +30,11 @@ export function stepPhysics(world, dt) {
     m.x += m.vx * dt;
     m.y += m.vy * dt;
     const override = decelOverrideAt(world, m.x, m.y);
-    const decel = override ? override.decel : world.surface.decel;
-    const viscous = override ? override.viscous : world.surface.viscous;
+    const decel = (override ? override.decel : world.surface.decel) * m.decelMul;
+    const viscous = (override ? override.viscous : world.surface.viscous) * m.decelMul;
     applyRollingResistance(m, decel, viscous, dt);
-    if (world.rails !== false) bounceOffWalls(m, world, wallE);
+    if (world.rails !== false) bounceOffWalls(m, world, wallE, power);
+    power?.onStep?.(m, world, dt);
   }
 
   resolveTerrainObstacles(world);
@@ -50,20 +53,30 @@ function applyRollingResistance(m, decel, viscous, dt) {
   m.vy *= scale;
 }
 
-function bounceOffWalls(m, world, wallE) {
+// m.wallE is the marble's own effective restitution (from a power's stats, e.g. cork), an
+// override rather than a multiplier — null means "use the surface's own wallE."
+function bounceOffWalls(m, world, wallE, power) {
+  const effE = m.wallE ?? wallE;
   const { l, r, t, b } = world.bounds;
   let force = 0;
-  if (m.x - m.r < l) { force = Math.abs(m.vx); m.x = l + m.r; m.vx = -m.vx * wallE; }
-  else if (m.x + m.r > r) { force = Math.abs(m.vx); m.x = r - m.r; m.vx = -m.vx * wallE; }
-  if (m.y - m.r < t) { force = Math.max(force, Math.abs(m.vy)); m.y = t + m.r; m.vy = -m.vy * wallE; }
-  else if (m.y + m.r > b) { force = Math.max(force, Math.abs(m.vy)); m.y = b - m.r; m.vy = -m.vy * wallE; }
-  if (force > 0) world.events.emit('impact', { kind: 'rail', force });
+  if (m.x - m.r < l) { force = Math.abs(m.vx); m.x = l + m.r; m.vx = -m.vx * effE; }
+  else if (m.x + m.r > r) { force = Math.abs(m.vx); m.x = r - m.r; m.vx = -m.vx * effE; }
+  if (m.y - m.r < t) { force = Math.max(force, Math.abs(m.vy)); m.y = t + m.r; m.vy = -m.vy * effE; }
+  else if (m.y + m.r > b) { force = Math.max(force, Math.abs(m.vy)); m.y = b - m.r; m.vy = -m.vy * effE; }
+  if (force > 0) {
+    world.events.emit('impact', { kind: 'rail', force });
+    power?.onWallHit?.(m, world, force);
+  }
 }
 
 // Pairwise circle-circle elastic collision: separate overlap by inverse mass, then apply
-// a restitution impulse along the contact normal. ballE = 0.94 by default (docs/DESIGN.md).
+// a restitution impulse along the contact normal. ballE = 0.94 by default (docs/DESIGN.md),
+// per-marble ballE (a power override, e.g. cork/greased) averaged when the two differ.
+// ghost's `noCollide` skips this whole pass — by the time marbles overlap it's too late for
+// a hook to un-happen a collision, so it has to be a pre-check, not a hook.
 function resolveMarbleCollisions(world) {
-  const marbles = world.marbles, ballE = world.ballE;
+  if (world.power?.noCollide) return;
+  const marbles = world.marbles, ballE = world.ballE, power = world.power;
   for (let i = 0; i < marbles.length; i++) {
     const a = marbles[i];
     if (!a.alive || a.lethalCause) continue;
@@ -94,7 +107,8 @@ function resolveMarbleCollisions(world) {
       const velAlongNormal = relVx * nx + relVy * ny;
       if (velAlongNormal > 0) continue; // already separating
 
-      const j2 = -(1 + ballE) * velAlongNormal / totalInv;
+      const effE = ((a.ballE ?? ballE) + (b.ballE ?? ballE)) / 2;
+      const j2 = -(1 + effE) * velAlongNormal / totalInv;
       const ix = j2 * nx;
       const iy = j2 * ny;
       a.vx -= ix * invA;
@@ -102,7 +116,12 @@ function resolveMarbleCollisions(world) {
       b.vx += ix * invB;
       b.vy += iy * invB;
 
-      world.events.emit('impact', { kind: 'marble', force: Math.abs(velAlongNormal) });
+      const force = Math.abs(velAlongNormal);
+      world.events.emit('impact', { kind: 'marble', force });
+      // each side gets a chance to react to what it hit — a mutual collision between two
+      // marbles sharing the power (cannonball vs cannonball) fires it for both
+      power?.onMarbleHit?.(a, b, world, force);
+      power?.onMarbleHit?.(b, a, world, force);
     }
   }
 }

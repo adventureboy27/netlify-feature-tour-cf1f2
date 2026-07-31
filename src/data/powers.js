@@ -15,9 +15,16 @@
  *   onLaunch(m, world)
  *   onStep(m, world, dt)
  *   onWallHit(m, world, force)
- *   onMarbleHit(m, other, world, force)
+ *   onMarbleHit(m, other, world, force)   called for BOTH marbles in a collision, each from
+ *                                         its own side — a mutual hit between two marbles
+ *                                         sharing the power fires it twice
  *   onSettle(m, world)
  *   onDeath(m, world) -> true to veto the death
+ *
+ * `noCollide: true` (top-level, alongside `exclusive`) disables marble-marble collision
+ * resolution entirely for the level — sim/physics.js checks this before running the elastic
+ * collision at all, since by the time two marbles are touching it's too late for a hook to
+ * un-happen a collision. Only `ghost` uses it.
  *
  * `sfx.voice` is bound to the PLAYER's marble specifically, so you can hear yourself apart
  * from the pack. Anything speed-driven must be synthesised, not sampled.
@@ -89,26 +96,56 @@ export const molten = {
 };
 
 /* ------------------------------------------------------------------ */
+/* M7 — the next three, implemented per docs/BUILD-ORDER.md order      */
+/* ------------------------------------------------------------------ */
+
+export const lead = {
+  id: 'lead',
+  name: 'Lead',
+  blurb: 'Short roll. Devastating shoulder.',
+  exclusive: false,
+  // No hooks needed: mass:4 alone is enough. The existing inverse-mass collision math in
+  // physics.js already gives a heavy marble the "shoulder" — it barely moves, everything it
+  // touches goes flying — for free.
+  stats: { launchMul: 0.6, decelMul: 1.8, mass: 4 },
+  sfx: {
+    voice: 'massive dull rumble',
+    hit: 'enormous low impact, room shake'
+  }
+};
+
+export const cork = {
+  id: 'cork',
+  name: 'Cork',
+  blurb: 'Nearly perfect bounce.',
+  exclusive: false,
+  // Also hookless: wallE/ballE here are the marble's effective restitution, not a multiplier
+  // on the surface's — that's what makes 0.98/0.99 actually read as "nearly perfect."
+  stats: { wallE: 0.98, ballE: 0.99, decelMul: 0.9 },
+  sfx: {
+    voice: 'light hollow tone',
+    hit: 'rubbery boing, pitch per force'
+  }
+};
+
+export const ghost = {
+  id: 'ghost',
+  name: 'Ghost',
+  blurb: 'Marbles pass through each other.',
+  exclusive: false,
+  stats: {},
+  noCollide: true, // sim/physics.js skips marble-marble collision resolution for the level
+  sfx: {
+    voice: 'airy hollow whoosh on each pass-through'
+  }
+};
+
+/* ------------------------------------------------------------------ */
 /* THE REST — metadata complete, hooks to implement                    */
 /* Implement in the order given in docs/BUILD-ORDER.md M7.             */
 /* ------------------------------------------------------------------ */
 
 export const rest = [
-  { id:'lead', name:'Lead', blurb:'Short roll. Devastating shoulder.', exclusive:false,
-    stats:{ launchMul:0.6, decelMul:1.8, mass:4 },
-    spec:'Barely travels, but anything it touches goes flying.',
-    sfx:{ voice:'massive dull rumble', hit:'enormous low impact, room shake' } },
-
-  { id:'cork', name:'Cork', blurb:'Nearly perfect bounce.', exclusive:false,
-    stats:{ wallE:0.98, ballE:0.99, decelMul:0.9 },
-    spec:'Ricochets off rails for days. Trajectories become unreadable after two bounces.',
-    sfx:{ voice:'light hollow tone', hit:'rubbery boing, pitch per force' } },
-
-  { id:'ghost', name:'Ghost', blurb:'Marbles pass through each other.', exclusive:false,
-    stats:{}, spec:'Disable marble-marble collision entirely. Pure terrain game — nobody can ' +
-    'interfere with anybody. Pairs beautifully with rot and fault.',
-    sfx:{ voice:'airy hollow whoosh on each pass-through' } },
-
   { id:'hollow', name:'Hollow', blurb:'One hard hit shatters you.', exclusive:false,
     stats:{ mass:0.4 },
     spec:'Collisions above a force threshold are lethal in both directions. Everyone is ' +

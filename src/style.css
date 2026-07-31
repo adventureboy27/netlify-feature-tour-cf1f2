@@ -38,6 +38,11 @@ html, body {
   margin-bottom: 2px;
 }
 
+.hud-power {
+  opacity: 0.9;
+  margin-bottom: 2px;
+}
+
 .hud-status {
   opacity: 0.8;
 }

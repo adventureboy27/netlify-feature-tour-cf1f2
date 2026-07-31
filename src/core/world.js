@@ -31,6 +31,7 @@ export function createWorld(seed) {
     palette: PALETTE,
     terrain: createTerrainStore(),
     environment: null,
+    power: null,
     marbles: [],
     winner: null
   };
@@ -41,10 +42,18 @@ export function setBoardHeight(world, h) {
   world.bounds.b = h;
 }
 
-export function addMarble(world, { x, y, r = 0.035, isPlayer = false }) {
+// mass/decelMul/launchMul/wallE/ballE come from the active power's `stats`, resolved once
+// by main.js at level start — see content/powers.js. wallE/ballE are `null` (not 1) by
+// default because they're effective-value overrides, not multipliers: null means "fall back
+// to the surface's / world's own default," where 1 would mean "force it to exactly 1.0."
+export function addMarble(world, {
+  x, y, r = 0.035, isPlayer = false,
+  mass = 1, decelMul = 1, launchMul = 1, wallE = null, ballE = null
+}) {
   const m = {
     x, y, px: x, py: y, vx: 0, vy: 0, r,
-    mass: 1, alive: true, isPlayer, lethalCause: null, colour: 'bare'
+    mass, alive: true, isPlayer, lethalCause: null, colour: 'bare',
+    decelMul, launchMul, wallE, ballE
   };
   world.marbles.push(m);
   return m;

@@ -4,12 +4,16 @@ import { stepPhysics } from './sim/physics.js';
 import { createTurnMachine } from './sim/turn.js';
 import { generateTerrain } from './sim/terrain.js';
 import { getEnvironment, implemented as implementedEnvironments } from './content/environments.js';
+import { getPower, implemented as implementedPowers } from './content/powers.js';
 import { createRenderer } from './render/canvas2d.js';
 import { createRenderer3D } from './render/scene.js';
 import { createHud } from './render/hud.js';
 import { createAudioEngine } from './audio/engine.js';
 import { createRollingBed } from './audio/beds.js';
 import { createImpactVoices } from './audio/impacts.js';
+import { createPowerVoices } from './audio/voices.js';
+
+const NO_POWER_CHANCE = 0.3; // "roughly 30% of levels have no power at all" — docs/DESIGN.md
 
 const SENSITIVITY = 3.0; // drag length in board-widths -> launch speed multiplier
 const MARBLE_R = 0.035;
@@ -45,21 +49,43 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+// M6/M7: non-negotiable #2 — environment and power are both announced before the level
+// starts. Level grammar (weighted draws, unlocks) is M9; for now a seeded pick from each
+// implemented set, overridable with ?env=<id> / ?power=<id> for testing a specific one.
+// Environment first, then power, matching docs/DESIGN.md's level(seed) -> environment,
+// power, ... grammar order — both draws go through world.rng, so the seed still determines
+// everything downstream (terrain, CPU aim) deterministically.
+const params = new URLSearchParams(window.location.search);
+world.environment = getEnvironment(params.get('env')) ?? world.rng.pick(implementedEnvironments);
+hud.setEnvironment(world.environment);
+
+// soloOnly (roulette) never gets a power — a hard rule, not just a default, so it applies
+// even when ?power= is passed explicitly.
+world.power = world.environment.soloOnly
+  ? null
+  : getPower(params.get('power')) ?? (world.rng.next() < NO_POWER_CHANCE ? null : world.rng.pick(implementedPowers));
+hud.setPower(world.power);
+
+// A power applies to ALL FIVE marbles, not just the player — stats are resolved once here
+// and baked into each marble (core/world.js), not looked up from world.power every tick.
+const powerStats = world.power?.stats ?? {};
+
 // evenly spaced along the horizontal centre line, spacing far wider than 2r so nobody
 // starts overlapping regardless of aspect ratio
 const marbles = [];
 for (let i = 0; i < MARBLE_COUNT; i++) {
   const x = 0.2 + i * 0.15;
-  marbles.push(addMarble(world, { x, y: world.h / 2, r: MARBLE_R, isPlayer: i === 0 }));
+  marbles.push(addMarble(world, {
+    x, y: world.h / 2, isPlayer: i === 0,
+    r: MARBLE_R * (powerStats.radius ?? 1),
+    mass: powerStats.mass ?? 1,
+    decelMul: powerStats.decelMul ?? 1,
+    launchMul: powerStats.launchMul ?? 1,
+    wallE: powerStats.wallE ?? null,
+    ballE: powerStats.ballE ?? null
+  }));
 }
 const player = marbles[0];
-
-// M6: non-negotiable #2 — the environment is announced before the level starts. Level
-// grammar (weighted draws, unlocks) is M9; for now a seeded pick from the implemented set,
-// overridable with ?env=<id> for testing a specific one.
-const requestedEnv = new URLSearchParams(window.location.search).get('env');
-world.environment = getEnvironment(requestedEnv) ?? world.rng.pick(implementedEnvironments);
-hud.setEnvironment(world.environment);
 
 // M3: seeded, non-lethal terrain so boards feel authored rather than empty. Lethal terrain
 // (holes, lava, water...) is always environment-driven.
@@ -77,7 +103,9 @@ world.events.on('win', ({ winner }) => hud.setWinner(winner));
 const audio = createAudioEngine();
 const rollingBed = createRollingBed(audio.ctx, audio.buses.roll);
 const impactVoices = createImpactVoices(audio.ctx, audio.buses.impact);
+const powerVoices = createPowerVoices(audio.ctx, audio.buses.voice);
 world.events.on('impact', (data) => impactVoices.playImpact(data));
+world.events.on('voice', (data) => powerVoices.handleVoice(data));
 world.events.on('death', ({ cause }) => {
   impactVoices.playDeath(cause);
   audio.duck(['bed', 'roll'], 4, 400);
@@ -148,4 +176,4 @@ const loop = createLoop({
 
 loop.start();
 
-if (import.meta.env.DEV) window.__TAW__ = { world, marbles, player, turn, audio, impactVoices, renderer3d };
+if (import.meta.env.DEV) window.__TAW__ = { world, marbles, player, turn, audio, impactVoices, powerVoices, renderer3d };
