@@ -21,6 +21,47 @@
  */
 
 import { shrinkRails } from '../sim/terrain.js';
+import { accrueDamage } from '../sim/damage.js';
+
+/* ------------------------------------------------------------------ */
+/* Shared crush detection for closing/vice — see the comment on       */
+/* checkCrush below for why this can't just be "is anyone outside     */
+/* world.bounds".                                                      */
+/* ------------------------------------------------------------------ */
+
+const CRUSH_EPS = 0.01;    // board-widths — "touching" tolerance for wall/neighbor contact
+const CRUSH_SPEED = 0.02;  // board-widths/sec — below this counts as stuck, not just grazing
+const CRUSH_HOLD = 0.35;   // seconds pinned before it's fatal, so a normal bounce never counts
+
+// physics.js's bounceOffWalls re-clamps every marble to stay inside world.bounds on every
+// substep, so "is m.x outside bounds" can never be true once a marble has been caught by a
+// shrinking box — it always gets pushed back in before anyone can observe it outside. That
+// let closing/vice ship with walls that squeezed marbles together forever without ever
+// killing anyone. The real signal is contact: a marble pinned against a wall, unable to
+// roll away because a neighbor (or the wall on the far side) blocks it, held there long
+// enough that it's not just a bounce in progress.
+function checkCrush(world, dt) {
+  const { l, r, t, b } = world.bounds;
+  const inverted = r < l || b < t; // opposite walls have crossed — nothing could fit anymore
+  for (const m of world.marbles) {
+    if (!m.alive || m.lethalCause) continue;
+    if (inverted) { m.lethalCause = 'crushed'; continue; }
+
+    const pinnedToWall =
+      m.x - m.r <= l + CRUSH_EPS || m.x + m.r >= r - CRUSH_EPS ||
+      m.y - m.r <= t + CRUSH_EPS || m.y + m.r >= b - CRUSH_EPS;
+    const tooNarrowForThisMarble = (r - l) < 2 * m.r || (b - t) < 2 * m.r;
+    const blockedByNeighbor = world.marbles.some((other) =>
+      other !== m && other.alive &&
+      Math.hypot(other.x - m.x, other.y - m.y) <= m.r + other.r + CRUSH_EPS
+    );
+    const speed = Math.hypot(m.vx, m.vy);
+    const stuck = pinnedToWall && speed < CRUSH_SPEED && (tooNarrowForThisMarble || blockedByNeighbor);
+
+    m.crushTimer = stuck ? (m.crushTimer ?? 0) + dt : 0;
+    if (m.crushTimer >= CRUSH_HOLD) m.lethalCause = 'crushed';
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* THREE FULLY IMPLEMENTED EXEMPLARS — follow these patterns           */
@@ -49,7 +90,8 @@ export const closing = {
       }
     }
     world.events.emit('degrade', { id: 'closing', turn });
-  }
+  },
+  onStep(world, dt) { checkCrush(world, dt); }
 };
 
 export const sumo = {
@@ -113,13 +155,31 @@ export const roulette = {
       const patch = world.terrain.patchAt(m.x, m.y);
       m.colour = patch ? patch.colour : 'bare';
       world.events.emit('lock', { marble: m });
-      if (m.colour === world.condemned) m.lethalCause = 'shattered';
+      // condemned2 (announced after turn 3, "it gets worse") was being set but never
+      // actually checked here — the second colour was purely decorative and the escalation
+      // did nothing, which is exactly why roulette could run for hundreds of turns instead
+      // of the level actually getting worse the way it announces.
+      if (m.colour === world.condemned || (world.condemned2 && m.colour === world.condemned2)) {
+        m.lethalCause = 'shattered';
+      }
     }
   },
   onTurnStart(world, turn) {
     // it gets worse: after turn 3 a second colour is condemned
     if (turn === 3) world.condemned2 = world.rng.pick(
       world.palette.filter(c => c !== world.condemned));
+    // the baseline board only ever has 3 small colour patches total (sim/terrain.js's
+    // generateTerrain) — the overwhelming majority of settle spots are bare floor, safe from
+    // roulette no matter which colours are condemned. That's what actually made roulette run
+    // for hundreds of turns, far more than the missing condemned2 check alone accounted for.
+    // More of the floor needs to be colour as the wheel keeps spinning.
+    if (turn % 2 === 0) {
+      world.terrain.addColourPatch({
+        x: world.rng.range(world.bounds.l + 0.06, world.bounds.r - 0.06),
+        y: world.rng.range(world.bounds.t + 0.06, world.bounds.b - 0.06),
+        r: 0.045, colour: world.rng.pick(world.palette)
+      });
+    }
     world.events.emit('degrade', { id: 'roulette', turn });
   }
 };
@@ -139,8 +199,11 @@ export const rot = {
     stinger: 'timber giving way'
   },
   onTurnStart(world, turn) {
-    // holes creep in from a random edge each turn, more and wider as it worsens
-    const severity = Math.min(1, turn / this.severityCurve);
+    // holes creep in from a random edge each turn, more and wider as it worsens — uncapped,
+    // not clamped to 1: severity used to plateau at severityCurve turns and then never get
+    // any worse, which let a cautious game stall indefinitely instead of the floor actually
+    // finishing the job the way "the board is always getting worse" promises.
+    const severity = turn / this.severityCurve;
     const count = 1 + Math.floor(severity * 2);
     for (let i = 0; i < count; i++) {
       const edge = world.rng.pick(['l', 'r', 't', 'b']);
@@ -202,6 +265,12 @@ export const sinkhole = {
     world.sinkholeVoid = world.terrain.addHole({ x: world.w / 2, y: world.h / 2, r: 0.04 });
   },
   onTurnStart(world, turn) {
+    // starts at 0.04, under drill's (data/powers.js) fill-radius of 0.045 — a drill marble
+    // can remove it entirely during the very first roll, before growth ever gets applied.
+    // Recreate rather than growing a reference to a hole no longer in world.terrain.holes.
+    if (!world.terrain.holes.includes(world.sinkholeVoid)) {
+      world.sinkholeVoid = world.terrain.addHole({ x: world.w / 2, y: world.h / 2, r: 0.04 });
+    }
     world.sinkholeVoid.r += 0.018 * (1 + turn * 0.08);
     world.events.emit('degrade', { id: 'sinkhole', turn });
   }
@@ -222,9 +291,11 @@ export const tide = {
     world.terrain.setWaterLine({ edge: world.tideEdge, level: 0 });
   },
   onTurnStart(world, turn) {
-    // capped short of 1: always leaves a dry strip until very late, non-negotiable #5
-    // backstops the rest
-    world.terrain.setWaterLine({ edge: world.tideEdge, level: Math.min(0.85, 0.05 * turn) });
+    // capped short of 1, not at 1 itself: always leaves a dry strip until very late, non-
+    // negotiable #5 backstops the rest. The strip does need to keep shrinking though — a
+    // flat 0.05/turn hit its old 0.85 ceiling at turn 17 and then just sat there forever,
+    // which left a stalemate-sized strip of dry board standing for the rest of the level.
+    world.terrain.setWaterLine({ edge: world.tideEdge, level: Math.min(0.97, 0.03 * turn * (1 + turn * 0.02)) });
     world.events.emit('degrade', { id: 'tide', turn });
   }
 };
@@ -257,7 +328,9 @@ export const fault = {
   soloOnly: false, severityCurve: 9,
   sfx: { bed: 'tectonic groan', stinger: 'sharp crack, hard transient' },
   onTurnStart(world, turn) {
-    const severity = Math.min(1, turn / this.severityCurve);
+    // uncapped — see rot's comment: capped severity let fault plateau into an unwinnable
+    // stalemate once the cracks stopped growing.
+    const severity = turn / this.severityCurve;
     const count = 1 + Math.floor(severity * 1.5);
     for (let i = 0; i < count; i++) {
       const x1 = world.rng.range(world.bounds.l + 0.1, world.bounds.r - 0.1);
@@ -277,6 +350,7 @@ export const freeze = {
   id: 'freeze', name: 'Deep Freeze', blurb: 'It is icing over.',
   soloOnly: false, severityCurve: 10,
   sfx: { bed: 'crystalline ringing into howling wind', stinger: 'sharp freeze crack' },
+  onLevelStart(world) { world.freezeVoid = null; },
   onTurnStart(world, turn) {
     const severity = Math.min(1, turn / this.severityCurve);
     world.terrain.addIcePatch({
@@ -284,6 +358,18 @@ export const freeze = {
       y: world.rng.range(world.bounds.t + 0.05, world.bounds.b - 0.05),
       r: 0.08 + severity * 0.1
     });
+    // ice patches are friction, not lethal (docs/DESIGN.md terrain vocabulary) — freeze had
+    // nothing that could actually end a level on its own. The thinnest ice is at the centre,
+    // and it finally gives way: a real, growing hole, same primitive sinkhole uses.
+    // drill (data/powers.js) fills in and removes any hole at/below its own radius 0.045 —
+    // that leaves world.freezeVoid pointing at a hole no longer in world.terrain.holes at
+    // all, so blindly growing .r on it would silently grow a hole nobody can ever fall in
+    // again. Recreate it whenever it's been drilled out instead.
+    if (!world.freezeVoid || !world.terrain.holes.includes(world.freezeVoid)) {
+      world.freezeVoid = world.terrain.addHole({ x: world.w / 2, y: world.h / 2, r: 0.015 });
+    } else {
+      world.freezeVoid.r += 0.014 * (1 + turn * 0.08);
+    }
     world.events.emit('degrade', { id: 'freeze', turn });
   }
 };
@@ -302,6 +388,17 @@ export const ashfall = {
         r: 0.025 + world.rng.range(0, 0.02)
       });
     }
+    // domes deflect, they don't kill (docs/DESIGN.md terrain vocabulary) — a soft rain of
+    // debris that could never actually end a level. Eventually a chunk is heavy enough to
+    // punch clean through: a real hole, growing in odds and size the longer it's been coming
+    // down, not just deflecting bumps forever.
+    if (turn > this.severityCurve && world.rng.next() < 0.15 + (turn - this.severityCurve) * 0.03) {
+      world.terrain.addHole({
+        x: world.rng.range(world.bounds.l + 0.08, world.bounds.r - 0.08),
+        y: world.rng.range(world.bounds.t + 0.08, world.bounds.b - 0.08),
+        r: 0.03 + (turn - this.severityCurve) * 0.004
+      });
+    }
     world.events.emit('degrade', { id: 'ashfall', turn });
   }
 };
@@ -313,6 +410,42 @@ function inRustGap(gaps, edge, frac) {
   return gaps.some((g) => g.edge === edge && Math.abs(frac - g.center) < g.half);
 }
 
+// Shared by any environment that replaces the normal wall bounce with its own rail-gap check
+// (rust, pinball): a genuine bounce still has to go through the same power/damage/impact
+// pipeline physics.js's own bounceOffWalls does — it was quietly skipping all three, which
+// meant wall-triggered powers (shockwave) never fired here, and damage never accrued off
+// these walls either, removing damage's own "everyone eventually shatters" backstop for
+// exactly the environments most likely to need it.
+function bounceWithGaps(world, gaps) {
+  const { l, r, t, b } = world.bounds;
+  const wallE = world.surface.wallE;
+  const power = world.power;
+  for (const m of world.marbles) {
+    if (!m.alive || m.lethalCause) continue;
+    const effE = m.wallE ?? wallE;
+    let force = 0;
+    if (m.x - m.r < l) {
+      if (inRustGap(gaps, 'l', (m.y - t) / (b - t))) m.lethalCause = 'fell';
+      else { force = Math.abs(m.vx); m.x = l + m.r; m.vx = -m.vx * effE; }
+    } else if (m.x + m.r > r) {
+      if (inRustGap(gaps, 'r', (m.y - t) / (b - t))) m.lethalCause = 'fell';
+      else { force = Math.abs(m.vx); m.x = r - m.r; m.vx = -m.vx * effE; }
+    }
+    if (m.y - m.r < t) {
+      if (inRustGap(gaps, 't', (m.x - l) / (r - l))) m.lethalCause = 'fell';
+      else { force = Math.max(force, Math.abs(m.vy)); m.y = t + m.r; m.vy = -m.vy * effE; }
+    } else if (m.y + m.r > b) {
+      if (inRustGap(gaps, 'b', (m.x - l) / (r - l))) m.lethalCause = 'fell';
+      else { force = Math.max(force, Math.abs(m.vy)); m.y = b - m.r; m.vy = -m.vy * effE; }
+    }
+    if (force > 0) {
+      world.events.emit('impact', { kind: 'rail', force, x: m.x, y: m.y });
+      accrueDamage(m, world, force);
+      power?.onWallHit?.(m, world, force);
+    }
+  }
+}
+
 export const rust = {
   id: 'rust', name: 'Rust', blurb: 'The rails are failing.',
   soloOnly: false, severityCurve: 9,
@@ -322,36 +455,26 @@ export const rust = {
     world.rustGaps = [];
   },
   onTurnStart(world, turn) {
-    const severity = Math.min(1, turn / this.severityCurve);
-    world.rustGaps.push({
-      edge: world.rng.pick(['l', 'r', 't', 'b']),
-      center: world.rng.range(0.15, 0.85),
-      half: 0.04 + severity * 0.05
-    });
+    // uncapped, like rot/fault — and existing gaps widen too, not just new ones spawning at
+    // a fixed size. One narrow gap per turn on a four-sided perimeter took a very long time
+    // for a marble to actually wander into; a rusting rail should keep failing where it's
+    // already failed, not just add more equally-small weak points.
+    const severity = turn / this.severityCurve;
+    for (const g of world.rustGaps) g.half += 0.006 * (1 + turn * 0.05);
+    // more than one failure point per turn once it's been going a while — a single narrow
+    // gap on a four-sided perimeter, even widening, was still the slowest hazard in the
+    // game by a wide margin (rot/fault/ashfall all already scale count with severity too).
+    const count = 1 + Math.floor(severity);
+    for (let i = 0; i < count; i++) {
+      world.rustGaps.push({
+        edge: world.rng.pick(['l', 'r', 't', 'b']),
+        center: world.rng.range(0.15, 0.85),
+        half: 0.04 + severity * 0.05
+      });
+    }
     world.events.emit('degrade', { id: 'rust', turn });
   },
-  onStep(world) {
-    const { l, r, t, b } = world.bounds;
-    const wallE = world.surface.wallE;
-    for (const m of world.marbles) {
-      if (!m.alive || m.lethalCause) continue;
-      const effE = m.wallE ?? wallE;
-      if (m.x - m.r < l) {
-        if (inRustGap(world.rustGaps, 'l', (m.y - t) / (b - t))) m.lethalCause = 'fell';
-        else { m.x = l + m.r; m.vx = -m.vx * effE; }
-      } else if (m.x + m.r > r) {
-        if (inRustGap(world.rustGaps, 'r', (m.y - t) / (b - t))) m.lethalCause = 'fell';
-        else { m.x = r - m.r; m.vx = -m.vx * effE; }
-      }
-      if (m.y - m.r < t) {
-        if (inRustGap(world.rustGaps, 't', (m.x - l) / (r - l))) m.lethalCause = 'fell';
-        else { m.y = t + m.r; m.vy = -m.vy * effE; }
-      } else if (m.y + m.r > b) {
-        if (inRustGap(world.rustGaps, 'b', (m.x - l) / (r - l))) m.lethalCause = 'fell';
-        else { m.y = b - m.r; m.vy = -m.vy * effE; }
-      }
-    }
-  }
+  onStep(world) { bounceWithGaps(world, world.rustGaps); }
 };
 
 export const split = {
@@ -375,9 +498,19 @@ export const magnet = {
   id: 'magnet', name: 'Magnet Core', blurb: 'The centre is pulling.',
   soloOnly: false, severityCurve: 11,
   sfx: { bed: 'electromagnetic hum climbing in pitch', stinger: 'coil surge' },
-  onLevelStart(world) { world.magnetStrength = 0; },
+  onLevelStart(world) { world.magnetStrength = 0; world.magnetCore = null; },
   onTurnStart(world, turn) {
     world.magnetStrength = 0.15 * (1 + turn * 0.15);
+    // pulling everyone to the centre was never itself lethal — nothing there to fall into.
+    // the core it's pulling toward finally opens: a real, growing hole, exactly where the
+    // pull has been aiming the whole time, so it's the least surprising hazard in the game.
+    // same drill interaction as freeze's freezeVoid — recreate if it's been drilled out
+    // rather than growing a reference to a hole that's no longer in the world.
+    if (!world.magnetCore || !world.terrain.holes.includes(world.magnetCore)) {
+      world.magnetCore = world.terrain.addHole({ x: world.w / 2, y: world.h / 2, r: 0.02 });
+    } else {
+      world.magnetCore.r += 0.012 * (1 + turn * 0.1);
+    }
     world.events.emit('degrade', { id: 'magnet', turn });
   },
   onStep(world, dt) {
@@ -411,7 +544,10 @@ export const tilt = {
   },
   onTurnStart(world, turn) {
     world.tiltStrength = 0.12 * (1 + turn * 0.12);
-    world.tiltGap.width += 0.008;
+    // was a flat +0.008/turn — linear, unlike every other growing hazard in the game, so it
+    // could take an unreasonable number of turns to ever reach anyone. Accelerating, like
+    // the tilt force pushing everyone into it already does.
+    world.tiltGap.width += 0.008 * (1 + turn * 0.1);
     world.events.emit('degrade', { id: 'tilt', turn });
   },
   onStep(world, dt) {
@@ -445,9 +581,21 @@ export const carousel = {
   id: 'carousel', name: 'Carousel', blurb: 'The whole floor is turning.',
   soloOnly: true, severityCurve: 10,
   sfx: { bed: 'rising rotational whoosh with a doppler edge', stinger: 'gear engaging' },
-  onLevelStart(world) { world.carouselOmega = 0; },
+  // `soloOnly` means this never gets a power alongside it — spin alone was never lethal
+  // (rails stayed on, so it just span marbles around inside an ordinary box forever). Being
+  // soloOnly and having no kill of its own meant this specific environment could never
+  // resolve, full stop, not even the ~70% of the time a paired power might otherwise save
+  // one of these. Reuses sumo's exact shrinking-disc mechanism: you get flung outward by
+  // the spin, and eventually there's no platform left under you.
+  onLevelStart(world) {
+    world.shape = 'disc';
+    world.disc = { x: world.w / 2, y: world.h / 2, r: Math.min(world.w, world.h) * 0.46 };
+    world.rails = false;
+    world.carouselOmega = 0;
+  },
   onTurnStart(world, turn) {
     world.carouselOmega = 0.3 * (1 + turn * 0.15);
+    world.disc.r *= 0.94;
     world.events.emit('degrade', { id: 'carousel', turn });
   },
   onStep(world, dt) {
@@ -457,6 +605,7 @@ export const carousel = {
       const dx = m.x - cx, dy = m.y - cy;
       m.vx += -dy * world.carouselOmega * dt;
       m.vy += dx * world.carouselOmega * dt;
+      if (Math.hypot(dx, dy) > world.disc.r - m.r * 0.35) m.lethalCause = 'fell';
     }
   }
 };
@@ -465,6 +614,12 @@ export const pinball = {
   id: 'pinball', name: 'Pinball', blurb: 'Bumpers everywhere.',
   soloOnly: false, severityCurve: 8,
   sfx: { bed: 'idle arcade hum', stinger: 'spring and bell per bumper spawn' },
+  // bumpers deflect, they don't kill — a table full of them was never actually dangerous on
+  // its own. A real pinball table has kicker lanes that launch the ball clean off the table:
+  // a strong outward ramp aimed at a matching gap in the rail behind it (rust's exact gap
+  // convention, reused via inRustGap), so riding a hard kick far enough sends a marble
+  // straight through and off the board instead of just bouncing back in.
+  onLevelStart(world) { world.rails = false; world.pinballGaps = []; },
   onTurnStart(world, turn) {
     const severity = Math.min(1, turn / this.severityCurve);
     world.terrain.addBumper({
@@ -472,8 +627,22 @@ export const pinball = {
       y: world.rng.range(world.bounds.t + 0.08, world.bounds.b - 0.08),
       r: 0.025, restitution: 1.2 + severity * 0.5
     });
+
+    const edge = world.rng.pick(['l', 'r', 't', 'b']);
+    const along = world.rng.range(0.2, 0.8);
+    let x, y, dirX, dirY;
+    if (edge === 'l') { x = world.bounds.l + 0.12; y = world.bounds.t + along * world.h; dirX = -1; dirY = 0; }
+    else if (edge === 'r') { x = world.bounds.r - 0.12; y = world.bounds.t + along * world.h; dirX = 1; dirY = 0; }
+    else if (edge === 't') { x = world.bounds.l + along * world.w; y = world.bounds.t + 0.12; dirX = 0; dirY = -1; }
+    else { x = world.bounds.l + along * world.w; y = world.bounds.b - 0.12; dirX = 0; dirY = 1; }
+    world.terrain.addRamp({ x, y, r: 0.09, dirX, dirY, strength: 0.9 + severity * 0.6 });
+    world.pinballGaps.push({ edge, center: along, half: 0.035 + severity * 0.03 });
+
     world.events.emit('degrade', { id: 'pinball', turn });
-  }
+  },
+  // every kicker lane's gap is a place the rail gives way; everywhere else bounces normally
+  // through the same shared pipeline rust uses (bounceWithGaps).
+  onStep(world) { bounceWithGaps(world, world.pinballGaps); }
 };
 
 export const shatter = {
@@ -531,10 +700,24 @@ export const blackout = {
     bed: 'hum draining out into near-silence; rolling bed becomes the main information',
     stinger: 'a bank of lights cutting'
   },
+  // soloOnly + vision denial with no hazard of its own meant blackout, like carousel, could
+  // never resolve — dimming the view isn't itself lethal. The dark is exactly where the
+  // floor gives way first: real, growing holes creeping in from the edges (rot's pattern),
+  // hidden by the same lights that are already going out.
   onLevelStart(world) { world.blackoutRadius = 0.5; },
   onTurnStart(world, turn) {
     // never below a floor that still comfortably shows the player's own marble
     world.blackoutRadius = Math.max(0.12, 0.5 - turn * 0.05);
+    const severity = turn / this.severityCurve;
+    const edge = world.rng.pick(['l', 'r', 't', 'b']);
+    const inward = 0.03 + severity * 0.1;
+    const along = world.rng.range(0.05, 0.95);
+    let x, y;
+    if (edge === 'l') { x = world.bounds.l + inward; y = world.bounds.t + along * world.h; }
+    else if (edge === 'r') { x = world.bounds.r - inward; y = world.bounds.t + along * world.h; }
+    else if (edge === 't') { x = world.bounds.l + along * world.w; y = world.bounds.t + inward; }
+    else { x = world.bounds.l + along * world.w; y = world.bounds.b - inward; }
+    world.terrain.addHole({ x, y, r: 0.025 + severity * 0.035 });
     world.events.emit('degrade', { id: 'blackout', turn });
   }
 };
@@ -589,6 +772,7 @@ export const conveyor = {
   id: 'conveyor', name: 'Conveyor', blurb: 'The floor is moving.',
   soloOnly: false, severityCurve: 9,
   sfx: { bed: 'rubber drone, pitch per belt speed', stinger: 'motor kicking in' },
+  onLevelStart(world) { world.conveyorPit = null; },
   onTurnStart(world, turn) {
     const severity = Math.min(1, turn / this.severityCurve);
     const horizontal = world.rng.next() < 0.5;
@@ -600,6 +784,16 @@ export const conveyor = {
       w: horizontal ? 0.25 : 0.08, h: horizontal ? 0.08 : 0.25,
       vx: horizontal ? dir * speed : 0, vy: horizontal ? 0 : dir * speed
     });
+    // belts push, they don't kill — every belt on this floor already feeds toward the
+    // middle by construction, so that's where the actual hazard goes: a growing pit at the
+    // centre the whole conveyor system has been funnelling toward.
+    // same drill interaction as freeze's freezeVoid — recreate if it's been drilled out
+    // rather than growing a reference to a hole that's no longer in the world.
+    if (!world.conveyorPit || !world.terrain.holes.includes(world.conveyorPit)) {
+      world.conveyorPit = world.terrain.addHole({ x: world.w / 2, y: world.h / 2, r: 0.02 });
+    } else {
+      world.conveyorPit.r += 0.011 * (1 + turn * 0.09);
+    }
     world.events.emit('degrade', { id: 'conveyor', turn });
   }
 };
@@ -611,10 +805,16 @@ export const windstorm = {
   onLevelStart(world) {
     world.windAngle = world.rng.range(0, Math.PI * 2);
     world.windStrength = 0;
+    // a push, however strong, is never lethal by itself. A gale strong enough to matter
+    // eventually drives a storm surge in from one edge — water, growing with the wind that's
+    // causing it, rather than a bolted-on hazard with no relation to the theme.
+    world.windSurgeEdge = world.rng.pick(['l', 'r', 't', 'b']);
+    world.terrain.setWaterLine({ edge: world.windSurgeEdge, level: 0 });
   },
   onTurnStart(world, turn) {
     world.windStrength = 0.1 * (1 + turn * 0.12);
     if (world.rng.next() < 0.3) world.windAngle += world.rng.range(-1, 1);
+    world.terrain.setWaterLine({ edge: world.windSurgeEdge, level: Math.min(0.97, 0.03 * turn * (1 + turn * 0.02)) });
     world.events.emit('degrade', { id: 'windstorm', turn });
   },
   onStep(world, dt) {
@@ -644,7 +844,8 @@ export const vice = {
       }
     }
     world.events.emit('degrade', { id: 'vice', turn });
-  }
+  },
+  onStep(world, dt) { checkCrush(world, dt); }
 };
 
 export const rest = [];

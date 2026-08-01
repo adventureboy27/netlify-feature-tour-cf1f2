@@ -13,7 +13,10 @@ LEVEL START
   announce power        ("Every marble is turbo.")   [some levels: none]
   build terrain from seed
 REPEAT
-  AIM      player flicks. direction = swipe direction. power = swipe length.
+  AIM      hold to charge. a marker sweeps around the marble on its own; release commits to
+           wherever it currently is, so direction is a timing skill, not a free choice. power
+           ramps with hold duration. hold too long and the launcher overheats and fires on
+           its own, at random.
   LAUNCH   all five fire simultaneously. CPU marbles aim for open, safe ground.
   ROLL     2-5 seconds. rolling resistance, wall bounces, elastic marble collisions.
   SETTLE   everything stops. marbles take the colour of the patch they rest on.
@@ -46,6 +49,55 @@ are coloured; a marble resting on one takes that colour. Elsewhere it is bare.
 In most levels this is readable flavour — it tells you at a glance who is sitting where.
 In `roulette` it becomes the entire game.
 
+Colour tells you *where* a marble is sitting; it was never meant to tell you *who* it is —
+it changes too often for that (a fresh colour every SETTLE, or an entirely different palette
+under some powers). Identity is a separate axis: the player has the ring (non-negotiable #6),
+opponents have a number. Neither is ever colour-based.
+
+## Opponents
+
+Four non-player marbles per level, each a recurring numbered character rather than a fresh
+throwaway. `content/roster.js` holds a pool of 40 possible opponents (numbers 2–41); a level
+draws 4 of them through `world.rng`, so a replayed seed brings back the same four rivals, not
+just the same terrain. The player is never numbered — the ring already identifies them, and a
+number badge on top would be redundant.
+
+A billboard sprite carries the number so it reads at any roll orientation, in both renderers.
+
+## Marble damage
+
+The environment is still the primary killer, but a marble can now also break from what's
+happened to it during the match (CLAUDE.md non-negotiable #1, amended — this was a deliberate,
+discussed change, not something to extend further without the same kind of explicit call).
+
+Damage is core simulation state (`sim/damage.js`), not an environment or a power — it doesn't
+know about either, and they don't know about it. It accrues from real impact force: wall hits
+and marble-on-marble collisions above a threshold, scaled by how hard the hit was. As it
+builds, a marble:
+
+- **drags harder** — rolling resistance scales up, so a battered marble stops sooner than an
+  identical shot from a fresh one would suggest
+- **launches weaker** — every marble's launch speed (player or CPU) is scaled down by its own
+  damage, applied in `sim/turn.js` alongside the normal power/launch-multiplier math
+- **drifts off-line** — a small sideways wobble proportional to damage and current speed, so a
+  cracked marble visibly doesn't roll straight
+
+At full damage the marble shatters — physical and visible, same as every other death, and it
+reuses the existing `'shattered'` cause (already used by `roulette` and one power) rather than
+inventing a new one. Damage never carries between levels: every marble starts clean, matching
+how they're already rebuilt from scratch each level.
+
+Visually: a crack/scorch shell fades in over the glass as damage builds, in both renderers —
+a warning sign well before the marble actually goes.
+
+## Stats
+
+Every game updates two persistent, localStorage-backed records (`content/stats.js`): the
+player's own (wins, losses, best top speed, longest survival, most damage survived, causes of
+death) and the same shape for every numbered opponent faced. Shown on the end-of-round screen
+(full round breakdown, ranked) and from a Stats screen on the main menu. Purely a record of
+what happened — it never feeds back into gameplay.
+
 ## The roulette exception
 
 `roulette` is the one environment that eliminates by colour rather than terrain, and it is
@@ -69,7 +121,7 @@ level(n, seed) -> {
   power,            // or null. roughly 30% of levels have no power.
   surface,          // oak | ice | sand | glass | granite
   terrain,          // patch layout, ramps, bumpers, gutters, starting hazards
-  opponents: 4,
+  opponents: 4,     // numbered, drawn from content/roster.js's pool of 40 recurring rivals
   severityCurve     // how fast the environment degrades
 }
 ```
@@ -129,6 +181,8 @@ Six simultaneous layers. This is what makes it feel alive rather than beepy.
    rail, bumper, ramp.
 5. **Turn stinger** — each environment's "it just got worse" cue.
 6. **Death** — distinct per cause: burned, drowned, fell, shattered, knocked out, crushed.
+   `shattered` covers both `roulette`/a power's kill and a marble finally breaking from
+   accumulated damage — same cause, same sound, since both are "the marble physically broke."
 
 Buses: `master -> [bed, roll, voice, impact, ui]`, each with its own gain so mixing lives in
 one place. Duck the beds about 4 dB during a death.
@@ -139,9 +193,15 @@ Real materials, one warm key light from upper left, cool fill. No flat vector lo
 The board should look like an object that exists.
 
 - Marbles: `MeshPhysicalMaterial`, `transmission: 1`, `ior: 1.52`, `thickness` ≈ radius,
-  `roughness: 0.05`, `clearcoat: 1`. Cat's-eye as a small second mesh inside.
+  `roughness: 0.05`, `clearcoat: 1`. Cat's-eye as a small second mesh inside. A crack/scorch
+  shell (opacity = damage) and, for opponents, a billboard number sprite — both extra meshes
+  layered on top, never baked into the glass material itself.
 - Environment: HDRI for reflections. This sells glass more than anything else.
-- Floors: PBR sets — albedo, normal, roughness. Never a flat colour.
+- Floors, lava, ice, water: real PBR-style params (albedo, normal, roughness, emissive) —
+  never a flat colour — but *procedural*, not sourced texture sets: Poly Haven / ambientCG are
+  network-blocked in this environment, so `render/board.js` paints its own canvas textures
+  (value noise/fbm, a Sobel height-to-normal-map pass) instead. Swapping in a real texture set
+  later is just replacing the `paint*Texture()` functions' output.
 - Shadows: real shadow maps, soft, plus contact darkening under each marble.
 - Camera: fixed three-quarter top-down with slight perspective so rails have thickness.
   Gentle shake on impacts and degrade events.

@@ -24,19 +24,31 @@ function disposeGeometry(group) {
   for (const child of group.children) child.geometry?.dispose();
 }
 
+// dispose() on a material frees the material itself but NOT any textures assigned to it
+// (map, emissiveMap, ...) — those are separate GPU resources with their own dispose(). Now
+// that lava/ice/water carry painted CanvasTextures and get rebuilt every turn like the rest
+// of terrain, skipping this would just be the M10 geometry leak again, for textures instead.
+const TEXTURE_PROPS = ['map', 'roughnessMap', 'normalMap', 'emissiveMap', 'metalnessMap'];
+function disposeMaterial(material) {
+  for (const prop of TEXTURE_PROPS) material[prop]?.dispose();
+  material.dispose();
+}
+
 function disposeGeometryAndMaterial(group) {
   for (const child of group.children) {
     child.geometry?.dispose();
-    if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
-    else child.material?.dispose();
+    if (Array.isArray(child.material)) child.material.forEach(disposeMaterial);
+    else if (child.material) disposeMaterial(child.material);
   }
 }
 
 export function createBoard() {
   const group = new THREE.Group();
 
-  const { map, roughnessMap } = paintOakTextures();
-  const floorMat = new THREE.MeshStandardMaterial({ map, roughnessMap, metalness: 0.05 });
+  const { map, roughnessMap, normalMap } = paintOakTextures();
+  const floorMat = new THREE.MeshStandardMaterial({
+    map, roughnessMap, normalMap, normalScale: new THREE.Vector2(0.6, 0.6), metalness: 0.05
+  });
   const floorGeo = new THREE.PlaneGeometry(1, 1);
   const floor = new THREE.Mesh(floorGeo, floorMat);
   floor.rotation.x = -Math.PI / 2;
@@ -93,10 +105,10 @@ export function createBoard() {
     if (world.disc) addDiscRing(terrain, toScene(world.disc.x, world.disc.y), world.disc.r);
 
     for (const p of t.colourPatches) addDisc(terrain, toScene(p.x, p.y), p.r, colourHex(p.colour), 0.65);
-    for (const p of t.icePatches) addDisc(terrain, toScene(p.x, p.y), p.r, 0xbeebff, 0.35, 0.002);
+    t.icePatches.forEach((p, i) => addIceDisc(terrain, toScene(p.x, p.y), p.r, i));
     for (const g of t.gutters) addDisc(terrain, toScene(g.x, g.y), g.r, 0x000000, 0.25, 0.001);
     for (const c of t.craters) addDisc(terrain, toScene(c.x, c.y), c.r, 0x000000, 0.35, 0.0015);
-    for (const l of t.lavas) addDisc(terrain, toScene(l.x, l.y), l.r, 0xff6a1f, 0.9, 0.003);
+    t.lavas.forEach((l, i) => addLavaDisc(terrain, toScene(l.x, l.y), l.r, i));
     for (const h of t.holes) addDisc(terrain, toScene(h.x, h.y), h.r, 0x0a0705, 1, 0.004);
 
     for (const r of t.ramps) {
@@ -201,7 +213,9 @@ export function createBoard() {
     blackout.scale.set(scale, scale, 1);
   }
 
-  return { group, layout, buildTerrain, updateBlackout };
+  function updateAnimations(world) { updateAnimatedMaterials(terrain, world); }
+
+  return { group, layout, buildTerrain, updateBlackout, updateAnimations };
 }
 
 function addRail(rails, mat, cx, cz, w, d) {
@@ -242,13 +256,66 @@ function addWater(group, water, boardW, boardH) {
   else if (edge === 'r') { w = level * boardW; cx = boardW / 2 - w / 2; }
   else if (edge === 't') { h = level * boardH; cz = -boardH / 2 + h / 2; }
   else if (edge === 'b') { h = level * boardH; cz = boardH / 2 - h / 2; }
+  const map = paintWaterTexture(9001);
+  map.repeat.set(w * 4, h * 4);
   const water3d = new THREE.Mesh(
     new THREE.PlaneGeometry(w, h),
-    new THREE.MeshStandardMaterial({ color: 0x1e5a8c, transparent: true, opacity: 0.6, roughness: 0.15, metalness: 0.1 })
+    new THREE.MeshStandardMaterial({ map, transparent: true, opacity: 0.72, roughness: 0.15, metalness: 0.1 })
   );
   water3d.rotation.x = -Math.PI / 2;
   water3d.position.set(cx, 0.002, cz);
+  water3d.userData.anim = 'water';
   group.add(water3d);
+}
+
+// lit-from-within molten pool: emissive glow rides on the same fbm churn as the albedo, and
+// both maps drift slowly so the surface reads as live rather than a painted-on still image.
+function addLavaDisc(group, [x, z], r, seedIndex) {
+  const { map, emissiveMap } = paintLavaTexture(4200 + seedIndex * 733);
+  const disc = new THREE.Mesh(
+    new THREE.CircleGeometry(r, 32),
+    new THREE.MeshStandardMaterial({
+      map, emissiveMap, emissive: 0xffffff, emissiveIntensity: 1.4, roughness: 0.55, metalness: 0
+    })
+  );
+  disc.rotation.x = -Math.PI / 2;
+  disc.position.set(x, 0.003, z);
+  disc.receiveShadow = true;
+  disc.userData.anim = 'lava';
+  group.add(disc);
+}
+
+// pale, cracked, and faintly transmissive rather than a flat blue disc — clearcoat gives the
+// facets a hard, brittle highlight instead of the soft sheen the other wet/soft terrain has.
+function addIceDisc(group, [x, z], r, seedIndex) {
+  const { map, roughnessMap } = paintIceTexture(7700 + seedIndex * 511);
+  const disc = new THREE.Mesh(
+    new THREE.CircleGeometry(r, 32),
+    new THREE.MeshPhysicalMaterial({
+      map, roughnessMap, transparent: true, opacity: 0.75,
+      transmission: 0.25, ior: 1.31, clearcoat: 0.6, clearcoatRoughness: 0.3, metalness: 0
+    })
+  );
+  disc.rotation.x = -Math.PI / 2;
+  disc.position.set(x, 0.002, z);
+  disc.receiveShadow = true;
+  group.add(disc);
+}
+
+// Called once per rendered frame (scene.js draw()) — drifts the UV offset of anything
+// tagged userData.anim so lava churns and water ripples instead of sitting frozen between
+// terrain rebuilds. Cheap: just a couple of texture.offset writes per animated mesh.
+function updateAnimatedMaterials(terrain, world) {
+  for (const child of terrain.children) {
+    if (child.userData.anim === 'lava') {
+      const t = world.time * 0.015;
+      child.material.map.offset.set(t, t * 0.6);
+      child.material.emissiveMap.offset.set(t, t * 0.6);
+    } else if (child.userData.anim === 'water') {
+      const t = world.time * 0.006;
+      child.material.map.offset.set(t, -t * 0.5);
+    }
+  }
 }
 
 const COLOUR_HEX = { crimson: 0xc8283c, gold: 0xdcb432, teal: 0x28a0a0, violet: 0x8c50c8 };
@@ -274,8 +341,88 @@ function makeBlackoutTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
-// Procedural oak: warm streaked grain for albedo, matching noise for roughness variation —
-// stands in for a real PBR set until one can be loaded from Poly Haven / ambientCG.
+/* ------------------------------------------------------------------ */
+/* Procedural material helpers — no real PBR set is reachable from     */
+/* this environment (Poly Haven / ambientCG are network-blocked), so   */
+/* "looks like glass / wood / lava" has to come from painted canvas    */
+/* textures plus the right material params, not photographed sources.  */
+/* ------------------------------------------------------------------ */
+
+// Deterministic value noise (own small seeded PRNG, NOT world.rng — this is cosmetic paint,
+// not gameplay state, so it doesn't need to replay identically across seeds). Returns values
+// roughly in -1..1.
+function makeNoise2D(seed) {
+  let s = seed >>> 0;
+  const rand = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0xffffffff; };
+  const GRID = 16;
+  const grad = [];
+  for (let i = 0; i < GRID * GRID; i++) {
+    const a = rand() * Math.PI * 2;
+    grad.push([Math.cos(a), Math.sin(a)]);
+  }
+  const at = (ix, iy) => grad[((iy % GRID + GRID) % GRID) * GRID + ((ix % GRID + GRID) % GRID)];
+  const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+  const lerp = (a, b, t) => a + t * (b - a);
+  const dot = (ix, iy, x, y) => { const g = at(ix, iy); return g[0] * (x - ix) + g[1] * (y - iy); };
+  return function noise(x, y) {
+    const x0 = Math.floor(x), y0 = Math.floor(y), x1 = x0 + 1, y1 = y0 + 1;
+    const sx = fade(x - x0), sy = fade(y - y0);
+    const n0 = lerp(dot(x0, y0, x, y), dot(x1, y0, x, y), sx);
+    const n1 = lerp(dot(x0, y1, x, y), dot(x1, y1, x, y), sx);
+    return lerp(n0, n1, sy) * 1.4;
+  };
+}
+
+// fractal sum of the above — more octaves = finer detail riding on top of broad shape
+function makeFbm(seed, octaves = 4) {
+  const layers = [];
+  for (let i = 0; i < octaves; i++) layers.push(makeNoise2D(seed + i * 977));
+  return function fbm(x, y) {
+    let sum = 0, amp = 0.5, freq = 1;
+    for (const n of layers) { sum += n(x * freq, y * freq) * amp; amp *= 0.5; freq *= 2.15; }
+    return sum;
+  };
+}
+
+// Sobel-derived normal map from a grayscale height canvas — the cheap way to get real bump
+// relief (grain ridges, ice facets) without a modeled mesh or an external normal-map source.
+function heightToNormalMap(heightCanvas, strength = 1.5) {
+  const size = heightCanvas.width;
+  const hctx = heightCanvas.getContext('2d');
+  const h = hctx.getImageData(0, 0, size, size).data;
+  const at = (x, y) => h[((((y % size) + size) % size) * size + (((x % size) + size) % size)) * 4] / 255;
+
+  const out = document.createElement('canvas');
+  out.width = out.height = size;
+  const octx = out.getContext('2d');
+  const img = octx.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const dx = (at(x - 1, y) - at(x + 1, y)) * strength;
+      const dy = (at(x, y - 1) - at(x, y + 1)) * strength;
+      const len = Math.hypot(dx, dy, 1);
+      const i = (y * size + x) * 4;
+      img.data[i] = ((dx / len) * 0.5 + 0.5) * 255;
+      img.data[i + 1] = ((dy / len) * 0.5 + 0.5) * 255;
+      img.data[i + 2] = ((1 / len) * 0.5 + 0.5) * 255;
+      img.data[i + 3] = 255;
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  return out;
+}
+
+function tileTexture(canvas, repeat, srgb = false) {
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeat, repeat);
+  if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// Procedural oak: warm streaked grain for albedo, matching noise for roughness variation,
+// and a Sobel normal map off the same grain so the ridges actually catch the key light
+// instead of reading as a flat painted photo.
 function paintOakTextures() {
   const size = 512;
   const albedo = document.createElement('canvas');
@@ -290,6 +437,12 @@ function paintOakTextures() {
   rctx.fillStyle = '#808080';
   rctx.fillRect(0, 0, size, size);
 
+  const height = document.createElement('canvas');
+  height.width = height.height = size;
+  const hctx = height.getContext('2d');
+  hctx.fillStyle = '#808080';
+  hctx.fillRect(0, 0, size, size);
+
   let seed = 1337;
   const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return (seed / 0x7fffffff); };
 
@@ -303,16 +456,113 @@ function paintOakTextures() {
     const roughShade = 100 + ((rand() * 100) | 0);
     rctx.fillStyle = `rgb(${roughShade},${roughShade},${roughShade})`;
     rctx.fillRect(0, y, size, grainH);
+
+    // grain ridges sit slightly proud of the surface — a raised streak, not a flat stain
+    const ridgeShade = 128 + ((shade - 1) * 60) | 0;
+    hctx.fillStyle = `rgb(${ridgeShade},${ridgeShade},${ridgeShade})`;
+    hctx.fillRect(0, y, size, grainH);
   }
 
-  const map = new THREE.CanvasTexture(albedo);
-  map.wrapS = map.wrapT = THREE.RepeatWrapping;
-  map.repeat.set(3, 3);
-  map.colorSpace = THREE.SRGBColorSpace;
+  const map = tileTexture(albedo, 3, true);
+  const roughnessMap = tileTexture(rough, 3);
+  const normalMap = tileTexture(heightToNormalMap(height, 2), 3);
 
-  const roughnessMap = new THREE.CanvasTexture(rough);
-  roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
-  roughnessMap.repeat.set(3, 3);
+  return { map, roughnessMap, normalMap };
+}
 
-  return { map, roughnessMap };
+// Molten churn: layered fbm noise mapped through a black -> deep red -> orange -> white-hot
+// ramp for albedo, with a thresholded copy as the emissive mask so only the hottest veins
+// actually glow instead of the whole pool lighting up flat orange.
+function paintLavaTexture(seed) {
+  const size = 160;
+  const fbm = makeFbm(seed, 4);
+  const albedo = document.createElement('canvas');
+  albedo.width = albedo.height = size;
+  const actx = albedo.getContext('2d');
+  const emissive = document.createElement('canvas');
+  emissive.width = emissive.height = size;
+  const ectx = emissive.getContext('2d');
+
+  const img = actx.createImageData(size, size);
+  const eimg = ectx.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const n = (fbm(x * 0.06, y * 0.06) + 1) / 2; // 0..1
+      let r, g, b;
+      if (n < 0.35) { r = 20 + n * 60; g = 4; b = 2; }
+      else if (n < 0.65) { const t = (n - 0.35) / 0.3; r = 40 + t * 160; g = 10 + t * 40; b = 2; }
+      else { const t = (n - 0.65) / 0.35; r = 200 + t * 55; g = 50 + t * 150; b = t * 90; }
+      const i = (y * size + x) * 4;
+      img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = 255;
+      const glow = n > 0.62 ? Math.min(1, (n - 0.62) / 0.2) : 0;
+      eimg.data[i] = glow * 255; eimg.data[i + 1] = glow * 130; eimg.data[i + 2] = glow * 30; eimg.data[i + 3] = 255;
+    }
+  }
+  actx.putImageData(img, 0, 0);
+  ectx.putImageData(eimg, 0, 0);
+
+  return { map: tileTexture(albedo, 1, true), emissiveMap: tileTexture(emissive, 1, true) };
+}
+
+// Cracked ice: pale translucent base with jagged fracture lines scored into it, plus a
+// roughness map so the facets catch specular highlights unevenly instead of one smooth sheen.
+function paintIceTexture(seed) {
+  const size = 160;
+  let s = seed >>> 0;
+  const rand = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0xffffffff; };
+
+  const albedo = document.createElement('canvas');
+  albedo.width = albedo.height = size;
+  const actx = albedo.getContext('2d');
+  actx.fillStyle = '#cdeeff';
+  actx.fillRect(0, 0, size, size);
+
+  const rough = document.createElement('canvas');
+  rough.width = rough.height = size;
+  const rctx = rough.getContext('2d');
+  rctx.fillStyle = '#404040';
+  rctx.fillRect(0, 0, size, size);
+
+  actx.strokeStyle = 'rgba(255,255,255,0.85)';
+  rctx.strokeStyle = '#dddddd';
+  for (let i = 0; i < 9; i++) {
+    let x = rand() * size, y = rand() * size;
+    actx.beginPath(); actx.moveTo(x, y);
+    rctx.beginPath(); rctx.moveTo(x, y);
+    const segs = 3 + ((rand() * 3) | 0);
+    for (let j = 0; j < segs; j++) {
+      x += (rand() - 0.5) * size * 0.5;
+      y += (rand() - 0.5) * size * 0.5;
+      actx.lineTo(x, y);
+      rctx.lineTo(x, y);
+    }
+    actx.lineWidth = 1 + rand();
+    actx.stroke();
+    rctx.lineWidth = 2 + rand() * 2;
+    rctx.stroke();
+  }
+
+  return { map: tileTexture(albedo, 1, true), roughnessMap: tileTexture(rough, 1) };
+}
+
+// Slow rolling caustic-ish ripple — coarse fbm banded into a couple of blue shades so the
+// surface reads as disturbed water rather than a flat translucent pane.
+function paintWaterTexture(seed) {
+  const size = 160;
+  const fbm = makeFbm(seed, 3);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const n = (fbm(x * 0.08, y * 0.08) + 1) / 2;
+      const band = Math.round(n * 4) / 4;
+      const r = 18 + band * 30, g = 70 + band * 60, b = 110 + band * 70;
+      const i = (y * size + x) * 4;
+      img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return tileTexture(canvas, 1, true);
 }

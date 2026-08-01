@@ -12,7 +12,7 @@ export function createRenderer(canvas) {
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
   }
 
-  function draw(world, alpha, drag) {
+  function draw(world, alpha, charge) {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -46,13 +46,18 @@ export function createRenderer(canvas) {
       if (!m.alive) continue;
       const x = m.px + (m.x - m.px) * alpha;
       const y = m.py + (m.y - m.py) * alpha;
-      drawMarble(ctx, x, y, m.r, m.colour);
+      drawMarble(ctx, x, y, m.r, m.colour, m.damage);
       // non-negotiable #6: the player is identified by a marker OUTSIDE the ball, never
-      // by colour — a slowly rotating white ring with four orbiting pips.
+      // by colour — a slowly rotating white ring with four orbiting pips. Opponents instead
+      // get a number badge (content/roster.js) — same reasoning, never colour.
       if (m.isPlayer) { drawPlayerRing(ctx, x, y, m.r, world.time); playerX = x; playerY = y; }
+      else if (m.number != null) drawNumberBadge(ctx, x, y, m.r, m.number);
     }
 
-    if (drag) drawAim(ctx, drag);
+    if (charge) {
+      const player = world.marbles.find((m) => m.isPlayer && m.alive);
+      if (player) drawAim(ctx, player.x, player.y, player.r * 2.4, charge);
+    }
 
     // blackout draws last, over everything except the (already-drawn) player marble+ring —
     // "never hide the player marble"
@@ -76,7 +81,7 @@ function colourToCss(colour, alpha) {
   return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
 }
 
-function drawMarble(ctx, x, y, r, colour) {
+function drawMarble(ctx, x, y, r, colour, damage = 0) {
   const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
   if (colour && colour !== 'bare') {
     const [cr, cg, cb] = COLOUR_CSS[colour] ?? [190, 190, 190];
@@ -95,6 +100,47 @@ function drawMarble(ctx, x, y, r, colour) {
   ctx.lineWidth = r * 0.06;
   ctx.strokeStyle = 'rgba(0,0,0,0.35)';
   ctx.stroke();
+
+  if (damage > 0.02) drawDamageCracks(ctx, x, y, r, damage);
+}
+
+// deterministic per-position "random" crack layout (no RNG state to carry) — a few jagged
+// lines radiating out from fixed angles, only as visible as the marble's own damage.
+function drawDamageCracks(ctx, x, y, r, damage) {
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, damage);
+  ctx.strokeStyle = 'rgba(15,8,4,0.85)';
+  ctx.lineWidth = Math.max(0.5, r * 0.05);
+  const cracks = 5;
+  for (let i = 0; i < cracks; i++) {
+    const a = (i / cracks) * Math.PI * 2 + 0.6;
+    const len = r * (0.4 + 0.35 * ((i * 37) % 5) / 5);
+    const jag = r * 0.15;
+    const mx = x + Math.cos(a) * len * 0.55 + Math.sin(a) * jag;
+    const my = y + Math.sin(a) * len * 0.55 - Math.cos(a) * jag;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a) * r * 0.15, y + Math.sin(a) * r * 0.15);
+    ctx.lineTo(mx, my);
+    ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawNumberBadge(ctx, x, y, r, number) {
+  const bx = x, by = y - r * 1.7;
+  ctx.beginPath();
+  ctx.arc(bx, by, r * 0.55, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(10,7,5,0.8)';
+  ctx.fill();
+  ctx.lineWidth = r * 0.05;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `${Math.max(8, r * 0.6)}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(number), bx, by + r * 0.02);
 }
 
 const RING_R_MUL = 1.6;
@@ -121,15 +167,35 @@ function drawPlayerRing(ctx, x, y, r, time) {
   }
 }
 
-function drawAim(ctx, { originX, originY, x, y }) {
+// same "marker races around the marble, its position IS the direction" indicator as the 3D
+// renderer's buildAimIndicator (render/scene.js) — kept visually equivalent since 2/3 toggles
+// between them live (docs/BUILD-ORDER.md M4).
+function drawAim(ctx, cx, cy, radius, { angle, power, overheating }) {
+  const tx = cx + Math.cos(angle) * radius;
+  const ty = cy + Math.sin(angle) * radius;
+  const colour = overheating ? '#ff2020'
+    : power < 0.5 ? lerpHex('#ffffff', '#ffaa33', power * 2)
+    : lerpHex('#ffaa33', '#ff2020', (power - 0.5) * 2);
+
   ctx.beginPath();
-  ctx.moveTo(originX, originY);
-  ctx.lineTo(x, y);
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = 0.008;
-  ctx.setLineDash([0.015, 0.01]);
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(tx, ty);
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = 0.006;
   ctx.stroke();
-  ctx.setLineDash([]);
+
+  ctx.beginPath();
+  ctx.arc(tx, ty, 0.012, 0, Math.PI * 2);
+  ctx.fillStyle = colour;
+  ctx.fill();
+}
+
+function lerpHex(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ar = (pa >> 16) & 255, ag = (pa >> 8) & 255, ab = pa & 255;
+  const br = (pb >> 16) & 255, bg = (pb >> 8) & 255, bb = pb & 255;
+  const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bl})`;
 }
 
 function drawTerrain(ctx, world) {

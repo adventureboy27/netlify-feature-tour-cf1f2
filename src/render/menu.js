@@ -4,6 +4,8 @@
  * M10 "save state") so it survives a reload; a bad/missing/corrupt value just falls back to 0
  * rather than ever throwing, since this is a nice-to-have, not something worth breaking on.
  */
+import { getStats } from '../content/stats.js';
+
 const SAVE_KEY = 'taw:highestUnlocked';
 
 function loadUnlocked() {
@@ -26,9 +28,11 @@ function saveUnlocked(n) {
 
 export function createMenu(el, { levelCount, onSelect, onEndless }) {
   let highestUnlocked = loadUnlocked();
+  let showingStats = false;
 
   function render() {
     el.innerHTML = '';
+    if (showingStats) { renderStats(); return; }
 
     const title = document.createElement('h1');
     title.textContent = 'TAW';
@@ -58,6 +62,52 @@ export function createMenu(el, { levelCount, onSelect, onEndless }) {
       endless.addEventListener('click', onEndless);
       el.appendChild(endless);
     }
+
+    const statsBtn = document.createElement('button');
+    statsBtn.textContent = 'Stats';
+    statsBtn.className = 'level-btn wide-btn';
+    statsBtn.addEventListener('click', () => { showingStats = true; render(); });
+    el.appendChild(statsBtn);
+  }
+
+  // "keep stats, victories, losses... for the user's marble too" — the player's career
+  // record plus every recurring opponent (content/roster.js) faced so far, most-played first.
+  function renderStats() {
+    const { player, roster } = getStats();
+
+    const title = document.createElement('h1');
+    title.textContent = 'Stats';
+    el.appendChild(title);
+
+    const you = document.createElement('p');
+    you.className = 'menu-sub';
+    you.textContent = `You: ${player.wins}W – ${player.losses}L over ${player.gamesPlayed} games`
+      + (player.gamesPlayed ? ` · top speed ${player.bestTopSpeed.toFixed(2)} · longest run ${player.longestSurvivalTurns} turns` : '');
+    el.appendChild(you);
+
+    const entries = Object.entries(roster).sort((a, b) => b[1].gamesPlayed - a[1].gamesPlayed).slice(0, 12);
+    if (entries.length) {
+      const list = document.createElement('div');
+      list.className = 'round-stats';
+      for (const [number, rec] of entries) {
+        const row = document.createElement('div');
+        row.className = 'round-stats-row';
+        row.textContent = `#${number}: ${rec.wins}W – ${rec.losses}L over ${rec.gamesPlayed} games`;
+        list.appendChild(row);
+      }
+      el.appendChild(list);
+    } else {
+      const none = document.createElement('p');
+      none.className = 'menu-sub';
+      none.textContent = 'No opponents faced yet.';
+      el.appendChild(none);
+    }
+
+    const back = document.createElement('button');
+    back.textContent = 'Back';
+    back.className = 'level-btn wide-btn';
+    back.addEventListener('click', () => { showingStats = false; render(); });
+    el.appendChild(back);
   }
 
   function unlock(n) {
@@ -80,14 +130,45 @@ export function createMenu(el, { levelCount, onSelect, onEndless }) {
   return { show, hide, unlock };
 }
 
+const CAUSE_LABEL = {
+  burned: 'burned', drowned: 'drowned', fell: 'fell', shattered: 'shattered',
+  crushed: 'crushed', 'knocked out': 'knocked out'
+};
+
 export function createEndOverlay(el, { onNext, onMenu }) {
-  function show(winner, hasNext) {
+  // round: { participants, stats } from main.js's win handler (content/stats.js shape) —
+  // optional so callers that don't have it yet (there shouldn't be any) still get a screen.
+  function show(winner, hasNext, round) {
     el.innerHTML = '';
     el.style.display = 'flex';
 
     const msg = document.createElement('h2');
-    msg.textContent = winner.isPlayer ? 'You win' : 'You lose';
+    msg.textContent = winner.isPlayer ? 'You win' : `You lose — marble #${winner.number} wins`;
     el.appendChild(msg);
+
+    if (round) {
+      const career = document.createElement('p');
+      career.className = 'menu-sub';
+      career.textContent = `Your record: ${round.stats.player.wins}W – ${round.stats.player.losses}L`;
+      el.appendChild(career);
+
+      const table = document.createElement('div');
+      table.className = 'round-stats';
+      const ranked = [...round.participants].sort((a, b) => {
+        if (a.won !== b.won) return a.won ? -1 : 1;
+        return b.survivedTurns - a.survivedTurns;
+      });
+      for (const p of ranked) {
+        const row = document.createElement('div');
+        row.className = 'round-stats-row';
+        const who = p.isPlayer ? 'You' : `#${p.number}`;
+        const result = p.won ? 'won' : `out — ${CAUSE_LABEL[p.cause] ?? p.cause ?? 'unresolved'}`;
+        row.textContent = `${who}: ${result} · turn ${p.survivedTurns} · top speed ${p.topSpeed.toFixed(2)} · damage ${Math.round(p.damage * 100)}%`;
+        if (p.isPlayer) row.classList.add('round-stats-row--player');
+        table.appendChild(row);
+      }
+      el.appendChild(table);
+    }
 
     if (hasNext) {
       const next = document.createElement('button');

@@ -4,6 +4,8 @@ import { stepPhysics } from './sim/physics.js';
 import { createTurnMachine } from './sim/turn.js';
 import { generateTerrain } from './sim/terrain.js';
 import { level, levelCount } from './content/levels.js';
+import { drawOpponents } from './content/roster.js';
+import { recordGame } from './content/stats.js';
 import { createRenderer } from './render/canvas2d.js';
 import { createRenderer3D } from './render/scene.js';
 import { createHud } from './render/hud.js';
@@ -13,9 +15,15 @@ import { createRollingBed } from './audio/beds.js';
 import { createImpactVoices } from './audio/impacts.js';
 import { createPowerVoices } from './audio/voices.js';
 
-const SENSITIVITY = 3.0; // drag length in board-widths -> launch speed multiplier
 const MARBLE_R = 0.035;
 const MARBLE_COUNT = 5;
+
+// launcher tuning — see the "AIM: hold to charge" block below for the mechanic itself
+const SWEEP_SPEED = Math.PI * 2 * 0.85; // rad/s the direction marker races around the marble
+const CHARGE_MAX_TIME = 1.4;            // seconds held to reach full power
+const OVERHEAT_TIME = 2.2;              // seconds held before the launcher forces a shot
+const MIN_POWER_FRAC = 0.5;             // launch speed floor as a fraction of maxSpeed — even
+                                         // a bare tap-and-release still rolls several marbles' worth
 
 // ---- one-time setup: renderers, hud, audio graph — all persist across level changes ----
 
@@ -60,56 +68,76 @@ const rollingBed = createRollingBed(audio.ctx, audio.buses.roll);
 const impactVoices = createImpactVoices(audio.ctx, audio.buses.impact);
 const powerVoices = createPowerVoices(audio.ctx, audio.buses.voice);
 
-// AIM: drag anywhere while it's the player's turn to aim. Direction and length of the
-// drag ARE the launch direction and power — a flick, not a slingshot pull-back.
-let drag = null;
-
-function toBoard(evt) {
-  const rect = canvas3d.getBoundingClientRect(); // both canvases share the same rect
-  return {
-    x: (evt.clientX - rect.left) / rect.width,
-    y: (evt.clientY - rect.top) / rect.width // same divisor for x and y: one uniform scale
-  };
-}
+// AIM: hold anywhere to charge. A marker races around the marble on its own — direction is
+// no longer something you drag out, it's whatever the marker is on when you let go, so aim
+// is a timing skill instead of a free choice (think a kicker's meter, not a slingshot pull).
+// Power ramps with how long you hold; holding well past full charge overheats the launcher
+// and it fires a random, uncontrolled shot for you instead of waiting for release.
+let charge = null; // { pointerId, startTime, angle, power, overheating }
 
 function canAim() {
   return current !== null && current.turn.phase === 'AIM' && current.player.alive;
 }
 
-for (const el of [canvas3d, canvas2d]) {
-  el.addEventListener('pointerdown', (evt) => {
-    audio.resume();
-    if (!canAim() || drag) return; // a second finger touching down must not hijack the aim
-    const p = toBoard(evt);
-    drag = { pointerId: evt.pointerId, startX: p.x, startY: p.y, x: p.x, y: p.y };
-    el.setPointerCapture(evt.pointerId);
-  });
+function startCharge(evt, el) {
+  audio.resume();
+  if (!canAim() || charge) return; // a second finger touching down must not hijack the charge
+  charge = { pointerId: evt.pointerId, startTime: current.world.time, angle: 0, power: 0, overheating: false };
+  el.setPointerCapture(evt.pointerId);
+}
 
-  el.addEventListener('pointermove', (evt) => {
-    if (!drag || evt.pointerId !== drag.pointerId) return;
-    const p = toBoard(evt);
-    drag.x = p.x;
-    drag.y = p.y;
-  });
+// commit=false means the hold was abandoned (pointer cancelled) rather than released — no
+// shot fires, same spirit as the old drag's pointercancel handling.
+function releaseCharge(commit) {
+  if (!charge) return;
+  const { angle, power, overheating } = charge;
+  charge = null;
+  hud.setCharge(null);
+  if (!commit || !canAim()) return;
+
+  const world = current.world;
+  // overheat's randomness goes through world.rng like every other draw (docs/CLAUDE.md) so
+  // a replayed seed reproduces the same "penalty" shot too, not just the deliberate ones.
+  const shotAngle = overheating ? world.rng.next() * Math.PI * 2 : angle;
+  const speed = overheating
+    ? world.maxSpeed * (0.1 + world.rng.next() * 0.9)
+    : world.maxSpeed * MIN_POWER_FRAC + world.maxSpeed * (1 - MIN_POWER_FRAC) * power;
+  current.turn.launch(Math.cos(shotAngle) * speed, Math.sin(shotAngle) * speed);
+}
+
+// runs once per rendered frame (not per physics substep) — driven off world.time so it stays
+// in lockstep with however many substeps actually ran this frame, with nothing extra to track.
+function updateCharge() {
+  if (!charge) return;
+  if (!canAim()) { charge = null; hud.setCharge(null); return; } // turn ended mid-hold
+
+  const elapsed = current.world.time - charge.startTime;
+  charge.angle = (elapsed * SWEEP_SPEED) % (Math.PI * 2);
+  charge.power = Math.min(1, elapsed / CHARGE_MAX_TIME);
+
+  if (elapsed >= OVERHEAT_TIME) {
+    charge.overheating = true;
+    hud.flashOverheat();
+    releaseCharge(true); // forced shot now — greed doesn't get to wait for a better release
+    return;
+  }
+  hud.setCharge(charge.power, charge.overheating);
+}
+
+for (const el of [canvas3d, canvas2d]) {
+  el.addEventListener('pointerdown', (evt) => startCharge(evt, el));
 
   el.addEventListener('pointerup', (evt) => {
-    if (!drag || evt.pointerId !== drag.pointerId) return;
-    const dx = drag.x - drag.startX;
-    const dy = drag.y - drag.startY;
-    const len = Math.hypot(dx, dy);
-    drag = null;
+    if (!charge || evt.pointerId !== charge.pointerId) return;
     el.releasePointerCapture(evt.pointerId);
-    if (len <= 0.01 || !canAim()) return;
-    const speed = Math.min(current.world.maxSpeed, len * SENSITIVITY);
-    current.turn.launch((dx / len) * speed, (dy / len) * speed);
+    releaseCharge(true);
   });
 
   // mobile: the OS can cancel an in-progress touch (an interrupting system gesture, an
-  // incoming call...). Without this, `drag` stays non-null forever and pointerdown's
-  // `|| drag` guard would permanently lock out aiming.
+  // incoming call...). Treated as an abandoned hold, not a release.
   el.addEventListener('pointercancel', (evt) => {
-    if (!drag || evt.pointerId !== drag.pointerId) return;
-    drag = null;
+    if (!charge || evt.pointerId !== charge.pointerId) return;
+    releaseCharge(false);
   });
 }
 
@@ -121,15 +149,11 @@ const loop = createLoop({
   },
   render: (alpha) => {
     if (!current) return;
-    const { world, player } = current;
-    const aim = drag && {
-      originX: player.x,
-      originY: player.y,
-      x: player.x + (drag.x - drag.startX),
-      y: player.y + (drag.y - drag.startY)
-    };
-    if (mode === '3d') renderer3d.draw(world, alpha, aim);
-    else renderer2d.draw(world, alpha, aim);
+    updateCharge();
+    const { world } = current;
+    const chargeView = charge && { angle: charge.angle, power: charge.power, overheating: charge.overheating };
+    if (mode === '3d') renderer3d.draw(world, alpha, chargeView);
+    else renderer2d.draw(world, alpha, chargeView);
     rollingBed.update(world);
   }
 });
@@ -198,11 +222,15 @@ function startLevel(n) {
   // A power applies to ALL FIVE marbles, not just the player — stats resolved once here and
   // baked into each marble (core/world.js), not looked up from world.power every tick.
   const powerStats = world.power?.stats ?? {};
+  // which 4 recurring opponents show up is drawn from the same seeded stream as everything
+  // else about this level (content/roster.js) — a replayed seed gets the same rivals back.
+  const opponentNumbers = drawOpponents(world.rng);
   const marbles = [];
   for (let i = 0; i < MARBLE_COUNT; i++) {
     const x = 0.2 + i * 0.15;
     marbles.push(addMarble(world, {
       x, y: world.h / 2, isPlayer: i === 0,
+      number: i === 0 ? null : opponentNumbers[i - 1], // the player is never numbered — non-negotiable #6
       r: MARBLE_R * (powerStats.radius ?? 1),
       mass: powerStats.mass ?? 1,
       decelMul: powerStats.decelMul ?? 1,
@@ -212,6 +240,7 @@ function startLevel(n) {
     }));
   }
   const player = marbles[0];
+  hud.setOpponents(opponentNumbers);
 
   generateTerrain(world, marbles.map((m) => ({ x: m.x, y: m.y })));
   world.environment?.onLevelStart?.(world);
@@ -224,7 +253,17 @@ function startLevel(n) {
     hud.setWinner(winner);
     if (winner.isPlayer && n < levelCount - 1) menu.unlock(n + 1);
     loop.stop();
-    endOverlay.show(winner, true);
+
+    // round + career stats (content/stats.js) — every marble that was in this level,
+    // including the player, gets folded into its own persistent record.
+    const participants = world.marbles.map((m) => ({
+      number: m.number, isPlayer: m.isPlayer, won: m === winner,
+      cause: m.lethalCause, topSpeed: m.topSpeed, damage: m.damage,
+      survivedTurns: m.alive ? world.turn : (m.diedAtTurn ?? world.turn)
+    }));
+    const stats = recordGame(participants);
+
+    endOverlay.show(winner, true, { participants, stats });
   });
 
   // world.events is a fresh bus per level — these route into the same persistent audio
@@ -237,7 +276,8 @@ function startLevel(n) {
   });
 
   current = { world, turn, player, marbles, levelIndex: n };
-  drag = null;
+  charge = null;
+  hud.setCharge(null);
   loop.start();
 }
 
@@ -251,6 +291,8 @@ if (import.meta.env.DEV) {
     get marbles() { return current?.marbles; },
     get player() { return current?.player; },
     get turn() { return current?.turn; },
-    audio, impactVoices, powerVoices, renderer3d, startLevel, menu
+    get charge() { return charge; },
+    audio, impactVoices, powerVoices, renderer3d, startLevel, menu,
+    startCharge, releaseCharge, updateCharge
   };
 }

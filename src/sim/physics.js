@@ -1,5 +1,6 @@
 import { applyTerrainForces, resolveTerrainObstacles, checkHazards, decelOverrideAt } from './terrain.js';
 import { addMarble } from '../core/world.js';
+import { accrueDamage, dragMultiplier, applyDrift } from './damage.js';
 
 /**
  * Integration, rolling resistance, wall bounce, elastic marble-marble collisions, and
@@ -31,11 +32,14 @@ export function stepPhysics(world, dt) {
     m.x += m.vx * dt;
     m.y += m.vy * dt;
     const override = decelOverrideAt(world, m.x, m.y);
-    const decel = (override ? override.decel : world.surface.decel) * m.decelMul;
-    const viscous = (override ? override.viscous : world.surface.viscous) * m.decelMul;
+    const dragMul = dragMultiplier(m);
+    const decel = (override ? override.decel : world.surface.decel) * m.decelMul * dragMul;
+    const viscous = (override ? override.viscous : world.surface.viscous) * m.decelMul * dragMul;
     applyRollingResistance(m, decel, viscous, dt);
+    applyDrift(m, world, dt);
     if (world.rails !== false) bounceOffWalls(m, world, wallE, power);
     power?.onStep?.(m, world, dt);
+    m.topSpeed = Math.max(m.topSpeed, Math.hypot(m.vx, m.vy));
   }
 
   resolveTerrainObstacles(world);
@@ -87,6 +91,7 @@ function bounceOffWalls(m, world, wallE, power) {
   else if (m.y + m.r > b) { force = Math.max(force, Math.abs(m.vy)); m.y = b - m.r; m.vy = -m.vy * effE; }
   if (force > 0) {
     world.events.emit('impact', { kind: 'rail', force, x: m.x, y: m.y });
+    accrueDamage(m, world, force);
     power?.onWallHit?.(m, world, force);
   }
 }
@@ -140,6 +145,8 @@ function resolveMarbleCollisions(world) {
 
       const force = Math.abs(velAlongNormal);
       world.events.emit('impact', { kind: 'marble', force, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+      accrueDamage(a, world, force);
+      accrueDamage(b, world, force);
       // each side gets a chance to react to what it hit — a mutual collision between two
       // marbles sharing the power (cannonball vs cannonball) fires it for both
       power?.onMarbleHit?.(a, b, world, force);
