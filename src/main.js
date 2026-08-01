@@ -24,6 +24,7 @@ const CHARGE_MAX_TIME = 1.4;            // seconds held to reach full power
 const OVERHEAT_TIME = 2.2;              // seconds held before the launcher forces a shot
 const MIN_POWER_FRAC = 0.5;             // launch speed floor as a fraction of maxSpeed — even
                                          // a bare tap-and-release still rolls several marbles' worth
+const AUTO_LAUNCH_DELAY = 0.8;          // seconds paused in AIM before an unmanned turn fires itself
 
 // ---- one-time setup: renderers, hud, audio graph — all persist across level changes ----
 
@@ -31,7 +32,7 @@ const canvas3d = document.getElementById('board3d');
 const canvas2d = document.getElementById('board2d');
 const renderer3d = createRenderer3D(canvas3d);
 const renderer2d = createRenderer(canvas2d);
-const hud = createHud(document.getElementById('hud'));
+const hud = createHud(document.getElementById('hud'), { onLeave: () => showMenu() });
 
 // three.js is the real renderer; canvas 2D stays reachable as a truth check when the 3D
 // looks wrong (docs/BUILD-ORDER.md M4). Press 2 / 3 to switch.
@@ -124,6 +125,22 @@ function updateCharge() {
   hud.setCharge(charge.power, charge.overheating);
 }
 
+// Once the player is eliminated, canAim() is permanently false — nothing ever calls
+// turn.launch() again, since that only ever happened from the player's own release. Without
+// this, the level just freezes in AIM forever with no way for the remaining marbles to ever
+// finish it out. A short pause (so it doesn't feel like a glitch), then it launches itself —
+// the same CPU aim the other marbles already use, since launch() ignores the vx/vy passed in
+// for any marble that isn't alive (the player's own, in this case).
+let autoLaunchAt = null;
+function updateAutoLaunch() {
+  if (!current || current.turn.phase !== 'AIM' || current.player.alive) { autoLaunchAt = null; return; }
+  if (autoLaunchAt == null) { autoLaunchAt = current.world.time + AUTO_LAUNCH_DELAY; return; }
+  if (current.world.time >= autoLaunchAt) {
+    autoLaunchAt = null;
+    current.turn.launch(0, 0);
+  }
+}
+
 for (const el of [canvas3d, canvas2d]) {
   el.addEventListener('pointerdown', (evt) => startCharge(evt, el));
 
@@ -150,6 +167,7 @@ const loop = createLoop({
   render: (alpha) => {
     if (!current) return;
     updateCharge();
+    updateAutoLaunch();
     const { world } = current;
     const chargeView = charge && { angle: charge.angle, power: charge.power, overheating: charge.overheating };
     if (mode === '3d') renderer3d.draw(world, alpha, chargeView);
@@ -200,6 +218,8 @@ const menu = createMenu(document.getElementById('menu'), {
 function showMenu() {
   loop.stop();
   current = null;
+  autoLaunchAt = null;
+  hud.setSpectating(false);
   menu.show();
 }
 
@@ -251,6 +271,7 @@ function startLevel(n) {
   world.events.on('phase', ({ turn: t, phase }) => hud.setPhase(t, phase));
   world.events.on('win', ({ winner }) => {
     hud.setWinner(winner);
+    hud.setSpectating(false);
     if (winner.isPlayer && n < levelCount - 1) menu.unlock(n + 1);
     loop.stop();
 
@@ -270,14 +291,20 @@ function startLevel(n) {
   // nodes created once above.
   world.events.on('impact', (data) => impactVoices.playImpact(data));
   world.events.on('voice', (data) => powerVoices.handleVoice(data));
-  world.events.on('death', ({ cause }) => {
+  world.events.on('death', ({ marble, cause }) => {
     impactVoices.playDeath(cause);
     audio.duck(['bed', 'roll'], 4, 400);
+    // the level keeps going without you (auto-launch, above) — this is just letting you know
+    // you're free to leave rather than watch it out, non-negotiable #4 means you can't come
+    // back and win from here regardless.
+    if (marble.isPlayer) hud.setSpectating(true);
   });
 
   current = { world, turn, player, marbles, levelIndex: n };
   charge = null;
+  autoLaunchAt = null;
   hud.setCharge(null);
+  hud.setSpectating(false);
   loop.start();
 }
 
@@ -292,7 +319,8 @@ if (import.meta.env.DEV) {
     get player() { return current?.player; },
     get turn() { return current?.turn; },
     get charge() { return charge; },
+    get autoLaunchAt() { return autoLaunchAt; },
     audio, impactVoices, powerVoices, renderer3d, startLevel, menu,
-    startCharge, releaseCharge, updateCharge
+    startCharge, releaseCharge, updateCharge, updateAutoLaunch
   };
 }

@@ -2,7 +2,7 @@
  * DOM overlay — kept out of the canvas/WebGL entirely (docs/CLAUDE.md architecture).
  * Enough of it to see the environment announcement, the turn cycle, and the winner.
  */
-export function createHud(el) {
+export function createHud(el, { onLeave } = {}) {
   const envEl = document.createElement('div');
   envEl.className = 'hud-env';
   const powerEl = document.createElement('div');
@@ -32,6 +32,22 @@ export function createHud(el) {
   overheatEl.style.display = 'none';
   el.appendChild(overheatEl);
   let overheatTimer = null;
+
+  // your marble died but the level isn't over — the remaining marbles finish it out on their
+  // own (main.js's auto-launch), so this is purely "you can stop watching if you want to,"
+  // not a control the level is waiting on.
+  const spectateEl = document.createElement('div');
+  spectateEl.className = 'hud-spectate';
+  spectateEl.style.display = 'none';
+  const spectateMsg = document.createElement('span');
+  spectateMsg.textContent = "You're out — the rest is playing out on its own.";
+  const leaveBtn = document.createElement('button');
+  leaveBtn.textContent = 'Leave';
+  leaveBtn.className = 'level-btn wide-btn';
+  leaveBtn.addEventListener('click', () => onLeave?.());
+  spectateEl.appendChild(spectateMsg);
+  spectateEl.appendChild(leaveBtn);
+  el.appendChild(spectateEl);
 
   return {
     // non-negotiable #2: the environment (and power, if any) is announced before the
@@ -63,6 +79,9 @@ export function createHud(el) {
       overheatEl.style.display = 'block';
       clearTimeout(overheatTimer);
       overheatTimer = setTimeout(() => { overheatEl.style.display = 'none'; }, 900);
+    },
+    setSpectating(show) {
+      spectateEl.style.display = show ? 'flex' : 'none';
     }
   };
 }
