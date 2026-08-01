@@ -157,11 +157,15 @@ The surface *is* the physics. One table drives friction, restitution and sound.
 
 | surface | decel (W/s²) | wall e | character |
 |---|---|---|---|
-| oak | 0.282 | 0.70 | the default. rolls true. warm thock. |
-| ice | 0.170 | 0.90 | will not let you stop. high hiss. |
-| sand | 0.700 | 0.30 | eats the shot. dead thud. leaves ruts. |
-| glass | 0.205 | 0.88 | fast, slick, loud. |
-| granite | 0.340 | 0.74 | slightly duller oak. |
+| oak | 0.100 | 0.90 | the default. rolls true. warm thock. |
+| ice | 0.060 | 0.96 | will not let you stop. high hiss. |
+| sand | 0.350 | 0.60 | eats the shot. dead thud. leaves ruts. |
+| glass | 0.075 | 0.95 | fast, slick, loud. |
+| granite | 0.130 | 0.90 | slightly duller oak. |
+
+(Retuned from the original prototype numbers — those settled marbles after 1-2 wall hits,
+which read as a dead stop rather than glass ping-ponging on a slick floor. This table is now
+the source of truth; content/surfaces.js should always match it.)
 
 Marble-on-marble restitution 0.94. Max launch speed 0.95 board-widths/sec.
 Rolling resistance is **constant deceleration plus a small viscous term** — never

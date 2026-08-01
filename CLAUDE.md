@@ -19,8 +19,12 @@ change, say so first rather than changing it.
 1. **Elimination is always physical and always visible.** The environment kills, or a marble
    finally shatters from accumulated damage. Powers only change how you move — they still
    cannot kill on their own. You fell in a hole, you touched lava, you left the board, you
-   drowned, you got crushed by the closing walls, or your marble broke apart from the damage
-   it had taken. There are no abstract eliminations like "nearest the wall is out."
+   drowned, you got swept by the grinder, or your marble broke apart from the damage it had
+   taken. There are no abstract eliminations like "nearest the wall is out."
+   *(`closing`/`vice`'s shrinking walls are pressure, not a blade — they herd marbles toward a
+   central hazard, lava or a widening hole, and that hazard is what actually kills. A marble
+   pinned against a moving wall with nowhere left to go just... has nowhere left to go but the
+   thing in the middle. This read better than the walls themselves being lethal on contact.)*
    *(Amended: damage-as-a-third-killer was a deliberate, discussed change — see sim/damage.js.
    Before this, only the environment could end a marble; that was the original rule and
    should not be loosened further without the same kind of explicit call.)*
