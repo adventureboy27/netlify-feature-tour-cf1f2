@@ -178,6 +178,31 @@ html, body {
   pointer-events: none;
 }
 
+.hud-spectate {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  max-width: 260px;
+  padding: 8px 12px;
+  background: rgba(10, 7, 5, 0.7);
+  border: 1px solid rgba(238, 231, 219, 0.35);
+  border-radius: 6px;
+  font: 12px/1.3 monospace;
+  color: #eee7db;
+  pointer-events: auto;
+}
+
+.hud-spectate .level-btn {
+  width: auto;
+  height: auto;
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 #rotate-overlay {
   z-index: 100; /* above the menu/end overlays too — nothing is playable in portrait */
   background: #0a0705;
