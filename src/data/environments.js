@@ -24,48 +24,12 @@ import { shrinkRails } from '../sim/terrain.js';
 import { accrueDamage } from '../sim/damage.js';
 
 /* ------------------------------------------------------------------ */
-/* Shared crush detection for closing/vice — see the comment on       */
-/* checkCrush below for why this can't just be "is anyone outside     */
-/* world.bounds".                                                      */
-/* ------------------------------------------------------------------ */
-
-const CRUSH_EPS = 0.01;    // board-widths — "touching" tolerance for wall/neighbor contact
-const CRUSH_SPEED = 0.02;  // board-widths/sec — below this counts as stuck, not just grazing
-const CRUSH_HOLD = 0.35;   // seconds pinned before it's fatal, so a normal bounce never counts
-
-// physics.js's bounceOffWalls re-clamps every marble to stay inside world.bounds on every
-// substep, so "is m.x outside bounds" can never be true once a marble has been caught by a
-// shrinking box — it always gets pushed back in before anyone can observe it outside. That
-// let closing/vice ship with walls that squeezed marbles together forever without ever
-// killing anyone. The real signal is contact: a marble pinned against a wall, unable to
-// roll away because a neighbor (or the wall on the far side) blocks it, held there long
-// enough that it's not just a bounce in progress.
-function checkCrush(world, dt) {
-  const { l, r, t, b } = world.bounds;
-  const inverted = r < l || b < t; // opposite walls have crossed — nothing could fit anymore
-  for (const m of world.marbles) {
-    if (!m.alive || m.lethalCause) continue;
-    if (inverted) { m.lethalCause = 'crushed'; continue; }
-
-    const pinnedToWall =
-      m.x - m.r <= l + CRUSH_EPS || m.x + m.r >= r - CRUSH_EPS ||
-      m.y - m.r <= t + CRUSH_EPS || m.y + m.r >= b - CRUSH_EPS;
-    const tooNarrowForThisMarble = (r - l) < 2 * m.r || (b - t) < 2 * m.r;
-    const blockedByNeighbor = world.marbles.some((other) =>
-      other !== m && other.alive &&
-      Math.hypot(other.x - m.x, other.y - m.y) <= m.r + other.r + CRUSH_EPS
-    );
-    const speed = Math.hypot(m.vx, m.vy);
-    const stuck = pinnedToWall && speed < CRUSH_SPEED && (tooNarrowForThisMarble || blockedByNeighbor);
-
-    m.crushTimer = stuck ? (m.crushTimer ?? 0) + dt : 0;
-    if (m.crushTimer >= CRUSH_HOLD) m.lethalCause = 'crushed';
-  }
-}
-
-/* ------------------------------------------------------------------ */
 /* THREE FULLY IMPLEMENTED EXEMPLARS — follow these patterns           */
 /* ------------------------------------------------------------------ */
+
+const CLOSING_MIN_BOX = 0.16; // board-widths — walls stop squeezing once there's still a
+                               // little room to maneuver around the lava; it alone finishes
+                               // the job from there, not an ever-tightening wall
 
 export const closing = {
   id: 'closing',
@@ -77,21 +41,23 @@ export const closing = {
     bed: 'mechanical groan, fundamental rises with severity',
     stinger: 'heavy servo clunk + stone grind, one per contraction'
   },
+  onLevelStart(world) { world.closingLava = null; },
   onTurnStart(world, turn) {
-    // 4% of the original board per side per turn, accelerating slightly
+    // The walls herd you — they don't kill on contact. What's actually lethal is the lava
+    // growing in the centre, which the shrinking box leaves less and less room to avoid.
+    // (Playtesting: the ring itself being lethal on touch read as "the wall killed me," not
+    // "I got squeezed into the thing in the middle" — the walls are pressure, not the blade.)
     const bite = 0.04 * (1 + turn * 0.06);
-    shrinkRails(world, bite);
-    // anything now outside the rails is crushed, not teleported
-    for (const m of world.marbles) {
-      if (!m.alive) continue;
-      if (m.x < world.bounds.l || m.x > world.bounds.r ||
-          m.y < world.bounds.t || m.y > world.bounds.b) {
-        m.lethalCause = 'crushed';
-      }
+    if (world.bounds.r - world.bounds.l > CLOSING_MIN_BOX && world.bounds.b - world.bounds.t > CLOSING_MIN_BOX) {
+      shrinkRails(world, bite);
+    }
+    if (!world.closingLava) {
+      world.closingLava = world.terrain.addLava({ x: world.w / 2, y: world.h / 2, r: 0.03 });
+    } else {
+      world.terrain.growLava(world.closingLava, 0.012 * (1 + turn * 0.07));
     }
     world.events.emit('degrade', { id: 'closing', turn });
-  },
-  onStep(world, dt) { checkCrush(world, dt); }
+  }
 };
 
 export const sumo = {
@@ -832,20 +798,25 @@ export const vice = {
   id: 'vice', name: 'The Vice', blurb: 'Two walls are closing.',
   soloOnly: false, severityCurve: 10,
   sfx: { bed: 'hydraulic press, pressure building', stinger: 'ram advancing one notch' },
-  onLevelStart(world) { world.viceVertical = world.rng.next() < 0.5; },
+  onLevelStart(world) { world.viceVertical = world.rng.next() < 0.5; world.viceHole = null; },
   onTurnStart(world, turn) {
+    // same change as closing: the ram herds you, it doesn't kill on contact. What's actually
+    // lethal is the floor finally buckling through in the middle under all that pressure.
     const bite = 0.04 * (1 + turn * 0.07) * world.w;
-    if (world.viceVertical) { world.bounds.l += bite; world.bounds.r -= bite; }
-    else { world.bounds.t += bite; world.bounds.b -= bite; }
-    for (const m of world.marbles) {
-      if (!m.alive) continue;
-      if (m.x < world.bounds.l || m.x > world.bounds.r || m.y < world.bounds.t || m.y > world.bounds.b) {
-        m.lethalCause = 'crushed';
-      }
+    if (world.viceVertical) {
+      if (world.bounds.r - world.bounds.l > CLOSING_MIN_BOX) { world.bounds.l += bite; world.bounds.r -= bite; }
+    } else {
+      if (world.bounds.b - world.bounds.t > CLOSING_MIN_BOX) { world.bounds.t += bite; world.bounds.b -= bite; }
+    }
+    if (!world.viceHole) {
+      world.viceHole = world.terrain.addHole({ x: world.w / 2, y: world.h / 2, r: 0.025 });
+    } else if (world.terrain.holes.includes(world.viceHole)) {
+      world.viceHole.r += 0.013 * (1 + turn * 0.08);
+    } else {
+      world.viceHole = world.terrain.addHole({ x: world.w / 2, y: world.h / 2, r: 0.025 }); // drilled out — recreate
     }
     world.events.emit('degrade', { id: 'vice', turn });
-  },
-  onStep(world, dt) { checkCrush(world, dt); }
+  }
 };
 
 export const rest = [];
