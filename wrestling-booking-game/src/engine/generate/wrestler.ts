@@ -5,12 +5,12 @@
 
 import type { Rng } from '../rng';
 import { clamp, gaussian, randInt, weightedPick, pick, chance } from '../rng';
-import type { Archetype, CardStatus, Id, Wrestler } from '../types';
+import type { Appearance, Archetype, CardStatus, Id, Wrestler } from '../types';
 import { ARCHETYPES, archetypeById } from '../../data/archetypes';
 import { WRESTLING_STYLES } from '../../data/styles';
 import { GIMMICKS } from '../../data/gimmicks';
 import { generateName } from './name';
-import { generateAppearance } from './appearance';
+import { generateDistinctAppearance } from './appearance';
 import { generateMoveSet } from './moveset';
 
 export type Tier = 'jobber' | 'midcarder' | 'upper' | 'mainEventer';
@@ -80,6 +80,8 @@ function rollPotential(rng: Rng, currentStat: number, talent: number): number {
 export interface GenerateWrestlerOptions {
   homeTerritoryId?: Id;
   currentYear?: number;
+  /** Appearances already in the roster — new wrestlers stay visually distinct from these, §7. */
+  existingAppearances?: Appearance[];
 }
 
 export function generateWrestler(
@@ -190,7 +192,7 @@ export function generateWrestler(
     moveSet: generateMoveSet(rng, style),
     isCreated: false,
     homeTerritoryId: options.homeTerritoryId ?? 'territory-unassigned',
-    appearance: generateAppearance(rng),
+    appearance: generateDistinctAppearance(rng, options.existingAppearances ?? []),
 
     promotionId: null,
     contract: null,
@@ -208,5 +210,12 @@ export function generateWrestler(
 
 export function generateWrestlers(rng: Rng, count: number, options: GenerateWrestlerOptions = {}): Wrestler[] {
   const existingNames = new Set<string>();
-  return Array.from({ length: count }, () => generateWrestler(rng, existingNames, options));
+  const existingAppearances = options.existingAppearances ?? [];
+  const wrestlers: Wrestler[] = [];
+  for (let i = 0; i < count; i++) {
+    const wrestler = generateWrestler(rng, existingNames, { ...options, existingAppearances });
+    existingAppearances.push(wrestler.appearance);
+    wrestlers.push(wrestler);
+  }
+  return wrestlers;
 }
