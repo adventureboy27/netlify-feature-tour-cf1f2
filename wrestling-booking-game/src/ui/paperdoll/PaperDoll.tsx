@@ -35,12 +35,13 @@ function sizeSpec(size: PaperDollSize): SizeSpec {
 
 export interface PaperDollProps {
   appearance: Appearance;
+  gender: 'm' | 'f'; // not part of Appearance (§3) but the upper-body part needs it
   alignment: number; // -100..100, drives the heel/face palette shift (§7)
   size: PaperDollSize;
   className?: string;
 }
 
-export function PaperDoll({ appearance, alignment, size, className }: PaperDollProps) {
+export function PaperDoll({ appearance, gender, alignment, size, className }: PaperDollProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spec = sizeSpec(size);
 
@@ -51,7 +52,7 @@ export function PaperDoll({ appearance, alignment, size, className }: PaperDollP
     if (!ctx) return;
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const source = getSourceCanvas(appearance);
+    const source = getSourceCanvas(appearance, gender);
     ctx.drawImage(
       source,
       spec.sourceX,
@@ -63,7 +64,7 @@ export function PaperDoll({ appearance, alignment, size, className }: PaperDollP
       spec.displayWidth,
       spec.displayHeight,
     );
-  }, [appearance, spec.sourceX, spec.sourceY, spec.sourceWidth, spec.sourceHeight, spec.displayWidth, spec.displayHeight]);
+  }, [appearance, gender, spec.sourceX, spec.sourceY, spec.sourceWidth, spec.sourceHeight, spec.displayWidth, spec.displayHeight]);
 
   return (
     <canvas

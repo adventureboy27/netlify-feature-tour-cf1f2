@@ -73,6 +73,7 @@ function TraitSlider({
 export function WrestlerEditor() {
   const [appearance, setAppearance] = useState<Appearance>(() => generateAppearance(rngFromSeed('editor-default')));
   const [alignment, setAlignment] = useState(0);
+  const [gender, setGender] = useState<'m' | 'f'>('m');
 
   function setTrait(key: TraitKey, value: number) {
     setAppearance((prev) => ({ ...prev, [key]: value }));
@@ -97,7 +98,23 @@ export function WrestlerEditor() {
 
       <div className="flex flex-col gap-6 md:flex-row">
         <div className="flex flex-col items-center gap-3 md:sticky md:top-4 md:h-fit">
-          <PaperDoll appearance={appearance} alignment={alignment} size="full" />
+          <PaperDoll appearance={appearance} gender={gender} alignment={alignment} size="full" />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setGender('m')}
+              className={`rounded px-3 py-1 text-sm ${gender === 'm' ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
+            >
+              Male
+            </button>
+            <button
+              type="button"
+              onClick={() => setGender('f')}
+              className={`rounded px-3 py-1 text-sm ${gender === 'f' ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
+            >
+              Female
+            </button>
+          </div>
           <label className="flex w-48 flex-col gap-1 text-sm">
             <span className="flex justify-between">
               <span>Alignment preview</span>
