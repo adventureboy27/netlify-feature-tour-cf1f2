@@ -16,12 +16,13 @@ interface SizeSpec {
   sourceHeight: number;
 }
 
-const BUST_CROP_X = 4;
+const BUST_CROP_X = Math.round(GRID_W * 0.17);
 const BUST_CROP_WIDTH = GRID_W - BUST_CROP_X * 2;
 
 function sizeSpec(size: PaperDollSize): SizeSpec {
   if (size === 'full') {
-    return { displayWidth: 96, displayHeight: 128, sourceX: 0, sourceY: 0, sourceWidth: GRID_W, sourceHeight: GRID_H };
+    // GRID_W:GRID_H is 2:3 — keep the display box at the same aspect ratio.
+    return { displayWidth: 96, displayHeight: Math.round((96 * GRID_H) / GRID_W), sourceX: 0, sourceY: 0, sourceWidth: GRID_W, sourceHeight: GRID_H };
   }
   const crop = bustCropWindow();
   const source = { sourceX: BUST_CROP_X, sourceY: crop.y, sourceWidth: BUST_CROP_WIDTH, sourceHeight: crop.height };
