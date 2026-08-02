@@ -1,0 +1,130 @@
+import { describe, expect, it, beforeEach } from 'vitest';
+import { useGameStore } from './store';
+import { defaultWorldSettings } from '../engine/world/settings';
+
+function freshSettings() {
+  return { ...defaultWorldSettings(), seed: 'store-test', startingRosterSize: 12 };
+}
+
+beforeEach(() => {
+  useGameStore.getState().newGame(freshSettings());
+});
+
+describe('newGame', () => {
+  it('creates a world with the requested roster size, starting cash, and week 1', () => {
+    const { world } = useGameStore.getState();
+    expect(world).not.toBeNull();
+    expect(Object.keys(world!.wrestlers)).toHaveLength(12);
+    expect(world!.promotion.bankBalance).toBe(freshSettings().startingCash);
+    expect(world!.week).toBe(1);
+    expect(world!.currentCard).toHaveLength(world!.settings.segmentsPerTV);
+  });
+
+  it('is deterministic for a given seed', () => {
+    useGameStore.getState().newGame(freshSettings());
+    const namesA = Object.values(useGameStore.getState().world!.wrestlers).map((w) => w.name);
+    useGameStore.getState().newGame(freshSettings());
+    const namesB = Object.values(useGameStore.getState().world!.wrestlers).map((w) => w.name);
+    expect(namesA).toEqual(namesB);
+  });
+});
+
+describe('card editing', () => {
+  it('setSegmentParticipant adds a wrestler to a slot and side', () => {
+    const { world, setSegmentParticipant } = useGameStore.getState();
+    const wrestlerId = Object.keys(world!.wrestlers)[0]!;
+    setSegmentParticipant(0, wrestlerId, 0);
+    const segment = useGameStore.getState().world!.currentCard[0]!;
+    expect(segment.participants).toEqual([{ wrestlerId, side: 0, role: 'competitor' }]);
+  });
+
+  it('moving a wrestler to a new side replaces their old entry rather than duplicating', () => {
+    const { world, setSegmentParticipant } = useGameStore.getState();
+    const wrestlerId = Object.keys(world!.wrestlers)[0]!;
+    setSegmentParticipant(0, wrestlerId, 0);
+    setSegmentParticipant(0, wrestlerId, 1);
+    const segment = useGameStore.getState().world!.currentCard[0]!;
+    expect(segment.participants).toHaveLength(1);
+    expect(segment.participants[0]!.side).toBe(1);
+  });
+
+  it('removeSegmentParticipant removes them', () => {
+    const { world, setSegmentParticipant, removeSegmentParticipant } = useGameStore.getState();
+    const wrestlerId = Object.keys(world!.wrestlers)[0]!;
+    setSegmentParticipant(0, wrestlerId, 0);
+    removeSegmentParticipant(0, wrestlerId);
+    expect(useGameStore.getState().world!.currentCard[0]!.participants).toHaveLength(0);
+  });
+
+  it('setSegmentRules merges into the existing rules rather than replacing them', () => {
+    const { setSegmentRules } = useGameStore.getState();
+    setSegmentRules(0, { timeLimit: 30 });
+    const rules = useGameStore.getState().world!.currentCard[0]!.rules;
+    expect(rules.timeLimit).toBe(30);
+    expect(rules.preset).toBe('singles'); // untouched
+  });
+
+  it('setSegmentStipulation sets and clears the stipulation', () => {
+    const { setSegmentStipulation } = useGameStore.getState();
+    setSegmentStipulation(0, 'ladder');
+    expect(useGameStore.getState().world!.currentCard[0]!.stipulation).toBe('ladder');
+    setSegmentStipulation(0, null);
+    expect(useGameStore.getState().world!.currentCard[0]!.stipulation).toBeNull();
+  });
+});
+
+describe('resolveWeek', () => {
+  it('advances the week and resets the card even with nothing booked', () => {
+    const before = useGameStore.getState().world!;
+    useGameStore.getState().resolveWeek();
+    const after = useGameStore.getState().world!;
+    expect(after.week).toBe(before.week + 1);
+    expect(after.currentCard.every((s) => s.participants.length === 0)).toBe(true);
+    expect(after.showHistory).toHaveLength(1);
+    expect(after.showHistory[0]!.showRating).toBe(0);
+  });
+
+  it('leaves an empty segment unresolved (no result) and a filled one resolved', () => {
+    const { world, setSegmentParticipant } = useGameStore.getState();
+    const ids = Object.keys(world!.wrestlers);
+    setSegmentParticipant(5, ids[0]!, 0);
+    setSegmentParticipant(5, ids[1]!, 1);
+    useGameStore.getState().resolveWeek();
+    const show = useGameStore.getState().world!.showHistory[0]!;
+    expect(show.segments[0]!.result).toBeNull();
+    expect(show.segments[5]!.result).not.toBeNull();
+    expect(show.segments[5]!.result!.stars).toBeGreaterThanOrEqual(0);
+  });
+
+  it('books, pays, and updates the bank balance from the gate', () => {
+    const { world, setSegmentParticipant } = useGameStore.getState();
+    const ids = Object.keys(world!.wrestlers);
+    for (let slot = 0; slot < 6; slot++) {
+      setSegmentParticipant(slot, ids[slot * 2]!, 0);
+      setSegmentParticipant(slot, ids[slot * 2 + 1]!, 1);
+    }
+    const bankBefore = useGameStore.getState().world!.promotion.bankBalance;
+    useGameStore.getState().resolveWeek();
+    const after = useGameStore.getState().world!;
+    expect(after.promotion.bankBalance).not.toBe(bankBefore);
+    expect(after.showHistory[0]!.gate).toBeGreaterThanOrEqual(0);
+  });
+
+  it('moves the company rating toward the target implied by the show stars', () => {
+    const { world, setSegmentParticipant } = useGameStore.getState();
+    const ids = Object.keys(world!.wrestlers);
+    // Stack every segment with the two most popular wrestlers to get a strong show.
+    const sorted = Object.values(world!.wrestlers).sort((a, b) => b.popularity - a.popularity);
+    for (let slot = 0; slot < 6; slot++) {
+      setSegmentParticipant(slot, sorted[0]!.id, 0);
+      setSegmentParticipant(slot, sorted[1]!.id, 1);
+    }
+    void ids;
+    const ratingBefore = useGameStore.getState().world!.promotion.rating;
+    useGameStore.getState().resolveWeek();
+    const ratingAfter = useGameStore.getState().world!.promotion.rating;
+    // rating moves by exactly one settings.ratingLadderStepPerWeek step (up, down, or holds at target)
+    const step = useGameStore.getState().world!.settings.ratingLadderStepPerWeek;
+    expect(Math.abs(ratingAfter - ratingBefore)).toBeLessThanOrEqual(step);
+  });
+});

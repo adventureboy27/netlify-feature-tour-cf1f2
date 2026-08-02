@@ -8,7 +8,7 @@ export const ARCHETYPES: ArchetypeDefinition[] = [
     id: 'powerhouse',
     name: 'Powerhouse',
     statModifiers: { strength: 18, skill: -6, agility: -14, stamina: 4 },
-    favoredStipulations: ['noDq', 'lastManStanding'],
+    favoredStipulations: ['hardcore', 'lastManStanding'],
     notes: 'Poor in long time limits.',
   },
   {
