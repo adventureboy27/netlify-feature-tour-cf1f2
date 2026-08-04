@@ -37,6 +37,10 @@ sections relevant to the current milestone.
 - Content (events, gimmicks, names, moves, territories) lives in `data/` as
   typed arrays so it can grow without touching logic.
 - Tests cover the simulation, not the UI.
+- Wrestler art is a generated indexed sprite atlas, not runtime-drawn shapes.
+  `tools/wrestler_atlas.py` emits it; `src/ui/paperdoll/README.md` explains the
+  pipeline, how to regenerate, and which traits the atlas can't express yet.
+  This supersedes §7's opening "No image assets."
 
 ## Build order
 

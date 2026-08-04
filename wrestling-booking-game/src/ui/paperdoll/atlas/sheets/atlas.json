@@ -1,0 +1,135 @@
+{
+  "frame": {
+    "w": 64,
+    "h": 96
+  },
+  "anchor": "top-left, all cells share origin",
+  "drawOrder": [
+    "head",
+    "upper",
+    "lower",
+    "feet"
+  ],
+  "palette": {
+    "0": "rgba",
+    "1": "rgba",
+    "2": "rgba",
+    "3": "rgba",
+    "4": "rgba",
+    "5": "rgba",
+    "6": "rgba",
+    "7": "rgba",
+    "8": "rgba",
+    "9": "rgba",
+    "10": "rgba",
+    "11": "rgba",
+    "12": "rgba",
+    "13": "rgba",
+    "14": "rgba",
+    "15": "rgba"
+  },
+  "frames": {
+    "masc": {
+      "head": {
+        "file": "masc_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "masc_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "masc_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "masc_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "fem": {
+      "head": {
+        "file": "fem_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "fem_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "fem_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "fem_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    }
+  }
+}
