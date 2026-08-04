@@ -172,6 +172,11 @@ export function generateWrestler(
     morale: 65,
     momentum: 50,
     cardStatus: TIER_TO_CARD_STATUS[tier],
+    // Placeholder — derived properly by engine/career/status.ts once the
+    // wrestler is in a roster it can be measured against. A career standing
+    // is relative to the promotion, and generation doesn't know the roster.
+    careerStatus: 'midcarder',
+    careerHighWeek: 0,
     crowdReaction: alignment,
     mood: 'content',
 

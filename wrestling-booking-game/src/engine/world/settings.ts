@@ -101,6 +101,46 @@ export function defaultWorldSettings(): WorldSettings {
     tournamentNightHealthCostPerMatch: 7,
     tournamentFinalRatingBonus: 5,
 
+    // Career status
+    rookieYearsPro: 3,
+    journeymanYearsPro: 8,
+    veteranYearsPro: 12,
+    veteranAge: 38,
+    legendYearsPro: 10,
+    legendPeakPopularity: 88,
+    prospectTalent: 72,
+    enhancementPopularity: 30,
+    gatekeeperPopularity: 45,
+    upperCardPopularity: 62,
+    mainEventPopularity: 75,
+    fallenStarDrop: 28,
+
+    // TV ratings
+    tvRatingBase: 2.4,
+    tvRatingCeiling: 12,
+    tvShowQualityWeight: 0.55,
+
+    // Tampering and poaching
+    tamperingBaseChance: 0.09,
+    tamperingAppealThreshold: 0.55,
+    tamperingOfferPremiumMin: 0.15,
+    tamperingOfferPremiumRange: 0.6,
+    tamperingMoneyWeight: 0.5,
+    tamperingMoraleWeight: 0.35,
+    tamperingMomentumWeight: 0.15,
+    tamperingContractLengthResistance: 0.45,
+    tamperingAttitudeResistance: 0.3,
+    tamperingIronCladResistance: 0.5,
+    tamperingNoCompeteResistance: 0.2,
+
+    // Creative events — tuned so something happens often enough to matter and
+    // rarely enough to stay a story. Roughly one event every 3-4 weeks.
+    eventWeeklyChance: 0.45,
+    eventGlobalGapWeeks: 2,
+    eventCategoryGapWeeks: 6,
+    eventRepeatDamping: 0.55,
+    eventMinWeightFraction: 0.15,
+
     // Chaos
     chaosLevel: 1,
     ownerMandatesEnabled: true,

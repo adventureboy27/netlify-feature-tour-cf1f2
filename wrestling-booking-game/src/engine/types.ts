@@ -59,6 +59,29 @@ export interface ArchetypeDefinition {
 // §3.6 — Card status
 // ============================================================================
 
+/**
+ * Where a wrestler is in their *career*, as opposed to where they are on
+ * this week's card (CardStatus, below). Derived from age, years pro,
+ * popularity, career peak and title history — see engine/career/status.ts —
+ * except `trainee`, `retired` and `hallOfFamer`, which are conferred.
+ */
+export type CareerStatus =
+  | 'trainee'
+  | 'rookie'
+  | 'prospect'
+  | 'midcarder'
+  | 'journeyman'
+  | 'enhancement'
+  | 'gatekeeper'
+  | 'upperCard'
+  | 'mainEventer'
+  | 'draw'
+  | 'veteran'
+  | 'fallenStar'
+  | 'legend'
+  | 'retired'
+  | 'hallOfFamer';
+
 export type CardStatus =
   | 'mainEventer'
   | 'upperMidcard'
@@ -174,6 +197,21 @@ export interface Injury {
 
 export type AlignmentLean = 'face' | 'heel' | 'either';
 
+/**
+ * How a gimmick dresses, described in terms the engine understands rather
+ * than in sprite-sheet indices — `data/` must not know what the atlas cuts.
+ * engine/generate/gimmickLook.ts turns these into Appearance traits.
+ */
+export interface GimmickLook {
+  masked?: 'required' | 'forbidden';
+  /** The silhouette the gimmick wants. */
+  attire?: 'flashy' | 'plain' | 'formal' | 'brawler' | 'athletic' | 'savage';
+  /** The colours it wants. */
+  palette?: 'bright' | 'dark' | 'monochrome' | 'gold' | 'blood' | 'earthy';
+  /** Hair the gimmick implies, if any. */
+  hair?: 'long' | 'short' | 'wild' | 'bald' | 'any';
+}
+
 export interface Gimmick {
   id: Id;
   name: string;
@@ -182,6 +220,34 @@ export interface Gimmick {
   growthRateMultiplier: number; // applied to popularity gains while fresh
   territoryFit: Partial<Record<Id, number>>; // territoryId -> affinity weight, -1..1
   merchMultiplier: number;
+  /** Granting a gimmick change restyles the wrestler to match this (§20). */
+  look?: GimmickLook;
+}
+
+// ============================================================================
+// §18 — Tag teams, stables, factions
+// ============================================================================
+
+/**
+ * A tag team or stable. Members wrestle in matching colours — the colours
+ * live here, and engine/generate/gimmickLook.ts's `effectiveAppearance`
+ * substitutes them over each member's own attire palette without destroying
+ * it, so a wrestler who leaves the group goes back to looking like
+ * themselves.
+ */
+export interface Stable {
+  id: Id;
+  name: string;
+  kind: 'tagTeam' | 'stable';
+  memberIds: Id[];
+  leaderId: Id | null;
+  /** Palette indices into ATTIRE_PALETTE — the group's colours. */
+  colors: { primary: number; secondary: number; accent: number } | null;
+  /** Members dress alike. Turn off for a loose alliance. */
+  unifiedLook: boolean;
+  formedWeek: number;
+  disbandedWeek: number | null;
+  record: WinLossRecord;
 }
 
 // ============================================================================
@@ -280,6 +346,9 @@ export interface Wrestler {
   morale: number; // 0-100
   momentum: number; // 0-100
   cardStatus: CardStatus;
+  careerStatus: CareerStatus;
+  /** Week at which careerHighPopularity was set — used to date a decline. */
+  careerHighWeek: number;
   crowdReaction: number; // -100..100, §3.7
   mood: Mood;
   alignment: number; // -100 (heel) .. +100 (face)
@@ -848,6 +917,53 @@ export interface WorldSettings {
   tournamentNightHealthCostPerMatch: number;
   /** Rating bonus for a tournament final — the crowd knows what it is watching. */
   tournamentFinalRatingBonus: number;
+
+  // Career status thresholds (engine/career/status.ts)
+  rookieYearsPro: number;
+  journeymanYearsPro: number;
+  veteranYearsPro: number;
+  veteranAge: number;
+  legendYearsPro: number;
+  legendPeakPopularity: number;
+  prospectTalent: number;
+  enhancementPopularity: number;
+  gatekeeperPopularity: number;
+  upperCardPopularity: number;
+  mainEventPopularity: number;
+  /** Popularity fallen below career peak that marks someone a fallen star. */
+  fallenStarDrop: number;
+
+  // TV ratings (engine/world/tvRatings.ts)
+  tvRatingBase: number;
+  tvRatingCeiling: number;
+  /** How much of a promotion's draw is tonight's show vs. its reputation, 0-1. */
+  tvShowQualityWeight: number;
+
+  // Tampering and poaching (engine/world/tampering.ts)
+  tamperingBaseChance: number;
+  /** Appeal a wrestler must have before a rival risks tampering with a live deal. */
+  tamperingAppealThreshold: number;
+  tamperingOfferPremiumMin: number;
+  tamperingOfferPremiumRange: number;
+  tamperingMoneyWeight: number;
+  tamperingMoraleWeight: number;
+  tamperingMomentumWeight: number;
+  tamperingContractLengthResistance: number;
+  tamperingAttitudeResistance: number;
+  tamperingIronCladResistance: number;
+  tamperingNoCompeteResistance: number;
+
+  // Creative events (engine/events/scheduler.ts)
+  /** Chance an event even considers firing in a given week. */
+  eventWeeklyChance: number;
+  /** Hard floor of quiet weeks between any two events. */
+  eventGlobalGapWeeks: number;
+  /** Quiet weeks between two events of the same category. */
+  eventCategoryGapWeeks: number;
+  /** Weight multiplier applied per previous firing of the same event. */
+  eventRepeatDamping: number;
+  /** Floor on damped weight, as a fraction of the original. */
+  eventMinWeightFraction: number;
 
   // Chaos
   chaosLevel: number; // 0-3

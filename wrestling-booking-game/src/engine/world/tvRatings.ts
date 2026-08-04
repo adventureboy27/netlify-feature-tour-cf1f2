@@ -1,0 +1,89 @@
+// TV ratings — the number the whole business is judged by.
+//
+// Distinct from `Promotion.rating`, which is the 0-100 ladder position (§13).
+// The ladder is where you *stand*; the TV rating is what you *drew this
+// week*, and it moves show to show. Ratings are the scoreboard the player
+// checks first and the thing rival promotions take from you.
+//
+// The model: every promotion competes for a finite viewing audience in the
+// slots it broadcasts in. Head to head, the better show takes share from the
+// worse one — so a rival's great week costs you rating even if your own show
+// was fine. That is the part that makes rivals feel alive rather than
+// decorative.
+
+import { clamp } from '../rng';
+import type { WorldSettings } from '../types';
+
+export interface RatingEntrant {
+  promotionId: string;
+  /** This week's show quality, 0-100. */
+  showRating: number;
+  /** Ladder position, 0-100 — the audience you walked in with. */
+  companyRating: number;
+  /** Do they broadcast at all this week? */
+  broadcast: boolean;
+}
+
+export interface RatingResult {
+  promotionId: string;
+  /** The headline number, e.g. 3.4. */
+  rating: number;
+  /** Percentage of the watching audience, 0-100. */
+  share: number;
+}
+
+/**
+ * Split the week's audience between everyone on the air.
+ *
+ * Draw is `companyRating` weighted by how good tonight's show was — an
+ * established promotion coasts on reputation for a while, but a run of bad
+ * shows bleeds real audience to whoever is opposite them.
+ */
+export function computeTvRatings(entrants: readonly RatingEntrant[], settings: WorldSettings): RatingResult[] {
+  const onAir = entrants.filter((e) => e.broadcast);
+  if (onAir.length === 0) return [];
+
+  const draws = onAir.map((e) => {
+    const reputation = e.companyRating / 100;
+    const tonight = e.showRating / 100;
+    // Reputation gets you sampled; the show decides whether they stay.
+    const draw = reputation * (1 - settings.tvShowQualityWeight) + reputation * tonight * settings.tvShowQualityWeight;
+    return Math.max(draw, 0.001);
+  });
+
+  const totalDraw = draws.reduce((a, b) => a + b, 0);
+
+  return onAir.map((entrant, i) => {
+    const share = (draws[i]! / totalDraw) * 100;
+    // The whole market's rating scales with how much wrestling is worth
+    // watching this week, so two great promotions opposite each other grow
+    // the pie instead of only splitting it.
+    const marketStrength = totalDraw / Math.max(onAir.length, 1);
+    const rating = clamp(
+      settings.tvRatingBase * (share / 100) * onAir.length * (0.6 + marketStrength),
+      0,
+      settings.tvRatingCeiling,
+    );
+    return { promotionId: entrant.promotionId, rating: Math.round(rating * 100) / 100, share: Math.round(share * 10) / 10 };
+  });
+}
+
+/** §13-style word ladder for a TV rating, since bare numbers mean little. */
+export type TvVerdict = 'Disaster' | 'Struggling' | 'Holding' | 'Healthy' | 'Hot' | 'Phenomenon';
+
+export function tvVerdict(rating: number, settings: WorldSettings): TvVerdict {
+  const t = rating / settings.tvRatingCeiling;
+  if (t < 0.08) return 'Disaster';
+  if (t < 0.2) return 'Struggling';
+  if (t < 0.38) return 'Holding';
+  if (t < 0.58) return 'Healthy';
+  if (t < 0.8) return 'Hot';
+  return 'Phenomenon';
+}
+
+/** Did we beat the biggest rival who was on opposite us? */
+export function wonTheNight(results: readonly RatingResult[], promotionId: string): boolean {
+  if (results.length < 2) return false;
+  const best = results.reduce((a, b) => (b.rating > a.rating ? b : a));
+  return best.promotionId === promotionId;
+}
