@@ -8,6 +8,7 @@ import { rollFinish } from '../engine/sim/finish';
 import { rngFromSeed } from '../engine/rng';
 import { defaultWorldSettings } from '../engine/world/settings';
 import type { MatchRules, FinishType } from '../engine/types';
+import { generateBeats } from '../engine/sim/narrative';
 
 const strictRules: MatchRules = {
   preset: 'singles',
@@ -160,5 +161,40 @@ describe('finishWeights', () => {
     const counts = finishDistribution('hairVsHair');
     expect(counts.size).toBeGreaterThan(4);
     expect(counts.get('cleanPin')!).toBeGreaterThan(0);
+  });
+});
+
+describe('finishFlavor — the write-up is the only place the player sees it happen', () => {
+  const wrestler = (name: string) => ({ name }) as never;
+
+  function finishLineFor(stipulationId: string | null, finish: 'knockout') {
+    const beats = generateBeats(rngFromSeed('flavor'), {
+      winnerMembers: [wrestler('Vic Yeager')],
+      loserMembers: [wrestler('Blaze Lambert')],
+      finish,
+      stars: 2,
+      stipulation: stipulationId ? stipulationById(stipulationId)! : null,
+    });
+    return beats.find((b) => b.kind === 'finish')!.text;
+  }
+
+  it('puts someone through the table instead of knocking them out cold', () => {
+    const line = finishLineFor('tables', 'knockout');
+    expect(line).toContain('through the table');
+    expect(line).toContain('Blaze Lambert');
+    expect(line).not.toContain('out cold');
+  });
+
+  it('closes the lid on a casket match', () => {
+    expect(finishLineFor('casket', 'knockout')).toContain('casket');
+  });
+
+  it('sets the table on fire', () => {
+    expect(finishLineFor('flamingTables', 'knockout')).toContain('burning table');
+  });
+
+  it('falls back to the generic line when the stipulation has no flavor for that finish', () => {
+    expect(finishLineFor('hairVsHair', 'knockout')).toContain('out cold');
+    expect(finishLineFor(null, 'knockout')).toContain('out cold');
   });
 });

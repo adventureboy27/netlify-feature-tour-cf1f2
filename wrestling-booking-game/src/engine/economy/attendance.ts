@@ -25,7 +25,8 @@ export function computeAttendance(ctx: AttendanceContext): number {
     (sum, seg) => sum + ctx.capacity * (seg.stars / 5) * (seg.avgPopularity / 100) * 0.075,
     0,
   );
-  return Math.min(baseDraw + segmentDraw, ctx.capacity);
+  // Whole people. The formula is continuous; a crowd is not.
+  return Math.floor(Math.min(baseDraw + segmentDraw, ctx.capacity));
 }
 
 /** ticketPrice = base + perSegment * segmentsBooked — $10 for a full TV, $14 for a full PPV at defaults. */

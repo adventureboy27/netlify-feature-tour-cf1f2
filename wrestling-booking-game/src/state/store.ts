@@ -8,7 +8,14 @@ import { immer } from 'zustand/middleware/immer';
 import { rngFromSeed } from '../engine/rng';
 import type { Rng } from '../engine/rng';
 import type { Id, MatchRules, WorldSettings } from '../engine/types';
-import { createInitialWorld, createEmptyCard, type World } from './world';
+import { createInitialWorld, createEmptyCard, pairKey, type World } from './world';
+import {
+  findRivalry,
+  createRivalry,
+  applyHeatChange,
+  decayRivalry,
+  heatMultiplier,
+} from '../engine/sim/rivalry';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { stipulationById, stipulationRequirementsMet } from '../data/stipulations';
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
@@ -41,6 +48,12 @@ let rng: Rng = rngFromSeed(defaultWorldSettings().seed);
 const DEFAULT_TERRITORY_FOLLOWING = 50;
 const DEFAULT_VENUE_CAPACITY = 2500;
 const DEFAULT_TERRITORY_REVENUE_MULT = 1.0;
+
+// §12.5 route 3 — "two wrestlers meeting three times in a short span".
+const MEETINGS_TO_FORM_RIVALRY = 3;
+// Scales a good match's rating into starting heat. Tuned so three four-star
+// meetings open a feud around 30 heat — interested, a long way from a grudge.
+const ORGANIC_RIVALRY_HEAT_SCALE = 0.25;
 
 export interface GameStore {
   world: World | null;
@@ -127,10 +140,16 @@ export const useGameStore = create<GameStore>()(
 
           const stipulation = segment.stipulation ? (stipulationById(segment.stipulation) ?? null) : null;
           const participantWrestlers = segment.participants.map((p) => wrestlerById.get(p.wrestlerId)!);
+          const participantIds = participantWrestlers.map((w) => w.id);
+          const rivalry = findRivalry(world.rivalries, participantIds) ?? null;
+
           const requirementsMet = stipulation
             ? stipulationRequirementsMet(stipulation, {
                 participants: participantWrestlers,
-                rivalryHeat: 0,
+                // Grudge stipulations are gated on the crowd heat these two
+                // have actually built — booking Loser Leaves between two
+                // strangers is allowed, and eats the -8 (§9).
+                rivalryHeat: rivalry?.heat ?? 0,
                 matchTimeLimitMinutes: segment.rules.timeLimit,
               })
             : true;
@@ -152,7 +171,40 @@ export const useGameStore = create<GameStore>()(
             // number rather than each match penalising the next.
             hardcoreSaturation: world.promotion.hardcoreSaturation,
             slotExpectedPopularity: slotExpectations[i] ?? null,
+            rivalry,
           });
+
+          // Commit how the feud moved, and let a new one form organically.
+          if (rivalry && result.heatChange) {
+            const index = world.rivalries.findIndex((r) => r.id === rivalry.id);
+            if (index >= 0) {
+              world.rivalries[index] = applyHeatChange(rivalry, result.heatChange, world.week);
+              if (result.heatChange.blowoffPopularityGain > 0) {
+                for (const id of result.winnerWrestlerIds) {
+                  const winner = world.wrestlers[id];
+                  if (winner) {
+                    winner.popularity = Math.min(100, winner.popularity + result.heatChange.blowoffPopularityGain);
+                  }
+                }
+              }
+            }
+          } else if (!rivalry && participantIds.length === 2) {
+            // §12.5 route 3: repeat matches make a rivalry on their own, "at
+            // heat proportional to how good those matches were" — so three
+            // dull meetings still make nothing.
+            const key = pairKey(participantIds[0]!, participantIds[1]!);
+            const meetings = (world.meetings[key] ?? 0) + 1;
+            world.meetings[key] = meetings;
+
+            if (meetings >= MEETINGS_TO_FORM_RIVALRY) {
+              const startingHeat = result.rating * heatMultiplier(result.rating) * ORGANIC_RIVALRY_HEAT_SCALE;
+              if (startingHeat > 0) {
+                world.rivalries.push(
+                  createRivalry(`rivalry-${world.nextId++}`, participantIds, 'worked', world.week, startingHeat),
+                );
+              }
+            }
+          }
 
           segment.result = {
             winnerSide: result.winnerSide,
@@ -245,6 +297,11 @@ export const useGameStore = create<GameStore>()(
         });
 
         world.week += 1;
+
+        // Feuds nobody advanced this week go cold; the bad blood behind them
+        // barely moves (§12.5).
+        world.rivalries = world.rivalries.map((r) => decayRivalry(r, world.week, world.settings));
+
         world.currentCard = createEmptyCard(world.settings.segmentsPerTV);
       });
     },

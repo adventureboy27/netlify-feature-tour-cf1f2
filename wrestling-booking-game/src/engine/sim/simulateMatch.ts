@@ -158,7 +158,7 @@ export function simulateMatch(
     overexposurePenalty: ctx.overexposurePenalty ?? 0,
   });
 
-  const beats = generateBeats(rng, { winnerMembers, loserMembers, finish, stars });
+  const beats = generateBeats(rng, { winnerMembers, loserMembers, finish, stars, stipulation: ctx.stipulation });
 
   // A grudge stipulation settled decisively is the blowoff — the feud ends
   // and the winner banks the heat as popularity (§12.5). A screwjob finish in

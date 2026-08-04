@@ -1,0 +1,324 @@
+// The card builder — §21's "Match Setup" plus the card view. This is M2's
+// main interaction, and per §9 it has no time pressure and no warnings: the
+// game will let you book Loser Leaves between two strangers and find out.
+
+import { useMemo, useState } from 'react';
+import { useGameStore } from '../../state/store';
+import { STIPULATIONS, stipulationById, stipulationRequirementsMet, effectiveRules } from '../../data/stipulations';
+import { findRivalry } from '../../engine/sim/rivalry';
+import { ruleAdjustedWeights, kayfabeScore } from '../../engine/sim/kayfabe';
+import { pairWinProbability } from '../../engine/sim/winProbability';
+import { PaperDoll } from '../paperdoll/PaperDoll';
+import { Odds, HeatBadge, AlignmentDot, StatBar } from '../components/display';
+import type { Id, Wrestler, Segment } from '../../engine/types';
+
+const SLOT_LABELS = ['Opener', 'Second', 'Third', 'Fourth', 'Semi-main', 'Main event'];
+
+function slotLabel(index: number, total: number): string {
+  if (index === total - 1) return 'Main event';
+  return SLOT_LABELS[index] ?? `Match ${index + 1}`;
+}
+
+/** Preview odds using the same path the sim will take, so the words don't lie. */
+function previewOdds(segment: Segment, wrestlers: Wrestler[]): number | null {
+  const sides = [...new Set(segment.participants.map((p) => p.side))];
+  if (sides.length !== 2 || wrestlers.length < 2) return null;
+
+  const stipulation = segment.stipulation ? (stipulationById(segment.stipulation) ?? null) : null;
+  const rules = effectiveRules(segment.rules, stipulation);
+  const weights = ruleAdjustedWeights(rules, stipulation?.id === 'ladder', false);
+
+  const scoreFor = (side: number) => {
+    const members = segment.participants
+      .filter((p) => p.side === side)
+      .map((p) => wrestlers.find((w) => w.id === p.wrestlerId))
+      .filter((w): w is Wrestler => Boolean(w));
+    if (members.length === 0) return null;
+    return members.reduce((sum, w) => sum + kayfabeScore(w, weights), 0) / members.length;
+  };
+
+  const a = scoreFor(sides[0]!);
+  const b = scoreFor(sides[1]!);
+  if (a === null || b === null) return null;
+  return pairWinProbability(a, b, 0, 0.08, 0.92);
+}
+
+export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
+  const world = useGameStore((s) => s.world);
+  const setParticipant = useGameStore((s) => s.setSegmentParticipant);
+  const removeParticipant = useGameStore((s) => s.removeSegmentParticipant);
+  const setStipulation = useGameStore((s) => s.setSegmentStipulation);
+  const setRules = useGameStore((s) => s.setSegmentRules);
+  const [openSlot, setOpenSlot] = useState(0);
+
+  const roster = useMemo(
+    () => (world ? world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean) : []),
+    [world],
+  );
+
+  if (!world) return null;
+
+  const bookedIds = new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
+  const filledSegments = world.currentCard.filter((s) => new Set(s.participants.map((p) => p.side)).size >= 2).length;
+
+  return (
+    <div className="p-3 pb-24 text-neutral-100">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <h1 className="text-base font-semibold">This week&apos;s card</h1>
+          <p className="text-xs text-neutral-500">
+            {filledSegments} of {world.currentCard.length} segments booked
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRunShow}
+          className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+        >
+          Run the show
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {world.currentCard.map((segment, index) => {
+          const participants = segment.participants
+            .map((p) => ({ role: p, wrestler: world.wrestlers[p.wrestlerId] }))
+            .filter((p): p is { role: typeof p.role; wrestler: Wrestler } => Boolean(p.wrestler));
+          const sides = [...new Set(segment.participants.map((p) => p.side))].sort();
+          const rivalry = findRivalry(world.rivalries, participants.map((p) => p.wrestler.id));
+          const stipulation = segment.stipulation ? (stipulationById(segment.stipulation) ?? null) : null;
+          const odds = previewOdds(segment, roster);
+          const isOpen = openSlot === index;
+
+          const requirementsMet =
+            stipulation && participants.length >= 2
+              ? stipulationRequirementsMet(stipulation, {
+                  participants: participants.map((p) => p.wrestler),
+                  rivalryHeat: rivalry?.heat ?? 0,
+                  matchTimeLimitMinutes: segment.rules.timeLimit,
+                })
+              : true;
+
+          return (
+            <section
+              key={segment.slot}
+              data-testid={`segment-${index}`}
+              data-open={isOpen ? 'true' : 'false'}
+              className="rounded border border-neutral-800 bg-neutral-900"
+            >
+              <button
+                type="button"
+                data-testid={`segment-${index}-toggle`}
+                onClick={() => setOpenSlot(isOpen ? -1 : index)}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+              >
+                <div className="min-w-0">
+                  <div className="text-[11px] uppercase tracking-wide text-neutral-500">
+                    {slotLabel(index, world.currentCard.length)}
+                  </div>
+                  <div className="truncate text-sm">
+                    {participants.length === 0 ? (
+                      <span className="text-neutral-600">Empty</span>
+                    ) : (
+                      sides
+                        .map((side) =>
+                          participants
+                            .filter((p) => p.role.side === side)
+                            .map((p) => p.wrestler.name)
+                            .join(' & '),
+                        )
+                        .join('  vs  ')
+                    )}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                    {stipulation && (
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] ${requirementsMet ? 'bg-sky-950 text-sky-300' : 'bg-amber-950 text-amber-300'}`}
+                        title={requirementsMet ? stipulation.blurb : "Requirements aren't met — this will cost you"}
+                      >
+                        {stipulation.name}
+                        {!requirementsMet && ' ⚠'}
+                      </span>
+                    )}
+                    {rivalry && <HeatBadge heat={rivalry.heat} shootHeat={rivalry.shootHeat} />}
+                    {odds !== null && <Odds probability={odds} />}
+                  </div>
+                </div>
+                <span className="shrink-0 text-neutral-600">{isOpen ? '▾' : '▸'}</span>
+              </button>
+
+              {isOpen && (
+                <div className="border-t border-neutral-800 p-3">
+                  <SegmentEditor
+                    segment={segment}
+                    roster={roster}
+                    // Anyone already on the card — including in this very
+                    // segment — is off the picker. They're visible in their
+                    // side panel, and offering them again only ever means a
+                    // misclick that silently moves them between sides.
+                    unavailable={bookedIds}
+                    onAdd={(id, side) => setParticipant(index, id, side)}
+                    onRemove={(id) => removeParticipant(index, id)}
+                    onStipulation={(id) => setStipulation(index, id)}
+                    onTimeLimit={(minutes) => setRules(index, { timeLimit: minutes })}
+                  />
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const TIME_LIMITS = [0, 5, 10, 15, 20, 30, 60] as const;
+
+function SegmentEditor({
+  segment,
+  roster,
+  unavailable,
+  onAdd,
+  onRemove,
+  onStipulation,
+  onTimeLimit,
+}: {
+  segment: Segment;
+  roster: Wrestler[];
+  unavailable: Set<Id>;
+  onAdd: (id: Id, side: number) => void;
+  onRemove: (id: Id) => void;
+  onStipulation: (id: Id | null) => void;
+  onTimeLimit: (minutes: (typeof TIME_LIMITS)[number]) => void;
+}) {
+  const [side, setSide] = useState(0);
+  const [search, setSearch] = useState('');
+
+  const available = roster
+    .filter((w) => !unavailable.has(w.id))
+    .filter((w) => w.name.toLowerCase().includes(search.toLowerCase()))
+    .slice(0, 40);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {[0, 1].map((s) => (
+          <div key={s} className="rounded border border-neutral-800 p-2">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[11px] uppercase tracking-wide text-neutral-500">Side {s + 1}</span>
+              <button
+                type="button"
+                data-testid={`side-${s}`}
+                onClick={() => setSide(s)}
+                className={`rounded px-2 py-0.5 text-[11px] ${side === s ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-400'}`}
+              >
+                {side === s ? 'Adding here' : 'Add here'}
+              </button>
+            </div>
+            <div className="flex flex-col gap-1">
+              {segment.participants
+                .filter((p) => p.side === s)
+                .map((p) => {
+                  const wrestler = roster.find((w) => w.id === p.wrestlerId);
+                  if (!wrestler) return null;
+                  return (
+                    <div key={p.wrestlerId} className="flex items-center gap-2 rounded bg-neutral-950 p-1.5">
+                      <PaperDoll
+                        appearance={wrestler.appearance}
+                        gender={wrestler.gender}
+                        alignment={wrestler.alignment}
+                        size="thumb"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 truncate text-xs">
+                          <AlignmentDot alignment={wrestler.alignment} />
+                          {wrestler.name}
+                        </div>
+                        <StatBar label="Popularity" value={wrestler.popularity} />
+                        <StatBar label="Condition" value={wrestler.health} tone="health" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onRemove(p.wrestlerId)}
+                        className="shrink-0 rounded px-1.5 text-xs text-neutral-500 hover:text-rose-400"
+                        aria-label={`Remove ${wrestler.name}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              {segment.participants.filter((p) => p.side === s).length === 0 && (
+                <p className="py-2 text-center text-[11px] text-neutral-600">Nobody yet</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search the roster…"
+          className="mb-2 w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600"
+        />
+        <div data-testid="roster-picker" className="flex max-h-48 flex-wrap gap-1 overflow-y-auto">
+          {available.map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              data-testid="roster-pick"
+              onClick={() => onAdd(w.id, side)}
+              className="flex items-center gap-1.5 rounded bg-neutral-800 px-2 py-1 text-[11px] hover:bg-neutral-700"
+            >
+              <AlignmentDot alignment={w.alignment} />
+              {w.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">Stipulation</div>
+        <div className="flex flex-wrap gap-1">
+          <button
+            type="button"
+            onClick={() => onStipulation(null)}
+            className={`rounded px-2 py-1 text-[11px] ${!segment.stipulation ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
+          >
+            Straight match
+          </button>
+          {STIPULATIONS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              title={s.blurb}
+              onClick={() => onStipulation(s.id)}
+              className={`rounded px-2 py-1 text-[11px] ${segment.stipulation === s.id ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}`}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">Time limit</div>
+        <div className="flex flex-wrap gap-1">
+          {TIME_LIMITS.map((minutes) => (
+            <button
+              key={minutes}
+              type="button"
+              onClick={() => onTimeLimit(minutes)}
+              className={`rounded px-2 py-1 text-[11px] ${segment.rules.timeLimit === minutes ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
+            >
+              {minutes === 0 ? 'No limit' : `${minutes}m`}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

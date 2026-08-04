@@ -16,9 +16,21 @@
 // taping per week; the house-show/PPV-month schedule is a straightforward
 // extension of the same card-building code once the core loop is proven.
 
-import type { Id, Wrestler, Promotion, Segment, MatchRules, DeckStacking, Show, WorldSettings } from '../engine/types';
+import type {
+  Id,
+  Wrestler,
+  Promotion,
+  Segment,
+  MatchRules,
+  DeckStacking,
+  Show,
+  WorldSettings,
+  Rivalry,
+  Tournament,
+} from '../engine/types';
 import type { Rng } from '../engine/rng';
 import { generateWrestlers } from '../engine/generate/wrestler';
+import { createRivalry } from '../engine/sim/rivalry';
 
 export const SEGMENTS_PER_CARD = 6; // matches WorldSettings.segmentsPerTV default
 
@@ -30,6 +42,20 @@ export interface World {
   promotion: Promotion;
   currentCard: Segment[];
   showHistory: Show[];
+  rivalries: Rivalry[];
+  tournaments: Tournament[];
+  /**
+   * How many times each pair has been in a match together, keyed by their two
+   * ids sorted and joined. §12.5 route 3: "two wrestlers meeting three times
+   * in a short span organically generates a rivalry."
+   */
+  meetings: Record<string, number>;
+  nextId: number;
+}
+
+/** Stable key for a pair of wrestlers, order-independent. */
+export function pairKey(a: Id, b: Id): string {
+  return [a, b].sort().join('~');
 }
 
 export function defaultMatchRules(): MatchRules {
@@ -130,5 +156,33 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     promotion,
     currentCard: createEmptyCard(settings.segmentsPerTV),
     showHistory: [],
+    rivalries: seedShootRivalries(roster),
+    tournaments: [],
+    meetings: {},
+    nextId: 1,
   };
+}
+
+// DESIGN: §12.5 route 2 says shoot rivalries arrive from real-life
+// relationships and backstage incidents — which is the random event engine,
+// M5.5. Rather than ship the mechanic dead until then, the world opens with
+// two pairs who already can't stand each other, drawn from the worst
+// attitudes on the roster. The booker didn't ask for these and didn't cause
+// them, which is exactly how a shoot is supposed to feel. When the event
+// engine lands it becomes another source feeding the same list.
+const OPENING_SHOOT_RIVALRIES = 2;
+const OPENING_SHOOT_HEAT = 55;
+
+function seedShootRivalries(roster: Wrestler[]): Rivalry[] {
+  const worstAttitudes = [...roster].sort((a, b) => a.attitude - b.attitude);
+  const rivalries: Rivalry[] = [];
+
+  for (let i = 0; i < OPENING_SHOOT_RIVALRIES; i++) {
+    const a = worstAttitudes[i * 2];
+    const b = worstAttitudes[i * 2 + 1];
+    if (!a || !b) break;
+    rivalries.push(createRivalry(`rivalry-shoot-${i}`, [a.id, b.id], 'shoot', 1, OPENING_SHOOT_HEAT));
+  }
+
+  return rivalries;
 }

@@ -12,7 +12,7 @@
 
 import type { Rng } from '../rng';
 import { pick } from '../rng';
-import type { Wrestler, MatchBeat, FinishType } from '../types';
+import type { Wrestler, MatchBeat, FinishType, Stipulation } from '../types';
 
 const FLOW_LINES = [
   'A cautious feeling-out process to start.',
@@ -42,6 +42,13 @@ export interface NarrativeContext {
   loserMembers: Wrestler[];
   finish: FinishType;
   stars: number;
+  /**
+   * A gimmick match describes its own finish. "Knocked them out cold" is
+   * wrong for a tables match — the whole point is that someone went through
+   * a table, and the write-up is the only place the player ever sees it
+   * happen.
+   */
+  stipulation?: Stipulation | null;
 }
 
 export function generateBeats(rng: Rng, ctx: NarrativeContext): MatchBeat[] {
@@ -56,7 +63,10 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext): MatchBeat[] {
     beats.push({ kind: 'nearFall', text: pick(rng, NEAR_FALL_LINES).replace('{loser}', loserName), significant: true });
   }
 
-  const finishLine = FINISH_LINES[ctx.finish](winnerName, loserName);
+  const flavor = ctx.stipulation?.finishFlavor?.[ctx.finish];
+  const finishLine = flavor
+    ? `${winnerName} ${flavor.replace('{loser}', loserName).replace('{winner}', winnerName)}.`
+    : FINISH_LINES[ctx.finish](winnerName, loserName);
   beats.push({ kind: 'finish', text: finishLine, significant: true });
 
   return beats;
