@@ -141,6 +141,61 @@ export function defaultWorldSettings(): WorldSettings {
     eventRepeatDamping: 0.55,
     eventMinWeightFraction: 0.15,
 
+    // Contracts, scaled to a promotion running small buildings: a jobber is
+    // around $25/wk, a midcarder around $160, a genuine draw around $750.
+    // The curve is what makes a star cost multiples of a midcarder.
+    contractBaseWeeklyRate: 25,
+    contractRateRange: 900,
+    contractRateCurve: 2,
+    contractDrawWeight: 0.7,
+    contractCraftWeight: 0.3,
+    contractRenewalFloor: 1.05,
+    contractAffordabilityWeeks: 12,
+
+    // Show production economics
+    travelCostPerHead: 45,
+    crewCostBase: 400,
+    crewCostPerSeat: 0.35,
+    ticketFairPriceBase: 8,
+    ticketFairPriceRange: 34,
+    ticketUnderpriceBonus: 0.45,
+    ticketOverpricePenalty: 0.85,
+    merchSpendPerHead: 4.5,
+    // demand 25 -> ~310 people, 50 -> ~3,500, 80 -> ~18,000, 100 -> 40,000.
+    demandAudienceScale: 40000,
+    demandAudienceCurve: 3.5,
+    venuePrestigeDraw: 0.15,
+    venuePrestigeRatingWeight: 8,
+    venueFullThreshold: 0.75,
+    venueFullBonus: 6,
+    venueEmptyPenalty: 14,
+
+    // Answering a rival's offer
+    poachResponseMoneyEffect: 0.45,
+    poachResponseMoneyRaise: 1.35,
+    poachResponsePushEffect: 0.3,
+    poachResponseLegalEffect: 0.5,
+    poachOfferWeeksToRespond: 1,
+
+    // The player tampering. Low ceiling on success, high chance of being
+    // caught, and a punishment bad enough that it is never the smart play.
+    playerTamperingSuccessScale: 0.35,
+    playerTamperingSuccessCap: 0.18,
+    playerTamperingCaughtBase: 0.4,
+    playerTamperingCaughtByFame: 0.35,
+    playerTamperingFineFraction: 0.35,
+    playerTamperingMinFine: 25000,
+    playerTamperingReputationPenalty: 25,
+    playerTamperingBanWeeks: 12,
+    playerTamperingSuspensionWeeks: 6,
+    playerTamperingExpulsionRatingLoss: 25,
+    playerTamperingEscalation: 1.0,
+
+    // Free agents
+    freeAgentRateDecayPerWeek: 0.008,
+    freeAgentMaxDiscount: 0.4,
+    freeAgentRivalSigningChance: 0.05,
+
     // Chaos
     chaosLevel: 1,
     ownerMandatesEnabled: true,

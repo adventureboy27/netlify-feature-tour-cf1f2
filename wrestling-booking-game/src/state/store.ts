@@ -37,8 +37,18 @@ import {
   stepCompanyRatingTowardTarget,
   TV_SLOT_WEIGHTS,
 } from '../engine/economy/showRating';
-import { computeAttendance, computeTicketPrice, computeGate } from '../engine/economy/attendance';
-import { computeAppearanceFee, computeWeeklyExpenses, computeShowExpenseSplit } from '../engine/economy/payroll';
+import {
+  computeShowCosts,
+  computeAttendanceForShow,
+  computeShowRevenue,
+  attendanceRatingModifier,
+  sumEffect,
+} from '../engine/economy/showBudget';
+import { venueById, fallbackVenue } from '../data/venues';
+import { productionAssetById, showExtraById } from '../data/production';
+import { expireContracts, weeklyWageBill, createStandardContract, askingRate } from '../engine/economy/contracts';
+import { canSign, currentAskingRate } from '../engine/world/freeAgents';
+import { computeWeeklyExpenses, computeShowExpenseSplit } from '../engine/economy/payroll';
 import {
   slotExpectedPopularities,
   saturationFromShow,
@@ -51,14 +61,6 @@ import {
 // serializes. Re-seeded on newGame(); advances across resolveWeek() calls
 // exactly like any other engine consumer of Rng.
 let rng: Rng = rngFromSeed(defaultWorldSettings().seed);
-
-// DESIGN (M2 scope): attendance/gate use neutral territory defaults
-// (following 50, a 2,500-capacity venue, revenue mult 1.0) since
-// Territory (M6) and arena tiers (§14, M5) don't exist yet. See
-// engine/economy/attendance.ts's own DESIGN note.
-const DEFAULT_TERRITORY_FOLLOWING = 50;
-const DEFAULT_VENUE_CAPACITY = 2500;
-const DEFAULT_TERRITORY_REVENUE_MULT = 1.0;
 
 // §12.5 route 3 — "two wrestlers meeting three times in a short span".
 const MEETINGS_TO_FORM_RIVALRY = 3;
@@ -77,6 +79,14 @@ export interface GameStore {
   /** Answer the pending creative event. */
   chooseEventOption: (optionId: string) => void;
   dismissEventOutcome: () => void;
+  // Staging the show
+  setVenue: (venueId: Id) => void;
+  setTicketPrice: (price: number) => void;
+  toggleShowExtra: (extraId: Id) => void;
+  buyProductionAsset: (assetId: Id) => void;
+  // Roster moves
+  signFreeAgent: (wrestlerId: Id) => void;
+  releaseWrestler: (wrestlerId: Id) => void;
 }
 
 /**
@@ -277,7 +287,7 @@ export const useGameStore = create<GameStore>()(
         const segmentRatings: (number | null)[] = [];
         const segmentPopAvgs: { stars: number; avgPopularity: number }[] = [];
         const violenceLevels: number[] = [];
-        let payroll = 0;
+        let payroll = 0; // set below from the wage bill
 
         // §11.4 jobberDrag: what each slot on this card is expected to deliver,
         // judged against the roster the player actually has.
@@ -379,44 +389,104 @@ export const useGameStore = create<GameStore>()(
           const avgPop = participantWrestlers.reduce((sum, w) => sum + w.popularity, 0) / participantWrestlers.length;
           segmentPopAvgs.push({ stars: result.stars, avgPopularity: avgPop });
 
-          for (const wrestler of participantWrestlers) {
-            if (wrestler.contract) {
-              payroll += computeAppearanceFee({
-                contract: wrestler.contract,
-                role: 'competitor',
-                isMainEvent: i === world.currentCard.length - 1,
-                isPPV: false,
-              });
-            }
-          }
+
         });
 
         const slotWeights = TV_SLOT_WEIGHTS.slice(0, world.currentCard.length);
-        const showRating = computeShowRating(segmentRatings, slotWeights);
-        const showStars = ratingToStars(showRating);
+        const inRingRating = computeShowRating(segmentRatings, slotWeights);
 
-        const ticketPrice = computeTicketPrice(
-          segmentPopAvgs.length,
-          world.settings.ticketPriceBase,
-          world.settings.ticketPricePerSegment,
-        );
-        const attendance = computeAttendance({
-          territoryFollowing: DEFAULT_TERRITORY_FOLLOWING,
-          capacity: DEFAULT_VENUE_CAPACITY,
-          companyRating: world.promotion.rating,
-          championPopularity: 0,
-          segments: segmentPopAvgs,
+        // ---- staging the show -------------------------------------------
+        const venue = venueById(world.showSetup.venueId) ?? fallbackVenue();
+        const ownedAssets = world.ownedAssetIds
+          .map((id) => productionAssetById(id))
+          .filter((a): a is NonNullable<typeof a> => Boolean(a))
+          // A rig you cannot hang in this building does nothing tonight.
+          .filter((a) => !a.minVenueCapacity || venue.capacity >= a.minVenueCapacity);
+        const extras = world.showSetup.extraIds
+          .map((id) => showExtraById(id))
+          .filter((e): e is NonNullable<typeof e> => Boolean(e))
+          .filter((e) => !e.requiresAsset || world.ownedAssetIds.includes(e.requiresAsset));
+
+        const production = [...ownedAssets, ...extras];
+        const ticketPrice = world.showSetup.ticketPrice;
+
+        // Demand is what the promotion has earned: its standing, plus how
+        // good the card the player actually built is.
+        const cardStrength = segmentPopAvgs.length
+          ? segmentPopAvgs.reduce((sum, s) => sum + s.avgPopularity, 0) / segmentPopAvgs.length
+          : 0;
+        const demand = clamp(world.promotion.rating * 0.55 + cardStrength * 0.45, 0, 100);
+
+        const attendance = computeAttendanceForShow({
+          venue,
+          ticketPrice,
+          demand,
+          attendanceMultiplier: sumEffect(production, 'attendanceMultiplier', 'multiply'),
+          settings: world.settings,
         });
-        const gate = computeGate(attendance, ticketPrice, DEFAULT_TERRITORY_REVENUE_MULT);
+
+        const revenue = computeShowRevenue({
+          attendance,
+          ticketPrice,
+          merchMultiplier: sumEffect(production, 'merchMultiplier', 'multiply'),
+          revenuePerHead: sumEffect(production, 'revenuePerHead'),
+          averagePopularity: cardStrength,
+          settings: world.settings,
+        });
+
+        const showCosts = computeShowCosts({
+          venue,
+          ownedAssets,
+          extras,
+          rosterSize: world.promotion.rosterIds.length,
+          settings: world.settings,
+        });
+
+        const gate = revenue.gate;
 
         const weeklyExpenses = computeWeeklyExpenses(
           world.promotion.bankBalance,
           world.settings.weeklyExpenseRate,
           world.promotion.ownedTerritoryIds.length,
         );
-        const { payable } = computeShowExpenseSplit(payroll + weeklyExpenses, gate, world.settings.expenseCapPctOfRevenue);
+        // A guaranteed weekly deal is paid every week, booked or not — that
+        // is what "two years, flat rate" means. §14's 50% expense cap applies
+        // to *show* expenses, not to wages: capping the wage bill made the
+        // bank rise every week no matter what, because the overflow was
+        // silently discarded.
+        payroll = weeklyWageBill(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
+        const { payable: showPayable } = computeShowExpenseSplit(
+          showCosts.total,
+          revenue.total,
+          world.settings.expenseCapPctOfRevenue,
+        );
+        const totalOut = payroll + weeklyExpenses + showPayable;
 
-        world.promotion.bankBalance += gate - payable;
+        world.promotion.bankBalance += revenue.total - totalOut;
+
+        // Staging feeds back into how the show itself was received: the
+        // production, and whether the building looked full on camera.
+        const productionRating =
+          sumEffect(production, 'showRating') +
+          (venue.prestige / 100) * world.settings.venuePrestigeRatingWeight +
+          attendanceRatingModifier(attendance, venue.capacity, world.settings);
+        for (const effect of production) {
+          if (effect.effects.rosterMorale) {
+            for (const id of world.promotion.rosterIds) {
+              const member = world.wrestlers[id];
+              if (member) member.morale = clamp(member.morale + effect.effects.rosterMorale, 0, 100);
+            }
+          }
+          if (effect.effects.reputation) {
+            world.promotion.reputation = clamp(world.promotion.reputation + effect.effects.reputation, 0, 100);
+          }
+        }
+
+        // What happened in the ring, plus how the night was staged. Staging
+        // modifies a show; it cannot manufacture one, so a card with nothing
+        // booked rates zero no matter how good the building looked.
+        const showRating = segmentPopAvgs.length === 0 ? 0 : clamp(inRingRating + productionRating, 0, 100);
+        const showStars = ratingToStars(showRating);
 
         // §11.4 weapons model: violence booked tonight accrues, then the week
         // sheds its decay. Lean on hardcore every week and the counter pegs,
@@ -447,7 +517,12 @@ export const useGameStore = create<GameStore>()(
           attendance,
           ticketPrice,
           gate,
-          payroll: payable,
+          payroll,
+          venueId: venue.id,
+          venueCapacity: venue.capacity,
+          merch: revenue.merch,
+          otherRevenue: revenue.other,
+          showCosts: showCosts.total,
           showRating,
           showStars,
           broadcast: true,
@@ -476,6 +551,10 @@ export const useGameStore = create<GameStore>()(
         // Feuds nobody advanced this week go cold; the bad blood behind them
         // barely moves (§12.5).
         world.rivalries = world.rivalries.map((r) => decayRivalry(r, world.week, world.settings));
+
+        // Deals run down whether or not anybody was booked.
+        expireContracts(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
+        if (world.signingBanWeeks > 0) world.signingBanWeeks -= 1;
 
         // Career standing is derived, so it moves on its own as a save runs.
         const roster = world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean);
@@ -546,6 +625,80 @@ export const useGameStore = create<GameStore>()(
     dismissEventOutcome: () => {
       set((state) => {
         if (state.world) state.world.lastEventOutcome = null;
+      });
+    },
+
+    setVenue: (venueId) => {
+      set((state) => {
+        if (state.world) state.world.showSetup.venueId = venueId;
+      });
+    },
+
+    setTicketPrice: (price) => {
+      set((state) => {
+        if (state.world) state.world.showSetup.ticketPrice = Math.max(1, Math.round(price));
+      });
+    },
+
+    toggleShowExtra: (extraId) => {
+      set((state) => {
+        const setup = state.world?.showSetup;
+        if (!setup) return;
+        setup.extraIds = setup.extraIds.includes(extraId)
+          ? setup.extraIds.filter((id) => id !== extraId)
+          : [...setup.extraIds, extraId];
+      });
+    },
+
+    buyProductionAsset: (assetId) => {
+      set((state) => {
+        const world = state.world;
+        const asset = productionAssetById(assetId);
+        if (!world || !asset) return;
+        if (world.ownedAssetIds.includes(assetId)) return;
+        // No warnings (§0) — but you cannot spend money you do not have.
+        if (world.promotion.bankBalance < asset.cost) return;
+        world.promotion.bankBalance -= asset.cost;
+        world.ownedAssetIds.push(assetId);
+      });
+    },
+
+    signFreeAgent: (wrestlerId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const wrestler = world.wrestlers[wrestlerId];
+        const agent = world.freeAgents.find((a) => a.wrestlerId === wrestlerId);
+        if (!wrestler || !agent) return;
+        if (!canSign(wrestler, world.promotion.bankBalance, world.signingBanWeeks, world.settings)) return;
+
+        wrestler.promotionId = world.promotion.id;
+        wrestler.contract = {
+          ...createStandardContract(wrestler, world.settings, world.settings.startingYear),
+          weeklyRate: currentAskingRate(agent, world.settings),
+        };
+        world.promotion.rosterIds.push(wrestlerId);
+        world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== wrestlerId);
+      });
+    },
+
+    releaseWrestler: (wrestlerId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const wrestler = world.wrestlers[wrestlerId];
+        if (!wrestler) return;
+        wrestler.promotionId = null;
+        wrestler.contract = null;
+        world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestlerId);
+        // They do not vanish — they go back into the pool, where a rival can
+        // pick them up and you can watch them do it.
+        world.freeAgents.push({
+          wrestlerId,
+          reason: 'released',
+          askingRate: askingRate(wrestler, world.settings),
+          weeksUnsigned: 0,
+        });
       });
     },
   })),

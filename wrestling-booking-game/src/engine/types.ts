@@ -389,6 +389,68 @@ export interface Wrestler {
 }
 
 // ============================================================================
+// §14 — Venues and production
+// ============================================================================
+
+export interface Venue {
+  id: Id;
+  name: string;
+  capacity: number;
+  /** Rented per show. Never owned. */
+  rentalCost: number;
+  prestige: number; // 0-100, feeds show rating
+  /** A real building will not rent to a promotion nobody has heard of. */
+  minCompanyRating: number;
+  blurb: string;
+}
+
+/** What a production purchase or a per-show extra actually does. */
+export interface ProductionEffects {
+  showRating?: number;
+  attendanceMultiplier?: number;
+  merchMultiplier?: number;
+  tvRating?: number;
+  /** Extra revenue per head, beyond the ticket. */
+  revenuePerHead?: number;
+  injuryReduction?: number; // 0-1
+  incidentReduction?: number; // 0-1
+  talentGrowth?: number;
+  rosterMorale?: number;
+  rosterFatigue?: number;
+  reputation?: number;
+}
+
+/** Bought once, hauled to every show thereafter. */
+export interface ProductionAsset {
+  id: Id;
+  name: string;
+  cost: number;
+  upkeepPerShow: number;
+  blurb: string;
+  effects: ProductionEffects;
+  /** Some rigs need a building big enough to hang them in. */
+  minVenueCapacity?: number;
+}
+
+/** Chosen and paid for fresh every show. */
+export interface ShowExtra {
+  id: Id;
+  name: string;
+  cost: number;
+  blurb: string;
+  /** Needs a one-time asset to be owned first — pyro charges need the rig. */
+  requiresAsset?: Id;
+  effects: ProductionEffects;
+}
+
+/** The production plan for one show. */
+export interface ShowSetup {
+  venueId: Id;
+  ticketPrice: number;
+  extraIds: Id[];
+}
+
+// ============================================================================
 // §9 — Tournaments
 // ============================================================================
 
@@ -678,6 +740,12 @@ export interface Show {
   showRating: number; // 0-100 internal
   showStars: number; // 0.5-5.0 displayed
   broadcast: boolean;
+  /** Where it was staged, and what the staging cost and returned. */
+  venueId: Id;
+  venueCapacity: number;
+  merch: number;
+  otherRevenue: number;
+  showCosts: number;
 }
 
 // ============================================================================
@@ -964,6 +1032,72 @@ export interface WorldSettings {
   eventRepeatDamping: number;
   /** Floor on damped weight, as a fraction of the original. */
   eventMinWeightFraction: number;
+
+  // Contracts (engine/economy/contracts.ts)
+  contractBaseWeeklyRate: number;
+  contractRateRange: number;
+  /** Exponent on value. >1 makes stars cost multiples of a midcarder. */
+  contractRateCurve: number;
+  contractDrawWeight: number;
+  contractCraftWeight: number;
+  /** A renewal never comes in below this multiple of the current rate. */
+  contractRenewalFloor: number;
+  /** Weeks of wages you must be able to cover before a signing is affordable. */
+  contractAffordabilityWeeks: number;
+
+  // Show production economics (engine/economy/showBudget.ts)
+  travelCostPerHead: number;
+  crewCostBase: number;
+  crewCostPerSeat: number;
+  ticketFairPriceBase: number;
+  ticketFairPriceRange: number;
+  ticketUnderpriceBonus: number;
+  ticketOverpricePenalty: number;
+  merchSpendPerHead: number;
+  /** Audience at maximum demand — the ceiling on how many people exist for you. */
+  demandAudienceScale: number;
+  /** Curve exponent. Higher makes the gap between liked and beloved wider. */
+  demandAudienceCurve: number;
+  /** How much walk-up a prestigious building pulls on its own. */
+  venuePrestigeDraw: number;
+  /** Rating points a maximum-prestige building adds to the show. */
+  venuePrestigeRatingWeight: number;
+  /** Fill ratio at or above which the building reads as full. */
+  venueFullThreshold: number;
+  venueFullBonus: number;
+  venueEmptyPenalty: number;
+
+  // Answering a rival's offer (engine/world/poaching.ts)
+  poachResponseMoneyEffect: number;
+  poachResponseMoneyRaise: number;
+  poachResponsePushEffect: number;
+  poachResponseLegalEffect: number;
+  /** Weeks an offer sits open before it resolves. */
+  poachOfferWeeksToRespond: number;
+
+  // The player tampering with someone else's talent — a deliberately bad bet
+  playerTamperingSuccessScale: number;
+  playerTamperingSuccessCap: number;
+  playerTamperingCaughtBase: number;
+  playerTamperingCaughtByFame: number;
+  playerTamperingFineFraction: number;
+  playerTamperingMinFine: number;
+  playerTamperingReputationPenalty: number;
+  playerTamperingBanWeeks: number;
+  /** Weeks dark when a repeat offence draws a suspension. */
+  playerTamperingSuspensionWeeks: number;
+  /** Company rating stripped on expulsion — losing the TV slot. */
+  playerTamperingExpulsionRatingLoss: number;
+  /** How much harsher each subsequent offence is. */
+  playerTamperingEscalation: number;
+
+  // Free agents (engine/world/freeAgents.ts)
+  /** Asking rate shed per week unsigned. */
+  freeAgentRateDecayPerWeek: number;
+  /** Floor on that discount. */
+  freeAgentMaxDiscount: number;
+  /** Weekly chance a desirable free agent is signed by somebody else. */
+  freeAgentRivalSigningChance: number;
 
   // Chaos
   chaosLevel: number; // 0-3

@@ -6,18 +6,22 @@ import { useEffect, useState } from 'react';
 import { useGameStore } from './state/store';
 import { BookingScreen } from './ui/screens/BookingScreen';
 import { OfficeScreen } from './ui/screens/OfficeScreen';
+import { PromotionScreen } from './ui/screens/PromotionScreen';
+import { FreeAgentsScreen } from './ui/screens/FreeAgentsScreen';
 import { RosterScreen } from './ui/screens/RosterScreen';
 import { ShowResults } from './ui/screens/ShowResults';
 import { ContactSheet } from './ui/screens/ContactSheet';
 import { WrestlerEditor } from './ui/screens/WrestlerEditor';
 import { Money } from './ui/components/display';
 
-type Screen = 'office' | 'booking' | 'roster' | 'results' | 'contactSheet' | 'editor';
+type Screen = 'office' | 'booking' | 'promotion' | 'roster' | 'freeAgents' | 'results' | 'contactSheet' | 'editor';
 
 const TABS: { id: Screen; label: string }[] = [
   { id: 'office', label: 'Office' },
   { id: 'booking', label: 'Card' },
+  { id: 'promotion', label: 'Promotion' },
   { id: 'roster', label: 'Roster' },
+  { id: 'freeAgents', label: 'Free agents' },
   { id: 'results', label: 'Results' },
   { id: 'contactSheet', label: 'Contact sheet' },
   { id: 'editor', label: 'Editor' },
@@ -81,7 +85,9 @@ export default function App() {
 
       {screen === 'office' && <OfficeScreen />}
       {screen === 'booking' && <BookingScreen onRunShow={runShow} />}
+      {screen === 'promotion' && <PromotionScreen />}
       {screen === 'roster' && <RosterScreen />}
+      {screen === 'freeAgents' && <FreeAgentsScreen />}
       {screen === 'results' &&
         (lastShow ? (
           <ShowResults show={lastShow} onContinue={() => setScreen('booking')} />

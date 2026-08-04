@@ -28,7 +28,11 @@ import type {
   Rivalry,
   Tournament,
   Stable,
+  ShowSetup,
 } from '../engine/types';
+import type { PoachingOffer } from '../engine/world/poaching';
+import type { FreeAgent } from '../engine/world/freeAgents';
+import { generateFreeAgentPool } from '../engine/world/freeAgents';
 import type { RatingResult } from '../engine/world/tvRatings';
 import type { PendingEvent } from '../engine/events/types';
 import type { EventHistory } from '../engine/events/scheduler';
@@ -37,6 +41,8 @@ import { emptyEventHistory } from '../engine/events/scheduler';
 import type { Rng } from '../engine/rng';
 import { generateWrestlers } from '../engine/generate/wrestler';
 import { createRivalry } from '../engine/sim/rivalry';
+import { createStandardContract } from '../engine/economy/contracts';
+import { fallbackVenue } from '../data/venues';
 
 export const SEGMENTS_PER_CARD = 6; // matches WorldSettings.segmentsPerTV default
 
@@ -62,6 +68,20 @@ export interface World {
   eventHistory: EventHistory;
   /** Rival offers currently on the table. */
   tamperingOffers: TamperingAttempt[];
+  /** Rival offers awaiting your answer — you always get one first. */
+  poachingOffers: PoachingOffer[];
+  /** One-time production purchases. They travel to every show. */
+  ownedAssetIds: Id[];
+  /** How this week's show is being staged. */
+  showSetup: ShowSetup;
+  /** Weeks left on a signing ban from being caught tampering. */
+  signingBanWeeks: number;
+  /** Weeks dark from a tampering suspension. No shows, wages still due. */
+  suspensionWeeks: number;
+  /** How many times you have been caught tampering. Sanctions escalate. */
+  tamperingOffenses: number;
+  /** Everyone in the business who is not signed anywhere. */
+  freeAgents: FreeAgent[];
   /**
    * How many times each pair has been in a match together, keyed by their two
    * ids sorted and joined. §12.5 route 3: "two wrestlers meeting three times
@@ -138,8 +158,16 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   const wrestlers: Record<Id, Wrestler> = {};
   for (const w of roster) {
     w.promotionId = 'player-promotion';
+    // Every one of them is on a plain two-year deal. Before this, contracts
+    // were null across the board and payroll silently computed to zero.
+    w.contract = createStandardContract(w, settings, settings.startingYear);
     wrestlers[w.id] = w;
   }
+
+  // Everyone else in the business. Generated after the roster so the
+  // distinctness check (§7) sees the signed talent first.
+  const pool = generateFreeAgentPool(rng, settings, roster.map((w) => w.appearance));
+  for (const agent of pool.wrestlers) wrestlers[agent.id] = agent;
 
   const promotion: Promotion = {
     id: 'player-promotion',
@@ -183,6 +211,13 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     lastEventOutcome: null,
     eventHistory: emptyEventHistory(),
     tamperingOffers: [],
+    poachingOffers: [],
+    ownedAssetIds: [],
+    showSetup: defaultShowSetup(),
+    signingBanWeeks: 0,
+    suspensionWeeks: 0,
+    tamperingOffenses: 0,
+    freeAgents: pool.freeAgents,
     meetings: {},
     nextId: 1,
   };
@@ -270,4 +305,9 @@ function seedShootRivalries(roster: Wrestler[]): Rivalry[] {
   }
 
   return rivalries;
+}
+
+/** Opening staging: the cheapest room, a modest ticket, nothing extra. */
+export function defaultShowSetup(): ShowSetup {
+  return { venueId: fallbackVenue().id, ticketPrice: 12, extraIds: [] };
 }

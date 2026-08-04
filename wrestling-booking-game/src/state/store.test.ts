@@ -14,7 +14,10 @@ describe('newGame', () => {
   it('creates a world with the requested roster size, starting cash, and week 1', () => {
     const { world } = useGameStore.getState();
     expect(world).not.toBeNull();
-    expect(Object.keys(world!.wrestlers)).toHaveLength(12);
+    // `wrestlers` is the whole population of the business — your roster plus
+    // everyone unsigned — so the roster is checked on the promotion itself.
+    expect(world!.promotion.rosterIds).toHaveLength(12);
+    expect(Object.keys(world!.wrestlers)).toHaveLength(12 + freshSettings().freeAgentPoolSize);
     expect(world!.promotion.bankBalance).toBe(freshSettings().startingCash);
     expect(world!.week).toBe(1);
     expect(world!.currentCard).toHaveLength(world!.settings.segmentsPerTV);
@@ -126,5 +129,42 @@ describe('resolveWeek', () => {
     // rating moves by exactly one settings.ratingLadderStepPerWeek step (up, down, or holds at target)
     const step = useGameStore.getState().world!.settings.ratingLadderStepPerWeek;
     expect(Math.abs(ratingAfter - ratingBefore)).toBeLessThanOrEqual(step);
+  });
+});
+
+describe('the opening position', () => {
+  it('puts everyone on the roster on a two-year deal with no clauses', () => {
+    const { world } = useGameStore.getState();
+    const roster = world!.promotion.rosterIds.map((id) => world!.wrestlers[id]!);
+    expect(roster.length).toBeGreaterThan(0);
+    for (const w of roster) {
+      expect(w.contract, w.name).not.toBeNull();
+      expect(w.contract!.totalWeeks).toBe(104);
+      expect(w.contract!.clauses).toEqual([]);
+      expect(w.contract!.weeklyRate).toBeGreaterThan(0);
+    }
+  });
+
+  it('makes payroll a real number — the bug this fixes made it silently zero', () => {
+    const { world } = useGameStore.getState();
+    const roster = world!.promotion.rosterIds.map((id) => world!.wrestlers[id]!);
+    const bill = roster.reduce((sum, w) => sum + (w.contract?.weeklyRate ?? 0), 0);
+    expect(bill).toBeGreaterThan(0);
+  });
+
+  it('has a pool of unsigned talent to sign from', () => {
+    const { world } = useGameStore.getState();
+    expect(world!.freeAgents.length).toBe(world!.settings.freeAgentPoolSize);
+    for (const agent of world!.freeAgents) {
+      const w = world!.wrestlers[agent.wrestlerId]!;
+      expect(w.promotionId).toBeNull();
+      expect(w.contract).toBeNull();
+    }
+  });
+
+  it('does not put free agents on your roster', () => {
+    const { world } = useGameStore.getState();
+    const rosterSet = new Set(world!.promotion.rosterIds);
+    for (const agent of world!.freeAgents) expect(rosterSet.has(agent.wrestlerId)).toBe(false);
   });
 });
