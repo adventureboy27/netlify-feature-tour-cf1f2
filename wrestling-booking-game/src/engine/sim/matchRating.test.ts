@@ -17,6 +17,7 @@ function baseContext(overrides: Partial<MatchRatingContext> = {}): MatchRatingCo
     simVariance: 0, // deterministic for these tests
     titlePrestige: null,
     rivalryHeat: 0,
+    shootHeatBonus: 0,
     hardcoreSaturation: 0,
     slotExpectedPopularity: null,
     instructionModifier: 0,

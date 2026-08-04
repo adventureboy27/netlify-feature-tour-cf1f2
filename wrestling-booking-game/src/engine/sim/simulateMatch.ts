@@ -3,12 +3,24 @@
 
 import type { Rng } from '../rng';
 import { chance, weightedPick } from '../rng';
-import type { Id, Wrestler, MatchRules, Stipulation, FinishType, RatingBreakdownEntry, MatchBeat, WorldSettings } from '../types';
+import type {
+  Id,
+  Wrestler,
+  MatchRules,
+  Stipulation,
+  FinishType,
+  RatingBreakdownEntry,
+  MatchBeat,
+  WorldSettings,
+  Rivalry,
+} from '../types';
+import { shootRatingBonus, shootInjuryMultiplier, heatFromMatch, type HeatChange } from './rivalry';
 import { ruleAdjustedWeights, kayfabeScore } from './kayfabe';
 import { pairWinProbability, multiManWinProbabilities } from './winProbability';
-import { rollFinish, isDrawFinish } from './finish';
+import { rollFinish, isDrawFinish, isNonDecisiveFinish } from './finish';
 import { computeMatchRating } from './matchRating';
 import { generateBeats } from './narrative';
+import { effectiveRules } from '../../data/stipulations';
 
 export interface SimParticipant {
   wrestlerId: Id;
@@ -26,7 +38,8 @@ export interface SimulateMatchContext {
   /** Deck-stacking odds shifts in percentage points, keyed by side. Empty until M4. */
   deckStackingShiftsBySide?: Record<number, number>;
   titlePrestige?: number | null;
-  rivalryHeat?: number;
+  /** The rivalry these two are in, if any — drives heat, bad blood, and injury risk. */
+  rivalry?: Rivalry | null;
   hardcoreSaturation?: number;
   slotExpectedPopularity?: number | null;
   instructionModifier?: number;
@@ -44,6 +57,14 @@ export interface MatchSimResult {
   ratingBreakdown: RatingBreakdownEntry[];
   beats: MatchBeat[];
   winProbabilitiesBySide: Record<number, number>;
+  /**
+   * Combined injury multiplier for this match — the stipulation's, escalated
+   * by any real animosity. Callers apply it when rolling injuries (M3); it is
+   * surfaced here so a shoot rivalry's cost is computed in one place.
+   */
+  injuryMultiplier: number;
+  /** How the rivalry moved, if these two were in one. Caller commits it. */
+  heatChange: HeatChange | null;
 }
 
 function mean(values: number[]): number {
@@ -60,7 +81,14 @@ export function simulateMatch(
   const isMultiMan = sides.length > 2;
   const isLadderOrHighSpot = ctx.stipulation?.id === 'ladder';
 
-  const weights = ruleAdjustedWeights(ctx.rules, isLadderOrHighSpot, isMultiMan);
+  // §9: a stipulation carries its own rules. Picking No-DQ *is* turning
+  // disqualifications off — the player doesn't also have to find the switch.
+  // Layered here rather than written back to the card so the booking stays
+  // whatever the player typed if they later drop the stipulation.
+  const rules = effectiveRules(ctx.rules, ctx.stipulation);
+  const rivalry = ctx.rivalry ?? null;
+
+  const weights = ruleAdjustedWeights(rules, isLadderOrHighSpot, isMultiMan);
 
   const sideMembers = new Map<number, Wrestler[]>();
   const sideKayfabe = new Map<number, number>();
@@ -101,11 +129,12 @@ export function simulateMatch(
   const winnerIsTechnician = winnerMembers.some((w) => w.archetype === 'technician');
 
   const finish = rollFinish(rng, {
-    rules: ctx.rules,
+    rules,
     violenceLevel: ctx.stipulation?.violenceLevel ?? 0,
     winnerIsTechnician,
     isUpset,
     isCloselyMatched: Math.abs(winnerProbability - 0.5) < 0.1,
+    finishWeights: ctx.stipulation?.finishWeights,
   });
   const draw = isDrawFinish(finish);
 
@@ -119,7 +148,8 @@ export function simulateMatch(
     matchLengthMinutes: ctx.matchLengthMinutes,
     simVariance: ctx.settings.simVariance,
     titlePrestige: ctx.titlePrestige ?? null,
-    rivalryHeat: ctx.rivalryHeat ?? 0,
+    rivalryHeat: rivalry && rivalry.resolvedWeek === null ? rivalry.heat : 0,
+    shootHeatBonus: shootRatingBonus(rivalry ?? undefined, ctx.settings),
     hardcoreSaturation: ctx.hardcoreSaturation ?? 0,
     slotExpectedPopularity: ctx.slotExpectedPopularity ?? null,
     instructionModifier: ctx.instructionModifier ?? 0,
@@ -130,6 +160,16 @@ export function simulateMatch(
 
   const beats = generateBeats(rng, { winnerMembers, loserMembers, finish, stars });
 
+  // A grudge stipulation settled decisively is the blowoff — the feud ends
+  // and the winner banks the heat as popularity (§12.5). A screwjob finish in
+  // the same match settles nothing, so the rivalry rolls on hotter.
+  const isDecisiveBlowoff = Boolean(ctx.stipulation?.isBlowoff) && !draw && !isNonDecisiveFinish(finish);
+
+  const heatChange =
+    rivalry && rivalry.resolvedWeek === null
+      ? heatFromMatch(rivalry, { segmentRating: rating, finish, isDecisiveBlowoff, settings: ctx.settings })
+      : null;
+
   return {
     winnerSide: draw ? null : winnerSide,
     winnerWrestlerIds: draw ? [] : winnerMembers.map((w) => w.id),
@@ -139,5 +179,7 @@ export function simulateMatch(
     ratingBreakdown: breakdown,
     beats,
     winProbabilitiesBySide,
+    injuryMultiplier: (ctx.stipulation?.injuryMult ?? 1) * shootInjuryMultiplier(rivalry ?? undefined, ctx.settings),
+    heatChange,
   };
 }

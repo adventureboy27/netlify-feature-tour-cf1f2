@@ -320,6 +320,42 @@ export interface Wrestler {
 }
 
 // ============================================================================
+// §9 — Tournaments
+// ============================================================================
+
+/**
+ * `singleNight` runs the whole bracket on one card — the winner works three
+ * matches in a night and is wrecked by the final. `multiWeek` runs one round
+ * per show, so nobody tires but the bracket eats a fixture slot for a month.
+ */
+export type TournamentFormat = 'singleNight' | 'multiWeek';
+
+export type TournamentReward = 'none' | 'trophy' | 'titleShot' | 'title' | 'contract';
+
+export interface TournamentMatch {
+  id: Id;
+  round: number; // 0 = first round
+  position: number; // index within the round
+  entrantA: Id | null; // null until a prior round settles it
+  entrantB: Id | null;
+  winnerId: Id | null;
+  isBye: boolean;
+}
+
+export interface Tournament {
+  id: Id;
+  name: string;
+  format: TournamentFormat;
+  reward: TournamentReward;
+  entrantIds: Id[]; // seeded order, strongest first
+  rounds: TournamentMatch[][];
+  currentRound: number;
+  startWeek: number;
+  status: 'active' | 'complete';
+  winnerId: Id | null;
+}
+
+// ============================================================================
 // §3 — Contract
 // ============================================================================
 
@@ -396,14 +432,33 @@ export interface Title {
 export interface Stipulation {
   id: Id;
   name: string;
+  /** One line of what the match is, for the card builder. */
+  blurb?: string;
   ratingBonus: number;
-  violenceLevel: number; // 0-4, feeds hardcore saturation
+  violenceLevel: number; // 0-5, feeds hardcore saturation
   injuryMult: number;
   heatRequirement?: number;
   avgStatRequirement?: { stat: 'agility' | 'stamina' | 'skill'; min: number };
   minParticipants?: number;
   popGapRequirement?: number; // e.g. squash: pop gap >= 35
   archetypeFit: Archetype[];
+  /**
+   * Rules the stipulation carries by definition. A No-DQ match is not a
+   * separate switch the player also has to remember to flip — picking the
+   * stipulation *is* turning disqualifications off. Applied over the
+   * segment's rules at sim time, never silently written back to the card.
+   */
+  impliedRules?: Partial<MatchRules>;
+  /**
+   * Multipliers on the finish roll (§11.3). A tables match has to end with
+   * someone going through a table, so it leans hard on knockout and away
+   * from a clean pin; a casket match is the same shape with a lid.
+   */
+  finishWeights?: Partial<Record<FinishType, number>>;
+  /** Overrides the generic finish sentence in the highlight write-up. */
+  finishFlavor?: Partial<Record<FinishType, string>>;
+  /** Grudge stipulations are blowoffs — winning one resolves the rivalry (§12.5). */
+  isBlowoff?: boolean;
 }
 
 // ============================================================================
@@ -581,6 +636,8 @@ export interface Promotion {
   styleProfile: StyleProfile;
   bookingCredibility: number; // 0-100, §13
   reputation: number; // 0-100, §19
+  /** §11.4 weapons model: 0-100, accrues with booked violence and decays weekly. */
+  hardcoreSaturation: number;
   ownerId: Id; // a Wrestler record with role 'owner'
 }
 
@@ -658,14 +715,42 @@ export interface Team {
 // §12.5 — Rivalry
 // ============================================================================
 
+/**
+ * Where a rivalry came from, which is also what it costs.
+ *
+ * `worked` is the booked feud — the story the promotion is telling. The
+ * participants are fine backstage. It draws money and nothing else.
+ *
+ * `shoot` is real animosity between two people who genuinely dislike each
+ * other. §12.5 route 2 ("real-life relationships") and route 4 ("emergent
+ * incidents") both produce these. It is not a story anyone chose, and the
+ * booker's decision is whether to point a camera at it.
+ */
+export type RivalryOrigin = 'worked' | 'shoot';
+
 export interface Rivalry {
   id: Id;
   participantIds: Id[];
-  heat: number; // 0-100
+  origin: RivalryOrigin;
+  /**
+   * Crowd heat, 0-100 — how much the audience cares. This is the number that
+   * draws houses, gates grudge stipulations, and pays off at the blowoff.
+   * Earned by reception, never by booking alone (§12.5).
+   */
+  heat: number;
+  /**
+   * Real animosity, 0-100 — invisible to the crowd. A shoot rivalry makes the
+   * match itself better because the violence is real, and makes everything
+   * around it worse: injuries, morale, and people who will not work together.
+   * A worked feud stays at 0 unless something genuinely goes wrong.
+   */
+  shootHeat: number;
   startWeek: number;
   lastAdvancedWeek: number;
   matchesContested: number;
   blowoffBooked: boolean;
+  /** Set when a decisive blowoff resolved it; a resolved rivalry stops drawing. */
+  resolvedWeek: number | null;
 }
 
 // ============================================================================
@@ -726,6 +811,43 @@ export interface WorldSettings {
   houseShowsEnabled: boolean;
   tournamentsEnabled: boolean;
   promoSlotsPerCard: number;
+  /** §11.4 hardcore saturation: added per point of a stipulation's violenceLevel. */
+  hardcoreSaturationPerViolence: number;
+  /** §11.4 hardcore saturation: points shed each week. */
+  hardcoreSaturationDecayPerWeek: number;
+  /** §11.4 jobberDrag: roster popularity percentile the opener is judged against. */
+  slotExpectationPercentileMin: number;
+  /** §11.4 jobberDrag: roster popularity percentile the main event is judged against. */
+  slotExpectationPercentileMax: number;
+
+  // Rivalries (§12.5)
+  rivalryHeatDecayPerWeek: number;
+  rivalryHeatFromMatch: number;
+  rivalryHeatFromNonDecisiveFinish: number;
+  /** Heat at or above this unlocks grudge stipulations. */
+  rivalryGrudgeThreshold: number;
+  /** Blowoff winner gains heat * this in popularity. */
+  rivalryBlowoffPopularityFactor: number;
+  /** Rating points a maxed-out crowd-heat rivalry adds to a match. */
+  rivalryHeatRatingBonus: number;
+  /** Real animosity fades far slower than crowd interest does. */
+  shootHeatDecayPerWeek: number;
+  /** Extra rating points a maxed-out shoot rivalry adds — real fights are compelling. */
+  shootHeatRatingBonus: number;
+  /** Injury multiplier at maximum shoot heat. */
+  shootHeatInjuryMultAtMax: number;
+  /** Morale lost per week by both parties at maximum shoot heat. */
+  shootHeatMoralePerWeekAtMax: number;
+  /** Fraction of shoot heat that converts to crowd heat when the booker leans in. */
+  shootLeanInConversion: number;
+
+  // Tournaments (§9)
+  /** Kayfabe lost per match already worked on the same night, as a fraction. */
+  tournamentNightFatiguePerMatch: number;
+  /** Health cost per match already worked on the same night. */
+  tournamentNightHealthCostPerMatch: number;
+  /** Rating bonus for a tournament final — the crowd knows what it is watching. */
+  tournamentFinalRatingBonus: number;
 
   // Chaos
   chaosLevel: number; // 0-3

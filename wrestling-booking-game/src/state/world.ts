@@ -116,6 +116,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     },
     bookingCredibility: 50,
     reputation: 50,
+    hardcoreSaturation: 0,
     // DESIGN: a real Wrestler with role 'owner' is M5 (owner mandates); a
     // bare id placeholder is enough for M2, which never dereferences it.
     ownerId: randomId(rng, 'owner'),

@@ -78,6 +78,28 @@ export function defaultWorldSettings(): WorldSettings {
     houseShowsEnabled: true,
     tournamentsEnabled: true,
     promoSlotsPerCard: 2,
+    hardcoreSaturationPerViolence: 6,
+    hardcoreSaturationDecayPerWeek: 8,
+    slotExpectationPercentileMin: 0.5,
+    slotExpectationPercentileMax: 0.95,
+
+    // Rivalries
+    rivalryHeatDecayPerWeek: 3,
+    rivalryHeatFromMatch: 6,
+    rivalryHeatFromNonDecisiveFinish: 12,
+    rivalryGrudgeThreshold: 70,
+    rivalryBlowoffPopularityFactor: 0.12,
+    rivalryHeatRatingBonus: 12,
+    shootHeatDecayPerWeek: 0.5,
+    shootHeatRatingBonus: 8,
+    shootHeatInjuryMultAtMax: 1.6,
+    shootHeatMoralePerWeekAtMax: 4,
+    shootLeanInConversion: 0.35,
+
+    // Tournaments
+    tournamentNightFatiguePerMatch: 0.09,
+    tournamentNightHealthCostPerMatch: 7,
+    tournamentFinalRatingBonus: 5,
 
     // Chaos
     chaosLevel: 1,

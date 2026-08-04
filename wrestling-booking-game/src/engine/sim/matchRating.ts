@@ -25,6 +25,14 @@ export interface MatchRatingContext {
 
   titlePrestige: number | null;
   rivalryHeat: number;
+  /**
+   * Rating points from real backstage animosity (engine/sim/rivalry.ts).
+   * Its own term rather than folded into chemistry so the breakdown panel
+   * shows it: §11.5 requires the player can always see exactly why a match
+   * rated what it did, and "these two actually hate each other" is the most
+   * important thing that panel can tell them.
+   */
+  shootHeatBonus: number;
   hardcoreSaturation: number;
   slotExpectedPopularity: number | null;
   instructionModifier: number;
@@ -86,6 +94,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
   const pairChemistry = term('Pair chemistry', ctx.pairChemistryBonus);
   const overexposure = term('Overexposure', -Math.abs(ctx.overexposurePenalty));
   const hardcoreSaturation = term('Hardcore saturation', -(ctx.hardcoreSaturation / 100) * 12);
+  const shootHeat = term('Bad blood', ctx.shootHeatBonus);
 
   // DESIGN: §11.4 references "expected length" for the boredom penalty
   // without a formula. Modeled as a popularity-scaled ceiling: an act with
@@ -119,6 +128,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
     pairChemistry +
     overexposure +
     hardcoreSaturation +
+    shootHeat +
     boredom +
     mismatchedStipulation +
     jobberDrag +

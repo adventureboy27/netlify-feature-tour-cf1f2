@@ -10,6 +10,12 @@ export interface FinishRollContext {
   winnerIsTechnician: boolean;
   isUpset: boolean; // the side that won was the underdog
   isCloselyMatched: boolean; // widens the time-limit-draw weight
+  /**
+   * Stipulation.finishWeights — multipliers applied after the rules-based
+   * weights. A gimmick match with one legal way to win zeroes everything
+   * else out, so a tables match cannot end in a clean pin.
+   */
+  finishWeights?: Partial<Record<FinishType, number>>;
 }
 
 export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
@@ -55,7 +61,15 @@ export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
   const refereeStoppage = ctx.rules.stoppage !== 'none' ? 3 : 0;
   entries.push(['refereeStoppage', refereeStoppage]);
 
-  const positive = entries.filter(([, weight]) => weight > 0);
+  const weighted = ctx.finishWeights
+    ? entries.map(([finish, weight]) => [finish, weight * (ctx.finishWeights![finish] ?? 1)] as [FinishType, number])
+    : entries;
+
+  const positive = weighted.filter(([, weight]) => weight > 0);
+  // A stipulation can zero out every finish the rules would otherwise have
+  // allowed (submission-only rules crossed with a tables match, say). Falling
+  // back to a knockout keeps the sim total — someone has to win.
+  if (positive.length === 0) return 'knockout';
   return weightedPick(rng, positive);
 }
 

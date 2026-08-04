@@ -21,6 +21,12 @@ import {
 } from '../engine/economy/showRating';
 import { computeAttendance, computeTicketPrice, computeGate } from '../engine/economy/attendance';
 import { computeAppearanceFee, computeWeeklyExpenses, computeShowExpenseSplit } from '../engine/economy/payroll';
+import {
+  slotExpectedPopularities,
+  saturationFromShow,
+  accrueSaturation,
+  decaySaturation,
+} from '../engine/economy/cardPosition';
 
 // DESIGN: the seeded RNG is intentionally not part of the immer-tracked
 // World — it's a stream generator, not a value the UI ever reads or
@@ -100,7 +106,17 @@ export const useGameStore = create<GameStore>()(
 
         const segmentRatings: (number | null)[] = [];
         const segmentPopAvgs: { stars: number; avgPopularity: number }[] = [];
+        const violenceLevels: number[] = [];
         let payroll = 0;
+
+        // §11.4 jobberDrag: what each slot on this card is expected to deliver,
+        // judged against the roster the player actually has.
+        const slotExpectations = slotExpectedPopularities({
+          rosterPopularities: world.promotion.rosterIds.map((id) => wrestlerById.get(id)?.popularity ?? 0),
+          slotWeights: TV_SLOT_WEIGHTS.slice(0, world.currentCard.length),
+          percentileMin: world.settings.slotExpectationPercentileMin,
+          percentileMax: world.settings.slotExpectationPercentileMax,
+        });
 
         world.currentCard.forEach((segment, i) => {
           const sides = new Set(segment.participants.map((p) => p.side));
@@ -122,6 +138,8 @@ export const useGameStore = create<GameStore>()(
           const lengthMinutes = segment.rules.timeLimit > 0 ? segment.rules.timeLimit : world.settings.defaultMatchLength;
           const simParticipants: SimParticipant[] = segment.participants.map((p) => ({ wrestlerId: p.wrestlerId, side: p.side }));
 
+          violenceLevels.push(stipulation?.violenceLevel ?? 0);
+
           const result = simulateMatch(rng, simParticipants, wrestlerById, {
             rules: segment.rules,
             stipulation,
@@ -129,6 +147,11 @@ export const useGameStore = create<GameStore>()(
             isPPV: false,
             matchLengthMinutes: lengthMinutes,
             settings: world.settings,
+            // Saturation is read at the level the promotion carried into the
+            // show, so every segment on one card is judged against the same
+            // number rather than each match penalising the next.
+            hardcoreSaturation: world.promotion.hardcoreSaturation,
+            slotExpectedPopularity: slotExpectations[i] ?? null,
           });
 
           segment.result = {
@@ -185,6 +208,17 @@ export const useGameStore = create<GameStore>()(
         const { payable } = computeShowExpenseSplit(payroll + weeklyExpenses, gate, world.settings.expenseCapPctOfRevenue);
 
         world.promotion.bankBalance += gate - payable;
+
+        // §11.4 weapons model: violence booked tonight accrues, then the week
+        // sheds its decay. Lean on hardcore every week and the counter pegs,
+        // taking up to -12 rating off every match until you lay off it.
+        world.promotion.hardcoreSaturation = decaySaturation(
+          accrueSaturation(
+            world.promotion.hardcoreSaturation,
+            saturationFromShow(violenceLevels, world.settings.hardcoreSaturationPerViolence),
+          ),
+          world.settings.hardcoreSaturationDecayPerWeek,
+        );
 
         const target = targetCompanyRatingForStars(showStars);
         world.promotion.rating = stepCompanyRatingTowardTarget(
