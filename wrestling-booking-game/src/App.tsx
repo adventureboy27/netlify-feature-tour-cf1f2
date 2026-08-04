@@ -5,15 +5,17 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from './state/store';
 import { BookingScreen } from './ui/screens/BookingScreen';
+import { OfficeScreen } from './ui/screens/OfficeScreen';
 import { RosterScreen } from './ui/screens/RosterScreen';
 import { ShowResults } from './ui/screens/ShowResults';
 import { ContactSheet } from './ui/screens/ContactSheet';
 import { WrestlerEditor } from './ui/screens/WrestlerEditor';
 import { Money } from './ui/components/display';
 
-type Screen = 'booking' | 'roster' | 'results' | 'contactSheet' | 'editor';
+type Screen = 'office' | 'booking' | 'roster' | 'results' | 'contactSheet' | 'editor';
 
 const TABS: { id: Screen; label: string }[] = [
+  { id: 'office', label: 'Office' },
   { id: 'booking', label: 'Card' },
   { id: 'roster', label: 'Roster' },
   { id: 'results', label: 'Results' },
@@ -39,6 +41,9 @@ export default function App() {
     resolveWeek();
     setScreen('results');
   }
+
+  // A story waiting on a decision is worth a badge — it's easy to miss a tab.
+  const officeBadge = world.pendingEvent !== null || world.tamperingOffers.length > 0;
 
   return (
     <div className="min-h-screen bg-neutral-950">
@@ -68,11 +73,13 @@ export default function App() {
               className={`shrink-0 rounded px-3 py-1.5 text-xs ${screen === tab.id ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
             >
               {tab.label}
+              {tab.id === 'office' && officeBadge && <span className="ml-1 text-amber-400">●</span>}
             </button>
           ))}
         </nav>
       </header>
 
+      {screen === 'office' && <OfficeScreen />}
       {screen === 'booking' && <BookingScreen onRunShow={runShow} />}
       {screen === 'roster' && <RosterScreen />}
       {screen === 'results' &&

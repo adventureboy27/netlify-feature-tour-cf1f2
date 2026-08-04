@@ -8,6 +8,8 @@
 import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { activeRivalriesFor } from '../../engine/sim/rivalry';
+import { effectiveAppearance } from '../../engine/generate/gimmickLook';
+import { CAREER_STATUS_LABELS, CAREER_STATUS_BLURBS } from '../../engine/career/status';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { StatBar, AlignmentDot, HeatBadge } from '../components/display';
 import type { Wrestler } from '../../engine/types';
@@ -36,6 +38,9 @@ export function RosterScreen() {
   }, [world, sort]);
 
   if (!world) return null;
+
+  const stableOf = (w: Wrestler) =>
+    world.stables.find((s) => s.disbandedWeek === null && s.memberIds.includes(w.id));
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
@@ -70,11 +75,24 @@ export function RosterScreen() {
                 style={{ width: `${100 - w.health}%` }}
                 aria-hidden
               />
-              <PaperDoll appearance={w.appearance} gender={w.gender} alignment={w.alignment} size="bust" />
+              <PaperDoll
+                // Members of a stable wrestle in the group's colours.
+                appearance={effectiveAppearance(w, world.stables)}
+                gender={w.gender}
+                alignment={w.alignment}
+                size="bust"
+              />
               <div className="relative min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <AlignmentDot alignment={w.alignment} />
                   <span className="truncate text-sm font-medium">{w.name}</span>
+                </div>
+                <div
+                  className="mb-0.5 truncate text-[10px] text-amber-500/80"
+                  title={CAREER_STATUS_BLURBS[w.careerStatus]}
+                >
+                  {CAREER_STATUS_LABELS[w.careerStatus]}
+                  {stableOf(w) && <span className="ml-1 text-sky-400">· {stableOf(w)!.name}</span>}
                 </div>
                 <div className="mb-1 truncate text-[10px] text-neutral-500">
                   {w.archetype} · {w.style} · {w.gimmick.name}

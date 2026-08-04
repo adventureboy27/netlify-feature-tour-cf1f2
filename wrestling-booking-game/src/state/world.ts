@@ -27,7 +27,13 @@ import type {
   WorldSettings,
   Rivalry,
   Tournament,
+  Stable,
 } from '../engine/types';
+import type { RatingResult } from '../engine/world/tvRatings';
+import type { PendingEvent } from '../engine/events/types';
+import type { EventHistory } from '../engine/events/scheduler';
+import type { TamperingAttempt } from '../engine/world/tampering';
+import { emptyEventHistory } from '../engine/events/scheduler';
 import type { Rng } from '../engine/rng';
 import { generateWrestlers } from '../engine/generate/wrestler';
 import { createRivalry } from '../engine/sim/rivalry';
@@ -44,6 +50,18 @@ export interface World {
   showHistory: Show[];
   rivalries: Rivalry[];
   tournaments: Tournament[];
+  stables: Stable[];
+  /** AI promotions competing for the same audience. */
+  rivals: Promotion[];
+  /** This week's TV ratings, player and rivals, newest first. */
+  tvHistory: { week: number; results: RatingResult[] }[];
+  /** The event awaiting a decision, if any. Blocks nothing — the player can ignore it. */
+  pendingEvent: PendingEvent | null;
+  /** Outcome of the last decision, shown once then cleared. */
+  lastEventOutcome: { title: string; summary: string } | null;
+  eventHistory: EventHistory;
+  /** Rival offers currently on the table. */
+  tamperingOffers: TamperingAttempt[];
   /**
    * How many times each pair has been in a match together, keyed by their two
    * ids sorted and joined. §12.5 route 3: "two wrestlers meeting three times
@@ -158,9 +176,76 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     showHistory: [],
     rivalries: seedShootRivalries(roster),
     tournaments: [],
+    stables: [],
+    rivals: createRivalPromotions(rng, settings),
+    tvHistory: [],
+    pendingEvent: null,
+    lastEventOutcome: null,
+    eventHistory: emptyEventHistory(),
+    tamperingOffers: [],
     meetings: {},
     nextId: 1,
   };
+}
+
+// DESIGN: rival promotions are full Promotions with their own roster and
+// booking in §19/M5. What the player actually feels week to week is simpler:
+// somebody is opposite them on television, drawing an audience, and sending
+// people to talk to their talent. These are those promotions with a rating
+// and a name — enough for TV ratings to be a real contest and for tampering
+// to have a source. Giving them rosters and letting them book is the next
+// layer, and it slots in behind this same shape.
+const RIVAL_NAMES = [
+  'Continental Championship Wrestling',
+  'Atlas Pro',
+  'Northern Combat League',
+  'Gold Coast Wrestling',
+  'Iron City Championship',
+  'Federation Deportiva',
+  'Sunbelt Wrestling Alliance',
+  'Meridian Grappling',
+];
+
+function createRivalPromotions(rng: Rng, settings: WorldSettings): Promotion[] {
+  const names = [...RIVAL_NAMES];
+  const rivals: Promotion[] = [];
+  // Fixed up front: `names` shrinks as we splice from it, so re-reading its
+  // length in the loop condition would quietly cut the field short.
+  const count = Math.min(settings.rivalPromotionCount, names.length);
+
+  for (let i = 0; i < count; i++) {
+    const index = Math.floor(rng.next() * names.length);
+    const name = names.splice(index, 1)[0]!;
+    // A spread of sizes: one or two above the player, several below. Losing a
+    // wrestler to the biggest promotion in the country should feel different
+    // from losing one to a regional outfit.
+    const rating = 25 + Math.floor(rng.next() * 60);
+
+    rivals.push({
+      id: `rival-${i}`,
+      name,
+      isPlayer: false,
+      rating,
+      bankBalance: Math.round(rating * 4000),
+      rosterIds: [],
+      titleIds: [],
+      ownedTerritoryIds: [],
+      homeTerritoryId: 'territory-unassigned',
+      styleProfile: {
+        preferredStyles: [],
+        violenceTolerance: 50,
+        workrateVsStarPower: 50,
+        divisionFocus: ['mens'],
+        promoHeavy: false,
+      },
+      bookingCredibility: 50,
+      reputation: rating,
+      hardcoreSaturation: 0,
+      ownerId: `owner-rival-${i}`,
+    });
+  }
+
+  return rivals;
 }
 
 // DESIGN: §12.5 route 2 says shoot rivalries arrive from real-life
