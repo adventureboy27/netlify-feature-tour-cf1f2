@@ -36,7 +36,7 @@ import type {
 import type { HallOfFameEntry } from '../engine/career/hallOfFame';
 import type { RivalShow } from '../engine/world/rivalBooking';
 import type { AuctionLot, AuctionResult } from '../engine/world/auction';
-import type { Publication } from '../engine/world/publication';
+import type { PublicationPositions } from '../engine/world/publication';
 import type { PoachingOffer } from '../engine/world/poaching';
 import type { FreeAgent } from '../engine/world/freeAgents';
 import { generateFreeAgentPool } from '../engine/world/freeAgents';
@@ -77,7 +77,7 @@ export interface World {
    * Last week's sheet, kept so this week's can show which way people moved.
    * The current one is derived on read — only the comparison needs storing.
    */
-  lastPublication: Publication | null;
+  lastPublication: PublicationPositions | null;
   /** A fire sale awaiting your bid. Resolves whether or not you answer. */
   pendingAuction: PendingAuction | null;
   /** How the last fire sale went. Shown once. */

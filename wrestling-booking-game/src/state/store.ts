@@ -53,7 +53,7 @@ import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/h
 import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/aftermath';
 import { runRivalShow, bookRivalCard, canWork, type RivalShow } from '../engine/world/rivalBooking';
 import { rivalWeek, shouldFold } from '../engine/world/rivalEconomy';
-import { publish } from '../engine/world/publication';
+import { publishPositions } from '../engine/world/publication';
 import { appraise, aiBid, settleAuction, playerBidAmount, type Bid, type PlayerBidLevel } from '../engine/world/auction';
 import {
   recordTeamResult,
@@ -1196,7 +1196,7 @@ export const useGameStore = create<GameStore>()(
 
         // This week's sheet becomes last week's, so the next issue can show
         // which way everybody moved.
-        world.lastPublication = publish({
+        world.lastPublication = publishPositions({
           currentWeek: world.week,
           titles: world.titles,
           wrestlers: Object.values(world.wrestlers),

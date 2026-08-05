@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { publish, rankingOf, movement } from './publication';
+import { publish, publishPositions, rankingOf, movement } from './publication';
 import { formTeams, teamIdFactory } from './tagTeams';
 import { defaultWorldSettings } from './settings';
 import { rngFromSeed } from '../rng';
@@ -152,6 +152,15 @@ describe('the championship roll', () => {
 });
 
 describe('week to week', () => {
+  it('the light snapshot agrees with the full sheet on positions', () => {
+    const roster = [...people(12, 'm', 'p'), ...people(8, 'f', 'p')];
+    const full = publish(ctxFor(roster));
+    const light = publishPositions(ctxFor(roster));
+
+    for (const entry of full.mens.wrestlers) expect(light.mens[entry.wrestlerId]).toBe(entry.rank);
+    for (const entry of full.womens.wrestlers) expect(light.womens[entry.wrestlerId]).toBe(entry.rank);
+  });
+
   it('reports where somebody sits', () => {
     const roster = people(12, 'm', 'p');
     const sheet = publish(ctxFor(roster));
@@ -161,8 +170,8 @@ describe('week to week', () => {
 
   it('reports which way they moved', () => {
     const roster = people(12, 'm', 'p');
-    const before = publish(ctxFor(roster));
-    const climber = roster.find((w) => w.id === before.mens.wrestlers[4]!.wrestlerId)!;
+    const before = publishPositions(ctxFor(roster));
+    const climber = roster.find((w) => w.id === publish(ctxFor(roster)).mens.wrestlers[4]!.wrestlerId)!;
     climber.popularity = 100;
     climber.careerHighPopularity = 100;
     const after = publish(ctxFor(roster));

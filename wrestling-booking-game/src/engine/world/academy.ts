@@ -14,7 +14,7 @@
 import type { Rng } from '../rng';
 import { randInt } from '../rng';
 import type { Appearance, Wrestler, WorldSettings } from '../types';
-import { generateWrestlers } from '../generate/wrestler';
+import { generateWrestlers, rollDebutAge } from '../generate/wrestler';
 import type { FreeAgent } from './freeAgents';
 
 /** Everyone still able to work — retired and deceased do not count. */
@@ -63,9 +63,11 @@ export function graduateClass(
     existingAppearances,
     existingNames: new Set(existingNames),
   }).map((w) => {
-    // Whatever the generator rolled, somebody out of a school is young and
-    // has not done anything yet.
-    const age = randInt(rng, settings.academyDebutAgeMin, settings.academyDebutAgeMax);
+    // Whatever the generator rolled, somebody out of a school has not done
+    // anything yet. Their age is their debut age, and the schools take late
+    // starters too — the thirty-year-old who finally walked in is a real
+    // graduating class member.
+    const age = rollDebutAge(rng, settings.academyDebutAgeMax * 2);
     return {
       ...w,
       age,

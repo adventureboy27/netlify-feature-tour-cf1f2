@@ -161,6 +161,37 @@ export function publish(ctx: PublicationContext): Publication {
   };
 }
 
+/**
+ * Just the positions, for week-on-week movement.
+ *
+ * The full sheet builds belt lookups, tag rankings and champion lists, none of
+ * which the movement arrows need — and building all of it every single week
+ * made the weekly tick several times more expensive than the entire match
+ * simulation. This ranks the wrestlers and nothing else.
+ */
+export interface PublicationPositions {
+  week: number;
+  mens: Record<Id, number>;
+  womens: Record<Id, number>;
+}
+
+export function publishPositions(ctx: PublicationContext): PublicationPositions {
+  const rankOne = (gender: 'm' | 'f'): Record<Id, number> => {
+    const positions: Record<Id, number> = {};
+    ctx.wrestlers
+      .filter((w) => w.gender === gender && eligible(w))
+      .map((w) => ({ id: w.id, score: worldScore(w, ctx) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, ctx.settings.publicationWrestlerListSize)
+      .forEach((entry, i) => {
+        positions[entry.id] = i + 1;
+      });
+    return positions;
+  };
+
+  return { week: ctx.currentWeek, mens: rankOne('m'), womens: rankOne('f') };
+}
+
 /** Where somebody sits on their division's list, or null if they are off it. */
 export function rankingOf(publication: Publication, wrestlerId: Id, gender: 'm' | 'f'): number | null {
   const lists = gender === 'f' ? publication.womens : publication.mens;
@@ -170,7 +201,7 @@ export function rankingOf(publication: Publication, wrestlerId: Id, gender: 'm' 
 /** How a position moved since last week's sheet. */
 export function movement(
   current: Publication,
-  previous: Publication | null,
+  previous: PublicationPositions | null,
   wrestlerId: Id,
   gender: 'm' | 'f',
 ): 'new' | 'up' | 'down' | 'same' | null {
@@ -178,8 +209,8 @@ export function movement(
   if (now === null) return null;
   if (!previous) return 'same';
 
-  const before = rankingOf(previous, wrestlerId, gender);
-  if (before === null) return 'new';
+  const before = (gender === 'f' ? previous.womens : previous.mens)[wrestlerId];
+  if (before === undefined) return 'new';
   if (now < before) return 'up';
   if (now > before) return 'down';
   return 'same';

@@ -50,6 +50,32 @@ function rollArchetype(rng: Rng): Archetype {
   return pick(rng, ARCHETYPES).id;
 }
 
+/**
+ * How old somebody was when they first laced them up.
+ *
+ * Deliberately two populations rather than one bell curve. Most people start
+ * at eighteen or shortly after — you get into a school as soon as you are
+ * allowed. But a real minority come to it late: the college athlete who tried
+ * something else first, the bouncer who was talked into it at thirty, the
+ * gym owner who finally took the training himself. A world where everybody
+ * debuted at twenty-two has no such people in it, and they are some of the
+ * most interesting names on any roster.
+ */
+export function rollDebutAge(rng: Rng, currentAge: number): number {
+  const lateStarter = chance(rng, LATE_STARTER_CHANCE);
+  const rolled = lateStarter
+    ? clamp(Math.round(gaussian(rng, 29, 5)), 25, 40)
+    : clamp(Math.round(gaussian(rng, 20, 2)), MINIMUM_DEBUT_AGE, 24);
+
+  // Nobody debuted after they were born, and nobody debuted after today.
+  return Math.min(rolled, Math.max(MINIMUM_DEBUT_AGE, currentAge));
+}
+
+/** Nobody wrestles before this. Schools will not take them. */
+export const MINIMUM_DEBUT_AGE = 18;
+/** How much of the business came to it late. */
+const LATE_STARTER_CHANCE = 0.22;
+
 function rollAge(rng: Rng, archetype: Archetype): number {
   // DESIGN: §6 ties "rookies skew 19-25, veterans skew 35-52" to the overall
   // distribution; interpreting it as archetype-conditioned is the more
@@ -120,9 +146,7 @@ export function generateWrestler(
 
   const age = rollAge(rng, archetype.id);
   const currentYear = options.currentYear ?? new Date().getFullYear();
-  // DESIGN: debut age isn't specified in §6; a plausible in-ring debut age
-  // (16-35, mean 22) is rolled and used to back into a debut year.
-  const debutAge = clamp(Math.round(gaussian(rng, 22, 4)), 16, 35);
+  const debutAge = rollDebutAge(rng, age);
   const debutYear = currentYear - Math.max(0, age - debutAge);
 
   const alignment = rollAlignment(rng);
