@@ -267,6 +267,25 @@ export function defaultWorldSettings(): WorldSettings {
     titleWinPopularity: 4,
     titleForTitleBonus: 15,
 
+    // Aftermath. A win is worth roughly two losses' worth of momentum, so a
+    // wrestler pushed steadily climbs and one beaten every week sinks fast.
+    // Popularity is the slow number: a four-star match is worth about a
+    // point, which is a season's work to move somebody up a tier.
+    momentumPerWin: 9,
+    momentumPerLoss: 7,
+    momentumPerDraw: 2,
+    popularityPerWin: 0.25,
+    matchPopularityChase: 0.02,
+    mainEventAftermathMultiplier: 1.4,
+    matchHealthCost: 4,
+    matchHealthCostPerViolence: 1.6,
+    matchEnergyCost: 12,
+    matchFatiguePerMatch: 6,
+    weeklyHealthRecovery: 6,
+    weeklyEnergyRecovery: 22,
+    weeklyFatigueRecovery: 9,
+    momentumDecayPerWeek: 0.06,
+
     // Leaving. Nothing before 38, everything by 55 — and a broken-down
     // midcarder goes years before a healthy main eventer does.
     retirementAgeSoft: 38,
@@ -294,6 +313,23 @@ export function defaultWorldSettings(): WorldSettings {
     deathChanceCap: 0.3,
     deathOldAge: 75,
 
+    // Rankings. The contender list is deliberately twitchy — momentum is the
+    // biggest single term, so a hot streak genuinely earns a title shot. The
+    // world list is the opposite: peak and championships dominate, so it
+    // reads like a historian's list rather than this month's form guide.
+    rankMomentumWeight: 45,
+    rankFormWeight: 25,
+    rankPopularityWeight: 30,
+    contenderRankingSize: 10,
+    worldRankPopularityWeight: 30,
+    worldRankPeakWeight: 25,
+    worldRankReignsWeight: 20,
+    worldRankChampionWeeksWeight: 15,
+    worldRankFormWeight: 10,
+    rankReignsForFullCredit: 5,
+    rankChampionWeeksForFullCredit: 200,
+    worldRankingSize: 25,
+
     // The hall of fame. A career needs to be genuinely good: peaking at 85
     // with a couple of reigns gets you in; a long ordinary one does not.
     hofPeakWeight: 55,
@@ -308,9 +344,9 @@ export function defaultWorldSettings(): WorldSettings {
 
     // The academy. A working population of roughly 60-100 people, so the
     // free agent pool never empties and never floods.
-    worldPopulationMin: 62,
-    worldPopulationMax: 100,
-    academyMaxGraduates: 3,
+    worldPopulationMin: 150,
+    worldPopulationMax: 230,
+    academyMaxGraduates: 14,
     academyDebutAgeMin: 19,
     academyDebutAgeMax: 25,
 
@@ -333,6 +369,14 @@ export function defaultWorldSettings(): WorldSettings {
     promotionName: 'Southside Championship Wrestling',
     promotionArchetype: 'territory',
     rivalPromotionCount: 6,
+    rivalMinHealthToBook: 45,
+    rivalTitleDefenceChance: 0.12,
+    rivalMaxTitleDefencesPerCard: 1,
+    rivalTagMatchChance: 0.45,
+    rivalStipulationChance: 0.15,
+    rivalCredibilityRatingWeight: 0.12,
+    rivalRosterSizeMin: 10,
+    rivalRosterSizeMax: 26,
     territoryCount: 12,
     startingTerritories: 1,
     startingYear: new Date().getFullYear(),
@@ -357,6 +401,14 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
     startingCash: 75_000,
     startingRosterSize: 30,
     rivalPromotionCount: 6,
+    rivalMinHealthToBook: 45,
+    rivalTitleDefenceChance: 0.12,
+    rivalMaxTitleDefencesPerCard: 1,
+    rivalTagMatchChance: 0.45,
+    rivalStipulationChance: 0.15,
+    rivalCredibilityRatingWeight: 0.12,
+    rivalRosterSizeMin: 10,
+    rivalRosterSizeMax: 26,
     chaosLevel: 1,
   },
   bigMoney: {

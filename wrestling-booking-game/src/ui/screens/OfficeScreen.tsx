@@ -30,6 +30,11 @@ export function OfficeScreen() {
   const playerRow = latestChart ? playerChartPosition(latestChart.rows) : undefined;
   const wrestler = (id?: string): Wrestler | undefined => (id ? world.wrestlers[id] : undefined);
 
+  // Enough bodies to put a show on? Two per segment, and the hurt do not count.
+  const healthyRoster = world.promotion.rosterIds
+    .map((id) => world.wrestlers[id])
+    .filter((w) => w && !w.injury && w.health >= world.settings.rivalMinHealthToBook).length;
+
   // What each company on the chart is known for. The chart is where you see
   // the competition, so it is where their house style belongs.
   const houseStyles = new Map(
@@ -39,6 +44,38 @@ export function OfficeScreen() {
   return (
     <div className="p-3 pb-24 text-neutral-100">
       <h1 className="mb-3 text-base font-semibold">The office — week {world.week}</h1>
+
+      {/* The two ways a save actually dies: no money, or nobody to book. */}
+      {world.folded ? (
+        <section className="mb-3 rounded border border-rose-800 bg-rose-950/40 p-3" data-testid="folded">
+          <div className="text-xs uppercase tracking-wide text-rose-400">Out of business</div>
+          <p className="mt-1 text-sm">{world.folded.reason}</p>
+          <p className="mt-1 text-xs text-neutral-400">
+            {world.promotion.name} closed in week {world.folded.week}. The roster is loose in the business and the
+            record of what you built is on the Legacy and Rankings screens.
+          </p>
+        </section>
+      ) : (
+        world.weeksInTheRed > 0 && (
+          <section className="mb-3 rounded border border-rose-900 bg-rose-950/30 p-3" data-testid="in-the-red">
+            <div className="text-xs uppercase tracking-wide text-rose-400">In the red</div>
+            <p className="mt-1 text-sm">
+              {world.weeksInTheRed} {world.weeksInTheRed === 1 ? 'week' : 'weeks'} under water.{' '}
+              {world.settings.bankruptcyGraceWeeks + 1 - world.weeksInTheRed} left before the creditors close you.
+            </p>
+          </section>
+        )
+      )}
+
+      {healthyRoster < world.settings.segmentsPerTV * 2 && !world.folded && (
+        <section className="mb-3 rounded border border-amber-900 bg-amber-950/20 p-3" data-testid="roster-thin">
+          <div className="text-xs uppercase tracking-wide text-amber-500">Thin roster</div>
+          <p className="mt-1 text-sm">
+            {healthyRoster} of your people can work this week — not enough to fill a card of{' '}
+            {world.settings.segmentsPerTV}. Sign somebody.
+          </p>
+        </section>
+      )}
 
       {world.yearInReview && (
         <section className="mb-3 rounded border border-amber-900 bg-neutral-900 p-3">

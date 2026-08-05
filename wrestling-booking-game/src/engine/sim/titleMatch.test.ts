@@ -98,6 +98,42 @@ describe('which belts can be booked', () => {
   });
 });
 
+describe('tag championships', () => {
+  it('will not defend a tag title with only half the champions in the match', () => {
+    const [champA, champB, c, d] = cast(4);
+    const tag = createStartingTitles('you', 'Southside Championship Wrestling', 'territory').find(
+      (t) => t.tier === 'tag',
+    )!;
+    const held = awardTitle(tag, [champA!.id, champB!.id], 1);
+
+    // Champion A teaming with somebody else is not a title defence.
+    expect(
+      eligibleTitles([held], {
+        participants: [
+          { wrestler: champA!, side: 0 },
+          { wrestler: c!, side: 0 },
+          { wrestler: champB!, side: 1 },
+          { wrestler: d!, side: 1 },
+        ],
+        promotionId: 'you',
+      }),
+    ).toHaveLength(0);
+
+    // The champions together, against a challenging team, is.
+    expect(
+      eligibleTitles([held], {
+        participants: [
+          { wrestler: champA!, side: 0 },
+          { wrestler: champB!, side: 0 },
+          { wrestler: c!, side: 1 },
+          { wrestler: d!, side: 1 },
+        ],
+        promotionId: 'you',
+      }),
+    ).toHaveLength(1);
+  });
+});
+
 describe('when a belt moves', () => {
   it('does not change hands on a disqualification or a count-out', () => {
     expect(titleCanChangeHands('disqualification', null)).toBe(false);

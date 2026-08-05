@@ -9,7 +9,15 @@ import { rngFromSeed, rngFromState } from '../engine/rng';
 import { saveGame, loadGame } from './persist';
 import type { Rng } from '../engine/rng';
 import type { Id, MatchRules, TitleReignEndMethod, WorldSettings } from '../engine/types';
-import { createInitialWorld, createEmptyCard, pairKey, styleProfileFor, type World, type YearInReview } from './world';
+import {
+  createInitialWorld,
+  createEmptyCard,
+  pairKey,
+  styleProfileFor,
+  rivalRosterSize,
+  type World,
+  type YearInReview,
+} from './world';
 import { createStartingTitles, awardTitle } from '../data/titles';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import {
@@ -42,6 +50,8 @@ import { defaultWorldSettings } from '../engine/world/settings';
 import { stipulationById, stipulationRequirementsMet } from '../data/stipulations';
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
 import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
+import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/aftermath';
+import { runRivalShow, bookRivalCard, canWork, type RivalShow } from '../engine/world/rivalBooking';
 import { resolveTitleOutcomes, matchTitlePrestige, eligibleTitles } from '../engine/sim/titleMatch';
 import {
   computeShowRating,
@@ -101,6 +111,12 @@ export interface GameStore {
   removeSegmentParticipant: (slot: number, wrestlerId: Id) => void;
   setSegmentRules: (slot: number, rules: Partial<MatchRules>) => void;
   setSegmentStipulation: (slot: number, stipulationId: Id | null) => void;
+  /**
+   * Let the office book whatever is still empty on the card. Not a shortcut
+   * past the game — a way to run a filler week without hand-booking six
+   * matches you do not care about.
+   */
+  autoFillCard: () => void;
   /** Put a belt on the line, or take it off. Two or more means title for title. */
   toggleSegmentTitle: (slot: number, titleId: Id) => void;
   resolveWeek: () => void;
@@ -129,6 +145,46 @@ export interface GameStore {
   repairProductionAsset: (assetId: Id) => void;
   /** Meet a renewal demand in full, or refuse it and risk them walking. */
   answerRenewal: (wrestlerId: Id, accept: boolean) => void;
+}
+
+/**
+ * Move a championship, and write the lineage on both sides of it: the old
+ * champion's reign closes, the new one's opens. Shared by the player's show
+ * and by every rival's, so a belt changing hands means the same thing
+ * wherever it happens.
+ */
+function commitTitleChange(world: World, titleIndex: number, newHolderIds: Id[]): void {
+  const title = world.titles[titleIndex];
+  if (!title) return;
+
+  const previousHolders = [...title.currentHolderIds];
+  world.titles[titleIndex] = awardTitle(title, newHolderIds, world.week);
+
+  for (const id of previousHolders) {
+    const open = world.wrestlers[id]?.titleReigns.find((r) => r.titleId === title.id && r.endWeek === null);
+    if (open) {
+      open.endWeek = world.week;
+      open.endMethod = 'lostMatch';
+    }
+  }
+
+  for (const id of newHolderIds) {
+    const champion = world.wrestlers[id];
+    if (!champion) continue;
+    champion.titleReigns.push({
+      titleId: title.id,
+      holderIds: [...newHolderIds],
+      wonFromIds: previousHolders.length > 0 ? previousHolders : null,
+      wonByMethod: 'match',
+      startWeek: world.week,
+      endWeek: null,
+      endMethod: null,
+    });
+    // Winning a belt is the single biggest thing that happens to somebody's
+    // standing, and the crowd reacts accordingly.
+    champion.momentum = clamp(champion.momentum + world.settings.titleWinMomentum, 0, 100);
+    champion.popularity = clamp(champion.popularity + world.settings.titleWinPopularity, 0, 100);
+  }
 }
 
 /**
@@ -338,6 +394,43 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
+    autoFillCard: () => {
+      set((state) => {
+        const world = state.world;
+        if (!world || world.folded) return;
+
+        const alreadyBooked = new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
+        const available = world.promotion.rosterIds
+          .map((id) => world.wrestlers[id])
+          .filter((w): w is Wrestler => Boolean(w) && !alreadyBooked.has(w!.id) && canWork(w!, world.settings));
+
+        const emptySlots = world.currentCard
+          .map((segment, index) => ({ segment, index }))
+          .filter(({ segment }) => new Set(segment.participants.map((p) => p.side)).size < 2);
+        if (emptySlots.length === 0 || available.length < 2) return;
+
+        // Same AI that books the rival cards, pointed at your roster — so the
+        // office's idea of a card is exactly as good as the competition's.
+        const card = bookRivalCard(rng, {
+          promotion: world.promotion,
+          available,
+          titles: world.titles,
+          week: world.week,
+          settings: { ...world.settings, segmentsPerTV: emptySlots.length },
+        });
+
+        card.matches.forEach((match, i) => {
+          const target = emptySlots[i];
+          if (!target) return;
+          const segment = world.currentCard[target.index]!;
+          segment.participants = match.sides.flatMap((members, side) =>
+            members.map((w) => ({ wrestlerId: w.id, side, role: 'competitor' as const })),
+          );
+          segment.titleIds = match.titleIds ?? [];
+        });
+      });
+    },
+
     toggleSegmentTitle: (slot, titleId) => {
       set((state) => {
         const segment = state.world?.currentCard[slot];
@@ -351,10 +444,12 @@ export const useGameStore = create<GameStore>()(
     resolveWeek: () => {
       set((state) => {
         const world = state.world;
-        if (!world) return;
+        if (!world || world.folded) return;
         const wrestlerById = new Map(Object.values(world.wrestlers).map((w) => [w.id, w]));
 
         const segmentRatings: (number | null)[] = [];
+        // Who actually wrestled tonight — everybody else gets the week off.
+        const worked = new Set<Id>();
         const segmentPopAvgs: { stars: number; avgPopularity: number }[] = [];
         const violenceLevels: number[] = [];
         let ringsideCost = 0;
@@ -502,8 +597,7 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
-          // Belts move here, and only here — rules.js's job in the marble
-          // game, this file's job in this one.
+          // Belts move here, and only here.
           let titleChanged = false;
           const outcomes = resolveTitleOutcomes({
             titles: titlesOnTheLine,
@@ -522,36 +616,7 @@ export const useGameStore = create<GameStore>()(
             if (!outcome.changed || !outcome.newHolderIds) continue;
 
             titleChanged = true;
-            const previousHolders = [...title.currentHolderIds];
-            world.titles[index] = awardTitle(title, outcome.newHolderIds, world.week);
-
-            // Close the old champions' reign records and open the new ones,
-            // so a career reads correctly decades later.
-            for (const id of previousHolders) {
-              const former = world.wrestlers[id];
-              const open = former?.titleReigns.find((r) => r.titleId === title.id && r.endWeek === null);
-              if (open) {
-                open.endWeek = world.week;
-                open.endMethod = 'lostMatch';
-              }
-            }
-            for (const id of outcome.newHolderIds) {
-              const champion = world.wrestlers[id];
-              if (!champion) continue;
-              champion.titleReigns.push({
-                titleId: title.id,
-                holderIds: [...outcome.newHolderIds],
-                wonFromIds: previousHolders.length > 0 ? previousHolders : null,
-                wonByMethod: 'match',
-                startWeek: world.week,
-                endWeek: null,
-                endMethod: null,
-              });
-              // Winning a belt is the single biggest thing that happens to
-              // somebody's standing, and the crowd reacts accordingly.
-              champion.momentum = clamp(champion.momentum + world.settings.titleWinMomentum, 0, 100);
-              champion.popularity = clamp(champion.popularity + world.settings.titleWinPopularity, 0, 100);
-            }
+            commitTitleChange(world, index, outcome.newHolderIds);
           }
 
           segment.result = {
@@ -565,6 +630,23 @@ export const useGameStore = create<GameStore>()(
             titleChanged,
             injuries: [],
           };
+
+          // What the match did to the people in it: records, momentum, the
+          // popularity a good match is worth, and the physical cost.
+          const changes = computeAftermath({
+            participants: participantWrestlers,
+            winnerIds: result.winnerWrestlerIds,
+            finish: result.finish,
+            rating: result.rating,
+            stipulation,
+            isMainEvent: i === world.currentCard.length - 1,
+            settings: world.settings,
+          });
+          for (const change of changes) {
+            const w = world.wrestlers[change.wrestlerId];
+            if (w) applyAftermath(w, change, world.settings);
+            worked.add(change.wrestlerId);
+          }
 
           segmentRatings.push(result.rating);
           const avgPop = participantWrestlers.reduce((sum, w) => sum + w.popularity, 0) / participantWrestlers.length;
@@ -750,21 +832,73 @@ export const useGameStore = create<GameStore>()(
           broadcast: true,
         });
 
-        // Rivals were on opposite you tonight. Their show quality moves with
-        // their standing plus a weekly wobble, so a hot rival takes audience
-        // off you even when your own show was fine.
+        // ---- the rest of the business runs its week --------------------
+        // Every rival books and runs its own card through the same simulation,
+        // so their belts move, their people get made, and the show quality
+        // opposite you is something that actually happened.
+        const rivalShows = new Map<Id, RivalShow>();
+        for (const rival of world.rivals) {
+          const available = rival.rosterIds
+            .map((id) => world.wrestlers[id])
+            .filter((w): w is Wrestler => Boolean(w) && canWork(w!, world.settings));
+
+          const show = runRivalShow(rng, {
+            promotion: rival,
+            available,
+            titles: world.titles,
+            week: world.week,
+            settings: world.settings,
+          });
+          if (!show) continue;
+          rivalShows.set(rival.id, show);
+
+          for (const match of show.matches) {
+            for (const change of match.aftermath) {
+              const w = world.wrestlers[change.wrestlerId];
+              if (w) applyAftermath(w, change, world.settings);
+              worked.add(change.wrestlerId);
+            }
+            for (const outcome of match.titleOutcomes) {
+              const index = world.titles.findIndex((t) => t.id === outcome.titleId);
+              if (index < 0) continue;
+              world.titles[index]!.prestige = outcome.prestige;
+              if (!outcome.changed || !outcome.newHolderIds) continue;
+              commitTitleChange(world, index, outcome.newHolderIds);
+            }
+          }
+
+          // Their standing moves on their own results, on the same ladder the
+          // player climbs — nobody is handed a rating here.
+          rival.recentShowQuality = updateRecentShowQuality(
+            rival.recentShowQuality,
+            show.showRating,
+            world.settings,
+          );
+          rival.rating = stepCompanyRatingTowardTarget(
+            rival.rating,
+            targetCompanyRatingForStars(show.showStars),
+            world.settings.ratingLadderStepPerWeek,
+            false,
+          );
+        }
+
+        // Rivals were on opposite you tonight, with the shows they actually
+        // ran — so a hot rival takes audience off you even when your own show
+        // was fine, and a promotion in decline stops being a threat.
         const tvResults = computeTvRatings(
           [
             { promotionId: world.promotion.id, showRating, companyRating: world.promotion.rating, broadcast: true },
             ...world.rivals.map((rival) => ({
               promotionId: rival.id,
-              showRating: clamp(rival.rating + (rng.next() * 30 - 15), 0, 100),
+              showRating: rivalShows.get(rival.id)?.showRating ?? 0,
               companyRating: rival.rating,
-              broadcast: true,
+              // A promotion too thin to put on a card is dark this week.
+              broadcast: rivalShows.has(rival.id),
             })),
           ],
           world.settings,
         );
+        world.rivalShows = [...rivalShows.values()];
         world.tvHistory.unshift({ week: world.week, results: tvResults });
         world.tvHistory = world.tvHistory.slice(0, 52);
 
@@ -802,6 +936,13 @@ export const useGameStore = create<GameStore>()(
         // Deals run down whether or not anybody was booked.
         const expired = expireContracts(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
         if (world.signingBanWeeks > 0) world.signingBanWeeks -= 1;
+
+        // Recovery and momentum decay, for everybody in the business — the
+        // world does not hold still for the people you did not book.
+        for (const w of Object.values(world.wrestlers)) {
+          if (w.deceased || w.careerStatus === 'retired') continue;
+          restWeek(w, worked.has(w.id), world.settings);
+        }
 
         // Career standing is derived, so it moves on its own as a save runs.
         const roster = world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean);
@@ -883,6 +1024,9 @@ export const useGameStore = create<GameStore>()(
               }
             }
             world.promotion.rosterIds = world.promotion.rosterIds.filter((rosterId) => rosterId !== id);
+            for (const rival of world.rivals) {
+              rival.rosterIds = rival.rosterIds.filter((rosterId) => rosterId !== id);
+            }
             world.freeAgents = world.freeAgents.filter((agent) => agent.wrestlerId !== id);
             world.pendingRenewals = world.pendingRenewals.filter((r) => r.wrestlerId !== id);
           };
@@ -955,6 +1099,25 @@ export const useGameStore = create<GameStore>()(
           world.freeAgents.push(...intake.freeAgents);
           notices.graduates = intake.wrestlers.map((w) => w.id);
 
+          // Rivals replace the people they lost. They shop in the same pool
+          // the player does, so a promotion that leaves talent sitting there
+          // will watch somebody else sign it.
+          for (const rival of world.rivals) {
+            const target = rivalRosterSize(rival.rating, world.settings);
+            let short = target - rival.rosterIds.length;
+            while (short > 0 && world.freeAgents.length > 0) {
+              const index = Math.floor(rng.next() * world.freeAgents.length);
+              const agent = world.freeAgents[index]!;
+              const signing = world.wrestlers[agent.wrestlerId];
+              world.freeAgents.splice(index, 1);
+              if (!signing || signing.deceased || signing.careerStatus === 'retired') continue;
+              signing.promotionId = rival.id;
+              signing.contract = createStandardContract(signing, world.settings, year);
+              rival.rosterIds.push(signing.id);
+              short -= 1;
+            }
+          }
+
           world.yearInReview = notices;
         }
 
@@ -981,6 +1144,35 @@ export const useGameStore = create<GameStore>()(
         if (event) {
           world.pendingEvent = event;
           world.eventHistory = recordFired(world.eventHistory, event, world.week);
+        }
+
+        // ---- can you still pay for this? -------------------------------
+        // The grace period is real: one bad month is survivable, a run of
+        // them is not. Nothing is hidden — the office screen counts it down.
+        if (world.promotion.bankBalance < 0) {
+          world.weeksInTheRed += 1;
+          if (world.weeksInTheRed > world.settings.bankruptcyGraceWeeks) {
+            world.folded = {
+              week: world.week,
+              reason: 'The money ran out. Creditors closed the promotion.',
+            };
+            // Everyone still under contract is loose in the business.
+            for (const id of world.promotion.rosterIds) {
+              const w = world.wrestlers[id];
+              if (!w) continue;
+              w.promotionId = null;
+              w.contract = null;
+              world.freeAgents.push({
+                wrestlerId: id,
+                reason: 'released',
+                askingRate: askingRate(w, world.settings),
+                weeksUnsigned: 0,
+              });
+            }
+            world.promotion.rosterIds = [];
+          }
+        } else {
+          world.weeksInTheRed = 0;
         }
 
         world.currentCard = createEmptyCard(world.settings.segmentsPerTV);

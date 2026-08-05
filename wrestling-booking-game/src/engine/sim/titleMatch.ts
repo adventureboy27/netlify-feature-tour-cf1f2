@@ -65,6 +65,16 @@ export function eligibleTitles(
     if ([...sideSizes.values()].some((size) => size !== required)) return false;
 
     if (title.vacant) return true;
+
+    // A team defends together or not at all: one half of the champions in a
+    // singles match is not a title defence, and letting it be one is what
+    // turns tag belts into hot potatoes.
+    if (required > 1) {
+      const sideOf = new Map(ctx.participants.map((p) => [p.wrestler.id, p.side]));
+      const sides = title.currentHolderIds.map((id) => sideOf.get(id));
+      return sides.every((side) => side !== undefined && side === sides[0]);
+    }
+
     return title.currentHolderIds.some((holder) => ids.has(holder));
   });
 }

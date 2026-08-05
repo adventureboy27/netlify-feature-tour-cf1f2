@@ -98,3 +98,13 @@ export function availableVenues(companyRating: number): Venue[] {
 export function fallbackVenue(): Venue {
   return VENUES[0]!;
 }
+
+/**
+ * The biggest building this promotion is allowed to rent. A company carrying
+ * thirty wrestlers is not running a school gym — the gym is what you fall back
+ * to when the money is gone, not where you start with a full payroll.
+ */
+export function bestAvailableVenue(companyRating: number): Venue {
+  const allowed = VENUES.filter((v) => companyRating >= v.minCompanyRating);
+  return allowed[allowed.length - 1] ?? fallbackVenue();
+}

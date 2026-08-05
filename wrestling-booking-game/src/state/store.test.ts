@@ -14,10 +14,13 @@ describe('newGame', () => {
   it('creates a world with the requested roster size, starting cash, and week 1', () => {
     const { world } = useGameStore.getState();
     expect(world).not.toBeNull();
-    // `wrestlers` is the whole population of the business — your roster plus
-    // everyone unsigned — so the roster is checked on the promotion itself.
+    // `wrestlers` is the whole population of the business — your roster, every
+    // rival's, and everyone unsigned — so the roster is checked on the
+    // promotion itself, and the population against all three.
     expect(world!.promotion.rosterIds).toHaveLength(12);
-    expect(Object.keys(world!.wrestlers)).toHaveLength(12 + freshSettings().freeAgentPoolSize);
+    const rivalRosters = world!.rivals.reduce((sum, r) => sum + r.rosterIds.length, 0);
+    expect(rivalRosters).toBeGreaterThan(0);
+    expect(Object.keys(world!.wrestlers)).toHaveLength(12 + freshSettings().freeAgentPoolSize + rivalRosters);
     expect(world!.promotion.bankBalance).toBe(freshSettings().startingCash);
     expect(world!.week).toBe(1);
     expect(world!.currentCard).toHaveLength(world!.settings.segmentsPerTV);
@@ -166,5 +169,94 @@ describe('the opening position', () => {
     const { world } = useGameStore.getState();
     const rosterSet = new Set(world!.promotion.rosterIds);
     for (const agent of world!.freeAgents) expect(rosterSet.has(agent.wrestlerId)).toBe(false);
+  });
+});
+
+describe('the office filling the card', () => {
+  it('books the empty slots from the roster, nobody twice', () => {
+    const store = useGameStore.getState();
+    store.autoFillCard();
+
+    const card = useGameStore.getState().world!.currentCard;
+    const filled = card.filter((s) => new Set(s.participants.map((p) => p.side)).size >= 2);
+    expect(filled.length).toBeGreaterThan(0);
+
+    const booked = card.flatMap((s) => s.participants.map((p) => p.wrestlerId));
+    expect(new Set(booked).size).toBe(booked.length);
+  });
+
+  it('leaves what you booked by hand alone', () => {
+    const store = useGameStore.getState();
+    const roster = store.world!.promotion.rosterIds;
+    store.setSegmentParticipant(0, roster[0]!, 0);
+    store.setSegmentParticipant(0, roster[1]!, 1);
+    useGameStore.getState().autoFillCard();
+
+    const opener = useGameStore.getState().world!.currentCard[0]!;
+    expect(opener.participants.map((p) => p.wrestlerId).sort()).toEqual([roster[0]!, roster[1]!].sort());
+  });
+});
+
+describe('going under', () => {
+  it('folds the promotion after the grace period, and lets the roster go', () => {
+    const store = useGameStore.getState();
+    // The worst room in the game at a giveaway price, week after week.
+    store.setVenue('schoolGym');
+    store.setTicketPrice(1);
+
+    for (let i = 0; i < 40 && !useGameStore.getState().world!.folded; i++) {
+      useGameStore.getState().autoFillCard();
+      useGameStore.getState().resolveWeek();
+    }
+
+    const world = useGameStore.getState().world!;
+    expect(world.folded).not.toBeNull();
+    expect(world.weeksInTheRed).toBeGreaterThan(world.settings.bankruptcyGraceWeeks);
+    expect(world.promotion.rosterIds).toHaveLength(0);
+    // Everybody who was under contract is loose in the business, not deleted.
+    expect(world.freeAgents.length).toBeGreaterThan(world.settings.freeAgentPoolSize);
+  });
+
+  it('will not run another show once it has folded', () => {
+    const store = useGameStore.getState();
+    store.setVenue('schoolGym');
+    store.setTicketPrice(1);
+    for (let i = 0; i < 40 && !useGameStore.getState().world!.folded; i++) {
+      useGameStore.getState().resolveWeek();
+    }
+
+    const weekWhenFolded = useGameStore.getState().world!.week;
+    useGameStore.getState().resolveWeek();
+    expect(useGameStore.getState().world!.week).toBe(weekWhenFolded);
+  });
+});
+
+describe('the rest of the business', () => {
+  it('runs its own shows every week', () => {
+    useGameStore.getState().resolveWeek();
+    const world = useGameStore.getState().world!;
+
+    expect(world.rivalShows.length).toBeGreaterThan(0);
+    for (const show of world.rivalShows) {
+      expect(show.matches.length).toBeGreaterThan(0);
+      expect(show.showRating).toBeGreaterThan(0);
+    }
+  });
+
+  it('gives every rival a staffed roster and crowned champions', () => {
+    const world = useGameStore.getState().world!;
+    for (const rival of world.rivals) {
+      expect(rival.rosterIds.length).toBeGreaterThan(0);
+      const belts = world.titles.filter((t) => t.promotionId === rival.id);
+      expect(belts.length).toBeGreaterThan(0);
+      expect(belts.some((t) => !t.vacant)).toBe(true);
+    }
+  });
+
+  it('moves their belts over a few years without the player touching anything', () => {
+    for (let i = 0; i < 52 * 3; i++) useGameStore.getState().resolveWeek();
+    const world = useGameStore.getState().world!;
+    const rivalBelts = world.titles.filter((t) => t.promotionId !== world.promotion.id);
+    expect(rivalBelts.some((t) => t.history.length > 1)).toBe(true);
   });
 });

@@ -34,6 +34,7 @@ import type {
   Passing,
 } from '../engine/types';
 import type { HallOfFameEntry } from '../engine/career/hallOfFame';
+import type { RivalShow } from '../engine/world/rivalBooking';
 import type { PoachingOffer } from '../engine/world/poaching';
 import type { FreeAgent } from '../engine/world/freeAgents';
 import { generateFreeAgentPool } from '../engine/world/freeAgents';
@@ -50,7 +51,7 @@ import { createStartingTitles, awardTitle } from '../data/titles';
 import { identityOf } from '../data/promotionIdentity';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import { seedRelationships } from '../engine/career/relationships';
-import { fallbackVenue } from '../data/venues';
+import { bestAvailableVenue } from '../data/venues';
 import type { AssetCondition } from '../engine/economy/showBudget';
 import type { ContractDemand } from '../engine/career/ego';
 
@@ -69,6 +70,8 @@ export interface World {
   stables: Stable[];
   /** AI promotions competing for the same audience. */
   rivals: Promotion[];
+  /** What the other promotions ran this week. Replaced every week. */
+  rivalShows: RivalShow[];
   /** This week's TV ratings, player and rivals, newest first. */
   tvHistory: { week: number; results: RatingResult[] }[];
   /** The event awaiting a decision, if any. Blocks nothing — the player can ignore it. */
@@ -88,6 +91,13 @@ export interface World {
   pendingRenewals: RenewalOffer[];
   /** How this week's show is being staged. */
   showSetup: ShowSetup;
+  /**
+   * How long the bank has been under water. Past the grace period the
+   * promotion folds — see `folded`.
+   */
+  weeksInTheRed: number;
+  /** Set when the promotion goes under. The save becomes a record, not a game. */
+  folded: { week: number; reason: string } | null;
   /** Weeks left on a signing ban from being caught tampering. */
   signingBanWeeks: number;
   /** Weeks dark from a tampering suspension. No shows, wages still due. */
@@ -244,12 +254,31 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   promotion.titleIds = playerTitles.map((t) => t.id);
 
   const rivals = createRivalPromotions(rng, settings);
-  // DESIGN: rival belts exist from week one so the world has a full map of
-  // championships in it — you can see that Northern Combat League crowns a
-  // Deathmatch Champion and Meridian Grappling does not. They stay vacant
-  // until rivals get rosters (M5); nothing here has to change when they do.
+
+  // Every rival is staffed. A promotion with a name and no wrestlers cannot
+  // run a show, and until they run shows they are scenery.
+  for (const rival of rivals) {
+    const size = rivalRosterSize(rival.rating, settings);
+    const signed = generateWrestlers(rng, size, {
+      currentYear: settings.startingYear,
+      existingAppearances: Object.values(wrestlers).map((w) => w.appearance),
+    });
+    for (const w of signed) {
+      w.promotionId = rival.id;
+      w.contract = createStandardContract(w, settings, settings.startingYear);
+      wrestlers[w.id] = w;
+    }
+    rival.rosterIds = signed.map((w) => w.id);
+  }
+  // Rival belts exist and have champions from week one, so the world has a
+  // full map of championships in it — you can see that Northern Combat League
+  // crowns a Deathmatch Champion and Meridian Grappling does not, and who is
+  // carrying each one.
   const rivalTitles = rivals.flatMap((rival) => {
-    const belts = createStartingTitles(rival.id, rival.name, rival.identity);
+    const belts = crownOpeningChampions(
+      createStartingTitles(rival.id, rival.name, rival.identity),
+      rival.rosterIds.map((id) => wrestlers[id]!).filter(Boolean),
+    );
     rival.titleIds = belts.map((t) => t.id);
     return belts;
   });
@@ -266,6 +295,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     tournaments: [],
     stables: [],
     rivals,
+    rivalShows: [],
     tvHistory: [],
     pendingEvent: null,
     lastEventOutcome: null,
@@ -275,7 +305,9 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     ownedAssetIds: [],
     assetConditions: [],
     pendingRenewals: [],
-    showSetup: defaultShowSetup(),
+    showSetup: defaultShowSetup(settings),
+    weeksInTheRed: 0,
+    folded: null,
     signingBanWeeks: 0,
     suspensionWeeks: 0,
     tamperingOffenses: 0,
@@ -311,6 +343,16 @@ export const RIVAL_PROMOTIONS: { name: string; archetype: PromotionArchetype }[]
   { name: 'Sunbelt Wrestling Alliance', archetype: 'territory' },
   { name: 'Meridian Grappling', archetype: 'technical' },
 ];
+
+/**
+ * How many wrestlers a rival carries. A national outfit has depth; a regional
+ * one runs six-man cards with the same eight people every week, which is
+ * exactly why its shows rate lower.
+ */
+export function rivalRosterSize(rating: number, settings: WorldSettings): number {
+  const span = settings.rivalRosterSizeMax - settings.rivalRosterSizeMin;
+  return Math.round(settings.rivalRosterSizeMin + (rating / 100) * span);
+}
 
 /** A promotion books what it is known for. */
 export function styleProfileFor(archetype: PromotionArchetype): Promotion['styleProfile'] {
@@ -396,8 +438,8 @@ export interface RenewalOffer {
 }
 
 /** Opening staging: the cheapest room, a modest ticket, nothing extra. */
-export function defaultShowSetup(): ShowSetup {
-  return { venueId: fallbackVenue().id, ticketPrice: 12, extraIds: [] };
+export function defaultShowSetup(settings: WorldSettings): ShowSetup {
+  return { venueId: bestAvailableVenue(settings.startingCompanyRating).id, ticketPrice: 12, extraIds: [] };
 }
 
 // DESIGN: §5 has the player start a *new* promotion, which argues for vacant

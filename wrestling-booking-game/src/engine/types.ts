@@ -1239,6 +1239,34 @@ export interface WorldSettings {
   /** Extra prestige a match carries for each belt beyond the first. */
   titleForTitleBonus: number;
 
+  // What a match does to the people in it (engine/sim/aftermath.ts).
+  /** Momentum a win is worth. */
+  momentumPerWin: number;
+  /** Momentum a loss costs. */
+  momentumPerLoss: number;
+  /** Momentum a draw costs — much less than a loss. */
+  momentumPerDraw: number;
+  /** Popularity the winner takes on top of the match's own swing. */
+  popularityPerWin: number;
+  /**
+   * How fast popularity converges on the quality of somebody's matches, per
+   * match worked. Small: this is the slowest number in the game.
+   */
+  matchPopularityChase: number;
+  /** Multiplier on everything for the main event. */
+  mainEventAftermathMultiplier: number;
+  /** Condition every match costs. */
+  matchHealthCost: number;
+  /** Extra condition cost per point of stipulation violence. */
+  matchHealthCostPerViolence: number;
+  matchEnergyCost: number;
+  matchFatiguePerMatch: number;
+  weeklyHealthRecovery: number;
+  weeklyEnergyRecovery: number;
+  weeklyFatigueRecovery: number;
+  /** How fast momentum falls back to the middle of the card. */
+  momentumDecayPerWeek: number;
+
   // Leaving the business, and coming back.
   /** Age at which retirement starts to be on somebody's mind. */
   retirementAgeSoft: number;
@@ -1278,6 +1306,20 @@ export interface WorldSettings {
   deathHealthWeight: number;
   deathChanceCap: number;
   deathOldAge: number;
+
+  // Rankings. Contenders are about form; the world list is about a career.
+  rankMomentumWeight: number;
+  rankFormWeight: number;
+  rankPopularityWeight: number;
+  contenderRankingSize: number;
+  worldRankPopularityWeight: number;
+  worldRankPeakWeight: number;
+  worldRankReignsWeight: number;
+  worldRankChampionWeeksWeight: number;
+  worldRankFormWeight: number;
+  rankReignsForFullCredit: number;
+  rankChampionWeeksForFullCredit: number;
+  worldRankingSize: number;
 
   // The hall of fame. Hard to get into on purpose.
   /** Weight on career peak popularity, the biggest part of the case. */
@@ -1329,6 +1371,22 @@ export interface WorldSettings {
   /** The player's house style. Changeable until the first show is run. */
   promotionArchetype: PromotionArchetype;
   rivalPromotionCount: number;
+  /** Condition below which a rival rests somebody instead of booking them. */
+  rivalMinHealthToBook: number;
+  /** Per-match chance a rival puts a belt on it. */
+  rivalTitleDefenceChance: number;
+  /** Most championship matches a rival will run on one card. */
+  rivalMaxTitleDefencesPerCard: number;
+  /** Chance a rival's card includes a tag match. */
+  rivalTagMatchChance: number;
+  /** Weekly chance a rival's main event carries its signature stipulation. */
+  rivalStipulationChance: number;
+  /** How much a rival's booking credibility is worth in rating points. */
+  rivalCredibilityRatingWeight: number;
+  /** Roster size of the smallest rival promotion. */
+  rivalRosterSizeMin: number;
+  /** Roster size of a rival at the top of the ladder. */
+  rivalRosterSizeMax: number;
   territoryCount: number;
   startingTerritories: number;
   startingYear: number;

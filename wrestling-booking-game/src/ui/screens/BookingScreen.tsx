@@ -57,6 +57,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   const setReferee = useGameStore((s) => s.setSegmentReferee);
   const setGuestReferee = useGameStore((s) => s.setSegmentGuestReferee);
   const toggleTitle = useGameStore((s) => s.toggleSegmentTitle);
+  const autoFill = useGameStore((s) => s.autoFillCard);
   const [openSlot, setOpenSlot] = useState(0);
 
   const roster = useMemo(
@@ -78,13 +79,24 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
             {filledSegments} of {world.currentCard.length} segments booked
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onRunShow}
-          className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
-        >
-          Run the show
-        </button>
+        <div className="flex shrink-0 gap-1">
+          <button
+            type="button"
+            data-testid="auto-fill"
+            onClick={autoFill}
+            className="rounded bg-neutral-800 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-700"
+            title="Let the office book the empty slots"
+          >
+            Fill the card
+          </button>
+          <button
+            type="button"
+            onClick={onRunShow}
+            className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            Run the show
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">

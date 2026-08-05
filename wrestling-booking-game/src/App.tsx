@@ -14,6 +14,7 @@ import { ContactSheet } from './ui/screens/ContactSheet';
 import { WrestlerEditor } from './ui/screens/WrestlerEditor';
 import { NewGameScreen } from './ui/screens/NewGameScreen';
 import { LegacyScreen } from './ui/screens/LegacyScreen';
+import { RankingsScreen } from './ui/screens/RankingsScreen';
 import { Money } from './ui/components/display';
 
 type Screen =
@@ -23,6 +24,7 @@ type Screen =
   | 'roster'
   | 'freeAgents'
   | 'results'
+  | 'rankings'
   | 'legacy'
   | 'contactSheet'
   | 'editor';
@@ -34,6 +36,7 @@ const TABS: { id: Screen; label: string }[] = [
   { id: 'roster', label: 'Roster' },
   { id: 'freeAgents', label: 'Free agents' },
   { id: 'results', label: 'Results' },
+  { id: 'rankings', label: 'Rankings' },
   { id: 'legacy', label: 'Legacy' },
   { id: 'contactSheet', label: 'Contact sheet' },
   { id: 'editor', label: 'Editor' },
@@ -58,6 +61,10 @@ export default function App() {
   const lastShow = world.showHistory[world.showHistory.length - 1] ?? null;
 
   function runShow() {
+    if (world?.folded) {
+      setScreen('office');
+      return;
+    }
     resolveWeek();
     setScreen('results');
   }
@@ -110,6 +117,7 @@ export default function App() {
         ) : (
           <p className="p-6 text-center text-sm text-neutral-500">No show has run yet.</p>
         ))}
+      {screen === 'rankings' && <RankingsScreen />}
       {screen === 'legacy' && <LegacyScreen />}
       {screen === 'contactSheet' && <ContactSheet />}
       {screen === 'editor' && <WrestlerEditor />}

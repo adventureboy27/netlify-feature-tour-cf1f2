@@ -140,6 +140,7 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
         )}
       </div>
 
+      <ElsewhereTonight />
       <RivalryDigest />
     </div>
   );
@@ -151,6 +152,59 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
       <dt className="text-neutral-500">{label}</dt>
       <dd className="font-medium">{value}</dd>
     </div>
+  );
+}
+
+/**
+ * What everybody else ran. The player never sees another promotion's full
+ * card — you find out what the competition did the way a real booker did, by
+ * hearing what the main event was and what it drew.
+ */
+function ElsewhereTonight() {
+  const world = useGameStore((s) => s.world);
+  if (!world || world.rivalShows.length === 0) return null;
+
+  const shows = [...world.rivalShows].sort((a, b) => b.showRating - a.showRating);
+
+  return (
+    <section className="mt-4">
+      <h2 className="mb-2 text-sm font-medium text-neutral-300">Elsewhere tonight</h2>
+      <div className="flex flex-col gap-1.5">
+        {shows.map((show) => {
+          const promotion = world.rivals.find((r) => r.id === show.promotionId);
+          const mainEvent = show.matches[show.matches.length - 1];
+          if (!promotion || !mainEvent) return null;
+
+          const names = mainEvent.participantIds.map((id) => world.wrestlers[id]?.name ?? '?');
+          const changed = show.matches.flatMap((m) =>
+            m.titleOutcomes.filter((o) => o.changed).map((o) => world.titles.find((t) => t.id === o.titleId)),
+          );
+
+          return (
+            <div
+              key={show.promotionId}
+              data-testid={`rival-show-${show.promotionId}`}
+              className="rounded border border-neutral-800 bg-neutral-900 p-2"
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-xs font-medium">{promotion.name}</span>
+                <Stars stars={show.showStars} />
+              </div>
+              <div className="truncate text-[11px] text-neutral-500">{names.join(' vs ')}</div>
+              {changed.map(
+                (title) =>
+                  title && (
+                    <div key={title.id} className="text-[11px] text-amber-400">
+                      New {title.name}:{' '}
+                      {title.currentHolderIds.map((id) => world.wrestlers[id]?.name).filter(Boolean).join(' & ')}
+                    </div>
+                  ),
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
