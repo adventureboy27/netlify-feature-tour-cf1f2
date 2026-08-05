@@ -841,6 +841,10 @@ export interface Promotion {
    * many people turn up next week — put on shows and they come back.
    */
   recentShowQuality: number;
+  /** Consecutive weeks under water. Past the grace period, they close. */
+  weeksInTheRed: number;
+  /** Set when the company closes. A closed company runs no shows. */
+  closedWeek: number | null;
   ownerId: Id; // a Wrestler record with role 'owner'
 }
 
@@ -1320,6 +1324,16 @@ export interface WorldSettings {
   rankReignsForFullCredit: number;
   rankChampionWeeksForFullCredit: number;
   worldRankingSize: number;
+  /** How many wrestlers the weekly sheet ranks in each division. */
+  publicationWrestlerListSize: number;
+  /** How many tag teams it ranks in each division. */
+  publicationTeamListSize: number;
+  /** How much a team's own record counts toward its ranking, 0-1. */
+  publicationTeamRecordWeight: number;
+  /** Weeks together for full longevity credit. */
+  publicationTeamLongevityWeeks: number;
+  /** Points a long-running partnership is worth. */
+  publicationTeamLongevityBonus: number;
 
   // The hall of fame. Hard to get into on purpose.
   /** Weight on career peak popularity, the biggest part of the case. */
@@ -1383,6 +1397,45 @@ export interface WorldSettings {
   rivalStipulationChance: number;
   /** How much a rival's booking credibility is worth in rating points. */
   rivalCredibilityRatingWeight: number;
+  // What the other companies take in and pay out, and when they close.
+  /** How steeply revenue rises with standing. */
+  rivalRevenueCurve: number;
+  /** Weekly revenue for a promotion at the very top of the ladder. */
+  rivalRevenueScale: number;
+  /** How much of their revenue depends on recent show quality, 0-1. */
+  rivalRevenueFormWeight: number;
+  rivalOverheadBase: number;
+  rivalOverheadPerHead: number;
+  /**
+   * Weeks a rival can run at a loss before folding. Long on purpose: a company
+   * should die from years of failure, not from one bad quarter.
+   */
+  rivalBankruptcyGraceWeeks: number;
+  /** The business never drops below this many open companies. */
+  minimumPromotions: number;
+  /** Cash an investor puts into a company the business cannot afford to lose. */
+  rivalBailoutCash: number;
+
+  // The fire sale when a company closes.
+  /** What a maximum-popularity wrestler adds to a package's appraisal. */
+  auctionValuePerStar: number;
+  /** What a maximum-prestige championship adds. */
+  auctionValuePerTitle: number;
+  /** Fraction of the appraisal a bid must clear to be valid at all. */
+  auctionReserveFraction: number;
+  auctionBaseAppetite: number;
+  auctionStyleFitAppetite: number;
+  auctionRosterRoomAppetite: number;
+  auctionAmbitionAppetite: number;
+  auctionBidVariance: number;
+  /** Most of its bank any company will spend on one lot. */
+  auctionMaxBankFraction: number;
+  auctionLowballFraction: number;
+  auctionFairFraction: number;
+  auctionAggressiveFraction: number;
+
+  /** How many tag teams each promotion is formed with. */
+  tagTeamsPerPromotion: number;
   /** Roster size of the smallest rival promotion. */
   rivalRosterSizeMin: number;
   /** Roster size of a rival at the top of the ladder. */

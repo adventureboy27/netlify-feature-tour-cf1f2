@@ -17,8 +17,9 @@
 // talent away and their shows get worse.
 
 import type { Rng } from '../rng';
-import { chance, clamp } from '../rng';
-import type { Id, MatchRules, Promotion, Title, Wrestler, WorldSettings } from '../types';
+import { chance, clamp, randInt } from '../rng';
+import type { Id, MatchRules, Promotion, Stable, Title, Wrestler, WorldSettings } from '../types';
+import { availableTeams } from './tagTeams';
 import { simulateMatch, type SimParticipant } from '../sim/simulateMatch';
 import { computeShowRating, ratingToStars, TV_SLOT_WEIGHTS } from '../economy/showRating';
 import { computeAftermath, type AftermathChange } from '../sim/aftermath';
@@ -48,6 +49,33 @@ const RIVAL_MATCH_RULES: MatchRules = {
 export interface BookedMatch {
   sides: [Wrestler[], Wrestler[]];
   titleIds?: Id[];
+  /** Set when the two sides are established teams, by side. */
+  teamIds?: [Id, Id];
+}
+
+/**
+ * Two teams worth putting opposite each other: the strongest available, and
+ * then the closest match for them. A tag match between the top team and the
+ * worst one on the roster is not a match, it is a squash.
+ */
+function pickOpposingTeams(rng: Rng, teams: Stable[], roster: readonly Wrestler[]): [Stable?, Stable?] {
+  const strength = (team: Stable) => {
+    const members = team.memberIds.map((id) => roster.find((w) => w.id === id));
+    const found = members.filter((w): w is Wrestler => Boolean(w));
+    if (found.length === 0) return 0;
+    return found.reduce((sum, w) => sum + w.popularity, 0) / found.length;
+  };
+
+  const ranked = [...teams].sort((a, b) => strength(b) - strength(a));
+  const first = ranked[randInt(rng, 0, Math.min(1, ranked.length - 1))]!;
+  const rest = ranked.filter((t) => t.id !== first.id);
+  if (rest.length === 0) return [first, undefined];
+
+  // Whoever is closest in standing.
+  const opponent = rest.reduce((best, team) =>
+    Math.abs(strength(team) - strength(first)) < Math.abs(strength(best) - strength(first)) ? team : best,
+  );
+  return [first, opponent];
 }
 
 export interface RivalCard {
@@ -65,6 +93,10 @@ export interface RivalMatch {
   titleOutcomes: TitleOutcome[];
   aftermath: AftermathChange[];
   stipulationId: Id | null;
+  /** The teams involved, by side, when this was a tag match. */
+  teamIds?: [Id, Id];
+  /** Which side won, so the caller can credit the right team. */
+  winnerSide: number | null;
 }
 
 export interface RivalShow {
@@ -81,6 +113,8 @@ export interface RivalBookingContext {
   available: Wrestler[];
   /** Every title in the world; only theirs will be used. */
   titles: readonly Title[];
+  /** Every group in the world. Their intact tag teams get booked as teams. */
+  stables?: readonly Stable[];
   week: number;
   settings: WorldSettings;
 }
@@ -105,28 +139,40 @@ export function bookRivalCard(rng: Rng, ctx: RivalBookingContext): RivalCard {
   const segments = Math.min(ctx.settings.segmentsPerTV, Math.floor(roster.length / 2));
 
   const matches: BookedMatch[] = [];
+  const spoken = new Set<Id>();
+
+  // The tag match, booked between two actual teams rather than four people
+  // who happened to be adjacent on the sheet. This is what gives the tag
+  // division a lineage: the same two names defend, week after week.
+  const rosterIds = new Set(roster.map((w) => w.id));
+  const healthy = new Set(ctx.available.map((w) => w.id));
+  const teams = availableTeams(ctx.stables ?? [], rosterIds, (id) => healthy.has(id));
+
+  if (teams.length >= 2 && segments >= 2 && chance(rng, ctx.settings.rivalTagMatchChance)) {
+    const [teamA, teamB] = pickOpposingTeams(rng, teams, roster);
+    if (teamA && teamB) {
+      const membersOf = (team: Stable) => team.memberIds.map((id) => roster.find((w) => w.id === id)!).filter(Boolean);
+      const sideA = membersOf(teamA);
+      const sideB = membersOf(teamB);
+      if (sideA.length === 2 && sideB.length === 2) {
+        matches.push({ sides: [sideA, sideB], teamIds: [teamA.id, teamB.id] });
+        for (const w of [...sideA, ...sideB]) spoken.add(w.id);
+      }
+    }
+  }
+
   // Bottom of the card first: the least important people are paired off, and
   // the two biggest names left are saved for the main event.
-  const undercard = roster.slice(2).reverse();
+  const singles = roster.filter((w) => !spoken.has(w.id));
+  const mainEventers = singles.slice(0, 2);
+  const undercard = singles.slice(2).reverse();
+
   let i = 0;
   while (i + 1 < undercard.length && matches.length < segments - 1) {
-    // Somewhere down the card, two teams. Without this the tag belts would
-    // never be defended and their lineage would be one name long forever.
-    const canTag = i + 3 < undercard.length && !matches.some((m) => m.sides[0].length > 1);
-    if (canTag && chance(rng, ctx.settings.rivalTagMatchChance)) {
-      matches.push({
-        sides: [
-          [undercard[i]!, undercard[i + 1]!],
-          [undercard[i + 2]!, undercard[i + 3]!],
-        ],
-      });
-      i += 4;
-      continue;
-    }
     matches.push({ sides: [[undercard[i]!], [undercard[i + 1]!]] });
     i += 2;
   }
-  if (roster.length >= 2) matches.push({ sides: [[roster[0]!], [roster[1]!]] });
+  if (mainEventers.length === 2) matches.push({ sides: [[mainEventers[0]!], [mainEventers[1]!]] });
 
   // Belts. A promotion that never defends its top title is not a promotion,
   // and one that defends something every week devalues everything. At most
@@ -218,6 +264,8 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
       titleIds,
       titleOutcomes,
       stipulationId,
+      teamIds: booked.teamIds,
+      winnerSide: result.winnerSide,
       aftermath: computeAftermath({
         participants: everyone,
         winnerIds: result.winnerWrestlerIds,

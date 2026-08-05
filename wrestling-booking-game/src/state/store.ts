@@ -8,7 +8,7 @@ import { immer } from 'zustand/middleware/immer';
 import { rngFromSeed, rngFromState } from '../engine/rng';
 import { saveGame, loadGame } from './persist';
 import type { Rng } from '../engine/rng';
-import type { Id, MatchRules, TitleReignEndMethod, WorldSettings } from '../engine/types';
+import type { Id, MatchRules, Promotion, TitleReignEndMethod, WorldSettings } from '../engine/types';
 import {
   createInitialWorld,
   createEmptyCard,
@@ -52,6 +52,10 @@ import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch'
 import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
 import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/aftermath';
 import { runRivalShow, bookRivalCard, canWork, type RivalShow } from '../engine/world/rivalBooking';
+import { rivalWeek, shouldFold } from '../engine/world/rivalEconomy';
+import { publish } from '../engine/world/publication';
+import { appraise, aiBid, settleAuction, playerBidAmount, type Bid, type PlayerBidLevel } from '../engine/world/auction';
+import { recordTeamResult, disbandBrokenTeams, formTeams } from '../engine/world/tagTeams';
 import { resolveTitleOutcomes, matchTitlePrestige, eligibleTitles } from '../engine/sim/titleMatch';
 import {
   computeShowRating,
@@ -123,6 +127,10 @@ export interface GameStore {
   /** Answer the pending creative event. */
   chooseEventOption: (optionId: string) => void;
   dismissEventOutcome: () => void;
+  /** Bid on a closed company's assets, or let them go. */
+  bidOnAuction: (level: PlayerBidLevel) => void;
+  /** Clear the fire-sale result once it has been read. */
+  dismissAuctionResult: () => void;
   /** Clear the turn-of-the-year summary once it has been read. */
   dismissYearInReview: () => void;
   // Staging the show
@@ -185,6 +193,117 @@ function commitTitleChange(world: World, titleIndex: number, newHolderIds: Id[])
     champion.momentum = clamp(champion.momentum + world.settings.titleWinMomentum, 0, 100);
     champion.popularity = clamp(champion.popularity + world.settings.titleWinPopularity, 0, 100);
   }
+}
+
+
+/**
+ * Close a company down and put everything it owned on the block. The lot is
+ * one package — contracts, belts and whatever was in the account — because a
+ * dead promotion being swallowed whole is an event, and its roster being
+ * quietly redistributed is not.
+ */
+function closePromotion(world: World, promotion: Promotion): void {
+  promotion.closedWeek = world.week;
+
+  const roster = promotion.rosterIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
+  const titles = world.titles.filter((t) => t.promotionId === promotion.id);
+  const cash = Math.max(0, promotion.bankBalance);
+
+  world.pendingAuction = {
+    openedWeek: world.week,
+    lot: {
+      fromPromotionId: promotion.id,
+      fromPromotionName: promotion.name,
+      wrestlerIds: roster.map((w) => w.id),
+      titleIds: titles.map((t) => t.id),
+      cash,
+      appraisal: appraise(roster, titles, cash, world.settings),
+    },
+  };
+}
+
+/**
+ * Settle the fire sale. The player's bid comes in as a level; everybody still
+ * open bids for themselves. Whoever wins absorbs the roster and the belts —
+ * lineage and all — and pays for the privilege.
+ */
+function resolveAuction(world: World, playerLevel: PlayerBidLevel): void {
+  const pending = world.pendingAuction;
+  if (!pending) return;
+  const { lot } = pending;
+
+  const incoming = lot.wrestlerIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
+  const bidders = world.rivals.filter((r) => r.closedWeek === null && r.id !== lot.fromPromotionId);
+
+  const bids: Bid[] = bidders.map((rival) => ({
+    promotionId: rival.id,
+    amount: aiBid(rng, rival, lot, incoming, world.settings),
+  }));
+
+  const playerAmount = playerBidAmount(playerLevel, lot, world.settings);
+  // You cannot bid money you do not have. Bidding the house is allowed;
+  // bidding somebody else's is not.
+  const affordable = Math.min(playerAmount, Math.max(0, world.promotion.bankBalance));
+  if (affordable > 0 && !world.folded) {
+    bids.push({ promotionId: world.promotion.id, amount: affordable });
+  }
+
+  const standingOf = (id: Id) =>
+    id === world.promotion.id ? world.promotion.rating : (world.rivals.find((r) => r.id === id)?.rating ?? 0);
+  const result = settleAuction(bids, lot, world.settings, standingOf);
+
+  const winner =
+    result.winnerId === world.promotion.id
+      ? world.promotion
+      : world.rivals.find((r) => r.id === result.winnerId);
+
+  if (winner) {
+    winner.bankBalance -= result.winningBid;
+    // The cash in the dead company's account comes with the lot.
+    winner.bankBalance += lot.cash;
+
+    for (const w of incoming) {
+      w.promotionId = winner.id;
+      // Deals carry over as they were — the new owner inherits the contract,
+      // including whatever it costs them.
+      if (!w.contract) w.contract = createStandardContract(w, world.settings, world.settings.startingYear);
+      winner.rosterIds.push(w.id);
+    }
+
+    for (const title of world.titles) {
+      if (!lot.titleIds.includes(title.id)) continue;
+      // The belt keeps its name and every reign in its history. It is being
+      // defended somewhere else now, that is all.
+      title.promotionId = winner.id;
+      winner.titleIds.push(title.id);
+    }
+  } else {
+    // Nobody met the reserve. The contracts lapse and everyone is loose.
+    for (const w of incoming) {
+      w.promotionId = null;
+      w.contract = null;
+      world.freeAgents.push({
+        wrestlerId: w.id,
+        reason: 'released',
+        askingRate: askingRate(w, world.settings),
+        weeksUnsigned: 0,
+      });
+    }
+  }
+
+  const dead = world.rivals.find((r) => r.id === lot.fromPromotionId);
+  if (dead) {
+    dead.rosterIds = [];
+    dead.titleIds = [];
+    dead.bankBalance = 0;
+  }
+
+  world.lastAuction = {
+    lot,
+    result,
+    wonByName: winner?.name ?? 'Nobody',
+  };
+  world.pendingAuction = null;
 }
 
 /**
@@ -415,6 +534,7 @@ export const useGameStore = create<GameStore>()(
           promotion: world.promotion,
           available,
           titles: world.titles,
+          stables: world.stables,
           week: world.week,
           settings: { ...world.settings, segmentsPerTV: emptySlots.length },
         });
@@ -445,6 +565,10 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const world = state.world;
         if (!world || world.folded) return;
+
+        // An auction you never answered goes ahead without you. The business
+        // does not wait for a booker to make up their mind.
+        if (world.pendingAuction) resolveAuction(world, 'pass');
         const wrestlerById = new Map(Object.values(world.wrestlers).map((w) => [w.id, w]));
 
         const segmentRatings: (number | null)[] = [];
@@ -648,6 +772,26 @@ export const useGameStore = create<GameStore>()(
             worked.add(change.wrestlerId);
           }
 
+          // If both sides were intact teams, the result goes on their records.
+          const sideTeams = [0, 1].map((side) => {
+            const members = segment.participants.filter((p) => p.side === side).map((p) => p.wrestlerId);
+            if (members.length !== 2) return undefined;
+            return world.stables.find(
+              (t) =>
+                t.kind === 'tagTeam' &&
+                t.disbandedWeek === null &&
+                t.memberIds.length === 2 &&
+                members.every((id) => t.memberIds.includes(id)),
+            );
+          });
+          if (sideTeams[0] && sideTeams[1]) {
+            const winningSide = result.winnerSide;
+            sideTeams.forEach((team, side) => {
+              if (!team) return;
+              recordTeamResult(team, winningSide === null ? 'draw' : winningSide === side ? 'win' : 'loss');
+            });
+          }
+
           segmentRatings.push(result.rating);
           const avgPop = participantWrestlers.reduce((sum, w) => sum + w.popularity, 0) / participantWrestlers.length;
           segmentPopAvgs.push({ stars: result.stars, avgPopularity: avgPop });
@@ -838,6 +982,7 @@ export const useGameStore = create<GameStore>()(
         // opposite you is something that actually happened.
         const rivalShows = new Map<Id, RivalShow>();
         for (const rival of world.rivals) {
+          if (rival.closedWeek !== null) continue;
           const available = rival.rosterIds
             .map((id) => world.wrestlers[id])
             .filter((w): w is Wrestler => Boolean(w) && canWork(w!, world.settings));
@@ -846,6 +991,7 @@ export const useGameStore = create<GameStore>()(
             promotion: rival,
             available,
             titles: world.titles,
+            stables: world.stables,
             week: world.week,
             settings: world.settings,
           });
@@ -857,6 +1003,17 @@ export const useGameStore = create<GameStore>()(
               const w = world.wrestlers[change.wrestlerId];
               if (w) applyAftermath(w, change, world.settings);
               worked.add(change.wrestlerId);
+            }
+            // A tag match is on the teams' records, not only the wrestlers'.
+            if (match.teamIds) {
+              match.teamIds.forEach((teamId, side) => {
+                const team = world.stables.find((t) => t.id === teamId);
+                if (!team) return;
+                recordTeamResult(
+                  team,
+                  match.winnerSide === null ? 'draw' : match.winnerSide === side ? 'win' : 'loss',
+                );
+              });
             }
             for (const outcome of match.titleOutcomes) {
               const index = world.titles.findIndex((t) => t.id === outcome.titleId);
@@ -882,6 +1039,41 @@ export const useGameStore = create<GameStore>()(
           );
         }
 
+        // Their books. Rivals only make money on a week they ran a show, and
+        // a company too thin to run one is bleeding with nothing coming in —
+        // which is exactly how a promotion dies in real life.
+        for (const rival of world.rivals) {
+          if (rival.closedWeek !== null) continue;
+          const theirRoster = rival.rosterIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
+          const books = rivalWeek(rival, theirRoster, world.settings);
+          const net = rivalShows.has(rival.id) ? books.net : -books.costs;
+          rival.bankBalance = Math.round(rival.bankBalance + net);
+
+          if (rival.bankBalance < 0) rival.weeksInTheRed += 1;
+          else rival.weeksInTheRed = 0;
+
+          const stillOpen = 1 + world.rivals.filter((r) => r.closedWeek === null).length;
+          const failing = {
+            weeksInTheRed: rival.weeksInTheRed,
+            bankBalance: rival.bankBalance,
+            companiesOpen: stillOpen,
+            settings: world.settings,
+          };
+
+          if (!world.pendingAuction && shouldFold(failing)) {
+            closePromotion(world, rival);
+          } else if (
+            rival.weeksInTheRed > world.settings.rivalBankruptcyGraceWeeks &&
+            rival.bankBalance < 0
+          ) {
+            // They should be gone, but the business cannot spare them — or
+            // another fire sale is already on the table. Somebody with money
+            // steps in rather than letting the debt run to infinity.
+            rival.bankBalance = world.settings.rivalBailoutCash;
+            rival.weeksInTheRed = 0;
+          }
+        }
+
         // Rivals were on opposite you tonight, with the shows they actually
         // ran — so a hot rival takes audience off you even when your own show
         // was fine, and a promotion in decline stops being a threat.
@@ -892,7 +1084,8 @@ export const useGameStore = create<GameStore>()(
               promotionId: rival.id,
               showRating: rivalShows.get(rival.id)?.showRating ?? 0,
               companyRating: rival.rating,
-              // A promotion too thin to put on a card is dark this week.
+              // A promotion too thin to put on a card — or closed for good —
+              // is dark this week.
               broadcast: rivalShows.has(rival.id),
             })),
           ],
@@ -986,6 +1179,16 @@ export const useGameStore = create<GameStore>()(
             openedWeek: world.week,
           });
         }
+
+        // This week's sheet becomes last week's, so the next issue can show
+        // which way everybody moved.
+        world.lastPublication = publish({
+          currentWeek: world.week,
+          titles: world.titles,
+          wrestlers: Object.values(world.wrestlers),
+          stables: world.stables,
+          settings: world.settings,
+        });
 
         // ---- the turn of the year ---------------------------------------
         // Everything that happens on a scale of years happens here, once:
@@ -1099,10 +1302,52 @@ export const useGameStore = create<GameStore>()(
           world.freeAgents.push(...intake.freeAgents);
           notices.graduates = intake.wrestlers.map((w) => w.id);
 
+          // A partnership does not survive one of them retiring, dying, or
+          // signing somewhere else.
+          disbandBrokenTeams(world.stables, world.week, (memberIds) => {
+            const people = memberIds.map((id) => world.wrestlers[id]);
+            if (people.some((w) => !w || w.deceased || w.careerStatus === 'retired')) return false;
+            const first = people[0]!.promotionId;
+            return first !== null && people.every((w) => w!.promotionId === first);
+          });
+
+          // New teams to replace the ones that broke up. A tag division that
+          // only ever loses teams is a tag division that ends up empty.
+          const takenNames = new Set(world.stables.map((t) => t.name));
+          for (const company of [world.promotion, ...world.rivals]) {
+            if (company.closedWeek !== null) continue;
+            const intact = world.stables.filter(
+              (t) =>
+                t.kind === 'tagTeam' &&
+                t.disbandedWeek === null &&
+                t.memberIds.every((id) => company.rosterIds.includes(id)),
+            ).length;
+            const wanted = world.settings.tagTeamsPerPromotion - intact;
+            if (wanted <= 0) continue;
+
+            const spokenFor = new Set(
+              world.stables.filter((t) => t.disbandedWeek === null).flatMap((t) => t.memberIds),
+            );
+            const free = company.rosterIds
+              .map((id) => world.wrestlers[id])
+              .filter((w): w is Wrestler => Boolean(w) && !spokenFor.has(w!.id) && !w!.deceased);
+
+            const formed = formTeams(
+              rng,
+              free,
+              company.id,
+              { taken: takenNames, week: world.week, count: wanted },
+              () => `${company.id}-team-${world.nextId++}`,
+            );
+            for (const team of formed) takenNames.add(team.name);
+            world.stables.push(...formed);
+          }
+
           // Rivals replace the people they lost. They shop in the same pool
           // the player does, so a promotion that leaves talent sitting there
           // will watch somebody else sign it.
           for (const rival of world.rivals) {
+            if (rival.closedWeek !== null) continue;
             const target = rivalRosterSize(rival.rating, world.settings);
             let short = target - rival.rosterIds.length;
             while (short > 0 && world.freeAgents.length > 0) {
@@ -1269,6 +1514,18 @@ export const useGameStore = create<GameStore>()(
           title.colorway = fresh.colorway;
           title.signatureStipulationId = fresh.signatureStipulationId;
         });
+      });
+    },
+
+    bidOnAuction: (level) => {
+      set((state) => {
+        if (state.world?.pendingAuction) resolveAuction(state.world, level);
+      });
+    },
+
+    dismissAuctionResult: () => {
+      set((state) => {
+        if (state.world) state.world.lastAuction = null;
       });
     },
 

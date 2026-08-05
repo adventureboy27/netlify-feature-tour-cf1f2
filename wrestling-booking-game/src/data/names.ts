@@ -6,7 +6,7 @@
 // — growing it toward the full target is ongoing content work, not an M0
 // blocker (see CLAUDE.md "Content to author").
 
-export const FIRST_NAMES: string[] = [
+export const MASCULINE_FIRST_NAMES: string[] = [
   'Buddy', 'Duke', 'Reggie', 'Mack', 'Vic', 'Lonnie', 'Hollis', 'Gus', 'Earl', 'Wade',
   'Frankie', 'Sonny', 'Rusty', 'Deke', 'Cal', 'Boone', 'Tuck', 'Rocco', 'Grady', 'Hank',
   'Ozzie', 'Slater', 'Doyle', 'Bram', 'Coy', 'Walt', 'Denny', 'Griff', 'Shane', 'Lou',
@@ -17,12 +17,21 @@ export const FIRST_NAMES: string[] = [
   'Hutch', 'Ives', 'Judd', 'Kirby', 'Lyle', 'Monte', 'Nolan', 'Orin', 'Perch', 'Quade',
   'Rex', 'Slim', 'Trent', 'Ulric', 'Vern', 'Weston', 'Yates', 'Zeke', 'Abel', 'Briar',
   'Cash', 'Dash', 'Emory', 'Fisk', 'Gunnar', 'Holt', 'Irv', 'Jax', 'Kip', 'Lars',
-  // Feminine and unisex first names for the women's division
+];
+
+/** Feminine and unisex first names, for the women's division. */
+export const FEMININE_FIRST_NAMES: string[] = [
   'Roxy', 'Delilah', 'Marlowe', 'Sable', 'Vesper', 'Harlow', 'Junie', 'Cricket', 'Blaze', 'Ember',
   'Frankie', 'Reyna', 'Dutchess', 'Coral', 'Wren', 'Scout', 'Nova', 'Zara', 'Piper', 'Sasha',
   'Vixen', 'Talon', 'Raine', 'Josie', 'Lux', 'Mabel', 'Odessa', 'Priss', 'Quinn', 'Rowan',
   'Sable', 'Tamsin', 'Ursa', 'Valentina', 'Winnie', 'Xiomara', 'Yolanda', 'Zelda', 'Agatha', 'Birdie',
 ];
+
+/**
+ * Both pools together, for anything that does not care — the ring-name
+ * blocklist check, the editor's random button, and so on.
+ */
+export const FIRST_NAMES: string[] = [...MASCULINE_FIRST_NAMES, ...FEMININE_FIRST_NAMES];
 
 export const SURNAMES: string[] = [
   'Buchanan', 'McCready', 'Vance', 'Holloway', 'Sutter', 'Kincaid', 'Dressler', 'Malone', 'Ferris', 'Odom',

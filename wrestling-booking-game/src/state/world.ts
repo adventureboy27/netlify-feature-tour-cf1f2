@@ -35,6 +35,8 @@ import type {
 } from '../engine/types';
 import type { HallOfFameEntry } from '../engine/career/hallOfFame';
 import type { RivalShow } from '../engine/world/rivalBooking';
+import type { AuctionLot, AuctionResult } from '../engine/world/auction';
+import type { Publication } from '../engine/world/publication';
 import type { PoachingOffer } from '../engine/world/poaching';
 import type { FreeAgent } from '../engine/world/freeAgents';
 import { generateFreeAgentPool } from '../engine/world/freeAgents';
@@ -51,6 +53,7 @@ import { createStartingTitles, awardTitle } from '../data/titles';
 import { identityOf } from '../data/promotionIdentity';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import { seedRelationships } from '../engine/career/relationships';
+import { formTeams, teamIdFactory } from '../engine/world/tagTeams';
 import { bestAvailableVenue } from '../data/venues';
 import type { AssetCondition } from '../engine/economy/showBudget';
 import type { ContractDemand } from '../engine/career/ego';
@@ -70,6 +73,15 @@ export interface World {
   stables: Stable[];
   /** AI promotions competing for the same audience. */
   rivals: Promotion[];
+  /**
+   * Last week's sheet, kept so this week's can show which way people moved.
+   * The current one is derived on read — only the comparison needs storing.
+   */
+  lastPublication: Publication | null;
+  /** A fire sale awaiting your bid. Resolves whether or not you answer. */
+  pendingAuction: PendingAuction | null;
+  /** How the last fire sale went. Shown once. */
+  lastAuction: { lot: AuctionLot; result: AuctionResult; wonByName: string } | null;
   /** What the other promotions ran this week. Replaced every week. */
   rivalShows: RivalShow[];
   /** This week's TV ratings, player and rivals, newest first. */
@@ -140,6 +152,12 @@ export interface YearInReview {
   graduates: Id[];
   inductions: HallOfFameEntry[];
   vacatedTitleIds: Id[];
+}
+
+/** A lot on the table, with the week it has to be answered by. */
+export interface PendingAuction {
+  lot: AuctionLot;
+  openedWeek: number;
 }
 
 /** Stable key for a pair of wrestlers, order-independent. */
@@ -242,16 +260,12 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     hardcoreSaturation: 0,
     // A new promotion has no track record; its first show sets the bar.
     recentShowQuality: settings.startingCompanyRating,
+    weeksInTheRed: 0,
+    closedWeek: null,
     // DESIGN: a real Wrestler with role 'owner' is M5 (owner mandates); a
     // bare id placeholder is enough for M2, which never dereferences it.
     ownerId: randomId(rng, 'owner'),
   };
-
-  const playerTitles = crownOpeningChampions(
-    createStartingTitles(promotion.id, promotion.name, promotion.identity),
-    roster,
-  );
-  promotion.titleIds = playerTitles.map((t) => t.id);
 
   const rivals = createRivalPromotions(rng, settings);
 
@@ -270,6 +284,33 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     }
     rival.rosterIds = signed.map((w) => w.id);
   }
+
+  // Tag teams, for everybody. A tag division without named teams in it is
+  // just two people who happened to be on the same side that week.
+  const stables: Stable[] = [];
+  const takenTeamNames = new Set<string>();
+  const addTeams = (people: Wrestler[], promotionId: Id) => {
+    const formed = formTeams(
+      rng,
+      people,
+      promotionId,
+      { taken: takenTeamNames, week: 1, count: settings.tagTeamsPerPromotion },
+      teamIdFactory(promotionId),
+    );
+    for (const team of formed) takenTeamNames.add(team.name);
+    stables.push(...formed);
+  };
+  addTeams(roster, promotion.id);
+  for (const rival of rivals) {
+    addTeams(rival.rosterIds.map((id) => wrestlers[id]!).filter(Boolean), rival.id);
+  }
+
+  const playerTitles = crownOpeningChampions(
+    createStartingTitles(promotion.id, promotion.name, promotion.identity),
+    roster,
+  );
+  promotion.titleIds = playerTitles.map((t) => t.id);
+
   // Rival belts exist and have champions from week one, so the world has a
   // full map of championships in it — you can see that Northern Combat League
   // crowns a Deathmatch Champion and Meridian Grappling does not, and who is
@@ -293,9 +334,12 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     showHistory: [],
     rivalries: seedShootRivalries(roster),
     tournaments: [],
-    stables: [],
+    stables,
     rivals,
     rivalShows: [],
+    lastPublication: null,
+    pendingAuction: null,
+    lastAuction: null,
     tvHistory: [],
     pendingEvent: null,
     lastEventOutcome: null,
@@ -399,6 +443,8 @@ function createRivalPromotions(rng: Rng, settings: WorldSettings): Promotion[] {
       reputation: rating,
       hardcoreSaturation: 0,
       recentShowQuality: rating,
+      weeksInTheRed: 0,
+      closedWeek: null,
       ownerId: `owner-rival-${i}`,
     });
   }

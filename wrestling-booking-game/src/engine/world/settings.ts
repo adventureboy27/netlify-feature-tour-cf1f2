@@ -329,6 +329,11 @@ export function defaultWorldSettings(): WorldSettings {
     rankReignsForFullCredit: 5,
     rankChampionWeeksForFullCredit: 200,
     worldRankingSize: 25,
+    publicationWrestlerListSize: 10,
+    publicationTeamListSize: 5,
+    publicationTeamRecordWeight: 0.45,
+    publicationTeamLongevityWeeks: 156,
+    publicationTeamLongevityBonus: 8,
 
     // The hall of fame. A career needs to be genuinely good: peaking at 85
     // with a couple of reigns gets you in; a long ordinary one does not.
@@ -375,6 +380,38 @@ export function defaultWorldSettings(): WorldSettings {
     rivalTagMatchChance: 0.45,
     rivalStipulationChance: 0.15,
     rivalCredibilityRatingWeight: 0.12,
+    // Tuned so a mid-table company roughly breaks even: at rating 60 with an
+    // 18-person roster, revenue and costs both land near $17k a week. The top
+    // of the ladder makes real money; anybody under about 50 is bleeding, and
+    // bleeding for two years is what closes a company.
+    rivalRevenueCurve: 3,
+    rivalRevenueScale: 100_000,
+    rivalRevenueFormWeight: 0.65,
+    rivalOverheadBase: 4_000,
+    rivalOverheadPerHead: 260,
+    // Two years in the red before the doors close.
+    rivalBankruptcyGraceWeeks: 104,
+    // What an emergency investor puts in when a company would otherwise close
+    // but the business cannot spare it.
+    rivalBailoutCash: 250_000,
+    minimumPromotions: 4,
+
+    // The fire sale. A package of twenty midcarders and five belts appraises
+    // around $400k, which is real money for everybody but the biggest company.
+    auctionValuePerStar: 25_000,
+    auctionValuePerTitle: 40_000,
+    auctionReserveFraction: 0.35,
+    auctionBaseAppetite: 0.5,
+    auctionStyleFitAppetite: 0.35,
+    auctionRosterRoomAppetite: 0.3,
+    auctionAmbitionAppetite: 0.25,
+    auctionBidVariance: 0.18,
+    auctionMaxBankFraction: 0.6,
+    auctionLowballFraction: 0.45,
+    auctionFairFraction: 0.85,
+    auctionAggressiveFraction: 1.35,
+
+    tagTeamsPerPromotion: 3,
     rivalRosterSizeMin: 10,
     rivalRosterSizeMax: 26,
     territoryCount: 12,
@@ -407,6 +444,38 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
     rivalTagMatchChance: 0.45,
     rivalStipulationChance: 0.15,
     rivalCredibilityRatingWeight: 0.12,
+    // Tuned so a mid-table company roughly breaks even: at rating 60 with an
+    // 18-person roster, revenue and costs both land near $17k a week. The top
+    // of the ladder makes real money; anybody under about 50 is bleeding, and
+    // bleeding for two years is what closes a company.
+    rivalRevenueCurve: 3,
+    rivalRevenueScale: 100_000,
+    rivalRevenueFormWeight: 0.65,
+    rivalOverheadBase: 4_000,
+    rivalOverheadPerHead: 260,
+    // Two years in the red before the doors close.
+    rivalBankruptcyGraceWeeks: 104,
+    // What an emergency investor puts in when a company would otherwise close
+    // but the business cannot spare it.
+    rivalBailoutCash: 250_000,
+    minimumPromotions: 4,
+
+    // The fire sale. A package of twenty midcarders and five belts appraises
+    // around $400k, which is real money for everybody but the biggest company.
+    auctionValuePerStar: 25_000,
+    auctionValuePerTitle: 40_000,
+    auctionReserveFraction: 0.35,
+    auctionBaseAppetite: 0.5,
+    auctionStyleFitAppetite: 0.35,
+    auctionRosterRoomAppetite: 0.3,
+    auctionAmbitionAppetite: 0.25,
+    auctionBidVariance: 0.18,
+    auctionMaxBankFraction: 0.6,
+    auctionLowballFraction: 0.45,
+    auctionFairFraction: 0.85,
+    auctionAggressiveFraction: 1.35,
+
+    tagTeamsPerPromotion: 3,
     rivalRosterSizeMin: 10,
     rivalRosterSizeMax: 26,
     chaosLevel: 1,

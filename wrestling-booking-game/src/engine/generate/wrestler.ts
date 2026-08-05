@@ -133,12 +133,13 @@ export function generateWrestler(
   });
   const gimmick = pick(rng, compatibleGimmicks.length > 0 ? compatibleGimmicks : GIMMICKS);
 
-  const name = generateName(rng, existingNames);
-  existingNames.add(name.trim().toLowerCase());
-
   // DESIGN: gender ratio isn't specified by §6; skewed toward men to match
   // the reference genre while keeping the women's division well-populated.
+  // Rolled before the name, because the name follows from it.
   const gender: 'm' | 'f' = chance(rng, 0.78) ? 'm' : 'f';
+
+  const name = generateName(rng, existingNames, gender);
+  existingNames.add(name.trim().toLowerCase());
   // DESIGN: no weight/height formula given; plausible pro-wrestling ranges.
   const weightLbs = clamp(Math.round(gaussian(rng, gender === 'm' ? 235 : 155, 35)), 105, 380);
   const heightIn = clamp(Math.round(gaussian(rng, gender === 'm' ? 71 : 66, 3.5)), 60, 84);

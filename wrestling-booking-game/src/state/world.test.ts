@@ -49,9 +49,13 @@ describe('a new world', () => {
     }
   });
 
-  it('starts with no stables, no tournaments and no events fired', () => {
+  it('starts with tag teams, no tournaments and no events fired', () => {
     const world = build();
-    expect(world.stables).toEqual([]);
+    // Every promotion opens with a few named teams, so there is a tag
+    // division on day one rather than four people put on the same side.
+    expect(world.stables.length).toBeGreaterThan(0);
+    expect(world.stables.every((s) => s.kind === 'tagTeam')).toBe(true);
+    expect(new Set(world.stables.map((s) => s.name)).size).toBe(world.stables.length);
     expect(world.tournaments).toEqual([]);
     expect(world.pendingEvent).toBeNull();
     expect(world.eventHistory.lastFiredWeek).toBe(-Infinity);

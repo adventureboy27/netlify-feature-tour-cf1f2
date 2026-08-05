@@ -15,6 +15,8 @@ import { egoLabel } from '../../engine/career/ego';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Money } from '../components/display';
 import { identityOf } from '../../data/promotionIdentity';
+import { BID_LEVEL_LABELS, playerBidAmount, type PlayerBidLevel } from '../../engine/world/auction';
+import { foldRisk, FOLD_RISK_LABELS } from '../../engine/world/rivalEconomy';
 import type { Wrestler } from '../../engine/types';
 
 export function OfficeScreen() {
@@ -22,6 +24,8 @@ export function OfficeScreen() {
   const choose = useGameStore((s) => s.chooseEventOption);
   const dismiss = useGameStore((s) => s.dismissEventOutcome);
   const dismissYear = useGameStore((s) => s.dismissYearInReview);
+  const bid = useGameStore((s) => s.bidOnAuction);
+  const dismissAuction = useGameStore((s) => s.dismissAuctionResult);
   const answerRenewal = useGameStore((s) => s.answerRenewal);
   if (!world) return null;
 
@@ -40,6 +44,8 @@ export function OfficeScreen() {
   const houseStyles = new Map(
     [world.promotion, ...world.rivals].map((p) => [p.name, identityOf(p.identity)]),
   );
+  // And how they are doing, which is the other half of reading a chart.
+  const health = new Map(world.rivals.map((p) => [p.name, foldRisk(p.weeksInTheRed, world.settings)]));
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
@@ -74,6 +80,91 @@ export function OfficeScreen() {
             {healthyRoster} of your people can work this week — not enough to fill a card of{' '}
             {world.settings.segmentsPerTV}. Sign somebody.
           </p>
+        </section>
+      )}
+
+      {/* A company has closed, and everything it had is on the table. */}
+      {world.pendingAuction && (
+        <section className="mb-3 rounded border border-sky-800 bg-sky-950/30 p-3" data-testid="auction">
+          <div className="text-xs uppercase tracking-wide text-sky-400">Fire sale</div>
+          <h2 className="mt-1 text-sm font-semibold">
+            {world.pendingAuction.lot.fromPromotionName} has closed
+          </h2>
+          <p className="mt-1 text-xs text-neutral-300">
+            Everything goes as one lot: {world.pendingAuction.lot.wrestlerIds.length} contracts,{' '}
+            {world.pendingAuction.lot.titleIds.length} championships
+            {world.pendingAuction.lot.cash > 0 && (
+              <>
+                , and <Money amount={world.pendingAuction.lot.cash} /> left in the account
+              </>
+            )}
+            . Sealed bids — one round, and everybody still open is bidding.
+          </p>
+          <p className="mt-1 text-[11px] text-neutral-500">
+            Appraised at <Money amount={world.pendingAuction.lot.appraisal} />. You have{' '}
+            <Money amount={world.promotion.bankBalance} />.
+          </p>
+
+          <ul className="mt-2 flex flex-wrap gap-1 text-[10px] text-neutral-400">
+            {world.pendingAuction.lot.titleIds
+              .map((id) => world.titles.find((t) => t.id === id))
+              .filter(Boolean)
+              .map((title) => (
+                <li
+                  key={title!.id}
+                  className="rounded px-1 py-px"
+                  style={{ backgroundColor: title!.colorway.strap, color: title!.colorway.plate }}
+                >
+                  {title!.name}
+                </li>
+              ))}
+          </ul>
+
+          <div className="mt-3 flex flex-col gap-1">
+            {(['aggressive', 'fair', 'lowball', 'pass'] as PlayerBidLevel[]).map((level) => (
+              <button
+                key={level}
+                type="button"
+                data-testid={`bid-${level}`}
+                onClick={() => bid(level)}
+                className="flex items-center justify-between rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-left text-xs hover:border-neutral-600"
+              >
+                <span>{BID_LEVEL_LABELS[level]}</span>
+                <span className="text-neutral-500">
+                  {level === 'pass' ? (
+                    '—'
+                  ) : (
+                    <Money amount={playerBidAmount(level, world.pendingAuction!.lot, world.settings)} />
+                  )}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {world.lastAuction && (
+        <section className="mb-3 rounded border border-neutral-800 bg-neutral-900 p-3" data-testid="auction-result">
+          <div className="text-xs uppercase tracking-wide text-neutral-500">The lot went to</div>
+          <p className="mt-1 text-sm">
+            <span className="font-medium">{world.lastAuction.wonByName}</span>
+            {world.lastAuction.result.winnerId ? (
+              <>
+                {' '}
+                took {world.lastAuction.lot.fromPromotionName} for{' '}
+                <Money amount={world.lastAuction.result.winningBid} />.
+              </>
+            ) : (
+              <> met the reserve. The contracts lapsed and the roster is loose in the business.</>
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={dismissAuction}
+            className="mt-2 rounded bg-neutral-800 px-3 py-1 text-xs hover:bg-neutral-700"
+          >
+            Understood
+          </button>
         </section>
       )}
 
@@ -340,6 +431,19 @@ export function OfficeScreen() {
                 <span className="w-6 shrink-0 text-right font-mono text-neutral-600">{row.rank}</span>
                 <span className="w-12 shrink-0 font-mono">{row.rating.toFixed(1)}</span>
                 <span className="min-w-0 flex-1 truncate">{row.name}</span>
+                {health.get(row.name) && health.get(row.name) !== 'healthy' && (
+                  <span
+                    className={`shrink-0 rounded px-1 text-[9px] ${
+                      health.get(row.name) === 'closing'
+                        ? 'bg-rose-900 text-rose-200'
+                        : health.get(row.name) === 'inTrouble'
+                          ? 'bg-rose-950 text-rose-300'
+                          : 'bg-amber-950 text-amber-400'
+                    }`}
+                  >
+                    {FOLD_RISK_LABELS[health.get(row.name)!]}
+                  </span>
+                )}
                 {houseStyles.get(row.name) && (
                   <span
                     className="shrink-0 rounded bg-neutral-800 px-1 text-[9px] text-neutral-400"

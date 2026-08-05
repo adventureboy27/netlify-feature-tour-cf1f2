@@ -20,6 +20,8 @@ function world(seed = 'sched') {
     id: 'you',
     name: 'Your Promotion',
     identity: 'territory' as const,
+    weeksInTheRed: 0,
+    closedWeek: null,
     isPlayer: true,
     rating: 55,
     bankBalance: 75000,

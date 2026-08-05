@@ -4,6 +4,7 @@ import { defaultWorldSettings } from './settings';
 import { rngFromSeed } from '../rng';
 import { generateWrestlers } from '../generate/wrestler';
 import { createStartingTitles, awardTitle } from '../../data/titles';
+import { formTeams, teamIdFactory } from './tagTeams';
 import type { Promotion, Wrestler } from '../types';
 
 const settings = defaultWorldSettings();
@@ -31,6 +32,8 @@ function promotion(overrides: Partial<Promotion> = {}): Promotion {
     reputation: 60,
     hardcoreSaturation: 0,
     recentShowQuality: 60,
+    weeksInTheRed: 0,
+    closedWeek: null,
     ownerId: 'owner-rival-0',
     ...overrides,
   };
@@ -128,24 +131,58 @@ describe('the card an AI booker builds', () => {
 });
 
 describe('a rival week', () => {
-  it('runs a tag match often enough that the tag belts have a lineage', () => {
+  it('books its actual teams in the tag match, and only one a card', () => {
     const people = roster(16, 'tags');
     const rng = rngFromSeed('tag-cards');
+    const teams = formTeams(
+      rng,
+      people,
+      'rival-0',
+      { taken: new Set(), week: 1, count: 4 },
+      teamIdFactory('rival-0'),
+    );
+    expect(teams.length).toBeGreaterThanOrEqual(2);
+
     let tagMatches = 0;
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 25; i++) {
       const { matches } = bookRivalCard(rng, {
         promotion: promotion(),
         available: people,
         titles: [],
+        stables: teams,
         week: i,
         settings,
       });
-      tagMatches += matches.filter((m) => m.sides[0].length > 1).length;
+      const tags = matches.filter((m) => m.sides[0].length > 1);
+      tagMatches += tags.length;
       // Never more than one on a card — this is a wrestling show, not a
       // tag tournament.
-      expect(matches.filter((m) => m.sides[0].length > 1).length).toBeLessThanOrEqual(1);
+      expect(tags.length).toBeLessThanOrEqual(1);
+      // And when there is one, it is between two real teams.
+      for (const tag of tags) {
+        expect(tag.teamIds).toBeDefined();
+        const [idA, idB] = tag.teamIds!;
+        expect(idA).not.toBe(idB);
+        const teamA = teams.find((t) => t.id === idA)!;
+        expect(tag.sides[0].map((w) => w.id).sort()).toEqual([...teamA.memberIds].sort());
+      }
     }
     expect(tagMatches).toBeGreaterThan(3);
+  });
+
+  it('books no tag match at all when the promotion has no teams', () => {
+    const rng = rngFromSeed('no-teams');
+    for (let i = 0; i < 10; i++) {
+      const { matches } = bookRivalCard(rng, {
+        promotion: promotion(),
+        available: roster(16, 'solo'),
+        titles: [],
+        stables: [],
+        week: i,
+        settings,
+      });
+      expect(matches.every((m) => m.sides[0].length === 1)).toBe(true);
+    }
   });
 
   it('produces a rated show with a winner in every match', () => {
