@@ -196,6 +196,20 @@ export function defaultWorldSettings(): WorldSettings {
     freeAgentMaxDiscount: 0.4,
     freeAgentRivalSigningChance: 0.05,
 
+    // Ringside personnel. A manager is a small rating bump and a large heat
+    // bump for somebody who cannot talk; a guest referee is star power at the
+    // cost of a clean finish.
+    managerRatingBonusMax: 4,
+    managerPopularityBoostMax: 0.35,
+    managerInterferenceWeight: 1.6,
+    managerSelfMadePenalty: 0.15,
+    refereeRatingSwing: 2.5,
+    refereeScrewyFinishWeight: 1.4,
+    refereeBendableWeight: 1.8,
+    guestRefereeRatingBonus: 7,
+    guestRefereeScrewyFinishWeight: 1.2,
+    guestRefereeInterferenceWeight: 2.0,
+
     // Chaos
     chaosLevel: 1,
     ownerMandatesEnabled: true,

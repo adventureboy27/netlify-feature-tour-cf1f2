@@ -16,7 +16,10 @@ import {
   decayRivalry,
   heatMultiplier,
 } from '../engine/sim/rivalry';
-import { computeTvRatings } from '../engine/world/tvRatings';
+import { computeTvRatings, buildRatingsChart } from '../engine/world/tvRatings';
+import { ringsideTotals, guestRefereeIsLegal } from '../engine/sim/ringside';
+import { managerById, refereeById } from '../data/ringsidePool';
+import { NETWORK_SHOWS } from '../data/networkShows';
 import { rollTamperingAttempts } from '../engine/world/tampering';
 import { deriveCareerStatus } from '../engine/career/status';
 import { rollWeeklyEvent, recordFired } from '../engine/events/scheduler';
@@ -84,6 +87,10 @@ export interface GameStore {
   setTicketPrice: (price: number) => void;
   toggleShowExtra: (extraId: Id) => void;
   buyProductionAsset: (assetId: Id) => void;
+  // Ringside
+  setSegmentManager: (slot: number, managerId: Id | null, forSide: number) => void;
+  setSegmentReferee: (slot: number, refereeId: Id | null) => void;
+  setSegmentGuestReferee: (slot: number, wrestlerId: Id | null) => void;
   // Roster moves
   signFreeAgent: (wrestlerId: Id) => void;
   releaseWrestler: (wrestlerId: Id) => void;
@@ -287,6 +294,7 @@ export const useGameStore = create<GameStore>()(
         const segmentRatings: (number | null)[] = [];
         const segmentPopAvgs: { stars: number; avgPopularity: number }[] = [];
         const violenceLevels: number[] = [];
+        let ringsideCost = 0;
         let payroll = 0; // set below from the wage bill
 
         // §11.4 jobberDrag: what each slot on this card is expected to deliver,
@@ -326,6 +334,21 @@ export const useGameStore = create<GameStore>()(
 
           violenceLevels.push(stipulation?.violenceLevel ?? 0);
 
+          // Everyone at ringside who is not wrestling (§10). A guest referee
+          // replaces the assigned official rather than joining them.
+          const guestReferee = segment.guestRefereeId ? wrestlerById.get(segment.guestRefereeId) : undefined;
+          const ringside = ringsideTotals({
+            managers: (segment.managerIds ?? [])
+              .map((m) => ({ manager: managerById(m.managerId), client: participantWrestlers[m.forSide] }))
+              .filter((m): m is { manager: NonNullable<typeof m.manager>; client: Wrestler } =>
+                Boolean(m.manager && m.client),
+              ),
+            referee: segment.refereeId ? (refereeById(segment.refereeId) ?? null) : null,
+            guestReferee: guestReferee && guestRefereeIsLegal(guestReferee.id, participantIds) ? guestReferee : null,
+            settings: world.settings,
+          });
+          ringsideCost += ringside.cost;
+
           const result = simulateMatch(rng, simParticipants, wrestlerById, {
             rules: segment.rules,
             stipulation,
@@ -339,6 +362,7 @@ export const useGameStore = create<GameStore>()(
             hardcoreSaturation: world.promotion.hardcoreSaturation,
             slotExpectedPopularity: slotExpectations[i] ?? null,
             rivalry,
+            ringside,
           });
 
           // Commit how the feud moved, and let a new one form organically.
@@ -460,7 +484,7 @@ export const useGameStore = create<GameStore>()(
           revenue.total,
           world.settings.expenseCapPctOfRevenue,
         );
-        const totalOut = payroll + weeklyExpenses + showPayable;
+        const totalOut = payroll + weeklyExpenses + showPayable + ringsideCost;
 
         world.promotion.bankBalance += revenue.total - totalOut;
 
@@ -545,6 +569,20 @@ export const useGameStore = create<GameStore>()(
         );
         world.tvHistory.unshift({ week: world.week, results: tvResults });
         world.tvHistory = world.tvHistory.slice(0, 52);
+
+        // Where wrestling landed against the rest of television this week.
+        const chartRows = buildRatingsChart({
+          wrestling: tvResults,
+          playerPromotionId: world.promotion.id,
+          promotionName: (id) =>
+            id === world.promotion.id
+              ? world.promotion.name
+              : (world.rivals.find((r) => r.id === id)?.name ?? id),
+          networkShows: NETWORK_SHOWS,
+          next: () => rng.next(),
+        });
+        world.ratingsChart.unshift({ week: world.week, rows: chartRows });
+        world.ratingsChart = world.ratingsChart.slice(0, 52);
 
         world.week += 1;
 
@@ -660,6 +698,34 @@ export const useGameStore = create<GameStore>()(
         if (world.promotion.bankBalance < asset.cost) return;
         world.promotion.bankBalance -= asset.cost;
         world.ownedAssetIds.push(assetId);
+      });
+    },
+
+    setSegmentManager: (slot, managerId, forSide) => {
+      set((state) => {
+        const segment = state.world?.currentCard[slot];
+        if (!segment) return;
+        const others = (segment.managerIds ?? []).filter((m) => m.forSide !== forSide);
+        segment.managerIds = managerId ? [...others, { managerId, forSide }] : others;
+      });
+    },
+
+    setSegmentReferee: (slot, refereeId) => {
+      set((state) => {
+        const segment = state.world?.currentCard[slot];
+        if (!segment) return;
+        segment.refereeId = refereeId;
+        // An assigned official and a guest in the shirt are alternatives.
+        if (refereeId) segment.guestRefereeId = null;
+      });
+    },
+
+    setSegmentGuestReferee: (slot, wrestlerId) => {
+      set((state) => {
+        const segment = state.world?.currentCard[slot];
+        if (!segment) return;
+        segment.guestRefereeId = wrestlerId;
+        if (wrestlerId) segment.refereeId = null;
       });
     },
 

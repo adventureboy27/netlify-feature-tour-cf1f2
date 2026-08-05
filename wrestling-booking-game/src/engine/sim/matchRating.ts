@@ -13,6 +13,7 @@ import type { Rng } from '../rng';
 import { gaussian, clamp } from '../rng';
 import type { Wrestler, RatingBreakdownEntry, Stipulation } from '../types';
 import { styleMeshScore } from '../../data/styles';
+import { ratingToStars } from '../economy/showRating';
 
 export interface MatchRatingContext {
   participants: Wrestler[];
@@ -47,7 +48,7 @@ function mean(values: number[]): number {
 
 export interface MatchRatingResult {
   rating: number; // 0-100 internal, clamped [3, 100]
-  stars: number; // 0.5-5.0, half-star granularity
+  stars: number; // 0-5.0, quarter-star granularity
   breakdown: RatingBreakdownEntry[];
 }
 
@@ -135,7 +136,8 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
     randomness;
 
   const rating = clamp(total, 3, 100);
-  const stars = Math.round((rating / 20) * 2) / 2;
+  // Same conversion as the show rating — quarter stars, one source of truth.
+  const stars = ratingToStars(rating);
 
   return { rating, stars, breakdown };
 }

@@ -716,6 +716,12 @@ export interface SegmentRole {
 
 export interface Segment {
   slot: number; // 0 = opener ... last = main event
+  /** Managers at ringside, by side. */
+  managerIds?: { managerId: Id; forSide: number }[];
+  /** Assigned official from the referee pool. */
+  refereeId?: Id | null;
+  /** A wrestler in the shirt instead. Replaces refereeId when set. */
+  guestRefereeId?: Id | null;
   kind: 'match' | 'promo' | 'interview' | 'angle';
   subjectId?: Id; // for interviews: who is being elevated
   participants: SegmentRole[];
@@ -1098,6 +1104,19 @@ export interface WorldSettings {
   freeAgentMaxDiscount: number;
   /** Weekly chance a desirable free agent is signed by somebody else. */
   freeAgentRivalSigningChance: number;
+
+  // Ringside personnel (engine/sim/ringside.ts)
+  managerRatingBonusMax: number;
+  managerPopularityBoostMax: number;
+  managerInterferenceWeight: number;
+  /** How much leaning on a mouthpiece stunts what the client builds alone. */
+  managerSelfMadePenalty: number;
+  refereeRatingSwing: number;
+  refereeScrewyFinishWeight: number;
+  refereeBendableWeight: number;
+  guestRefereeRatingBonus: number;
+  guestRefereeScrewyFinishWeight: number;
+  guestRefereeInterferenceWeight: number;
 
   // Chaos
   chaosLevel: number; // 0-3

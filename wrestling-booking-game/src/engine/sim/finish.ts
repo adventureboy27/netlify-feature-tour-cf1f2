@@ -16,6 +16,11 @@ export interface FinishRollContext {
    * else out, so a tables match cannot end in a clean pin.
    */
   finishWeights?: Partial<Record<FinishType, number>>;
+  /**
+   * Ringside personnel (§10). A poor or bought official pushes the screwy
+   * finishes up; a devious manager pushes interference up.
+   */
+  ringsideWeights?: { screwy: number; interference: number };
 }
 
 export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
@@ -61,9 +66,18 @@ export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
   const refereeStoppage = ctx.rules.stoppage !== 'none' ? 3 : 0;
   entries.push(['refereeStoppage', refereeStoppage]);
 
-  const weighted = ctx.finishWeights
+  const stipulationWeighted = ctx.finishWeights
     ? entries.map(([finish, weight]) => [finish, weight * (ctx.finishWeights![finish] ?? 1)] as [FinishType, number])
     : entries;
+
+  const ringside = ctx.ringsideWeights;
+  const weighted = ringside
+    ? stipulationWeighted.map(([finish, weight]) => {
+        if (finish === 'disqualification' || finish === 'countOut') return [finish, weight * ringside.screwy] as [FinishType, number];
+        if (finish === 'interference') return [finish, weight * ringside.interference] as [FinishType, number];
+        return [finish, weight] as [FinishType, number];
+      })
+    : stipulationWeighted;
 
   const positive = weighted.filter(([, weight]) => weight > 0);
   // A stipulation can zero out every finish the rules would otherwise have

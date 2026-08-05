@@ -29,7 +29,7 @@ function baseContext(overrides: Partial<MatchRatingContext> = {}): MatchRatingCo
 }
 
 describe('computeMatchRating', () => {
-  it('stays within [3, 100] and converts to a half-star rating within [0, 5]', () => {
+  it('stays within [3, 100] and converts to a quarter-star rating within [0, 5]', () => {
     const rng = mulberry32(2);
     for (let i = 0; i < 100; i++) {
       const { rating, stars } = computeMatchRating(rng, baseContext({ simVariance: 6.5 }));
@@ -37,7 +37,7 @@ describe('computeMatchRating', () => {
       expect(rating).toBeLessThanOrEqual(100);
       expect(stars).toBeGreaterThanOrEqual(0);
       expect(stars).toBeLessThanOrEqual(5);
-      expect((stars * 2) % 1).toBe(0); // half-star granularity
+      expect((stars * 4) % 1).toBe(0); // quarter-star granularity
     }
   });
 

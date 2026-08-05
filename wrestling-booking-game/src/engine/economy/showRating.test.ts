@@ -25,6 +25,11 @@ describe('ratingToStars', () => {
     expect(ratingToStars(100)).toBe(5);
     expect(ratingToStars(0)).toBe(0);
     expect(ratingToStars(50)).toBe(2.5);
+    // Quarter stars: 3.75 and 4 are different bookings.
+    expect(ratingToStars(75)).toBe(3.75);
+    expect(ratingToStars(85)).toBe(4.25);
+    expect(ratingToStars(5)).toBe(0.25);
+    for (let r = 0; r <= 100; r += 0.5) expect((ratingToStars(r) * 4) % 1).toBe(0);
   });
 });
 

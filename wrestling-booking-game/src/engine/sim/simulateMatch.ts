@@ -15,6 +15,7 @@ import type {
   Rivalry,
 } from '../types';
 import { shootRatingBonus, shootInjuryMultiplier, heatFromMatch, type HeatChange } from './rivalry';
+import type { RingsideTotals } from './ringside';
 import { ruleAdjustedWeights, kayfabeScore } from './kayfabe';
 import { pairWinProbability, multiManWinProbabilities } from './winProbability';
 import { rollFinish, isDrawFinish, isNonDecisiveFinish } from './finish';
@@ -37,6 +38,8 @@ export interface SimulateMatchContext {
 
   /** Deck-stacking odds shifts in percentage points, keyed by side. Empty until M4. */
   deckStackingShiftsBySide?: Record<number, number>;
+  /** Managers, referee and any guest referee at ringside (§10). */
+  ringside?: RingsideTotals;
   titlePrestige?: number | null;
   /** The rivalry these two are in, if any — drives heat, bad blood, and injury risk. */
   rivalry?: Rivalry | null;
@@ -135,6 +138,11 @@ export function simulateMatch(
     isUpset,
     isCloselyMatched: Math.abs(winnerProbability - 0.5) < 0.1,
     finishWeights: ctx.stipulation?.finishWeights,
+    // A crooked or incompetent official makes a screwy finish likelier; a
+    // manager at ringside makes interference likelier still.
+    ringsideWeights: ctx.ringside
+      ? { screwy: ctx.ringside.screwyFinishWeight, interference: ctx.ringside.interferenceWeight }
+      : undefined,
   });
   const draw = isDrawFinish(finish);
 
@@ -152,7 +160,7 @@ export function simulateMatch(
     shootHeatBonus: shootRatingBonus(rivalry ?? undefined, ctx.settings),
     hardcoreSaturation: ctx.hardcoreSaturation ?? 0,
     slotExpectedPopularity: ctx.slotExpectedPopularity ?? null,
-    instructionModifier: ctx.instructionModifier ?? 0,
+    instructionModifier: (ctx.instructionModifier ?? 0) + (ctx.ringside?.ratingBonus ?? 0),
     territoryFit: ctx.territoryFit ?? 0,
     pairChemistryBonus: ctx.pairChemistryBonus ?? 0,
     overexposurePenalty: ctx.overexposurePenalty ?? 0,

@@ -5,12 +5,14 @@
 import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { STIPULATIONS, stipulationById, stipulationRequirementsMet, effectiveRules } from '../../data/stipulations';
+import { MANAGERS, REFEREES, managerById, refereeById } from '../../data/ringsidePool';
+import { managerFit } from '../../engine/sim/ringside';
 import { findRivalry } from '../../engine/sim/rivalry';
 import { ruleAdjustedWeights, kayfabeScore } from '../../engine/sim/kayfabe';
 import { pairWinProbability } from '../../engine/sim/winProbability';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Odds, HeatBadge, AlignmentDot, StatBar } from '../components/display';
-import type { Id, Wrestler, Segment } from '../../engine/types';
+import type { Id, Wrestler, Segment, WorldSettings } from '../../engine/types';
 
 const SLOT_LABELS = ['Opener', 'Second', 'Third', 'Fourth', 'Semi-main', 'Main event'];
 
@@ -49,6 +51,9 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   const removeParticipant = useGameStore((s) => s.removeSegmentParticipant);
   const setStipulation = useGameStore((s) => s.setSegmentStipulation);
   const setRules = useGameStore((s) => s.setSegmentRules);
+  const setManager = useGameStore((s) => s.setSegmentManager);
+  const setReferee = useGameStore((s) => s.setSegmentReferee);
+  const setGuestReferee = useGameStore((s) => s.setSegmentGuestReferee);
   const [openSlot, setOpenSlot] = useState(0);
 
   const roster = useMemo(
@@ -161,6 +166,10 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                     onRemove={(id) => removeParticipant(index, id)}
                     onStipulation={(id) => setStipulation(index, id)}
                     onTimeLimit={(minutes) => setRules(index, { timeLimit: minutes })}
+                    onManager={(managerId, forSide) => setManager(index, managerId, forSide)}
+                    onReferee={(refereeId) => setReferee(index, refereeId)}
+                    onGuestReferee={(id) => setGuestReferee(index, id)}
+                    settings={world.settings}
                   />
                 </div>
               )}
@@ -182,6 +191,10 @@ function SegmentEditor({
   onRemove,
   onStipulation,
   onTimeLimit,
+  onManager,
+  onReferee,
+  onGuestReferee,
+  settings,
 }: {
   segment: Segment;
   roster: Wrestler[];
@@ -190,6 +203,10 @@ function SegmentEditor({
   onRemove: (id: Id) => void;
   onStipulation: (id: Id | null) => void;
   onTimeLimit: (minutes: (typeof TIME_LIMITS)[number]) => void;
+  onManager: (managerId: Id | null, forSide: number) => void;
+  onReferee: (refereeId: Id | null) => void;
+  onGuestReferee: (wrestlerId: Id | null) => void;
+  settings: WorldSettings;
 }) {
   const [side, setSide] = useState(0);
   const [search, setSearch] = useState('');
@@ -301,6 +318,127 @@ function SegmentEditor({
               {s.name}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* ---- ringside ------------------------------------------------- */}
+      <div className="flex flex-col gap-3 rounded border border-neutral-800 p-2">
+        <div className="text-[11px] uppercase tracking-wide text-neutral-500">Ringside</div>
+
+        {[0, 1].map((side) => {
+          const client = segment.participants.find((p) => p.side === side);
+          const clientWrestler = client ? roster.find((w) => w.id === client.wrestlerId) : undefined;
+          const current = (segment.managerIds ?? []).find((m) => m.forSide === side);
+          return (
+            <div key={side} className="flex flex-col gap-1">
+              <span className="text-[11px] text-neutral-400">
+                Manager for side {side + 1}
+                {clientWrestler && <span className="ml-1 text-neutral-600">({clientWrestler.name})</span>}
+              </span>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  type="button"
+                  onClick={() => onManager(null, side)}
+                  className={`rounded px-2 py-1 text-[11px] ${!current ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
+                >
+                  None
+                </button>
+                {MANAGERS.map((manager) => (
+                  <button
+                    key={manager.id}
+                    type="button"
+                    data-testid={`manager-${side}-${manager.id}`}
+                    onClick={() => onManager(manager.id, side)}
+                    title={`${manager.blurb} — $${manager.feePerShow}/show${
+                      clientWrestler ? ` · ${managerFit(manager, clientWrestler, settings)}` : ''
+                    }`}
+                    className={`rounded px-2 py-1 text-[11px] ${
+                      current?.managerId === manager.id
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                    }`}
+                  >
+                    {manager.name}
+                    <span className="ml-1 text-neutral-500">${manager.feePerShow}</span>
+                  </button>
+                ))}
+              </div>
+              {current && clientWrestler && (
+                <span className="text-[10px] text-sky-400">
+                  {managerFit(managerById(current.managerId)!, clientWrestler, settings)}
+                </span>
+              )}
+            </div>
+          );
+        })}
+
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] text-neutral-400">Referee</span>
+          <div className="flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => onReferee(null)}
+              className={`rounded px-2 py-1 text-[11px] ${
+                !segment.refereeId && !segment.guestRefereeId ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'
+              }`}
+            >
+              Whoever is available
+            </button>
+            {REFEREES.map((referee) => (
+              <button
+                key={referee.id}
+                type="button"
+                data-testid={`referee-${referee.id}`}
+                onClick={() => onReferee(referee.id)}
+                title={`${referee.blurb} — $${referee.feePerShow}/show`}
+                className={`rounded px-2 py-1 text-[11px] ${
+                  segment.refereeId === referee.id
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                }`}
+              >
+                {referee.name}
+                <span className="ml-1 text-neutral-500">${referee.feePerShow}</span>
+              </button>
+            ))}
+          </div>
+          {segment.refereeId && (
+            <span className="text-[10px] text-neutral-500">{refereeById(segment.refereeId)?.blurb}</span>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] text-neutral-400">
+            Guest referee <span className="text-neutral-600">— star power, at the cost of a clean finish</span>
+          </span>
+          <div className="flex max-h-24 flex-wrap gap-1 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => onGuestReferee(null)}
+              className={`rounded px-2 py-1 text-[11px] ${!segment.guestRefereeId ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
+            >
+              None
+            </button>
+            {roster
+              // Somebody wrestling in the match cannot also count it.
+              .filter((w) => !segment.participants.some((p) => p.wrestlerId === w.id))
+              .slice(0, 24)
+              .map((w) => (
+                <button
+                  key={w.id}
+                  type="button"
+                  data-testid={`guest-ref-${w.id}`}
+                  onClick={() => onGuestReferee(w.id)}
+                  className={`rounded px-2 py-1 text-[11px] ${
+                    segment.guestRefereeId === w.id
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                  }`}
+                >
+                  {w.name}
+                </button>
+              ))}
+          </div>
         </div>
       </div>
 

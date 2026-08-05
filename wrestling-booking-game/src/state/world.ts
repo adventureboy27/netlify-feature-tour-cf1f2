@@ -33,7 +33,7 @@ import type {
 import type { PoachingOffer } from '../engine/world/poaching';
 import type { FreeAgent } from '../engine/world/freeAgents';
 import { generateFreeAgentPool } from '../engine/world/freeAgents';
-import type { RatingResult } from '../engine/world/tvRatings';
+import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
 import type { PendingEvent } from '../engine/events/types';
 import type { EventHistory } from '../engine/events/scheduler';
 import type { TamperingAttempt } from '../engine/world/tampering';
@@ -82,6 +82,8 @@ export interface World {
   tamperingOffenses: number;
   /** Everyone in the business who is not signed anywhere. */
   freeAgents: FreeAgent[];
+  /** The week's television chart: wrestling plus the rest of the dial. */
+  ratingsChart: { week: number; rows: ChartRow[] }[];
   /**
    * How many times each pair has been in a match together, keyed by their two
    * ids sorted and joined. §12.5 route 3: "two wrestlers meeting three times
@@ -129,6 +131,11 @@ export function createEmptySegment(slot: number): Segment {
   return {
     slot,
     kind: 'match',
+    managerIds: [],
+    // Nobody assigned means the cheapest official in the building takes it,
+    // which is also what it looks like on screen.
+    refereeId: null,
+    guestRefereeId: null,
     participants: [],
     rules: defaultMatchRules(),
     stipulation: null,
@@ -218,6 +225,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     suspensionWeeks: 0,
     tamperingOffenses: 0,
     freeAgents: pool.freeAgents,
+    ratingsChart: [],
     meetings: {},
     nextId: 1,
   };

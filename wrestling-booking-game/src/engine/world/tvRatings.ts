@@ -81,6 +81,70 @@ export function tvVerdict(rating: number, settings: WorldSettings): TvVerdict {
   return 'Phenomenon';
 }
 
+// ------------------------------------------------------- the weekly chart
+
+/**
+ * A row on the week's ratings chart. Wrestling shows and network programmes
+ * sit in the same list on purpose — where wrestling lands against the rest of
+ * television is the clearest statement of how the business is doing, and
+ * "fourth, behind two sitcoms" says something a bare number cannot.
+ */
+export interface ChartRow {
+  rank: number;
+  name: string;
+  network: string;
+  rating: number;
+  kind: 'yours' | 'rivalWrestling' | 'network';
+}
+
+export interface ChartContext {
+  /** Wrestling results from computeTvRatings. */
+  wrestling: readonly RatingResult[];
+  playerPromotionId: string;
+  promotionName: (id: string) => string;
+  /** Invented network programmes to fill out the chart. */
+  networkShows: readonly { id: string; name: string; network: string; baseRating: number; volatility: number }[];
+  /** Deterministic 0-1 stream, so a week's chart replays identically. */
+  next: () => number;
+}
+
+/**
+ * Build the week's chart. Network shows wobble around their base each week,
+ * so a season finale can beat you on a night you did nothing wrong.
+ */
+export function buildRatingsChart(ctx: ChartContext): ChartRow[] {
+  const rows: Omit<ChartRow, 'rank'>[] = [];
+
+  for (const result of ctx.wrestling) {
+    rows.push({
+      name: ctx.promotionName(result.promotionId),
+      network: 'Syndicated',
+      rating: result.rating,
+      kind: result.promotionId === ctx.playerPromotionId ? 'yours' : 'rivalWrestling',
+    });
+  }
+
+  for (const show of ctx.networkShows) {
+    // Centred wobble: +/- volatility, so the base rating is the expectation.
+    const swing = (ctx.next() * 2 - 1) * show.volatility;
+    rows.push({
+      name: show.name,
+      network: show.network,
+      rating: Math.max(0, Math.round((show.baseRating + swing) * 10) / 10),
+      kind: 'network',
+    });
+  }
+
+  return rows
+    .sort((a, b) => b.rating - a.rating)
+    .map((row, i) => ({ ...row, rank: i + 1 }));
+}
+
+/** Where the player's show finished on the whole of television. */
+export function playerChartPosition(chart: readonly ChartRow[]): ChartRow | undefined {
+  return chart.find((row) => row.kind === 'yours');
+}
+
 /** Did we beat the biggest rival who was on opposite us? */
 export function wonTheNight(results: readonly RatingResult[], promotionId: string): boolean {
   if (results.length < 2) return false;

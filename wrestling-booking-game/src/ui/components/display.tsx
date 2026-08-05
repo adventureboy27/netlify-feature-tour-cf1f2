@@ -34,14 +34,18 @@ function healthColor(pct: number): string {
   return 'bg-rose-500';
 }
 
+/** Quarter-star glyphs. ★★★¾ reads instantly; "3.75" does not. */
+const FRACTION_GLYPH: Record<number, string> = { 0: '', 0.25: '¼', 0.5: '½', 0.75: '¾' };
+
 export function Stars({ stars }: { stars: number }) {
   const full = Math.floor(stars);
-  const half = stars - full >= 0.5;
+  const fraction = Math.round((stars - full) * 4) / 4;
+  const glyph = FRACTION_GLYPH[fraction] ?? '';
   return (
-    <span className="whitespace-nowrap font-mono text-amber-400" title={`${stars} stars`}>
+    <span className="whitespace-nowrap font-mono text-amber-400" title={`${stars.toFixed(2)} stars`}>
       {'★'.repeat(full)}
-      {half ? '½' : ''}
-      {full === 0 && !half ? '—' : ''}
+      {glyph}
+      {full === 0 && glyph === '' ? '—' : ''}
     </span>
   );
 }

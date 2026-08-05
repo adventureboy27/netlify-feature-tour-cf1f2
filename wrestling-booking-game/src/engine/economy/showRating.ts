@@ -19,9 +19,18 @@ export function computeShowRating(segmentRatings: (number | null)[], slotWeights
   return weightedSum / totalWeight;
 }
 
-/** Same 0-100 -> half-star conversion used everywhere ratings are displayed. */
+/**
+ * The one 0-100 -> star conversion, used for both matches and shows.
+ *
+ * Quarter-star increments: a 3.75-star match and a 4-star match are
+ * meaningfully different bookings, and half-stars flattened that distinction
+ * away. 20 rating points to the star, rounded to the nearest quarter.
+ */
+export const STAR_INCREMENT = 0.25;
+
 export function ratingToStars(rating: number): number {
-  return Math.round((rating / 20) * 2) / 2;
+  const steps = 1 / STAR_INCREMENT;
+  return Math.round((rating / 20) * steps) / steps;
 }
 
 // §13 ladder table: show stars -> target company rating. Interpolated

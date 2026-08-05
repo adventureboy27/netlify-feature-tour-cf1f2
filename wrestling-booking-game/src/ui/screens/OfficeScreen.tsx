@@ -8,7 +8,7 @@
 // either half is, or which option is correct.
 
 import { useGameStore } from '../../state/store';
-import { tvVerdict, wonTheNight } from '../../engine/world/tvRatings';
+import { tvVerdict, wonTheNight, playerChartPosition } from '../../engine/world/tvRatings';
 import { temptationLabel } from '../../engine/world/tampering';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { PaperDoll } from '../paperdoll/PaperDoll';
@@ -22,6 +22,8 @@ export function OfficeScreen() {
   if (!world) return null;
 
   const latestTv = world.tvHistory[0];
+  const latestChart = world.ratingsChart[0];
+  const playerRow = latestChart ? playerChartPosition(latestChart.rows) : undefined;
   const wrestler = (id?: string): Wrestler | undefined => (id ? world.wrestlers[id] : undefined);
 
   return (
@@ -108,33 +110,38 @@ export function OfficeScreen() {
         </section>
       )}
 
-      {latestTv && (
+      {latestChart && (
         <section>
           <h2 className="mb-2 text-sm font-medium text-neutral-300">
-            Ratings, week {latestTv.week}
-            {wonTheNight(latestTv.results, world.promotion.id) && (
-              <span className="ml-2 text-[11px] text-emerald-400">you won the night</span>
+            The week in television — week {latestChart.week}
+            {latestTv && wonTheNight(latestTv.results, world.promotion.id) && (
+              <span className="ml-2 text-[11px] text-emerald-400">you won the wrestling night</span>
             )}
           </h2>
-          <div className="flex flex-col gap-1">
-            {[...latestTv.results]
-              .sort((a, b) => b.rating - a.rating)
-              .map((result) => {
-                const isPlayer = result.promotionId === world.promotion.id;
-                const name = isPlayer
-                  ? world.promotion.name
-                  : (world.rivals.find((r) => r.id === result.promotionId)?.name ?? result.promotionId);
-                return (
-                  <div
-                    key={result.promotionId}
-                    className={`flex items-center gap-2 rounded p-2 text-xs ${isPlayer ? 'bg-emerald-950/40 ring-1 ring-emerald-800' : 'bg-neutral-900'}`}
-                  >
-                    <span className="w-12 shrink-0 font-mono text-sm">{result.rating.toFixed(1)}</span>
-                    <span className="min-w-0 flex-1 truncate">{name}</span>
-                    <span className="shrink-0 text-neutral-500">{tvVerdict(result.rating, world.settings)}</span>
-                  </div>
-                );
-              })}
+          {playerRow && (
+            <p className="mb-2 text-xs text-neutral-400">
+              You finished <span className="font-medium text-neutral-100">#{playerRow.rank}</span> on the whole dial with
+              a {playerRow.rating.toFixed(1)} — {tvVerdict(playerRow.rating, world.settings)}.
+            </p>
+          )}
+          <div className="flex flex-col gap-0.5">
+            {latestChart.rows.map((row) => (
+              <div
+                key={`${row.rank}-${row.name}`}
+                className={`flex items-center gap-2 rounded px-2 py-1 text-xs ${
+                  row.kind === 'yours'
+                    ? 'bg-emerald-950/50 ring-1 ring-emerald-800'
+                    : row.kind === 'rivalWrestling'
+                      ? 'bg-neutral-900 text-neutral-300'
+                      : 'bg-neutral-950 text-neutral-500'
+                }`}
+              >
+                <span className="w-6 shrink-0 text-right font-mono text-neutral-600">{row.rank}</span>
+                <span className="w-12 shrink-0 font-mono">{row.rating.toFixed(1)}</span>
+                <span className="min-w-0 flex-1 truncate">{row.name}</span>
+                <span className="shrink-0 text-[10px] text-neutral-600">{row.network}</span>
+              </div>
+            ))}
           </div>
           <p className="mt-2 text-[11px] text-neutral-600">
             Bank <Money amount={world.promotion.bankBalance} />
