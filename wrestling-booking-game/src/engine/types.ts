@@ -1352,6 +1352,17 @@ export interface WorldSettings {
   deathChanceCap: number;
   deathOldAge: number;
 
+  // The fans. How many of them speak up, and how much they disagree.
+  fanTweetsPerShow: number;
+  /**
+   * The smallest share of the feed that always dissents, either way. Nobody
+   * is ever unanimous about wrestling and a feed that is reads as fake.
+   */
+  fanDissentFloor: number;
+  /** How much of the feed is about a specific match rather than the show. */
+  fanMatchTweetShare: number;
+  fanTweetLikesScale: number;
+
   // Rankings. Contenders are about form; the world list is about a career.
   rankMomentumWeight: number;
   rankFormWeight: number;

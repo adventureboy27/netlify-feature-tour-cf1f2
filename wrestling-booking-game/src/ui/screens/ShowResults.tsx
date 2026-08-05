@@ -140,6 +140,7 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
         )}
       </div>
 
+      <FanReaction />
       <ElsewhereTonight />
       <RivalryDigest />
     </div>
@@ -152,6 +153,44 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
       <dt className="text-neutral-500">{label}</dt>
       <dd className="font-medium">{value}</dd>
     </div>
+  );
+}
+
+/**
+ * What the fans made of it.
+ *
+ * Deliberately not a scoreboard — the show already has a star rating. This is
+ * the *texture* of that rating: who they thought carried it, who they want
+ * gone, and what they are asking for next week. There is always somebody
+ * disagreeing with the room, because there always is.
+ */
+function FanReaction() {
+  const world = useGameStore((s) => s.world);
+  if (!world?.lastFanReaction) return null;
+  const { verdict, tweets } = world.lastFanReaction;
+
+  return (
+    <section className="mt-4">
+      <h2 className="mb-1 text-sm font-medium text-neutral-300">The fans</h2>
+      <p className="mb-2 text-[11px] text-neutral-500">{verdict}</p>
+      <div className="flex flex-col gap-1">
+        {tweets.map((tweet) => (
+          <article
+            key={tweet.handle}
+            data-testid={`tweet-${tweet.handle}`}
+            className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5"
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-[11px] font-medium text-sky-400">@{tweet.handle}</span>
+              <span className="shrink-0 text-[10px] text-neutral-600">
+                {tweet.likes >= 1000 ? `${(tweet.likes / 1000).toFixed(1)}k` : tweet.likes} ♥
+              </span>
+            </div>
+            <p className="text-xs text-neutral-200">{tweet.text}</p>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 

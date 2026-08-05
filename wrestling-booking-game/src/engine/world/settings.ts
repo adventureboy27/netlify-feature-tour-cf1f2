@@ -313,6 +313,12 @@ export function defaultWorldSettings(): WorldSettings {
     deathChanceCap: 0.3,
     deathOldAge: 75,
 
+    // The fans. Ten voices a show, and never more than 85% agreeing.
+    fanTweetsPerShow: 10,
+    fanDissentFloor: 0.15,
+    fanMatchTweetShare: 0.55,
+    fanTweetLikesScale: 400,
+
     // Rankings. The contender list is deliberately twitchy — momentum is the
     // biggest single term, so a hot streak genuinely earns a title shot. The
     // world list is the opposite: peak and championships dominate, so it

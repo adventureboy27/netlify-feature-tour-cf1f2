@@ -4,6 +4,7 @@
 import type { Rng } from '../rng';
 import { chance, weightedPick } from '../rng';
 import type {
+  Title,
   Id,
   Wrestler,
   MatchRules,
@@ -49,6 +50,10 @@ export interface SimulateMatchContext {
   territoryFit?: number;
   /** Rating points for suiting (or clashing with) the promotion's house style. */
   houseStyleFit?: number;
+  /** Belts on the line, so the highlight can say what the match was for. */
+  titles?: readonly Title[];
+  /** True for the last match on the card — it earns a longer write-up. */
+  isMainEvent?: boolean;
   pairChemistryBonus?: number;
   overexposurePenalty?: number;
 }
@@ -171,7 +176,17 @@ export function simulateMatch(
     overexposurePenalty: ctx.overexposurePenalty ?? 0,
   });
 
-  const beats = generateBeats(rng, { winnerMembers, loserMembers, finish, stars, stipulation: ctx.stipulation });
+  const beats = generateBeats(rng, {
+    winnerMembers,
+    loserMembers,
+    finish,
+    stars,
+    rating,
+    stipulation: ctx.stipulation,
+    titles: ctx.titles,
+    shootHeat: rivalry?.shootHeat ?? 0,
+    isMainEvent: ctx.isMainEvent ?? false,
+  });
 
   // A grudge stipulation settled decisively is the blowoff — the feud ends
   // and the winner banks the heat as popularity (§12.5). A screwjob finish in

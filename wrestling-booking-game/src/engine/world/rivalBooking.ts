@@ -241,6 +241,8 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
       hardcoreSaturation: ctx.promotion.hardcoreSaturation,
       titlePrestige: matchTitlePrestige(titles, ctx.settings),
       houseStyleFit: houseStyleRatingBonus(everyone, ctx.promotion.identity, ctx.settings),
+      titles,
+      isMainEvent,
       // A rival's booking credibility stands in for everything the player does
       // by hand — deck stacking, instructions, knowing who to put together.
       instructionModifier: (ctx.promotion.bookingCredibility - 50) * ctx.settings.rivalCredibilityRatingWeight,

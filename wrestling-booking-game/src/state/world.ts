@@ -37,6 +37,7 @@ import type { HallOfFameEntry } from '../engine/career/hallOfFame';
 import type { RivalShow } from '../engine/world/rivalBooking';
 import type { AuctionLot, AuctionResult } from '../engine/world/auction';
 import type { PublicationPositions } from '../engine/world/publication';
+import type { Tweet } from '../engine/world/fanReaction';
 import type { PoachingOffer } from '../engine/world/poaching';
 import type { FreeAgent } from '../engine/world/freeAgents';
 import { generateFreeAgentPool } from '../engine/world/freeAgents';
@@ -78,6 +79,8 @@ export interface World {
    * The current one is derived on read — only the comparison needs storing.
    */
   lastPublication: PublicationPositions | null;
+  /** What the fans said about the last show. */
+  lastFanReaction: { week: number; verdict: string; tweets: Tweet[] } | null;
   /** A fire sale awaiting your bid. Resolves whether or not you answer. */
   pendingAuction: PendingAuction | null;
   /** How the last fire sale went. Shown once. */
@@ -344,6 +347,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     rivals,
     rivalShows: [],
     lastPublication: null,
+    lastFanReaction: null,
     pendingAuction: null,
     lastAuction: null,
     tvHistory: [],

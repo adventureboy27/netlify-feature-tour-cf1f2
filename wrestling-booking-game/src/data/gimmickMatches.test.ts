@@ -173,6 +173,7 @@ describe('finishFlavor — the write-up is the only place the player sees it hap
       loserMembers: [wrestler('Blaze Lambert')],
       finish,
       stars: 2,
+      rating: 40,
       stipulation: stipulationId ? stipulationById(stipulationId)! : null,
     });
     return beats.find((b) => b.kind === 'finish')!.text;

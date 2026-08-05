@@ -1,28 +1,32 @@
 // Highlight-reel narrative — booking-game-design.md §11.5.
 // "The player never watches a match... what they get is a highlight reel."
 //
-// DESIGN: §11.5 calls for archetype-keyed beat templates (a Powerhouse's
-// control segment reads differently from a High Flyer's) — a real content
-// project on the scale of the name/gimmick lists in data/. This is a small
-// functional seed (one flow line, an optional near-fall for good matches,
-// a finish line keyed by FinishType) that already satisfies the
-// non-negotiable — the player gets a highlight, not a transcript — and
-// gives the template system somewhere to plug in later without changing
-// the MatchBeat shape callers depend on.
+// Which means this text *is* the match, and a two-line write-up cannot carry
+// a story. The reel now scales with what the match was worth: a squash gets
+// two beats, a five-star title main event gets eight, and everything between
+// is chosen from what was actually true of that match — who was in it, how
+// they wrestle, what was on the line, and whether the two of them genuinely
+// hate each other.
+//
+// The order is fixed, because a match has a shape: opening, stakes, control,
+// hope, near-fall, the big one, the finish, the aftermath. What varies is
+// which of those appear. The lines themselves live in data/matchBeats.ts.
 
 import type { Rng } from '../rng';
-import { pick } from '../rng';
-import type { Wrestler, MatchBeat, FinishType, Stipulation } from '../types';
-
-const FLOW_LINES = [
-  'A cautious feeling-out process to start.',
-  'They came out swinging from the opening bell.',
-  'A slow, methodical, mat-based build.',
-  'A back-and-forth affair that never let up.',
-  'A grinding, physical contest from the first lock-up.',
-];
-
-const NEAR_FALL_LINES = ['{loser} kicked out at two, and the crowd came unglued.', 'A near-fall had the building on its feet.', 'A shocking reversal nearly ended it early.'];
+import { pick, chance } from '../rng';
+import type { Wrestler, MatchBeat, MatchBeatKind, FinishType, Stipulation, Title } from '../types';
+import {
+  OPENING_BEATS,
+  CONTROL_BEATS,
+  HOPE_SPOT_BEATS,
+  NEAR_FALL_BEATS,
+  BIG_SPOT_BEATS,
+  TITLE_BEATS,
+  GRUDGE_BEATS,
+  AFTERMATH_BEATS,
+  WEAPONS,
+  type BeatTemplate,
+} from '../../data/matchBeats';
 
 const FINISH_LINES: Record<FinishType, (winner: string, loser: string) => string> = {
   cleanPin: (w, l) => `${w} hit the finish clean and got the three count on ${l}.`,
@@ -43,6 +47,8 @@ export interface NarrativeContext {
   loserMembers: Wrestler[];
   finish: FinishType;
   stars: number;
+  /** The match rating, 0-100 — what decides how long the reel runs. */
+  rating: number;
   /**
    * A gimmick match describes its own finish. "Knocked them out cold" is
    * wrong for a tables match — the whole point is that someone went through
@@ -50,25 +56,98 @@ export interface NarrativeContext {
    * happen.
    */
   stipulation?: Stipulation | null;
+  /** Belts on the line, so the reel can say what it was for. */
+  titles?: readonly Title[];
+  /** Real animosity, 0-100. Above the threshold the match reads as a fight. */
+  shootHeat?: number;
+  /** True for the last match on the card. */
+  isMainEvent?: boolean;
+}
+
+/**
+ * How many beats a match of this quality earns, including the opening and
+ * the finish. A bad match is short because there is nothing to say about it;
+ * a great one earns the room, and the main event earns a little more again.
+ */
+export function beatCount(ctx: NarrativeContext): number {
+  const fromRating = ctx.rating >= 80 ? 5 : ctx.rating >= 65 ? 4 : ctx.rating >= 45 ? 3 : ctx.rating >= 25 ? 2 : 1;
+  const bonus = (ctx.isMainEvent ? 1 : 0) + ((ctx.titles?.length ?? 0) > 0 ? 1 : 0);
+  return Math.min(MAX_BEATS, 2 + fromRating + bonus);
+}
+
+const MAX_BEATS = 8;
+/** Shoot heat above this and the match reads as a genuine fight. */
+const GRUDGE_THRESHOLD = 40;
+/** Not every match gets a closing line — it lands harder for not being automatic. */
+const AFTERMATH_CHANCE = 0.55;
+
+/** Templates whose rating window includes this match. */
+function usable(templates: readonly BeatTemplate[], rating: number): BeatTemplate[] {
+  return templates.filter(
+    (t) => (t.minRating === undefined || rating >= t.minRating) && (t.maxRating === undefined || rating <= t.maxRating),
+  );
 }
 
 export function generateBeats(rng: Rng, ctx: NarrativeContext): MatchBeat[] {
-  const winnerName = ctx.winnerMembers[0]?.name ?? 'The winner';
-  const loserName = ctx.loserMembers[0]?.name ?? 'their opponent';
+  const winner = ctx.winnerMembers[0];
+  const loser = ctx.loserMembers[0];
+  const winnerName = winner?.name ?? 'The winner';
+  const loserName = loser?.name ?? 'their opponent';
 
-  const beats: MatchBeat[] = [
-    { kind: 'openingExchange', text: pick(rng, FLOW_LINES), significant: true },
-  ];
+  const fill = (text: string): string =>
+    text
+      .replace(/\{winner\}/g, winnerName)
+      .replace(/\{loser\}/g, loserName)
+      .replace(/\{other\}/g, ctx.winnerMembers[1]?.name ?? winnerName)
+      .replace(/\{finisher\}/g, winner?.moveSet?.finisher?.name ?? 'the finish')
+      .replace(/\{title\}/g, ctx.titles?.[0]?.name ?? 'the championship')
+      .replace(/\{weapon\}/g, pick(rng, WEAPONS));
 
-  if (ctx.stars >= 3) {
-    beats.push({ kind: 'nearFall', text: pick(rng, NEAR_FALL_LINES).replace('{loser}', loserName), significant: true });
+  const beats: MatchBeat[] = [];
+  const used = new Set<string>();
+  const push = (kind: MatchBeatKind, templates: readonly BeatTemplate[]): void => {
+    const options = usable(templates, ctx.rating).filter((t) => !used.has(t.text));
+    if (options.length === 0) return;
+    const template = pick(rng, options);
+    used.add(template.text);
+    beats.push({ kind, text: fill(template.text), significant: true });
+  };
+
+  // The opening is always there.
+  push('openingExchange', OPENING_BEATS);
+
+  const budget = beatCount(ctx);
+  // One slot is always reserved for the finish.
+  const room = () => beats.length < budget - 1;
+  const grudge = (ctx.shootHeat ?? 0) >= GRUDGE_THRESHOLD;
+
+  // What it was for, first — it frames everything after it.
+  if ((ctx.titles?.length ?? 0) > 0 && room()) push('signature', TITLE_BEATS);
+
+  // Real animosity changes what the match *is*, so it outranks the craft.
+  if (grudge && room()) push('control', GRUDGE_BEATS);
+
+  // The control segment, in the winner's own style.
+  if (room() && winner) {
+    const styled = (CONTROL_BEATS[winner.style] ?? []).map((text) => ({ text }));
+    if (styled.length > 0) push('control', styled);
   }
 
+  // The other one gets their moment back — only in a match good enough to
+  // have had one.
+  if (room() && ctx.rating >= 45) push('hopeSpot', HOPE_SPOT_BEATS);
+  if (room() && ctx.rating >= 50) push('nearFall', NEAR_FALL_BEATS);
+  if (room() && ctx.rating >= 60) push('signature', BIG_SPOT_BEATS);
+
+  // The finish, always.
   const flavor = ctx.stipulation?.finishFlavor?.[ctx.finish];
   const finishLine = flavor
     ? `${winnerName} ${flavor.replace('{loser}', loserName).replace('{winner}', winnerName)}.`
     : FINISH_LINES[ctx.finish](winnerName, loserName);
   beats.push({ kind: 'finish', text: finishLine, significant: true });
+
+  // And how the room felt about it, if there is anything left to say.
+  if (beats.length < budget && chance(rng, AFTERMATH_CHANCE)) push('control', AFTERMATH_BEATS);
 
   return beats;
 }

@@ -8,7 +8,15 @@ import { immer } from 'zustand/middleware/immer';
 import { rngFromSeed, rngFromState } from '../engine/rng';
 import { saveGame, loadGame } from './persist';
 import type { Rng } from '../engine/rng';
-import type { Id, MatchRules, Promotion, TitleReignEndMethod, WorldSettings } from '../engine/types';
+import type {
+  Id,
+  MatchRules,
+  Promotion,
+  Segment,
+  SegmentResult,
+  TitleReignEndMethod,
+  WorldSettings,
+} from '../engine/types';
 import {
   createInitialWorld,
   createEmptyCard,
@@ -54,6 +62,7 @@ import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/afterm
 import { runRivalShow, bookRivalCard, canWork, type RivalShow } from '../engine/world/rivalBooking';
 import { rivalWeek, shouldFold } from '../engine/world/rivalEconomy';
 import { publishPositions } from '../engine/world/publication';
+import { generateFanReaction, crowdVerdict } from '../engine/world/fanReaction';
 import { appraise, aiBid, settleAuction, playerBidAmount, type Bid, type PlayerBidLevel } from '../engine/world/auction';
 import {
   recordTeamResult,
@@ -679,6 +688,8 @@ export const useGameStore = create<GameStore>()(
             // the house rates a little higher here than it would anywhere
             // else, and a card full of people who don't rates a little lower.
             houseStyleFit: houseStyleRatingBonus(participantWrestlers, world.promotion.identity, world.settings),
+            titles: titlesOnTheLine,
+            isMainEvent: i === world.currentCard.length - 1,
             rivalry,
             ringside,
           });
@@ -989,6 +1000,57 @@ export const useGameStore = create<GameStore>()(
           showStars,
           broadcast: true,
         });
+
+        // ---- what the fans made of it -----------------------------------
+        // Generated from the show that actually happened: the best and worst
+        // matches on it, and anything that changed hands.
+        const ratedSegments = world.currentCard
+          .map((segment) => ({ segment, result: segment.result }))
+          .filter((entry): entry is { segment: Segment; result: SegmentResult } => Boolean(entry.result));
+
+        const describe = (entry: { segment: Segment; result: SegmentResult } | undefined) => {
+          if (!entry) return null;
+          const everyone = entry.segment.participants.map((p) => p.wrestlerId);
+          // A draw has no winner, and "the winner" is not a name a fan would
+          // type. Fall back to whoever was in it, so the feed always names
+          // real people.
+          const winnerId = entry.result.winnerWrestlerIds[0] ?? everyone[0];
+          const loserId = everyone.find((id) => id !== winnerId) ?? everyone[1];
+          const nameOf = (id: Id | undefined) => (id ? world.wrestlers[id]?.name : undefined);
+          return {
+            rating: entry.result.rating,
+            winnerName: nameOf(winnerId) ?? 'whoever that was',
+            loserName: nameOf(loserId) ?? 'whoever that was',
+          };
+        };
+
+        const byRating = [...ratedSegments].sort((a, b) => b.result.rating - a.result.rating);
+        const titleChanges = ratedSegments
+          .filter((entry) => entry.result.titleChanged)
+          .flatMap((entry) =>
+            entry.segment.titleIds
+              .map((id) => world.titles.find((t) => t.id === id))
+              .filter((title): title is NonNullable<typeof title> => Boolean(title))
+              .map((title) => ({
+                titleName: title.name,
+                championName: title.currentHolderIds.map((id) => world.wrestlers[id]?.name).filter(Boolean).join(' & '),
+              })),
+          );
+
+        if (ratedSegments.length > 0) {
+          world.lastFanReaction = {
+            week: world.week,
+            verdict: crowdVerdict(showRating),
+            tweets: generateFanReaction(rng, {
+              showRating,
+              promotionName: world.promotion.name,
+              bestMatch: describe(byRating[0]),
+              worstMatch: describe(byRating[byRating.length - 1]),
+              titleChanges,
+              settings: world.settings,
+            }),
+          };
+        }
 
         // ---- the rest of the business runs its week --------------------
         // Every rival books and runs its own card through the same simulation,
