@@ -12,7 +12,9 @@ import { ruleAdjustedWeights, kayfabeScore } from '../../engine/sim/kayfabe';
 import { pairWinProbability } from '../../engine/sim/winProbability';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Odds, HeatBadge, AlignmentDot, StatBar } from '../components/display';
-import type { Id, Wrestler, Segment, WorldSettings } from '../../engine/types';
+import { eligibleTitles, titleStakesLabel } from '../../engine/sim/titleMatch';
+import { shortTitleName } from '../../data/titles';
+import type { Id, Wrestler, Segment, Title, WorldSettings } from '../../engine/types';
 
 const SLOT_LABELS = ['Opener', 'Second', 'Third', 'Fourth', 'Semi-main', 'Main event'];
 
@@ -54,6 +56,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   const setManager = useGameStore((s) => s.setSegmentManager);
   const setReferee = useGameStore((s) => s.setSegmentReferee);
   const setGuestReferee = useGameStore((s) => s.setSegmentGuestReferee);
+  const toggleTitle = useGameStore((s) => s.toggleSegmentTitle);
   const [openSlot, setOpenSlot] = useState(0);
 
   const roster = useMemo(
@@ -93,6 +96,17 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
           const rivalry = findRivalry(world.rivalries, participants.map((p) => p.wrestler.id));
           const stipulation = segment.stipulation ? (stipulationById(segment.stipulation) ?? null) : null;
           const odds = previewOdds(segment, roster);
+
+          // Which belts this match could be for, and what it is billed as.
+          const bookable = eligibleTitles(world.titles, {
+            participants: participants.map((p) => ({ wrestler: p.wrestler, side: p.role.side })),
+            promotionId: world.promotion.id,
+          });
+          const onTheLine = segment.titleIds
+            .map((id) => world.titles.find((t) => t.id === id))
+            .filter((t): t is NonNullable<typeof t> => Boolean(t));
+          const championInMatch = bookable.some((t) => !t.vacant);
+          const stakes = titleStakesLabel(onTheLine, championInMatch);
           const isOpen = openSlot === index;
 
           const requirementsMet =
@@ -145,6 +159,17 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                         {!requirementsMet && ' ⚠'}
                       </span>
                     )}
+                    {stakes && (
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] ${
+                          stakes === 'Non-title'
+                            ? 'bg-neutral-800 text-neutral-400'
+                            : 'bg-amber-950 text-amber-300'
+                        }`}
+                      >
+                        {stakes}
+                      </span>
+                    )}
                     {rivalry && <HeatBadge heat={rivalry.heat} shootHeat={rivalry.shootHeat} />}
                     {odds !== null && <Odds probability={odds} />}
                   </div>
@@ -165,6 +190,8 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                     onAdd={(id, side) => setParticipant(index, id, side)}
                     onRemove={(id) => removeParticipant(index, id)}
                     onStipulation={(id) => setStipulation(index, id)}
+                    bookableTitles={bookable}
+                    onToggleTitle={(id) => toggleTitle(index, id)}
                     onTimeLimit={(minutes) => setRules(index, { timeLimit: minutes })}
                     onManager={(managerId, forSide) => setManager(index, managerId, forSide)}
                     onReferee={(refereeId) => setReferee(index, refereeId)}
@@ -190,6 +217,8 @@ function SegmentEditor({
   onAdd,
   onRemove,
   onStipulation,
+  bookableTitles,
+  onToggleTitle,
   onTimeLimit,
   onManager,
   onReferee,
@@ -202,6 +231,8 @@ function SegmentEditor({
   onAdd: (id: Id, side: number) => void;
   onRemove: (id: Id) => void;
   onStipulation: (id: Id | null) => void;
+  bookableTitles: Title[];
+  onToggleTitle: (id: Id) => void;
   onTimeLimit: (minutes: (typeof TIME_LIMITS)[number]) => void;
   onManager: (managerId: Id | null, forSide: number) => void;
   onReferee: (refereeId: Id | null) => void;
@@ -295,6 +326,51 @@ function SegmentEditor({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* ---- what is at stake ------------------------------------------ */}
+      <div>
+        <div className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">On the line</div>
+        {bookableTitles.length === 0 ? (
+          <p className="text-[11px] text-neutral-600">
+            No championship fits this match — a belt can only be defended by its champion, in its own division.
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-1">
+              {bookableTitles.map((title) => {
+                const booked = segment.titleIds.includes(title.id);
+                return (
+                  <button
+                    key={title.id}
+                    type="button"
+                    data-testid={`title-${title.id}`}
+                    onClick={() => onToggleTitle(title.id)}
+                    title={title.blurb}
+                    className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] ${
+                      booked ? 'bg-amber-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                    }`}
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: title.colorway.plate }}
+                      aria-hidden
+                    />
+                    {shortTitleName(title)}
+                    {title.vacant && <span className="text-neutral-400">(vacant)</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-[10px] text-neutral-600">
+              {segment.titleIds.length === 0
+                ? 'Nothing on the line. A champion can wrestle without defending.'
+                : segment.titleIds.length > 1
+                  ? 'Title for title — the winner leaves with all of them.'
+                  : 'The belt does not change hands on a disqualification or a count-out.'}
+            </p>
+          </>
+        )}
       </div>
 
       <div>

@@ -29,7 +29,11 @@ import type {
   Tournament,
   Stable,
   ShowSetup,
+  Title,
+  Relationship,
+  Passing,
 } from '../engine/types';
+import type { HallOfFameEntry } from '../engine/career/hallOfFame';
 import type { PoachingOffer } from '../engine/world/poaching';
 import type { FreeAgent } from '../engine/world/freeAgents';
 import { generateFreeAgentPool } from '../engine/world/freeAgents';
@@ -42,6 +46,10 @@ import type { Rng } from '../engine/rng';
 import { generateWrestlers } from '../engine/generate/wrestler';
 import { createRivalry } from '../engine/sim/rivalry';
 import { createStandardContract } from '../engine/economy/contracts';
+import { createStartingTitles, awardTitle } from '../data/titles';
+import { identityOf } from '../data/promotionIdentity';
+import type { PromotionArchetype } from '../data/promotionIdentity';
+import { seedRelationships } from '../engine/career/relationships';
 import { fallbackVenue } from '../data/venues';
 import type { AssetCondition } from '../engine/economy/showBudget';
 import type { ContractDemand } from '../engine/career/ego';
@@ -88,6 +96,16 @@ export interface World {
   tamperingOffenses: number;
   /** Everyone in the business who is not signed anywhere. */
   freeAgents: FreeAgent[];
+  /** Championships. A promotion's spine. */
+  titles: Title[];
+  /** Everyone who has died, oldest first. §19's memorial wall. */
+  memoriam: Passing[];
+  /** The hall of fame, in induction order. */
+  hallOfFame: HallOfFameEntry[];
+  /** What the turn of the year brought. Shown once, then it is history. */
+  yearInReview: YearInReview | null;
+  /** Who gets on with whom. */
+  relationships: Relationship[];
   /** The week's television chart: wrestling plus the rest of the dial. */
   ratingsChart: { week: number; rows: ChartRow[] }[];
   /**
@@ -97,6 +115,21 @@ export interface World {
    */
   meetings: Record<string, number>;
   nextId: number;
+}
+
+/**
+ * What happened when the calendar turned: who went, who came back, who died,
+ * who broke in, and who went into the hall. Surfaced on the office screen —
+ * a year passing should feel like something, not like a silent counter.
+ */
+export interface YearInReview {
+  year: number;
+  retirements: { wrestlerId: Id; reason: string }[];
+  comebacks: { wrestlerId: Id; overId: Id | null }[];
+  passings: Passing[];
+  graduates: Id[];
+  inductions: HallOfFameEntry[];
+  vacatedTitleIds: Id[];
 }
 
 /** Stable key for a pair of wrestlers, order-independent. */
@@ -184,7 +217,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
 
   const promotion: Promotion = {
     id: 'player-promotion',
-    name: 'Your Promotion',
+    name: settings.promotionName,
+    identity: settings.promotionArchetype,
     isPlayer: true,
     rating: settings.startingCompanyRating,
     bankBalance: settings.startingCash,
@@ -192,13 +226,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     titleIds: [],
     ownedTerritoryIds: [],
     homeTerritoryId: 'territory-unassigned',
-    styleProfile: {
-      preferredStyles: [],
-      violenceTolerance: 50,
-      workrateVsStarPower: 50,
-      divisionFocus: ['mens'],
-      promoHeavy: false,
-    },
+    styleProfile: styleProfileFor(settings.promotionArchetype),
     bookingCredibility: 50,
     reputation: 50,
     hardcoreSaturation: 0,
@@ -208,6 +236,23 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     // bare id placeholder is enough for M2, which never dereferences it.
     ownerId: randomId(rng, 'owner'),
   };
+
+  const playerTitles = crownOpeningChampions(
+    createStartingTitles(promotion.id, promotion.name, promotion.identity),
+    roster,
+  );
+  promotion.titleIds = playerTitles.map((t) => t.id);
+
+  const rivals = createRivalPromotions(rng, settings);
+  // DESIGN: rival belts exist from week one so the world has a full map of
+  // championships in it — you can see that Northern Combat League crowns a
+  // Deathmatch Champion and Meridian Grappling does not. They stay vacant
+  // until rivals get rosters (M5); nothing here has to change when they do.
+  const rivalTitles = rivals.flatMap((rival) => {
+    const belts = createStartingTitles(rival.id, rival.name, rival.identity);
+    rival.titleIds = belts.map((t) => t.id);
+    return belts;
+  });
 
   return {
     version: 1,
@@ -220,7 +265,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     rivalries: seedShootRivalries(roster),
     tournaments: [],
     stables: [],
-    rivals: createRivalPromotions(rng, settings),
+    rivals,
     tvHistory: [],
     pendingEvent: null,
     lastEventOutcome: null,
@@ -235,6 +280,11 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     suspensionWeeks: 0,
     tamperingOffenses: 0,
     freeAgents: pool.freeAgents,
+    titles: [...playerTitles, ...rivalTitles],
+    memoriam: [],
+    hallOfFame: [],
+    yearInReview: null,
+    relationships: seedRelationships(rng, roster, settings),
     ratingsChart: [],
     meetings: {},
     nextId: 1,
@@ -248,27 +298,44 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
 // and a name — enough for TV ratings to be a real contest and for tampering
 // to have a source. Giving them rosters and letting them book is the next
 // layer, and it slots in behind this same shape.
-const RIVAL_NAMES = [
-  'Continental Championship Wrestling',
-  'Atlas Pro',
-  'Northern Combat League',
-  'Gold Coast Wrestling',
-  'Iron City Championship',
-  'Federation Deportiva',
-  'Sunbelt Wrestling Alliance',
-  'Meridian Grappling',
+// Each rival is a *kind* of company, not just a name — which is what makes
+// losing a wrestler to one feel different from losing them to another. The
+// deathmatch outfit and the mat-wrestling outfit want different people.
+export const RIVAL_PROMOTIONS: { name: string; archetype: PromotionArchetype }[] = [
+  { name: 'Continental Championship Wrestling', archetype: 'oldSchool' },
+  { name: 'Atlas Pro', archetype: 'athletic' },
+  { name: 'Northern Combat League', archetype: 'hardcore' },
+  { name: 'Gold Coast Wrestling', archetype: 'sportsEntertainment' },
+  { name: 'Iron City Championship', archetype: 'territory' },
+  { name: 'Federación Deportiva', archetype: 'lucha' },
+  { name: 'Sunbelt Wrestling Alliance', archetype: 'territory' },
+  { name: 'Meridian Grappling', archetype: 'technical' },
 ];
 
+/** A promotion books what it is known for. */
+export function styleProfileFor(archetype: PromotionArchetype): Promotion['styleProfile'] {
+  const identity = identityOf(archetype);
+  return {
+    preferredStyles: [...identity.favouredStyles],
+    violenceTolerance: identity.violenceTolerance,
+    workrateVsStarPower: identity.workrateVsStarPower,
+    divisionFocus: ['mens'],
+    promoHeavy: identity.workrateVsStarPower < 40,
+  };
+}
+
 function createRivalPromotions(rng: Rng, settings: WorldSettings): Promotion[] {
-  const names = [...RIVAL_NAMES];
+  // If the player took over one of these companies, it is not also out there
+  // competing with them.
+  const remaining = RIVAL_PROMOTIONS.filter((p) => p.name !== settings.promotionName);
   const rivals: Promotion[] = [];
-  // Fixed up front: `names` shrinks as we splice from it, so re-reading its
-  // length in the loop condition would quietly cut the field short.
-  const count = Math.min(settings.rivalPromotionCount, names.length);
+  // Fixed up front: `remaining` shrinks as we splice from it, so re-reading
+  // its length in the loop condition would quietly cut the field short.
+  const count = Math.min(settings.rivalPromotionCount, remaining.length);
 
   for (let i = 0; i < count; i++) {
-    const index = Math.floor(rng.next() * names.length);
-    const name = names.splice(index, 1)[0]!;
+    const index = Math.floor(rng.next() * remaining.length);
+    const { name, archetype } = remaining.splice(index, 1)[0]!;
     // A spread of sizes: one or two above the player, several below. Losing a
     // wrestler to the biggest promotion in the country should feel different
     // from losing one to a regional outfit.
@@ -277,6 +344,7 @@ function createRivalPromotions(rng: Rng, settings: WorldSettings): Promotion[] {
     rivals.push({
       id: `rival-${i}`,
       name,
+      identity: archetype,
       isPlayer: false,
       rating,
       bankBalance: Math.round(rating * 4000),
@@ -284,13 +352,7 @@ function createRivalPromotions(rng: Rng, settings: WorldSettings): Promotion[] {
       titleIds: [],
       ownedTerritoryIds: [],
       homeTerritoryId: 'territory-unassigned',
-      styleProfile: {
-        preferredStyles: [],
-        violenceTolerance: 50,
-        workrateVsStarPower: 50,
-        divisionFocus: ['mens'],
-        promoHeavy: false,
-      },
+      styleProfile: styleProfileFor(archetype),
       bookingCredibility: 50,
       reputation: rating,
       hardcoreSaturation: 0,
@@ -336,4 +398,38 @@ export interface RenewalOffer {
 /** Opening staging: the cheapest room, a modest ticket, nothing extra. */
 export function defaultShowSetup(): ShowSetup {
   return { venueId: fallbackVenue().id, ticketPrice: 12, extraIds: [] };
+}
+
+// DESIGN: §5 has the player start a *new* promotion, which argues for vacant
+// belts. But a promotion with no champions has no spine to book around and
+// nothing for the roster screen to show, so the opening champions are crowned
+// at creation — a new company naming its first title-holders is ordinary, and
+// it means titles mean something from week one rather than from whenever the
+// first tournament happens to land.
+function crownOpeningChampions(titles: Title[], roster: readonly Wrestler[]): Title[] {
+  const byPopularity = [...roster].sort((a, b) => b.popularity - a.popularity);
+  const taken = new Set<Id>();
+
+  const bestFor = (predicate: (w: Wrestler) => boolean, count = 1): Wrestler[] => {
+    const picked: Wrestler[] = [];
+    for (const w of byPopularity) {
+      if (picked.length >= count) break;
+      if (taken.has(w.id) || !predicate(w)) continue;
+      picked.push(w);
+      taken.add(w.id);
+    }
+    return picked;
+  };
+
+  return titles.map((title) => {
+    const holders =
+      title.tier === 'tag'
+        ? bestFor(() => true, 2)
+        : title.division === 'womens'
+          ? bestFor((w) => w.gender === 'f')
+          : bestFor((w) => w.gender === 'm');
+
+    if (holders.length === 0) return title;
+    return awardTitle(title, holders.map((w) => w.id), 1);
+  });
 }

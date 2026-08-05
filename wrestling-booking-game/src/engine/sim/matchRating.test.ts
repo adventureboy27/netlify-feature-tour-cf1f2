@@ -23,6 +23,7 @@ function baseContext(overrides: Partial<MatchRatingContext> = {}): MatchRatingCo
     slotExpectedPopularity: null,
     instructionModifier: 0,
     territoryFit: 0,
+    houseStyleFit: 0,
     pairChemistryBonus: 0,
     overexposurePenalty: 0,
     ...overrides,

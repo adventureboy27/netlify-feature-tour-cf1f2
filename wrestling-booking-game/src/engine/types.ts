@@ -175,6 +175,17 @@ export interface TitleReignRecord {
   endMethod: TitleReignEndMethod | null;
 }
 
+/** How somebody left. Kept sober — see engine/career/mortality.ts. */
+export type DeathCause = 'illness' | 'accident' | 'heart' | 'theRoad' | 'age';
+
+/** A death, for the memorial wall. */
+export interface Passing {
+  wrestlerId: Id;
+  cause: DeathCause;
+  age: number;
+  week: number;
+}
+
 // DESIGN: Injury is referenced by Wrestler.injury but never defined. Severity
 // tiers and permanent stat loss come from §12 ("Health, injury, momentum").
 export type InjurySeverity = 'minor' | 'moderate' | 'severe' | 'careerThreatening';
@@ -392,6 +403,10 @@ export interface Wrestler {
   titleReigns: TitleReignRecord[];
   injury: Injury | null;
   careerHighPopularity: number;
+  /** Set when they die. A wrestler with this set is never booked again. */
+  deceased?: Passing;
+  /** Set when they are inducted. §19's hall of fame. */
+  hallOfFameWeek?: number;
 }
 
 // ============================================================================
@@ -546,10 +561,25 @@ export type TitleTier =
 
 export type TitleDivision = 'mens' | 'womens' | 'open';
 
+/**
+ * What kind of company this is. Drives belt names, which styles draw here,
+ * and how much violence the room will take. Table: data/promotionIdentity.ts.
+ */
+export type PromotionArchetype =
+  | 'territory'
+  | 'hardcore'
+  | 'technical'
+  | 'sportsEntertainment'
+  | 'lucha'
+  | 'oldSchool'
+  | 'athletic';
+
 export interface Title {
   id: Id;
   promotionId: Id;
   name: string;
+  /** What this belt is for — the situation it exists to settle. */
+  blurb: string;
   tier: TitleTier;
   division: TitleDivision; // LOCKED at creation, §3.1
   weightClass: WeightClass;
@@ -560,6 +590,12 @@ export interface Title {
   reignStartWeek: number;
   history: TitleReignRecord[];
   colorway: { strap: string; plate: string };
+  /**
+   * The stipulation this belt is traditionally defended under, if any. A
+   * deathmatch title contested under normal rules is a disappointment, and
+   * the crowd says so — see engine/economy/showRating.ts.
+   */
+  signatureStipulationId: Id | null;
 }
 
 // ============================================================================
@@ -596,6 +632,12 @@ export interface Stipulation {
   finishFlavor?: Partial<Record<FinishType, string>>;
   /** Grudge stipulations are blowoffs — winning one resolves the rivalry (§12.5). */
   isBlowoff?: boolean;
+  /**
+   * Normally a championship does not change hands on a disqualification or a
+   * count-out. In a match with no rules to break, that protection makes no
+   * sense — there is nothing to be disqualified from.
+   */
+  titleChangesOnDQ?: boolean;
 }
 
 // ============================================================================
@@ -777,6 +819,11 @@ export interface StyleProfile {
 export interface Promotion {
   id: Id;
   name: string;
+  /**
+   * The house style — what this company is known for, and where its belt
+   * names come from. The table lives in data/promotionIdentity.ts.
+   */
+  identity: PromotionArchetype;
   isPlayer: boolean;
   rating: number; // 0-100, TV ratings ladder position
   bankBalance: number;
@@ -1146,6 +1193,17 @@ export interface WorldSettings {
   clauseTravelCost: number;
   clauseGuaranteedDatesRate: number;
 
+  // Relationships (engine/career/relationships.ts)
+  /** How many relationships to seed, per wrestler on the roster. */
+  relationshipsPerWrestler: number;
+  relationshipEnemyChance: number;
+  relationshipAllyRatingBonus: number;
+  relationshipAllyInjuryReduction: number;
+  relationshipEnemyRatingBonus: number;
+  relationshipEnemyInjuryIncrease: number;
+  /** Enmity at or above this and they will not work together at all. */
+  relationshipRefusalThreshold: number;
+
   // Free agents (engine/world/freeAgents.ts)
   /** Asking rate shed per week unsigned. */
   freeAgentRateDecayPerWeek: number;
@@ -1172,7 +1230,104 @@ export interface WorldSettings {
   ownerMandatesEnabled: boolean;
   ownerPatience: number;
 
+  /** How fast a belt's prestige chases the rating of its last defence. */
+  titlePrestigeDrift: number;
+  /** Momentum a new champion gets on winning a belt. */
+  titleWinMomentum: number;
+  /** Popularity a new champion gets on winning a belt. */
+  titleWinPopularity: number;
+  /** Extra prestige a match carries for each belt beyond the first. */
+  titleForTitleBonus: number;
+
+  // Leaving the business, and coming back.
+  /** Age at which retirement starts to be on somebody's mind. */
+  retirementAgeSoft: number;
+  /** Age nobody wrestles past. */
+  retirementAgeHard: number;
+  /** Years in the business before retiring is even possible. */
+  retirementMinYearsPro: number;
+  /** How much a broken-down body pushes somebody toward the door, 0-1. */
+  retirementBodyWeight: number;
+  /** Added to retirement pressure by a career-threatening injury. */
+  retirementCareerEndingInjury: number;
+  /** How much falling off their own peak pushes somebody out, 0-1. */
+  retirementDeclineWeight: number;
+  /** Subtracted from retirement pressure while they are still drawing. */
+  retirementStillDrawingRelief: number;
+  /** Annual chance of going at maximum pressure. */
+  retirementChanceAtMaxPressure: number;
+  /** Retirement pressure above which the roster card says so. */
+  retirementUiThreshold: number;
+  /** Shoot heat that makes a score worth coming back for. */
+  comebackShootHeatThreshold: number;
+  /** Annual comeback chance with a score to settle, at full shoot heat. */
+  comebackChanceWithScore: number;
+  /** Annual comeback chance with nothing but the itch. */
+  comebackChanceForLove: number;
+  /** Nobody comes back past this age. */
+  comebackMaxAge: number;
+  /** Condition a returning wrestler comes back at, at worst. */
+  comebackStartingHealth: number;
+  /** Momentum a comeback is worth — the crowd pops for it. */
+  comebackMomentum: number;
+
+  // Mortality. Sober, gentle in the working years, real over decades.
+  deathBaseAge: number;
+  deathBaseChance: number;
+  deathAgeDoubling: number;
+  deathHealthWeight: number;
+  deathChanceCap: number;
+  deathOldAge: number;
+
+  // The hall of fame. Hard to get into on purpose.
+  /** Weight on career peak popularity, the biggest part of the case. */
+  hofPeakWeight: number;
+  hofReignsWeight: number;
+  hofReignsForFullCredit: number;
+  hofChampionWeeksWeight: number;
+  hofChampionWeeksForFullCredit: number;
+  hofLongevityWeight: number;
+  hofYearsForFullCredit: number;
+  /** Score a career has to reach to be inducted at all. */
+  hofScoreThreshold: number;
+  /** How many go in each year, at most. */
+  hofInductionsPerYear: number;
+
+  // The academy. Keeps the world populated as people leave it.
+  /** Below this many working wrestlers, the schools start turning them out. */
+  worldPopulationMin: number;
+  /** Above this, nobody new breaks in. */
+  worldPopulationMax: number;
+  /** Most graduates in one intake. */
+  academyMaxGraduates: number;
+  /** Age range a graduate debuts at. */
+  academyDebutAgeMin: number;
+  academyDebutAgeMax: number;
+
+  // Nicknames. Earned over years, never handed out at signing.
+  /** Years in the business before anybody starts calling you something. */
+  nicknameYearsPro: number;
+  /** Popularity (now or at peak) needed before a nickname sticks. */
+  nicknamePopularity: number;
+  /** Popularity above which the grand nicknames become available. */
+  nicknameMainEventPopularity: number;
+  /** Chance a qualifying main eventer draws from the grand pool. */
+  nicknameMainEventChance: number;
+  /** Ego above which somebody is defined by their ego more than their work. */
+  nicknameEgoThreshold: number;
+  /** Weekly chance an eligible wrestler picks one up. */
+  nicknameWeeklyChance: number;
+
+  /** Rating points a match gains for fitting the promotion's house style. */
+  houseStyleRatingWeight: number;
+  /** Rating points a card loses for running past what this audience will take. */
+  houseStyleViolencePenalty: number;
+
   // World
+  /** What the player's company is called. Its belts are named from it. */
+  promotionName: string;
+  /** The player's house style. Changeable until the first show is run. */
+  promotionArchetype: PromotionArchetype;
   rivalPromotionCount: number;
   territoryCount: number;
   startingTerritories: number;

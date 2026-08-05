@@ -8,6 +8,7 @@
 
 import { useGameStore } from '../../state/store';
 import { stipulationById } from '../../data/stipulations';
+import { billedAs } from '../../engine/generate/nickname';
 import { Stars, BreakdownPanel, Money, HeatBadge } from '../components/display';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import type { FinishType, Show, Wrestler } from '../../engine/types';
@@ -30,7 +31,12 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
   const world = useGameStore((s) => s.world);
   if (!world) return null;
 
-  const wrestlerName = (id: string) => world.wrestlers[id]?.name ?? 'Someone';
+  // The announcer uses the nickname when there is one — that is the whole
+  // point of having earned it.
+  const wrestlerName = (id: string) => {
+    const w = world.wrestlers[id];
+    return w ? billedAs(w) : 'Someone';
+  };
   const booked = show.segments.filter((s) => s.result !== null);
 
   return (
@@ -81,6 +87,15 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
                       .join(result.winnerSide === null ? ' vs ' : ' vs ')}
                   </div>
                   {stipulation && <div className="text-[11px] text-sky-400">{stipulation.name}</div>}
+                  {segment.titleIds.length > 0 && (
+                    <div className="text-[11px] text-amber-400">
+                      {segment.titleIds
+                        .map((id) => world.titles.find((t) => t.id === id)?.name)
+                        .filter(Boolean)
+                        .join(' & ')}
+                      {result.titleChanged && <span className="ml-1 font-bold">— NEW CHAMPION</span>}
+                    </div>
+                  )}
                 </div>
                 <Stars stars={result.stars} />
               </div>

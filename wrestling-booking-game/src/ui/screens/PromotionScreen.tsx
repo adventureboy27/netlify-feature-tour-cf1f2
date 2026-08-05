@@ -9,7 +9,7 @@
 // you pay for again every single time. Owned gear shows its upkeep, because
 // nothing is free once bought.
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { VENUES, venueById } from '../../data/venues';
 import { PRODUCTION_ASSETS, SHOW_EXTRAS, productionAssetById, showExtraById } from '../../data/production';
@@ -26,6 +26,9 @@ import {
   repairCost,
 } from '../../engine/economy/showBudget';
 import { weeklyWageBill } from '../../engine/economy/contracts';
+import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
+import { titlesOf } from '../../data/titles';
+import { stipulationById } from '../../data/stipulations';
 import { Money } from '../components/display';
 
 export function PromotionScreen() {
@@ -100,6 +103,8 @@ export function PromotionScreen() {
   return (
     <div className="p-3 pb-24 text-neutral-100">
       <h1 className="mb-3 text-base font-semibold">The promotion</h1>
+
+      <IdentityPanel />
 
       {/* ---- projection ------------------------------------------------ */}
       <section className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">
@@ -302,6 +307,100 @@ export function PromotionScreen() {
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * Who you are. Editable until the first show goes out — after that the belts
+ * have a lineage and the name on them is the name you have.
+ */
+function IdentityPanel() {
+  const world = useGameStore((s) => s.world);
+  const setIdentity = useGameStore((s) => s.setPromotionIdentity);
+  const [draftName, setDraftName] = useState<string | null>(null);
+
+  if (!world) return null;
+  const locked = world.showHistory.length > 0;
+  const identity = identityOf(world.promotion.identity);
+  const name = draftName ?? world.promotion.name;
+  const belts = titlesOf(world.titles, world.promotion.id);
+
+  return (
+    <section className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <h2 className="text-sm font-medium">Who you are</h2>
+        <span className="text-[10px] text-neutral-600">
+          {locked ? 'Set — your belts have a lineage now' : 'Changeable until your first show'}
+        </span>
+      </div>
+
+      <input
+        type="text"
+        value={name}
+        disabled={locked}
+        data-testid="promotion-name"
+        onChange={(e) => setDraftName(e.target.value)}
+        onBlur={() => {
+          if (draftName !== null) setIdentity(draftName, world.promotion.identity);
+          setDraftName(null);
+        }}
+        className="mb-2 w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1 text-sm disabled:opacity-60"
+      />
+
+      <div className="mb-2 flex flex-wrap gap-1">
+        {PROMOTION_ARCHETYPES.map((archetype) => {
+          const option = identityOf(archetype);
+          const selected = world.promotion.identity === archetype;
+          return (
+            <button
+              key={archetype}
+              type="button"
+              disabled={locked}
+              data-testid={`identity-${archetype}`}
+              onClick={() => setIdentity(world.promotion.name, archetype)}
+              className={`rounded px-2 py-1 text-[11px] ${
+                selected
+                  ? 'bg-emerald-600 text-white'
+                  : locked
+                    ? 'bg-neutral-900 text-neutral-600'
+                    : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="mb-2 text-[11px] text-neutral-400">{identity.knownFor}.</p>
+
+      <ul className="flex flex-col gap-1">
+        {belts.map((belt) => {
+          const holders = belt.currentHolderIds.map((id) => world.wrestlers[id]?.name).filter(Boolean);
+          return (
+            <li key={belt.id} className="flex items-start gap-2 rounded bg-neutral-950 p-1.5 text-[11px]">
+              <span
+                className="mt-0.5 h-3 w-3 shrink-0 rounded-sm"
+                style={{ backgroundColor: belt.colorway.plate }}
+                aria-hidden
+              />
+              <span className="min-w-0 flex-1">
+                <span className="font-medium">{belt.name}</span>
+                <span className="block text-neutral-500">{belt.blurb}</span>
+                {belt.signatureStipulationId && (
+                  <span className="block text-amber-500/80">
+                    Defended under {stipulationById(belt.signatureStipulationId)?.name ?? belt.signatureStipulationId}
+                  </span>
+                )}
+              </span>
+              <span className="shrink-0 text-right text-neutral-400">
+                {holders.length > 0 ? holders.join(' & ') : <span className="text-neutral-600">vacant</span>}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

@@ -47,6 +47,8 @@ export interface SimulateMatchContext {
   slotExpectedPopularity?: number | null;
   instructionModifier?: number;
   territoryFit?: number;
+  /** Rating points for suiting (or clashing with) the promotion's house style. */
+  houseStyleFit?: number;
   pairChemistryBonus?: number;
   overexposurePenalty?: number;
 }
@@ -164,6 +166,7 @@ export function simulateMatch(
     slotExpectedPopularity: ctx.slotExpectedPopularity ?? null,
     instructionModifier: (ctx.instructionModifier ?? 0) + (ctx.ringside?.ratingBonus ?? 0),
     territoryFit: ctx.territoryFit ?? 0,
+    houseStyleFit: ctx.houseStyleFit ?? 0,
     pairChemistryBonus: ctx.pairChemistryBonus ?? 0,
     overexposurePenalty: ctx.overexposurePenalty ?? 0,
   });

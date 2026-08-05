@@ -21,6 +21,7 @@ function subjects(): EventSubjects {
   const promotion: Promotion = {
     id: 'you',
     name: 'Your Promotion',
+    identity: 'territory' as const,
     isPlayer: true,
     rating: 55,
     bankBalance: 75000,

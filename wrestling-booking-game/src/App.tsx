@@ -12,9 +12,20 @@ import { RosterScreen } from './ui/screens/RosterScreen';
 import { ShowResults } from './ui/screens/ShowResults';
 import { ContactSheet } from './ui/screens/ContactSheet';
 import { WrestlerEditor } from './ui/screens/WrestlerEditor';
+import { NewGameScreen } from './ui/screens/NewGameScreen';
+import { LegacyScreen } from './ui/screens/LegacyScreen';
 import { Money } from './ui/components/display';
 
-type Screen = 'office' | 'booking' | 'promotion' | 'roster' | 'freeAgents' | 'results' | 'contactSheet' | 'editor';
+type Screen =
+  | 'office'
+  | 'booking'
+  | 'promotion'
+  | 'roster'
+  | 'freeAgents'
+  | 'results'
+  | 'legacy'
+  | 'contactSheet'
+  | 'editor';
 
 const TABS: { id: Screen; label: string }[] = [
   { id: 'office', label: 'Office' },
@@ -23,21 +34,26 @@ const TABS: { id: Screen; label: string }[] = [
   { id: 'roster', label: 'Roster' },
   { id: 'freeAgents', label: 'Free agents' },
   { id: 'results', label: 'Results' },
+  { id: 'legacy', label: 'Legacy' },
   { id: 'contactSheet', label: 'Contact sheet' },
   { id: 'editor', label: 'Editor' },
 ];
 
 export default function App() {
   const world = useGameStore((s) => s.world);
-  const newGame = useGameStore((s) => s.newGame);
   const resolveWeek = useGameStore((s) => s.resolveWeek);
+  const saveNow = useGameStore((s) => s.saveNow);
   const [screen, setScreen] = useState<Screen>('booking');
 
+  // Autosave. The world is plain data, so this is cheap; debounced so that
+  // typing in a text field does not write a save on every keystroke.
   useEffect(() => {
-    if (!world) newGame();
-  }, [world, newGame]);
+    if (!world) return;
+    const handle = setTimeout(() => saveNow(), 800);
+    return () => clearTimeout(handle);
+  }, [world, saveNow]);
 
-  if (!world) return <div className="min-h-screen bg-neutral-950" />;
+  if (!world) return <NewGameScreen />;
 
   const lastShow = world.showHistory[world.showHistory.length - 1] ?? null;
 
@@ -94,6 +110,7 @@ export default function App() {
         ) : (
           <p className="p-6 text-center text-sm text-neutral-500">No show has run yet.</p>
         ))}
+      {screen === 'legacy' && <LegacyScreen />}
       {screen === 'contactSheet' && <ContactSheet />}
       {screen === 'editor' && <WrestlerEditor />}
     </div>

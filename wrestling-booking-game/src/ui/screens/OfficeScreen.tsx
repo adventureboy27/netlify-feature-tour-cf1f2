@@ -14,12 +14,14 @@ import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { egoLabel } from '../../engine/career/ego';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Money } from '../components/display';
+import { identityOf } from '../../data/promotionIdentity';
 import type { Wrestler } from '../../engine/types';
 
 export function OfficeScreen() {
   const world = useGameStore((s) => s.world);
   const choose = useGameStore((s) => s.chooseEventOption);
   const dismiss = useGameStore((s) => s.dismissEventOutcome);
+  const dismissYear = useGameStore((s) => s.dismissYearInReview);
   const answerRenewal = useGameStore((s) => s.answerRenewal);
   if (!world) return null;
 
@@ -28,9 +30,107 @@ export function OfficeScreen() {
   const playerRow = latestChart ? playerChartPosition(latestChart.rows) : undefined;
   const wrestler = (id?: string): Wrestler | undefined => (id ? world.wrestlers[id] : undefined);
 
+  // What each company on the chart is known for. The chart is where you see
+  // the competition, so it is where their house style belongs.
+  const houseStyles = new Map(
+    [world.promotion, ...world.rivals].map((p) => [p.name, identityOf(p.identity)]),
+  );
+
   return (
     <div className="p-3 pb-24 text-neutral-100">
       <h1 className="mb-3 text-base font-semibold">The office — week {world.week}</h1>
+
+      {world.yearInReview && (
+        <section className="mb-3 rounded border border-amber-900 bg-neutral-900 p-3">
+          <div className="text-xs uppercase tracking-wide text-amber-500">The year turns — {world.yearInReview.year}</div>
+
+          {world.yearInReview.retirements.length > 0 && (
+            <div className="mt-2">
+              <div className="text-[11px] text-neutral-400">Out of the business</div>
+              <ul className="text-xs">
+                {world.yearInReview.retirements.map((r) => (
+                  <li key={r.wrestlerId}>
+                    <span className="font-medium">{world.wrestlers[r.wrestlerId]?.name}</span>{' '}
+                    <span className="text-neutral-500">{r.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {world.yearInReview.comebacks.length > 0 && (
+            <div className="mt-2">
+              <div className="text-[11px] text-neutral-400">Back in it</div>
+              <ul className="text-xs">
+                {world.yearInReview.comebacks.map((c) => (
+                  <li key={c.wrestlerId}>
+                    <span className="font-medium">{world.wrestlers[c.wrestlerId]?.name}</span>
+                    {c.overId && (
+                      <span className="text-neutral-500">
+                        {' '}
+                        — with something to settle with {world.wrestlers[c.overId]?.name}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {world.yearInReview.passings.length > 0 && (
+            <div className="mt-2">
+              <div className="text-[11px] text-neutral-400">Passed away</div>
+              <ul className="text-xs">
+                {world.yearInReview.passings.map((p) => (
+                  <li key={p.wrestlerId} className="text-neutral-300">
+                    {world.wrestlers[p.wrestlerId]?.name}, {p.age}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {world.yearInReview.inductions.length > 0 && (
+            <div className="mt-2">
+              <div className="text-[11px] text-amber-400">Into the hall</div>
+              <ul className="text-xs">
+                {world.yearInReview.inductions.map((entry) => (
+                  <li key={entry.wrestlerId}>
+                    <span className="font-medium">{world.wrestlers[entry.wrestlerId]?.name}</span>{' '}
+                    <span className="text-neutral-500">— {entry.citation}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {world.yearInReview.graduates.length > 0 && (
+            <div className="mt-2 text-xs text-neutral-400">
+              <span className="text-[11px] text-neutral-500">Out of the schools: </span>
+              {world.yearInReview.graduates.map((id) => world.wrestlers[id]?.name).filter(Boolean).join(', ')}
+            </div>
+          )}
+
+          {world.yearInReview.vacatedTitleIds.length > 0 && (
+            <div className="mt-2 text-xs text-rose-400">
+              Vacant:{' '}
+              {world.yearInReview.vacatedTitleIds
+                .map((id) => world.titles.find((t) => t.id === id)?.name)
+                .filter(Boolean)
+                .join(', ')}
+            </div>
+          )}
+
+          <button
+            type="button"
+            data-testid="dismiss-year"
+            onClick={dismissYear}
+            className="mt-3 rounded bg-neutral-800 px-3 py-1 text-xs hover:bg-neutral-700"
+          >
+            Onward
+          </button>
+        </section>
+      )}
 
       {world.lastEventOutcome && (
         <div className="mb-3 rounded border border-emerald-800 bg-emerald-950/40 p-3">
@@ -203,6 +303,14 @@ export function OfficeScreen() {
                 <span className="w-6 shrink-0 text-right font-mono text-neutral-600">{row.rank}</span>
                 <span className="w-12 shrink-0 font-mono">{row.rating.toFixed(1)}</span>
                 <span className="min-w-0 flex-1 truncate">{row.name}</span>
+                {houseStyles.get(row.name) && (
+                  <span
+                    className="shrink-0 rounded bg-neutral-800 px-1 text-[9px] text-neutral-400"
+                    title={houseStyles.get(row.name)!.knownFor}
+                  >
+                    {houseStyles.get(row.name)!.label}
+                  </span>
+                )}
                 <span className="shrink-0 text-[10px] text-neutral-600">{row.network}</span>
               </div>
             ))}

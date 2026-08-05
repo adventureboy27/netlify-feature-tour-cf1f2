@@ -225,6 +225,17 @@ export function defaultWorldSettings(): WorldSettings {
     clauseTravelCost: 120,
     clauseGuaranteedDatesRate: 0.25,
 
+    // Relationships. Most people get along; the ones who do not are the
+    // interesting exception, and enemies work stiffer — better to watch,
+    // likelier to hurt somebody.
+    relationshipsPerWrestler: 0.8,
+    relationshipEnemyChance: 0.22,
+    relationshipAllyRatingBonus: 3,
+    relationshipAllyInjuryReduction: 0.2,
+    relationshipEnemyRatingBonus: 5,
+    relationshipEnemyInjuryIncrease: 0.35,
+    relationshipRefusalThreshold: 85,
+
     // Free agents
     freeAgentRateDecayPerWeek: 0.008,
     freeAgentMaxDiscount: 0.4,
@@ -249,7 +260,78 @@ export function defaultWorldSettings(): WorldSettings {
     ownerMandatesEnabled: true,
     ownerPatience: 3,
 
-    // World
+    // Championships. Prestige follows the matches: a belt defended in
+    // five-star main events is worth more than one defended in the opener.
+    titlePrestigeDrift: 0.12,
+    titleWinMomentum: 15,
+    titleWinPopularity: 4,
+    titleForTitleBonus: 15,
+
+    // Leaving. Nothing before 38, everything by 55 — and a broken-down
+    // midcarder goes years before a healthy main eventer does.
+    retirementAgeSoft: 38,
+    retirementAgeHard: 55,
+    retirementMinYearsPro: 8,
+    retirementBodyWeight: 0.45,
+    retirementCareerEndingInjury: 0.4,
+    retirementDeclineWeight: 0.3,
+    retirementStillDrawingRelief: 0.35,
+    retirementChanceAtMaxPressure: 0.55,
+    retirementUiThreshold: 0.45,
+    // Coming back. Rare, and almost always about somebody in particular.
+    comebackShootHeatThreshold: 45,
+    comebackChanceWithScore: 0.5,
+    comebackChanceForLove: 0.04,
+    comebackMaxAge: 58,
+    comebackStartingHealth: 65,
+    comebackMomentum: 25,
+
+    // Mortality. ~0.15% a year at 45, doubling every 12 years after.
+    deathBaseAge: 45,
+    deathBaseChance: 0.0015,
+    deathAgeDoubling: 12,
+    deathHealthWeight: 0.8,
+    deathChanceCap: 0.3,
+    deathOldAge: 75,
+
+    // The hall of fame. A career needs to be genuinely good: peaking at 85
+    // with a couple of reigns gets you in; a long ordinary one does not.
+    hofPeakWeight: 55,
+    hofReignsWeight: 20,
+    hofReignsForFullCredit: 4,
+    hofChampionWeeksWeight: 15,
+    hofChampionWeeksForFullCredit: 150,
+    hofLongevityWeight: 10,
+    hofYearsForFullCredit: 20,
+    hofScoreThreshold: 55,
+    hofInductionsPerYear: 2,
+
+    // The academy. A working population of roughly 60-100 people, so the
+    // free agent pool never empties and never floods.
+    worldPopulationMin: 62,
+    worldPopulationMax: 100,
+    academyMaxGraduates: 3,
+    academyDebutAgeMin: 19,
+    academyDebutAgeMax: 25,
+
+    // Nicknames. Four years in and getting over: about a year of eligible
+    // weeks before one lands, so they trickle in across a career.
+    nicknameYearsPro: 4,
+    nicknamePopularity: 55,
+    nicknameMainEventPopularity: 78,
+    nicknameMainEventChance: 0.7,
+    nicknameEgoThreshold: 70,
+    nicknameWeeklyChance: 0.02,
+
+    // House style. A few points either way — enough to notice over a season,
+    // never enough to stop you booking who you like.
+    houseStyleRatingWeight: 4,
+    houseStyleViolencePenalty: 10,
+
+    // World. You start as a territory: a small room, regulars who know the
+    // card, and belts named after the town rather than the world.
+    promotionName: 'Southside Championship Wrestling',
+    promotionArchetype: 'territory',
     rivalPromotionCount: 6,
     territoryCount: 12,
     startingTerritories: 1,
@@ -265,6 +347,7 @@ export function defaultWorldSettings(): WorldSettings {
 /** §5 "Presets" table. Each preset overrides a subset of the defaults. */
 export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<WorldSettings>> = {
   territoryDays: {
+    promotionArchetype: 'territory',
     startingCash: 25_000,
     startingRosterSize: 18,
     rivalPromotionCount: 7,
@@ -277,12 +360,16 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
     chaosLevel: 1,
   },
   bigMoney: {
+    promotionName: 'Apex Wrestling Entertainment',
+    promotionArchetype: 'sportsEntertainment',
     startingCash: 400_000,
     startingRosterSize: 40,
     rivalPromotionCount: 5,
     chaosLevel: 0,
   },
   sinkOrSwim: {
+    promotionName: 'Blackline Pro',
+    promotionArchetype: 'hardcore',
     startingCash: 8_000,
     startingRosterSize: 12,
     rivalPromotionCount: 8,

@@ -5,10 +5,13 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { rngFromSeed } from '../engine/rng';
+import { rngFromSeed, rngFromState } from '../engine/rng';
+import { saveGame, loadGame } from './persist';
 import type { Rng } from '../engine/rng';
-import type { Id, MatchRules, WorldSettings } from '../engine/types';
-import { createInitialWorld, createEmptyCard, pairKey, type World } from './world';
+import type { Id, MatchRules, TitleReignEndMethod, WorldSettings } from '../engine/types';
+import { createInitialWorld, createEmptyCard, pairKey, styleProfileFor, type World, type YearInReview } from './world';
+import { createStartingTitles, awardTitle } from '../data/titles';
+import type { PromotionArchetype } from '../data/promotionIdentity';
 import {
   findRivalry,
   createRivalry,
@@ -22,6 +25,11 @@ import { managerById, refereeById } from '../data/ringsidePool';
 import { NETWORK_SHOWS } from '../data/networkShows';
 import { rollTamperingAttempts } from '../engine/world/tampering';
 import { deriveCareerStatus } from '../engine/career/status';
+import { rollRetirement, rollComeback, retire, unretire, RETIREMENT_REASON_TEXT } from '../engine/career/retirement';
+import { rollDeath } from '../engine/career/mortality';
+import { annualInductions } from '../engine/career/hallOfFame';
+import { graduateClass, graduateCount, workingPopulation } from '../engine/world/academy';
+import { rollForNickname } from '../engine/generate/nickname';
 import { rollWeeklyEvent, recordFired } from '../engine/events/scheduler';
 import { resolveOption } from '../engine/events/apply';
 import { CREATIVE_EVENTS, eventById } from '../data/events';
@@ -33,6 +41,8 @@ import { clamp, pick, chance } from '../engine/rng';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { stipulationById, stipulationRequirementsMet } from '../data/stipulations';
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
+import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
+import { resolveTitleOutcomes, matchTitlePrestige, eligibleTitles } from '../engine/sim/titleMatch';
 import {
   computeShowRating,
   ratingToStars,
@@ -83,14 +93,22 @@ const ORGANIC_RIVALRY_HEAT_SCALE = 0.25;
 export interface GameStore {
   world: World | null;
   newGame: (settings?: WorldSettings) => void;
+  /** Resume the saved game, if there is one. Returns whether it loaded. */
+  continueGame: () => boolean;
+  /** Write the current world to local storage. Called after every week. */
+  saveNow: () => boolean;
   setSegmentParticipant: (slot: number, wrestlerId: Id, side: number) => void;
   removeSegmentParticipant: (slot: number, wrestlerId: Id) => void;
   setSegmentRules: (slot: number, rules: Partial<MatchRules>) => void;
   setSegmentStipulation: (slot: number, stipulationId: Id | null) => void;
+  /** Put a belt on the line, or take it off. Two or more means title for title. */
+  toggleSegmentTitle: (slot: number, titleId: Id) => void;
   resolveWeek: () => void;
   /** Answer the pending creative event. */
   chooseEventOption: (optionId: string) => void;
   dismissEventOutcome: () => void;
+  /** Clear the turn-of-the-year summary once it has been read. */
+  dismissYearInReview: () => void;
   // Staging the show
   setVenue: (venueId: Id) => void;
   setTicketPrice: (price: number) => void;
@@ -100,9 +118,13 @@ export interface GameStore {
   setSegmentManager: (slot: number, managerId: Id | null, forSide: number) => void;
   setSegmentReferee: (slot: number, refereeId: Id | null) => void;
   setSegmentGuestReferee: (slot: number, wrestlerId: Id | null) => void;
+  /** Name the company and pick its house style. Locked once you run a show. */
+  setPromotionIdentity: (name: string, archetype: PromotionArchetype) => void;
   // Roster moves
   signFreeAgent: (wrestlerId: Id) => void;
   releaseWrestler: (wrestlerId: Id) => void;
+  /** Send somebody out on their terms. They go to the Legacy wall, not the pool. */
+  retireWrestler: (wrestlerId: Id) => void;
   /** Pay to put a worn rig back to new. */
   repairProductionAsset: (assetId: Id) => void;
   /** Meet a renewal demand in full, or refuse it and risk them walking. */
@@ -253,7 +275,7 @@ function applyEffect(world: World, effect: EventEffect): void {
 }
 
 export const useGameStore = create<GameStore>()(
-  immer((set) => ({
+  immer((set, get) => ({
     world: null,
 
     newGame: (settings = defaultWorldSettings()) => {
@@ -262,6 +284,24 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         state.world = world;
       });
+      saveGame(world, rng.state?.() ?? 0);
+    },
+
+    continueGame: () => {
+      const file = loadGame();
+      if (!file) return false;
+      // Pick the RNG stream back up where the save left it, so reloading a
+      // game does not replay the same week's luck.
+      rng = rngFromState(file.rngState);
+      set((state) => {
+        state.world = file.world;
+      });
+      return true;
+    },
+
+    saveNow: () => {
+      const world = get().world;
+      return world ? saveGame(world, rng.state?.() ?? 0) : false;
     },
 
     setSegmentParticipant: (slot, wrestlerId, side) => {
@@ -295,6 +335,16 @@ export const useGameStore = create<GameStore>()(
         const segment = state.world?.currentCard[slot];
         if (!segment) return;
         segment.stipulation = stipulationId;
+      });
+    },
+
+    toggleSegmentTitle: (slot, titleId) => {
+      set((state) => {
+        const segment = state.world?.currentCard[slot];
+        if (!segment) return;
+        const index = segment.titleIds.indexOf(titleId);
+        if (index >= 0) segment.titleIds.splice(index, 1);
+        else segment.titleIds.push(titleId);
       });
     },
 
@@ -347,6 +397,24 @@ export const useGameStore = create<GameStore>()(
 
           violenceLevels.push(stipulation?.violenceLevel ?? 0);
 
+          // Belts booked into this match. A champion whose title is not here
+          // is working a non-title match and cannot lose it tonight.
+          // Re-checked at bell time rather than trusted from the card: the
+          // champion may have been pulled off the match after the belt was
+          // added to it, and a belt nobody in the match holds is not on the line.
+          const titlesOnTheLine = eligibleTitles(
+            segment.titleIds
+              .map((id) => world.titles.find((t) => t.id === id))
+              .filter((t): t is NonNullable<typeof t> => Boolean(t)),
+            {
+              participants: segment.participants.map((p) => ({
+                wrestler: wrestlerById.get(p.wrestlerId)!,
+                side: p.side,
+              })),
+              promotionId: world.promotion.id,
+            },
+          );
+
           // Everyone at ringside who is not wrestling (§10). A guest referee
           // replaces the assigned official rather than joining them.
           const guestReferee = segment.guestRefereeId ? wrestlerById.get(segment.guestRefereeId) : undefined;
@@ -374,9 +442,33 @@ export const useGameStore = create<GameStore>()(
             // number rather than each match penalising the next.
             hardcoreSaturation: world.promotion.hardcoreSaturation,
             slotExpectedPopularity: slotExpectations[i] ?? null,
+            titlePrestige: matchTitlePrestige(titlesOnTheLine, world.settings),
+            // What the company is known for. A card full of people who suit
+            // the house rates a little higher here than it would anywhere
+            // else, and a card full of people who don't rates a little lower.
+            houseStyleFit: houseStyleRatingBonus(participantWrestlers, world.promotion.identity, world.settings),
             rivalry,
             ringside,
           });
+
+          // A stretcher job actually puts somebody out — that is what makes
+          // the finish worth fearing rather than just worth fewer points.
+          if (result.finish === 'injuryStoppage') {
+            const hurt = participantWrestlers.find((p) => !result.winnerWrestlerIds.includes(p.id));
+            if (hurt && !hurt.injury) {
+              const weeks = Math.max(1, Math.round(2 + rng.next() * 8 * result.injuryMultiplier));
+              hurt.health = clamp(hurt.health - 30, 0, 100);
+              hurt.injury = {
+                severity: weeks >= 10 ? 'severe' : weeks >= 5 ? 'moderate' : 'minor',
+                description: 'Hurt in the ring',
+                sufferedWeek: world.week,
+                totalWeeks: weeks,
+                weeksRemaining: weeks,
+                permanentStatLoss: {},
+                earlyReturnWeeksUsed: 0,
+              };
+            }
+          }
 
           // Commit how the feud moved, and let a new one form organically.
           if (rivalry && result.heatChange) {
@@ -410,6 +502,58 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
+          // Belts move here, and only here — rules.js's job in the marble
+          // game, this file's job in this one.
+          let titleChanged = false;
+          const outcomes = resolveTitleOutcomes({
+            titles: titlesOnTheLine,
+            winnerIds: result.winnerWrestlerIds,
+            finish: result.finish,
+            stipulation,
+            matchRating: result.rating,
+            settings: world.settings,
+          });
+
+          for (const outcome of outcomes) {
+            const index = world.titles.findIndex((t) => t.id === outcome.titleId);
+            if (index < 0) continue;
+            const title = world.titles[index]!;
+            title.prestige = outcome.prestige;
+            if (!outcome.changed || !outcome.newHolderIds) continue;
+
+            titleChanged = true;
+            const previousHolders = [...title.currentHolderIds];
+            world.titles[index] = awardTitle(title, outcome.newHolderIds, world.week);
+
+            // Close the old champions' reign records and open the new ones,
+            // so a career reads correctly decades later.
+            for (const id of previousHolders) {
+              const former = world.wrestlers[id];
+              const open = former?.titleReigns.find((r) => r.titleId === title.id && r.endWeek === null);
+              if (open) {
+                open.endWeek = world.week;
+                open.endMethod = 'lostMatch';
+              }
+            }
+            for (const id of outcome.newHolderIds) {
+              const champion = world.wrestlers[id];
+              if (!champion) continue;
+              champion.titleReigns.push({
+                titleId: title.id,
+                holderIds: [...outcome.newHolderIds],
+                wonFromIds: previousHolders.length > 0 ? previousHolders : null,
+                wonByMethod: 'match',
+                startWeek: world.week,
+                endWeek: null,
+                endMethod: null,
+              });
+              // Winning a belt is the single biggest thing that happens to
+              // somebody's standing, and the crowd reacts accordingly.
+              champion.momentum = clamp(champion.momentum + world.settings.titleWinMomentum, 0, 100);
+              champion.popularity = clamp(champion.popularity + world.settings.titleWinPopularity, 0, 100);
+            }
+          }
+
           segment.result = {
             winnerSide: result.winnerSide,
             winnerWrestlerIds: result.winnerWrestlerIds,
@@ -418,7 +562,7 @@ export const useGameStore = create<GameStore>()(
             stars: result.stars,
             ratingBreakdown: result.ratingBreakdown,
             beats: result.beats,
-            titleChanged: false,
+            titleChanged,
             injuries: [],
           };
 
@@ -535,7 +679,10 @@ export const useGameStore = create<GameStore>()(
         const productionRating =
           sumEffect(production, 'showRating') +
           (venue.prestige / 100) * world.settings.venuePrestigeRatingWeight +
-          attendanceRatingModifier(attendance, venue.capacity, world.settings);
+          attendanceRatingModifier(attendance, venue.capacity, world.settings) +
+          // Run past what this room will take and they do not come back for
+          // it — the deathmatch crowd's ceiling is not the old-school one's.
+          violenceTolerancePenalty(violenceLevels, world.promotion.identity, world.settings);
         for (const effect of production) {
           if (effect.effects.rosterMorale) {
             for (const id of world.promotion.rosterIds) {
@@ -644,6 +791,14 @@ export const useGameStore = create<GameStore>()(
         // A show's worth of wear on everything that was hauled out tonight.
         world.assetConditions = world.assetConditions.map((state) => wearAsset(state, world.settings));
 
+        // Injuries count down whether or not you booked around them.
+        for (const id of world.promotion.rosterIds) {
+          const member = world.wrestlers[id];
+          if (!member?.injury) continue;
+          member.injury.weeksRemaining -= 1;
+          if (member.injury.weeksRemaining <= 0) member.injury = null;
+        }
+
         // Deals run down whether or not anybody was booked.
         const expired = expireContracts(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
         if (world.signingBanWeeks > 0) world.signingBanWeeks -= 1;
@@ -657,6 +812,22 @@ export const useGameStore = create<GameStore>()(
           settings: world.settings,
         };
         for (const w of roster) w.careerStatus = deriveCareerStatus(w, careerCtx);
+
+        // A nickname is earned, not assigned — see engine/generate/nickname.ts.
+        // Rolled across everyone in the world so a free agent can turn up
+        // already carrying one.
+        const takenNicknames = new Set(
+          Object.values(world.wrestlers)
+            .map((w) => w.nickname)
+            .filter((n): n is string => Boolean(n)),
+        );
+        for (const w of Object.values(world.wrestlers)) {
+          const earned = rollForNickname(rng, w, takenNicknames, careerCtx);
+          if (earned) {
+            w.nickname = earned;
+            takenNicknames.add(earned);
+          }
+        }
 
         // Ego chases what they have become. Build somebody and they notice.
         const egoCtx = { rosterPeakPopularity: rosterPeak, currentWeek: world.week, settings: world.settings };
@@ -673,6 +844,118 @@ export const useGameStore = create<GameStore>()(
             demand: contractDemand(member, renewalRate(member, world.settings), member.careerStatus, world.settings),
             openedWeek: world.week,
           });
+        }
+
+        // ---- the turn of the year ---------------------------------------
+        // Everything that happens on a scale of years happens here, once:
+        // birthdays, retirements, comebacks, deaths, the schools, the hall.
+        if (world.week % 52 === 0) {
+          const year = careerCtx.currentYear;
+          const notices: YearInReview = {
+            year,
+            retirements: [],
+            comebacks: [],
+            passings: [],
+            graduates: [],
+            inductions: [],
+            vacatedTitleIds: [],
+          };
+
+          const leaveTheBusiness = (id: Id, method: TitleReignEndMethod) => {
+            // A champion who is gone cannot carry a belt. It goes vacant, and
+            // the lineage records why.
+            for (const title of world.titles) {
+              if (title.vacant || !title.currentHolderIds.includes(id)) continue;
+              const last = title.history[title.history.length - 1];
+              if (last && last.endWeek === null) {
+                last.endWeek = world.week;
+                last.endMethod = method;
+              }
+              title.vacant = true;
+              title.currentHolderIds = [];
+              notices.vacatedTitleIds.push(title.id);
+            }
+            for (const w of Object.values(world.wrestlers)) {
+              const open = w.id === id ? w.titleReigns.find((r) => r.endWeek === null) : undefined;
+              if (open) {
+                open.endWeek = world.week;
+                open.endMethod = method;
+              }
+            }
+            world.promotion.rosterIds = world.promotion.rosterIds.filter((rosterId) => rosterId !== id);
+            world.freeAgents = world.freeAgents.filter((agent) => agent.wrestlerId !== id);
+            world.pendingRenewals = world.pendingRenewals.filter((r) => r.wrestlerId !== id);
+          };
+
+          for (const w of Object.values(world.wrestlers)) {
+            if (w.deceased || w.role !== 'wrestler') continue;
+            w.age += 1;
+
+            const passing = rollDeath(rng, w, world.week, world.settings);
+            if (passing) {
+              w.deceased = passing;
+              world.memoriam.push(passing);
+              notices.passings.push(passing);
+              leaveTheBusiness(w.id, 'died');
+              continue;
+            }
+
+            if (w.careerStatus === 'retired') {
+              const back = rollComeback(rng, w, {
+                currentYear: year,
+                rivalries: world.rivalries,
+                settings: world.settings,
+              });
+              if (back.returning) {
+                unretire(w, world.settings);
+                notices.comebacks.push({
+                  wrestlerId: w.id,
+                  overId: back.over?.participantIds.find((id) => id !== w.id) ?? null,
+                });
+                // They come back unsigned. Somebody has to want them.
+                world.freeAgents.push({
+                  wrestlerId: w.id,
+                  reason: 'returning',
+                  askingRate: askingRate(w, world.settings),
+                  weeksUnsigned: 0,
+                });
+              }
+              continue;
+            }
+
+            const call = rollRetirement(rng, w, careerCtx);
+            if (call.retiring) {
+              retire(w);
+              notices.retirements.push({ wrestlerId: w.id, reason: RETIREMENT_REASON_TEXT[call.reason] });
+              leaveTheBusiness(w.id, 'retired');
+            }
+          }
+
+          // The hall considers everybody who is finished, not just your people.
+          const hofCtx = { currentWeek: world.week, currentYear: year, settings: world.settings };
+          for (const entry of annualInductions(Object.values(world.wrestlers), hofCtx)) {
+            const inductee = world.wrestlers[entry.wrestlerId];
+            if (!inductee) continue;
+            inductee.hallOfFameWeek = world.week;
+            if (!inductee.deceased) inductee.careerStatus = 'hallOfFamer';
+            world.hallOfFame.push(entry);
+            notices.inductions.push(entry);
+          }
+
+          // And the schools make up some of the difference.
+          const everyone = Object.values(world.wrestlers);
+          const intake = graduateClass(
+            rng,
+            graduateCount(rng, workingPopulation(everyone), world.settings),
+            year,
+            world.settings,
+            everyone.map((w) => w.appearance),
+          );
+          for (const graduate of intake.wrestlers) world.wrestlers[graduate.id] = graduate;
+          world.freeAgents.push(...intake.freeAgents);
+          notices.graduates = intake.wrestlers.map((w) => w.id);
+
+          world.yearInReview = notices;
         }
 
         // Rival bookers come calling.
@@ -734,6 +1017,72 @@ export const useGameStore = create<GameStore>()(
     dismissEventOutcome: () => {
       set((state) => {
         if (state.world) state.world.lastEventOutcome = null;
+      });
+    },
+
+    // DESIGN: what kind of company you are is the first real decision, and it
+    // renames your belts — so it is open until the first show goes out and
+    // shut for good afterwards. A promotion that changes what it stands for
+    // every week does not stand for anything.
+    retireWrestler: (wrestlerId) => {
+      set((state) => {
+        const world = state.world;
+        const w = world?.wrestlers[wrestlerId];
+        if (!world || !w || w.careerStatus === 'retired') return;
+
+        // Belts do not retire with their holder.
+        for (const title of world.titles) {
+          if (title.vacant || !title.currentHolderIds.includes(wrestlerId)) continue;
+          const last = title.history[title.history.length - 1];
+          if (last && last.endWeek === null) {
+            last.endWeek = world.week;
+            last.endMethod = 'retired';
+          }
+          title.vacant = true;
+          title.currentHolderIds = [];
+        }
+        const open = w.titleReigns.find((r) => r.endWeek === null);
+        if (open) {
+          open.endWeek = world.week;
+          open.endMethod = 'retired';
+        }
+
+        retire(w);
+        world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestlerId);
+        world.freeAgents = world.freeAgents.filter((agent) => agent.wrestlerId !== wrestlerId);
+        world.pendingRenewals = world.pendingRenewals.filter((r) => r.wrestlerId !== wrestlerId);
+      });
+    },
+
+    setPromotionIdentity: (name, archetype) => {
+      set((state) => {
+        const world = state.world;
+        if (!world || world.showHistory.length > 0) return;
+
+        world.promotion.name = name.trim() || world.promotion.name;
+        world.promotion.identity = archetype;
+        world.promotion.styleProfile = styleProfileFor(archetype);
+
+        // Rename in place rather than rebuilding: the opening champions were
+        // crowned at week one and a rename must not vacate their belts.
+        const renamed = createStartingTitles(world.promotion.id, world.promotion.name, archetype);
+        const own = world.titles.filter((t) => t.promotionId === world.promotion.id);
+        own.forEach((title, i) => {
+          const fresh = renamed[i];
+          if (!fresh) return;
+          title.name = fresh.name;
+          title.blurb = fresh.blurb;
+          title.tier = fresh.tier;
+          title.prestige = fresh.prestige;
+          title.colorway = fresh.colorway;
+          title.signatureStipulationId = fresh.signatureStipulationId;
+        });
+      });
+    },
+
+    dismissYearInReview: () => {
+      set((state) => {
+        if (state.world) state.world.yearInReview = null;
       });
     },
 

@@ -56,6 +56,8 @@ export const STIPULATIONS: Stipulation[] = [
     archetypeFit: [],
     impliedRules: { ruleStrictness: 'none', countOuts: 'none' },
     finishWeights: { disqualification: 0, countOut: 0, interference: 2.5 },
+    // No rules to break, so no protection from breaking them.
+    titleChangesOnDQ: true,
   },
   {
     id: 'hardcore',
@@ -67,6 +69,8 @@ export const STIPULATIONS: Stipulation[] = [
     archetypeFit: ['brawler'],
     impliedRules: { ruleStrictness: 'none', countOuts: 'none', falls: 'anyMeans' },
     finishWeights: { disqualification: 0, countOut: 0, knockout: 2.4, submission: 0.3 },
+    // No rules to break, so no protection from breaking them.
+    titleChangesOnDQ: true,
   },
   {
     id: 'streetFight',
@@ -79,6 +83,8 @@ export const STIPULATIONS: Stipulation[] = [
     archetypeFit: ['brawler'],
     impliedRules: { ruleStrictness: 'none', countOuts: 'none' },
     finishWeights: { disqualification: 0, countOut: 0, knockout: 1.8 },
+    // No rules to break, so no protection from breaking them.
+    titleChangesOnDQ: true,
   },
   {
     id: 'tables',

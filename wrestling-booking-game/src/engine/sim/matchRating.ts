@@ -44,6 +44,8 @@ export interface MatchRatingContext {
   slotExpectedPopularity: number | null;
   instructionModifier: number;
   territoryFit: number;
+  /** How well these workers suit the company they are working for. */
+  houseStyleFit: number;
   pairChemistryBonus: number;
   overexposurePenalty: number;
 }
@@ -120,6 +122,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
   const stipulationBonus = term('Stipulation', ctx.stipulation?.ratingBonus ?? 0);
   const instructionMod = term('Instruction', ctx.instructionModifier);
   const territoryFit = term('Territory fit', ctx.territoryFit);
+  const houseStyle = term('House style', ctx.houseStyleFit);
   const pairChemistry = term('Pair chemistry', ctx.pairChemistryBonus);
   const overexposure = term('Overexposure', -Math.abs(ctx.overexposurePenalty));
   const hardcoreSaturation = term('Hardcore saturation', -(ctx.hardcoreSaturation / 100) * 12);
@@ -164,6 +167,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
     stipulationBonus +
     instructionMod +
     territoryFit +
+    houseStyle +
     pairChemistry +
     overexposure +
     hardcoreSaturation +

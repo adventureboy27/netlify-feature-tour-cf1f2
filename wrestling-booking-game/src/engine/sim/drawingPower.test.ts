@@ -51,6 +51,7 @@ function rate(participants: Wrestler[], finish: FinishType, over: Partial<MatchR
     slotExpectedPopularity: null,
     instructionModifier: 0,
     territoryFit: 0,
+    houseStyleFit: 0,
     pairChemistryBonus: 0,
     overexposurePenalty: 0,
     ...over,
@@ -123,6 +124,7 @@ describe('two great wrestlers given room to work', () => {
       slotExpectedPopularity: null,
       instructionModifier: 0,
       territoryFit: 0,
+    houseStyleFit: 0,
       pairChemistryBonus: 0,
       overexposurePenalty: 0,
     }).rating;

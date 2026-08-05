@@ -4,12 +4,20 @@
 export interface Rng {
   /** Uniform float in [0, 1). */
   next(): number;
+  /**
+   * The generator's internal state, for saving a game mid-stream. Optional
+   * so a test can still hand the engine a one-line fake Rng.
+   */
+  state?(): number;
 }
 
 /** mulberry32: fast, small-state, good-enough-for-a-game seeded PRNG. */
 export function mulberry32(seed: number): Rng {
   let a = seed >>> 0;
   return {
+    state(): number {
+      return a >>> 0;
+    },
     next(): number {
       a |= 0;
       a = (a + 0x6d2b79f5) | 0;
@@ -34,6 +42,11 @@ export function seedFromString(seed: string): number {
 
 export function rngFromSeed(seed: string): Rng {
   return mulberry32(seedFromString(seed));
+}
+
+/** Resume a saved generator exactly where it left off. */
+export function rngFromState(state: number): Rng {
+  return mulberry32(state);
 }
 
 /** Integer in [min, max], inclusive on both ends. */
