@@ -1363,6 +1363,42 @@ export interface WorldSettings {
   fanMatchTweetShare: number;
   fanTweetLikesScale: number;
 
+  // End of year awards. Thresholds first — every award is allowed to go
+  // unclaimed in a year that did not earn it — then what winning costs or
+  // pays.
+  /** How much a year's popularity movement counts next to standing. */
+  awardMovementWeight: number;
+  /** Nobody wins Wrestler of the Year from the bottom of the card. */
+  awardWrestlerOfYearFloor: number;
+  awardMatchOfYearFloor: number;
+  awardWorstMatchCeiling: number;
+  /** You have to have been down this far to be coming back. */
+  awardComebackFromBelow: number;
+  awardComebackGain: number;
+  /** Too few matches and a year's movement means nothing. */
+  awardMinMatches: number;
+  awardImprovementGain: number;
+  awardTeamMinWins: number;
+  awardDownfallDrop: number;
+  /** You have to have been this big for a bad year to be a story. */
+  awardDisappointmentFloor: number;
+  /**
+   * And you have to have gone backwards by this much *relative to the rest of
+   * the top of the card*. Judged absolutely, the award goes to whoever is
+   * pinned against the popularity ceiling every year — somebody at 100 has
+   * nowhere left to move, which reads as "stood still" and is not their
+   * fault.
+   */
+  awardDisappointmentDrop: number;
+  /** Wrestler and Downfall of the Year hit harder than the rest. */
+  awardHeadlineScale: number;
+  awardPopularityGain: number;
+  awardPopularityLoss: number;
+  awardMomentumGain: number;
+  awardMomentumLoss: number;
+  awardMoraleGain: number;
+  awardMoraleLoss: number;
+
   // Rankings. Contenders are about form; the world list is about a career.
   rankMomentumWeight: number;
   rankFormWeight: number;

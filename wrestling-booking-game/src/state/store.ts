@@ -44,6 +44,7 @@ import { deriveCareerStatus } from '../engine/career/status';
 import { rollRetirement, rollComeback, retire, unretire, RETIREMENT_REASON_TEXT } from '../engine/career/retirement';
 import { rollDeath } from '../engine/career/mortality';
 import { annualInductions } from '../engine/career/hallOfFame';
+import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult } from '../engine/career/awards';
 import { graduateClass, graduateCount, workingPopulation } from '../engine/world/academy';
 import { rollForNickname } from '../engine/generate/nickname';
 import { rollWeeklyEvent, recordFired } from '../engine/events/scheduler';
@@ -813,9 +814,19 @@ export const useGameStore = create<GameStore>()(
             const winningSide = result.winnerSide;
             sideTeams.forEach((team, side) => {
               if (!team) return;
-              recordTeamResult(team, winningSide === null ? 'draw' : winningSide === side ? 'win' : 'loss');
+              const outcome = winningSide === null ? 'draw' : winningSide === side ? 'win' : 'loss';
+              recordTeamResult(team, outcome);
+              noteTeamResult(world.yearRecord, team.id, outcome);
             });
           }
+
+          // And against the year, for the awards in December.
+          noteMatch(world.yearRecord, {
+            wrestlerIds: participantIds,
+            rating: result.rating,
+            week: world.week,
+            promotionName: world.promotion.name,
+          });
 
           segmentRatings.push(result.rating);
           const avgPop = participantWrestlers.reduce((sum, w) => sum + w.popularity, 0) / participantWrestlers.length;
@@ -1085,12 +1096,20 @@ export const useGameStore = create<GameStore>()(
               match.teamIds.forEach((teamId, side) => {
                 const team = world.stables.find((t) => t.id === teamId);
                 if (!team) return;
-                recordTeamResult(
-                  team,
-                  match.winnerSide === null ? 'draw' : match.winnerSide === side ? 'win' : 'loss',
-                );
+                const outcome = match.winnerSide === null ? 'draw' : match.winnerSide === side ? 'win' : 'loss';
+                recordTeamResult(team, outcome);
+                noteTeamResult(world.yearRecord, team.id, outcome);
               });
             }
+
+            // Match of the Year can happen on somebody else's show. That is
+            // the point of the rest of the business existing.
+            noteMatch(world.yearRecord, {
+              wrestlerIds: match.participantIds,
+              rating: match.rating,
+              week: world.week,
+              promotionName: rival.name,
+            });
             for (const outcome of match.titleOutcomes) {
               const index = world.titles.findIndex((t) => t.id === outcome.titleId);
               if (index < 0) continue;
@@ -1279,7 +1298,41 @@ export const useGameStore = create<GameStore>()(
             graduates: [],
             inductions: [],
             vacatedTitleIds: [],
+            awards: [],
           };
+
+          // ---- the awards night ------------------------------------------
+          // Handed out first, on the year as it actually finished — before
+          // anybody retires, dies or ages out of it. A wrestler who retires
+          // in December still won Wrestler of the Year in December.
+          const liveTeams = world.stables
+            .filter((t) => t.kind === 'tagTeam' && t.disbandedWeek === null)
+            .map((t) => ({ id: t.id, name: t.name, memberIds: t.memberIds }));
+          // Stamped with the year the record covers, not the one starting —
+          // at week 52 the calendar has already ticked over, and these are
+          // awards for the twelve months that just finished.
+          const awards = decideAwards({
+            year: world.yearRecord.year,
+            wrestlers: Object.values(world.wrestlers),
+            record: world.yearRecord,
+            teams: liveTeams,
+            settings: world.settings,
+          });
+          for (const winner of awards) {
+            for (const effect of awardEffects(winner, world.settings)) {
+              const w = world.wrestlers[effect.wrestlerId];
+              if (!w) continue;
+              w.popularity = clamp(w.popularity + effect.popularity, 0, 100);
+              w.momentum = clamp(w.momentum + effect.momentum, -100, 100);
+              w.morale = clamp(w.morale + effect.morale, 0, 100);
+            }
+            world.awardHistory.push(winner);
+          }
+          notices.awards = awards;
+
+          // A new year starts with a clean sheet, opened against everybody's
+          // standing right now.
+          world.yearRecord = emptyYearRecord(world.yearRecord.year + 1, Object.values(world.wrestlers));
 
           const leaveTheBusiness = (id: Id, method: TitleReignEndMethod) => {
             // A champion who is gone cannot carry a belt. It goes vacant, and

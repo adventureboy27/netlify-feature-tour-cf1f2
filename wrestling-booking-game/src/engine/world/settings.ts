@@ -319,6 +319,30 @@ export function defaultWorldSettings(): WorldSettings {
     fanMatchTweetShare: 0.55,
     fanTweetLikesScale: 400,
 
+    // The awards. Movement counts for a lot against standing, because the
+    // whole point is that Wrestler of the Year is about the year — a legend
+    // who coasted should lose it to somebody who climbed.
+    awardMovementWeight: 1.5,
+    awardWrestlerOfYearFloor: 55,
+    awardMatchOfYearFloor: 80,
+    awardWorstMatchCeiling: 30,
+    awardComebackFromBelow: 40,
+    awardComebackGain: 12,
+    awardMinMatches: 8,
+    awardImprovementGain: 10,
+    awardTeamMinWins: 8,
+    awardDownfallDrop: 10,
+    awardDisappointmentFloor: 60,
+    awardDisappointmentDrop: 8,
+    // The two big ones are worth double, good and bad alike.
+    awardHeadlineScale: 2,
+    awardPopularityGain: 4,
+    awardPopularityLoss: 3,
+    awardMomentumGain: 10,
+    awardMomentumLoss: 8,
+    awardMoraleGain: 8,
+    awardMoraleLoss: 6,
+
     // Rankings. The contender list is deliberately twitchy — momentum is the
     // biggest single term, so a hot streak genuinely earns a title shot. The
     // world list is the opposite: peak and championships dominate, so it

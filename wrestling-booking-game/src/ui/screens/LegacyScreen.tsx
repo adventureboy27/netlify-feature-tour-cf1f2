@@ -11,6 +11,7 @@ import { effectiveAppearance } from '../../engine/generate/gimmickLook';
 import { billedAs } from '../../engine/generate/nickname';
 import { DEATH_CAUSE_TEXT } from '../../engine/career/mortality';
 import { yearsPro } from '../../engine/career/status';
+import { awardById } from '../../engine/career/awards';
 
 export function LegacyScreen() {
   const world = useGameStore((s) => s.world);
@@ -20,6 +21,8 @@ export function LegacyScreen() {
   const retired = Object.values(world.wrestlers).filter(
     (w) => !w.deceased && w.careerStatus === 'retired' && w.hallOfFameWeek === undefined,
   );
+  // Newest year first — the argument people are still having is this year's.
+  const awardYears = [...new Set(world.awardHistory.map((entry) => entry.year))].sort((a, b) => b - a);
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
@@ -87,6 +90,52 @@ export function LegacyScreen() {
               );
             })}
           </ul>
+        )}
+      </section>
+
+      <section className="mb-5">
+        <h2 className="mb-2 text-sm font-medium text-neutral-300">Awards</h2>
+        {world.awardHistory.length === 0 ? (
+          <p className="text-xs text-neutral-500">
+            The first awards go out at the end of the year. Some of them are ones nobody wants.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {awardYears.map((year) => (
+              <div key={year}>
+                <div className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">{year}</div>
+                <ul className="flex flex-col gap-1">
+                  {world.awardHistory
+                    .filter((entry) => entry.year === year)
+                    .map((entry) => {
+                      const definition = awardById(entry.awardId);
+                      const good = definition?.good ?? true;
+                      return (
+                        <li
+                          key={`${year}-${entry.awardId}`}
+                          data-testid={`award-${year}-${entry.awardId}`}
+                          className={`rounded border px-2 py-1.5 text-xs ${
+                            good ? 'border-amber-900/60 bg-amber-950/20' : 'border-rose-900/60 bg-rose-950/20'
+                          }`}
+                        >
+                          <span className={`text-[10px] uppercase tracking-wide ${good ? 'text-amber-500' : 'text-rose-400'}`}>
+                            {definition?.name ?? entry.awardId}
+                          </span>
+                          <span className="block font-medium">
+                            {entry.wrestlerIds
+                              .map((id) => world.wrestlers[id])
+                              .filter(Boolean)
+                              .map((w) => billedAs(w!))
+                              .join(' & ')}
+                          </span>
+                          <span className="block text-[11px] text-neutral-400">{entry.citation}</span>
+                        </li>
+                      );
+                    })}
+                </ul>
+              </div>
+            ))}
+          </div>
         )}
       </section>
 

@@ -21,6 +21,7 @@ import { tvVerdict, wonTheNight, playerChartPosition } from '../../engine/world/
 import { temptationLabel } from '../../engine/world/tampering';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { egoLabel } from '../../engine/career/ego';
+import { awardById } from '../../engine/career/awards';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Money } from '../components/display';
 import { identityOf } from '../../data/promotionIdentity';
@@ -299,6 +300,31 @@ function YearInReview({ onDismiss }: { onDismiss: () => void }) {
   return (
     <section className="mb-3 rounded border border-amber-900 bg-neutral-900 p-3">
       <div className="text-xs uppercase tracking-wide text-amber-500">The year turns — {review.year}</div>
+
+      {review.awards.length > 0 && (
+        <div className="mt-2 flex flex-col gap-1" data-testid="year-awards">
+          {review.awards.map((winner) => {
+            const definition = awardById(winner.awardId);
+            const good = definition?.good ?? true;
+            return (
+              <div
+                key={winner.awardId}
+                className={`rounded border px-2 py-1.5 ${
+                  good ? 'border-amber-900/60 bg-amber-950/20' : 'border-rose-900/60 bg-rose-950/20'
+                }`}
+              >
+                <div className={`text-[10px] uppercase tracking-wide ${good ? 'text-amber-500' : 'text-rose-400'}`}>
+                  {definition?.name ?? winner.awardId}
+                </div>
+                <div className="text-xs font-medium">
+                  {winner.wrestlerIds.map(nameOf).filter(Boolean).join(' & ')}
+                </div>
+                <p className="text-[11px] text-neutral-400">{winner.citation}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {review.retirements.length > 0 && (
         <YearGroup title="Out of the business" total={review.retirements.length}>

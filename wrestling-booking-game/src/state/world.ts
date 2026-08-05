@@ -34,6 +34,8 @@ import type {
   Passing,
 } from '../engine/types';
 import type { HallOfFameEntry } from '../engine/career/hallOfFame';
+import type { AwardWinner, YearRecord } from '../engine/career/awards';
+import { emptyYearRecord } from '../engine/career/awards';
 import type { RivalShow } from '../engine/world/rivalBooking';
 import type { AuctionLot, AuctionResult } from '../engine/world/auction';
 import type { PublicationPositions } from '../engine/world/publication';
@@ -129,6 +131,15 @@ export interface World {
   hallOfFame: HallOfFameEntry[];
   /** What the turn of the year brought. Shown once, then it is history. */
   yearInReview: YearInReview | null;
+  /**
+   * The year so far, gathered as it happens. None of it can be rebuilt after
+   * the fact — what somebody's popularity was last January is gone the moment
+   * it changes — so unlike almost everything else here it is stored, not
+   * derived.
+   */
+  yearRecord: YearRecord;
+  /** Every award ever handed out, newest year last. */
+  awardHistory: AwardWinner[];
   /** Who gets on with whom. */
   relationships: Relationship[];
   /** The week's television chart: wrestling plus the rest of the dial. */
@@ -155,6 +166,8 @@ export interface YearInReview {
   graduates: Id[];
   inductions: HallOfFameEntry[];
   vacatedTitleIds: Id[];
+  /** The awards night. Empty in a year that earned nothing. */
+  awards: AwardWinner[];
 }
 
 /** A lot on the table, with the week it has to be answered by. */
@@ -370,6 +383,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     memoriam: [],
     hallOfFame: [],
     yearInReview: null,
+    yearRecord: emptyYearRecord(settings.startingYear, Object.values(wrestlers)),
+    awardHistory: [],
     relationships: seedRelationships(rng, roster, settings),
     ratingsChart: [],
     meetings: {},

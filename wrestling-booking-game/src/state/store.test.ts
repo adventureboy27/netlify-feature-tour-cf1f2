@@ -260,3 +260,95 @@ describe('the rest of the business', () => {
     expect(rivalBelts.some((t) => t.history.length > 1)).toBe(true);
   });
 });
+
+describe('the awards night', () => {
+  /** Run until the calendar turns, which is not exactly 52 shows in. */
+  function toTheTurnOfTheYear(): void {
+    for (let i = 0; i < 60; i++) {
+      useGameStore.getState().autoFillCard();
+      useGameStore.getState().resolveWeek();
+      if (useGameStore.getState().world!.yearInReview) return;
+    }
+    throw new Error('the year never turned');
+  }
+
+  it('hands out the year at the turn of the year, and remembers it', () => {
+    toTheTurnOfTheYear();
+    const world = useGameStore.getState().world!;
+
+    expect(world.yearInReview!.awards.length).toBeGreaterThan(0);
+    // Somebody was the biggest name in the year, and some match was the best
+    // in it. Those two are the awards a year always produces.
+    const ids = world.yearInReview!.awards.map((a) => a.awardId);
+    expect(ids).toContain('wrestlerOfTheYear');
+    expect(ids).toContain('matchOfTheYear');
+    // Everything handed out is on the permanent record, stamped with the year
+    // that just finished rather than the one starting.
+    expect(world.awardHistory).toEqual(world.yearInReview!.awards);
+    for (const winner of world.awardHistory) {
+      expect(winner.year).toBe(world.settings.startingYear);
+      expect(winner.wrestlerIds.length).toBeGreaterThan(0);
+      expect(winner.wrestlerIds.every((id) => world.wrestlers[id])).toBe(true);
+      expect(winner.citation).not.toBe('');
+    }
+  });
+
+  it('opens a clean sheet for the new year', () => {
+    toTheTurnOfTheYear();
+    const world = useGameStore.getState().world!;
+
+    expect(world.yearRecord.year).toBe(world.settings.startingYear + 1);
+    expect(world.yearRecord.bestMatch).toBeNull();
+    expect(world.yearRecord.worstMatch).toBeNull();
+    expect(Object.keys(world.yearRecord.matches)).toHaveLength(0);
+    // And the baseline is everybody's standing right now, so next year's
+    // movement is measured from here.
+    for (const w of Object.values(world.wrestlers)) {
+      expect(world.yearRecord.popularityAtStart[w.id]).toBe(w.popularity);
+    }
+  });
+
+  it('counts matches from every promotion, not just the player s', () => {
+    for (let i = 0; i < 4; i++) {
+      useGameStore.getState().autoFillCard();
+      useGameStore.getState().resolveWeek();
+    }
+    const world = useGameStore.getState().world!;
+    const onARivalRoster = Object.values(world.wrestlers).filter(
+      (w) => w.promotionId !== null && w.promotionId !== world.promotion.id,
+    );
+    expect(onARivalRoster.some((w) => (world.yearRecord.matches[w.id] ?? 0) > 0)).toBe(true);
+  });
+
+  it('applies the effects without pushing anybody out of bounds', () => {
+    toTheTurnOfTheYear();
+    const world = useGameStore.getState().world!;
+
+    // What each award is worth is settled in awards.test.ts. What the store
+    // has to get right is that the effects land on real people and stay
+    // inside the ranges the rest of the game assumes.
+    expect(world.awardHistory.length).toBeGreaterThan(0);
+    for (const winner of world.awardHistory) {
+      for (const id of winner.wrestlerIds) {
+        const w = world.wrestlers[id];
+        expect(w).toBeDefined();
+        expect(w!.popularity).toBeGreaterThanOrEqual(0);
+        expect(w!.popularity).toBeLessThanOrEqual(100);
+        expect(w!.momentum).toBeGreaterThanOrEqual(-100);
+        expect(w!.momentum).toBeLessThanOrEqual(100);
+        expect(w!.morale).toBeGreaterThanOrEqual(0);
+        expect(w!.morale).toBeLessThanOrEqual(100);
+      }
+    }
+  });
+
+  it('does not give one person two of the individual awards in a year', () => {
+    toTheTurnOfTheYear();
+    const world = useGameStore.getState().world!;
+    const individual = world.awardHistory.filter(
+      (a) => a.awardId !== 'matchOfTheYear' && a.awardId !== 'worstMatchOfTheYear',
+    );
+    const named = individual.flatMap((a) => a.wrestlerIds);
+    expect(new Set(named).size).toBe(named.length);
+  });
+});

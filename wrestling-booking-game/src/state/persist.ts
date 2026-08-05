@@ -12,7 +12,10 @@
 import type { World } from './world';
 
 const SLOT_KEY = 'wbg.save.v1';
-const SCHEMA_VERSION = 1;
+// Bumped when the World gains state a running save cannot be without — v2
+// added the year record the end-of-year awards are judged on, which cannot be
+// reconstructed from a mid-year save.
+const SCHEMA_VERSION = 2;
 
 export interface SaveFile {
   schema: number;
