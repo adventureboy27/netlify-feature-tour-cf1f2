@@ -20,6 +20,10 @@ import {
   turnedAway,
   sumEffect,
   computeDemand,
+  assetEffectiveness,
+  assetHasFailed,
+  conditionLabel,
+  repairCost,
 } from '../../engine/economy/showBudget';
 import { weeklyWageBill } from '../../engine/economy/contracts';
 import { Money } from '../components/display';
@@ -30,6 +34,7 @@ export function PromotionScreen() {
   const setTicketPrice = useGameStore((s) => s.setTicketPrice);
   const toggleExtra = useGameStore((s) => s.toggleShowExtra);
   const buyAsset = useGameStore((s) => s.buyProductionAsset);
+  const repair = useGameStore((s) => s.repairProductionAsset);
 
   const projection = useMemo(() => {
     if (!world) return null;
@@ -43,7 +48,11 @@ export function PromotionScreen() {
     const ownedAssets = world.ownedAssetIds
       .map((id) => productionAssetById(id))
       .filter((a): a is NonNullable<typeof a> => Boolean(a))
-      .filter((a) => !a.minVenueCapacity || venue.capacity >= a.minVenueCapacity);
+      .filter((a) => !a.minVenueCapacity || venue.capacity >= a.minVenueCapacity)
+      .filter((a) => {
+        const state = world.assetConditions.find((c) => c.assetId === a.id);
+        return !state || assetEffectiveness(state, world.settings) > 0;
+      });
     const extras = world.showSetup.extraIds
       .map((id) => showExtraById(id))
       .filter((e): e is NonNullable<typeof e> => Boolean(e));
@@ -222,9 +231,12 @@ export function PromotionScreen() {
             const owned = world.ownedAssetIds.includes(asset.id);
             const affordable = world.promotion.bankBalance >= asset.cost;
             const tooBig = asset.minVenueCapacity && venue.capacity < asset.minVenueCapacity;
+            const condition = world.assetConditions.find((c) => c.assetId === asset.id);
+            const fixCost = condition ? repairCost(condition, asset.cost, world.settings) : 0;
+
             return (
+              <div key={asset.id} className="flex flex-col gap-1">
               <button
-                key={asset.id}
                 type="button"
                 data-testid={`asset-${asset.id}`}
                 disabled={owned || !affordable}
@@ -246,6 +258,19 @@ export function PromotionScreen() {
                   {owned && (
                     <div className="text-[10px] text-neutral-600">
                       upkeep <Money amount={asset.upkeepPerShow} /> per show
+                      {condition && (
+                        <span
+                          className={`ml-1 ${
+                            assetHasFailed(condition, world.settings)
+                              ? 'text-rose-400'
+                              : condition.condition < 40
+                                ? 'text-amber-500'
+                                : 'text-neutral-500'
+                          }`}
+                        >
+                          · {conditionLabel(condition, world.settings)}
+                        </span>
+                      )}
                       {tooBig && <span className="ml-1 text-amber-500">· too big for this venue</span>}
                     </div>
                   )}
@@ -256,6 +281,22 @@ export function PromotionScreen() {
                   </span>
                 )}
               </button>
+              {owned && fixCost > 0 && (
+                <button
+                  type="button"
+                  data-testid={`repair-${asset.id}`}
+                  disabled={world.promotion.bankBalance < fixCost}
+                  onClick={() => repair(asset.id)}
+                  className={`rounded px-2 py-1 text-[11px] ${
+                    world.promotion.bankBalance >= fixCost
+                      ? 'bg-amber-900/60 text-amber-200 hover:bg-amber-800/60'
+                      : 'bg-neutral-900 text-neutral-600'
+                  }`}
+                >
+                  Repair · <Money amount={fixCost} />
+                </button>
+              )}
+              </div>
             );
           })}
         </div>

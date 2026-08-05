@@ -171,6 +171,14 @@ export function defaultWorldSettings(): WorldSettings {
     demandFromRecentShows: 0.5,
     demandFromRoster: 0.2,
     recentShowQualityWeight: 0.35,
+
+    // Wear. Half a point a show: fine through year one, noticeably degraded
+    // by year two, in real trouble by year three, dead a little after that.
+    // Long enough to forget about, short enough to bite a promotion that
+    // keeps buying and never maintains.
+    assetWearPerShow: 0.5,
+    assetFailureThreshold: 15,
+    assetRepairCostFraction: 0.55,
     venuePrestigeRatingWeight: 8,
     venueFullThreshold: 0.75,
     venueFullBonus: 6,
@@ -196,6 +204,26 @@ export function defaultWorldSettings(): WorldSettings {
     playerTamperingSuspensionWeeks: 6,
     playerTamperingExpulsionRatingLoss: 25,
     playerTamperingEscalation: 1.0,
+
+    // Ego. Rises roughly twice as fast as it falls — you can make somebody in
+    // a season and spend two bringing them back down.
+    egoFromStanding: 45,
+    egoFromHoldingTitle: 12,
+    egoFromCareerTitles: 4,
+    egoFromTopStatus: 15,
+    egoFromMomentum: 10,
+    egoAttitudeSwing: 0.4,
+    egoRiseRate: 0.08,
+    egoFallRate: 0.04,
+    egoRateMultiplierMax: 1.4,
+    egoMaxClauseAsks: 3,
+    egoWalkRiskMax: 0.55,
+    egoRosterFrictionMax: 6,
+
+    // What agreed clauses cost every week.
+    clauseInsuranceRate: 0.18,
+    clauseTravelCost: 120,
+    clauseGuaranteedDatesRate: 0.25,
 
     // Free agents
     freeAgentRateDecayPerWeek: 0.008,

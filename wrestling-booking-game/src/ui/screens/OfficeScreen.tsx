@@ -11,6 +11,7 @@ import { useGameStore } from '../../state/store';
 import { tvVerdict, wonTheNight, playerChartPosition } from '../../engine/world/tvRatings';
 import { temptationLabel } from '../../engine/world/tampering';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
+import { egoLabel } from '../../engine/career/ego';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Money } from '../components/display';
 import type { Wrestler } from '../../engine/types';
@@ -19,6 +20,7 @@ export function OfficeScreen() {
   const world = useGameStore((s) => s.world);
   const choose = useGameStore((s) => s.chooseEventOption);
   const dismiss = useGameStore((s) => s.dismissEventOutcome);
+  const answerRenewal = useGameStore((s) => s.answerRenewal);
   if (!world) return null;
 
   const latestTv = world.tvHistory[0];
@@ -72,6 +74,68 @@ export function OfficeScreen() {
         <p className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-500">
           Quiet week. Nobody is at your door.
         </p>
+      )}
+
+      {world.pendingRenewals.length > 0 && (
+        <section className="mb-4">
+          <h2 className="mb-2 text-sm font-medium text-neutral-300">Contracts up</h2>
+          <div className="flex flex-col gap-2">
+            {world.pendingRenewals.map((renewal) => {
+              const person = wrestler(renewal.wrestlerId);
+              if (!person) return null;
+              return (
+                <article
+                  key={renewal.wrestlerId}
+                  className="rounded border border-amber-900/60 bg-neutral-900 p-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <PaperDoll appearance={person.appearance} gender={person.gender} alignment={person.alignment} size="thumb" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium">{person.name}</div>
+                      <div className="text-[11px] text-neutral-500">
+                        {CAREER_STATUS_LABELS[person.careerStatus]} · {egoLabel(person.ego)}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right text-xs">
+                      <Money amount={renewal.demand.weeklyRate} />
+                      <span className="text-neutral-600">/wk</span>
+                    </div>
+                  </div>
+
+                  {renewal.demand.clauseCosts.length > 0 && (
+                    <ul className="mt-2 flex flex-col gap-0.5 border-l-2 border-amber-900/60 pl-2 text-[11px]">
+                      {renewal.demand.clauseCosts.map((entry) => (
+                        <li key={entry.clause}>
+                          <span className="text-amber-300">{entry.label}</span>
+                          <span className="ml-1 text-neutral-500">{entry.cost}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      data-testid={`renew-accept-${renewal.wrestlerId}`}
+                      onClick={() => answerRenewal(renewal.wrestlerId, true)}
+                      className="rounded bg-emerald-600 px-3 py-1 text-[11px] text-white hover:bg-emerald-500"
+                    >
+                      Give them what they want
+                    </button>
+                    <button
+                      type="button"
+                      data-testid={`renew-refuse-${renewal.wrestlerId}`}
+                      onClick={() => answerRenewal(renewal.wrestlerId, false)}
+                      className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700"
+                    >
+                      Refuse
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       {world.tamperingOffers.length > 0 && (

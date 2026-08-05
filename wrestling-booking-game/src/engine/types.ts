@@ -349,6 +349,12 @@ export interface Wrestler {
   careerStatus: CareerStatus;
   /** Week at which careerHighPopularity was set — used to date a decline. */
   careerHighWeek: number;
+  /**
+   * 0-100. Rises with titles, main events and getting over; falls with losses,
+   * being left off cards, and time. Turns into money, clauses, and people who
+   * will not do what they are told — see engine/career/ego.ts.
+   */
+  ego: number;
   crowdReaction: number; // -100..100, §3.7
   mood: Mood;
   alignment: number; // -100 (heel) .. +100 (face)
@@ -1079,6 +1085,13 @@ export interface WorldSettings {
   demandFromRoster: number;
   /** Weight of tonight's show in the running quality average. */
   recentShowQualityWeight: number;
+
+  // Wear and tear on production gear (engine/economy/showBudget.ts)
+  assetWearPerShow: number;
+  /** At or below this condition the asset delivers nothing. */
+  assetFailureThreshold: number;
+  /** Repair cost as a fraction of the purchase price, per point of wear. */
+  assetRepairCostFraction: number;
   /** Rating points a maximum-prestige building adds to the show. */
   venuePrestigeRatingWeight: number;
   /** Fill ratio at or above which the building reads as full. */
@@ -1109,6 +1122,29 @@ export interface WorldSettings {
   playerTamperingExpulsionRatingLoss: number;
   /** How much harsher each subsequent offence is. */
   playerTamperingEscalation: number;
+
+  // Ego and the cost of success (engine/career/ego.ts)
+  egoFromStanding: number;
+  egoFromHoldingTitle: number;
+  egoFromCareerTitles: number;
+  egoFromTopStatus: number;
+  egoFromMomentum: number;
+  /** How much a bad attitude inflates the target. */
+  egoAttitudeSwing: number;
+  egoRiseRate: number;
+  /** Slower than the rise — success sticks in the memory longer than failure. */
+  egoFallRate: number;
+  /** Rate multiplier at maximum ego. */
+  egoRateMultiplierMax: number;
+  /** How many clauses they ask for at once. */
+  egoMaxClauseAsks: number;
+  egoWalkRiskMax: number;
+  egoRosterFrictionMax: number;
+
+  // Ongoing cost of agreed clauses
+  clauseInsuranceRate: number;
+  clauseTravelCost: number;
+  clauseGuaranteedDatesRate: number;
 
   // Free agents (engine/world/freeAgents.ts)
   /** Asking rate shed per week unsigned. */

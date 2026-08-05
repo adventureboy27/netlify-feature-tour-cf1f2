@@ -29,7 +29,7 @@ import { applyGimmickLook, stableColorsFrom } from '../engine/generate/gimmickLo
 import { GIMMICKS } from '../data/gimmicks';
 import type { EventEffect, EventSubjects } from '../engine/events/types';
 import type { Wrestler } from '../engine/types';
-import { clamp, pick } from '../engine/rng';
+import { clamp, pick, chance } from '../engine/rng';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { stipulationById, stipulationRequirementsMet } from '../data/stipulations';
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
@@ -48,10 +48,17 @@ import {
   sumEffect,
   computeDemand,
   updateRecentShowQuality,
+  newAssetCondition,
+  wearAsset,
+  assetEffectiveness,
+  assetHasFailed,
+  repairAsset,
+  repairCost,
 } from '../engine/economy/showBudget';
 import { venueById, fallbackVenue } from '../data/venues';
 import { productionAssetById, showExtraById } from '../data/production';
-import { expireContracts, weeklyWageBill, createStandardContract, askingRate } from '../engine/economy/contracts';
+import { expireContracts, weeklyWageBill, createStandardContract, askingRate, renewalRate } from '../engine/economy/contracts';
+import { driftEgo, targetEgo, contractDemand, clauseUpkeep } from '../engine/career/ego';
 import { canSign, currentAskingRate } from '../engine/world/freeAgents';
 import { computeWeeklyExpenses, computeShowExpenseSplit } from '../engine/economy/payroll';
 import {
@@ -96,6 +103,10 @@ export interface GameStore {
   // Roster moves
   signFreeAgent: (wrestlerId: Id) => void;
   releaseWrestler: (wrestlerId: Id) => void;
+  /** Pay to put a worn rig back to new. */
+  repairProductionAsset: (assetId: Id) => void;
+  /** Meet a renewal demand in full, or refuse it and risk them walking. */
+  answerRenewal: (wrestlerId: Id, accept: boolean) => void;
 }
 
 /**
@@ -427,7 +438,25 @@ export const useGameStore = create<GameStore>()(
           .map((id) => productionAssetById(id))
           .filter((a): a is NonNullable<typeof a> => Boolean(a))
           // A rig you cannot hang in this building does nothing tonight.
-          .filter((a) => !a.minVenueCapacity || venue.capacity >= a.minVenueCapacity);
+          .filter((a) => !a.minVenueCapacity || venue.capacity >= a.minVenueCapacity)
+          // Worn gear delivers less; failed gear is scenery.
+          .map((asset) => {
+            const state = world.assetConditions.find((c) => c.assetId === asset.id);
+            const effectiveness = state ? assetEffectiveness(state, world.settings) : 1;
+            if (effectiveness >= 1) return asset;
+            const scaled = { ...asset, effects: { ...asset.effects } };
+            for (const key of Object.keys(scaled.effects) as (keyof typeof scaled.effects)[]) {
+              const value = scaled.effects[key];
+              if (value === undefined) continue;
+              // Multiplier-shaped effects decay toward 1, additive toward 0.
+              scaled.effects[key] = key.endsWith('Multiplier') ? 1 + (value - 1) * effectiveness : value * effectiveness;
+            }
+            return scaled;
+          })
+          .filter((asset) => {
+            const state = world.assetConditions.find((c) => c.assetId === asset.id);
+            return !state || !assetHasFailed(state, world.settings);
+          });
         const extras = world.showSetup.extraIds
           .map((id) => showExtraById(id))
           .filter((e): e is NonNullable<typeof e> => Boolean(e))
@@ -492,7 +521,12 @@ export const useGameStore = create<GameStore>()(
           revenue.total,
           world.settings.expenseCapPctOfRevenue,
         );
-        const totalOut = payroll + weeklyExpenses + showPayable + ringsideCost;
+        // Clauses you agreed to have a weekly price of their own.
+        const clauseBill = world.promotion.rosterIds.reduce((sum, id) => {
+          const member = world.wrestlers[id];
+          return member ? sum + clauseUpkeep(member, world.settings) : sum;
+        }, 0);
+        const totalOut = payroll + weeklyExpenses + showPayable + ringsideCost + clauseBill;
 
         world.promotion.bankBalance += revenue.total - totalOut;
 
@@ -607,8 +641,11 @@ export const useGameStore = create<GameStore>()(
         // barely moves (§12.5).
         world.rivalries = world.rivalries.map((r) => decayRivalry(r, world.week, world.settings));
 
+        // A show's worth of wear on everything that was hauled out tonight.
+        world.assetConditions = world.assetConditions.map((state) => wearAsset(state, world.settings));
+
         // Deals run down whether or not anybody was booked.
-        expireContracts(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
+        const expired = expireContracts(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
         if (world.signingBanWeeks > 0) world.signingBanWeeks -= 1;
 
         // Career standing is derived, so it moves on its own as a save runs.
@@ -620,6 +657,23 @@ export const useGameStore = create<GameStore>()(
           settings: world.settings,
         };
         for (const w of roster) w.careerStatus = deriveCareerStatus(w, careerCtx);
+
+        // Ego chases what they have become. Build somebody and they notice.
+        const egoCtx = { rosterPeakPopularity: rosterPeak, currentWeek: world.week, settings: world.settings };
+        for (const w of roster) {
+          w.ego = driftEgo(w.ego, targetEgo(w, w.careerStatus, egoCtx), world.settings);
+        }
+
+        // A deal that ran down comes back as a demand, not as a departure.
+        for (const id of expired) {
+          const member = world.wrestlers[id];
+          if (!member || world.pendingRenewals.some((r) => r.wrestlerId === id)) continue;
+          world.pendingRenewals.push({
+            wrestlerId: id,
+            demand: contractDemand(member, renewalRate(member, world.settings), member.careerStatus, world.settings),
+            openedWeek: world.week,
+          });
+        }
 
         // Rival bookers come calling.
         world.tamperingOffers = rollTamperingAttempts(rng, {
@@ -715,6 +769,7 @@ export const useGameStore = create<GameStore>()(
         if (world.promotion.bankBalance < asset.cost) return;
         world.promotion.bankBalance -= asset.cost;
         world.ownedAssetIds.push(assetId);
+        world.assetConditions.push(newAssetCondition(assetId));
       });
     },
 
@@ -762,6 +817,61 @@ export const useGameStore = create<GameStore>()(
         };
         world.promotion.rosterIds.push(wrestlerId);
         world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== wrestlerId);
+      });
+    },
+
+    repairProductionAsset: (assetId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const asset = productionAssetById(assetId);
+        const index = world.assetConditions.findIndex((c) => c.assetId === assetId);
+        if (!asset || index < 0) return;
+        const cost = repairCost(world.assetConditions[index]!, asset.cost, world.settings);
+        if (cost <= 0 || world.promotion.bankBalance < cost) return;
+        world.promotion.bankBalance -= cost;
+        world.assetConditions[index] = repairAsset(world.assetConditions[index]!);
+      });
+    },
+
+    answerRenewal: (wrestlerId, accept) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const index = world.pendingRenewals.findIndex((r) => r.wrestlerId === wrestlerId);
+        const offer = world.pendingRenewals[index];
+        const member = world.wrestlers[wrestlerId];
+        if (index < 0 || !offer || !member) return;
+
+        world.pendingRenewals.splice(index, 1);
+
+        if (accept) {
+          // You paid what they asked, clauses and all. The clauses are the
+          // part that will hurt later.
+          member.contract = {
+            ...createStandardContract(member, world.settings, world.settings.startingYear),
+            weeklyRate: offer.demand.weeklyRate,
+            clauses: [...offer.demand.clauses],
+          };
+          member.morale = clamp(member.morale + 10, 0, 100);
+          return;
+        }
+
+        // Refused. They might take a plain deal anyway, or they might go.
+        member.morale = clamp(member.morale - 15, 0, 100);
+        if (chance(rng, offer.demand.walkRisk)) {
+          world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestlerId);
+          member.promotionId = null;
+          member.contract = null;
+          world.freeAgents.push({
+            wrestlerId,
+            reason: 'contractExpired',
+            askingRate: offer.demand.weeklyRate,
+            weeksUnsigned: 0,
+          });
+        } else {
+          member.contract = createStandardContract(member, world.settings, world.settings.startingYear);
+        }
       });
     },
 

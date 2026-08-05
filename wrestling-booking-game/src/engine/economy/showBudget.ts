@@ -204,6 +204,75 @@ export function updateRecentShowQuality(current: number, showRating: number, set
   return clamp(current * (1 - alpha) + showRating * alpha, 0, 100);
 }
 
+// ------------------------------------------------------- wear and tear
+
+/**
+ * Gear does not last forever. A ring gets used every week; a video wall gets
+ * loaded in and out of a truck fifty times a year. Condition drops with every
+ * show, the effects fade with it, and a rig left to rot eventually stops
+ * working and has to be replaced outright.
+ *
+ * This is the quiet counterweight to buying your way up: the bigger the
+ * operation, the more of it is wearing out at once.
+ */
+export interface AssetCondition {
+  assetId: string;
+  /** 0-100. Below the failure threshold the asset does nothing at all. */
+  condition: number;
+  /** Shows it has worked. */
+  showsUsed: number;
+}
+
+export function newAssetCondition(assetId: string): AssetCondition {
+  return { assetId, condition: 100, showsUsed: 0 };
+}
+
+/** A show's worth of wear. */
+export function wearAsset(state: AssetCondition, settings: WorldSettings): AssetCondition {
+  return {
+    ...state,
+    condition: clamp(state.condition - settings.assetWearPerShow, 0, 100),
+    showsUsed: state.showsUsed + 1,
+  };
+}
+
+/**
+ * How much of its rated effect a worn asset still delivers. Full effect while
+ * healthy, tapering as it wears, nothing once it has failed — a dead big
+ * screen is scenery.
+ */
+export function assetEffectiveness(state: AssetCondition, settings: WorldSettings): number {
+  if (state.condition <= settings.assetFailureThreshold) return 0;
+  const usable = (state.condition - settings.assetFailureThreshold) / (100 - settings.assetFailureThreshold);
+  // Degrades gently at first and then quickly, like real equipment.
+  return clamp(usable ** 0.6, 0, 1);
+}
+
+export function assetHasFailed(state: AssetCondition, settings: WorldSettings): boolean {
+  return state.condition <= settings.assetFailureThreshold;
+}
+
+/** What it costs to put a worn asset back to new. Scales with how bad it got. */
+export function repairCost(state: AssetCondition, purchaseCost: number, settings: WorldSettings): number {
+  const missing = (100 - state.condition) / 100;
+  return Math.round(purchaseCost * missing * settings.assetRepairCostFraction);
+}
+
+export function repairAsset(state: AssetCondition): AssetCondition {
+  return { ...state, condition: 100 };
+}
+
+/** Words, never a number. */
+export type ConditionLabel = 'As new' | 'Serviceable' | 'Worn' | 'Held together with tape' | 'Failed';
+
+export function conditionLabel(state: AssetCondition, settings: WorldSettings): ConditionLabel {
+  if (assetHasFailed(state, settings)) return 'Failed';
+  if (state.condition >= 85) return 'As new';
+  if (state.condition >= 60) return 'Serviceable';
+  if (state.condition >= 35) return 'Worn';
+  return 'Held together with tape';
+}
+
 /** A venue you cannot afford to rent is not a choice you can make. */
 export function canAffordShow(bankBalance: number, costs: ShowCostBreakdown): boolean {
   return bankBalance >= costs.total;

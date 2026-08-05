@@ -177,6 +177,8 @@ export function generateWrestler(
     // is relative to the promotion, and generation doesn't know the roster.
     careerStatus: 'midcarder',
     careerHighWeek: 0,
+    // Nobody starts believing they run the place; it is earned.
+    ego: 15,
     crowdReaction: alignment,
     mood: 'content',
 

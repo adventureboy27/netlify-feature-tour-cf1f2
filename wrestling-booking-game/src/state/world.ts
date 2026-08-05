@@ -43,6 +43,8 @@ import { generateWrestlers } from '../engine/generate/wrestler';
 import { createRivalry } from '../engine/sim/rivalry';
 import { createStandardContract } from '../engine/economy/contracts';
 import { fallbackVenue } from '../data/venues';
+import type { AssetCondition } from '../engine/economy/showBudget';
+import type { ContractDemand } from '../engine/career/ego';
 
 export const SEGMENTS_PER_CARD = 6; // matches WorldSettings.segmentsPerTV default
 
@@ -72,6 +74,10 @@ export interface World {
   poachingOffers: PoachingOffer[];
   /** One-time production purchases. They travel to every show. */
   ownedAssetIds: Id[];
+  /** How worn each owned asset is. Gear does not last forever. */
+  assetConditions: AssetCondition[];
+  /** Contract renewals waiting on an answer, opened when a deal runs down. */
+  pendingRenewals: RenewalOffer[];
   /** How this week's show is being staged. */
   showSetup: ShowSetup;
   /** Weeks left on a signing ban from being caught tampering. */
@@ -222,6 +228,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     tamperingOffers: [],
     poachingOffers: [],
     ownedAssetIds: [],
+    assetConditions: [],
+    pendingRenewals: [],
     showSetup: defaultShowSetup(),
     signingBanWeeks: 0,
     suspensionWeeks: 0,
@@ -316,6 +324,13 @@ function seedShootRivalries(roster: Wrestler[]): Rivalry[] {
   }
 
   return rivalries;
+}
+
+/** A contract that has run down, and what the wrestler is asking for. */
+export interface RenewalOffer {
+  wrestlerId: Id;
+  demand: ContractDemand;
+  openedWeek: number;
 }
 
 /** Opening staging: the cheapest room, a modest ticket, nothing extra. */
