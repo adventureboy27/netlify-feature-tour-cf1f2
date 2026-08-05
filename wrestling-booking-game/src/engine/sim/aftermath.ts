@@ -99,8 +99,19 @@ export function computeAftermath(ctx: AftermathContext): AftermathChange[] {
   });
 }
 
-/** Apply a change in place. The store hands it the live wrestler. */
-export function applyAftermath(w: Wrestler, change: AftermathChange, settings: WorldSettings): void {
+/**
+ * Apply a change in place. The store hands it the live wrestler.
+ *
+ * `matchRating` and `age` are taken here rather than looked up later because
+ * this is the only moment they are true: a healed injury and a birthday both
+ * erase the evidence, and the records page needs the mark as it stood.
+ */
+export function applyAftermath(
+  w: Wrestler,
+  change: AftermathChange,
+  settings: WorldSettings,
+  matchRating?: number,
+): void {
   w.momentum = clamp(w.momentum + change.momentum, 0, 100);
   w.popularity = clamp(w.popularity + change.popularity, 0, 100);
   w.health = clamp(w.health + change.health, 0, 100);
@@ -113,6 +124,31 @@ export function applyAftermath(w: Wrestler, change: AftermathChange, settings: W
   else w.record.draws += 1;
 
   if (w.popularity > w.careerHighPopularity) w.careerHighPopularity = w.popularity;
+
+  markCareer(w, change.outcome, matchRating);
+}
+
+/** The running marks a match leaves on somebody's career. */
+function markCareer(w: Wrestler, outcome: AftermathChange['outcome'], matchRating?: number): void {
+  const marks = w.career;
+  marks.matches += 1;
+
+  // A draw does not extend a run either way, but it does not break one either
+  // — a wrestler on a nine-match win streak who goes to a draw has not lost.
+  if (outcome === 'win') marks.streak = marks.streak > 0 ? marks.streak + 1 : 1;
+  else if (outcome === 'loss') marks.streak = marks.streak < 0 ? marks.streak - 1 : -1;
+
+  marks.bestWinStreak = Math.max(marks.bestWinStreak, marks.streak);
+  marks.worstLosingStreak = Math.min(marks.worstLosingStreak, marks.streak);
+
+  marks.youngestMatchAge = marks.youngestMatchAge === null ? w.age : Math.min(marks.youngestMatchAge, w.age);
+  marks.oldestMatchAge = marks.oldestMatchAge === null ? w.age : Math.max(marks.oldestMatchAge, w.age);
+
+  if (matchRating !== undefined) {
+    marks.bestMatchRating = marks.bestMatchRating === null ? matchRating : Math.max(marks.bestMatchRating, matchRating);
+    marks.worstMatchRating =
+      marks.worstMatchRating === null ? matchRating : Math.min(marks.worstMatchRating, matchRating);
+  }
 }
 
 /**

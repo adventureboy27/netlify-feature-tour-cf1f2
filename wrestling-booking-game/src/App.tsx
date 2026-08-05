@@ -14,6 +14,7 @@ import { ContactSheet } from './ui/screens/ContactSheet';
 import { WrestlerEditor } from './ui/screens/WrestlerEditor';
 import { NewGameScreen } from './ui/screens/NewGameScreen';
 import { LegacyScreen } from './ui/screens/LegacyScreen';
+import { RecordsScreen } from './ui/screens/RecordsScreen';
 import { RankingsScreen } from './ui/screens/RankingsScreen';
 import { SheetScreen } from './ui/screens/SheetScreen';
 import { Money } from './ui/components/display';
@@ -27,6 +28,7 @@ type Screen =
   | 'results'
   | 'rankings'
   | 'sheet'
+  | 'records'
   | 'legacy'
   | 'contactSheet'
   | 'editor';
@@ -40,6 +42,7 @@ const TABS: { id: Screen; label: string }[] = [
   { id: 'results', label: 'Results' },
   { id: 'rankings', label: 'Rankings' },
   { id: 'sheet', label: 'The Sheet' },
+  { id: 'records', label: 'Records' },
   { id: 'legacy', label: 'Legacy' },
   { id: 'contactSheet', label: 'Contact sheet' },
   { id: 'editor', label: 'Editor' },
@@ -122,6 +125,7 @@ export default function App() {
         ))}
       {screen === 'rankings' && <RankingsScreen />}
       {screen === 'sheet' && <SheetScreen />}
+      {screen === 'records' && <RecordsScreen />}
       {screen === 'legacy' && <LegacyScreen />}
       {screen === 'contactSheet' && <ContactSheet />}
       {screen === 'editor' && <WrestlerEditor />}

@@ -23,7 +23,9 @@ function people(count: number): Wrestler[] {
 function reigns(count: number, weeksEach: number): TitleReignRecord[] {
   return Array.from({ length: count }, (_, i) => ({
     titleId: `t${i}`,
+    promotionId: 'p',
     holderIds: ['x'],
+    holderAges: [30],
     wonFromIds: null,
     wonByMethod: 'match' as const,
     startWeek: i * 60,

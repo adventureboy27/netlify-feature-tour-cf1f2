@@ -47,6 +47,7 @@ export function generateFreeAgentPool(
   rng: Rng,
   settings: WorldSettings,
   existingAppearances: Appearance[] = [],
+  existingNames: ReadonlySet<string> = new Set(),
 ): {
   wrestlers: Wrestler[];
   freeAgents: FreeAgent[];
@@ -54,6 +55,7 @@ export function generateFreeAgentPool(
   const wrestlers = generateWrestlers(rng, settings.freeAgentPoolSize, {
     currentYear: settings.startingYear,
     existingAppearances,
+    existingNames: new Set(existingNames),
   });
 
   const freeAgents: FreeAgent[] = wrestlers.map((w) => {

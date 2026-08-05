@@ -82,6 +82,12 @@ export interface GenerateWrestlerOptions {
   currentYear?: number;
   /** Appearances already in the roster — new wrestlers stay visually distinct from these, §7. */
   existingAppearances?: Appearance[];
+  /**
+   * Ring names already taken anywhere in the world, lowercased. Without this
+   * a batch only avoids collisions *within itself*, which is how the schools
+   * kept graduating a second Blackout every few years.
+   */
+  existingNames?: Set<string>;
 }
 
 export function generateWrestler(
@@ -207,6 +213,17 @@ export function generateWrestler(
     role: 'wrestler',
 
     record: { wins: 0, losses: 0, draws: 0 },
+    career: {
+      streak: 0,
+      bestWinStreak: 0,
+      worstLosingStreak: 0,
+      longestInjuryWeeks: 0,
+      youngestMatchAge: null,
+      oldestMatchAge: null,
+      bestMatchRating: null,
+      worstMatchRating: null,
+      matches: 0,
+    },
     titleReigns: [],
     injury: null,
     careerHighPopularity: popularity,
@@ -217,7 +234,7 @@ export function generateWrestler(
 }
 
 export function generateWrestlers(rng: Rng, count: number, options: GenerateWrestlerOptions = {}): Wrestler[] {
-  const existingNames = new Set<string>();
+  const existingNames = new Set(options.existingNames ?? []);
   const existingAppearances = options.existingAppearances ?? [];
   const wrestlers: Wrestler[] = [];
   for (let i = 0; i < count; i++) {

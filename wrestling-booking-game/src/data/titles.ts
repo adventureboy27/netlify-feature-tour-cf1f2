@@ -158,8 +158,13 @@ export function titlesHeldBy(titles: readonly Title[], wrestlerId: string): Titl
   return titles.filter((t) => !t.vacant && t.currentHolderIds.includes(wrestlerId));
 }
 
-/** Award a belt. Closes the previous reign and opens a new one. */
-export function awardTitle(title: Title, holderIds: string[], week: number): Title {
+/**
+ * Award a belt. Closes the previous reign and opens a new one.
+ *
+ * `holderAges` is optional only because the opening champions are crowned
+ * before anybody has an age worth recording; everywhere else it is passed.
+ */
+export function awardTitle(title: Title, holderIds: string[], week: number, holderAges: number[] = []): Title {
   const history = [...title.history];
   const previous = history[history.length - 1];
   if (previous && previous.endWeek === null) {
@@ -168,7 +173,9 @@ export function awardTitle(title: Title, holderIds: string[], week: number): Tit
 
   history.push({
     titleId: title.id,
+    promotionId: title.promotionId,
     holderIds: [...holderIds],
+    holderAges: [...holderAges],
     wonFromIds: title.vacant ? null : [...title.currentHolderIds],
     wonByMethod: 'match',
     startWeek: week,

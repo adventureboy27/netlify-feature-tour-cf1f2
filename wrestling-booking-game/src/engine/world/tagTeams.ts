@@ -97,6 +97,84 @@ export function formTeams(
   return teams;
 }
 
+/**
+ * Whether these two can be put together, and why not if they cannot.
+ *
+ * The rules are the ones the divisions already imply — you cannot team
+ * somebody who is not yours, somebody already in a team, or somebody from the
+ * other division — plus the obvious one about not teaming a man with himself.
+ * Everything else is allowed: a main eventer and a rookie is a bad idea, not
+ * an illegal one, and the game does not stop you making bad decisions.
+ */
+export type TeamFormationProblem =
+  | 'samePerson'
+  | 'notOnYourRoster'
+  | 'alreadyInATeam'
+  | 'differentDivisions'
+  | 'nameTaken';
+
+export const TEAM_PROBLEM_TEXT: Record<TeamFormationProblem, string> = {
+  samePerson: 'Somebody cannot team with themselves',
+  notOnYourRoster: 'They are not on your roster',
+  alreadyInATeam: 'One of them is already in a team',
+  differentDivisions: 'The divisions are separate',
+  nameTaken: 'Another team already has that name',
+};
+
+export interface TeamFormationCheck {
+  ok: boolean;
+  problem: TeamFormationProblem | null;
+}
+
+export function canFormTeam(
+  a: Wrestler | undefined,
+  b: Wrestler | undefined,
+  stables: readonly Stable[],
+  rosterIds: ReadonlySet<Id>,
+  name?: string,
+): TeamFormationCheck {
+  const fail = (problem: TeamFormationProblem): TeamFormationCheck => ({ ok: false, problem });
+
+  if (!a || !b) return fail('notOnYourRoster');
+  if (a.id === b.id) return fail('samePerson');
+  if (!rosterIds.has(a.id) || !rosterIds.has(b.id)) return fail('notOnYourRoster');
+  if (a.gender !== b.gender) return fail('differentDivisions');
+  if (teamOf(stables, a.id) || teamOf(stables, b.id)) return fail('alreadyInATeam');
+
+  const wanted = name?.trim();
+  if (wanted && stables.some((s) => s.disbandedWeek === null && s.name.toLowerCase() === wanted.toLowerCase())) {
+    return fail('nameTaken');
+  }
+
+  return { ok: true, problem: null };
+}
+
+/** Put two people together. The caller has already checked they can be. */
+export function createTeam(
+  rng: Rng,
+  a: Wrestler,
+  b: Wrestler,
+  week: number,
+  id: Id,
+  taken: ReadonlySet<string>,
+  name?: string,
+): Stable {
+  return {
+    id,
+    name: name?.trim() || teamName(rng, a, b, taken),
+    kind: 'tagTeam',
+    memberIds: [a.id, b.id],
+    // The more established of the two fronts it, and the team wears their
+    // colours — same rule the generated teams follow.
+    leaderId: a.popularity >= b.popularity ? a.id : b.id,
+    colors: stableColorsFrom(a.popularity >= b.popularity ? a : b),
+    unifiedLook: true,
+    formedWeek: week,
+    disbandedWeek: null,
+    record: { wins: 0, losses: 0, draws: 0 },
+  };
+}
+
 /** Live teams whose members are all on this roster and able to work. */
 export function availableTeams(
   stables: readonly Stable[],

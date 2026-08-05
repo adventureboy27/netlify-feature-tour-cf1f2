@@ -167,7 +167,22 @@ export type TitleReignEndMethod =
 
 export interface TitleReignRecord {
   titleId: Id;
+  /**
+   * Who was running the belt at the time. Snapshotted rather than read off
+   * the title, because a championship can change hands *between promotions*
+   * when a company folds and its assets are auctioned — and a reign that
+   * happened in Gold Coast Wrestling did not retroactively happen in whoever
+   * bought them out.
+   */
+  promotionId: Id;
   holderIds: Id[]; // multiple entries for tag/trios teams
+  /**
+   * How old each holder was on the day they won it, in the same order as
+   * `holderIds`. Snapshotted for the same reason the promotion is: it is only
+   * true at that moment, and reconstructing it later from a current age means
+   * trusting that nothing about a career was ever irregular.
+   */
+  holderAges: number[];
   wonFromIds: Id[] | null; // null if won via tournament, award, or vacancy
   wonByMethod: 'match' | 'tournament' | 'awarded' | 'battleRoyal';
   startWeek: number;
@@ -400,6 +415,14 @@ export interface Wrestler {
 
   // History
   record: WinLossRecord;
+  /**
+   * Career extremes, kept as running marks because they cannot be
+   * reconstructed later — a healed injury leaves no trace, and the age
+   * somebody was in a match twenty years ago is gone once they age again.
+   * Everything else on the records page is derived from titles and records;
+   * this is the short list of things that genuinely have to be remembered.
+   */
+  career: CareerMarks;
   titleReigns: TitleReignRecord[];
   injury: Injury | null;
   careerHighPopularity: number;
@@ -407,6 +430,24 @@ export interface Wrestler {
   deceased?: Passing;
   /** Set when they are inducted. §19's hall of fame. */
   hallOfFameWeek?: number;
+}
+
+/** The handful of things about a career that only the moment knows. */
+export interface CareerMarks {
+  /** Current run: positive for wins, negative for losses. */
+  streak: number;
+  bestWinStreak: number;
+  worstLosingStreak: number;
+  /** Weeks of the longest single spell on the shelf. */
+  longestInjuryWeeks: number;
+  /** How old they were the first and last time they worked a match. */
+  youngestMatchAge: number | null;
+  oldestMatchAge: number | null;
+  /** The best and worst match they have ever been in, 0-100. */
+  bestMatchRating: number | null;
+  worstMatchRating: number | null;
+  /** Total matches worked, anywhere. */
+  matches: number;
 }
 
 // ============================================================================

@@ -38,7 +38,9 @@ describe('earning a nickname', () => {
       titleReigns: [
         {
           titleId: 't',
+          promotionId: 'p',
           holderIds: ['x'],
+          holderAges: [30],
           wonFromIds: null,
           wonByMethod: 'match' as const,
           startWeek: 1,

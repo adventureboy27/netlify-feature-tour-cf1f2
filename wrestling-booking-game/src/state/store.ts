@@ -55,7 +55,13 @@ import { runRivalShow, bookRivalCard, canWork, type RivalShow } from '../engine/
 import { rivalWeek, shouldFold } from '../engine/world/rivalEconomy';
 import { publish } from '../engine/world/publication';
 import { appraise, aiBid, settleAuction, playerBidAmount, type Bid, type PlayerBidLevel } from '../engine/world/auction';
-import { recordTeamResult, disbandBrokenTeams, formTeams } from '../engine/world/tagTeams';
+import {
+  recordTeamResult,
+  disbandBrokenTeams,
+  formTeams,
+  canFormTeam,
+  createTeam,
+} from '../engine/world/tagTeams';
 import { resolveTitleOutcomes, matchTitlePrestige, eligibleTitles } from '../engine/sim/titleMatch';
 import {
   computeShowRating,
@@ -149,6 +155,10 @@ export interface GameStore {
   releaseWrestler: (wrestlerId: Id) => void;
   /** Send somebody out on their terms. They go to the Legacy wall, not the pool. */
   retireWrestler: (wrestlerId: Id) => void;
+  /** Put two of your people together as a tag team. Empty name = let the announcers pick. */
+  formTagTeam: (aId: Id, bId: Id, name?: string) => void;
+  /** Split a team up. Any tag belts they were carrying go vacant. */
+  disbandTagTeam: (teamId: Id) => void;
   /** Pay to put a worn rig back to new. */
   repairProductionAsset: (assetId: Id) => void;
   /** Meet a renewal demand in full, or refuse it and risk them walking. */
@@ -166,7 +176,8 @@ function commitTitleChange(world: World, titleIndex: number, newHolderIds: Id[])
   if (!title) return;
 
   const previousHolders = [...title.currentHolderIds];
-  world.titles[titleIndex] = awardTitle(title, newHolderIds, world.week);
+  const holderAges = newHolderIds.map((id) => world.wrestlers[id]?.age ?? 0);
+  world.titles[titleIndex] = awardTitle(title, newHolderIds, world.week, holderAges);
 
   for (const id of previousHolders) {
     const open = world.wrestlers[id]?.titleReigns.find((r) => r.titleId === title.id && r.endWeek === null);
@@ -181,7 +192,9 @@ function commitTitleChange(world: World, titleIndex: number, newHolderIds: Id[])
     if (!champion) continue;
     champion.titleReigns.push({
       titleId: title.id,
+      promotionId: title.promotionId,
       holderIds: [...newHolderIds],
+      holderAges,
       wonFromIds: previousHolders.length > 0 ? previousHolders : null,
       wonByMethod: 'match',
       startWeek: world.week,
@@ -677,6 +690,7 @@ export const useGameStore = create<GameStore>()(
             if (hurt && !hurt.injury) {
               const weeks = Math.max(1, Math.round(2 + rng.next() * 8 * result.injuryMultiplier));
               hurt.health = clamp(hurt.health - 30, 0, 100);
+              hurt.career.longestInjuryWeeks = Math.max(hurt.career.longestInjuryWeeks, weeks);
               hurt.injury = {
                 severity: weeks >= 10 ? 'severe' : weeks >= 5 ? 'moderate' : 'minor',
                 description: 'Hurt in the ring',
@@ -768,7 +782,7 @@ export const useGameStore = create<GameStore>()(
           });
           for (const change of changes) {
             const w = world.wrestlers[change.wrestlerId];
-            if (w) applyAftermath(w, change, world.settings);
+            if (w) applyAftermath(w, change, world.settings, result.rating);
             worked.add(change.wrestlerId);
           }
 
@@ -1001,7 +1015,7 @@ export const useGameStore = create<GameStore>()(
           for (const match of show.matches) {
             for (const change of match.aftermath) {
               const w = world.wrestlers[change.wrestlerId];
-              if (w) applyAftermath(w, change, world.settings);
+              if (w) applyAftermath(w, change, world.settings, match.rating);
               worked.add(change.wrestlerId);
             }
             // A tag match is on the teams' records, not only the wrestlers'.
@@ -1297,6 +1311,7 @@ export const useGameStore = create<GameStore>()(
             year,
             world.settings,
             everyone.map((w) => w.appearance),
+            new Set(everyone.map((w) => w.name.trim().toLowerCase())),
           );
           for (const graduate of intake.wrestlers) world.wrestlers[graduate.id] = graduate;
           world.freeAgents.push(...intake.freeAgents);
@@ -1461,6 +1476,55 @@ export const useGameStore = create<GameStore>()(
     // renames your belts — so it is open until the first show goes out and
     // shut for good afterwards. A promotion that changes what it stands for
     // every week does not stand for anything.
+    formTagTeam: (aId, bId, name) => {
+      set((state) => {
+        const world = state.world;
+        if (!world || world.folded) return;
+
+        const a = world.wrestlers[aId];
+        const b = world.wrestlers[bId];
+        const rosterIds = new Set(world.promotion.rosterIds);
+        if (!canFormTeam(a, b, world.stables, rosterIds, name).ok || !a || !b) return;
+
+        const taken = new Set(world.stables.filter((t) => t.disbandedWeek === null).map((t) => t.name));
+        world.stables.push(
+          createTeam(rng, a, b, world.week, `${world.promotion.id}-team-${world.nextId++}`, taken, name),
+        );
+      });
+    },
+
+    disbandTagTeam: (teamId) => {
+      set((state) => {
+        const world = state.world;
+        const team = world?.stables.find((t) => t.id === teamId && t.disbandedWeek === null);
+        if (!world || !team) return;
+
+        // A team that has split cannot defend the tag titles. The belts go
+        // vacant with the split on the record, which is how it goes.
+        for (const title of world.titles) {
+          if (title.vacant || title.tier !== 'tag') continue;
+          if (!team.memberIds.every((id) => title.currentHolderIds.includes(id))) continue;
+
+          const last = title.history[title.history.length - 1];
+          if (last && last.endWeek === null) {
+            last.endWeek = world.week;
+            last.endMethod = 'vacatedByBooker';
+          }
+          for (const id of title.currentHolderIds) {
+            const open = world.wrestlers[id]?.titleReigns.find((r) => r.titleId === title.id && r.endWeek === null);
+            if (open) {
+              open.endWeek = world.week;
+              open.endMethod = 'vacatedByBooker';
+            }
+          }
+          title.vacant = true;
+          title.currentHolderIds = [];
+        }
+
+        team.disbandedWeek = world.week;
+      });
+    },
+
     retireWrestler: (wrestlerId) => {
       set((state) => {
         const world = state.world;

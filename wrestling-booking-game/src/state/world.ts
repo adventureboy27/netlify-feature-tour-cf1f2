@@ -240,7 +240,12 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
 
   // Everyone else in the business. Generated after the roster so the
   // distinctness check (§7) sees the signed talent first.
-  const pool = generateFreeAgentPool(rng, settings, roster.map((w) => w.appearance));
+  const pool = generateFreeAgentPool(
+    rng,
+    settings,
+    roster.map((w) => w.appearance),
+    new Set(roster.map((w) => w.name.trim().toLowerCase())),
+  );
   for (const agent of pool.wrestlers) wrestlers[agent.id] = agent;
 
   const promotion: Promotion = {
@@ -276,6 +281,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     const signed = generateWrestlers(rng, size, {
       currentYear: settings.startingYear,
       existingAppearances: Object.values(wrestlers).map((w) => w.appearance),
+      existingNames: new Set(Object.values(wrestlers).map((w) => w.name.trim().toLowerCase())),
     });
     for (const w of signed) {
       w.promotionId = rival.id;
@@ -518,6 +524,11 @@ function crownOpeningChampions(titles: Title[], roster: readonly Wrestler[]): Ti
           : bestFor((w) => w.gender === 'm');
 
     if (holders.length === 0) return title;
-    return awardTitle(title, holders.map((w) => w.id), 1);
+    return awardTitle(
+      title,
+      holders.map((w) => w.id),
+      1,
+      holders.map((w) => w.age),
+    );
   });
 }

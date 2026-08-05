@@ -52,10 +52,17 @@ export function graduateClass(
   currentYear: number,
   settings: WorldSettings,
   existingAppearances: Appearance[] = [],
+  existingNames: ReadonlySet<string> = new Set(),
 ): AcademyIntake {
   if (count <= 0) return { wrestlers: [], freeAgents: [] };
 
-  const wrestlers = generateWrestlers(rng, count, { currentYear, existingAppearances }).map((w) => {
+  // Names have to be checked against the whole business, not just this class —
+  // otherwise the schools keep turning out a second Blackout every few years.
+  const wrestlers = generateWrestlers(rng, count, {
+    currentYear,
+    existingAppearances,
+    existingNames: new Set(existingNames),
+  }).map((w) => {
     // Whatever the generator rolled, somebody out of a school is young and
     // has not done anything yet.
     const age = randInt(rng, settings.academyDebutAgeMin, settings.academyDebutAgeMax);

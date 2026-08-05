@@ -27,7 +27,9 @@ function w(over: Partial<Wrestler> = {}): Wrestler {
 
 const reign = (endWeek: number | null): TitleReignRecord => ({
   titleId: 't',
+  promotionId: 'p',
   holderIds: ['x'],
+  holderAges: [30],
   wonFromIds: null,
   wonByMethod: 'match',
   startWeek: 1,
