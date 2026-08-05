@@ -667,7 +667,9 @@ export type FinishType =
   | 'countOut'
   | 'timeLimitDraw'
   | 'doubleKO'
-  | 'refereeStoppage';
+  | 'refereeStoppage'
+  /** Somebody got hurt and it had to be stopped. Nobody goes home happy. */
+  | 'injuryStoppage';
 
 export interface RatingBreakdownEntry {
   label: string;
@@ -781,6 +783,11 @@ export interface Promotion {
   reputation: number; // 0-100, §19
   /** §11.4 weapons model: 0-100, accrues with booked violence and decays weekly. */
   hardcoreSaturation: number;
+  /**
+   * Running average of recent show ratings, 0-100. The main driver of how
+   * many people turn up next week — put on shows and they come back.
+   */
+  recentShowQuality: number;
   ownerId: Id; // a Wrestler record with role 'owner'
 }
 
@@ -1066,6 +1073,12 @@ export interface WorldSettings {
   demandAudienceCurve: number;
   /** How much walk-up a prestigious building pulls on its own. */
   venuePrestigeDraw: number;
+  /** How demand splits between standing, recent shows, and the roster. Should sum to 1. */
+  demandFromCompanyRating: number;
+  demandFromRecentShows: number;
+  demandFromRoster: number;
+  /** Weight of tonight's show in the running quality average. */
+  recentShowQualityWeight: number;
   /** Rating points a maximum-prestige building adds to the show. */
   venuePrestigeRatingWeight: number;
   /** Fill ratio at or above which the building reads as full. */

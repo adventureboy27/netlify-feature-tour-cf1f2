@@ -19,6 +19,7 @@ import {
   computeShowRevenue,
   turnedAway,
   sumEffect,
+  computeDemand,
 } from '../../engine/economy/showBudget';
 import { weeklyWageBill } from '../../engine/economy/contracts';
 import { Money } from '../components/display';
@@ -37,7 +38,7 @@ export function PromotionScreen() {
     const cardStrength = roster.length
       ? roster.reduce((sum, w) => sum + w.popularity, 0) / roster.length
       : 0;
-    const demand = Math.max(0, Math.min(100, world.promotion.rating * 0.55 + cardStrength * 0.45));
+    const demand = computeDemand(world.promotion.rating, world.promotion.recentShowQuality, cardStrength, world.settings);
 
     const ownedAssets = world.ownedAssetIds
       .map((id) => productionAssetById(id))

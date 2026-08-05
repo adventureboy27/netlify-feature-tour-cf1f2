@@ -165,6 +165,12 @@ export function defaultWorldSettings(): WorldSettings {
     demandAudienceScale: 40000,
     demandAudienceCurve: 3.5,
     venuePrestigeDraw: 0.15,
+    // What you have been putting on matters more than what you are called or
+    // who is on the payroll.
+    demandFromCompanyRating: 0.3,
+    demandFromRecentShows: 0.5,
+    demandFromRoster: 0.2,
+    recentShowQualityWeight: 0.35,
     venuePrestigeRatingWeight: 8,
     venueFullThreshold: 0.75,
     venueFullBonus: 6,

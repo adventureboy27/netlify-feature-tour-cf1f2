@@ -138,6 +138,7 @@ export function simulateMatch(
     isUpset,
     isCloselyMatched: Math.abs(winnerProbability - 0.5) < 0.1,
     finishWeights: ctx.stipulation?.finishWeights,
+    injuryMultiplier: (ctx.stipulation?.injuryMult ?? 1) * shootInjuryMultiplier(rivalry ?? undefined, ctx.settings),
     // A crooked or incompetent official makes a screwy finish likelier; a
     // manager at ringside makes interference likelier still.
     ringsideWeights: ctx.ringside
@@ -155,6 +156,7 @@ export function simulateMatch(
     requirementsMet: ctx.requirementsMet,
     matchLengthMinutes: ctx.matchLengthMinutes,
     simVariance: ctx.settings.simVariance,
+    finish,
     titlePrestige: ctx.titlePrestige ?? null,
     rivalryHeat: rivalry && rivalry.resolvedWeek === null ? rivalry.heat : 0,
     shootHeatBonus: shootRatingBonus(rivalry ?? undefined, ctx.settings),

@@ -196,6 +196,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     bookingCredibility: 50,
     reputation: 50,
     hardcoreSaturation: 0,
+    // A new promotion has no track record; its first show sets the bar.
+    recentShowQuality: settings.startingCompanyRating,
     // DESIGN: a real Wrestler with role 'owner' is M5 (owner mandates); a
     // bare id placeholder is enough for M2, which never dereferences it.
     ownerId: randomId(rng, 'owner'),
@@ -284,6 +286,7 @@ function createRivalPromotions(rng: Rng, settings: WorldSettings): Promotion[] {
       bookingCredibility: 50,
       reputation: rating,
       hardcoreSaturation: 0,
+      recentShowQuality: rating,
       ownerId: `owner-rival-${i}`,
     });
   }

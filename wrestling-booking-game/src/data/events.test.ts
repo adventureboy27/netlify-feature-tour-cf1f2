@@ -32,6 +32,7 @@ function subjects(): EventSubjects {
     bookingCredibility: 50,
     reputation: 50,
     hardcoreSaturation: 0,
+    recentShowQuality: 55,
     ownerId: 'owner-1',
   };
   return { primary, secondary, promotion, rival: { ...promotion, id: 'them', name: 'Rival Co', isPlayer: false } };

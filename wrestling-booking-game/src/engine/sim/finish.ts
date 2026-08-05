@@ -7,6 +7,13 @@ import type { FinishType, MatchRules } from '../types';
 export interface FinishRollContext {
   rules: MatchRules;
   violenceLevel: number; // from the stipulation, 0 if none
+  /**
+   * Combined injury multiplier (stipulation violence x real animosity). A
+   * violent gimmick match between two people who genuinely dislike each other
+   * really can end with somebody being carried out — and that match draws
+   * nothing, no matter who was in it.
+   */
+  injuryMultiplier?: number;
   winnerIsTechnician: boolean;
   isUpset: boolean; // the side that won was the underdog
   isCloselyMatched: boolean; // widens the time-limit-draw weight
@@ -66,6 +73,10 @@ export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
   const refereeStoppage = ctx.rules.stoppage !== 'none' ? 3 : 0;
   entries.push(['refereeStoppage', refereeStoppage]);
 
+  // Rare at baseline, and climbing fast with violence and bad blood.
+  const injuryStoppage = 1.2 * (ctx.injuryMultiplier ?? 1) ** 2;
+  entries.push(['injuryStoppage', injuryStoppage]);
+
   const stipulationWeighted = ctx.finishWeights
     ? entries.map(([finish, weight]) => [finish, weight * (ctx.finishWeights![finish] ?? 1)] as [FinishType, number])
     : entries;
@@ -90,6 +101,11 @@ export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
 /** Non-decisive finishes (DQ, count-out, draw) cut popularity transfer to 30% and add rivalry heat, §11.3/§12. */
 export function isNonDecisiveFinish(finish: FinishType): boolean {
   return finish === 'disqualification' || finish === 'countOut' || isDrawFinish(finish);
+}
+
+/** A match stopped because somebody got hurt. Not a finish anybody booked. */
+export function isInjuryFinish(finish: FinishType): boolean {
+  return finish === 'injuryStoppage';
 }
 
 /** A draw finish has no winner at all — distinct from a non-decisive-but-still-a-winner DQ/count-out. */

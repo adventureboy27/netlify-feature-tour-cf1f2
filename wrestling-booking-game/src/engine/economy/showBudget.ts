@@ -168,6 +168,42 @@ export function attendanceRatingModifier(attendance: number, capacity: number, s
   return -(settings.venueFullThreshold - fill) * settings.venueEmptyPenalty;
 }
 
+/**
+ * How much the audience wants to see your next show.
+ *
+ * The dominant input is what you have actually been putting on — not the
+ * roster you own and not the slow television ladder. Two great wrestlers who
+ * put on a show sell the building next week; a month of draws, count-outs and
+ * one-sided squashes empties it, however famous the people in it are.
+ *
+ * `recentShowQuality` is an exponential moving average of show ratings, so it
+ * climbs over a good run and decays over a bad one rather than swinging on a
+ * single night.
+ */
+export function computeDemand(
+  companyRating: number,
+  recentShowQuality: number,
+  rosterStrength: number,
+  settings: WorldSettings,
+): number {
+  return clamp(
+    companyRating * settings.demandFromCompanyRating +
+      recentShowQuality * settings.demandFromRecentShows +
+      rosterStrength * settings.demandFromRoster,
+    0,
+    100,
+  );
+}
+
+/**
+ * Fold tonight's rating into the running average. A promotion with no history
+ * takes tonight's show as its whole reputation.
+ */
+export function updateRecentShowQuality(current: number, showRating: number, settings: WorldSettings): number {
+  const alpha = settings.recentShowQualityWeight;
+  return clamp(current * (1 - alpha) + showRating * alpha, 0, 100);
+}
+
 /** A venue you cannot afford to rent is not a choice you can make. */
 export function canAffordShow(bankBalance: number, costs: ShowCostBreakdown): boolean {
   return bankBalance >= costs.total;

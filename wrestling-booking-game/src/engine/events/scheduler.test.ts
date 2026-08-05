@@ -30,6 +30,7 @@ function world(seed = 'sched') {
     bookingCredibility: 50,
     reputation: 50,
     hardcoreSaturation: 0,
+    recentShowQuality: 55,
     ownerId: 'o',
   };
   const rosterPeak = Math.max(...roster.map((w) => w.popularity));

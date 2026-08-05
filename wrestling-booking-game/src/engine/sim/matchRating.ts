@@ -11,7 +11,7 @@
 
 import type { Rng } from '../rng';
 import { gaussian, clamp } from '../rng';
-import type { Wrestler, RatingBreakdownEntry, Stipulation } from '../types';
+import type { Wrestler, RatingBreakdownEntry, Stipulation, FinishType } from '../types';
 import { styleMeshScore } from '../../data/styles';
 import { ratingToStars } from '../economy/showRating';
 
@@ -23,6 +23,12 @@ export interface MatchRatingContext {
   requirementsMet: boolean;
   matchLengthMinutes: number;
   simVariance: number; // WorldSettings.simVariance
+  /**
+   * How the match actually ended. A crowd that has been given a draw, a
+   * count-out or a stretcher job goes home unhappy however good the wrestling
+   * was — and the better the match had been, the more they resent it.
+   */
+  finish: FinishType;
 
   titlePrestige: number | null;
   rivalryHeat: number;
@@ -41,6 +47,28 @@ export interface MatchRatingContext {
   pairChemistryBonus: number;
   overexposurePenalty: number;
 }
+
+/**
+ * What each ending is worth to the people who paid to be there.
+ *
+ * The spread is deliberately wide. A clean decisive finish is the baseline
+ * good night. A count-out is the worst thing you can send a crowd home on —
+ * nothing happened, and they know it. An injury stoppage is worse than a bad
+ * finish; it is not a finish at all.
+ */
+const FINISH_SATISFACTION: Record<FinishType, number> = {
+  cleanPin: 3,
+  submission: 3.5,
+  knockout: 3,
+  rollup: 1.5,
+  refereeStoppage: -1,
+  interference: -3,
+  disqualification: -5.5,
+  countOut: -7,
+  timeLimitDraw: -4.5,
+  doubleKO: -4,
+  injuryStoppage: -9,
+};
 
 function mean(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
@@ -115,6 +143,16 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
       : 0,
   );
 
+  // How it ended. Decisive finishes send people home happy; screwjobs,
+  // draws and injuries do not — and the resentment scales with how good the
+  // match was up to that point, so a screwjob wastes a great match harder
+  // than it wastes a bad one. (§11.3 pays that back in rivalry heat: a
+  // non-decisive finish builds twice the heat. That is the trade.)
+  const satisfactionBase = FINISH_SATISFACTION[ctx.finish];
+  const upToNow = popComponent + workComponent + chemistry + balance + styleMesh;
+  const resentmentScale = satisfactionBase < 0 ? 1 + clamp(upToNow / 60, 0, 1) : 1;
+  const finishSatisfaction = term('Finish', satisfactionBase * resentmentScale);
+
   const randomness = term('Randomness (off night / they clicked)', gaussian(rng, 0, ctx.simVariance));
 
   const total =
@@ -133,6 +171,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
     boredom +
     mismatchedStipulation +
     jobberDrag +
+    finishSatisfaction +
     randomness;
 
   const rating = clamp(total, 3, 100);

@@ -46,6 +46,8 @@ import {
   computeShowRevenue,
   attendanceRatingModifier,
   sumEffect,
+  computeDemand,
+  updateRecentShowQuality,
 } from '../engine/economy/showBudget';
 import { venueById, fallbackVenue } from '../data/venues';
 import { productionAssetById, showExtraById } from '../data/production';
@@ -439,7 +441,13 @@ export const useGameStore = create<GameStore>()(
         const cardStrength = segmentPopAvgs.length
           ? segmentPopAvgs.reduce((sum, s) => sum + s.avgPopularity, 0) / segmentPopAvgs.length
           : 0;
-        const demand = clamp(world.promotion.rating * 0.55 + cardStrength * 0.45, 0, 100);
+        // What you have been putting on drives this, not what you are called.
+        const demand = computeDemand(
+          world.promotion.rating,
+          world.promotion.recentShowQuality,
+          cardStrength,
+          world.settings,
+        );
 
         const attendance = computeAttendanceForShow({
           venue,
@@ -521,6 +529,15 @@ export const useGameStore = create<GameStore>()(
             saturationFromShow(violenceLevels, world.settings.hardcoreSaturationPerViolence),
           ),
           world.settings.hardcoreSaturationDecayPerWeek,
+        );
+
+        // Tonight goes into the running average, which is what decides how
+        // many people turn up next week. A night of draws and count-outs
+        // empties the building a fortnight from now.
+        world.promotion.recentShowQuality = updateRecentShowQuality(
+          world.promotion.recentShowQuality,
+          showRating,
+          world.settings,
         );
 
         const target = targetCompanyRatingForStars(showStars);

@@ -35,6 +35,7 @@ const FINISH_LINES: Record<FinishType, (winner: string, loser: string) => string
   timeLimitDraw: (w, l) => `The bell rang with both ${w} and ${l} still standing — a time-limit draw.`,
   doubleKO: (w, l) => `${w} and ${l} went down together. No winner tonight.`,
   refereeStoppage: (w, l) => `The referee waved it off — ${w} wins by stoppage over ${l}.`,
+  injuryStoppage: (_w, l) => `${l} went down badly and did not get up. The match was stopped and the room went quiet.`,
 };
 
 export interface NarrativeContext {

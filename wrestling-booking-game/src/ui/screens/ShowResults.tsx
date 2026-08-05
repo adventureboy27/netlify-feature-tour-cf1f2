@@ -23,6 +23,7 @@ const FINISH_TEXT: Record<FinishType, string> = {
   timeLimitDraw: 'time-limit draw',
   doubleKO: 'double knockout',
   refereeStoppage: 'referee stoppage',
+  injuryStoppage: 'stopped through injury',
 };
 
 export function ShowResults({ show, onContinue }: { show: Show; onContinue: () => void }) {

@@ -15,6 +15,7 @@ function baseContext(overrides: Partial<MatchRatingContext> = {}): MatchRatingCo
     requirementsMet: true,
     matchLengthMinutes: 12,
     simVariance: 0, // deterministic for these tests
+    finish: 'cleanPin',
     titlePrestige: null,
     rivalryHeat: 0,
     shootHeatBonus: 0,
