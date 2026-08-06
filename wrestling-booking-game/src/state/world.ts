@@ -34,6 +34,7 @@ import type {
   Passing,
   Territory,
   OwnerMandate,
+  Referee,
 } from '../engine/types';
 import type { HallOfFameEntry } from '../engine/career/hallOfFame';
 import type { AwardWinner, YearRecord } from '../engine/career/awards';
@@ -46,6 +47,7 @@ import type { Tweet } from '../engine/world/fanReaction';
 import type { PoachingOffer } from '../engine/world/poaching';
 import type { FreeAgent } from '../engine/world/freeAgents';
 import { generateFreeAgentPool } from '../engine/world/freeAgents';
+import { createRefereeContract, seedRefereePool } from '../engine/sim/referees';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
 import type { PendingEvent } from '../engine/events/types';
 import type { EventHistory } from '../engine/events/scheduler';
@@ -139,6 +141,24 @@ export interface World {
   tamperingOffenses: number;
   /** Everyone in the business who is not signed anywhere. */
   freeAgents: FreeAgent[];
+  /**
+   * Every official in the business, signed and unsigned. They are characters
+   * with contracts now, so they live in the save like wrestlers do — see
+   * engine/sim/referees.ts.
+   */
+  referees: Referee[];
+  /**
+   * The official who works the whole card unless a match names somebody else.
+   * The boxing model: one man for the night, and the good one saved for the
+   * matches that matter.
+   */
+  defaultRefereeId: Id | null;
+  /**
+   * What happened to the officials this week, in sentences. Cleared and
+   * rebuilt every week. A referee cannot vanish off the assignment list
+   * without the game saying where he went — same rule as everybody else.
+   */
+  refereeNews: string[];
   /** Championships. A promotion's spine. */
   titles: Title[];
   /** The map. Twelve markets, each with its own memory of every promotion. */
@@ -353,6 +373,16 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     ownerPersonality: pick(rng, OWNER_PROFILES).id,
   };
 
+  // The officials. Everybody starts unsigned except the one warm body you
+  // inherited — competent enough to keep a match together, not good enough to
+  // survive six of them in a night.
+  const referees = seedRefereePool();
+  const startingReferee = referees.find((r) => r.id === 'ref-poole');
+  if (startingReferee) {
+    startingReferee.promotionId = promotion.id;
+    startingReferee.contract = createRefereeContract(startingReferee, settings, settings.startingYear);
+  }
+
   const rivals = createRivalPromotions(rng, settings);
 
   // Every rival is staffed. A promotion with a name and no wrestlers cannot
@@ -412,7 +442,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   });
 
   return {
-    version: 1,
+    version: 3,
     settings,
     week: 1,
     wrestlers,
@@ -446,6 +476,12 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     suspensionWeeks: 0,
     tamperingOffenses: 0,
     freeAgents: pool.freeAgents,
+    referees,
+    // You open with one official on the books, and a six-match card runs him
+    // into the ground by the main event. That is deliberate: the first thing
+    // the burnout system should teach is why one referee is not enough.
+    defaultRefereeId: startingReferee?.id ?? null,
+    refereeNews: [],
     titles: [...playerTitles, ...rivalTitles],
     // You are from somewhere. A promotion does not open in a town that has
     // never heard of it — the home territory starts with a real following and

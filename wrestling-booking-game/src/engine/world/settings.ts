@@ -526,6 +526,39 @@ export function defaultWorldSettings(): WorldSettings {
     // annoys the room more than being booked into the role on purpose.
     draftedRefereeMoraleCost: 4,
 
+    // Officials on the payroll. A referee costs roughly a quarter of what a
+    // comparable wrestler does — enough that carrying four of them is a real
+    // line on the budget, cheap enough that it is never the reason you went
+    // under. The crooked ones charge a premium because doing what you are
+    // told is a service.
+    refereeBaseWeeklyRate: 55,
+    refereeRateRange: 300,
+    refereeRateCurve: 2.8,
+    refereeBendablePremium: 190,
+    refereeContractWeeks: 52,
+    refereeRateDecayPerWeek: 0.01,
+    refereeMaxDiscount: 0.3,
+    refereeRivalSigningChance: 0.03,
+    refereePoolSize: 14,
+
+    // Burnout. Six matches takes a fresh official most of the way down, which
+    // is what makes one referee for the whole card a decision rather than the
+    // obvious default — the main event gets whatever is left of him.
+    refereeSharpnessPerMatch: 13,
+    refereeSharpnessRecoveryPerWeek: 45,
+    refereeSharpnessFloor: 0.55,
+
+    // Blown calls. Tuned so a good official on a normal card misses something
+    // a couple of times a year and the cheap one does it most weeks.
+    refereeMissBaseChance: 0.02,
+    refereeMissIncompetenceWeight: 0.3,
+    refereeMissChanceCap: 0.45,
+    refereeMissRatingPenalty: 6,
+    refereeMissVictimMorale: 7,
+    refereeMissReputationCost: 3.5,
+    refereeCleanNightReputationGain: 0.4,
+    refereeReputationCeiling: 6,
+
     // Casualties. A competitor is in the match; a referee is in the way; a
     // manager is at ringside asking for it. A guest referee is the worst of
     // both — in the middle of it without a wrestler's licence.

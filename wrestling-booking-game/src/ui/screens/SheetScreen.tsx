@@ -11,6 +11,7 @@ import { publish, movement, type DivisionLists } from '../../engine/world/public
 import { billedAs } from '../../engine/generate/nickname';
 import { shortTitleName } from '../../data/titles';
 import type { Publication } from '../../engine/world/publication';
+import { rankReferees, refereeGrade } from '../../engine/sim/referees';
 
 type Division = 'mens' | 'womens';
 
@@ -36,6 +37,20 @@ export function SheetScreen() {
       settings: world.settings,
     };
     return { current: publish(ctx), previous: world.lastPublication };
+  }, [world]);
+
+  // Everybody in a striped shirt, ranked. Being brilliant and unbooked does
+  // not top this list — see refereeStanding. Your own crew is always on it,
+  // even when they are nowhere near the top, because a page that hides your
+  // own officials is not telling you the thing you came to find out.
+  const officials = useMemo(() => {
+    if (!world) return [];
+    const ranked = rankReferees(world.referees);
+    const shown = ranked.slice(0, 10);
+    const missingOwn = ranked.filter(
+      (r) => r.promotionId === world.promotion.id && !shown.includes(r),
+    );
+    return rankReferees([...shown, ...missingOwn]);
   }, [world]);
 
   if (!world || !sheets) return null;
@@ -173,6 +188,37 @@ export function SheetScreen() {
               </div>
             );
           })
+        )}
+      </Section>
+
+      {/* Officials get their own ladder. They are signed characters with
+          contracts and reputations, and the sheet has always had an opinion
+          about who can be trusted to count a fall. */}
+      <Section title="The officials">
+        {officials.length === 0 ? (
+          <Empty>Nobody is working.</Empty>
+        ) : (
+          officials.map((referee, i) => (
+            <Row
+              key={referee.id}
+              rank={i + 1}
+              mine={referee.promotionId === world.promotion.id}
+              testId={`sheet-official-${referee.id}`}
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-medium">{referee.name}</span>
+                <span className="block truncate text-[10px] text-neutral-500">
+                  {refereeGrade(referee)}
+                  {referee.recentMisses > 0 && ` · ${referee.recentMisses} blown lately`}
+                </span>
+              </span>
+              <span className="shrink-0 text-right text-[10px] text-neutral-600">
+                {referee.promotionId
+                  ? companyName(referee.promotionId).split(/\s+/)[0]
+                  : 'available'}
+              </span>
+            </Row>
+          ))
         )}
       </Section>
     </div>

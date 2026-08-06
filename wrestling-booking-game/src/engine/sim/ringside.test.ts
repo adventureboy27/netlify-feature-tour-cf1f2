@@ -9,13 +9,16 @@ import {
   refereeAgenda,
   guestRefereeHealthCost,
 } from './ringside';
-import { MANAGERS, REFEREES, managerById, refereeById, cheapestReferee } from '../../data/ringsidePool';
+import { MANAGERS, managerById } from '../../data/ringsidePool';
+import { seedRefereePool, refereeAskingRate, workedMatch } from './referees';
 import { defaultWorldSettings } from '../world/settings';
 import { generateWrestler } from '../generate/wrestler';
 import { rngFromSeed } from '../rng';
 import type { Wrestler } from '../types';
 
 const settings = defaultWorldSettings();
+const REFEREES = seedRefereePool();
+const refereeById = (id: string) => REFEREES.find((r) => r.id === id);
 const w = (over: Partial<Wrestler> = {}): Wrestler => ({ ...generateWrestler(rngFromSeed('r'), new Set()), ...over });
 
 const talker = w({ charisma: 95, popularity: 60 });
@@ -98,16 +101,26 @@ describe('referees as characters', () => {
 
   it('makes a bendable official the route to a bought finish', () => {
     const crooked = refereeById('ref-cade')!;
-    const straight = refereeById('ref-hollis')!;
+    const straight = refereeById('ref-dawkins')!;
     expect(refereeEffect(crooked, settings).interferenceWeight).toBeGreaterThan(
       refereeEffect(straight, settings).interferenceWeight,
     );
-    // And you pay for it — the crooked one is dearer than the honest one.
-    expect(crooked.feePerShow).toBeGreaterThan(straight.feePerShow);
+    // And you pay for it — being purchasable is a premium service.
+    expect(refereeAskingRate(crooked, settings)).toBeGreaterThan(refereeAskingRate(straight, settings));
   });
 
-  it('always leaves an official you can afford', () => {
-    expect(cheapestReferee().feePerShow).toBeLessThan(250);
+  it('reads a tired official as a worse one', () => {
+    // The reason to carry more than one shirt: the same man is worth less in
+    // the sixth match of the night than he was in the opener.
+    const opener = refereeById('ref-hollis')!;
+    const mainEvent = { ...opener };
+    for (let i = 0; i < 5; i++) workedMatch(mainEvent, settings);
+    expect(refereeEffect(mainEvent, settings).ratingBonus).toBeLessThan(
+      refereeEffect(opener, settings).ratingBonus,
+    );
+    expect(refereeEffect(mainEvent, settings).screwyFinishWeight).toBeGreaterThan(
+      refereeEffect(opener, settings).screwyFinishWeight,
+    );
   });
 });
 
@@ -146,8 +159,8 @@ describe('everything at ringside together', () => {
       guestReferee: null,
       settings,
     });
-    // The referee is not in here: they are billed once per show by the
-    // caller, not once per match.
+    // The referee is not in here: officials are on the payroll, a weekly
+    // wage against a signed contract, not a fee at the door.
     expect(totals.cost).toBe(manager.feePerShow);
   });
 
@@ -200,9 +213,9 @@ describe('what a referee costs', () => {
   const settings = defaultWorldSettings();
 
   it('bills managers per appearance and referees not at all', () => {
-    // A referee works the whole card for one night's pay, so the caller
-    // totals them once per show. Billing them here charged one official six
-    // times on a six-match card, which is what made hiring anybody absurd.
+    // Officials are signed to weekly contracts and paid through the payroll.
+    // Billing them here charged one official six times on a six-match card,
+    // which is what made hiring anybody absurd in the first place.
     const totals = ringsideTotals({
       managers: [{ manager: MANAGERS[0]!, client: w() }],
       referee: REFEREES[0]!,
@@ -212,10 +225,11 @@ describe('what a referee costs', () => {
     expect(totals.cost).toBe(MANAGERS[0]!.feePerShow);
   });
 
-  it('is cheaper to hire an official than a mouthpiece', () => {
-    expect(cheapestReferee().feePerShow).toBeLessThan(
-      MANAGERS.reduce((cheap, m) => Math.min(cheap, m.feePerShow), Infinity),
-    );
+  it('keeps a whole crew of officials cheaper than one good mouthpiece', () => {
+    // A manager is a per-night luxury; officiating is meant to be the
+    // cheapest quality on the card.
+    const crew = REFEREES.slice(0, 4).reduce((sum, r) => sum + refereeAskingRate(r, settings), 0);
+    expect(crew).toBeLessThan(MANAGERS[0]!.feePerShow * 4);
   });
 });
 

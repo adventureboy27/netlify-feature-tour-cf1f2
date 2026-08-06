@@ -23,6 +23,7 @@ import type {
   Promotion,
   Segment,
   SegmentResult,
+  RefereeMissRecord,
   TitleReignEndMethod,
   WorldSettings,
 } from '../engine/types';
@@ -52,7 +53,23 @@ import {
   refereeAgenda,
   guestRefereeHealthCost,
 } from '../engine/sim/ringside';
-import { REFEREES, managerById, refereeById } from '../data/ringsidePool';
+import { managerById } from '../data/ringsidePool';
+import { refereeMissById } from '../data/refereeMisses';
+import {
+  officialFor,
+  workedMatch,
+  rollRefereeMiss,
+  nameTheVictim,
+  applyNightToReputation,
+  tickRefereeWeek,
+  tickRefereePool,
+  refereeWageBill,
+  createRefereeContract,
+  currentRefereeAskingRate,
+  signedReferees,
+  spreadOfficials,
+  isAvailable as refereeIsAvailable,
+} from '../engine/sim/referees';
 import { NETWORK_SHOWS } from '../data/networkShows';
 import { rollTamperingAttempts } from '../engine/world/tampering';
 import { deriveCareerStatus } from '../engine/career/status';
@@ -248,6 +265,14 @@ export interface GameStore {
   setSegmentManager: (slot: number, managerId: Id | null, forSide: number) => void;
   setSegmentReferee: (slot: number, refereeId: Id | null) => void;
   setSegmentGuestReferee: (slot: number, wrestlerId: Id | null) => void;
+  /** The official who works every match nobody else was named for. */
+  setDefaultReferee: (refereeId: Id | null) => void;
+  /** Put an official under contract. Cheap, weekly, and never with creative control. */
+  signReferee: (refereeId: Id) => { ok: boolean; reason: string | null };
+  /** Let one go. He goes straight back into the pool for anybody to sign. */
+  releaseReferee: (refereeId: Id) => void;
+  /** Share the card out across the crew, best official on the main event. */
+  spreadOfficialsAcrossCard: () => void;
   /** Name the company and pick its house style. Locked once you run a show. */
   setPromotionIdentity: (name: string, archetype: PromotionArchetype) => void;
   // Roster moves
@@ -849,13 +874,13 @@ export const useGameStore = create<GameStore>()(
           segment.titleIds = match.titleIds ?? [];
         });
 
-        // The office puts an official on every match it books. Leaving a match
-        // without one is a decision the player can make on purpose, not one
-        // they should back into by pressing Fill the card.
-        for (const segment of world.currentCard) {
-          const booked = new Set(segment.participants.map((p) => p.side)).size >= 2;
-          if (!booked || segment.refereeId || segment.guestRefereeId) continue;
-          segment.refereeId = pick(rng, REFEREES).id;
+        // The office names an official for the card if the player has not.
+        // Per-match assignments are left alone — deciding which referee gets
+        // the main event is the interesting half of the job and Fill the card
+        // should not do it for you.
+        const availableOfficials = signedReferees(world.referees, world.promotion.id).filter(refereeIsAvailable);
+        if (!world.defaultRefereeId || !availableOfficials.some((r) => r.id === world.defaultRefereeId)) {
+          world.defaultRefereeId = availableOfficials[0]?.id ?? null;
         }
       });
     },
@@ -899,8 +924,9 @@ export const useGameStore = create<GameStore>()(
         const heatOnTheCard: number[] = [];
         /** How many matches were officiated by a wrestler. The room keeps count. */
         let guestRefereeUses = 0;
-        /** Officials who worked tonight. Each is paid once, not once a match. */
+        /** Officials who worked tonight, and how many calls each one blew. */
         const refereesUsed = new Set<Id>();
+        const refereeMissesTonight = new Map<Id, number>();
         const segmentPopAvgs: { stars: number; avgPopularity: number }[] = [];
         const violenceLevels: number[] = [];
         let ringsideCost = 0;
@@ -967,8 +993,18 @@ export const useGameStore = create<GameStore>()(
           // Somebody has to count. If the booker named nobody, the office
           // hands the shirt to whoever is around — and that person has their
           // own opinions about who should win.
+          // Who is counting: the official booked for this match, else the one
+          // named for the whole card. Both must be signed here, fit, and on
+          // the payroll — officialFor is the single place that decides.
+          const assignedReferee = officialFor(
+            segment.refereeId,
+            world.defaultRefereeId,
+            world.referees,
+            world.promotion.id,
+          );
+
           let draftedReferee: Wrestler | undefined;
-          if (!segment.refereeId && !segment.guestRefereeId) {
+          if (!assignedReferee && !segment.guestRefereeId) {
             const spare = world.promotion.rosterIds
               .map((id) => world.wrestlers[id])
               .filter(
@@ -986,17 +1022,16 @@ export const useGameStore = create<GameStore>()(
               .filter((m): m is { manager: NonNullable<typeof m.manager>; client: Wrestler } =>
                 Boolean(m.manager && m.client),
               ),
-            referee: segment.refereeId ? (refereeById(segment.refereeId) ?? null) : null,
+            referee: assignedReferee,
             guestReferee: guestReferee && guestRefereeIsLegal(guestReferee.id, participantIds) ? guestReferee : null,
             guestWasDrafted: Boolean(draftedReferee),
             settings: world.settings,
           });
-          // Managers are paid per appearance. A referee is not: one official
-          // works the whole card for one night's pay, which is how it has
-          // always worked and which is why billing them per match made
-          // hiring anybody absurdly expensive.
+          // Managers are paid per appearance. Officials are not paid here at
+          // all any more — they are on the payroll, a weekly wage against a
+          // signed contract, earned whether they work or not.
           ringsideCost += ringside.cost;
-          if (segment.refereeId) refereesUsed.add(segment.refereeId);
+          if (assignedReferee) refereesUsed.add(assignedReferee.id);
 
           // What the wrestler in the shirt is actually out there to do. Never
           // a coin flip — see refereeAgenda.
@@ -1076,6 +1111,54 @@ export const useGameStore = create<GameStore>()(
             guestRefereeUses += 1;
           }
 
+          // ---- what the official missed ----------------------------------
+          // The rule about nothing happening off-screen applies to
+          // officiating too. A cheap referee is not a hidden multiplier on a
+          // finish table — he is a man who did not see the foot on the rope,
+          // and the write-up says so by name.
+          const misses: RefereeMissRecord[] = [];
+          if (assignedReferee) {
+            // Fatigue is applied before the roll, so the sixth match of the
+            // night is judged on what is left of him rather than on what he
+            // was when the doors opened.
+            workedMatch(assignedReferee, world.settings);
+            const sideSizes = new Map<number, number>();
+            for (const p of segment.participants) sideSizes.set(p.side, (sideSizes.get(p.side) ?? 0) + 1);
+
+            const miss = rollRefereeMiss(rng, {
+              referee: assignedReferee,
+              competitorIds: participantIds,
+              hasTags: [...sideSizes.values()].some((n) => n > 1),
+              hadInterference: result.finish === 'interference' || result.finish === 'disqualification',
+              settings: world.settings,
+            });
+
+            if (miss) {
+              const victim = miss.victimId ? wrestlerById.get(miss.victimId) : null;
+              misses.push(nameTheVictim(miss, victim?.name ?? null));
+              // A blown call costs the match on the night and costs the
+              // wrestler it went against real morale — which is exactly why
+              // signing the cheapest official in the business is a way to
+              // make somebody's life miserable on purpose. Scaled by how bad
+              // it was: a slow count is untidy, a three-count on a shoulder
+              // that was clearly up is a different thing entirely.
+              const severity = refereeMissById(miss.missId)?.severity ?? 0.5;
+              result.rating = clamp(result.rating - world.settings.refereeMissRatingPenalty * severity, 0, 100);
+              result.stars = ratingToStars(result.rating);
+              if (victim) {
+                victim.morale = clamp(
+                  victim.morale - world.settings.refereeMissVictimMorale * severity,
+                  0,
+                  100,
+                );
+              }
+            }
+            refereeMissesTonight.set(
+              assignedReferee.id,
+              (refereeMissesTonight.get(assignedReferee.id) ?? 0) + (miss ? 1 : 0),
+            );
+          }
+
           // ---- who got hurt, and what the write-up says ------------------
           // CLAUDE.md: nothing happens to a person off-screen. Every one of
           // these carries the sentence explaining it; there is no path here
@@ -1141,21 +1224,24 @@ export const useGameStore = create<GameStore>()(
             if (casualty) putOut(casualty);
           }
 
-          // Referees and managers are not on the roster, so they cannot be put
-          // on the shelf — but what happened to them is still news, and the
-          // rule says it gets said out loud.
-          const assignedReferee = segment.refereeId ? refereeById(segment.refereeId) : null;
-          if (assignedReferee) {
+          // An official is signed talent now, so he goes on the shelf like
+          // anybody else — and the promotion that carried one referee finds
+          // out what that was worth. Managers are still per-appearance hires,
+          // so their injuries are reported but not tracked.
+          if (assignedReferee && !assignedReferee.injury) {
             const casualty = rollCasualty(rng, {
               personId: assignedReferee.id,
               name: assignedReferee.name,
               role: 'referee',
               violenceLevel: violence,
               injuryMultiplier: result.injuryMultiplier,
-              toughness: 50,
+              toughness: assignedReferee.toughness,
               settings: world.settings,
             });
-            if (casualty) hurtTonight.push(casualty);
+            if (casualty) {
+              assignedReferee.injury = injuryFrom(casualty, world.week);
+              hurtTonight.push(casualty);
+            }
           }
           for (const assignment of segment.managerIds ?? []) {
             const manager = managerById(assignment.managerId);
@@ -1245,7 +1331,7 @@ export const useGameStore = create<GameStore>()(
                 .map((m) => ({ manager: managerById(m.managerId), forSide: m.forSide }))
                 .filter((m): m is { manager: NonNullable<typeof m.manager>; forSide: number } => Boolean(m.manager))
                 .map((m) => ({ id: m.manager.id, name: m.manager.name, forSide: m.forSide })),
-              hasReferee: Boolean(segment.refereeId) && !segment.guestRefereeId,
+              hasReferee: Boolean(assignedReferee) && !segment.guestRefereeId,
               availableReturns: couldTurnUp(world, world.promotion.id, bookedTonight, participantIds),
             }),
           );
@@ -1274,6 +1360,10 @@ export const useGameStore = create<GameStore>()(
               text: casualty.text,
               outFor: outFor(casualty.weeks, world.settings),
             })),
+            refereeMisses: misses,
+            // Printed beside the match on the card and in the results, the
+            // way a boxing bout names its referee before the bell.
+            officialName: assignedReferee?.name ?? (officiatingWrestler ? `${officiatingWrestler.name} (guest)` : null),
             incident,
           };
 
@@ -1396,9 +1486,13 @@ export const useGameStore = create<GameStore>()(
           worked.add(speaker!.id);
         }
 
-        // One night's pay each, however many matches they worked.
+        // What the night did to the officials' standing. An official builds a
+        // reputation over years of clean matches and loses it in one bad main
+        // event, which is why the misses cost far more than the clean nights
+        // return.
         for (const refereeId of refereesUsed) {
-          ringsideCost += refereeById(refereeId)?.feePerShow ?? 0;
+          const referee = world.referees.find((r) => r.id === refereeId);
+          if (referee) applyNightToReputation(referee, refereeMissesTonight.get(refereeId) ?? 0, world.settings);
         }
 
         const slotWeights = TV_SLOT_WEIGHTS.slice(0, world.currentCard.length);
@@ -1516,7 +1610,13 @@ export const useGameStore = create<GameStore>()(
         // to *show* expenses, not to wages: capping the wage bill made the
         // bank rise every week no matter what, because the overflow was
         // silently discarded.
-        payroll = weeklyWageBill(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
+        payroll =
+          weeklyWageBill(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean)) +
+          // Officials are on the payroll like everybody else — a weekly wage
+          // whether they worked the card or sat at home. Carrying four of
+          // them is a real line on the budget; it is just a much smaller one
+          // than carrying a fifth wrestler.
+          refereeWageBill(world.referees, world.promotion.id);
         const { payable: showPayable } = computeShowExpenseSplit(
           showCosts.total,
           revenue.total,
@@ -1968,6 +2068,55 @@ export const useGameStore = create<GameStore>()(
         // Deals run down whether or not anybody was booked.
         const expired = expireContracts(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
         if (world.signingBanWeeks > 0) world.signingBanWeeks -= 1;
+
+        // ---- the officials' week ----------------------------------------
+        // They rest, they heal, their deals run down, and the ones you left
+        // sitting in the pool get signed by somebody else. Every one of those
+        // is reported: an official disappearing off the assignment list
+        // without a word is exactly the off-screen change the rule forbids.
+        world.refereeNews = [];
+        for (const referee of world.referees) {
+          const wasHurt = Boolean(referee.injury);
+          const employer = referee.promotionId;
+          tickRefereeWeek(referee, world.settings);
+
+          if (wasHurt && !referee.injury && employer === world.promotion.id) {
+            world.refereeNews.push(`${referee.name} has been cleared and is available for assignment again.`);
+          }
+          if (referee.contract && referee.contract.weeksRemaining <= 0) {
+            referee.contract = null;
+            referee.promotionId = null;
+            referee.weeksUnsigned = 0;
+            if (employer === world.promotion.id) {
+              world.refereeNews.push(
+                `${referee.name}'s contract has run out. He is back in the pool and anybody can sign him.`,
+              );
+              if (world.defaultRefereeId === referee.id) world.defaultRefereeId = null;
+            }
+          }
+        }
+
+        const refereePool = tickRefereePool(rng, {
+          referees: world.referees,
+          playerPromotionId: world.promotion.id,
+          rivalDemand: Math.min(1, world.rivals.filter((r) => !r.closedWeek).length / 4),
+          settings: world.settings,
+        });
+        const hiringRivals = world.rivals.filter((r) => !r.closedWeek);
+        for (const id of refereePool.signedAway) {
+          const referee = world.referees.find((r) => r.id === id);
+          // Whichever company got there first. Always handing them to the
+          // same rival made one promotion look like it was hoarding shirts.
+          const employer = hiringRivals.length > 0 ? pick(rng, hiringRivals) : null;
+          if (!referee || !employer) continue;
+          referee.promotionId = employer.id;
+          referee.contract = createRefereeContract(referee, world.settings, world.settings.startingYear + Math.floor(world.week / 52));
+          world.refereeNews.push(`${employer.name} have signed ${referee.name} to work their shows.`);
+        }
+        world.referees.push(...refereePool.newcomers);
+        for (const newcomer of refereePool.newcomers) {
+          world.refereeNews.push(`${newcomer.name} is licensed and looking for work. ${newcomer.blurb}`);
+        }
 
         // Recovery and momentum decay, for everybody in the business — the
         // world does not hold still for the people you did not book.
@@ -2771,6 +2920,87 @@ export const useGameStore = create<GameStore>()(
         if (!segment) return;
         segment.guestRefereeId = wrestlerId;
         if (wrestlerId) segment.refereeId = null;
+      });
+    },
+
+    setDefaultReferee: (refereeId) => {
+      set((state) => {
+        if (!state.world) return;
+        state.world.defaultRefereeId = refereeId;
+      });
+    },
+
+    spreadOfficialsAcrossCard: () => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const crew = signedReferees(world.referees, world.promotion.id);
+        // Spread across the matches that exist, not the empty slots. Counting
+        // slots put the best official on a main event that had nobody in it
+        // and left him working eight matches a year.
+        const booked = world.currentCard
+          .map((segment, slot) => ({ segment, slot }))
+          .filter(({ segment }) => new Set(segment.participants.map((p) => p.side)).size >= 2);
+        const assignments = spreadOfficials(crew, booked.length);
+        booked.forEach(({ segment }, i) => {
+          // A match with a guest referee booked into it is a booking
+          // decision, not an oversight — leave those alone.
+          if (segment.guestRefereeId) return;
+          segment.refereeId = assignments[i] ?? null;
+        });
+      });
+    },
+
+    signReferee: (refereeId) => {
+      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No game in progress.' };
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const referee = world.referees.find((r) => r.id === refereeId);
+        if (!referee) {
+          outcome = { ok: false, reason: 'Nobody by that name is licensed.' };
+          return;
+        }
+        if (referee.promotionId) {
+          outcome = { ok: false, reason: 'He is already working for somebody.' };
+          return;
+        }
+        const rate = currentRefereeAskingRate(referee, world.settings);
+        // Same affordability test the wrestlers get: a deal you cannot
+        // service for a season is a deal you cannot make.
+        if (rate * world.settings.contractAffordabilityWeeks > world.promotion.bankBalance) {
+          outcome = { ok: false, reason: 'You cannot service that wage.' };
+          return;
+        }
+        referee.promotionId = world.promotion.id;
+        referee.contract = createRefereeContract(
+          referee,
+          world.settings,
+          world.settings.startingYear + Math.floor(world.week / 52),
+        );
+        referee.weeksUnsigned = 0;
+        // First official through the door takes the card by default, so a
+        // promotion is never one signing away from still having nobody.
+        if (!world.defaultRefereeId) world.defaultRefereeId = referee.id;
+        outcome = { ok: true, reason: null };
+      });
+      return outcome;
+    },
+
+    releaseReferee: (refereeId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const referee = world.referees.find((r) => r.id === refereeId);
+        if (!referee || referee.promotionId !== world.promotion.id) return;
+        referee.promotionId = null;
+        referee.contract = null;
+        referee.weeksUnsigned = 0;
+        if (world.defaultRefereeId === refereeId) world.defaultRefereeId = null;
+        // Any match he was booked for reverts to the card's official.
+        for (const segment of world.currentCard) {
+          if (segment.refereeId === refereeId) segment.refereeId = null;
+        }
       });
     },
 

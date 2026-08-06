@@ -31,8 +31,18 @@ import { identityOf } from '../../data/promotionIdentity';
 import { BID_LEVEL_LABELS, playerBidAmount, type PlayerBidLevel } from '../../engine/world/auction';
 import { foldRisk, FOLD_RISK_LABELS } from '../../engine/world/rivalEconomy';
 import type { Wrestler } from '../../engine/types';
+import { contractUrgency } from '../../engine/economy/contracts';
+import {
+  signedReferees,
+  availableReferees,
+  refereeWageBill,
+  currentRefereeAskingRate,
+  refereeGrade,
+  sharpnessLabel,
+  isAvailable,
+} from '../../engine/sim/referees';
 
-type Tab = 'desk' | 'contracts' | 'television';
+type Tab = 'desk' | 'contracts' | 'officials' | 'television';
 
 export function OfficeScreen() {
   const world = useGameStore((s) => s.world);
@@ -53,10 +63,15 @@ export function OfficeScreen() {
     (world.lastEventOutcome ? 1 : 0) +
     (world.lastAuction ? 1 : 0);
   const inContracts = world.pendingRenewals.length + world.tamperingOffers.length;
+  // A promotion with nobody in a striped shirt is a promotion where a
+  // wrestler counts every fall, so that is worth a badge on its own.
+  const officialsNeedYou =
+    world.refereeNews.length + (world.referees.some((r) => r.promotionId === world.promotion.id) ? 0 : 1);
 
   const tabs: { id: Tab; label: string; badge: number }[] = [
     { id: 'desk', label: 'Desk', badge: onTheDesk },
     { id: 'contracts', label: 'Contracts', badge: inContracts },
+    { id: 'officials', label: 'Officials', badge: officialsNeedYou },
     { id: 'television', label: 'Television', badge: 0 },
   ];
 
@@ -96,6 +111,7 @@ export function OfficeScreen() {
 
       {tab === 'desk' && <DeskTab />}
       {tab === 'contracts' && <ContractsTab />}
+      {tab === 'officials' && <OfficialsTab />}
       {tab === 'television' && <TelevisionTab />}
     </div>
   );
@@ -755,6 +771,172 @@ function ContractsTab() {
 }
 
 /** Where you finished on the dial, and how the competition is holding up. */
+/**
+ * The officials.
+ *
+ * They are signed characters with contracts, so they get a roster of their
+ * own — who is on the books, how worn they are, what the business makes of
+ * them, and who is available to sign. Everything a booker actually decides
+ * about officiating is on this one page: pay for somebody who sees
+ * everything, or save the money and watch a cheap one cost your top babyface
+ * a match in front of a full house.
+ *
+ * No creative control anywhere on it. An official never gets a say in who
+ * goes over, so there is no clause to negotiate and nothing to read twice.
+ */
+function OfficialsTab() {
+  const world = useGameStore((s) => s.world);
+  const sign = useGameStore((s) => s.signReferee);
+  const release = useGameStore((s) => s.releaseReferee);
+  const setDefault = useGameStore((s) => s.setDefaultReferee);
+  const [refused, setRefused] = useState<string | null>(null);
+  if (!world) return null;
+
+  const crew = signedReferees(world.referees, world.promotion.id);
+  const pool = availableReferees(world.referees);
+  const wageBill = refereeWageBill(world.referees, world.promotion.id);
+
+  return (
+    <>
+      {/* What happened to them this week. Nothing about a person changes
+          off-screen — CLAUDE.md — and that includes an official whose deal
+          quietly ran out. */}
+      {world.refereeNews.length > 0 && (
+        <section className="mb-4">
+          <h2 className="mb-2 text-sm font-medium text-neutral-300">From the officials</h2>
+          <ul className="flex flex-col gap-1 rounded border border-neutral-800 bg-neutral-900 p-2">
+            {world.refereeNews.map((line, i) => (
+              <li key={i} className="text-[11px] text-neutral-400">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="mb-4">
+        <div className="mb-2 flex items-baseline justify-between">
+          <h2 className="text-sm font-medium text-neutral-300">Under contract</h2>
+          <span className="text-[11px] text-neutral-500">
+            <Money amount={wageBill} />
+            <span className="text-neutral-600">/wk</span>
+          </span>
+        </div>
+
+        {crew.length === 0 ? (
+          <p className="rounded border border-amber-900/60 bg-neutral-900 p-3 text-[11px] text-amber-300">
+            You have nobody in a striped shirt. Every match will be counted by one of the boys, and every
+            one of them has an opinion about who should win.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {crew.map((referee) => (
+              <article
+                key={referee.id}
+                data-testid={`official-${referee.id}`}
+                className="rounded border border-neutral-800 bg-neutral-900 p-2"
+              >
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-xs font-medium">{referee.name}</span>
+                      {world.defaultRefereeId === referee.id && (
+                        <span className="rounded bg-emerald-900 px-1.5 py-0.5 text-[10px] text-emerald-300">
+                          Card official
+                        </span>
+                      )}
+                      {referee.injury && (
+                        <span className="rounded bg-rose-950 px-1.5 py-0.5 text-[10px] text-rose-300">
+                          {referee.injury.description}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-neutral-500">
+                      {refereeGrade(referee)} · {sharpnessLabel(referee)} · {referee.blurb}
+                    </div>
+                    {referee.recentMatches > 0 && (
+                      <div className="text-[10px] text-neutral-600">
+                        {referee.recentMisses === 0
+                          ? 'Has not missed a thing lately.'
+                          : `Blown calls lately: ${referee.recentMisses} in ${referee.recentMatches} matches.`}
+                      </div>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-right text-xs">
+                    <Money amount={referee.contract?.weeklyRate ?? 0} />
+                    <span className="text-neutral-600">/wk</span>
+                    <div className="text-[10px] text-neutral-600">
+                      {contractUrgency(referee.contract).toLowerCase()}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    data-testid={`official-default-${referee.id}`}
+                    disabled={!isAvailable(referee) || world.defaultRefereeId === referee.id}
+                    onClick={() => setDefault(referee.id)}
+                    className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700 disabled:opacity-40"
+                  >
+                    Give him the card
+                  </button>
+                  <button
+                    type="button"
+                    data-testid={`official-release-${referee.id}`}
+                    onClick={() => release(referee.id)}
+                    className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-rose-300 hover:bg-neutral-700"
+                  >
+                    Let him go
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="mb-2 text-sm font-medium text-neutral-300">Available</h2>
+        {refused && <p className="mb-2 text-[11px] text-amber-400">{refused}</p>}
+        <div className="flex flex-col gap-2">
+          {pool.slice(0, 12).map((referee) => (
+            <article
+              key={referee.id}
+              data-testid={`free-official-${referee.id}`}
+              className="flex items-start gap-2 rounded border border-neutral-800 bg-neutral-900 p-2"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-medium">{referee.name}</div>
+                <div className="text-[11px] text-neutral-500">
+                  {refereeGrade(referee)} · {referee.blurb}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-xs">
+                  <Money amount={currentRefereeAskingRate(referee, world.settings)} />
+                  <span className="text-neutral-600">/wk</span>
+                </div>
+                <button
+                  type="button"
+                  data-testid={`sign-official-${referee.id}`}
+                  onClick={() => {
+                    const outcome = sign(referee.id);
+                    setRefused(outcome.ok ? null : outcome.reason);
+                  }}
+                  className="mt-1 rounded bg-emerald-600 px-3 py-1 text-[11px] text-white hover:bg-emerald-500"
+                >
+                  Sign
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
 function TelevisionTab() {
   const world = useGameStore((s) => s.world);
   if (!world) return null;

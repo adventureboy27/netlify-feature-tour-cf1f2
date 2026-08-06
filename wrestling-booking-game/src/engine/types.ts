@@ -594,6 +594,81 @@ export interface Contract {
 }
 
 // ============================================================================
+// §10.2 — Officials
+// ============================================================================
+
+/**
+ * A referee. A signed, contracted character — not a row in a lookup table.
+ *
+ * They have a name the crowd knows, a wage, a deal that runs out, a body that
+ * gets tired across a card and hurt in a bad match, and a standing in the
+ * business that the sheet ranks. What they do not have is creative control:
+ * an official does not get to ask who goes over.
+ *
+ * The important number is `competence`, and the important state is
+ * `sharpness`. A brilliant official working his sixth match of the night is
+ * worse than a mediocre one working his first, which is the whole reason to
+ * carry more than one.
+ */
+export interface Referee {
+  id: Id;
+  name: string;
+  /** How reliably they see what happened and count it straight. */
+  competence: number; // 0-100
+  /** How easily they are bought. High means a crooked finish is available. */
+  bendable: number; // 0-100
+  /** Whether they can take a bump. Officials get hurt too. */
+  toughness: number; // 0-100
+  age: number;
+  /** Years in the shirt. Feeds what they cost and how the sheet reads them. */
+  experience: number;
+  blurb: string;
+
+  /** Who they work for. Null means available. */
+  promotionId: Id | null;
+  /** Referee deals never carry creative control. See economy/refereeContracts. */
+  contract: Contract | null;
+
+  /**
+   * How fresh they are. Falls with every match they work and comes back
+   * between shows. This is the burnout the player is managing when they save
+   * their best official for the main event.
+   */
+  sharpness: number; // 0-100
+  /** What the business thinks of them. Moves on clean nights and on misses. */
+  reputation: number; // 0-100
+
+  /** Matches worked tonight. Reset when the show ends. */
+  matchesTonight: number;
+  /** Career total, for the sheet and the record book. */
+  careerMatches: number;
+  /** Rolling window the ranking reads: matches worked and things missed. */
+  recentMatches: number;
+  recentMisses: number;
+
+  injury: Injury | null;
+  /** Weeks they have been sitting unsigned. Long enough and they come cheaper. */
+  weeksUnsigned: number;
+}
+
+/**
+ * Something the official did not see, and the crowd did.
+ *
+ * A miss is never silent — CLAUDE.md's rule applies to officiating as much as
+ * to injuries. If a bad referee costs somebody a match, the write-up says
+ * which referee, what they missed, and who it cost.
+ */
+export interface RefereeMissRecord {
+  refereeId: Id;
+  refereeName: string;
+  missId: string;
+  /** The line the write-up runs. */
+  text: string;
+  /** The wrestler it went against, when it went against somebody. */
+  victimId: Id | null;
+}
+
+// ============================================================================
 // §3.1 — Title
 // ============================================================================
 
@@ -803,6 +878,13 @@ export interface SegmentResult {
    * managers, who are not on the roster but are in the same fight.
    */
   injuries: { wrestlerId: Id; name: string; role: string; text: string; outFor: string }[];
+  /**
+   * What the official missed. Same rule as injuries: if a poor referee
+   * changed the night, the night says so.
+   */
+  refereeMisses?: RefereeMissRecord[];
+  /** Who counted this one, so the card can print a name beside every match. */
+  officialName?: string | null;
   /**
    * Something nobody booked. Read engine/sim/incidents.ts — it reacts to the
    * finish above, it never decides it.
@@ -1682,6 +1764,57 @@ export interface WorldSettings {
   guestRefereeMoraleCost: number;
   /** Who the office drafts when the player names nobody: fee of the stand-in. */
   draftedRefereeMoraleCost: number;
+
+  // Officials as signed characters — engine/sim/referees.ts. A referee is on
+  // the payroll like everybody else, just a great deal cheaper, and the
+  // things that make one worth paying for are all in here.
+  /** Floor wage for anybody who owns a striped shirt. */
+  refereeBaseWeeklyRate: number;
+  /** Spread between the floor and the best official in the business. */
+  refereeRateRange: number;
+  /** Curve on that spread, so an elite official costs several times a warm body. */
+  refereeRateCurve: number;
+  /** Premium a crooked official charges. Doing what you are told is a service. */
+  refereeBendablePremium: number;
+  /** Standard length of a referee deal, in weeks. Shorter than a wrestler's. */
+  refereeContractWeeks: number;
+  /** Asking rate shed per week unsigned. */
+  refereeRateDecayPerWeek: number;
+  refereeMaxDiscount: number;
+  /** Weekly chance an unsigned official is picked up by somebody else. */
+  refereeRivalSigningChance: number;
+  /** How many officials the pool tries to keep available. */
+  refereePoolSize: number;
+
+  /** Sharpness spent working one match. */
+  refereeSharpnessPerMatch: number;
+  /** Sharpness recovered per week between shows. */
+  refereeSharpnessRecoveryPerWeek: number;
+  /**
+   * How much of an official's competence survives total exhaustion. At 0.55,
+   * a burned-out ace still calls it better than a fresh incompetent — tired
+   * is a penalty, not a personality transplant.
+   */
+  refereeSharpnessFloor: number;
+
+  /** Chance a perfectly competent, fresh official misses something anyway. */
+  refereeMissBaseChance: number;
+  /** How much incompetence and fatigue add on top of that. */
+  refereeMissIncompetenceWeight: number;
+  /** However bad they are, a match is never guaranteed to fall apart. */
+  refereeMissChanceCap: number;
+  /** Rating a match loses for every visible blown call. */
+  refereeMissRatingPenalty: number;
+  /** Morale the wrestler on the wrong end of a miss loses. */
+  refereeMissVictimMorale: number;
+  /** Reputation an official loses per miss, and gains for a clean night. */
+  refereeMissReputationCost: number;
+  refereeCleanNightReputationGain: number;
+  /**
+   * How far above his own competence an official's reputation can climb on
+   * clean nights alone. Small — the business finds you out.
+   */
+  refereeReputationCeiling: number;
 
   // Casualties — who gets hurt, and how badly. See engine/sim/casualties.ts.
   // Everyone at ringside can be hurt, because everyone at ringside is in the

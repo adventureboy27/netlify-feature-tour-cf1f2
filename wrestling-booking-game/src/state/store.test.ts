@@ -433,3 +433,162 @@ describe('the owner', () => {
     expect(world.fired).toBeNull();
   });
 });
+
+describe('the officials', () => {
+  const patient = () => ({ ...patientOwner(), seed: 'officials' });
+
+  beforeEach(() => {
+    useGameStore.getState().newGame(patient());
+  });
+
+  const world = () => useGameStore.getState().world!;
+  const mine = () => world().referees.filter((r) => r.promotionId === world().promotion.id);
+
+  it('opens with one man on the books and the rest of the business available', () => {
+    // One official and a six-match card is the shape of the lesson: he cannot
+    // work the whole night well, and the fix costs money.
+    expect(mine()).toHaveLength(1);
+    expect(world().defaultRefereeId).toBe(mine()[0]!.id);
+    expect(world().referees.filter((r) => !r.promotionId).length).toBeGreaterThan(5);
+  });
+
+  it('signs one to a weekly deal with no clauses at all', () => {
+    const target = world().referees.find((r) => !r.promotionId)!;
+    expect(useGameStore.getState().signReferee(target.id)).toEqual({ ok: true, reason: null });
+
+    const signed = world().referees.find((r) => r.id === target.id)!;
+    expect(signed.promotionId).toBe(world().promotion.id);
+    expect(signed.contract!.weeklyRate).toBeGreaterThan(0);
+    // An official never gets a say in who goes over.
+    expect(signed.contract!.clauses).toEqual([]);
+  });
+
+  it('refuses to sign somebody who already works for somebody', () => {
+    const target = world().referees.find((r) => !r.promotionId)!;
+    useGameStore.getState().signReferee(target.id);
+    // He is under contract now, including to you — no double-signing.
+    const second = useGameStore.getState().signReferee(target.id);
+    expect(second.ok).toBe(false);
+    expect(second.reason).toBeTruthy();
+  });
+
+  it('pays them every week out of the payroll, booked or not', () => {
+    const before = world().promotion.bankBalance;
+    const target = world().referees.find((r) => !r.promotionId)!;
+    useGameStore.getState().signReferee(target.id);
+    const wage = world().referees.find((r) => r.id === target.id)!.contract!.weeklyRate;
+
+    // Run a week with nobody booked at all: the wage is still due.
+    useGameStore.getState().resolveWeek();
+    const show = world().showHistory[0]!;
+    expect(show.payroll).toBeGreaterThanOrEqual(wage);
+    expect(world().promotion.bankBalance).not.toBe(before);
+  });
+
+  it('names an official beside every match it resolves', () => {
+    useGameStore.getState().autoFillCard();
+    useGameStore.getState().resolveWeek();
+    const show = world().showHistory[0]!;
+    const booked = show.segments.filter((s) => s.result);
+    expect(booked.length).toBeGreaterThan(0);
+    // Somebody is always counting, and the card always says who.
+    for (const segment of booked) expect(segment.result!.officialName).toBeTruthy();
+  });
+
+  it('lets one man be named for the card and another for a single match', () => {
+    const spare = world().referees.find((r) => !r.promotionId)!;
+    useGameStore.getState().signReferee(spare.id);
+    useGameStore.getState().autoFillCard();
+    useGameStore.getState().setSegmentReferee(0, spare.id);
+    useGameStore.getState().resolveWeek();
+
+    const show = world().showHistory[0]!;
+    const opener = show.segments.find((s) => s.slot === 0 && s.result);
+    expect(opener!.result!.officialName).toBe(spare.name);
+    const others = show.segments.filter((s) => s.result && s.slot !== 0);
+    expect(others.some((s) => s.result!.officialName !== spare.name)).toBe(true);
+  });
+
+  it('wears an official down across a card and rests him after it', () => {
+    useGameStore.getState().autoFillCard();
+    const before = mine()[0]!.sharpness;
+    useGameStore.getState().resolveWeek();
+    const worked = mine()[0]!;
+    // He worked the whole night on his own, so he is spent — and the week
+    // that follows gives some of it back.
+    expect(worked.careerMatches).toBeGreaterThan(0);
+    expect(worked.sharpness).toBeLessThan(before);
+    expect(worked.matchesTonight).toBe(0);
+  });
+
+  it('shares the card out with the best official on the main event', () => {
+    const best = [...world().referees]
+      .filter((r) => !r.promotionId)
+      .sort((a, b) => b.competence - a.competence)[0]!;
+    useGameStore.getState().signReferee(best.id);
+    useGameStore.getState().autoFillCard();
+    useGameStore.getState().spreadOfficialsAcrossCard();
+
+    const card = world().currentCard.filter((s) => new Set(s.participants.map((p) => p.side)).size >= 2);
+    expect(card.length).toBeGreaterThan(1);
+    expect(card[card.length - 1]!.refereeId).toBe(best.id);
+    expect(card[0]!.refereeId).not.toBe(best.id);
+  });
+
+  it('says what a bad official missed, by name, rather than hiding it in the finish', () => {
+    // The whole reason a cheap referee is a decision and not a stat.
+    const worst = [...world().referees]
+      .filter((r) => !r.promotionId)
+      .sort((a, b) => a.competence - b.competence)[0]!;
+    useGameStore.getState().signReferee(worst.id);
+    useGameStore.getState().setDefaultReferee(worst.id);
+
+    const seen: string[] = [];
+    for (let week = 0; week < 12; week++) {
+      useGameStore.getState().autoFillCard();
+      // Keep him on every match — this is the booker who bought cheap.
+      for (const segment of useGameStore.getState().world!.currentCard) {
+        useGameStore.getState().setSegmentReferee(segment.slot, worst.id);
+      }
+      useGameStore.getState().resolveWeek();
+      const show = world().showHistory[world().showHistory.length - 1]!;
+      for (const segment of show.segments) {
+        for (const miss of segment.result?.refereeMisses ?? []) seen.push(miss.text);
+      }
+    }
+
+    expect(seen.length).toBeGreaterThan(0);
+    for (const text of seen) {
+      expect(text).toContain(worst.name);
+      // A miss that reaches the screen with a placeholder in it is the bug
+      // this is guarding.
+      expect(text).not.toMatch(/\{[a-z]+\}/i);
+    }
+  });
+
+  it('puts a wrestler in the shirt when the promotion has signed nobody', () => {
+    // Releasing the last official is allowed. It just means one of the boys
+    // counts every fall, and they all have an opinion.
+    for (const referee of mine()) useGameStore.getState().releaseReferee(referee.id);
+    expect(mine()).toHaveLength(0);
+
+    useGameStore.getState().autoFillCard();
+    useGameStore.getState().resolveWeek();
+    const show = world().showHistory[0]!;
+    const booked = show.segments.filter((s) => s.result);
+    expect(booked.length).toBeGreaterThan(0);
+    for (const segment of booked) expect(segment.result!.officialName).toContain('guest');
+  });
+
+  it('reports it when an official leaves rather than letting him vanish', () => {
+    // CLAUDE.md: nothing happens to a person off-screen, and a referee whose
+    // deal ran out is a departure like any other.
+    let announced = false;
+    for (let week = 0; week < 60 && !announced; week++) {
+      useGameStore.getState().autoFillCard();
+      useGameStore.getState().resolveWeek();
+      if (world().refereeNews.some((line) => line.includes('contract has run out'))) announced = true;
+    }
+    expect(announced).toBe(true);
+  });
+});

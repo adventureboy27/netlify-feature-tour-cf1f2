@@ -156,6 +156,11 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
                       .join(result.winnerSide === null ? ' vs ' : ' vs ')}
                   </div>
                   {stipulation && <div className="text-[11px] text-sky-400">{stipulation.name}</div>}
+                  {/* Who counted it, named beside the match the way a boxing
+                      card names its referee before the bell. */}
+                  {result.officialName && (
+                    <div className="text-[11px] text-neutral-500">Referee: {result.officialName}</div>
+                  )}
                   {segment.titleIds.length > 0 && (
                     <div className="text-[11px] text-amber-400">
                       {segment.titleIds
@@ -188,6 +193,25 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
                       <li key={i}>{beat.text}</li>
                     ))}
                 </ul>
+              )}
+
+              {/* What the official missed. Same rule as the injuries below:
+                  if a cheap referee changed the match, the match says so, by
+                  name, rather than the player wondering why the finish was
+                  odd. */}
+              {(result.refereeMisses ?? []).length > 0 && (
+                <div className="mb-2 flex flex-col gap-1">
+                  {(result.refereeMisses ?? []).map((miss, i) => (
+                    <div
+                      key={`${miss.refereeId}-${i}`}
+                      data-testid={`referee-miss-${miss.refereeId}`}
+                      className="rounded border border-sky-900/60 bg-sky-950/20 px-2 py-1.5"
+                    >
+                      <div className="text-[10px] uppercase tracking-wide text-sky-500">The official</div>
+                      <p className="text-xs text-neutral-200">{miss.text}</p>
+                    </div>
+                  ))}
+                </div>
               )}
 
               {/* Nothing happens to a person off-screen — CLAUDE.md. If

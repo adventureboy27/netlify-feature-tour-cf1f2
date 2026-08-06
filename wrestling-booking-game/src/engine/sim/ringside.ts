@@ -8,10 +8,11 @@
 // their own as a result. Great for a monster who cannot cut a promo, wasted
 // on somebody who can.
 //
-// REFEREES are characters, but light ones — a name, competence, and how
-// bendable they are. That is enough for them to matter without becoming a
-// second roster to manage. A good referee keeps a match clean; a poor one
-// produces more screwy finishes whether you wanted them or not.
+// REFEREES are signed characters and live in sim/referees.ts — a contract, a
+// wage, fatigue across a card, and a standing the sheet ranks. This file only
+// deals with what an official does to the match in front of him. A good one
+// keeps the finish clean; a poor one produces messes you did not book, and
+// says out loud what he missed.
 //
 // A GUEST REFEREE is a wrestler in the referee's shirt. It is a booking
 // decision with a real trade: star power at ringside lifts the match and the
@@ -19,7 +20,10 @@
 // count straight, and is not wrestling on your card that night.
 
 import { clamp } from '../rng';
-import type { Id, Wrestler, WorldSettings } from '../types';
+import type { Id, Referee, Wrestler, WorldSettings } from '../types';
+import { effectiveCompetence } from './referees';
+
+export type { Referee };
 
 // ---------------------------------------------------------------- managers
 
@@ -82,17 +86,6 @@ export function managerFit(manager: Manager, client: Wrestler, settings: WorldSe
 
 // --------------------------------------------------------------- referees
 
-export interface Referee {
-  id: Id;
-  name: string;
-  /** How reliably they call a clean, well-paced match. */
-  competence: number; // 0-100
-  /** How easily they are bought. High means a crooked finish is available. */
-  bendable: number; // 0-100
-  feePerShow: number;
-  blurb: string;
-}
-
 export interface RefereeEffect {
   ratingBonus: number;
   /** Multiplier on disqualification and count-out weights. */
@@ -113,9 +106,13 @@ export interface RefereeEffect {
  * A competent referee is invisible, which is the point — they add a little to
  * the match and keep the finish clean. An incompetent one produces messes you
  * did not book.
+ *
+ * Reads *effective* competence, not the raw stat, so the same official is
+ * worth less in the sixth match of the night than in the first. That is the
+ * whole reason to carry more than one.
  */
 export function refereeEffect(referee: Referee, settings: WorldSettings): RefereeEffect {
-  const competence = referee.competence / 100;
+  const competence = effectiveCompetence(referee, settings) / 100;
   return {
     ratingBonus: (competence - 0.5) * 2 * settings.refereeRatingSwing,
     screwyFinishWeight: 1 + (1 - competence) * settings.refereeScrewyFinishWeight,
@@ -312,10 +309,10 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   ratingBonus += ctx.guestWasDrafted ? 0 : official.ratingBonus;
   screwyFinishWeight *= official.screwyFinishWeight;
   interferenceWeight *= official.interferenceWeight;
-  // Deliberately NOT charged here. A referee works the whole card for one
-  // night's pay, so the caller totals them once per show — see the store.
-  // Managers above are per appearance, which is the real difference between
-  // the two jobs.
+  // Deliberately NOT charged here. Officials are on the payroll now — a
+  // weekly wage against a signed contract, paid whether they work or not, the
+  // same as a wrestler. Managers above are still per appearance, which is the
+  // real difference between the two jobs.
 
   return {
     ratingBonus: clamp(ratingBonus, -20, 20),

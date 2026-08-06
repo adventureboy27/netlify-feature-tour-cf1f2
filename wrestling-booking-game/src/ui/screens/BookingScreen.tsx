@@ -5,8 +5,9 @@
 import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { STIPULATIONS, stipulationById, stipulationRequirementsMet, effectiveRules } from '../../data/stipulations';
-import { MANAGERS, REFEREES, managerById, refereeById } from '../../data/ringsidePool';
+import { MANAGERS, managerById } from '../../data/ringsidePool';
 import { managerFit } from '../../engine/sim/ringside';
+import { signedReferees, officialFor, sharpnessLabel, refereeGrade, isAvailable } from '../../engine/sim/referees';
 import { findRivalry } from '../../engine/sim/rivalry';
 import { ruleAdjustedWeights, kayfabeScore } from '../../engine/sim/kayfabe';
 import { pairWinProbability } from '../../engine/sim/winProbability';
@@ -16,7 +17,20 @@ import { eligibleTitles, titleStakesLabel } from '../../engine/sim/titleMatch';
 import { shortTitleName } from '../../data/titles';
 import { isPPVWeek, ppvNameForWeek, weeksUntilPPV } from '../../engine/world/calendar';
 import { PromoSlots } from '../components/PromoSlots';
-import type { Id, Wrestler, Segment, Title, WorldSettings } from '../../engine/types';
+import type { Id, Wrestler, Segment, Title, WorldSettings, Referee } from '../../engine/types';
+
+/**
+ * How worn an official is, as a colour. The player is managing a crew across
+ * a card, and the whole decision is legible at a glance or it is not a
+ * decision at all.
+ */
+function sharpnessTone(referee: Referee): string {
+  const label = sharpnessLabel(referee);
+  if (label === 'Fresh' || label === 'Sharp') return 'text-emerald-400';
+  if (label === 'Working hard') return 'text-neutral-400';
+  if (label === 'Fading') return 'text-amber-400';
+  return 'text-rose-400';
+}
 
 const SLOT_LABELS = ['Opener', 'Second', 'Third', 'Fourth', 'Semi-main', 'Main event'];
 
@@ -58,12 +72,21 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   const setManager = useGameStore((s) => s.setSegmentManager);
   const setReferee = useGameStore((s) => s.setSegmentReferee);
   const setGuestReferee = useGameStore((s) => s.setSegmentGuestReferee);
+  const setDefaultReferee = useGameStore((s) => s.setDefaultReferee);
+  const spreadCrew = useGameStore((s) => s.spreadOfficialsAcrossCard);
   const toggleTitle = useGameStore((s) => s.toggleSegmentTitle);
   const autoFill = useGameStore((s) => s.autoFillCard);
   const [openSlot, setOpenSlot] = useState(0);
 
   const roster = useMemo(
     () => (world ? world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean) : []),
+    [world],
+  );
+
+  // The officials under contract, best first. Fatigue is per night, so this
+  // list is also the crew rota — who has worked what, and who is left.
+  const crew = useMemo(
+    () => (world ? signedReferees(world.referees, world.promotion.id) : []),
     [world],
   );
 
@@ -125,6 +148,61 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
         </div>
       </div>
 
+      {/* The card's official. Boxing does it this way: one referee named for
+          the night, and the good one saved for the fights that matter. */}
+      <div className="mb-3 rounded border border-neutral-800 bg-neutral-900 p-3">
+        <div className="mb-1 flex items-baseline justify-between gap-2">
+          <span className="text-[11px] uppercase tracking-wide text-neutral-500">Official for the night</span>
+          {crew.length > 1 ? (
+            <button
+              type="button"
+              data-testid="spread-officials"
+              onClick={spreadCrew}
+              className="rounded bg-neutral-800 px-2 py-1 text-[10px] text-neutral-300 hover:bg-neutral-700"
+              title="Share the card out — best official on the main event, nobody worked into the ground"
+            >
+              Share out the card
+            </button>
+          ) : (
+            <span className="text-[10px] text-neutral-600">Any match can name somebody else</span>
+          )}
+        </div>
+        {crew.length === 0 ? (
+          <p className="text-[11px] text-amber-400">
+            Nobody is under contract. One of the boys will have to count every match, and they all have
+            their own ideas about who should win. Sign an official in the office.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {crew.map((referee) => {
+              const hurt = !isAvailable(referee);
+              return (
+                <button
+                  key={referee.id}
+                  type="button"
+                  data-testid={`card-referee-${referee.id}`}
+                  disabled={hurt}
+                  onClick={() => setDefaultReferee(referee.id)}
+                  title={`${referee.blurb} — ${refereeGrade(referee)}`}
+                  className={`rounded px-2 py-1 text-[11px] ${
+                    hurt
+                      ? 'cursor-not-allowed bg-neutral-900 text-neutral-700'
+                      : world.defaultRefereeId === referee.id
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                  }`}
+                >
+                  {referee.name}
+                  <span className={`ml-1 ${hurt ? 'text-neutral-700' : sharpnessTone(referee)}`}>
+                    {hurt ? 'injured' : sharpnessLabel(referee)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-col gap-2">
         {world.currentCard.map((segment, index) => {
           const participants = segment.participants
@@ -146,6 +224,16 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
           const championInMatch = bookable.some((t) => !t.vacant);
           const stakes = titleStakesLabel(onTheLine, championInMatch);
           const isOpen = openSlot === index;
+
+          // Who ends up counting this one, resolved exactly the way the sim
+          // will resolve it at bell time.
+          const assigned = officialFor(segment.refereeId, world.defaultRefereeId, world.referees, world.promotion.id);
+          const guest = segment.guestRefereeId ? world.wrestlers[segment.guestRefereeId] : null;
+          const officialLabel = guest
+            ? `Ref: ${guest.name} (guest)`
+            : assigned
+              ? `Ref: ${assigned.name}${segment.refereeId ? '' : ' (card)'}`
+              : 'Ref: one of the boys';
 
           const requirementsMet =
             stipulation && participants.length >= 2
@@ -210,6 +298,8 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                     )}
                     {rivalry && <HeatBadge heat={rivalry.heat} shootHeat={rivalry.shootHeat} />}
                     {odds !== null && <Odds probability={odds} />}
+                    {/* Who is counting, printed beside the match. */}
+                    {participants.length > 0 && <span className="text-[10px] text-neutral-500">{officialLabel}</span>}
                   </div>
                 </div>
                 <span className="shrink-0 text-neutral-600">{isOpen ? '▾' : '▸'}</span>
@@ -234,6 +324,12 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                     onManager={(managerId, forSide) => setManager(index, managerId, forSide)}
                     onReferee={(refereeId) => setReferee(index, refereeId)}
                     onGuestReferee={(id) => setGuestReferee(index, id)}
+                    crew={crew}
+                    defaultReferee={
+                      world.defaultRefereeId
+                        ? (crew.find((r) => r.id === world.defaultRefereeId) ?? null)
+                        : null
+                    }
                     settings={world.settings}
                   />
                 </div>
@@ -263,6 +359,8 @@ function SegmentEditor({
   onManager,
   onReferee,
   onGuestReferee,
+  crew,
+  defaultReferee,
   settings,
 }: {
   segment: Segment;
@@ -277,6 +375,10 @@ function SegmentEditor({
   onManager: (managerId: Id | null, forSide: number) => void;
   onReferee: (refereeId: Id | null) => void;
   onGuestReferee: (wrestlerId: Id | null) => void;
+  /** The officials under contract, best first. */
+  crew: Referee[];
+  /** Who takes this match if it names nobody. */
+  defaultReferee: Referee | null;
   settings: WorldSettings;
 }) {
   const [side, setSide] = useState(0);
@@ -489,10 +591,12 @@ function SegmentEditor({
         })}
 
         <div className="flex flex-col gap-1">
-          <span className="text-[11px] text-neutral-400">Referee</span>
+          <span className="text-[11px] text-neutral-400">
+            Referee <span className="text-neutral-600">— leave it on the card&apos;s official, or name one for this match</span>
+          </span>
           {/* Stating what the option *is* — not whether it is wise. Somebody
               always ends up counting; the question is whether they are neutral. */}
-          {!segment.refereeId && !segment.guestRefereeId && (
+          {!defaultReferee && !segment.refereeId && !segment.guestRefereeId && (
             <span className="text-[11px] text-amber-400">
               One of the boys will have to count it, and they will have their own ideas about who should win.
             </span>
@@ -510,28 +614,38 @@ function SegmentEditor({
                 !segment.refereeId && !segment.guestRefereeId ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'
               }`}
             >
-              Nobody — draft one of the boys
+              {defaultReferee ? `Card official — ${defaultReferee.name}` : 'Nobody — draft one of the boys'}
             </button>
-            {REFEREES.map((referee) => (
-              <button
-                key={referee.id}
-                type="button"
-                data-testid={`referee-${referee.id}`}
-                onClick={() => onReferee(referee.id)}
-                title={`${referee.blurb} — $${referee.feePerShow}/show`}
-                className={`rounded px-2 py-1 text-[11px] ${
-                  segment.refereeId === referee.id
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                }`}
-              >
-                {referee.name}
-                <span className="ml-1 text-neutral-500">${referee.feePerShow}</span>
-              </button>
-            ))}
+            {crew.map((referee) => {
+              const hurt = !isAvailable(referee);
+              return (
+                <button
+                  key={referee.id}
+                  type="button"
+                  data-testid={`referee-${referee.id}`}
+                  disabled={hurt}
+                  onClick={() => onReferee(referee.id)}
+                  title={`${referee.blurb} — ${refereeGrade(referee)}`}
+                  className={`rounded px-2 py-1 text-[11px] ${
+                    hurt
+                      ? 'cursor-not-allowed bg-neutral-900 text-neutral-700'
+                      : segment.refereeId === referee.id
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                  }`}
+                >
+                  {referee.name}
+                  <span className={`ml-1 ${hurt ? 'text-neutral-700' : sharpnessTone(referee)}`}>
+                    {hurt ? 'injured' : sharpnessLabel(referee)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           {segment.refereeId && (
-            <span className="text-[10px] text-neutral-500">{refereeById(segment.refereeId)?.blurb}</span>
+            <span className="text-[10px] text-neutral-500">
+              {crew.find((r) => r.id === segment.refereeId)?.blurb}
+            </span>
           )}
         </div>
 

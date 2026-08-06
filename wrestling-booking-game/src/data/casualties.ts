@@ -140,7 +140,7 @@ export const INJURY_CAUSES: InjuryCause[] = [
     weeks: 3,
     lines: [
       '{name} was thrown over the top and landed on the floor badly.',
-      'Somebody had had enough of {name} at ringside and made the point physically.',
+      'Somebody had had enough of {name} and made the point by putting them over the top rope.',
     ],
   },
   {
