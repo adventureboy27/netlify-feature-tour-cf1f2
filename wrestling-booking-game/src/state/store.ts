@@ -9,6 +9,7 @@ import { rngFromSeed, rngFromState } from '../engine/rng';
 import { saveGame, loadGame } from './persist';
 import type { Rng } from '../engine/rng';
 import type {
+  FinishType,
   Id,
   MatchRules,
   Promotion,
@@ -45,6 +46,7 @@ import { rollRetirement, rollComeback, retire, unretire, RETIREMENT_REASON_TEXT 
 import { rollDeath } from '../engine/career/mortality';
 import { annualInductions } from '../engine/career/hallOfFame';
 import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult } from '../engine/career/awards';
+import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
 import { graduateClass, graduateCount, workingPopulation } from '../engine/world/academy';
 import { rollForNickname } from '../engine/generate/nickname';
 import { rollWeeklyEvent, recordFired } from '../engine/events/scheduler';
@@ -469,7 +471,101 @@ function applyEffect(world: World, effect: EventEffect): void {
       });
       break;
     }
+    case 'disbandStable': {
+      // Marked as broken up rather than deleted — the tag division's history
+      // is the point of keeping teams around at all.
+      const team = world.stables.find((t) => t.id === effect.stableId);
+      if (team && team.disbandedWeek === null) team.disbandedWeek = world.week;
+      break;
+    }
   }
+}
+
+/**
+ * Everything an incident is allowed to know about a match that just finished.
+ *
+ * Built here rather than in the engine because it is the one place that can
+ * see the whole world at once — who is in which stable, who cannot stand whom,
+ * and who was left off the card and could therefore walk through the curtain.
+ */
+function incidentContextFor(
+  world: World,
+  match: {
+    competitors: { wrestler: Wrestler; side: number }[];
+    winnerIds: Id[];
+    finish: FinishType;
+    rating: number;
+    isMainEvent: boolean;
+    titleIds: Id[];
+    titleChanged: boolean;
+    managers?: { id: Id; name: string; forSide: number }[];
+    hasReferee?: boolean;
+    availableReturns?: Wrestler[];
+  },
+): IncidentContext {
+  const inMatch = new Set(match.competitors.map((c) => c.wrestler.id));
+  const rivalry = findRivalry(world.rivalries, [...inMatch]);
+  const title = match.titleIds.map((id) => world.titles.find((t) => t.id === id)).find(Boolean);
+
+  const enemies: [Id, Id][] = world.relationships
+    .filter((r) => r.type === 'enemy' && inMatch.has(r.aId) && inMatch.has(r.bId))
+    .map((r) => [r.aId, r.bId]);
+
+  return {
+    week: world.week,
+    isMainEvent: match.isMainEvent,
+    rating: match.rating,
+    finish: match.finish,
+    titleOnTheLine: match.titleIds.length > 0,
+    titleChanged: match.titleChanged,
+    titleName: title?.name ?? null,
+    competitors: match.competitors,
+    winnerIds: match.winnerIds,
+    loserIds: match.competitors.map((c) => c.wrestler.id).filter((id) => !match.winnerIds.includes(id)),
+    managers: match.managers ?? [],
+    hasReferee: match.hasReferee ?? false,
+    groups: world.stables
+      .filter((t) => t.disbandedWeek === null && t.memberIds.filter((id) => inMatch.has(id)).length >= 2)
+      .map((t) => ({ id: t.id, name: t.name, memberIds: [...t.memberIds] })),
+    enemies,
+    heat: rivalry?.heat ?? 0,
+    shootHeat: rivalry?.shootHeat ?? 0,
+    availableReturns: match.availableReturns ?? [],
+    settings: world.settings,
+  };
+}
+
+/**
+ * Who could walk through the curtain during this match.
+ *
+ * Off the card and fit to work is not enough — they also need a reason to be
+ * out there, which means live heat with somebody in the match. Without that
+ * condition a run-in was eligible in almost every main event in the business
+ * and swamped every other incident.
+ */
+function couldTurnUp(
+  world: World,
+  promotionId: Id,
+  booked: ReadonlySet<Id>,
+  againstIds: readonly Id[],
+): Wrestler[] {
+  const company = promotionId === world.promotion.id ? world.promotion : world.rivals.find((r) => r.id === promotionId);
+  if (!company) return [];
+  const hasSomethingToSettle = (id: Id) =>
+    world.rivalries.some(
+      (r) => r.resolvedWeek === null && r.participantIds.includes(id) && r.participantIds.some((p) => againstIds.includes(p)),
+    );
+  return company.rosterIds
+    .map((id) => world.wrestlers[id])
+    .filter(
+      (w): w is Wrestler =>
+        Boolean(w) &&
+        !booked.has(w!.id) &&
+        !w!.injury &&
+        !w!.deceased &&
+        w!.careerStatus !== 'retired' &&
+        hasSomethingToSettle(w!.id),
+    );
 }
 
 export const useGameStore = create<GameStore>()(
@@ -597,6 +693,10 @@ export const useGameStore = create<GameStore>()(
         const segmentRatings: (number | null)[] = [];
         // Who actually wrestled tonight — everybody else gets the week off.
         const worked = new Set<Id>();
+        // Who is on the card at all, so an incident knows who is *not* and
+        // could therefore come through the curtain.
+        const bookedTonight = new Set<Id>(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
+        const weeklyIncidents: { promotionId: Id; promotionName: string; incident: Incident }[] = [];
         const segmentPopAvgs: { stars: number; avgPopularity: number }[] = [];
         const violenceLevels: number[] = [];
         let ringsideCost = 0;
@@ -769,6 +869,38 @@ export const useGameStore = create<GameStore>()(
             commitTitleChange(world, index, outcome.newHolderIds);
           }
 
+          // Something nobody booked. Rolled after the finish is settled and
+          // reading it, never deciding it — see engine/sim/incidents.ts.
+          const incident = rollIncident(
+            rng,
+            incidentContextFor(world, {
+              competitors: segment.participants.map((p) => ({
+                wrestler: wrestlerById.get(p.wrestlerId)!,
+                side: p.side,
+              })),
+              winnerIds: result.winnerWrestlerIds,
+              finish: result.finish,
+              rating: result.rating,
+              isMainEvent: i === world.currentCard.length - 1,
+              titleIds: titlesOnTheLine.map((t) => t.id),
+              titleChanged,
+              managers: (segment.managerIds ?? [])
+                .map((m) => ({ manager: managerById(m.managerId), forSide: m.forSide }))
+                .filter((m): m is { manager: NonNullable<typeof m.manager>; forSide: number } => Boolean(m.manager))
+                .map((m) => ({ id: m.manager.id, name: m.manager.name, forSide: m.forSide })),
+              hasReferee: Boolean(segment.refereeId) && !segment.guestRefereeId,
+              availableReturns: couldTurnUp(world, world.promotion.id, bookedTonight, participantIds),
+            }),
+          );
+          if (incident) {
+            for (const effect of incident.effects) applyEffect(world, effect);
+            weeklyIncidents.push({
+              promotionId: world.promotion.id,
+              promotionName: world.promotion.name,
+              incident,
+            });
+          }
+
           segment.result = {
             winnerSide: result.winnerSide,
             winnerWrestlerIds: result.winnerWrestlerIds,
@@ -779,6 +911,7 @@ export const useGameStore = create<GameStore>()(
             beats: result.beats,
             titleChanged,
             injuries: [],
+            incident,
           };
 
           // What the match did to the people in it: records, momentum, the
@@ -1110,6 +1243,32 @@ export const useGameStore = create<GameStore>()(
               week: world.week,
               promotionName: rival.name,
             });
+
+            // And so can a turn. Only their main event, though — the player
+            // hears about the top of somebody else's card, not all of it.
+            if (match === show.matches[show.matches.length - 1]) {
+              const rivalBooked = new Set(show.matches.flatMap((m) => m.participantIds));
+              const incident = rollIncident(
+                rng,
+                incidentContextFor(world, {
+                  competitors: match.participantIds
+                    .map((id, index) => ({ wrestler: world.wrestlers[id]!, side: match.sides[index] ?? index }))
+                    .filter((c) => Boolean(c.wrestler)),
+                  winnerIds: match.winnerIds,
+                  finish: match.finish,
+                  rating: match.rating,
+                  isMainEvent: true,
+                  titleIds: match.titleOutcomes.map((o) => o.titleId),
+                  titleChanged: match.titleOutcomes.some((o) => o.changed),
+                  hasReferee: true,
+                  availableReturns: couldTurnUp(world, rival.id, rivalBooked, match.participantIds),
+                }),
+              );
+              if (incident) {
+                for (const effect of incident.effects) applyEffect(world, effect);
+                weeklyIncidents.push({ promotionId: rival.id, promotionName: rival.name, incident });
+              }
+            }
             for (const outcome of match.titleOutcomes) {
               const index = world.titles.findIndex((t) => t.id === outcome.titleId);
               if (index < 0) continue;
@@ -1187,6 +1346,7 @@ export const useGameStore = create<GameStore>()(
           world.settings,
         );
         world.rivalShows = [...rivalShows.values()];
+        world.lastIncidents = weeklyIncidents;
         world.tvHistory.unshift({ week: world.week, results: tvResults });
         world.tvHistory = world.tvHistory.slice(0, 52);
 
@@ -1329,10 +1489,6 @@ export const useGameStore = create<GameStore>()(
             world.awardHistory.push(winner);
           }
           notices.awards = awards;
-
-          // A new year starts with a clean sheet, opened against everybody's
-          // standing right now.
-          world.yearRecord = emptyYearRecord(world.yearRecord.year + 1, Object.values(world.wrestlers));
 
           const leaveTheBusiness = (id: Id, method: TitleReignEndMethod) => {
             // A champion who is gone cannot carry a belt. It goes vacant, and
@@ -1492,6 +1648,12 @@ export const useGameStore = create<GameStore>()(
               short -= 1;
             }
           }
+
+          // A new year starts with a clean sheet. Opened last, once everybody
+          // who retired has gone and everybody out of the schools has arrived,
+          // so a wrestler who debuts in January is measured from their debut
+          // rather than starting the year off the books.
+          world.yearRecord = emptyYearRecord(world.yearRecord.year + 1, Object.values(world.wrestlers));
 
           world.yearInReview = notices;
         }

@@ -57,7 +57,8 @@ export type EventEffect =
   | { kind: 'contractRate'; wrestlerId: Id; multiplier: number }
   | { kind: 'release'; wrestlerId: Id }
   | { kind: 'injury'; wrestlerId: Id; weeks: number }
-  | { kind: 'formStable'; memberIds: Id[]; name: string };
+  | { kind: 'formStable'; memberIds: Id[]; name: string }
+  | { kind: 'disbandStable'; stableId: Id };
 
 /**
  * One choice the player can make. `gains` and `costs` are the honest,

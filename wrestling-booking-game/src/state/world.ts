@@ -35,6 +35,7 @@ import type {
 } from '../engine/types';
 import type { HallOfFameEntry } from '../engine/career/hallOfFame';
 import type { AwardWinner, YearRecord } from '../engine/career/awards';
+import type { Incident } from '../engine/sim/incidents';
 import { emptyYearRecord } from '../engine/career/awards';
 import type { RivalShow } from '../engine/world/rivalBooking';
 import type { AuctionLot, AuctionResult } from '../engine/world/auction';
@@ -89,6 +90,12 @@ export interface World {
   lastAuction: { lot: AuctionLot; result: AuctionResult; wonByName: string } | null;
   /** What the other promotions ran this week. Replaced every week. */
   rivalShows: RivalShow[];
+  /**
+   * The things nobody booked, from everywhere in the business this week. The
+   * player's own are also on the segment they happened in; this is the list
+   * the newsfeed reads, so a turn on somebody else's show is news too.
+   */
+  lastIncidents: { promotionId: Id; promotionName: string; incident: Incident }[];
   /** This week's TV ratings, player and rivals, newest first. */
   tvHistory: { week: number; results: RatingResult[] }[];
   /** The event awaiting a decision, if any. Blocks nothing — the player can ignore it. */
@@ -359,6 +366,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     stables,
     rivals,
     rivalShows: [],
+    lastIncidents: [],
     lastPublication: null,
     lastFanReaction: null,
     pendingAuction: null,

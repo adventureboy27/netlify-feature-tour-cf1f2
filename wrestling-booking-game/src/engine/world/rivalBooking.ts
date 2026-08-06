@@ -18,7 +18,7 @@
 
 import type { Rng } from '../rng';
 import { chance, clamp, randInt } from '../rng';
-import type { Id, MatchRules, Promotion, Stable, Title, Wrestler, WorldSettings } from '../types';
+import type { FinishType, Id, MatchRules, Promotion, Stable, Title, Wrestler, WorldSettings } from '../types';
 import { availableTeams } from './tagTeams';
 import { simulateMatch, type SimParticipant } from '../sim/simulateMatch';
 import { computeShowRating, ratingToStars, TV_SLOT_WEIGHTS } from '../economy/showRating';
@@ -87,6 +87,8 @@ export interface RivalMatch {
   participantIds: Id[];
   sides: number[];
   winnerIds: Id[];
+  /** How it ended. The incident system reads this; it never sets it. */
+  finish: FinishType;
   rating: number;
   stars: number;
   titleIds: Id[];
@@ -261,6 +263,7 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
       participantIds: everyone.map((w) => w.id),
       sides: booked.sides.flatMap((members, side) => members.map(() => side)),
       winnerIds: result.winnerWrestlerIds,
+      finish: result.finish,
       rating: result.rating,
       stars: result.stars,
       titleIds,

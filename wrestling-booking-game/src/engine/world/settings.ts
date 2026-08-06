@@ -343,6 +343,38 @@ export function defaultWorldSettings(): WorldSettings {
     awardMoraleGain: 8,
     awardMoraleLoss: 6,
 
+    // Incidents. Roughly one match in twenty, tripled in a main event and
+    // doubled again with a belt on the line — so a big main event is close to
+    // one night in three, and an opener almost never. Wild things stay wild.
+    incidentChance: 0.015,
+    incidentMainEventMultiplier: 3,
+    incidentTitleMultiplier: 2,
+    incidentChanceCap: 0.12,
+    incidentTurnHeat: 45,
+    incidentTurnMomentum: 18,
+    incidentBetrayalMorale: 15,
+    incidentShootHeat: 30,
+    incidentShootThreshold: 30,
+    incidentShootInjuryWeeks: 8,
+    incidentRosterUnease: 5,
+    incidentControversyHeat: 25,
+    incidentCredibilityCost: 3,
+    incidentBeatdownHealth: 18,
+    incidentSympathyPopularity: 3,
+    incidentReturnHeat: 40,
+    incidentReturnMomentum: 25,
+    incidentReturnPopularity: 5,
+    incidentBreakoutRating: 66,
+    incidentBreakoutGap: 18,
+    incidentBreakoutPopularity: 9,
+    incidentCompanyLift: 2,
+    incidentTorchAgeGap: 14,
+    incidentGraciousMorale: 6,
+    incidentOvationRating: 88,
+    incidentOvationPopularity: 4,
+    incidentHijackRating: 25,
+    incidentHijackPopularity: 3,
+
     // Rankings. The contender list is deliberately twitchy — momentum is the
     // biggest single term, so a hot streak genuinely earns a title shot. The
     // world list is the opposite: peak and championships dominate, so it

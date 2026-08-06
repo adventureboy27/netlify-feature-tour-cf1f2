@@ -791,6 +791,18 @@ export interface SegmentResult {
   beats: MatchBeat[];
   titleChanged: boolean;
   injuries: { wrestlerId: Id; injury: Injury }[];
+  /**
+   * Something nobody booked. Read engine/sim/incidents.ts — it reacts to the
+   * finish above, it never decides it.
+   *
+   * Typed structurally rather than importing Incident, because types.ts has
+   * no imports by design.
+   */
+  incident?: {
+    id: string;
+    headline: string;
+    involvedIds: Id[];
+  } | null;
 }
 
 // ============================================================================
@@ -1398,6 +1410,47 @@ export interface WorldSettings {
   awardMomentumLoss: number;
   awardMoraleGain: number;
   awardMoraleLoss: number;
+
+  // Incidents — the things nobody booked. See engine/sim/incidents.ts.
+  /** Chance any one match produces one. Kept low on purpose. */
+  incidentChance: number;
+  incidentMainEventMultiplier: number;
+  incidentTitleMultiplier: number;
+  /** However the multipliers stack, no single match is a coin flip. */
+  incidentChanceCap: number;
+  /** How much of a feud a turn or a betrayal is worth on its own. */
+  incidentTurnHeat: number;
+  incidentTurnMomentum: number;
+  incidentBetrayalMorale: number;
+  /** Real animosity, from the incidents that generate it. */
+  incidentShootHeat: number;
+  /** Existing animosity a match needs before it can boil over. */
+  incidentShootThreshold: number;
+  incidentShootInjuryWeeks: number;
+  /** What a shoot does to everybody who had to watch it. */
+  incidentRosterUnease: number;
+  /** A finish nobody could explain sells the rematch. */
+  incidentControversyHeat: number;
+  incidentCredibilityCost: number;
+  incidentBeatdownHealth: number;
+  /** Taking a beating buys sympathy. */
+  incidentSympathyPopularity: number;
+  incidentReturnHeat: number;
+  incidentReturnMomentum: number;
+  incidentReturnPopularity: number;
+  /** How good a match has to be before it can make somebody. */
+  incidentBreakoutRating: number;
+  /** And how far below their opponent the winner had to be. */
+  incidentBreakoutGap: number;
+  incidentBreakoutPopularity: number;
+  incidentCompanyLift: number;
+  /** Years between them before a clean loss reads as passing the torch. */
+  incidentTorchAgeGap: number;
+  incidentGraciousMorale: number;
+  incidentOvationRating: number;
+  incidentOvationPopularity: number;
+  incidentHijackRating: number;
+  incidentHijackPopularity: number;
 
   // Rankings. Contenders are about form; the world list is about a career.
   rankMomentumWeight: number;

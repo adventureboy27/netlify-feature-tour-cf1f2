@@ -8,6 +8,7 @@
 
 import { useGameStore } from '../../state/store';
 import { stipulationById } from '../../data/stipulations';
+import { incidentById } from '../../data/incidents';
 import { billedAs } from '../../engine/generate/nickname';
 import { Stars, BreakdownPanel, Money, HeatBadge } from '../components/display';
 import { PaperDoll } from '../paperdoll/PaperDoll';
@@ -121,6 +122,19 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
                 </ul>
               )}
 
+              {/* After the beats, because it is what happened next. */}
+              {result.incident && (
+                <div
+                  data-testid={`incident-${segment.slot}`}
+                  className="mb-2 rounded border border-rose-900/60 bg-rose-950/20 px-2 py-1.5"
+                >
+                  <div className="text-[10px] uppercase tracking-wide text-rose-400">
+                    {incidentById(result.incident.id)?.kind ?? 'What happened next'}
+                  </div>
+                  <p className="text-xs text-neutral-200">{result.incident.headline}</p>
+                </div>
+              )}
+
               <details>
                 <summary className="cursor-pointer text-[11px] text-neutral-500 hover:text-neutral-300">
                   Why it rated what it did
@@ -141,6 +155,7 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
       </div>
 
       <FanReaction />
+      <AroundTheBusiness />
       <ElsewhereTonight />
       <RivalryDigest />
     </div>
@@ -187,6 +202,43 @@ function FanReaction() {
               </span>
             </div>
             <p className="text-xs text-neutral-200">{tweet.text}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The things nobody booked, from everywhere. The player's own are already
+ * inline under the match they happened in — this is the rest of the business,
+ * because a partnership breaking up in somebody else's main event is news the
+ * week it happens, not a thing you find out about from a rankings table
+ * three months later.
+ */
+function AroundTheBusiness() {
+  const world = useGameStore((s) => s.world);
+  if (!world) return null;
+  const elsewhere = world.lastIncidents.filter((entry) => entry.promotionId !== world.promotion.id);
+  if (elsewhere.length === 0) return null;
+
+  return (
+    <section className="mt-4">
+      <h2 className="mb-2 text-sm font-medium text-neutral-300">Around the business</h2>
+      <div className="flex flex-col gap-1.5">
+        {elsewhere.map((entry) => (
+          <article
+            key={`${entry.promotionId}-${entry.incident.id}`}
+            data-testid={`elsewhere-incident-${entry.promotionId}`}
+            className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5"
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-[11px] font-medium text-neutral-400">{entry.promotionName}</span>
+              <span className="shrink-0 text-[10px] uppercase tracking-wide text-rose-400">
+                {incidentById(entry.incident.id)?.kind}
+              </span>
+            </div>
+            <p className="text-xs text-neutral-200">{entry.incident.headline}</p>
           </article>
         ))}
       </div>
