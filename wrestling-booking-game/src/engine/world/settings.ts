@@ -431,6 +431,11 @@ export function defaultWorldSettings(): WorldSettings {
     ringNameMinLength: 3,
     ringNameMaxLength: 28,
 
+    // Three headlines is a lede. Four is a list.
+    newsLedeLength: 3,
+    newsGreatShowRating: 78,
+    newsPoorShowRating: 35,
+
     // House style. A few points either way — enough to notice over a season,
     // never enough to stop you booking who you like.
     houseStyleRatingWeight: 4,

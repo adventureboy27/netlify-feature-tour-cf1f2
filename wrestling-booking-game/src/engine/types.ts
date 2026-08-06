@@ -1526,6 +1526,12 @@ export interface WorldSettings {
   ringNameMinLength: number;
   ringNameMaxLength: number;
 
+  // The lede on the results screen. See engine/world/newsfeed.ts.
+  /** How many headlines the night opens with, at most. */
+  newsLedeLength: number;
+  newsGreatShowRating: number;
+  newsPoorShowRating: number;
+
   /** Rating points a match gains for fitting the promotion's house style. */
   houseStyleRatingWeight: number;
   /** Rating points a card loses for running past what this audience will take. */

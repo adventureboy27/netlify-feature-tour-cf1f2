@@ -9,6 +9,7 @@
 import { useGameStore } from '../../state/store';
 import { stipulationById } from '../../data/stipulations';
 import { incidentById } from '../../data/incidents';
+import { showLede } from '../../engine/world/newsfeed';
 import { billedAs } from '../../engine/generate/nickname';
 import { Stars, BreakdownPanel, Money, HeatBadge } from '../components/display';
 import { PaperDoll } from '../paperdoll/PaperDoll';
@@ -40,6 +41,35 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
   };
   const booked = show.segments.filter((s) => s.result !== null);
 
+  // What the night led with. Everything below is the detail behind it.
+  const namesOf = (ids: readonly string[]) => ids.map(wrestlerName);
+  const best = [...booked].sort((a, b) => b.result!.rating - a.result!.rating)[0];
+  const lede = showLede({
+    titleChanges: booked.flatMap((segment) =>
+      segment.result!.titleChanged
+        ? segment.titleIds
+            .map((id) => world.titles.find((t) => t.id === id))
+            .filter((t): t is NonNullable<typeof t> => Boolean(t))
+            .map((title) => ({ titleName: title.name, championNames: namesOf(title.currentHolderIds) }))
+        : [],
+    ),
+    incidents: booked.map((segment) => segment.result!.incident?.headline).filter((h): h is string => Boolean(h)),
+    bestMatch: best
+      ? {
+          winnerNames: namesOf(best.result!.winnerWrestlerIds),
+          loserNames: namesOf(
+            best.participants
+              .filter((p) => !best.result!.winnerWrestlerIds.includes(p.wrestlerId))
+              .map((p) => p.wrestlerId),
+          ),
+          stars: best.result!.stars,
+        }
+      : null,
+    showRating: show.showRating,
+    showStars: show.showStars,
+    settings: world.settings,
+  });
+
   return (
     <div className="p-3 pb-24 text-neutral-100">
       <header className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">
@@ -59,6 +89,23 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
             Next week
           </button>
         </div>
+
+        <ul className="mt-3 flex flex-col gap-1" data-testid="show-lede">
+          {lede.map((item) => (
+            <li
+              key={item.text}
+              className={`text-sm leading-snug ${
+                item.kind === 'titleChange'
+                  ? 'font-medium text-amber-400'
+                  : item.kind === 'incident'
+                    ? 'text-rose-300'
+                    : 'text-neutral-300'
+              }`}
+            >
+              {item.text}
+            </li>
+          ))}
+        </ul>
 
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
           <Stat label="Attendance" value={show.attendance.toLocaleString()} />
