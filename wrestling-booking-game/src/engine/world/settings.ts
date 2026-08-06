@@ -468,6 +468,21 @@ export function defaultWorldSettings(): WorldSettings {
     mandatePenaltyCash: 15_000,
     mandateFailureRating: 4,
 
+    // One pay-per-view a month, four of them on rotation, so the same event
+    // comes round at the same point every year. Buys are worth more than the
+    // gate at any real size, which is what makes the monthly show matter.
+    weeksBetweenPPVs: 4,
+    ppvCalendarSize: 4,
+    // Tuned by playing it: a good pay-per-view at mid-size is worth roughly
+    // half a month of gates — the biggest single payday in the game without
+    // making the other three weeks pocket change.
+    ppvBuysScale: 60_000,
+    ppvBuysReachCurve: 3,
+    ppvBuysFromQuality: 0.45,
+    ppvBuysQualityCurve: 2.5,
+    ppvBuysFromBuild: 0.55,
+    ppvBuyPrice: 12,
+
     // House style. A few points either way — enough to notice over a season,
     // never enough to stop you booking who you like.
     houseStyleRatingWeight: 4,

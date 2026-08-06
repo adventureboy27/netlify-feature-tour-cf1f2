@@ -849,6 +849,8 @@ export interface Show {
   promotionId: Id;
   week: number; // absolute week index since game start
   type: ShowType;
+  /** The signature event this was, when it was one. Null for television. */
+  name?: string | null;
   territoryId: Id;
   segments: Segment[]; // 6 for TV, 10 for PPV, 4 for house/charity
   attendance: number;
@@ -857,6 +859,9 @@ export interface Show {
   payroll: number;
   showRating: number; // 0-100 internal
   showStars: number; // 0.5-5.0 displayed
+  /** Pay-per-view buys, and what they were worth. Zero on television. */
+  buys?: number;
+  buyRevenue?: number;
   broadcast: boolean;
   /** Where it was staged, and what the staging cost and returned. */
   venueId: Id;
@@ -910,6 +915,8 @@ export interface Promotion {
   ownerId: Id; // a Wrestler record with role 'owner'
   /** What the person signing the cheques is like. Biases what they demand. */
   ownerPersonality: OwnerPersonality;
+  /** The signature events this promotion runs, in the order they come round. */
+  ppvCalendar: string[];
 }
 
 // ============================================================================
@@ -1592,6 +1599,23 @@ export interface WorldSettings {
   mandateRewardCash: number;
   mandatePenaltyCash: number;
   mandateFailureRating: number;
+
+  // The calendar — §8. One show a month is the one everything builds to.
+  weeksBetweenPPVs: number;
+  /** How many signature events a promotion cycles through. */
+  ppvCalendarSize: number;
+  /**
+   * Buys scale with how big the company is, steeply — nobody orders a
+   * pay-per-view from a promotion they have not heard of.
+   */
+  ppvBuysScale: number;
+  ppvBuysReachCurve: number;
+  /** How much of the interest is the night itself... */
+  ppvBuysFromQuality: number;
+  ppvBuysQualityCurve: number;
+  /** ...and how much is the feuds people paid in advance to see finish. */
+  ppvBuysFromBuild: number;
+  ppvBuyPrice: number;
 
   /** Rating points a match gains for fitting the promotion's house style. */
   houseStyleRatingWeight: number;

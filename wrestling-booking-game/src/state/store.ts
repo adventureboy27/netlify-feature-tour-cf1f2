@@ -48,6 +48,7 @@ import { rollDeath } from '../engine/career/mortality';
 import { annualInductions } from '../engine/career/hallOfFame';
 import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult } from '../engine/career/awards';
 import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
+import { isPPVWeek, ppvNameForWeek, segmentsForWeek, computeBuys, computeBuyRevenue } from '../engine/world/calendar';
 import {
   issueMandate,
   mandateMet,
@@ -732,6 +733,11 @@ export const useGameStore = create<GameStore>()(
         if (world.pendingAuction) resolveAuction(world, 'pass');
         const wrestlerById = new Map(Object.values(world.wrestlers).map((w) => [w.id, w]));
 
+        // Tonight is either television or the show everything has been built
+        // towards. Decided here, once, and read by everything below.
+        const isPPV = isPPVWeek(world.week, world.settings);
+        const ppvName = ppvNameForWeek(world.week, world.promotion.ppvCalendar, world.settings);
+
         const segmentRatings: (number | null)[] = [];
         // Who actually wrestled tonight — everybody else gets the week off.
         const worked = new Set<Id>();
@@ -741,6 +747,8 @@ export const useGameStore = create<GameStore>()(
         const weeklyIncidents: { promotionId: Id; promotionName: string; incident: Incident }[] = [];
         /** Which town each promotion worked this week. Everywhere else decays. */
         const ranThisWeek = new Map<Id, Id>();
+        /** Heat on the feuds that actually paid off tonight — what buys are built on. */
+        const heatOnTheCard: number[] = [];
         const segmentPopAvgs: { stars: number; avgPopularity: number }[] = [];
         const violenceLevels: number[] = [];
         let ringsideCost = 0;
@@ -766,6 +774,7 @@ export const useGameStore = create<GameStore>()(
           const participantWrestlers = segment.participants.map((p) => wrestlerById.get(p.wrestlerId)!);
           const participantIds = participantWrestlers.map((w) => w.id);
           const rivalry = findRivalry(world.rivalries, participantIds) ?? null;
+          if (rivalry) heatOnTheCard.push(rivalry.heat);
 
           const requirementsMet = stipulation
             ? stipulationRequirementsMet(stipulation, {
@@ -820,7 +829,7 @@ export const useGameStore = create<GameStore>()(
             rules: segment.rules,
             stipulation,
             requirementsMet,
-            isPPV: false,
+            isPPV,
             matchLengthMinutes: lengthMinutes,
             settings: world.settings,
             // Saturation is read at the level the promotion carried into the
@@ -1224,7 +1233,22 @@ export const useGameStore = create<GameStore>()(
           world.bestAttendanceThisMandate = Math.max(world.bestAttendanceThisMandate, attendance);
         }
 
-        // Tonight goes into the running average, which is what decides how
+        // ---- what the night sold ----------------------------------------
+        // Buys are the first money in this game not capped by the room you
+        // rented: they come from how badly people wanted to see it, which is
+        // mostly the feuds they paid in advance to watch finish.
+        const buys = isPPV
+          ? computeBuys({
+              showRating,
+              companyRating: world.promotion.rating,
+              heatOnTheCard,
+              settings: world.settings,
+            })
+          : 0;
+        const buyRevenue = computeBuyRevenue(buys, world.settings);
+        world.promotion.bankBalance += buyRevenue;
+
+                // Tonight goes into the running average, which is what decides how
         // many people turn up next week. A night of draws and count-outs
         // empties the building a fortnight from now.
         world.promotion.recentShowQuality = updateRecentShowQuality(
@@ -1238,14 +1262,17 @@ export const useGameStore = create<GameStore>()(
           world.promotion.rating,
           target,
           world.settings.ratingLadderStepPerWeek,
-          false,
+          // A pay-per-view moves the ladder twice as fast, in either
+          // direction. It is the night people judge you on.
+          isPPV,
         );
 
         world.showHistory.push({
           id: `show-${world.week}`,
           promotionId: world.promotion.id,
           week: world.week,
-          type: 'tvTaping',
+          type: isPPV ? 'ppv' : 'tvTaping',
+          name: ppvName,
           territoryId: world.promotion.homeTerritoryId,
           segments: world.currentCard,
           attendance,
@@ -1255,6 +1282,8 @@ export const useGameStore = create<GameStore>()(
           venueId: venue.id,
           venueCapacity: venue.capacity,
           merch: revenue.merch,
+          buys,
+          buyRevenue,
           otherRevenue: revenue.other,
           showCosts: showCosts.total,
           showRating,
@@ -1941,7 +1970,7 @@ export const useGameStore = create<GameStore>()(
           world.weeksInTheRed = 0;
         }
 
-        world.currentCard = createEmptyCard(world.settings.segmentsPerTV);
+        world.currentCard = createEmptyCard(segmentsForWeek(world.week, world.settings));
       });
     },
 

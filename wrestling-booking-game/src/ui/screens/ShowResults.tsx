@@ -75,7 +75,12 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
       <header className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-base font-semibold">Week {show.week} — results</h1>
+            {show.type === 'ppv' && (
+              <div className="text-[10px] uppercase tracking-wide text-amber-500">Pay-per-view</div>
+            )}
+            <h1 className={`text-base font-semibold ${show.type === 'ppv' ? 'text-amber-400' : ''}`}>
+              {show.name ?? `Week ${show.week} — results`}
+            </h1>
             <div className="mt-1 flex items-center gap-2">
               <Stars stars={show.showStars} />
               <span className="text-xs text-neutral-500">show rating</span>
@@ -112,6 +117,12 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
           <Stat label="Gate" value={<Money amount={show.gate} />} />
           <Stat label="Payroll" value={<Money amount={-show.payroll} />} />
           <Stat label="Bank" value={<Money amount={world.promotion.bankBalance} />} />
+          {show.type === 'ppv' && (
+            <>
+              <Stat label="Buys" value={(show.buys ?? 0).toLocaleString()} />
+              <Stat label="From buys" value={<Money amount={show.buyRevenue ?? 0} />} />
+            </>
+          )}
         </dl>
       </header>
 

@@ -14,6 +14,7 @@ import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Odds, HeatBadge, AlignmentDot, StatBar } from '../components/display';
 import { eligibleTitles, titleStakesLabel } from '../../engine/sim/titleMatch';
 import { shortTitleName } from '../../data/titles';
+import { isPPVWeek, ppvNameForWeek, weeksUntilPPV } from '../../engine/world/calendar';
 import type { Id, Wrestler, Segment, Title, WorldSettings } from '../../engine/types';
 
 const SLOT_LABELS = ['Opener', 'Second', 'Third', 'Fourth', 'Semi-main', 'Main event'];
@@ -70,13 +71,37 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   const bookedIds = new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
   const filledSegments = world.currentCard.filter((s) => new Set(s.participants.map((p) => p.side)).size >= 2).length;
 
+  // What tonight is, and what is coming — a weekly grind needs something to
+  // build towards or it is just a grind.
+  const tonightIsPPV = isPPVWeek(world.week, world.settings);
+  const tonightsName = ppvNameForWeek(world.week, world.promotion.ppvCalendar, world.settings);
+  const weeksToPPV = weeksUntilPPV(world.week, world.settings);
+  const nextName = ppvNameForWeek(
+    world.week + weeksToPPV,
+    world.promotion.ppvCalendar,
+    world.settings,
+  );
+
   return (
     <div className="p-3 pb-24 text-neutral-100">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h1 className="text-base font-semibold">This week&apos;s card</h1>
+          {tonightIsPPV ? (
+            <>
+              <div className="text-[10px] uppercase tracking-wide text-amber-500">Pay-per-view</div>
+              <h1 className="text-base font-semibold text-amber-400">{tonightsName ?? 'The big one'}</h1>
+            </>
+          ) : (
+            <h1 className="text-base font-semibold">This week&apos;s card</h1>
+          )}
           <p className="text-xs text-neutral-500">
             {filledSegments} of {world.currentCard.length} segments booked
+            {!tonightIsPPV && weeksToPPV > 0 && (
+              <span className="text-neutral-600">
+                {' '}
+                · {nextName ?? 'the next pay-per-view'} in {weeksToPPV} {weeksToPPV === 1 ? 'week' : 'weeks'}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex shrink-0 gap-1">

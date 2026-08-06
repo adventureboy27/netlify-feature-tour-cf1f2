@@ -36,6 +36,7 @@ function world(seed = 'sched') {
     recentShowQuality: 55,
     ownerId: 'o',
     ownerPersonality: 'showman' as const,
+    ppvCalendar: ['The Reckoning'],
   };
   const rosterPeak = Math.max(...roster.map((w) => w.popularity));
   const statusOf = (w: Wrestler): CareerStatus =>

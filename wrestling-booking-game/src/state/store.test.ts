@@ -208,13 +208,17 @@ describe('the office filling the card', () => {
 
 describe('going under', () => {
   it('folds the promotion after the grace period, and lets the roster go', () => {
+    // A promotion with no income at all: the worst room in the game at a
+    // giveaway price, and nothing booked on it. Note that it deliberately does
+    // *not* book a card — a company that puts on good shows now earns
+    // pay-per-view buys every month regardless of how small the room is, which
+    // is correct and which makes a bad venue on its own survivable.
+    useGameStore.getState().newGame(patientOwner());
     const store = useGameStore.getState();
-    // The worst room in the game at a giveaway price, week after week.
     store.setVenue('schoolGym');
     store.setTicketPrice(1);
 
     for (let i = 0; i < 40 && !useGameStore.getState().world!.folded; i++) {
-      useGameStore.getState().autoFillCard();
       useGameStore.getState().resolveWeek();
     }
 
@@ -227,6 +231,7 @@ describe('going under', () => {
   });
 
   it('will not run another show once it has folded', () => {
+    useGameStore.getState().newGame(patientOwner());
     const store = useGameStore.getState();
     store.setVenue('schoolGym');
     store.setTicketPrice(1);

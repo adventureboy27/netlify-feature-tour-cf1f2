@@ -64,6 +64,7 @@ import { formTeams, teamIdFactory } from '../engine/world/tagTeams';
 import { bestAvailableVenue } from '../data/venues';
 import { TERRITORIES, createTerritories } from '../data/territories';
 import { OWNER_PROFILES } from '../data/owners';
+import { ppvCalendarFor } from '../data/ppvNames';
 import type { AttendanceRecord } from '../engine/world/territories';
 import type { AssetCondition } from '../engine/economy/showBudget';
 import type { ContractDemand } from '../engine/career/ego';
@@ -297,6 +298,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     id: 'player-promotion',
     name: settings.promotionName,
     identity: settings.promotionArchetype,
+    ppvCalendar: ppvCalendarFor(settings.promotionArchetype, settings.ppvCalendarSize, 0),
     isPlayer: true,
     rating: settings.startingCompanyRating,
     bankBalance: settings.startingCash,
@@ -504,6 +506,8 @@ function createRivalPromotions(rng: Rng, settings: WorldSettings): Promotion[] {
       id: `rival-${i}`,
       name,
       identity: archetype,
+      // Offset so no two promotions run the same event on the same night.
+      ppvCalendar: ppvCalendarFor(archetype, settings.ppvCalendarSize, i + 1),
       isPlayer: false,
       rating,
       bankBalance: Math.round(rating * 4000),

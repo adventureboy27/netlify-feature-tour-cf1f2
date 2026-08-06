@@ -36,6 +36,7 @@ function promotion(overrides: Partial<Promotion> = {}): Promotion {
     closedWeek: null,
     ownerId: 'owner',
     ownerPersonality: 'showman' as const,
+    ppvCalendar: ['The Reckoning'],
     ...overrides,
   };
 }

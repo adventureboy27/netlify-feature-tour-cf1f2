@@ -38,6 +38,7 @@ function subjects(): EventSubjects {
     recentShowQuality: 55,
     ownerId: 'owner-1',
     ownerPersonality: 'showman' as const,
+    ppvCalendar: ['The Reckoning'],
   };
   return { primary, secondary, promotion, rival: { ...promotion, id: 'them', name: 'Rival Co', isPlayer: false } };
 }
