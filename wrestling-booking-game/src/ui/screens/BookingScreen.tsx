@@ -490,13 +490,16 @@ function SegmentEditor({
 
         <div className="flex flex-col gap-1">
           <span className="text-[11px] text-neutral-400">Referee</span>
-          {/* Stating what the option *is* — not whether it is wise. The rule
-              against warning the player is about bookings, not about hiding
-              what a control does. "Whoever is available" used to sit here and
-              read as the game assigning somebody, which it never did. */}
+          {/* Stating what the option *is* — not whether it is wise. Somebody
+              always ends up counting; the question is whether they are neutral. */}
           {!segment.refereeId && !segment.guestRefereeId && (
             <span className="text-[11px] text-amber-400">
-              No official. Nobody can count a fall, hear a submission, or stop it.
+              One of the boys will have to count it, and they will have their own ideas about who should win.
+            </span>
+          )}
+          {segment.guestRefereeId && (
+            <span className="text-[11px] text-amber-400">
+              A wrestler in the shirt. Bigger match, and they will take a side.
             </span>
           )}
           <div className="flex flex-wrap gap-1">
@@ -507,7 +510,7 @@ function SegmentEditor({
                 !segment.refereeId && !segment.guestRefereeId ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'
               }`}
             >
-              Nobody
+              Nobody — draft one of the boys
             </button>
             {REFEREES.map((referee) => (
               <button

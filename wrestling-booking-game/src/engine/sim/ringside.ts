@@ -126,36 +126,24 @@ export function refereeEffect(referee: Referee, settings: WorldSettings): Refere
   };
 }
 
-/**
- * Nobody in the shirt at all.
- *
- * This is the reason hiring one is a decision rather than a formality. With no
- * official there is nobody to count three, nobody to hear a submission, and
- * nobody to stop a match that has gone wrong — so decisive finishes get hard
- * to reach, the messy ones take over, people get hurt, and the crowd can see
- * they are watching something unprofessional.
- *
- * Deliberately worse on every axis than the worst referee in the pool. If
- * booking nobody were merely cheaper, booking nobody would be correct, and the
- * whole system would be decoration.
- */
-export function noRefereeEffect(settings: WorldSettings): RefereeEffect {
-  return {
-    ratingBonus: -settings.noRefereeRatingPenalty,
-    screwyFinishWeight: 1 + settings.noRefereeScrewyFinishWeight,
-    interferenceWeight: 1 + settings.noRefereeInterferenceWeight,
-    decisiveFinishWeight: settings.noRefereeDecisiveFinishWeight,
-    injuryMultiplier: 1 + settings.noRefereeInjuryMultiplier,
-  };
-}
+// There is no "nobody" case any more. A match without a professional gets a
+// wrestler in the shirt instead — the store drafts one at bell time — so the
+// consequence of not hiring an official is not chaos, it is a partial
+// referee with an agenda. See refereeAgenda above.
 
 /**
  * A wrestler working as guest referee.
  *
- * Star power in the shirt lifts the match and gives the story somewhere to
- * go, but they are not a referee: the finish gets messier, and they are not
- * available to wrestle that night. The bigger the name, the bigger both
- * halves of that.
+ * The point of putting one in the shirt is not that they are a worse referee.
+ * They can count to three perfectly well. The point is that they are *not
+ * neutral*: there are only two reasons to book one, which are to raise the
+ * drama and to guarantee that something happens, and both of those come from
+ * the fact that they will take a side.
+ *
+ * So a guest brings star power to the match and a thumb to the scale, gets
+ * involved in the finish far more often than an official would, and can get
+ * hurt doing it — they are a wrestler standing in the middle of a fight
+ * without the protection of being the referee.
  */
 export function guestRefereeEffect(guest: Wrestler, settings: WorldSettings): RefereeEffect {
   const starPower = guest.popularity / 100;
@@ -164,11 +152,100 @@ export function guestRefereeEffect(guest: Wrestler, settings: WorldSettings): Re
     // Everybody watching knows this is going to end badly, and it usually does.
     screwyFinishWeight: 1 + settings.guestRefereeScrewyFinishWeight,
     interferenceWeight: 1 + starPower * settings.guestRefereeInterferenceWeight,
-    // They can count. Whether they count straight is another matter, and that
-    // is what the screwy weight above is for.
+    // They can count. Whether they count *straight* is the whole question,
+    // and that is what the bias below is for.
     decisiveFinishWeight: 1,
     injuryMultiplier: 1,
   };
+}
+
+/** Which way a guest referee leans, and how hard. */
+export interface RefereeAgenda {
+  /** The side they will help, or null if they genuinely have no dog in it. */
+  favoursSide: number | null;
+  /** Points of win probability shifted that side's way. */
+  shift: number;
+  /** Why, in the write-up's words. */
+  reason: string;
+}
+
+export interface AgendaContext {
+  guest: Wrestler;
+  /** Everybody in the match, with the side they are on. */
+  competitors: { wrestler: Wrestler; side: number }[];
+  /** Wrestlers the guest has live heat with. */
+  rivalIds: readonly Id[];
+  /** Wrestlers the guest counts as friends, and as enemies. */
+  friendIds: readonly Id[];
+  enemyIds: readonly Id[];
+  settings: WorldSettings;
+}
+
+/**
+ * What the guest is actually out there to do.
+ *
+ * Never a coin flip. A guest referee leans for a reason the player could have
+ * seen coming — a friend in the match, somebody they have heat with, or
+ * failing all that, the simple fact that a heel in the shirt is not going to
+ * help a babyface. That is what makes booking one a decision instead of a
+ * dice roll.
+ */
+export function refereeAgenda(ctx: AgendaContext): RefereeAgenda {
+  const s = ctx.settings;
+  const sideOf = (id: Id) => ctx.competitors.find((c) => c.wrestler.id === id)?.side ?? null;
+
+  // Somebody they want to see beaten comes first — a grudge is louder than a
+  // friendship.
+  for (const rivalId of ctx.rivalIds) {
+    const side = sideOf(rivalId);
+    if (side === null) continue;
+    const against = ctx.competitors.find((c) => c.side !== side);
+    if (!against) continue;
+    const name = ctx.competitors.find((c) => c.wrestler.id === rivalId)!.wrestler.name;
+    return {
+      favoursSide: against.side,
+      shift: s.guestRefereeGrudgeShift,
+      reason: `has unfinished business with ${name}`,
+    };
+  }
+
+  for (const enemyId of ctx.enemyIds) {
+    const side = sideOf(enemyId);
+    if (side === null) continue;
+    const against = ctx.competitors.find((c) => c.side !== side);
+    if (!against) continue;
+    const name = ctx.competitors.find((c) => c.wrestler.id === enemyId)!.wrestler.name;
+    return { favoursSide: against.side, shift: s.guestRefereeBiasShift, reason: `cannot stand ${name}` };
+  }
+
+  for (const friendId of ctx.friendIds) {
+    const side = sideOf(friendId);
+    if (side === null) continue;
+    const name = ctx.competitors.find((c) => c.wrestler.id === friendId)!.wrestler.name;
+    return { favoursSide: side, shift: s.guestRefereeBiasShift, reason: `is not going to count ${name} out` };
+  }
+
+  // No history at all, so character decides it. A heel in the shirt helps the
+  // heel, and everybody in the building knows it.
+  const wantsHeel = ctx.guest.alignment < 0;
+  const target = ctx.competitors.find((c) => (wantsHeel ? c.wrestler.alignment < 0 : c.wrestler.alignment > 0));
+  if (!target) return { favoursSide: null, shift: 0, reason: 'has nobody in this to care about' };
+  return {
+    favoursSide: target.side,
+    shift: s.guestRefereeAlignmentShift,
+    reason: wantsHeel ? 'was never going to call this straight' : 'is calling it the way they see it',
+  };
+}
+
+/**
+ * What standing in the middle of a match costs the guest.
+ *
+ * Not guaranteed — plenty of guest referees walk away fine — but they are in
+ * there without a wrestler's licence to defend themselves, and it shows.
+ */
+export function guestRefereeHealthCost(guest: Wrestler, violenceLevel: number, settings: WorldSettings): number {
+  const exposure = 1 + violenceLevel / settings.territoryHardcoreFullViolence;
+  return settings.guestRefereeHealthCost * exposure * (1 - guest.toughness / 200);
 }
 
 /** A guest referee cannot also be wrestling in the match they are counting. */
@@ -182,6 +259,15 @@ export interface RingsideContext {
   managers: { manager: Manager; client: Wrestler }[];
   referee: Referee | null;
   guestReferee: Wrestler | null;
+  /**
+   * True when the guest was drafted at bell time rather than booked.
+   *
+   * A guest referee is worth something to a match *because it was announced*:
+   * the crowd knows who is counting and why it matters. Nobody is excited that
+   * a spare body was handed a shirt because the booker would not pay for an
+   * official, so a draftee brings the bias without the drama.
+   */
+  guestWasDrafted?: boolean;
   settings: WorldSettings;
 }
 
@@ -195,7 +281,7 @@ export interface RingsideTotals {
   injuryMultiplier: number;
   /** Whether anybody is officiating at all. Some finishes need one. */
   hasOfficial: boolean;
-  /** Total fees owed for everyone at ringside tonight. */
+  /** Manager fees for this match. Referees are billed per show, not per match. */
   cost: number;
 }
 
@@ -214,18 +300,22 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   }
 
   // A guest referee replaces the assigned official rather than joining them.
-  // Nobody at all is its own case, and a costly one — see noRefereeEffect.
+  // By the time a match reaches the bell somebody is always counting: the
+  // store drafts a wrestler when the player named nobody.
   const hasOfficial = Boolean(ctx.guestReferee || ctx.referee);
   const official = ctx.guestReferee
     ? guestRefereeEffect(ctx.guestReferee, ctx.settings)
     : ctx.referee
       ? refereeEffect(ctx.referee, ctx.settings)
-      : noRefereeEffect(ctx.settings);
+      : { ratingBonus: 0, screwyFinishWeight: 1, interferenceWeight: 1, decisiveFinishWeight: 1, injuryMultiplier: 1 };
 
-  ratingBonus += official.ratingBonus;
+  ratingBonus += ctx.guestWasDrafted ? 0 : official.ratingBonus;
   screwyFinishWeight *= official.screwyFinishWeight;
   interferenceWeight *= official.interferenceWeight;
-  if (!ctx.guestReferee && ctx.referee) cost += ctx.referee.feePerShow;
+  // Deliberately NOT charged here. A referee works the whole card for one
+  // night's pay, so the caller totals them once per show — see the store.
+  // Managers above are per appearance, which is the real difference between
+  // the two jobs.
 
   return {
     ratingBonus: clamp(ratingBonus, -20, 20),

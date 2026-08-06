@@ -1662,12 +1662,21 @@ export interface WorldSettings {
   // Running a match with nobody in the shirt — §10. Every one of these is
   // deliberately worse than the worst referee in the pool, or booking nobody
   // would be the correct play and the whole system would be decoration.
-  noRefereeRatingPenalty: number;
-  noRefereeScrewyFinishWeight: number;
-  noRefereeInterferenceWeight: number;
-  /** Below 1: nobody can count three, so clean finishes get hard to reach. */
-  noRefereeDecisiveFinishWeight: number;
-  noRefereeInjuryMultiplier: number;
+  // A wrestler in the shirt — §10. Never a worse referee, always a partial
+  // one. The shifts are points of win probability, and the clamp still
+  // applies, so no agenda produces a certainty.
+  /** Leaning against somebody they have live heat with. The loudest reason. */
+  guestRefereeGrudgeShift: number;
+  /** Helping a friend, or spiting an enemy. */
+  guestRefereeBiasShift: number;
+  /** No history at all, so a heel helps the heel. */
+  guestRefereeAlignmentShift: number;
+  /** Health a guest loses for standing in the middle of it. */
+  guestRefereeHealthCost: number;
+  /** What the locker room thinks of being officiated by one of their own. */
+  guestRefereeMoraleCost: number;
+  /** Who the office drafts when the player names nobody: fee of the stand-in. */
+  draftedRefereeMoraleCost: number;
 
   /** Rating points a match gains for fitting the promotion's house style. */
   houseStyleRatingWeight: number;

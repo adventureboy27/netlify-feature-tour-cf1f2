@@ -513,14 +513,18 @@ export function defaultWorldSettings(): WorldSettings {
     promoEnergyCost: 4,
     promoEnergyCostDoubleBooked: 10,
 
-    // No referee. The worst official in the pool sits around competence 35,
-    // which is a -3 rating and a 1.65x screwy weight; every number here is
-    // past that, so hiring the cheapest warm body still beats hiring nobody.
-    noRefereeRatingPenalty: 9,
-    noRefereeScrewyFinishWeight: 2.5,
-    noRefereeInterferenceWeight: 1.2,
-    noRefereeDecisiveFinishWeight: 0.35,
-    noRefereeInjuryMultiplier: 0.6,
+    // A wrestler in the shirt. The shifts are points of win probability — a
+    // grudge is worth more than a friendship, and both beat "a heel is not
+    // going to help a babyface". The [8%, 92%] clamp still applies, so the
+    // most agenda anybody can have is a heavy thumb, never a decision.
+    guestRefereeGrudgeShift: 18,
+    guestRefereeBiasShift: 12,
+    guestRefereeAlignmentShift: 7,
+    guestRefereeHealthCost: 6,
+    guestRefereeMoraleCost: 3,
+    // Being handed the shirt because the booker would not pay for an official
+    // annoys the room more than being booked into the role on purpose.
+    draftedRefereeMoraleCost: 4,
 
     // House style. A few points either way — enough to notice over a season,
     // never enough to stop you booking who you like.

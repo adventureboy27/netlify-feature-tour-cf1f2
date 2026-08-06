@@ -46,7 +46,12 @@ import {
   heatMultiplier,
 } from '../engine/sim/rivalry';
 import { computeTvRatings, buildRatingsChart } from '../engine/world/tvRatings';
-import { ringsideTotals, guestRefereeIsLegal } from '../engine/sim/ringside';
+import {
+  ringsideTotals,
+  guestRefereeIsLegal,
+  refereeAgenda,
+  guestRefereeHealthCost,
+} from '../engine/sim/ringside';
 import { REFEREES, managerById, refereeById } from '../data/ringsidePool';
 import { NETWORK_SHOWS } from '../data/networkShows';
 import { rollTamperingAttempts } from '../engine/world/tampering';
@@ -874,6 +879,10 @@ export const useGameStore = create<GameStore>()(
         const ranThisWeek = new Map<Id, Id>();
         /** Heat on the feuds that actually paid off tonight — what buys are built on. */
         const heatOnTheCard: number[] = [];
+        /** How many matches were officiated by a wrestler. The room keeps count. */
+        let guestRefereeUses = 0;
+        /** Officials who worked tonight. Each is paid once, not once a match. */
+        const refereesUsed = new Set<Id>();
         const segmentPopAvgs: { stars: number; avgPopularity: number }[] = [];
         const violenceLevels: number[] = [];
         let ringsideCost = 0;
@@ -937,7 +946,22 @@ export const useGameStore = create<GameStore>()(
 
           // Everyone at ringside who is not wrestling (§10). A guest referee
           // replaces the assigned official rather than joining them.
-          const guestReferee = segment.guestRefereeId ? wrestlerById.get(segment.guestRefereeId) : undefined;
+          // Somebody has to count. If the booker named nobody, the office
+          // hands the shirt to whoever is around — and that person has their
+          // own opinions about who should win.
+          let draftedReferee: Wrestler | undefined;
+          if (!segment.refereeId && !segment.guestRefereeId) {
+            const spare = world.promotion.rosterIds
+              .map((id) => world.wrestlers[id])
+              .filter(
+                (w): w is Wrestler =>
+                  Boolean(w) && !participantIds.includes(w!.id) && !w!.injury && !w!.deceased,
+              );
+            if (spare.length > 0) draftedReferee = pick(rng, spare);
+          }
+          const guestReferee = segment.guestRefereeId
+            ? wrestlerById.get(segment.guestRefereeId)
+            : draftedReferee;
           const ringside = ringsideTotals({
             managers: (segment.managerIds ?? [])
               .map((m) => ({ manager: managerById(m.managerId), client: participantWrestlers[m.forSide] }))
@@ -946,9 +970,43 @@ export const useGameStore = create<GameStore>()(
               ),
             referee: segment.refereeId ? (refereeById(segment.refereeId) ?? null) : null,
             guestReferee: guestReferee && guestRefereeIsLegal(guestReferee.id, participantIds) ? guestReferee : null,
+            guestWasDrafted: Boolean(draftedReferee),
             settings: world.settings,
           });
+          // Managers are paid per appearance. A referee is not: one official
+          // works the whole card for one night's pay, which is how it has
+          // always worked and which is why billing them per match made
+          // hiring anybody absurdly expensive.
           ringsideCost += ringside.cost;
+          if (segment.refereeId) refereesUsed.add(segment.refereeId);
+
+          // What the wrestler in the shirt is actually out there to do. Never
+          // a coin flip — see refereeAgenda.
+          const officiatingWrestler =
+            guestReferee && guestRefereeIsLegal(guestReferee.id, participantIds) ? guestReferee : null;
+          const agenda = officiatingWrestler
+            ? refereeAgenda({
+                guest: officiatingWrestler,
+                competitors: segment.participants.map((p) => ({
+                  wrestler: wrestlerById.get(p.wrestlerId)!,
+                  side: p.side,
+                })),
+                rivalIds: world.rivalries
+                  .filter((r) => r.resolvedWeek === null && r.participantIds.includes(officiatingWrestler.id))
+                  .flatMap((r) => r.participantIds.filter((id) => id !== officiatingWrestler.id)),
+                friendIds: world.relationships
+                  .filter(
+                    (r) =>
+                      (r.type === 'friend' || r.type === 'mentor' || r.type === 'protege') &&
+                      (r.aId === officiatingWrestler.id || r.bId === officiatingWrestler.id),
+                  )
+                  .map((r) => (r.aId === officiatingWrestler.id ? r.bId : r.aId)),
+                enemyIds: world.relationships
+                  .filter((r) => r.type === 'enemy' && (r.aId === officiatingWrestler.id || r.bId === officiatingWrestler.id))
+                  .map((r) => (r.aId === officiatingWrestler.id ? r.bId : r.aId)),
+                settings: world.settings,
+              })
+            : null;
 
           const result = simulateMatch(rng, simParticipants, wrestlerById, {
             rules: segment.rules,
@@ -971,7 +1029,34 @@ export const useGameStore = create<GameStore>()(
             isMainEvent: i === world.currentCard.length - 1,
             rivalry,
             ringside,
+            // The thumb on the scale. The [8%, 92%] clamp still applies, so
+            // the most agenda anybody can have is a heavy lean — the sim
+            // still picks the winner.
+            deckStackingShiftsBySide:
+              agenda && agenda.favoursSide !== null ? { [agenda.favoursSide]: agenda.shift } : undefined,
           });
+
+          // Standing in the middle of a fight without a wrestler's licence to
+          // defend yourself has a price, and it is not always paid.
+          if (officiatingWrestler) {
+            const cost = guestRefereeHealthCost(
+              officiatingWrestler,
+              stipulation?.violenceLevel ?? 0,
+              world.settings,
+            );
+            officiatingWrestler.health = clamp(officiatingWrestler.health - cost, 0, 100);
+
+            // And the room notices being officiated by one of their own —
+            // more so when it happened because nobody would pay for a real
+            // official.
+            const annoyance = draftedReferee
+              ? world.settings.draftedRefereeMoraleCost
+              : world.settings.guestRefereeMoraleCost;
+            for (const competitor of participantWrestlers) {
+              competitor.morale = clamp(competitor.morale - annoyance, 0, 100);
+            }
+            guestRefereeUses += 1;
+          }
 
           // A stretcher job actually puts somebody out — that is what makes
           // the finish worth fearing rather than just worth fewer points.
@@ -1209,6 +1294,11 @@ export const useGameStore = create<GameStore>()(
 
           slot.promoResult = { quality: promo.quality, text: promo.text };
           worked.add(speaker!.id);
+        }
+
+        // One night's pay each, however many matches they worked.
+        for (const refereeId of refereesUsed) {
+          ringsideCost += refereeById(refereeId)?.feePerShow ?? 0;
         }
 
         const slotWeights = TV_SLOT_WEIGHTS.slice(0, world.currentCard.length);
