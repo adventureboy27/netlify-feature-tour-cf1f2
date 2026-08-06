@@ -33,6 +33,7 @@ import { foldRisk, FOLD_RISK_LABELS } from '../../engine/world/rivalEconomy';
 import type { Wrestler } from '../../engine/types';
 import { contractUrgency } from '../../engine/economy/contracts';
 import { severanceOwed, guaranteeLabel } from '../../engine/economy/termination';
+import { canBeTraded, tradeWorth, tradePartners } from '../../engine/world/trades';
 import {
   signedReferees,
   availableReferees,
@@ -43,7 +44,7 @@ import {
   isAvailable,
 } from '../../engine/sim/referees';
 
-type Tab = 'desk' | 'contracts' | 'officials' | 'television';
+type Tab = 'desk' | 'contracts' | 'officials' | 'trades' | 'television';
 
 export function OfficeScreen() {
   const world = useGameStore((s) => s.world);
@@ -74,6 +75,7 @@ export function OfficeScreen() {
     { id: 'desk', label: 'Desk', badge: onTheDesk },
     { id: 'contracts', label: 'Contracts', badge: inContracts },
     { id: 'officials', label: 'Officials', badge: officialsNeedYou },
+    { id: 'trades', label: 'Trades', badge: 0 },
     { id: 'television', label: 'Television', badge: 0 },
   ];
 
@@ -114,6 +116,7 @@ export function OfficeScreen() {
       {tab === 'desk' && <DeskTab />}
       {tab === 'contracts' && <ContractsTab />}
       {tab === 'officials' && <OfficialsTab />}
+      {tab === 'trades' && <TradesTab />}
       {tab === 'television' && <TelevisionTab />}
     </div>
   );
@@ -1039,6 +1042,162 @@ function OfficialsTab() {
           ))}
         </div>
       </section>
+    </>
+  );
+}
+
+/**
+ * Trades.
+ *
+ * The contract goes with the wrestler, which is the whole reason this is
+ * interesting: a deal you regret is a thing you can try to make somebody
+ * else's problem, and they can see you doing it. A star on a fully guaranteed
+ * long deal is worth *less than nothing* on this page, and that is correct.
+ *
+ * A refusal always says which half of the deal was wrong, because "no" on its
+ * own is not information.
+ */
+function TradesTab() {
+  const world = useGameStore((s) => s.world);
+  const propose = useGameStore((s) => s.proposeTrade);
+  const [mineId, setMineId] = useState<string | null>(null);
+  const [rivalId, setRivalId] = useState<string | null>(null);
+  const [theirsId, setTheirsId] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<{ accepted: boolean; reason: string } | null>(null);
+  if (!world) return null;
+
+  const mine = world.promotion.rosterIds
+    .map((id) => world.wrestlers[id])
+    .filter((w): w is Wrestler => Boolean(w) && canBeTraded(w!).ok);
+  const partners = tradePartners(world.rivals, world.tradeRefusals, world.week, world.settings);
+  const rival = partners.find((r) => r.id === rivalId) ?? null;
+  const theirRoster = rival
+    ? rival.rosterIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w) && canBeTraded(w!).ok)
+    : [];
+
+  const chosen = mineId ? world.wrestlers[mineId] : null;
+
+  return (
+    <>
+      <section className="mb-4">
+        <h2 className="mb-1 text-sm font-medium text-neutral-300">Who you are offering</h2>
+        <p className="mb-2 text-[11px] text-neutral-500">
+          Their contract goes with them. What somebody is worth here is what they draw, less what they are
+          owed.
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {mine.map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              data-testid={`trade-mine-${w.id}`}
+              onClick={() => {
+                setMineId(w.id);
+                setAnswer(null);
+              }}
+              className={`rounded px-2 py-1 text-[11px] ${
+                mineId === w.id ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+              }`}
+            >
+              {w.name}
+              <span className="ml-1 text-neutral-500">{tradeWorth(w, world.settings)}</span>
+            </button>
+          ))}
+        </div>
+        {chosen && (
+          <p className="mt-1 text-[11px] text-neutral-500">
+            {chosen.name} is owed <Money amount={severanceOwed(chosen.contract)} /> guaranteed
+            {chosen.contract && <> on {chosen.contract.weeksRemaining} weeks</>}.
+          </p>
+        )}
+      </section>
+
+      <section className="mb-4">
+        <h2 className="mb-2 text-sm font-medium text-neutral-300">Who you are calling</h2>
+        {partners.length === 0 ? (
+          <p className="text-[11px] text-amber-400">
+            Nobody is taking your calls this week. Everybody you asked has already said no.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {partners.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                data-testid={`trade-rival-${r.id}`}
+                onClick={() => {
+                  setRivalId(r.id);
+                  setTheirsId(null);
+                  setAnswer(null);
+                }}
+                className={`rounded px-2 py-1 text-[11px] ${
+                  rivalId === r.id ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                }`}
+              >
+                {r.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {rival && (
+        <section className="mb-4">
+          <h2 className="mb-2 text-sm font-medium text-neutral-300">What you want back</h2>
+          <div className="flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setTheirsId(null);
+                setAnswer(null);
+              }}
+              className={`rounded px-2 py-1 text-[11px] ${
+                !theirsId ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'
+              }`}
+            >
+              Nothing — just move him on
+            </button>
+            {theirRoster.slice(0, 24).map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                data-testid={`trade-theirs-${w.id}`}
+                onClick={() => {
+                  setTheirsId(w.id);
+                  setAnswer(null);
+                }}
+                className={`rounded px-2 py-1 text-[11px] ${
+                  theirsId === w.id
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                }`}
+              >
+                {w.name}
+                <span className="ml-1 text-neutral-500">{tradeWorth(w, world.settings)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <button
+        type="button"
+        data-testid="trade-propose"
+        disabled={!mineId || !rivalId}
+        onClick={() => setAnswer(propose(mineId!, rivalId!, theirsId, 0))}
+        className="w-full rounded bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-500 disabled:bg-neutral-800 disabled:text-neutral-600"
+      >
+        Make the call
+      </button>
+
+      {answer && (
+        <p
+          data-testid="trade-answer"
+          className={`mt-2 text-xs ${answer.accepted ? 'text-emerald-400' : 'text-amber-400'}`}
+        >
+          {answer.reason}
+        </p>
+      )}
     </>
   );
 }

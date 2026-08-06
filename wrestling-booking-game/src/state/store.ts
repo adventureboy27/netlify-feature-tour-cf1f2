@@ -63,6 +63,7 @@ import {
   type TransitionRole,
 } from '../engine/career/transition';
 import type { Manager } from '../engine/sim/ringside';
+import { evaluateTrade, tradeLine } from '../engine/world/trades';
 import {
   wire,
   teamSplitLine,
@@ -349,6 +350,34 @@ export interface GameStore {
   repairProductionAsset: (assetId: Id) => void;
   /** Meet a renewal demand in full, or refuse it and risk them walking. */
   answerRenewal: (wrestlerId: Id, accept: boolean) => void;
+  /**
+   * Offer somebody to a rival. The contract goes with them, which is the
+   * whole point — a deal you regret is a thing you can try to make somebody
+   * else's problem, and they can see you doing it.
+   */
+  proposeTrade: (
+    outgoingId: Id,
+    rivalId: Id,
+    incomingId: Id | null,
+    cashFromYou: number,
+  ) => { accepted: boolean; reason: string };
+}
+
+/**
+ * Pull somebody out of everything this week's card has them booked into.
+ *
+ * Shared by trades and role changes: whatever the reason they are no longer
+ * available, a card still holding their name would resolve a match with a
+ * wrestler who does not work here.
+ */
+function dropFromCard(world: World, wrestlerId: Id): void {
+  for (const segment of [...world.currentCard, ...world.currentPromos]) {
+    segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
+    if (segment.guestRefereeId === wrestlerId) segment.guestRefereeId = null;
+    segment.managerIds = (segment.managerIds ?? []).filter((m) => m.managerId !== `mgr-of-${wrestlerId}`);
+    if (segment.promoSpeakerId === wrestlerId) segment.promoSpeakerId = null;
+    if (segment.promoTargetId === wrestlerId) segment.promoTargetId = null;
+  }
 }
 
 /**
@@ -407,6 +436,9 @@ function letThemGo(world: World, wrestler: Wrestler, terms: ReturnType<typeof ex
   wrestler.role = 'wrestler';
   world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestler.id);
   world.releaseRequests = world.releaseRequests.filter((r) => r.wrestlerId !== wrestler.id);
+  // And off this week's card. Cutting somebody on the Tuesday used to leave
+  // them booked in Monday's main event.
+  dropFromCard(world, wrestler.id);
 
   const asOfficial = world.referees.find((r) => r.wrestlerId === wrestler.id);
   if (asOfficial) asOfficial.promotionId = null;
@@ -3264,6 +3296,73 @@ export const useGameStore = create<GameStore>()(
         outcome = { ok: true, reason: null };
       });
       return outcome;
+    },
+
+    proposeTrade: (outgoingId, rivalId, incomingId, cashFromYou) => {
+      let verdict = { accepted: false, reason: 'No game in progress.' };
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const outgoing = world.wrestlers[outgoingId];
+        const rival = world.rivals.find((r) => r.id === rivalId);
+        const incoming = incomingId ? world.wrestlers[incomingId] : null;
+        if (!outgoing || !rival || outgoing.promotionId !== world.promotion.id) {
+          verdict = { accepted: false, reason: 'That deal does not exist.' };
+          return;
+        }
+        if (incoming && incoming.promotionId !== rival.id) {
+          verdict = { accepted: false, reason: 'He does not work for them.' };
+          return;
+        }
+        if (cashFromYou > world.promotion.bankBalance) {
+          verdict = { accepted: false, reason: 'You do not have that.' };
+          return;
+        }
+
+        const answer = evaluateTrade({
+          offer: { outgoing, incoming: incoming ?? null, cashFromYou },
+          them: rival,
+          theirRosterSize: rival.rosterIds.length,
+          targetRosterSize: rivalRosterSize(rival.rating, world.settings),
+          settings: world.settings,
+        });
+
+        if (!answer.accepted) {
+          // They will not take the call again for a while, so the player
+          // cannot simply re-ask every week until the dice land.
+          world.tradeRefusals[rivalId] = world.week;
+          verdict = { accepted: false, reason: answer.reason };
+          return;
+        }
+
+        // Done. Both contracts travel with their wrestlers untouched — that
+        // is what makes a bad deal a real thing to be rid of.
+        world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== outgoingId);
+        rival.rosterIds.push(outgoingId);
+        outgoing.promotionId = rival.id;
+        outgoing.morale = clamp(outgoing.morale - world.settings.tradeMoraleCost, 0, 100);
+        dropFromCard(world, outgoingId);
+
+        if (incoming) {
+          rival.rosterIds = rival.rosterIds.filter((id) => id !== incoming.id);
+          world.promotion.rosterIds.push(incoming.id);
+          incoming.promotionId = world.promotion.id;
+          incoming.morale = clamp(incoming.morale - world.settings.tradeMoraleCost, 0, 100);
+        }
+
+        world.promotion.bankBalance -= cashFromYou;
+        rival.bankBalance += cashFromYou;
+
+        world.weeklyNews.push(
+          wire(
+            'signing',
+            tradeLine(outgoing.name, incoming?.name ?? null, world.promotion.name, rival.name, cashFromYou),
+            world.week,
+          ),
+        );
+        verdict = { accepted: true, reason: answer.reason };
+      });
+      return verdict;
     },
 
     signReferee: (refereeId) => {

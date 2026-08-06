@@ -144,8 +144,8 @@ export function defaultWorldSettings(): WorldSettings {
     // Contracts, scaled to a promotion running small buildings: a jobber is
     // around $25/wk, a midcarder around $160, a genuine draw around $750.
     // The curve is what makes a star cost multiples of a midcarder.
-    contractBaseWeeklyRate: 25,
-    contractRateRange: 900,
+    contractBaseWeeklyRate: 60,
+    contractRateRange: 2200,
     contractRateCurve: 2,
     contractDrawWeight: 0.7,
     contractCraftWeight: 0.3,
@@ -160,6 +160,16 @@ export function defaultWorldSettings(): WorldSettings {
     egoGuaranteedHalf: 70,
     egoGuaranteedFull: 88,
     guaranteedPctPartial: 0.25,
+
+    // Trades. The margin is what stops the player laundering bad contracts
+    // through the AI: a rival has to come out ahead, not level.
+    tradeAcceptanceMargin: 1.15,
+    tradeContractBurdenWeight: 0.6,
+    tradeValueCurve: 2.2,
+    tradeValueScale: 1000,
+    tradeCooldownWeeks: 8,
+    tradeMoraleCost: 12,
+    tradeAffordabilityShare: 0.25,
     releaseRequestChance: 0.07,
     releaseRequestMorale: 30,
     releaseRefusedMoraleCost: 4,

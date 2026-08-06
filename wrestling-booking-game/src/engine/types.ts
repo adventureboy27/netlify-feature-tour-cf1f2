@@ -597,6 +597,7 @@ export type Clause =
   | 'noHardcore'
   | 'noJobbing'
   | 'releaseClause'
+  | 'noTrade'
   | 'partTime'
   | 'exclusivity'
   | 'trainerRole'
@@ -1338,6 +1339,24 @@ export interface WorldSettings {
   egoGuaranteedHalf: number;
   egoGuaranteedFull: number;
   guaranteedPctPartial: number;
+
+  // Trades — engine/world/trades.ts.
+  /**
+   * How much better an incoming package has to be before a rival says yes.
+   * Above 1 because nobody trades at par: the other side has to win.
+   */
+  tradeAcceptanceMargin: number;
+  /** How heavily a wage commitment counts against what somebody is worth. */
+  tradeContractBurdenWeight: number;
+  /** Curve on popularity, so a genuine draw is worth several midcarders. */
+  tradeValueCurve: number;
+  tradeValueScale: number;
+  /** Weeks a rival will not revisit a trade they just turned down. */
+  tradeCooldownWeeks: number;
+  /** Morale a wrestler loses for being moved on. */
+  tradeMoraleCost: number;
+  /** How much of a wage a rival will take on, as a share of what they clear. */
+  tradeAffordabilityShare: number;
   /** Weekly chance an unhappy wrestler asks to be let go. */
   releaseRequestChance: number;
   /** Morale at or below which somebody starts thinking about asking out. */

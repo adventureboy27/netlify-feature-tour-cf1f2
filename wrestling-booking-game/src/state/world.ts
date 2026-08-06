@@ -196,6 +196,12 @@ export interface World {
    * three died and every tag team split up on the same night. They roll
    * weekly now; this is what the annual digest reads instead.
    */
+  /**
+   * Companies that have turned a trade down recently, and when. They will not
+   * take the call again for a while — otherwise the player just re-asks every
+   * week until the dice land.
+   */
+  tradeRefusals: Record<Id, number>;
   thisYear: {
     passings: Passing[];
     retirements: { wrestlerId: Id; reason: string }[];
@@ -528,6 +534,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     releaseRequests: [],
     contractNews: [],
     weeklyNews: [],
+    tradeRefusals: {},
     thisYear: { passings: [], retirements: [], comebacks: [] },
     titles: [...playerTitles, ...rivalTitles],
     // You are from somewhere. A promotion does not open in a town that has

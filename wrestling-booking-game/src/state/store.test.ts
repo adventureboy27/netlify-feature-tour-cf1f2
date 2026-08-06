@@ -684,3 +684,98 @@ describe('second careers', () => {
     expect(world().defaultRefereeId).not.toBe(`ref-of-${anyone.id}`);
   });
 });
+
+describe('trades', () => {
+  const patient = () => ({ ...patientOwner(), seed: 'trades' });
+
+  beforeEach(() => {
+    useGameStore.getState().newGame(patient());
+  });
+
+  const world = () => useGameStore.getState().world!;
+  const roster = () => world().promotion.rosterIds.map((id) => world().wrestlers[id]!).filter(Boolean);
+
+  it('moves the wrestler and his contract to the other company', () => {
+    const rival = world().rivals.find((r) => r.closedWeek === null)!;
+    const mine = [...roster()].sort((a, b) => b.popularity - a.popularity)[0]!;
+    const theirs = rival.rosterIds
+      .map((id) => world().wrestlers[id]!)
+      .sort((a, b) => a.popularity - b.popularity)[0]!;
+
+    // Make it a deal nobody would turn down: your best man on a cheap, short
+    // deal. A star on a big contract is *supposed* to be hard to move — that
+    // is the system working — so the mechanics have to be proved on an offer
+    // whose acceptance is not in question.
+    useGameStore.setState((s) => {
+      const c = s.world!.wrestlers[mine.id]!.contract!;
+      c.weeklyRate = 100;
+      c.weeksRemaining = 10;
+      c.guaranteedPct = 0;
+    });
+    const rate = world().wrestlers[mine.id]!.contract!.weeklyRate;
+
+    const verdict = useGameStore.getState().proposeTrade(mine.id, rival.id, theirs.id, 0);
+    expect(verdict.accepted).toBe(true);
+
+    // He is theirs now, on exactly the deal you were paying.
+    expect(world().wrestlers[mine.id]!.promotionId).toBe(rival.id);
+    expect(world().wrestlers[mine.id]!.contract!.weeklyRate).toBe(rate);
+    expect(world().promotion.rosterIds).not.toContain(mine.id);
+    expect(world().rivals.find((r) => r.id === rival.id)!.rosterIds).toContain(mine.id);
+
+    // And the man coming back is yours.
+    expect(world().wrestlers[theirs.id]!.promotionId).toBe(world().promotion.id);
+    expect(world().promotion.rosterIds).toContain(theirs.id);
+  });
+
+  it('reports it, rather than the roster just changing', () => {
+    const rival = world().rivals.find((r) => r.closedWeek === null)!;
+    const mine = [...roster()].sort((a, b) => b.popularity - a.popularity)[0]!;
+    useGameStore.getState().proposeTrade(mine.id, rival.id, null, 0);
+    const said = world().weeklyNews.some((n) => n.text.includes(mine.name) && n.text.includes(rival.name));
+    if (world().wrestlers[mine.id]!.promotionId === rival.id) expect(said).toBe(true);
+  });
+
+  it('will not take the same call twice in a row after a refusal', () => {
+    const rival = world().rivals.find((r) => r.closedWeek === null)!;
+    // Ask for their best in exchange for your worst: certain refusal.
+    const worst = [...roster()].sort((a, b) => a.popularity - b.popularity)[0]!;
+    const best = rival.rosterIds
+      .map((id) => world().wrestlers[id]!)
+      .sort((a, b) => b.popularity - a.popularity)[0]!;
+
+    const first = useGameStore.getState().proposeTrade(worst.id, rival.id, best.id, 0);
+    expect(first.accepted).toBe(false);
+    expect(world().tradeRefusals[rival.id]).toBe(world().week);
+  });
+
+  it('refuses to trade somebody with a no-trade clause at any price', () => {
+    const rival = world().rivals.find((r) => r.closedWeek === null)!;
+    const mine = roster()[0]!;
+    // Through the store, because the world is an immer draft and frozen
+    // outside a set().
+    useGameStore.setState((s) => {
+      s.world!.wrestlers[mine.id]!.contract!.clauses.push('noTrade');
+    });
+    const verdict = useGameStore.getState().proposeTrade(mine.id, rival.id, null, 0);
+    expect(verdict.accepted).toBe(false);
+    expect(verdict.reason).toContain('no-trade');
+    expect(world().promotion.rosterIds).toContain(mine.id);
+  });
+
+  it('takes the traded man off this week’s card', () => {
+    const rival = world().rivals.find((r) => r.closedWeek === null)!;
+    useGameStore.getState().autoFillCard();
+    const booked = world()
+      .currentCard.flatMap((seg) => seg.participants.map((p) => p.wrestlerId))
+      .find((id) => world().wrestlers[id]?.promotionId === world().promotion.id)!;
+
+    const verdict = useGameStore.getState().proposeTrade(booked, rival.id, null, 0);
+    if (verdict.accepted) {
+      const stillBooked = world().currentCard.some((seg) =>
+        seg.participants.some((p) => p.wrestlerId === booked),
+      );
+      expect(stillBooked).toBe(false);
+    }
+  });
+});

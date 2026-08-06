@@ -101,6 +101,12 @@ const CLAUSE_LADDER: { clause: Clause; egoRequired: number; label: string; cost:
     cost: 'A slice off the top of every shirt sold.',
   },
   {
+    clause: 'noTrade',
+    egoRequired: 62,
+    label: 'No-trade clause',
+    cost: 'You cannot move them on. Whatever they become, they are yours.',
+  },
+  {
     clause: 'noJobbing',
     egoRequired: 65,
     label: 'No jobbing',
