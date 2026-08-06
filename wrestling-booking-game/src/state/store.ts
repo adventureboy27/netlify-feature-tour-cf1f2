@@ -63,6 +63,24 @@ import {
   type TransitionRole,
 } from '../engine/career/transition';
 import type { Manager } from '../engine/sim/ringside';
+import {
+  wire,
+  teamSplitLine,
+  teamFormedLine,
+  rivalSigningLine,
+  deathLine,
+  retirementLine,
+  comebackLine,
+  inductionLine,
+  debutLine,
+} from '../engine/world/wire';
+import {
+  exitTerms,
+  guaranteedShareFor,
+  wantsOut,
+  canBeSigned,
+  refusalCost,
+} from '../engine/economy/termination';
 
 /**
  * A manager by id, from the standing pool or from your own roster.
@@ -93,7 +111,7 @@ import { NETWORK_SHOWS } from '../data/networkShows';
 import { rollTamperingAttempts } from '../engine/world/tampering';
 import { deriveCareerStatus } from '../engine/career/status';
 import { rollRetirement, rollComeback, retire, unretire, RETIREMENT_REASON_TEXT } from '../engine/career/retirement';
-import { rollDeath } from '../engine/career/mortality';
+import { rollDeath, DEATH_CAUSE_TEXT } from '../engine/career/mortality';
 import { annualInductions } from '../engine/career/hallOfFame';
 import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult } from '../engine/career/awards';
 import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
@@ -301,7 +319,17 @@ export interface GameStore {
   setPromotionIdentity: (name: string, archetype: PromotionArchetype) => void;
   // Roster moves
   signFreeAgent: (wrestlerId: Id) => void;
-  releaseWrestler: (wrestlerId: Id) => void;
+  /**
+   * End a deal early. You pay whatever was guaranteed and they walk free the
+   * same day — the worst exit on both counts, and meant to be.
+   */
+  releaseWrestler: (wrestlerId: Id) => { ok: boolean; reason: string | null; cost: number };
+  /**
+   * Answer somebody who has asked out. Granting it costs nothing and puts
+   * them on ninety days; refusing keeps them, and costs them morale every
+   * week you make them stay.
+   */
+  answerReleaseRequest: (wrestlerId: Id, grant: boolean) => void;
   /** Send somebody out on their terms. They go to the Legacy wall, not the pool. */
   retireWrestler: (wrestlerId: Id) => void;
   /**
@@ -321,6 +349,82 @@ export interface GameStore {
   repairProductionAsset: (assetId: Id) => void;
   /** Meet a renewal demand in full, or refuse it and risk them walking. */
   answerRenewal: (wrestlerId: Id, accept: boolean) => void;
+}
+
+/**
+ * Take somebody out of the business entirely — dead or retired.
+ *
+ * Hoisted to module scope when deaths and retirements moved from an annual
+ * roll to a weekly one. Returns the belts it had to vacate so the year-end
+ * digest can still list them.
+ */
+function leaveTheBusiness(world: World, id: Id, method: TitleReignEndMethod): Id[] {
+  const vacated: Id[] = [];
+  // A champion who is gone cannot carry a belt. It goes vacant, and the
+  // lineage records why.
+  for (const title of world.titles) {
+    if (title.vacant || !title.currentHolderIds.includes(id)) continue;
+    const last = title.history[title.history.length - 1];
+    if (last && last.endWeek === null) {
+      last.endWeek = world.week;
+      last.endMethod = method;
+    }
+    title.vacant = true;
+    title.currentHolderIds = [];
+    vacated.push(title.id);
+  }
+  for (const w of Object.values(world.wrestlers)) {
+    const open = w.id === id ? w.titleReigns.find((r) => r.endWeek === null) : undefined;
+    if (open) {
+      open.endWeek = world.week;
+      open.endMethod = method;
+    }
+  }
+  world.promotion.rosterIds = world.promotion.rosterIds.filter((rosterId) => rosterId !== id);
+  for (const rival of world.rivals) {
+    rival.rosterIds = rival.rosterIds.filter((rosterId) => rosterId !== id);
+  }
+  world.freeAgents = world.freeAgents.filter((agent) => agent.wrestlerId !== id);
+  world.pendingRenewals = world.pendingRenewals.filter((r) => r.wrestlerId !== id);
+  world.releaseRequests = world.releaseRequests.filter((r) => r.wrestlerId !== id);
+  return vacated;
+}
+
+/**
+ * Take somebody off the roster, whichever exit it was.
+ *
+ * One function so every departure does the same four things: off the roster,
+ * contract torn up, into the free-agent pool with whatever restriction the
+ * exit carries, and — the part that matters — a sentence saying what
+ * happened. A wrestler must never just be absent from the list one week.
+ */
+function letThemGo(world: World, wrestler: Wrestler, terms: ReturnType<typeof exitTerms>): void {
+  wrestler.promotionId = null;
+  wrestler.contract = null;
+  wrestler.noCompeteWeeks = terms.noCompeteWeeks;
+  // A departure ends any second career too — you cannot referee for a company
+  // you no longer work for.
+  wrestler.role = 'wrestler';
+  world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestler.id);
+  world.releaseRequests = world.releaseRequests.filter((r) => r.wrestlerId !== wrestler.id);
+
+  const asOfficial = world.referees.find((r) => r.wrestlerId === wrestler.id);
+  if (asOfficial) asOfficial.promotionId = null;
+  if (world.defaultRefereeId === asOfficial?.id) world.defaultRefereeId = null;
+  world.staffManagers = world.staffManagers.filter((m) => m.wrestlerId !== wrestler.id);
+
+  // They do not vanish — they go back into the pool, where a rival can pick
+  // them up and you can watch them do it.
+  world.freeAgents.push({
+    wrestlerId: wrestler.id,
+    reason: 'released',
+    askingRate: askingRate(wrestler, world.settings),
+    weeksUnsigned: 0,
+  });
+  world.contractNews.push(terms.text);
+  // And onto the wire, so it is in the weekly highlights and not only on an
+  // office tab the player may never open.
+  world.weeklyNews.push(wire('departure', terms.text, world.week));
 }
 
 /**
@@ -2114,12 +2218,176 @@ export const useGameStore = create<GameStore>()(
         const expired = expireContracts(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
         if (world.signingBanWeeks > 0) world.signingBanWeeks -= 1;
 
+        // ---- who wants out, and who is still sitting out ------------------
+        // A release request is never a surprise: morale is on the roster card
+        // for weeks before it gets here, so this is the consequence of
+        // something the player watched happen.
+        world.contractNews = [];
+        // Keep anything the player did since the last report — firing
+        // somebody on a Tuesday has to appear in Monday's write-up, not
+        // vanish because the show ran. Only the *previous* report's items go.
+        world.weeklyNews = world.weeklyNews.filter((item) => item.week >= world.week);
+        for (const id of world.promotion.rosterIds) {
+          const member = world.wrestlers[id];
+          if (!member || member.deceased) continue;
+          if (world.releaseRequests.some((r) => r.wrestlerId === id)) {
+            // Still waiting on an answer, and getting unhappier about it.
+            member.morale = clamp(member.morale - refusalCost(world.settings), 0, 100);
+            continue;
+          }
+          if (wantsOut(member, world.settings) && chance(rng, world.settings.releaseRequestChance)) {
+            world.releaseRequests.push({ wrestlerId: id, openedWeek: world.week });
+            const asked = `${member.name} has asked to be let out of his contract. He says he will walk away from the money.`;
+            world.contractNews.push(asked);
+            world.weeklyNews.push(wire('departure', asked, world.week));
+          }
+        }
+
+        // Ninety days, counted down for everybody in the business.
+        for (const person of Object.values(world.wrestlers)) {
+          if ((person.noCompeteWeeks ?? 0) > 0) {
+            person.noCompeteWeeks = (person.noCompeteWeeks ?? 0) - 1;
+            if (person.noCompeteWeeks === 0) {
+              const clear = `${person.name} is out of his ninety days and can sign anywhere.`;
+              world.contractNews.push(clear);
+              world.weeklyNews.push(wire('departure', clear, world.week, 'minor'));
+            }
+          }
+        }
+
+        // ---- who left the business this week -----------------------------
+        // These used to be rolled once a year, which produced fifty-one quiet
+        // weeks and one December in which six people retired, three died and
+        // every tag team split up on the same night. Weekly rolls at a
+        // fifty-second of the annual odds spread the same number of events
+        // across the year, so the wire has something real on it most weeks
+        // and nothing lands as a batch.
+        const perWeek = 1 / 52;
+        const careerYearNow = world.settings.startingYear + Math.floor(world.week / 52);
+        const yearCtx = {
+          currentYear: careerYearNow,
+          rosterPeakPopularity: world.promotion.rosterIds.reduce(
+            (max, id) => Math.max(max, world.wrestlers[id]?.popularity ?? 0),
+            0,
+          ),
+          settings: world.settings,
+        };
+
+        for (const person of Object.values(world.wrestlers)) {
+          if (person.deceased) continue;
+
+          if (chance(rng, perWeek)) {
+            const passing = rollDeath(rng, person, world.week, world.settings);
+            if (passing) {
+              person.deceased = passing;
+              world.memoriam.push(passing);
+              world.thisYear.passings.push(passing);
+              // The prose, not the enum. "died at 25. accident" was the bug
+              // this audit found — the rule is that it says how it happened.
+              world.weeklyNews.push(
+                deathLine(person.name, person.age, `${DEATH_CAUSE_TEXT[passing.cause]}.`, world.week),
+              );
+              leaveTheBusiness(world, person.id, 'died');
+              continue;
+            }
+          }
+
+          if (person.role !== 'wrestler') continue;
+
+          if (person.careerStatus === 'retired') {
+            if (!chance(rng, perWeek)) continue;
+            const back = rollComeback(rng, person, {
+              currentYear: careerYearNow,
+              rivalries: world.rivalries,
+              settings: world.settings,
+            });
+            if (back.returning) {
+              unretire(person, world.settings);
+              world.thisYear.comebacks.push({
+                wrestlerId: person.id,
+                overId: back.over?.participantIds.find((id) => id !== person.id) ?? null,
+              });
+              world.weeklyNews.push(comebackLine(person.name, world.week));
+              // They come back unsigned. Somebody has to want them.
+              world.freeAgents.push({
+                wrestlerId: person.id,
+                reason: 'returning',
+                askingRate: askingRate(person, world.settings),
+                weeksUnsigned: 0,
+              });
+            }
+            continue;
+          }
+
+          if (!chance(rng, perWeek)) continue;
+          const call = rollRetirement(rng, person, yearCtx);
+          if (call.retiring) {
+            retire(person);
+            const reason = RETIREMENT_REASON_TEXT[call.reason];
+            world.thisYear.retirements.push({ wrestlerId: person.id, reason });
+            world.weeklyNews.push(retirementLine(person.name, reason, world.week));
+            leaveTheBusiness(world, person.id, 'retired');
+          }
+        }
+
+        // A partnership does not survive one of them retiring, dying or
+        // signing somewhere else — and it should be said the week it breaks,
+        // not the following December.
+        const splitThisWeek = disbandBrokenTeams(world.stables, world.week, (memberIds) => {
+          const people = memberIds.map((id) => world.wrestlers[id]);
+          if (people.some((p) => !p || p.deceased || p.careerStatus === 'retired')) return false;
+          const first = people[0]!.promotionId;
+          return first !== null && people.every((p) => p!.promotionId === first);
+        });
+        for (const teamId of splitThisWeek) {
+          const team = world.stables.find((t) => t.id === teamId);
+          if (!team) continue;
+          const names = team.memberIds.map((id) => world.wrestlers[id]?.name).filter(Boolean) as string[];
+          if (names.length > 0) world.weeklyNews.push(teamSplitLine(team.name, names, world.week));
+        }
+
+        // Rivals replace the people they lost, the week they lose them. They
+        // shop in the same pool the player does, so a promotion that leaves
+        // talent sitting there will watch somebody else sign it — and now
+        // finds out the week it happens rather than the following December.
+        for (const rival of world.rivals) {
+          if (rival.closedWeek !== null) continue;
+          const target = rivalRosterSize(rival.rating, world.settings);
+          let short = target - rival.rosterIds.length;
+          // One signing a week each. A rival that refilled a whole roster in
+          // an afternoon read as a batch job, not as a competitor.
+          if (short <= 0) continue;
+          const index = Math.floor(rng.next() * world.freeAgents.length);
+          const agent = world.freeAgents[index];
+          const signing = agent ? world.wrestlers[agent.wrestlerId] : undefined;
+          if (!signing || signing.deceased || signing.careerStatus === 'retired') continue;
+          // Nobody can be signed while they are sitting out a negotiated
+          // release. The ninety days binds the whole business, which is the
+          // point of trading a payout for it.
+          if (!canBeSigned(signing)) continue;
+          world.freeAgents.splice(index, 1);
+          signing.promotionId = rival.id;
+          signing.contract = createStandardContract(
+            signing,
+            world.settings,
+            world.settings.startingYear + Math.floor(world.week / 52),
+          );
+          rival.rosterIds.push(signing.id);
+          // You released him; you get to watch somebody else sign him.
+          world.weeklyNews.push(rivalSigningLine(signing.name, rival.name, world.week));
+          short -= 1;
+        }
+
         // ---- the officials' week ----------------------------------------
         // They rest, they heal, their deals run down, and the ones you left
         // sitting in the pool get signed by somebody else. Every one of those
         // is reported: an official disappearing off the assignment list
         // without a word is exactly the off-screen change the rule forbids.
         world.refereeNews = [];
+        const official = (line: string) => {
+          world.refereeNews.push(line);
+          world.weeklyNews.push(wire('official', line, world.week, 'minor'));
+        };
         for (const referee of world.referees) {
           const wasHurt = Boolean(referee.injury);
           const employer = referee.promotionId;
@@ -2147,16 +2415,14 @@ export const useGameStore = create<GameStore>()(
           tickRefereeWeek(referee, world.settings);
 
           if (wasHurt && !referee.injury && employer === world.promotion.id) {
-            world.refereeNews.push(`${referee.name} has been cleared and is available for assignment again.`);
+            official(`${referee.name} has been cleared and is available for assignment again.`);
           }
           if (referee.contract && referee.contract.weeksRemaining <= 0) {
             referee.contract = null;
             referee.promotionId = null;
             referee.weeksUnsigned = 0;
             if (employer === world.promotion.id) {
-              world.refereeNews.push(
-                `${referee.name}'s contract has run out. He is back in the pool and anybody can sign him.`,
-              );
+              official(`${referee.name}'s contract has run out. He is back in the pool and anybody can sign him.`);
               if (world.defaultRefereeId === referee.id) world.defaultRefereeId = null;
             }
           }
@@ -2177,11 +2443,11 @@ export const useGameStore = create<GameStore>()(
           if (!referee || !employer) continue;
           referee.promotionId = employer.id;
           referee.contract = createRefereeContract(referee, world.settings, world.settings.startingYear + Math.floor(world.week / 52));
-          world.refereeNews.push(`${employer.name} have signed ${referee.name} to work their shows.`);
+          official(`${employer.name} have signed ${referee.name} to work their shows.`);
         }
         world.referees.push(...refereePool.newcomers);
         for (const newcomer of refereePool.newcomers) {
-          world.refereeNews.push(`${newcomer.name} is licensed and looking for work. ${newcomer.blurb}`);
+          official(`${newcomer.name} is licensed and looking for work. ${newcomer.blurb}`);
         }
 
         // Recovery and momentum decay, for everybody in the business — the
@@ -2289,78 +2555,19 @@ export const useGameStore = create<GameStore>()(
           }
           notices.awards = awards;
 
-          const leaveTheBusiness = (id: Id, method: TitleReignEndMethod) => {
-            // A champion who is gone cannot carry a belt. It goes vacant, and
-            // the lineage records why.
-            for (const title of world.titles) {
-              if (title.vacant || !title.currentHolderIds.includes(id)) continue;
-              const last = title.history[title.history.length - 1];
-              if (last && last.endWeek === null) {
-                last.endWeek = world.week;
-                last.endMethod = method;
-              }
-              title.vacant = true;
-              title.currentHolderIds = [];
-              notices.vacatedTitleIds.push(title.id);
-            }
-            for (const w of Object.values(world.wrestlers)) {
-              const open = w.id === id ? w.titleReigns.find((r) => r.endWeek === null) : undefined;
-              if (open) {
-                open.endWeek = world.week;
-                open.endMethod = method;
-              }
-            }
-            world.promotion.rosterIds = world.promotion.rosterIds.filter((rosterId) => rosterId !== id);
-            for (const rival of world.rivals) {
-              rival.rosterIds = rival.rosterIds.filter((rosterId) => rosterId !== id);
-            }
-            world.freeAgents = world.freeAgents.filter((agent) => agent.wrestlerId !== id);
-            world.pendingRenewals = world.pendingRenewals.filter((r) => r.wrestlerId !== id);
-          };
 
+          // Birthdays are the one thing here that genuinely is annual.
+          // Deaths, retirements and comebacks moved to the weekly loop above.
           for (const w of Object.values(world.wrestlers)) {
-            if (w.deceased || w.role !== 'wrestler') continue;
+            if (w.deceased) continue;
             w.age += 1;
-
-            const passing = rollDeath(rng, w, world.week, world.settings);
-            if (passing) {
-              w.deceased = passing;
-              world.memoriam.push(passing);
-              notices.passings.push(passing);
-              leaveTheBusiness(w.id, 'died');
-              continue;
-            }
-
-            if (w.careerStatus === 'retired') {
-              const back = rollComeback(rng, w, {
-                currentYear: year,
-                rivalries: world.rivalries,
-                settings: world.settings,
-              });
-              if (back.returning) {
-                unretire(w, world.settings);
-                notices.comebacks.push({
-                  wrestlerId: w.id,
-                  overId: back.over?.participantIds.find((id) => id !== w.id) ?? null,
-                });
-                // They come back unsigned. Somebody has to want them.
-                world.freeAgents.push({
-                  wrestlerId: w.id,
-                  reason: 'returning',
-                  askingRate: askingRate(w, world.settings),
-                  weeksUnsigned: 0,
-                });
-              }
-              continue;
-            }
-
-            const call = rollRetirement(rng, w, careerCtx);
-            if (call.retiring) {
-              retire(w);
-              notices.retirements.push({ wrestlerId: w.id, reason: RETIREMENT_REASON_TEXT[call.reason] });
-              leaveTheBusiness(w.id, 'retired');
-            }
           }
+
+          // Drain what the year actually did to people into the digest.
+          notices.passings = [...world.thisYear.passings];
+          notices.retirements = [...world.thisYear.retirements];
+          notices.comebacks = [...world.thisYear.comebacks];
+          world.thisYear = { passings: [], retirements: [], comebacks: [] };
 
           // The hall considers everybody who is finished, not just your people.
           const hofCtx = { currentWeek: world.week, currentYear: year, settings: world.settings };
@@ -2371,6 +2578,7 @@ export const useGameStore = create<GameStore>()(
             if (!inductee.deceased) inductee.careerStatus = 'hallOfFamer';
             world.hallOfFame.push(entry);
             notices.inductions.push(entry);
+            world.weeklyNews.push(inductionLine(inductee.name, world.week));
           }
 
           // And the schools make up some of the difference.
@@ -2386,15 +2594,11 @@ export const useGameStore = create<GameStore>()(
           for (const graduate of intake.wrestlers) world.wrestlers[graduate.id] = graduate;
           world.freeAgents.push(...intake.freeAgents);
           notices.graduates = intake.wrestlers.map((w) => w.id);
+          if (intake.wrestlers.length > 0) {
+            world.weeklyNews.push(debutLine(intake.wrestlers.map((w) => w.name), world.week));
+          }
 
-          // A partnership does not survive one of them retiring, dying, or
-          // signing somewhere else.
-          disbandBrokenTeams(world.stables, world.week, (memberIds) => {
-            const people = memberIds.map((id) => world.wrestlers[id]);
-            if (people.some((w) => !w || w.deceased || w.careerStatus === 'retired')) return false;
-            const first = people[0]!.promotionId;
-            return first !== null && people.every((w) => w!.promotionId === first);
-          });
+          // Broken partnerships are cleared weekly now — see above.
 
           // New teams to replace the ones that broke up. A tag division that
           // only ever loses teams is a tag division that ends up empty.
@@ -2424,28 +2628,12 @@ export const useGameStore = create<GameStore>()(
               { taken: takenNames, week: world.week, count: wanted },
               () => `${company.id}-team-${world.nextId++}`,
             );
-            for (const team of formed) takenNames.add(team.name);
-            world.stables.push(...formed);
-          }
-
-          // Rivals replace the people they lost. They shop in the same pool
-          // the player does, so a promotion that leaves talent sitting there
-          // will watch somebody else sign it.
-          for (const rival of world.rivals) {
-            if (rival.closedWeek !== null) continue;
-            const target = rivalRosterSize(rival.rating, world.settings);
-            let short = target - rival.rosterIds.length;
-            while (short > 0 && world.freeAgents.length > 0) {
-              const index = Math.floor(rng.next() * world.freeAgents.length);
-              const agent = world.freeAgents[index]!;
-              const signing = world.wrestlers[agent.wrestlerId];
-              world.freeAgents.splice(index, 1);
-              if (!signing || signing.deceased || signing.careerStatus === 'retired') continue;
-              signing.promotionId = rival.id;
-              signing.contract = createStandardContract(signing, world.settings, year);
-              rival.rosterIds.push(signing.id);
-              short -= 1;
+            for (const team of formed) {
+              takenNames.add(team.name);
+              const names = team.memberIds.map((id) => world.wrestlers[id]?.name).filter(Boolean) as string[];
+              if (names.length > 0) world.weeklyNews.push(teamFormedLine(team.name, names, world.week));
             }
+            world.stables.push(...formed);
           }
 
           // A new year starts with a clean sheet. Opened last, once everybody
@@ -3139,11 +3327,19 @@ export const useGameStore = create<GameStore>()(
         const agent = world.freeAgents.find((a) => a.wrestlerId === wrestlerId);
         if (!wrestler || !agent) return;
         if (!canSign(wrestler, world.promotion.bankBalance, world.signingBanWeeks, world.settings)) return;
+        // Ninety days means ninety days, including for the company he just
+        // left. This is the thing the player traded a payout for.
+        if (!canBeSigned(wrestler)) return;
 
         wrestler.promotionId = world.promotion.id;
         wrestler.contract = {
           ...createStandardContract(wrestler, world.settings, world.settings.startingYear),
           weeklyRate: currentAskingRate(agent, world.settings),
+          // Somebody with a big opinion of themselves demands guarantees to
+          // sign, not only to re-sign. Attaching this at renewal alone meant
+          // a star could sit on the roster for years on a deal you could tear
+          // up for nothing, which is not what signing a star is.
+          guaranteedPct: guaranteedShareFor(wrestler.ego, world.settings),
         };
         world.promotion.rosterIds.push(wrestlerId);
         world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== wrestlerId);
@@ -3182,6 +3378,11 @@ export const useGameStore = create<GameStore>()(
             ...createStandardContract(member, world.settings, world.settings.startingYear),
             weeklyRate: offer.demand.weeklyRate,
             clauses: [...offer.demand.clauses],
+            // Guaranteed money is what the top of the card asks for and
+            // nobody else gets. It is also what makes re-signing a star a
+            // commitment rather than a line item — from here, cutting him
+            // costs the rest of the paper.
+            guaranteedPct: guaranteedShareFor(member.ego, world.settings),
           };
           member.morale = clamp(member.morale + 10, 0, 100);
           return;
@@ -3206,22 +3407,54 @@ export const useGameStore = create<GameStore>()(
     },
 
     releaseWrestler: (wrestlerId) => {
+      let outcome = { ok: false, reason: 'No game in progress.' as string | null, cost: 0 };
       set((state) => {
         const world = state.world;
         if (!world) return;
         const wrestler = world.wrestlers[wrestlerId];
         if (!wrestler) return;
-        wrestler.promotionId = null;
-        wrestler.contract = null;
-        world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestlerId);
-        // They do not vanish — they go back into the pool, where a rival can
-        // pick them up and you can watch them do it.
-        world.freeAgents.push({
-          wrestlerId,
-          reason: 'released',
-          askingRate: askingRate(wrestler, world.settings),
-          weeksUnsigned: 0,
-        });
+
+        const terms = exitTerms(wrestler, 'fired', world.settings, world.promotion.name);
+        // You cannot cut somebody you cannot afford to pay off. This is the
+        // whole weight of guaranteed money: a deal you regret is a deal you
+        // are stuck inside until you can fund the way out.
+        if (terms.severance > world.promotion.bankBalance) {
+          outcome = {
+            ok: false,
+            reason: 'You cannot cover what is guaranteed on that deal.',
+            cost: terms.severance,
+          };
+          return;
+        }
+
+        world.promotion.bankBalance -= terms.severance;
+        letThemGo(world, wrestler, terms);
+        outcome = { ok: true, reason: null, cost: terms.severance };
+      });
+      return outcome;
+    },
+
+    answerReleaseRequest: (wrestlerId, grant) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const index = world.releaseRequests.findIndex((r) => r.wrestlerId === wrestlerId);
+        const wrestler = world.wrestlers[wrestlerId];
+        if (index < 0 || !wrestler) return;
+        world.releaseRequests.splice(index, 1);
+
+        if (!grant) {
+          // He stays, and he is not happy about it. Saying no is often right
+          // — he is still your wrestler and he still has to work.
+          wrestler.morale = clamp(wrestler.morale - refusalCost(world.settings) * 2, 0, 100);
+          world.contractNews.push(
+            `${wrestler.name} asked for his release. He was told no, and he is still on the roster.`,
+          );
+          return;
+        }
+
+        const terms = exitTerms(wrestler, 'negotiatedRelease', world.settings, world.promotion.name);
+        letThemGo(world, wrestler, terms);
       });
     },
   })),

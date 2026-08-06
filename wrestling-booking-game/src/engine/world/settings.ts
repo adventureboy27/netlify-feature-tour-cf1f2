@@ -151,6 +151,18 @@ export function defaultWorldSettings(): WorldSettings {
     contractCraftWeight: 0.3,
     contractRenewalFloor: 1.05,
     contractAffordabilityWeeks: 12,
+    // Ninety days. Long enough that granting a release is a real weapon
+    // against a rival, short enough that it is not a retirement.
+    noCompeteWeeks: 13,
+    // Guarantees arrive with ego. Somebody you have pushed for two years
+    // wants their money whatever happens; the rest of the card is disposable.
+    egoGuaranteedPartial: 55,
+    egoGuaranteedHalf: 70,
+    egoGuaranteedFull: 88,
+    guaranteedPctPartial: 0.25,
+    releaseRequestChance: 0.07,
+    releaseRequestMorale: 30,
+    releaseRefusedMoraleCost: 4,
 
     // Show production economics
     travelCostPerHead: 45,

@@ -52,6 +52,10 @@ export function createStandardContract(wrestler: Wrestler, settings: WorldSettin
     weeksRemaining: STARTING_CONTRACT_WEEKS,
     totalWeeks: STARTING_CONTRACT_WEEKS,
     clauses: [],
+    // Nothing guaranteed. The opening roster is all handshake deals, which
+    // is what makes the first star you have to *re-sign* feel different —
+    // that is when guaranteed money enters the game.
+    guaranteedPct: 0,
     signedYear,
   };
 }

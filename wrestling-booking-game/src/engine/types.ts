@@ -444,6 +444,15 @@ export interface Wrestler {
   deceased?: Passing;
   /** Set when they are inducted. §19's hall of fame. */
   hallOfFameWeek?: number;
+  /**
+   * Weeks they are barred from signing anywhere, from a negotiated release.
+   *
+   * The thing the player trades for when somebody asks out: he walks away
+   * from the money he was owed, you agree to let him go, and he cannot turn
+   * up on a rival's show the following week. A contract that simply *expires*
+   * carries none of this — that man is free the next day.
+   */
+  noCompeteWeeks?: number;
 }
 
 /** The handful of things about a career that only the moment knows. */
@@ -594,6 +603,19 @@ export type Clause =
   | 'rematchClause';
 
 export interface Contract {
+  /**
+   * How much of the remaining term is guaranteed, 0-1.
+   *
+   * The single number the whole exit system turns on. Firing somebody costs
+   * their weekly rate times the weeks left times this — so at 0 a release is
+   * a handshake and free, and at 1 cutting your top guy eighteen months into
+   * a two-year deal is ruinous.
+   *
+   * Most of the card gets nothing. Guaranteed money is what a draw asks for
+   * instead of, or as well as, a higher rate, and it is the reason a long
+   * contract is a risk to the promotion and not only to the wrestler.
+   */
+  guaranteedPct: number;
   type: ContractType;
   weeklyRate: number;
   weeksRemaining: number;
@@ -1297,6 +1319,31 @@ export interface WorldSettings {
   contractRenewalFloor: number;
   /** Weeks of wages you must be able to cover before a signing is affordable. */
   contractAffordabilityWeeks: number;
+  /**
+   * Weeks a negotiated release keeps somebody off everybody's roster. Ninety
+   * days, in a game that runs in weeks.
+   */
+  noCompeteWeeks: number;
+  /**
+   * Ego at which somebody starts asking for guarantees, and at which they
+   * demand the whole deal.
+   *
+   * Keyed to ego rather than to career status on purpose: status labels like
+   * 'draw' are vanishingly rare (two people in a world of four hundred), so
+   * guarantees keyed to them never happened at all. Ego is the thing the
+   * player moves by pushing somebody — which makes guaranteed money the
+   * price of having built a star, exactly like the rest of the clause ladder.
+   */
+  egoGuaranteedPartial: number;
+  egoGuaranteedHalf: number;
+  egoGuaranteedFull: number;
+  guaranteedPctPartial: number;
+  /** Weekly chance an unhappy wrestler asks to be let go. */
+  releaseRequestChance: number;
+  /** Morale at or below which somebody starts thinking about asking out. */
+  releaseRequestMorale: number;
+  /** Refusing a release request costs this much morale, every week they sit. */
+  releaseRefusedMoraleCost: number;
 
   // Show production economics (engine/economy/showBudget.ts)
   travelCostPerHead: number;

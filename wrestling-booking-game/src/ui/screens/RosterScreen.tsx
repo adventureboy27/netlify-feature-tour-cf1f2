@@ -21,6 +21,7 @@ import { canFormTeam, teamOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTe
 import { ATTIRE_PALETTE } from '../paperdoll/palette';
 import { contractUrgency } from '../../engine/economy/contracts';
 import { canChangeRole, lockLabel, TRANSITION_ROLE_LABELS } from '../../engine/career/transition';
+import { severanceOwed, severanceWeight } from '../../engine/economy/termination';
 import { titlesHeldBy, shortTitleName, reignLength } from '../../data/titles';
 import {
   relationshipsFor,
@@ -64,6 +65,8 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
   const world = useGameStore((s) => s.world);
   const retireWrestler = useGameStore((s) => s.retireWrestler);
   const changeRole = useGameStore((s) => s.changeRole);
+  const releaseWrestler = useGameStore((s) => s.releaseWrestler);
+  const [releaseResult, setReleaseResult] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>('popularity');
 
   const roster = useMemo(() => {
@@ -112,6 +115,9 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
           const group = stableOf(w);
 
           const pressure = retirementPressure(w, { currentYear, settings: world.settings });
+          // What ending this deal early would cost. Zero for most of the
+          // card; a year of a draw's wages for the ones you built up.
+          const owed = severanceOwed(w.contract);
 
           const bonds = relationshipsFor(world.relationships, w.id)
             .filter((r) => world.promotion.rosterIds.includes(otherParty(r, w.id)))
@@ -325,6 +331,25 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     </div>
                   )}
                 </div>
+
+                {/* Cutting somebody, and what it costs. The number is on the
+                    button because the money is the decision — CLAUDE.md says
+                    never warn before a bad choice, and this is not a warning,
+                    it is the price on the ticket. */}
+                <div className="mt-1 flex items-center justify-between gap-2 text-[10px]">
+                  <span className={owed > 0 ? 'text-amber-400' : 'text-neutral-600'}>
+                    {severanceWeight(w.contract, world.promotion.bankBalance)}
+                  </span>
+                  <button
+                    type="button"
+                    data-testid={`release-${w.id}`}
+                    onClick={() => setReleaseResult(releaseWrestler(w.id).reason)}
+                    className="rounded bg-neutral-800 px-1.5 py-0.5 text-rose-300 hover:bg-rose-900/60"
+                  >
+                    Release{owed > 0 && <> · <Money amount={owed} /></>}
+                  </button>
+                </div>
+                {releaseResult && <div className="text-[10px] text-rose-400">{releaseResult}</div>}
 
                 {/* A character that is not working can be changed. Any of
                     them, any time — that is what a booker does. */}

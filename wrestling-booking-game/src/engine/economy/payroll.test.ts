@@ -9,6 +9,7 @@ function baseContract(overrides: Partial<Contract> = {}): Contract {
     weeksRemaining: 20,
     totalWeeks: 52,
     clauses: [],
+    guaranteedPct: 0,
     signedYear: 2026,
     ...overrides,
   };

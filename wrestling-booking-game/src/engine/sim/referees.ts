@@ -163,6 +163,9 @@ export function createRefereeContract(referee: Referee, settings: WorldSettings,
     weeksRemaining: settings.refereeContractWeeks,
     totalWeeks: settings.refereeContractWeeks,
     clauses: [],
+    // An official has no leverage to ask for guarantees, so cutting one is
+    // always free. That is part of why officiating is the cheap quality.
+    guaranteedPct: 0,
     signedYear,
   };
 }

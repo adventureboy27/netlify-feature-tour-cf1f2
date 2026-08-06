@@ -49,6 +49,7 @@ import type { FreeAgent } from '../engine/world/freeAgents';
 import { generateFreeAgentPool } from '../engine/world/freeAgents';
 import { createRefereeContract, seedRefereePool } from '../engine/sim/referees';
 import type { Manager } from '../engine/sim/ringside';
+import type { WireItem } from '../engine/world/wire';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
 import type { PendingEvent } from '../engine/events/types';
 import type { EventHistory } from '../engine/events/scheduler';
@@ -166,6 +167,40 @@ export interface World {
    * payroll — see engine/career/transition.ts.
    */
   staffManagers: Manager[];
+  /**
+   * Wrestlers who have asked to be let go, awaiting an answer. They keep
+   * working while they wait — and get unhappier every week they do.
+   */
+  releaseRequests: { wrestlerId: Id; openedWeek: number }[];
+  /**
+   * How people left, in sentences. Cleared and rebuilt weekly. Nobody leaves
+   * the roster without the game saying which of the three exits it was and
+   * what it cost — CLAUDE.md.
+   */
+  contractNews: string[];
+  /**
+   * Everything that happened to anybody this week — deaths, retirements,
+   * comebacks, team splits, rival signings, inductions, debuts. Cleared at
+   * the top of every week and printed on the results page.
+   *
+   * The single answer to "was this reported?". See engine/world/wire.ts for
+   * what was silently slipping through before it existed.
+   */
+  weeklyNews: WireItem[];
+  /**
+   * What has happened to people so far this year, accumulated week by week
+   * and drained into the year-in-review each December.
+   *
+   * Deaths, retirements and comebacks used to be *rolled* once a year, which
+   * meant fifty-one quiet weeks and one December where six people retired,
+   * three died and every tag team split up on the same night. They roll
+   * weekly now; this is what the annual digest reads instead.
+   */
+  thisYear: {
+    passings: Passing[];
+    retirements: { wrestlerId: Id; reason: string }[];
+    comebacks: { wrestlerId: Id; overId: Id | null }[];
+  };
   /** Championships. A promotion's spine. */
   titles: Title[];
   /** The map. Twelve markets, each with its own memory of every promotion. */
@@ -490,6 +525,10 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     defaultRefereeId: startingReferee?.id ?? null,
     refereeNews: [],
     staffManagers: [],
+    releaseRequests: [],
+    contractNews: [],
+    weeklyNews: [],
+    thisYear: { passings: [], retirements: [], comebacks: [] },
     titles: [...playerTitles, ...rivalTitles],
     // You are from somewhere. A promotion does not open in a town that has
     // never heard of it — the home territory starts with a real following and

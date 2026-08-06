@@ -10,6 +10,7 @@
 import { useMemo } from 'react';
 import { useGameStore } from '../../state/store';
 import { rankPool, currentAskingRate, canSign, AVAILABILITY_LABELS } from '../../engine/world/freeAgents';
+import { noCompeteLabel } from '../../engine/economy/termination';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { StatBar, AlignmentDot, Money } from '../components/display';
@@ -47,6 +48,9 @@ export function FreeAgentsScreen() {
           if (!wrestler) return null;
           const rate = currentAskingRate(agent, world.settings);
           const affordable = canSign(wrestler, world.promotion.bankBalance, world.signingBanWeeks, world.settings);
+          // He negotiated his way out of somewhere and gave up the money to
+          // do it. Nobody can touch him yet, including the company he left.
+          const sittingOut = noCompeteLabel(wrestler);
 
           return (
             <article
@@ -71,22 +75,29 @@ export function FreeAgentsScreen() {
                   {AVAILABILITY_LABELS[agent.reason]}
                   {agent.weeksUnsigned > 20 && <span className="text-neutral-600"> · {agent.weeksUnsigned}w unsigned</span>}
                 </div>
+                {sittingOut && <div className="mb-1 text-[10px] text-amber-400">{sittingOut}</div>}
                 <StatBar label="Popularity" value={wrestler.popularity} />
                 <StatBar label="Skill" value={wrestler.skill} />
 
                 <button
                   type="button"
                   data-testid={`sign-${agent.wrestlerId}`}
-                  disabled={!affordable}
+                  disabled={!affordable || Boolean(sittingOut)}
                   onClick={() => sign(agent.wrestlerId)}
                   className={`mt-1.5 w-full rounded px-2 py-1 text-[11px] ${
-                    affordable
+                    affordable && !sittingOut
                       ? 'bg-emerald-600 text-white hover:bg-emerald-500'
                       : 'bg-neutral-800 text-neutral-600'
                   }`}
                 >
-                  Sign · <Money amount={rate} />
-                  /wk
+                  {sittingOut ? (
+                    'Cannot sign yet'
+                  ) : (
+                    <>
+                      Sign · <Money amount={rate} />
+                      /wk
+                    </>
+                  )}
                 </button>
               </div>
             </article>

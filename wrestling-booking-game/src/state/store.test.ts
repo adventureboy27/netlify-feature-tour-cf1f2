@@ -217,6 +217,7 @@ describe('going under', () => {
     const store = useGameStore.getState();
     store.setVenue('schoolGym');
     store.setTicketPrice(1);
+    const hadContracts = [...useGameStore.getState().world!.promotion.rosterIds];
 
     for (let i = 0; i < 40 && !useGameStore.getState().world!.folded; i++) {
       useGameStore.getState().resolveWeek();
@@ -226,8 +227,20 @@ describe('going under', () => {
     expect(world.folded).not.toBeNull();
     expect(world.weeksInTheRed).toBeGreaterThan(world.settings.bankruptcyGraceWeeks);
     expect(world.promotion.rosterIds).toHaveLength(0);
+
     // Everybody who was under contract is loose in the business, not deleted.
-    expect(world.freeAgents.length).toBeGreaterThan(world.settings.freeAgentPoolSize);
+    // Asserted against the actual roster rather than against the starting
+    // pool size: rivals shop weekly now, so the pool is a moving number and
+    // comparing to its opening value only ever measured the rivals.
+    const loose = new Set(world.freeAgents.map((a) => a.wrestlerId));
+    const stillSomewhere = hadContracts.filter(
+      (id) =>
+        loose.has(id) ||
+        world.rivals.some((r) => r.rosterIds.includes(id)) ||
+        world.wrestlers[id]?.deceased ||
+        world.wrestlers[id]?.careerStatus === 'retired',
+    );
+    expect(stillSomewhere).toHaveLength(hadContracts.length);
   });
 
   it('will not run another show once it has folded', () => {

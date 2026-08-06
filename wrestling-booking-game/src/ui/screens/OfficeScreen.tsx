@@ -32,6 +32,7 @@ import { BID_LEVEL_LABELS, playerBidAmount, type PlayerBidLevel } from '../../en
 import { foldRisk, FOLD_RISK_LABELS } from '../../engine/world/rivalEconomy';
 import type { Wrestler } from '../../engine/types';
 import { contractUrgency } from '../../engine/economy/contracts';
+import { severanceOwed, guaranteeLabel } from '../../engine/economy/termination';
 import {
   signedReferees,
   availableReferees,
@@ -62,7 +63,8 @@ export function OfficeScreen() {
     (world.lastMandateOutcome ? 1 : 0) +
     (world.lastEventOutcome ? 1 : 0) +
     (world.lastAuction ? 1 : 0);
-  const inContracts = world.pendingRenewals.length + world.tamperingOffers.length;
+  const inContracts =
+    world.pendingRenewals.length + world.tamperingOffers.length + world.releaseRequests.length;
   // A promotion with nobody in a striped shirt is a promotion where a
   // wrestler counts every fall, so that is worth a badge on its own.
   const officialsNeedYou =
@@ -648,11 +650,17 @@ const YEAR_GROUP_LIMIT = 6;
 function ContractsTab() {
   const world = useGameStore((s) => s.world);
   const answerRenewal = useGameStore((s) => s.answerRenewal);
+  const answerReleaseRequest = useGameStore((s) => s.answerReleaseRequest);
   if (!world) return null;
 
   const wrestler = (id?: string): Wrestler | undefined => (id ? world.wrestlers[id] : undefined);
 
-  if (world.pendingRenewals.length === 0 && world.tamperingOffers.length === 0) {
+  if (
+    world.pendingRenewals.length === 0 &&
+    world.tamperingOffers.length === 0 &&
+    world.releaseRequests.length === 0 &&
+    world.contractNews.length === 0
+  ) {
     return (
       <p className="rounded border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-500">
         Every deal is signed and nobody is being courted. Enjoy it.
@@ -662,6 +670,75 @@ function ContractsTab() {
 
   return (
     <>
+      {/* Somebody wants out. Granting it costs nothing and puts him on
+          ninety days; refusing keeps him, and he gets unhappier every week
+          you make him stay. */}
+      {world.releaseRequests.length > 0 && (
+        <section className="mb-4">
+          <h2 className="mb-2 text-sm font-medium text-neutral-300">Asking to leave</h2>
+          <div className="flex flex-col gap-2">
+            {world.releaseRequests.map((request) => {
+              const person = wrestler(request.wrestlerId);
+              if (!person) return null;
+              return (
+                <article
+                  key={request.wrestlerId}
+                  data-testid={`release-request-${request.wrestlerId}`}
+                  className="rounded border border-rose-900/60 bg-neutral-900 p-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <PaperDoll
+                      appearance={person.appearance}
+                      gender={person.gender}
+                      alignment={person.alignment}
+                      size="thumb"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium">{person.name}</div>
+                      <div className="text-[11px] text-neutral-500">
+                        Wants out. Says he will tear up what he is owed —{' '}
+                        <Money amount={severanceOwed(person.contract)} /> of guarantees.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      data-testid={`release-grant-${request.wrestlerId}`}
+                      onClick={() => answerReleaseRequest(request.wrestlerId, true)}
+                      className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-200 hover:bg-neutral-700"
+                    >
+                      Let him go — ninety days
+                    </button>
+                    <button
+                      type="button"
+                      data-testid={`release-refuse-${request.wrestlerId}`}
+                      onClick={() => answerReleaseRequest(request.wrestlerId, false)}
+                      className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700"
+                    >
+                      He honours the deal
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* How people left. Nobody drops off the roster in silence. */}
+      {world.contractNews.length > 0 && (
+        <section className="mb-4">
+          <h2 className="mb-2 text-sm font-medium text-neutral-300">Comings and goings</h2>
+          <ul className="flex flex-col gap-1 rounded border border-neutral-800 bg-neutral-900 p-2">
+            {world.contractNews.map((line, i) => (
+              <li key={i} className="text-[11px] text-neutral-400">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {world.pendingRenewals.length > 0 && (
         <section className="mb-4">
           <h2 className="mb-2 text-sm font-medium text-neutral-300">Contracts up</h2>
@@ -689,6 +766,14 @@ function ContractsTab() {
                       <span className="text-neutral-600">/wk</span>
                     </div>
                   </div>
+
+                  {/* What they want guaranteed, which is the part that binds
+                      you long after the wage stops looking big. */}
+                  {guaranteeLabel(person.ego, world.settings) && (
+                    <div className="mt-1 text-[11px] text-amber-300">
+                      {guaranteeLabel(person.ego, world.settings)}
+                    </div>
+                  )}
 
                   {renewal.demand.clauseCosts.length > 0 && (
                     <ul className="mt-2 flex flex-col gap-0.5 border-l-2 border-amber-900/60 pl-2 text-[11px]">

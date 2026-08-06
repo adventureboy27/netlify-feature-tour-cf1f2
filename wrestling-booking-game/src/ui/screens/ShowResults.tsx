@@ -7,6 +7,7 @@
 // surface in the game.
 
 import { useGameStore } from '../../state/store';
+import { sortWire, WIRE_KIND_LABELS } from '../../engine/world/wire';
 import { stipulationById } from '../../data/stipulations';
 import { incidentById } from '../../data/incidents';
 import { showLede } from '../../engine/world/newsfeed';
@@ -291,6 +292,7 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
       )}
 
       <FanReaction />
+      <TheWire />
       <AroundTheBusiness />
       <ElsewhereTonight />
       <RivalryDigest />
@@ -375,6 +377,46 @@ function AroundTheBusiness() {
               </span>
             </div>
             <p className="text-xs text-neutral-200">{entry.incident.headline}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Everything that happened to anybody this week.
+ *
+ * The results page used to cover the card and nothing else, so a death, a
+ * retirement, a team splitting up or a rival signing the man you released all
+ * went unmentioned until — at best — the December digest. This is the section
+ * that keeps CLAUDE.md's promise for all of it.
+ */
+function TheWire() {
+  const world = useGameStore((s) => s.world);
+  if (!world || world.weeklyNews.length === 0) return null;
+  const items = sortWire(world.weeklyNews);
+
+  return (
+    <section className="mt-4">
+      <h2 className="mb-2 text-sm font-medium text-neutral-300">This week in the business</h2>
+      <div className="flex flex-col gap-1.5">
+        {items.map((item, i) => (
+          <article
+            key={`${item.kind}-${i}`}
+            data-testid={`wire-${item.kind}`}
+            className={`rounded border px-2 py-1.5 ${
+              item.weight === 'lead'
+                ? 'border-amber-900/60 bg-amber-950/20'
+                : 'border-neutral-800 bg-neutral-900'
+            }`}
+          >
+            <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+              {WIRE_KIND_LABELS[item.kind]}
+            </div>
+            <p className={`text-xs ${item.weight === 'lead' ? 'text-amber-200' : 'text-neutral-200'}`}>
+              {item.text}
+            </p>
           </article>
         ))}
       </div>
