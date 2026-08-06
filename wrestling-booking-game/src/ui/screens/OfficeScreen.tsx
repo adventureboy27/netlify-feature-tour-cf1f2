@@ -22,6 +22,7 @@ import { temptationLabel } from '../../engine/world/tampering';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { egoLabel } from '../../engine/career/ego';
 import { awardById } from '../../engine/career/awards';
+import { strikeWarning } from '../../engine/world/mandates';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Money } from '../components/display';
 import { identityOf } from '../../data/promotionIdentity';
@@ -42,6 +43,8 @@ export function OfficeScreen() {
     (world.pendingEvent ? 1 : 0) +
     (world.pendingAuction ? 1 : 0) +
     (world.yearInReview ? 1 : 0) +
+    (world.mandate ? 1 : 0) +
+    (world.lastMandateOutcome ? 1 : 0) +
     (world.lastEventOutcome ? 1 : 0) +
     (world.lastAuction ? 1 : 0);
   const inContracts = world.pendingRenewals.length + world.tamperingOffers.length;
@@ -101,6 +104,19 @@ export function OfficeScreen() {
 function StatusStrip() {
   const world = useGameStore((s) => s.world);
   if (!world) return null;
+
+  if (world.fired) {
+    return (
+      <section className="mb-3 rounded border border-rose-800 bg-rose-950/40 p-3" data-testid="fired">
+        <div className="text-xs uppercase tracking-wide text-rose-400">Fired</div>
+        <p className="mt-1 text-sm">{world.fired.reason}</p>
+        <p className="mt-1 text-xs text-neutral-400">
+          You were let go in week {world.fired.week}, after {world.mandateStrikes} missed mandates.{' '}
+          {world.promotion.name} carries on without you. What you built is on the Legacy and Records screens.
+        </p>
+      </section>
+    );
+  }
 
   if (world.folded) {
     return (
@@ -240,6 +256,7 @@ function DeskTab() {
         </section>
       )}
 
+      <Mandate />
       {world.yearInReview && <YearInReview onDismiss={dismissYear} />}
 
       {world.lastEventOutcome && (
@@ -283,6 +300,69 @@ function DeskTab() {
       ) : (
         <p className="rounded border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-500">
           Quiet week. Nobody is at your door.
+        </p>
+      )}
+    </>
+  );
+}
+
+/**
+ * What the owner wants.
+ *
+ * Deliberately just the demand and the clock. It does not say whether you can
+ * do it, how close you are, or what it is worth — the game does not warn you
+ * before a bad decision and it does not hold your hand through a good one.
+ * What it does say, loudly, is how much rope is left.
+ */
+function Mandate() {
+  const world = useGameStore((s) => s.world);
+  const dismissMandateOutcome = useGameStore((s) => s.dismissMandateOutcome);
+  if (!world || world.fired) return null;
+
+  const warning = strikeWarning(world.mandateStrikes, world.settings);
+  const outcome = world.lastMandateOutcome;
+
+  return (
+    <>
+      {outcome && (
+        <section
+          data-testid="mandate-outcome"
+          className={`mb-3 rounded border p-3 ${
+            outcome.met ? 'border-emerald-800 bg-emerald-950/30' : 'border-rose-800 bg-rose-950/30'
+          }`}
+        >
+          <div className={`text-xs uppercase tracking-wide ${outcome.met ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {outcome.met ? 'Mandate met' : 'Mandate missed'}
+          </div>
+          <p className="mt-1 text-sm">“{outcome.description}”</p>
+          <p className="mt-1 text-xs text-neutral-400">{outcome.verdict}</p>
+          <button
+            type="button"
+            data-testid="dismiss-mandate-outcome"
+            onClick={dismissMandateOutcome}
+            className="mt-2 rounded bg-neutral-800 px-3 py-1 text-xs hover:bg-neutral-700"
+          >
+            Understood
+          </button>
+        </section>
+      )}
+
+      {world.mandate && (
+        <section data-testid="mandate" className="mb-3 rounded border border-amber-800 bg-amber-950/20 p-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-xs uppercase tracking-wide text-amber-500">The owner wants</span>
+            <span className="shrink-0 text-[10px] text-neutral-500">
+              {Math.max(0, world.mandate.deadlineWeek - world.week)} weeks
+            </span>
+          </div>
+          <p className="mt-1 text-sm font-medium">“{world.mandate.description}”</p>
+          {warning && <p className="mt-1 text-[11px] text-rose-400">{warning}</p>}
+        </section>
+      )}
+
+      {!world.mandate && warning && (
+        <p className="mb-3 text-[11px] text-rose-400" data-testid="strike-warning">
+          {warning}
         </p>
       )}
     </>

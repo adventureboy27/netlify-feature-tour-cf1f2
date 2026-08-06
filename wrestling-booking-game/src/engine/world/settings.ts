@@ -450,6 +450,24 @@ export function defaultWorldSettings(): WorldSettings {
     rivalHouseShare: 0.7,
     startingTerritoryFollowing: 55,
 
+    // The owner. Roughly every four weeks, with four weeks to comply, and
+    // three failures ends the run — see engine/world/mandates.ts.
+    ownerMandatesEveryWeeks: 4,
+    mandateWeeksToComply: 4,
+    mandateStrikesBeforeFiring: 3,
+    mandateRatingClimb: 6,
+    mandatePayrollCut: 0.85,
+    mandateAttendanceClimb: 1.2,
+    mandateSignPopularity: 45,
+    mandateReleasePopularity: 32,
+    mandatePushMaxAge: 30,
+    mandatePushClimb: 8,
+    mandateAttendanceCeiling: 0.9,
+    mandateHardcoreCeiling: 40,
+    mandateRewardCash: 20_000,
+    mandatePenaltyCash: 15_000,
+    mandateFailureRating: 4,
+
     // House style. A few points either way — enough to notice over a season,
     // never enough to stop you booking who you like.
     houseStyleRatingWeight: 4,

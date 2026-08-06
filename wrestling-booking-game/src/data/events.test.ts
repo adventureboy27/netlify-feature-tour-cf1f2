@@ -37,6 +37,7 @@ function subjects(): EventSubjects {
     hardcoreSaturation: 0,
     recentShowQuality: 55,
     ownerId: 'owner-1',
+    ownerPersonality: 'showman' as const,
   };
   return { primary, secondary, promotion, rival: { ...promotion, id: 'them', name: 'Rival Co', isPlayer: false } };
 }

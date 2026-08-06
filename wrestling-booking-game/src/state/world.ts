@@ -33,6 +33,7 @@ import type {
   Relationship,
   Passing,
   Territory,
+  OwnerMandate,
 } from '../engine/types';
 import type { HallOfFameEntry } from '../engine/career/hallOfFame';
 import type { AwardWinner, YearRecord } from '../engine/career/awards';
@@ -51,6 +52,7 @@ import type { EventHistory } from '../engine/events/scheduler';
 import type { TamperingAttempt } from '../engine/world/tampering';
 import { emptyEventHistory } from '../engine/events/scheduler';
 import type { Rng } from '../engine/rng';
+import { pick } from '../engine/rng';
 import { generateWrestlers } from '../engine/generate/wrestler';
 import { createRivalry } from '../engine/sim/rivalry';
 import { createStandardContract } from '../engine/economy/contracts';
@@ -61,6 +63,7 @@ import { seedRelationships } from '../engine/career/relationships';
 import { formTeams, teamIdFactory } from '../engine/world/tagTeams';
 import { bestAvailableVenue } from '../data/venues';
 import { TERRITORIES, createTerritories } from '../data/territories';
+import { OWNER_PROFILES } from '../data/owners';
 import type { AttendanceRecord } from '../engine/world/territories';
 import type { AssetCondition } from '../engine/economy/showBudget';
 import type { ContractDemand } from '../engine/career/ego';
@@ -143,6 +146,16 @@ export interface World {
   memoriam: Passing[];
   /** The hall of fame, in induction order. */
   hallOfFame: HallOfFameEntry[];
+  /** What the owner currently wants, and when they want it by. */
+  mandate: OwnerMandate | null;
+  /** How the last one went. Shown once, then cleared. */
+  lastMandateOutcome: { description: string; met: boolean; verdict: string } | null;
+  /** Failed mandates. Three and the run is over — §17, LOCKED. */
+  mandateStrikes: number;
+  /** Set when the owner fires you. Like `folded`, the save becomes a record. */
+  fired: { week: number; reason: string } | null;
+  /** The biggest house drawn since the current mandate was issued. */
+  bestAttendanceThisMandate: number;
   /** What the turn of the year brought. Shown once, then it is history. */
   yearInReview: YearInReview | null;
   /**
@@ -290,7 +303,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     rosterIds: roster.map((w) => w.id),
     titleIds: [],
     ownedTerritoryIds: [],
-    homeTerritoryId: 'territory-unassigned',
+    homeTerritoryId: startingSetup.territoryId,
     styleProfile: styleProfileFor(settings.promotionArchetype),
     bookingCredibility: 50,
     reputation: 50,
@@ -302,6 +315,9 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     // DESIGN: a real Wrestler with role 'owner' is M5 (owner mandates); a
     // bare id placeholder is enough for M2, which never dereferences it.
     ownerId: randomId(rng, 'owner'),
+    // Who you work for, and therefore what you are going to be leaned on
+    // about for the rest of the save.
+    ownerPersonality: pick(rng, OWNER_PROFILES).id,
   };
 
   const rivals = createRivalPromotions(rng, settings);
@@ -409,6 +425,11 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     attendanceRecords: {},
     memoriam: [],
     hallOfFame: [],
+    mandate: null,
+    lastMandateOutcome: null,
+    mandateStrikes: 0,
+    fired: null,
+    bestAttendanceThisMandate: 0,
     yearInReview: null,
     yearRecord: emptyYearRecord(settings.startingYear, Object.values(wrestlers)),
     awardHistory: [],
@@ -498,6 +519,7 @@ function createRivalPromotions(rng: Rng, settings: WorldSettings): Promotion[] {
       weeksInTheRed: 0,
       closedWeek: null,
       ownerId: `owner-rival-${i}`,
+      ownerPersonality: pick(rng, OWNER_PROFILES).id,
     });
   }
 

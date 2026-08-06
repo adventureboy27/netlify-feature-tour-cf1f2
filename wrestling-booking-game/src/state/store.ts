@@ -49,6 +49,13 @@ import { annualInductions } from '../engine/career/hallOfFame';
 import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult } from '../engine/career/awards';
 import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
 import {
+  issueMandate,
+  mandateMet,
+  mandateExpired,
+  resolveMandate,
+  isFired,
+} from '../engine/world/mandates';
+import {
   followingOf,
   followingGain,
   followingDecay,
@@ -171,6 +178,8 @@ export interface GameStore {
   dismissAuctionResult: () => void;
   /** Clear the turn-of-the-year summary once it has been read. */
   dismissYearInReview: () => void;
+  /** Clear the owner's verdict on the last mandate once it has been read. */
+  dismissMandateOutcome: () => void;
   // Staging the show
   setVenue: (venueId: Id) => void;
   /** Where you are running this week. */
@@ -666,7 +675,8 @@ export const useGameStore = create<GameStore>()(
     autoFillCard: () => {
       set((state) => {
         const world = state.world;
-        if (!world || world.folded) return;
+        // Two ways a save ends: the bank, and the owner.
+        if (!world || world.folded || world.fired) return;
 
         const alreadyBooked = new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
         const available = world.promotion.rosterIds
@@ -714,7 +724,8 @@ export const useGameStore = create<GameStore>()(
     resolveWeek: () => {
       set((state) => {
         const world = state.world;
-        if (!world || world.folded) return;
+        // Two ways a save ends: the bank, and the owner.
+        if (!world || world.folded || world.fired) return;
 
         // An auction you never answered goes ahead without you. The business
         // does not wait for a booker to make up their mind.
@@ -1207,6 +1218,10 @@ export const useGameStore = create<GameStore>()(
             town.ownerPromotionId = world.promotion.id;
           }
           ranThisWeek.set(world.promotion.id, town.id);
+          // Where you ran is where you are from, as far as the owner is
+          // concerned — "run a show in my home town" is checked against this.
+          world.promotion.homeTerritoryId = town.id;
+          world.bestAttendanceThisMandate = Math.max(world.bestAttendanceThisMandate, attendance);
         }
 
         // Tonight goes into the running average, which is what decides how
@@ -1818,6 +1833,60 @@ export const useGameStore = create<GameStore>()(
           world.yearInReview = notices;
         }
 
+        // ---- the owner ---------------------------------------------------
+        // Checked after everything else, so a mandate met on tonight's show
+        // counts tonight rather than next week.
+        const mandateCtx = () => ({
+          week: world.week,
+          promotion: world.promotion,
+          personality: world.promotion.ownerPersonality,
+          roster: world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean),
+          available: world.freeAgents
+            .map((agent) => world.wrestlers[agent.wrestlerId])
+            .filter((w): w is Wrestler => Boolean(w)),
+          titles: world.titles,
+          territories: world.territories,
+          payroll,
+          bestAttendanceSince: world.bestAttendanceThisMandate,
+          // The biggest room they could rent, in the biggest market they could
+          // reach. Nobody is asked for more people than that.
+          reachableHouse: Math.min(
+            Math.max(...VENUES.filter((v) => world.promotion.rating >= v.minCompanyRating).map((v) => v.capacity), 0),
+            Math.max(...world.territories.map((t) => t.capacity)),
+          ),
+          settings: world.settings,
+        });
+
+        if (world.settings.ownerMandatesEnabled && !world.fired) {
+          if (world.mandate) {
+            const met = mandateMet(world.mandate, mandateCtx());
+            // Delivering early ends it early — there is no reason to make the
+            // player sit on a finished job for three more weeks.
+            if (met || mandateExpired(world.mandate.deadlineWeek, world.week)) {
+              const outcome = resolveMandate(met, world.settings);
+              world.promotion.bankBalance += outcome.money;
+              world.promotion.rating = clamp(world.promotion.rating + outcome.ratingDelta, 0, 100);
+              if (outcome.strike) world.mandateStrikes += 1;
+              world.lastMandateOutcome = {
+                description: world.mandate.description,
+                met,
+                verdict: outcome.verdict,
+              };
+              world.mandate = null;
+              world.bestAttendanceThisMandate = 0;
+
+              if (isFired(world.mandateStrikes, world.settings)) {
+                world.fired = {
+                  week: world.week,
+                  reason: 'Three mandates missed. The owner made good on the threat.',
+                };
+              }
+            }
+          } else if (world.week % world.settings.ownerMandatesEveryWeeks === 0) {
+            world.mandate = issueMandate(rng, mandateCtx());
+          }
+        }
+
         // Rival bookers come calling.
         world.tamperingOffers = rollTamperingAttempts(rng, {
           roster,
@@ -1916,7 +1985,8 @@ export const useGameStore = create<GameStore>()(
     formTagTeam: (aId, bId, name) => {
       set((state) => {
         const world = state.world;
-        if (!world || world.folded) return;
+        // Two ways a save ends: the bank, and the owner.
+        if (!world || world.folded || world.fired) return;
 
         const a = world.wrestlers[aId];
         const b = world.wrestlers[bId];
@@ -2062,6 +2132,12 @@ export const useGameStore = create<GameStore>()(
     dismissAuctionResult: () => {
       set((state) => {
         if (state.world) state.world.lastAuction = null;
+      });
+    },
+
+    dismissMandateOutcome: () => {
+      set((state) => {
+        if (state.world) state.world.lastMandateOutcome = null;
       });
     },
 

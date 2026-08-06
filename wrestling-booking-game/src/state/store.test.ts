@@ -6,6 +6,15 @@ function freshSettings() {
   return { ...defaultWorldSettings(), seed: 'store-test', startingRosterSize: 12 };
 }
 
+/**
+ * A world the owner is not leaning on. Anything that has to run for a year
+ * needs this: three ignored mandates ends a run at week 24, which is correct
+ * behaviour and makes a passive year impossible to simulate.
+ */
+function patientOwner() {
+  return { ...freshSettings(), ownerMandatesEnabled: false };
+}
+
 beforeEach(() => {
   useGameStore.getState().newGame(freshSettings());
 });
@@ -264,6 +273,7 @@ describe('the rest of the business', () => {
 describe('the awards night', () => {
   /** Run until the calendar turns, which is not exactly 52 shows in. */
   function toTheTurnOfTheYear(): void {
+    useGameStore.getState().newGame(patientOwner());
     for (let i = 0; i < 60; i++) {
       useGameStore.getState().autoFillCard();
       useGameStore.getState().resolveWeek();
@@ -350,5 +360,71 @@ describe('the awards night', () => {
     );
     const named = individual.flatMap((a) => a.wrestlerIds);
     expect(new Set(named).size).toBe(named.length);
+  });
+});
+
+describe('the owner', () => {
+  it('comes calling on schedule with something specific', () => {
+    for (let i = 0; i < 8; i++) {
+      useGameStore.getState().autoFillCard();
+      useGameStore.getState().resolveWeek();
+      if (useGameStore.getState().world!.mandate) break;
+    }
+    const world = useGameStore.getState().world!;
+    expect(world.mandate).not.toBeNull();
+    expect(world.mandate!.description.length).toBeGreaterThan(10);
+    expect(world.mandate!.deadlineWeek).toBeGreaterThan(world.week);
+  });
+
+  it('takes yes for an answer as soon as it is true', () => {
+    // Drive to a release mandate, then do the thing, and it should resolve on
+    // the next week rather than sitting until the deadline.
+    for (let i = 0; i < 40; i++) {
+      const world = useGameStore.getState().world!;
+      if (world.mandate?.type === 'releaseWrestler') break;
+      useGameStore.getState().autoFillCard();
+      useGameStore.getState().resolveWeek();
+      useGameStore.getState().dismissMandateOutcome();
+    }
+    const mandate = useGameStore.getState().world!.mandate;
+    if (mandate?.type !== 'releaseWrestler') return; // this seed never asked; nothing to assert
+
+    useGameStore.getState().releaseWrestler(mandate.targetId!);
+    useGameStore.getState().autoFillCard();
+    useGameStore.getState().resolveWeek();
+
+    const world = useGameStore.getState().world!;
+    expect(world.lastMandateOutcome?.met).toBe(true);
+    expect(world.mandate).toBeNull();
+    expect(world.mandateStrikes).toBe(0);
+  });
+
+  it('fires you on the third strike, and the save stops there', () => {
+    // Ignore everything the owner ever says.
+    for (let i = 0; i < 60 && !useGameStore.getState().world!.fired; i++) {
+      useGameStore.getState().autoFillCard();
+      useGameStore.getState().resolveWeek();
+      useGameStore.getState().dismissMandateOutcome();
+    }
+    const world = useGameStore.getState().world!;
+    expect(world.fired).not.toBeNull();
+    expect(world.mandateStrikes).toBe(world.settings.mandateStrikesBeforeFiring);
+
+    // And the run really is over — a week does not advance after it.
+    const weekWhenFired = world.week;
+    useGameStore.getState().resolveWeek();
+    expect(useGameStore.getState().world!.week).toBe(weekWhenFired);
+  });
+
+  it('leaves you alone when mandates are switched off', () => {
+    useGameStore.getState().newGame(patientOwner());
+    for (let i = 0; i < 30; i++) {
+      useGameStore.getState().autoFillCard();
+      useGameStore.getState().resolveWeek();
+    }
+    const world = useGameStore.getState().world!;
+    expect(world.mandate).toBeNull();
+    expect(world.mandateStrikes).toBe(0);
+    expect(world.fired).toBeNull();
   });
 });

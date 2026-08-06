@@ -908,6 +908,8 @@ export interface Promotion {
   /** Set when the company closes. A closed company runs no shows. */
   closedWeek: number | null;
   ownerId: Id; // a Wrestler record with role 'owner'
+  /** What the person signing the cheques is like. Biases what they demand. */
+  ownerPersonality: OwnerPersonality;
 }
 
 // ============================================================================
@@ -1565,6 +1567,31 @@ export interface WorldSettings {
   rivalHouseShare: number;
   /** How over a new promotion already is in the town it comes from. */
   startingTerritoryFollowing: number;
+
+  // Owner mandates — §17. LOCKED: three failures ends the run.
+  ownerMandatesEveryWeeks: number;
+  mandateWeeksToComply: number;
+  mandateStrikesBeforeFiring: number;
+  /** How far above the current rating the owner asks you to climb. */
+  mandateRatingClimb: number;
+  /** Share of the current wage bill they want it cut to. */
+  mandatePayrollCut: number;
+  /** Multiple of your best recent house they want you to beat. */
+  mandateAttendanceClimb: number;
+  /** Popularity a signing target has to be worth asking for. */
+  mandateSignPopularity: number;
+  /** And the ceiling below which somebody is expendable. */
+  mandateReleasePopularity: number;
+  mandatePushMaxAge: number;
+  /** How far above where they are now the owner wants somebody taken. */
+  mandatePushClimb: number;
+  /** Share of the biggest reachable house an owner will ask you to fill. */
+  mandateAttendanceCeiling: number;
+  /** Saturation above which the owner starts complaining about garbage. */
+  mandateHardcoreCeiling: number;
+  mandateRewardCash: number;
+  mandatePenaltyCash: number;
+  mandateFailureRating: number;
 
   /** Rating points a match gains for fitting the promotion's house style. */
   houseStyleRatingWeight: number;

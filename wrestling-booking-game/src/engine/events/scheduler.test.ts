@@ -35,6 +35,7 @@ function world(seed = 'sched') {
     hardcoreSaturation: 0,
     recentShowQuality: 55,
     ownerId: 'o',
+    ownerPersonality: 'showman' as const,
   };
   const rosterPeak = Math.max(...roster.map((w) => w.popularity));
   const statusOf = (w: Wrestler): CareerStatus =>

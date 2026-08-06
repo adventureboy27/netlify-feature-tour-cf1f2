@@ -35,6 +35,7 @@ function promotion(overrides: Partial<Promotion> = {}): Promotion {
     weeksInTheRed: 0,
     closedWeek: null,
     ownerId: 'owner-rival-0',
+    ownerPersonality: 'showman' as const,
     ...overrides,
   };
 }
