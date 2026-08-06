@@ -15,7 +15,14 @@ const SLOT_KEY = 'wbg.save.v1';
 // Bumped when the World gains state a running save cannot be without — v2
 // added the year record the end-of-year awards are judged on, which cannot be
 // reconstructed from a mid-year save.
-const SCHEMA_VERSION = 3;
+// Bumped whenever the World shape gains a field the code then dereferences
+// without a guard. Version 3 shipped mid-development and then grew
+// staffManagers, releaseRequests, contractNews, weeklyNews and thisYear
+// without a bump — a save from that window would load (the version matched)
+// and then throw on the first `world.weeklyNews.filter`. There is no
+// migration path by design: a mismatched save is refused with a message,
+// which is honest, and far better than loading one that explodes later.
+const SCHEMA_VERSION = 4;
 
 export interface SaveFile {
   schema: number;

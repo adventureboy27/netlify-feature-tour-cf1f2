@@ -605,3 +605,82 @@ describe('the officials', () => {
     expect(announced).toBe(true);
   });
 });
+
+describe('second careers', () => {
+  const patient = () => ({ ...patientOwner(), seed: 'careers' });
+
+  beforeEach(() => {
+    useGameStore.getState().newGame(patient());
+  });
+
+  const world = () => useGameStore.getState().world!;
+  const roster = () => world().promotion.rosterIds.map((id) => world().wrestlers[id]!).filter(Boolean);
+
+  it('lets you move somebody in week one of a new save', () => {
+    // The starting roster has never changed jobs, so it owes no cooldown.
+    // Treating "roleSinceWeek 0" as "just took the job" locked every save out
+    // of the entire system for its first year.
+    expect(world().week).toBe(1);
+    const anyone = roster()[0]!;
+    expect(useGameStore.getState().changeRole(anyone.id, 'referee')).toEqual({ ok: true, reason: null });
+  });
+
+  it('will not let them move straight back', () => {
+    const anyone = roster()[0]!;
+    useGameStore.getState().changeRole(anyone.id, 'referee');
+    const back = useGameStore.getState().changeRole(anyone.id, 'wrestler');
+    expect(back.ok).toBe(false);
+    expect(back.reason).toContain('weeks');
+  });
+
+  it('puts a converted wrestler in the shirt and takes him off the card', () => {
+    const anyone = roster()[0]!;
+    useGameStore.getState().changeRole(anyone.id, 'referee');
+
+    const asOfficial = world().referees.find((r) => r.wrestlerId === anyone.id);
+    expect(asOfficial).toBeDefined();
+    expect(asOfficial!.promotionId).toBe(world().promotion.id);
+    // No deal of his own: he is already on the roster payroll, and charging
+    // him twice was the obvious bug waiting in this feature.
+    expect(asOfficial!.contract).toBeNull();
+    // He brings a wrestler's toughness, which is the whole reason to convert
+    // one rather than sign a career official.
+    expect(asOfficial!.toughness).toBe(anyone.toughness);
+
+    useGameStore.getState().autoFillCard();
+    useGameStore.getState().resolveWeek();
+    const show = world().showHistory[0]!;
+    expect(show.segments.some((seg) => seg.participants.some((p) => p.wrestlerId === anyone.id))).toBe(false);
+  });
+
+  it('puts a converted wrestler in a suit, for nothing, and takes him off the card', () => {
+    const talker = [...roster()].sort((a, b) => b.charisma - a.charisma)[0]!;
+    useGameStore.getState().changeRole(talker.id, 'manager');
+
+    const asManager = world().staffManagers.find((m) => m.wrestlerId === talker.id);
+    expect(asManager).toBeDefined();
+    expect(asManager!.micWork).toBe(talker.charisma);
+    // Already on the payroll, so no appearance fee.
+    expect(asManager!.feePerShow).toBe(0);
+
+    useGameStore.getState().autoFillCard();
+    useGameStore.getState().setSegmentManager(0, asManager!.id, 0);
+    useGameStore.getState().resolveWeek();
+
+    const show = world().showHistory[0]!;
+    expect(show.segments.some((seg) => seg.participants.some((p) => p.wrestlerId === talker.id))).toBe(false);
+    // And the booking survived the night rather than being dropped for an
+    // unrecognised manager id — the pool lookup has to know about your own.
+    expect(world().showHistory[0]!.segments[0]!.managerIds?.[0]?.managerId).toBe(asManager!.id);
+  });
+
+  it('takes somebody out of the shirt when they leave the company', () => {
+    const anyone = roster()[0]!;
+    useGameStore.getState().changeRole(anyone.id, 'referee');
+    useGameStore.getState().releaseWrestler(anyone.id);
+
+    expect(world().wrestlers[anyone.id]!.role).toBe('wrestler');
+    expect(world().referees.find((r) => r.wrestlerId === anyone.id)!.promotionId).toBeNull();
+    expect(world().defaultRefereeId).not.toBe(`ref-of-${anyone.id}`);
+  });
+});

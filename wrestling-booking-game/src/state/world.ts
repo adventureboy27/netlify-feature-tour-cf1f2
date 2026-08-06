@@ -484,7 +484,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   });
 
   return {
-    version: 3,
+    version: 4,
     settings,
     week: 1,
     wrestlers,

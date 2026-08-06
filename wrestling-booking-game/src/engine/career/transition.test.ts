@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   canChangeRole,
+  hasNeverChangedRole,
   weeksInRole,
   lockLabel,
   convertedRefereeCompetence,
@@ -28,6 +29,16 @@ describe('the year they owe the job', () => {
   it('lets somebody who has been wrestling all along take the shirt', () => {
     const veteran = person({ roleSinceWeek: 0 });
     expect(canChangeRole(veteran, 'referee', 60, settings).ok).toBe(true);
+  });
+
+  it('does not charge a cooldown to somebody who has never changed jobs', () => {
+    // roleSinceWeek 0 means "never moved", not "moved in week zero". Reading
+    // it as tenure locked every brand-new save out of the whole system for
+    // its first year — found by playing, not by testing.
+    const openingRoster = person({ roleSinceWeek: 0 });
+    expect(hasNeverChangedRole(openingRoster)).toBe(true);
+    expect(canChangeRole(openingRoster, 'referee', 1, settings).ok).toBe(true);
+    expect(lockLabel(openingRoster, 1, settings)).toBe('Free to move');
   });
 
   it('will not let them move again the week after they moved', () => {

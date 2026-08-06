@@ -36,6 +36,22 @@ export const TRANSITION_ROLE_LABELS: Record<TransitionRole, string> = {
   manager: 'Manager',
 };
 
+/**
+ * Has this person ever changed jobs?
+ *
+ * `roleSinceWeek` is 0 for everybody who has only ever done the one thing —
+ * the whole starting roster, and everybody generated since. Weeks are
+ * 1-based, so 0 cannot mean "moved in week zero" and reads unambiguously as
+ * "never moved".
+ *
+ * This matters because the lock is a cooldown on *changing*, not a tenure
+ * requirement. Without it a new save locks its entire roster out of the
+ * system for a year, which is exactly the bug this replaced.
+ */
+export function hasNeverChangedRole(wrestler: Wrestler): boolean {
+  return wrestler.roleSinceWeek === 0;
+}
+
 /** Weeks somebody has been doing the job they are doing. */
 export function weeksInRole(wrestler: Wrestler, week: number): number {
   return Math.max(0, week - wrestler.roleSinceWeek);
@@ -67,6 +83,10 @@ export function canChangeRole(
   if (wrestler.role === to) return no(`Already ${TRANSITION_ROLE_LABELS[to].toLowerCase()}.`);
   if (wrestler.injury) return no('Not while they are hurt.');
 
+  // Somebody who has never changed jobs owes nothing — they have been doing
+  // this their whole career.
+  if (hasNeverChangedRole(wrestler)) return { ok: true, reason: null, weeksLeft: 0 };
+
   const served = weeksInRole(wrestler, week);
   const owed = settings.roleTransitionLockWeeks - served;
   if (owed > 0) {
@@ -83,6 +103,7 @@ export function canChangeRole(
 
 /** How long until they are free to move, in words. */
 export function lockLabel(wrestler: Wrestler, week: number, settings: WorldSettings): string {
+  if (hasNeverChangedRole(wrestler)) return 'Free to move';
   const owed = settings.roleTransitionLockWeeks - weeksInRole(wrestler, week);
   if (owed <= 0) return 'Free to move';
   if (owed <= 4) return 'Free to move soon';
