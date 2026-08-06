@@ -83,3 +83,57 @@ export function savedGameSummary(): { promotionName: string; week: number } | nu
 export function clearSave(): void {
   storage()?.removeItem(SLOT_KEY);
 }
+
+// ---------------------------------------------------------------------------
+// Taking a save out of the browser
+//
+// A promotion that has run for thirty simulated years lives in one browser's
+// localStorage, which is one cleared cache from gone. These two turn it into a
+// file the player owns.
+
+export function exportSave(world: World, rngState: number): string {
+  const file: SaveFile = {
+    schema: SCHEMA_VERSION,
+    savedAtWeek: world.week,
+    promotionName: world.promotion.name,
+    rngState,
+    world,
+  };
+  return JSON.stringify(file);
+}
+
+/**
+ * Read a save file back. Returns null with a reason rather than throwing,
+ * because the input is whatever the player picked off their disk.
+ */
+export function importSave(raw: string): { file: SaveFile } | { error: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { error: 'That file is not a save — it is not even JSON.' };
+  }
+  if (typeof parsed !== 'object' || parsed === null) return { error: 'That file does not contain a save.' };
+
+  const file = parsed as Partial<SaveFile>;
+  if (!file.world || typeof file.world !== 'object') return { error: 'That file has no world in it.' };
+  if (file.schema !== SCHEMA_VERSION) {
+    return {
+      error: `That save is from a different version of the game (schema ${file.schema ?? 'unknown'}, this build reads ${SCHEMA_VERSION}).`,
+    };
+  }
+  // A save missing the spine is not worth guessing at — better a clear refusal
+  // than a world that half-loads and breaks three weeks later.
+  const world = file.world as Partial<World>;
+  if (!world.promotion || !world.wrestlers || typeof world.week !== 'number') {
+    return { error: 'That save is incomplete.' };
+  }
+  return { file: file as SaveFile };
+}
+
+/** A filename that says what it is and when it was. */
+export function saveFilename(world: World): string {
+  const safe = world.promotion.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
+  const year = world.settings.startingYear + Math.floor(world.week / 52);
+  return `${safe || 'promotion'}-${year}-week-${world.week}.wbg.json`;
+}

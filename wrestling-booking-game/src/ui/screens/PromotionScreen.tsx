@@ -33,6 +33,7 @@ import { Money } from '../components/display';
 import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
 import { weeklyBroadcastIncome } from '../../engine/economy/broadcast';
+import { FileTransfer } from '../components/FileTransfer';
 
 export function PromotionScreen() {
   const world = useGameStore((s) => s.world);
@@ -135,6 +136,9 @@ export function PromotionScreen() {
 
       {/* ---- who is paying for all this -------------------------------- */}
       <BroadcastPanel />
+
+      {/* ---- getting things in and out --------------------------------- */}
+      <FileTransfer />
 
       {/* ---- venue ----------------------------------------------------- */}
       <section className="mb-4">

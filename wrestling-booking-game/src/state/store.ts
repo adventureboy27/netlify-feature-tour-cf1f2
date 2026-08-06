@@ -6,7 +6,14 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { rngFromSeed, rngFromState } from '../engine/rng';
-import { saveGame, loadGame } from './persist';
+import { saveGame, loadGame, exportSave, importSave } from './persist';
+import {
+  exportRoster,
+  parseRoster,
+  applyRosterEntry,
+  serializeRoster,
+} from '../engine/world/roster-io';
+import { generateWrestlers } from '../engine/generate/wrestler';
 import type { Rng } from '../engine/rng';
 import type {
   Appearance,
@@ -170,6 +177,18 @@ export interface GameStore {
   continueGame: () => boolean;
   /** Write the current world to local storage. Called after every week. */
   saveNow: () => boolean;
+  /** The whole save as text, for the player to keep. */
+  exportSaveFile: () => string | null;
+  /** Replace the running game with one from a file. */
+  importSaveFile: (raw: string) => { ok: boolean; error?: string };
+  /** This roster as a portable file — no ids, no world state. */
+  exportRosterFile: () => string | null;
+  /**
+   * Bring wrestlers in from a file. They arrive as free agents rather than
+   * signed, so importing somebody else's roster is a talent pool to sign from
+   * and not an instant thirty-man locker room.
+   */
+  importRosterFile: (raw: string) => { added: number; problems: string[] };
   setSegmentParticipant: (slot: number, wrestlerId: Id, side: number) => void;
   removeSegmentParticipant: (slot: number, wrestlerId: Id) => void;
   setSegmentRules: (slot: number, rules: Partial<MatchRules>) => void;
@@ -661,6 +680,79 @@ export const useGameStore = create<GameStore>()(
     saveNow: () => {
       const world = get().world;
       return world ? saveGame(world, rng.state?.() ?? 0) : false;
+    },
+
+    exportSaveFile: () => {
+      const world = get().world;
+      return world ? exportSave(world, rng.state?.() ?? 0) : null;
+    },
+
+    importSaveFile: (raw) => {
+      const result = importSave(raw);
+      if ('error' in result) return { ok: false, error: result.error };
+      // Resume the stream where the save left it, so an imported game carries
+      // on rolling rather than replaying weeks it already played.
+      rng = rngFromState(result.file.rngState);
+      set((state) => {
+        state.world = result.file.world;
+      });
+      saveGame(result.file.world, result.file.rngState);
+      return { ok: true };
+    },
+
+    exportRosterFile: () => {
+      const world = get().world;
+      if (!world) return null;
+      const roster = world.promotion.rosterIds
+        .map((id) => world.wrestlers[id])
+        .filter((w): w is Wrestler => Boolean(w));
+      return serializeRoster(exportRoster(roster, world.promotion.name));
+    },
+
+    importRosterFile: (raw) => {
+      const parsed = parseRoster(raw);
+      if (parsed.entries.length === 0) return { added: 0, problems: parsed.problems };
+
+      const problems = [...parsed.problems];
+      let added = 0;
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+
+        // Generation runs first and the file overwrites what it names, so a
+        // sparse entry still produces somebody complete. Names are checked
+        // against the whole business, not just this roster — an import must
+        // not put two people with the same name in the world.
+        const taken = new Set(Object.values(world.wrestlers).map((w) => w.name.trim().toLowerCase()));
+        const generated = generateWrestlers(rng, parsed.entries.length, {
+          currentYear: world.settings.startingYear + Math.floor(world.week / 52),
+          existingAppearances: Object.values(world.wrestlers).map((w) => w.appearance),
+          existingNames: taken,
+        });
+
+        parsed.entries.forEach((entry, index) => {
+          const base = generated[index];
+          if (!base) return;
+          if (taken.has(entry.name.trim().toLowerCase())) {
+            problems.push(`${entry.name} is already working somewhere. Skipped.`);
+            return;
+          }
+          const wrestler = applyRosterEntry(base, entry);
+          taken.add(wrestler.name.trim().toLowerCase());
+          world.wrestlers[wrestler.id] = wrestler;
+          world.freeAgents.push({
+            wrestlerId: wrestler.id,
+            reason: 'released',
+            askingRate: askingRate(wrestler, world.settings),
+            weeksUnsigned: 0,
+          });
+          added += 1;
+        });
+      });
+
+      const world = get().world;
+      if (world) saveGame(world, rng.state?.() ?? 0);
+      return { added, problems };
     },
 
     setSegmentParticipant: (slot, wrestlerId, side) => {
