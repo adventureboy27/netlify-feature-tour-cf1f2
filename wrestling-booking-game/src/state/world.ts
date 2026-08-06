@@ -78,6 +78,8 @@ export interface World {
   wrestlers: Record<Id, Wrestler>;
   promotion: Promotion;
   currentCard: Segment[];
+  /** Talking slots, separate from the match card — §9. */
+  currentPromos: Segment[];
   showHistory: Show[];
   rivalries: Rivalry[];
   tournaments: Tournament[];
@@ -273,6 +275,22 @@ export function createEmptyCard(segmentCount = SEGMENTS_PER_CARD): Segment[] {
   return Array.from({ length: segmentCount }, (_, i) => createEmptySegment(i));
 }
 
+/**
+ * The promo slots, which sit alongside the card rather than inside it — §9 is
+ * explicit that they do not consume match spots. Two a night by default.
+ */
+export function createEmptyPromoSlots(count: number): Segment[] {
+  return Array.from({ length: count }, (_, i) => ({
+    ...createEmptySegment(i),
+    kind: 'promo' as const,
+    promoTopicId: null,
+    promoSpeakerId: null,
+    promoTargetId: null,
+    promoMouthpieceId: null,
+    promoResult: null,
+  }));
+}
+
 function randomId(rng: Rng, prefix: string): string {
   let hex = '';
   for (let i = 0; i < 12; i++) hex += Math.floor(pseudoRandInt(rng, 16)).toString(16);
@@ -400,6 +418,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     wrestlers,
     promotion,
     currentCard: createEmptyCard(settings.segmentsPerTV),
+    currentPromos: createEmptyPromoSlots(settings.promoSlotsPerCard),
     showHistory: [],
     rivalries: seedShootRivalries(roster),
     tournaments: [],

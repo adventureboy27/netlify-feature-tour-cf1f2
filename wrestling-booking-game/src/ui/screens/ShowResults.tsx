@@ -39,7 +39,8 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
     const w = world.wrestlers[id];
     return w ? billedAs(w) : 'Someone';
   };
-  const booked = show.segments.filter((s) => s.result !== null);
+  const booked = show.segments.filter((s) => s.kind !== 'promo' && s.result !== null);
+  const promos = show.segments.filter((s) => s.kind === 'promo' && s.promoResult);
 
   // What the night led with. Everything below is the detail behind it.
   const namesOf = (ids: readonly string[]) => ids.map(wrestlerName);
@@ -211,6 +212,29 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
           </p>
         )}
       </div>
+
+      {promos.length > 0 && (
+        <section className="mt-4">
+          <h2 className="mb-2 text-sm font-medium text-neutral-300">On the microphone</h2>
+          <div className="flex flex-col gap-1.5">
+            {promos.map((slot, i) => (
+              <article
+                key={i}
+                data-testid={`promo-result-${i}`}
+                className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="truncate text-[11px] font-medium text-neutral-400">
+                    {slot.promoSpeakerId ? wrestlerName(slot.promoSpeakerId) : 'Somebody'}
+                  </span>
+                  <Stars stars={Math.max(0.5, Math.round((slot.promoResult!.quality / 20) * 2) / 2)} />
+                </div>
+                <p className="text-xs text-neutral-200">{slot.promoResult!.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       <FanReaction />
       <AroundTheBusiness />

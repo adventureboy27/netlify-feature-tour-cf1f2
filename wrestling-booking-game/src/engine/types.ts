@@ -836,6 +836,15 @@ export interface Segment {
   guestRefereeId?: Id | null;
   kind: 'match' | 'promo' | 'interview' | 'angle';
   subjectId?: Id; // for interviews: who is being elevated
+  /** What a promo slot is about. See data/promoTopics.ts. */
+  promoTopicId?: string | null;
+  /** Who is talking, and who they are talking about. */
+  promoSpeakerId?: Id | null;
+  promoTargetId?: Id | null;
+  /** A manager doing the talking for them. The promo rates off *their* mic work. */
+  promoMouthpieceId?: Id | null;
+  /** How it went. Set when the show resolves. */
+  promoResult?: { quality: number; text: string } | null;
   participants: SegmentRole[];
   rules: MatchRules;
   stipulation: Id | null;
@@ -1624,6 +1633,33 @@ export interface WorldSettings {
   broadcastWeeksOfGrace: number;
   /** How many sponsors will fit on a banner. Keeps it a choice. */
   maxSponsors: number;
+
+  // Promos — §9. Charisma first, popularity second, and that order is the
+  // point: it is where a great talker who cannot work earns his contract.
+  promoCharismaWeight: number;
+  promoPopularityWeight: number;
+  promoHeatBonus: number;
+  promoMoraleSwing: number;
+  promoVariance: number;
+  /** A promo at this quality neither helps nor hurts the show. */
+  promoNeutralQuality: number;
+  /** Deliberately smaller than a match — a card of promos is not a show. */
+  promoShowRatingWeight: number;
+  promoStartFeudHeat: number;
+  promoContinueFeudHeat: number;
+  promoChallengeHeat: number;
+  promoPopularity: number;
+  promoMomentum: number;
+  promoCompanyLift: number;
+  promoCalloutPopularity: number;
+  /** Does not scale with quality. The boys mind either way. */
+  promoCalloutMorale: number;
+  promoDebutPopularity: number;
+  promoFarewellMorale: number;
+  /** Following a promo wins or takes in the town it was cut in. */
+  promoFollowingGain: number;
+  promoEnergyCost: number;
+  promoEnergyCostDoubleBooked: number;
 
   /** Rating points a match gains for fitting the promotion's house style. */
   houseStyleRatingWeight: number;

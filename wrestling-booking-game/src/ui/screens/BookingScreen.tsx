@@ -15,6 +15,7 @@ import { Odds, HeatBadge, AlignmentDot, StatBar } from '../components/display';
 import { eligibleTitles, titleStakesLabel } from '../../engine/sim/titleMatch';
 import { shortTitleName } from '../../data/titles';
 import { isPPVWeek, ppvNameForWeek, weeksUntilPPV } from '../../engine/world/calendar';
+import { PromoSlots } from '../components/PromoSlots';
 import type { Id, Wrestler, Segment, Title, WorldSettings } from '../../engine/types';
 
 const SLOT_LABELS = ['Opener', 'Second', 'Third', 'Fourth', 'Semi-main', 'Main event'];
@@ -241,6 +242,8 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
           );
         })}
       </div>
+
+      <PromoSlots />
     </div>
   );
 }

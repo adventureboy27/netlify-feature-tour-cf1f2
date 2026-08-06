@@ -22,6 +22,7 @@ import type {
 import {
   createInitialWorld,
   createEmptyCard,
+  createEmptyPromoSlots,
   pairKey,
   styleProfileFor,
   rivalRosterSize,
@@ -49,6 +50,8 @@ import { annualInductions } from '../engine/career/hallOfFame';
 import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult } from '../engine/career/awards';
 import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
 import { isPPVWeek, ppvNameForWeek, segmentsForWeek, computeBuys, computeBuyRevenue } from '../engine/world/calendar';
+import { resolvePromo, promoIsValid, promoShowContribution, promoEnergyCost } from '../engine/sim/promo';
+import { promoTopicById, type PromoTopicId } from '../data/promoTopics';
 import {
   broadcastBreaches,
   sponsorBreaches,
@@ -170,6 +173,11 @@ export interface GameStore {
   setSegmentParticipant: (slot: number, wrestlerId: Id, side: number) => void;
   removeSegmentParticipant: (slot: number, wrestlerId: Id) => void;
   setSegmentRules: (slot: number, rules: Partial<MatchRules>) => void;
+  /** Cast a promo slot: who is talking, about what, and to whom. */
+  setPromo: (
+    slot: number,
+    cast: { topicId?: string | null; speakerId?: Id | null; targetId?: Id | null; mouthpieceId?: Id | null },
+  ) => void;
   setSegmentStipulation: (slot: number, stipulationId: Id | null) => void;
   /**
    * Let the office book whatever is still empty on the card. Not a shortcut
@@ -1037,6 +1045,71 @@ export const useGameStore = create<GameStore>()(
 
         });
 
+        // ---- the talking ------------------------------------------------
+        // Promo slots sit alongside the card rather than inside it (§9), so
+        // they are resolved here, after the matches, and contribute to the
+        // show on their own smaller scale.
+        let promoRating = 0;
+        for (const slot of world.currentPromos) {
+          const speaker = slot.promoSpeakerId ? wrestlerById.get(slot.promoSpeakerId) : undefined;
+          const topicId = slot.promoTopicId as PromoTopicId | null;
+          const target = slot.promoTargetId ? wrestlerById.get(slot.promoTargetId) : undefined;
+          const holdsTitle = Boolean(
+            speaker && world.titles.some((t) => t.promotionId === world.promotion.id && t.currentHolderIds.includes(speaker.id)),
+          );
+          if (!topicId || !promoIsValid(topicId, speaker ?? null, target ?? null, holdsTitle)) {
+            slot.promoResult = null;
+            continue;
+          }
+
+          const mouthpiece = slot.promoMouthpieceId ? managerById(slot.promoMouthpieceId) : undefined;
+          const rivalry = target ? findRivalry(world.rivalries, [speaker!.id, target.id]) : null;
+
+          const promo = resolvePromo(rng, {
+            speaker: speaker!,
+            target: target ?? null,
+            mouthpieceCharisma: mouthpiece?.micWork ?? null,
+            topicId,
+            existingHeat: rivalry?.heat ?? 0,
+            settings: world.settings,
+          });
+
+          for (const effect of promo.effects) applyEffect(world, effect);
+          promoRating += promoShowContribution(promo.quality, world.settings);
+
+          // Talking is work. Doing it on a night you also wrestle costs more.
+          const alsoWrestling = world.currentCard.some((segment) =>
+            segment.participants.some((p) => p.wrestlerId === speaker!.id),
+          );
+          speaker!.energy = clamp(
+            speaker!.energy - promoEnergyCost(alsoWrestling, world.settings),
+            0,
+            100,
+          );
+
+          // Two topics reach the map rather than the roster, so they are
+          // applied here where the territories live.
+          const townIndex = world.territories.findIndex((t) => t.id === world.showSetup.territoryId);
+          if (townIndex >= 0) {
+            const town = world.territories[townIndex]!;
+            const swing = (promo.quality / 100) * world.settings.promoFollowingGain;
+            if (topicId === 'advertise') {
+              town.following[world.promotion.id] = clamp(
+                followingOf(town, world.promotion.id) + swing,
+                0,
+                100,
+              );
+            }
+            if (topicId === 'invasionPromo' && town.ownerPromotionId && town.ownerPromotionId !== world.promotion.id) {
+              const holder = town.ownerPromotionId;
+              town.following[holder] = clamp(followingOf(town, holder) - swing, 0, 100);
+            }
+          }
+
+          slot.promoResult = { quality: promo.quality, text: promo.text };
+          worked.add(speaker!.id);
+        }
+
         const slotWeights = TV_SLOT_WEIGHTS.slice(0, world.currentCard.length);
         const inRingRating = computeShowRating(segmentRatings, slotWeights);
 
@@ -1192,7 +1265,7 @@ export const useGameStore = create<GameStore>()(
         // modifies a show; it cannot manufacture one, so a card with nothing
         // booked rates zero no matter how good the building looked.
         const showRating =
-          segmentPopAvgs.length === 0 ? 0 : clamp(inRingRating + productionRating + townFit, 0, 100);
+          segmentPopAvgs.length === 0 ? 0 : clamp(inRingRating + productionRating + townFit + promoRating, 0, 100);
         const showStars = ratingToStars(showRating);
 
         // §11.4 weapons model: violence booked tonight accrues, then the week
@@ -1290,7 +1363,7 @@ export const useGameStore = create<GameStore>()(
           type: isPPV ? 'ppv' : 'tvTaping',
           name: ppvName,
           territoryId: world.promotion.homeTerritoryId,
-          segments: world.currentCard,
+          segments: [...world.currentCard, ...world.currentPromos.filter((slot) => slot.promoResult)],
           attendance,
           ticketPrice,
           gate,
@@ -2070,6 +2143,7 @@ export const useGameStore = create<GameStore>()(
         }
 
         world.currentCard = createEmptyCard(segmentsForWeek(world.week, world.settings));
+        world.currentPromos = createEmptyPromoSlots(world.settings.promoSlotsPerCard);
       });
     },
 
@@ -2332,6 +2406,22 @@ export const useGameStore = create<GameStore>()(
           );
           world.showSetup.venueId = (fits[fits.length - 1] ?? fallbackVenue()).id;
         }
+      });
+    },
+
+    setPromo: (slot, cast) => {
+      set((state) => {
+        const promo = state.world?.currentPromos[slot];
+        if (!promo) return;
+        if (cast.topicId !== undefined) {
+          promo.promoTopicId = cast.topicId;
+          // A topic that needs nobody should not keep a stale target around.
+          const topic = cast.topicId ? promoTopicById(cast.topicId) : undefined;
+          if (topic && !topic.needsTarget) promo.promoTargetId = null;
+        }
+        if (cast.speakerId !== undefined) promo.promoSpeakerId = cast.speakerId;
+        if (cast.targetId !== undefined) promo.promoTargetId = cast.targetId;
+        if (cast.mouthpieceId !== undefined) promo.promoMouthpieceId = cast.mouthpieceId;
       });
     },
 

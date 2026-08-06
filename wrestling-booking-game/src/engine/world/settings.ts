@@ -490,6 +490,29 @@ export function defaultWorldSettings(): WorldSettings {
     broadcastWeeksOfGrace: 4,
     maxSponsors: 2,
 
+    // Promos. Charisma is worth twice popularity, so a 90-charisma nobody
+    // out-talks a 90-popularity mute — which is the entire design.
+    promoCharismaWeight: 0.6,
+    promoPopularityWeight: 0.3,
+    promoHeatBonus: 12,
+    promoMoraleSwing: 8,
+    promoVariance: 7,
+    promoNeutralQuality: 50,
+    promoShowRatingWeight: 0.12,
+    promoStartFeudHeat: 25,
+    promoContinueFeudHeat: 14,
+    promoChallengeHeat: 20,
+    promoPopularity: 3,
+    promoMomentum: 10,
+    promoCompanyLift: 1,
+    promoCalloutPopularity: 5,
+    promoCalloutMorale: 6,
+    promoDebutPopularity: 8,
+    promoFarewellMorale: 6,
+    promoFollowingGain: 3,
+    promoEnergyCost: 4,
+    promoEnergyCostDoubleBooked: 10,
+
     // House style. A few points either way — enough to notice over a season,
     // never enough to stop you booking who you like.
     houseStyleRatingWeight: 4,
