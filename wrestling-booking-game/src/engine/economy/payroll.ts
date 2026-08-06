@@ -13,7 +13,7 @@ import type { Clause, Contract } from '../types';
 
 export interface AppearanceFeeContext {
   contract: Contract;
-  role: 'competitor' | 'manager' | 'referee' | 'announcer' | 'roadAgent' | 'trainer';
+  role: 'competitor' | 'manager' | 'referee' | 'roadAgent' | 'trainer';
   isMainEvent: boolean;
   isPPV: boolean;
 }

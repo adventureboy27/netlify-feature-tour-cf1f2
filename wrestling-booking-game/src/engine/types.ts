@@ -108,14 +108,12 @@ export type Mood =
 // Staff roles (Wrestler.role)
 // ============================================================================
 
-export type StaffRole =
-  | 'wrestler'
-  | 'manager'
-  | 'referee'
-  | 'announcer'
-  | 'roadAgent'
-  | 'trainer'
-  | 'owner';
+// DESIGN: 'announcer' was here and is gone. Nobody was ever generated as one
+// and nothing ever paid one — it was a union member advertising a system that
+// did not exist. Announcers stay in the game as an unseen voice in the match
+// write-ups, which is all they were ever doing; if they are ever wanted as
+// characters they come back with a generator and a wage behind them.
+export type StaffRole = 'wrestler' | 'manager' | 'referee' | 'roadAgent' | 'trainer' | 'owner';
 
 // ============================================================================
 // §3.2 — Weight classes
@@ -823,7 +821,7 @@ export type ShowType = 'tvTaping' | 'ppv' | 'houseShow' | 'charity';
 export interface SegmentRole {
   wrestlerId: Id;
   side: number; // 0, 1, 2... for teams; -1 for non-competitors
-  role: 'competitor' | 'manager' | 'referee' | 'announcer' | 'lumberjack';
+  role: 'competitor' | 'manager' | 'referee' | 'lumberjack';
 }
 
 export interface Segment {
