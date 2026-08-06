@@ -99,6 +99,14 @@ export interface RefereeEffect {
   screwyFinishWeight: number;
   /** Multiplier on the interference weight. */
   interferenceWeight: number;
+  /**
+   * Multiplier on every finish that needs an official to make it official —
+   * a pinfall, a submission, a stoppage. Below 1 means those get harder to
+   * reach and the messy finishes take their place.
+   */
+  decisiveFinishWeight: number;
+  /** Somebody has to stop a match that has gone wrong. */
+  injuryMultiplier: number;
 }
 
 /**
@@ -112,6 +120,32 @@ export function refereeEffect(referee: Referee, settings: WorldSettings): Refere
     ratingBonus: (competence - 0.5) * 2 * settings.refereeRatingSwing,
     screwyFinishWeight: 1 + (1 - competence) * settings.refereeScrewyFinishWeight,
     interferenceWeight: 1 + (referee.bendable / 100) * settings.refereeBendableWeight,
+    // Even a poor official can still count to three.
+    decisiveFinishWeight: 1,
+    injuryMultiplier: 1,
+  };
+}
+
+/**
+ * Nobody in the shirt at all.
+ *
+ * This is the reason hiring one is a decision rather than a formality. With no
+ * official there is nobody to count three, nobody to hear a submission, and
+ * nobody to stop a match that has gone wrong — so decisive finishes get hard
+ * to reach, the messy ones take over, people get hurt, and the crowd can see
+ * they are watching something unprofessional.
+ *
+ * Deliberately worse on every axis than the worst referee in the pool. If
+ * booking nobody were merely cheaper, booking nobody would be correct, and the
+ * whole system would be decoration.
+ */
+export function noRefereeEffect(settings: WorldSettings): RefereeEffect {
+  return {
+    ratingBonus: -settings.noRefereeRatingPenalty,
+    screwyFinishWeight: 1 + settings.noRefereeScrewyFinishWeight,
+    interferenceWeight: 1 + settings.noRefereeInterferenceWeight,
+    decisiveFinishWeight: settings.noRefereeDecisiveFinishWeight,
+    injuryMultiplier: 1 + settings.noRefereeInjuryMultiplier,
   };
 }
 
@@ -130,6 +164,10 @@ export function guestRefereeEffect(guest: Wrestler, settings: WorldSettings): Re
     // Everybody watching knows this is going to end badly, and it usually does.
     screwyFinishWeight: 1 + settings.guestRefereeScrewyFinishWeight,
     interferenceWeight: 1 + starPower * settings.guestRefereeInterferenceWeight,
+    // They can count. Whether they count straight is another matter, and that
+    // is what the screwy weight above is for.
+    decisiveFinishWeight: 1,
+    injuryMultiplier: 1,
   };
 }
 
@@ -151,6 +189,12 @@ export interface RingsideTotals {
   ratingBonus: number;
   screwyFinishWeight: number;
   interferenceWeight: number;
+  /** Below 1 when there is nobody to make a finish official. */
+  decisiveFinishWeight: number;
+  /** Above 1 when there is nobody to stop a match going wrong. */
+  injuryMultiplier: number;
+  /** Whether anybody is officiating at all. Some finishes need one. */
+  hasOfficial: boolean;
   /** Total fees owed for everyone at ringside tonight. */
   cost: number;
 }
@@ -170,23 +214,26 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   }
 
   // A guest referee replaces the assigned official rather than joining them.
+  // Nobody at all is its own case, and a costly one — see noRefereeEffect.
+  const hasOfficial = Boolean(ctx.guestReferee || ctx.referee);
   const official = ctx.guestReferee
     ? guestRefereeEffect(ctx.guestReferee, ctx.settings)
     : ctx.referee
       ? refereeEffect(ctx.referee, ctx.settings)
-      : null;
+      : noRefereeEffect(ctx.settings);
 
-  if (official) {
-    ratingBonus += official.ratingBonus;
-    screwyFinishWeight *= official.screwyFinishWeight;
-    interferenceWeight *= official.interferenceWeight;
-  }
+  ratingBonus += official.ratingBonus;
+  screwyFinishWeight *= official.screwyFinishWeight;
+  interferenceWeight *= official.interferenceWeight;
   if (!ctx.guestReferee && ctx.referee) cost += ctx.referee.feePerShow;
 
   return {
     ratingBonus: clamp(ratingBonus, -20, 20),
     screwyFinishWeight,
     interferenceWeight,
+    decisiveFinishWeight: official.decisiveFinishWeight,
+    injuryMultiplier: official.injuryMultiplier,
+    hasOfficial,
     cost,
   };
 }

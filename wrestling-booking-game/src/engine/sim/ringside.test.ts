@@ -11,6 +11,7 @@ import { MANAGERS, REFEREES, managerById, refereeById, cheapestReferee } from '.
 import { defaultWorldSettings } from '../world/settings';
 import { generateWrestler } from '../generate/wrestler';
 import { rngFromSeed } from '../rng';
+import { rollFinish } from './finish';
 import type { Wrestler } from '../types';
 
 const settings = defaultWorldSettings();
@@ -147,11 +148,14 @@ describe('everything at ringside together', () => {
     expect(totals.cost).toBe(manager.feePerShow + referee.feePerShow);
   });
 
-  it('costs nothing when nobody is at ringside', () => {
+  it('costs no wages when nobody is at ringside, but is not free', () => {
+    // This test used to assert ratingBonus 0 and screwy weight 1, which was
+    // the bug: an empty shirt was strictly better than a bad referee, so the
+    // correct play was to never hire one.
     const totals = ringsideTotals({ managers: [], referee: null, guestReferee: null, settings });
     expect(totals.cost).toBe(0);
-    expect(totals.ratingBonus).toBe(0);
-    expect(totals.screwyFinishWeight).toBe(1);
+    expect(totals.ratingBonus).toBeLessThan(0);
+    expect(totals.screwyFinishWeight).toBeGreaterThan(1);
   });
 
   it('replaces the assigned official with the guest rather than paying both', () => {
@@ -184,5 +188,126 @@ describe('everything at ringside together', () => {
       settings,
     });
     expect(everyone.ratingBonus).toBeLessThanOrEqual(20);
+  });
+});
+
+describe('running a match with nobody in the shirt', () => {
+  const settings = defaultWorldSettings();
+  const nobody = () => ringsideTotals({ managers: [], referee: null, guestReferee: null, settings });
+
+  it('is worse than every referee in the pool at running a match', () => {
+    // If booking nobody were merely cheaper, booking nobody would be the
+    // correct play and the whole referee system would be decoration. Checked
+    // against the real pool rather than an invented extreme.
+    for (const referee of REFEREES) {
+      const hired = ringsideTotals({ managers: [], referee, guestReferee: null, settings });
+      expect(nobody().ratingBonus).toBeLessThan(hired.ratingBonus);
+      expect(nobody().screwyFinishWeight).toBeGreaterThan(hired.screwyFinishWeight);
+      expect(nobody().injuryMultiplier).toBeGreaterThan(hired.injuryMultiplier);
+      expect(nobody().decisiveFinishWeight).toBeLessThan(hired.decisiveFinishWeight);
+    }
+  });
+
+  it('is not the most interference-prone option, and should not be', () => {
+    // A bought referee is a *tool*: somebody actively helping a wrestler
+    // cheat produces more interference than an empty shirt does. Chaos and
+    // corruption are different problems and the numbers say so.
+    const bent = REFEREES.reduce((worst, r) => (r.bendable > worst.bendable ? r : worst));
+    const crooked = ringsideTotals({ managers: [], referee: bent, guestReferee: null, settings });
+    expect(crooked.interferenceWeight).toBeGreaterThan(nobody().interferenceWeight);
+    // But an empty shirt is still worse than an honest one.
+    const honest = REFEREES.reduce((best, r) => (r.bendable < best.bendable ? r : best));
+    const straight = ringsideTotals({ managers: [], referee: honest, guestReferee: null, settings });
+    expect(nobody().interferenceWeight).toBeGreaterThan(straight.interferenceWeight);
+  });
+
+  it('costs nothing in wages, which is the whole temptation', () => {
+    expect(nobody().cost).toBe(0);
+    expect(cheapestReferee().feePerShow).toBeGreaterThan(0);
+  });
+
+  it('says whether anybody is officiating', () => {
+    expect(nobody().hasOfficial).toBe(false);
+    expect(ringsideTotals({ managers: [], referee: REFEREES[0]!, guestReferee: null, settings }).hasOfficial).toBe(
+      true,
+    );
+    expect(
+      ringsideTotals({ managers: [], referee: null, guestReferee: w({ popularity: 70 }), settings }).hasOfficial,
+    ).toBe(true);
+  });
+
+  it('leaves a guest referee able to count, however crooked they are', () => {
+    const guest = ringsideTotals({ managers: [], referee: null, guestReferee: w({ popularity: 70 }), settings });
+    expect(guest.decisiveFinishWeight).toBe(1);
+    expect(guest.injuryMultiplier).toBe(1);
+  });
+});
+
+describe('what the finish looks like with no official', () => {
+  const settings = defaultWorldSettings();
+  const rules = {
+    preset: 'singles' as const,
+    format: 'individuals' as const,
+    ruleStrictness: 'lenient' as const,
+    aim: 'firstFall' as const,
+    falls: 'pinsAndSubs' as const,
+    timeLimit: 15 as const,
+    stoppage: 'referee' as const,
+    countOuts: 'normal' as const,
+    reward: 'none' as const,
+  };
+
+  function finishSpread(hasOfficial: boolean): Record<string, number> {
+    const totals = ringsideTotals({
+      managers: [],
+      referee: hasOfficial ? REFEREES.find((r) => r.id === 'ref-birch') ?? REFEREES[0]! : null,
+      guestReferee: null,
+      settings,
+    });
+    const counts: Record<string, number> = {};
+    for (let i = 0; i < 3000; i++) {
+      const finish = rollFinish(rngFromSeed(`f-${hasOfficial}-${i}`), {
+        rules,
+        isCloselyMatched: false,
+        violenceLevel: 0,
+        winnerIsTechnician: false,
+        isUpset: false,
+        injuryMultiplier: totals.injuryMultiplier,
+        ringsideWeights: {
+          screwy: totals.screwyFinishWeight,
+          interference: totals.interferenceWeight,
+          decisive: totals.decisiveFinishWeight,
+          hasOfficial: totals.hasOfficial,
+        },
+      });
+      counts[finish] = (counts[finish] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  it('makes a clean decision much harder to reach', () => {
+    const officiated = finishSpread(true);
+    const chaos = finishSpread(false);
+    const decisive = (c: Record<string, number>) =>
+      (c.cleanPin ?? 0) + (c.submission ?? 0) + (c.rollup ?? 0) + (c.refereeStoppage ?? 0);
+    expect(decisive(chaos)).toBeLessThan(decisive(officiated) * 0.6);
+  });
+
+  it('has nobody to stop the match, so there is no referee stoppage at all', () => {
+    expect(finishSpread(false).refereeStoppage ?? 0).toBe(0);
+    expect(finishSpread(true).refereeStoppage ?? 0).toBeGreaterThan(0);
+  });
+
+  it('fills the gap with the messy finishes instead', () => {
+    const officiated = finishSpread(true);
+    const chaos = finishSpread(false);
+    const messy = (c: Record<string, number>) =>
+      (c.disqualification ?? 0) + (c.countOut ?? 0) + (c.doubleKO ?? 0) + (c.timeLimitDraw ?? 0);
+    expect(messy(chaos)).toBeGreaterThan(messy(officiated));
+  });
+
+  it('still always produces a finish', () => {
+    const chaos = finishSpread(false);
+    expect(Object.values(chaos).reduce((a, b) => a + b, 0)).toBe(3000);
   });
 });

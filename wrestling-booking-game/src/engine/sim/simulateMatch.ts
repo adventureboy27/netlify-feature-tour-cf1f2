@@ -145,11 +145,20 @@ export function simulateMatch(
     isUpset,
     isCloselyMatched: Math.abs(winnerProbability - 0.5) < 0.1,
     finishWeights: ctx.stipulation?.finishWeights,
-    injuryMultiplier: (ctx.stipulation?.injuryMult ?? 1) * shootInjuryMultiplier(rivalry ?? undefined, ctx.settings),
+    injuryMultiplier:
+      (ctx.stipulation?.injuryMult ?? 1) *
+      shootInjuryMultiplier(rivalry ?? undefined, ctx.settings) *
+      // Nobody to stop it when it goes wrong.
+      (ctx.ringside?.injuryMultiplier ?? 1),
     // A crooked or incompetent official makes a screwy finish likelier; a
     // manager at ringside makes interference likelier still.
     ringsideWeights: ctx.ringside
-      ? { screwy: ctx.ringside.screwyFinishWeight, interference: ctx.ringside.interferenceWeight }
+      ? {
+          screwy: ctx.ringside.screwyFinishWeight,
+          interference: ctx.ringside.interferenceWeight,
+          decisive: ctx.ringside.decisiveFinishWeight,
+          hasOfficial: ctx.ringside.hasOfficial,
+        }
       : undefined,
   });
   const draw = isDrawFinish(finish);
@@ -207,7 +216,11 @@ export function simulateMatch(
     ratingBreakdown: breakdown,
     beats,
     winProbabilitiesBySide,
-    injuryMultiplier: (ctx.stipulation?.injuryMult ?? 1) * shootInjuryMultiplier(rivalry ?? undefined, ctx.settings),
+    injuryMultiplier:
+      (ctx.stipulation?.injuryMult ?? 1) *
+      shootInjuryMultiplier(rivalry ?? undefined, ctx.settings) *
+      // Nobody to stop it when it goes wrong.
+      (ctx.ringside?.injuryMultiplier ?? 1),
     heatChange,
   };
 }

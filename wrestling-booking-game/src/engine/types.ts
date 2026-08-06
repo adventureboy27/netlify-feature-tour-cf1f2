@@ -1659,6 +1659,16 @@ export interface WorldSettings {
   promoEnergyCost: number;
   promoEnergyCostDoubleBooked: number;
 
+  // Running a match with nobody in the shirt — §10. Every one of these is
+  // deliberately worse than the worst referee in the pool, or booking nobody
+  // would be the correct play and the whole system would be decoration.
+  noRefereeRatingPenalty: number;
+  noRefereeScrewyFinishWeight: number;
+  noRefereeInterferenceWeight: number;
+  /** Below 1: nobody can count three, so clean finishes get hard to reach. */
+  noRefereeDecisiveFinishWeight: number;
+  noRefereeInjuryMultiplier: number;
+
   /** Rating points a match gains for fitting the promotion's house style. */
   houseStyleRatingWeight: number;
   /** Rating points a card loses for running past what this audience will take. */

@@ -490,6 +490,15 @@ function SegmentEditor({
 
         <div className="flex flex-col gap-1">
           <span className="text-[11px] text-neutral-400">Referee</span>
+          {/* Stating what the option *is* — not whether it is wise. The rule
+              against warning the player is about bookings, not about hiding
+              what a control does. "Whoever is available" used to sit here and
+              read as the game assigning somebody, which it never did. */}
+          {!segment.refereeId && !segment.guestRefereeId && (
+            <span className="text-[11px] text-amber-400">
+              No official. Nobody can count a fall, hear a submission, or stop it.
+            </span>
+          )}
           <div className="flex flex-wrap gap-1">
             <button
               type="button"
@@ -498,7 +507,7 @@ function SegmentEditor({
                 !segment.refereeId && !segment.guestRefereeId ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'
               }`}
             >
-              Whoever is available
+              Nobody
             </button>
             {REFEREES.map((referee) => (
               <button

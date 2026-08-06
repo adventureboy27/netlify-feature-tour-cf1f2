@@ -27,7 +27,7 @@ export interface FinishRollContext {
    * Ringside personnel (§10). A poor or bought official pushes the screwy
    * finishes up; a devious manager pushes interference up.
    */
-  ringsideWeights?: { screwy: number; interference: number };
+  ringsideWeights?: { screwy: number; interference: number; decisive?: number; hasOfficial?: boolean };
 }
 
 export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
@@ -70,7 +70,10 @@ export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
   if (ctx.violenceLevel >= 4) doubleKO *= 2;
   entries.push(['doubleKO', doubleKO]);
 
-  const refereeStoppage = ctx.rules.stoppage !== 'none' ? 3 : 0;
+  // Somebody has to make the call. With nobody in the shirt there is no
+  // stoppage available, however badly one is needed.
+  const refereeStoppage =
+    ctx.rules.stoppage !== 'none' && (ctx.ringsideWeights?.hasOfficial ?? true) ? 3 : 0;
   entries.push(['refereeStoppage', refereeStoppage]);
 
   // Rare at baseline, and climbing fast with violence and bad blood.
@@ -82,10 +85,18 @@ export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
     : entries;
 
   const ringside = ctx.ringsideWeights;
+  // Finishes that need somebody to make them official. Without a referee
+  // these get hard to reach and the messy ones take their place — which is
+  // what "the match got out of hand" actually looks like in the results.
+  const NEEDS_AN_OFFICIAL: FinishType[] = ['cleanPin', 'submission', 'rollup', 'refereeStoppage'];
+
   const weighted = ringside
     ? stipulationWeighted.map(([finish, weight]) => {
         if (finish === 'disqualification' || finish === 'countOut') return [finish, weight * ringside.screwy] as [FinishType, number];
         if (finish === 'interference') return [finish, weight * ringside.interference] as [FinishType, number];
+        if (NEEDS_AN_OFFICIAL.includes(finish)) {
+          return [finish, weight * (ringside.decisive ?? 1)] as [FinishType, number];
+        }
         return [finish, weight] as [FinishType, number];
       })
     : stipulationWeighted;

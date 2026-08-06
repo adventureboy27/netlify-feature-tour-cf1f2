@@ -513,6 +513,15 @@ export function defaultWorldSettings(): WorldSettings {
     promoEnergyCost: 4,
     promoEnergyCostDoubleBooked: 10,
 
+    // No referee. The worst official in the pool sits around competence 35,
+    // which is a -3 rating and a 1.65x screwy weight; every number here is
+    // past that, so hiring the cheapest warm body still beats hiring nobody.
+    noRefereeRatingPenalty: 9,
+    noRefereeScrewyFinishWeight: 2.5,
+    noRefereeInterferenceWeight: 1.2,
+    noRefereeDecisiveFinishWeight: 0.35,
+    noRefereeInjuryMultiplier: 0.6,
+
     // House style. A few points either way — enough to notice over a season,
     // never enough to stop you booking who you like.
     houseStyleRatingWeight: 4,

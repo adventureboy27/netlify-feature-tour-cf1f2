@@ -47,7 +47,7 @@ import {
 } from '../engine/sim/rivalry';
 import { computeTvRatings, buildRatingsChart } from '../engine/world/tvRatings';
 import { ringsideTotals, guestRefereeIsLegal } from '../engine/sim/ringside';
-import { managerById, refereeById } from '../data/ringsidePool';
+import { REFEREES, managerById, refereeById } from '../data/ringsidePool';
 import { NETWORK_SHOWS } from '../data/networkShows';
 import { rollTamperingAttempts } from '../engine/world/tampering';
 import { deriveCareerStatus } from '../engine/career/status';
@@ -825,6 +825,15 @@ export const useGameStore = create<GameStore>()(
           );
           segment.titleIds = match.titleIds ?? [];
         });
+
+        // The office puts an official on every match it books. Leaving a match
+        // without one is a decision the player can make on purpose, not one
+        // they should back into by pressing Fill the card.
+        for (const segment of world.currentCard) {
+          const booked = new Set(segment.participants.map((p) => p.side)).size >= 2;
+          if (!booked || segment.refereeId || segment.guestRefereeId) continue;
+          segment.refereeId = pick(rng, REFEREES).id;
+        }
       });
     },
 
