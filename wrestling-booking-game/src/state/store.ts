@@ -64,6 +64,7 @@ import {
 } from '../engine/career/transition';
 import type { Manager } from '../engine/sim/ringside';
 import { evaluateTrade, tradeLine } from '../engine/world/trades';
+import { decayPaceSaturation } from '../engine/sim/pacing';
 import {
   wire,
   teamSplitLine,
@@ -1243,6 +1244,11 @@ export const useGameStore = create<GameStore>()(
             houseStyleFit: houseStyleRatingBonus(participantWrestlers, world.promotion.identity, world.settings),
             titles: titlesOnTheLine,
             isMainEvent: i === world.currentCard.length - 1,
+            isOpener: i === 0,
+            // How numb the crowd already is to being shown this, carried in
+            // at the level the promotion opened the show with — so every
+            // match on one card is judged against the same number.
+            paceSaturation: world.paceSaturation[segment.rules.pace] ?? 0,
             rivalry,
             ringside,
             // The thumb on the scale. The [8%, 92%] clamp still applies, so
@@ -1549,6 +1555,8 @@ export const useGameStore = create<GameStore>()(
             rating: result.rating,
             stipulation,
             isMainEvent: i === world.currentCard.length - 1,
+            healthCostMultiplier: result.healthCostMultiplier,
+            energyCostMultiplier: result.energyCostMultiplier,
             settings: world.settings,
           });
           for (const change of changes) {
@@ -1586,6 +1594,16 @@ export const useGameStore = create<GameStore>()(
             week: world.week,
             promotionName: world.promotion.name,
           });
+
+          // Calling for the same blow-away every week is how a promotion
+          // runs out of ways to escalate.
+          if (result.paceSaturationAdded > 0) {
+            world.paceSaturation[segment.rules.pace] = clamp(
+              (world.paceSaturation[segment.rules.pace] ?? 0) + result.paceSaturationAdded,
+              0,
+              100,
+            );
+          }
 
           segmentRatings.push(result.rating);
           const avgPop = participantWrestlers.reduce((sum, w) => sum + w.popularity, 0) / participantWrestlers.length;
@@ -2290,6 +2308,12 @@ export const useGameStore = create<GameStore>()(
               );
             }
           }
+        }
+
+        // A crowd forgets. Whatever the player has not leaned on lately goes
+        // back to being effective.
+        for (const key of Object.keys(world.paceSaturation)) {
+          world.paceSaturation[key] = decayPaceSaturation(world.paceSaturation[key] ?? 0, world.settings);
         }
 
         // ---- who left the business this week -----------------------------

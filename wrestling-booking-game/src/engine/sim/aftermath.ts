@@ -30,6 +30,12 @@ export interface AftermathContext {
   stipulation: Stipulation | null;
   /** True for a main event — the spot amplifies everything. */
   isMainEvent: boolean;
+  /**
+   * What the pace they were asked to work costs their bodies. An all-out
+   * match takes nearly twice what a sprint does — see sim/pacing.ts.
+   */
+  healthCostMultiplier?: number;
+  energyCostMultiplier?: number;
   settings: WorldSettings;
 }
 
@@ -67,7 +73,8 @@ export function computeAftermath(ctx: AftermathContext): AftermathChange[] {
 
   // The night's work, felt by everybody: a hard match takes more out of you.
   const violence = ctx.stipulation?.violenceLevel ?? 0;
-  const cost = s.matchHealthCost + violence * s.matchHealthCostPerViolence;
+  const cost = (s.matchHealthCost + violence * s.matchHealthCostPerViolence) * (ctx.healthCostMultiplier ?? 1);
+  const energyCost = s.matchEnergyCost * (ctx.energyCostMultiplier ?? 1);
 
   return ctx.participants.map((w) => {
     const outcome: AftermathChange['outcome'] = !decisive ? 'draw' : winners.has(w.id) ? 'win' : 'loss';
@@ -93,7 +100,7 @@ export function computeAftermath(ctx: AftermathContext): AftermathChange[] {
       momentum,
       popularity,
       health: -cost,
-      energy: -s.matchEnergyCost,
+      energy: -energyCost,
       outcome,
     };
   });

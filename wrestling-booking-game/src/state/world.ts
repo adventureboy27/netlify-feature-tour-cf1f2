@@ -69,6 +69,7 @@ import { bestAvailableVenue } from '../data/venues';
 import { TERRITORIES, createTerritories } from '../data/territories';
 import { OWNER_PROFILES } from '../data/owners';
 import { ppvCalendarFor } from '../data/ppvNames';
+import { DEFAULT_PACE } from '../data/pacing';
 import type { AttendanceRecord } from '../engine/world/territories';
 import type { AssetCondition } from '../engine/economy/showBudget';
 import type { ContractDemand } from '../engine/career/ego';
@@ -190,6 +191,12 @@ export interface World {
    * week until the dice land.
    */
   tradeRefusals: Record<Id, number>;
+  /**
+   * How numb the crowd is to each pace, keyed by pace id. Only the ones that
+   * carry a cost ever climb — a sprint never gets old because it was never
+   * the point.
+   */
+  paceSaturation: Record<string, number>;
   thisYear: {
     passings: Passing[];
     retirements: { wrestlerId: Id; reason: string }[];
@@ -291,6 +298,7 @@ export function defaultMatchRules(): MatchRules {
     stoppage: 'referee',
     countOuts: 'normal',
     reward: 'none',
+    pace: DEFAULT_PACE,
   };
 }
 
@@ -521,6 +529,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     releaseRequests: [],
     weeklyNews: [],
     tradeRefusals: {},
+    paceSaturation: {},
     thisYear: { passings: [], retirements: [], comebacks: [] },
     titles: [...playerTitles, ...rivalTitles],
     // You are from somewhere. A promotion does not open in a town that has

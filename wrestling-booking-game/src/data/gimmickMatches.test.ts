@@ -20,6 +20,7 @@ const strictRules: MatchRules = {
   stoppage: 'referee',
   countOuts: 'normal',
   reward: 'none',
+    pace: 'standard',
 };
 
 /** Roll a stipulation's finish many times and tally what came up. */

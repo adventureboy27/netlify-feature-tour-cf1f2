@@ -334,6 +334,10 @@ export function defaultWorldSettings(): WorldSettings {
     deathHealthWeight: 0.8,
     deathChanceCap: 0.3,
     deathYoungFloor: 0.0002,
+    // A crowd numb to blow-away matches. Steep enough that running all-out
+    // every week stops working inside a couple of months.
+    paceSaturationPenalty: 14,
+    paceSaturationDecayPerWeek: 7,
     deathOldAge: 75,
 
     // The fans. Ten voices a show, and never more than 85% agreeing.

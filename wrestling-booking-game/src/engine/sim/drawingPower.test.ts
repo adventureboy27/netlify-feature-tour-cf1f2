@@ -54,6 +54,8 @@ function rate(participants: Wrestler[], finish: FinishType, over: Partial<MatchR
     houseStyleFit: 0,
     pairChemistryBonus: 0,
     overexposurePenalty: 0,
+    paceBonus: 0,
+    paceCeiling: 100,
     ...over,
   }).rating;
 }
@@ -127,6 +129,8 @@ describe('two great wrestlers given room to work', () => {
     houseStyleFit: 0,
       pairChemistryBonus: 0,
       overexposurePenalty: 0,
+    paceBonus: 0,
+    paceCeiling: 100,
     }).rating;
     // Roughly a full star between the same two people given room to work and
     // the same two in a designed squash: 11 points of balance plus the
@@ -145,6 +149,7 @@ describe('injury stoppages are rare, and violence makes them less so', () => {
   const rules: MatchRules = {
     preset: 'singles', format: 'individuals', ruleStrictness: 'lenient', aim: 'firstFall',
     falls: 'pinsAndSubs', timeLimit: 15, stoppage: 'referee', countOuts: 'normal', reward: 'none',
+    pace: 'standard',
   };
 
   function injuryRate(injuryMultiplier: number): number {

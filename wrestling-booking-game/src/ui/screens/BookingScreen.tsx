@@ -17,7 +17,9 @@ import { eligibleTitles, titleStakesLabel } from '../../engine/sim/titleMatch';
 import { shortTitleName } from '../../data/titles';
 import { isPPVWeek, ppvNameForWeek, weeksUntilPPV } from '../../engine/world/calendar';
 import { PromoSlots } from '../components/PromoSlots';
-import type { Id, Wrestler, Segment, Title, WorldSettings, Referee } from '../../engine/types';
+import type { Id, Wrestler, Segment, Title, WorldSettings, Referee, PaceId } from '../../engine/types';
+import { PACES, paceById } from '../../data/pacing';
+import { paceFit } from '../../engine/sim/pacing';
 
 /**
  * How worn an official is, as a colour. The player is managing a crew across
@@ -321,6 +323,10 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                     bookableTitles={bookable}
                     onToggleTitle={(id) => toggleTitle(index, id)}
                     onTimeLimit={(minutes) => setRules(index, { timeLimit: minutes })}
+                    onPace={(pace) => setRules(index, { pace })}
+                    isMainEvent={index === world.currentCard.length - 1}
+                    isOpener={index === 0}
+                    paceSaturation={world.paceSaturation[segment.rules.pace] ?? 0}
                     onManager={(managerId, forSide) => setManager(index, managerId, forSide)}
                     onReferee={(refereeId) => setReferee(index, refereeId)}
                     onGuestReferee={(id) => setGuestReferee(index, id)}
@@ -357,6 +363,10 @@ function SegmentEditor({
   bookableTitles,
   onToggleTitle,
   onTimeLimit,
+  onPace,
+  isMainEvent,
+  isOpener,
+  paceSaturation,
   onManager,
   onReferee,
   onGuestReferee,
@@ -374,6 +384,10 @@ function SegmentEditor({
   bookableTitles: Title[];
   onToggleTitle: (id: Id) => void;
   onTimeLimit: (minutes: (typeof TIME_LIMITS)[number]) => void;
+  onPace: (pace: PaceId) => void;
+  isMainEvent: boolean;
+  isOpener: boolean;
+  paceSaturation: number;
   onManager: (managerId: Id | null, forSide: number) => void;
   onReferee: (refereeId: Id | null) => void;
   onGuestReferee: (wrestlerId: Id | null) => void;
@@ -387,6 +401,11 @@ function SegmentEditor({
 }) {
   const [side, setSide] = useState(0);
   const [search, setSearch] = useState('');
+
+  // Who is actually in this match, for reading the pace against.
+  const paceParticipants = segment.participants
+    .map((p) => roster.find((w) => w.id === p.wrestlerId))
+    .filter((w): w is Wrestler => Boolean(w));
 
   const available = roster
     .filter((w) => !unavailable.has(w.id))
@@ -694,6 +713,48 @@ function SegmentEditor({
               ))}
           </div>
         </div>
+      </div>
+
+      <div>
+        <div className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">
+          Pace <span className="normal-case text-neutral-600">— what you send them out to do</span>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {PACES.map((pace) => (
+            <button
+              key={pace.id}
+              type="button"
+              data-testid={`pace-${pace.id}`}
+              onClick={() => onPace(pace.id)}
+              title={pace.blurb}
+              className={`rounded px-2 py-1 text-[11px] ${
+                segment.rules.pace === pace.id
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+              }`}
+            >
+              {pace.name}
+            </button>
+          ))}
+        </div>
+        {/* Says what the call is worth to the people picked, the same way
+            manager fit does. Never a warning — the card will happily let you
+            put a sprint on top. */}
+        {paceParticipants.length > 0 && (
+          <div className="mt-1 flex flex-col gap-0.5">
+            <span className="text-[10px] text-sky-400">
+              {paceFit({
+                pace: segment.rules.pace,
+                participants: paceParticipants,
+                isMainEvent,
+                isOpener,
+                saturation: paceSaturation,
+                settings,
+              })}
+            </span>
+            <span className="text-[10px] text-neutral-600">{paceById(segment.rules.pace).blurb}</span>
+          </div>
+        )}
       </div>
 
       <div>

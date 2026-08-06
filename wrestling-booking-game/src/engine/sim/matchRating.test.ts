@@ -26,6 +26,8 @@ function baseContext(overrides: Partial<MatchRatingContext> = {}): MatchRatingCo
     houseStyleFit: 0,
     pairChemistryBonus: 0,
     overexposurePenalty: 0,
+    paceBonus: 0,
+    paceCeiling: 100,
     ...overrides,
   };
 }

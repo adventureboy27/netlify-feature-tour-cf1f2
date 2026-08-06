@@ -48,6 +48,13 @@ export interface MatchRatingContext {
   houseStyleFit: number;
   pairChemistryBonus: number;
   overexposurePenalty: number;
+  /** What the booker asked them to go out and do — see sim/pacing.ts. */
+  paceBonus: number;
+  /**
+   * Hard ceiling the pace imposes. A sprint cannot produce a classic however
+   * good the people in it are, which is the trade for how cheap it is.
+   */
+  paceCeiling: number;
 }
 
 /**
@@ -127,6 +134,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
   const overexposure = term('Overexposure', -Math.abs(ctx.overexposurePenalty));
   const hardcoreSaturation = term('Hardcore saturation', -(ctx.hardcoreSaturation / 100) * 12);
   const shootHeat = term('Bad blood', ctx.shootHeatBonus);
+  const pace = term('Pace', ctx.paceBonus);
 
   // DESIGN: §11.4 references "expected length" for the boredom penalty
   // without a formula. Modeled as a popularity-scaled ceiling: an act with
@@ -172,13 +180,17 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
     overexposure +
     hardcoreSaturation +
     shootHeat +
+    pace +
     boredom +
     mismatchedStipulation +
     jobberDrag +
     finishSatisfaction +
     randomness;
 
-  const rating = clamp(total, 3, 100);
+  // The pace ceiling binds last, after everything else has been counted. A
+  // sprint with two of the best in the world in it is still a sprint: it can
+  // be the best short match you ever ran and it is not a classic.
+  const rating = clamp(Math.min(total, ctx.paceCeiling), 3, 100);
   // Same conversion as the show rating — quarter stars, one source of truth.
   const stars = ratingToStars(rating);
 

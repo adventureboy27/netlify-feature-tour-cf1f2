@@ -43,6 +43,7 @@ const RIVAL_MATCH_RULES: MatchRules = {
   stoppage: 'referee',
   countOuts: 'normal',
   reward: 'none',
+  pace: 'standard',
 };
 
 /** A match the AI has decided to run, before it is simulated. */

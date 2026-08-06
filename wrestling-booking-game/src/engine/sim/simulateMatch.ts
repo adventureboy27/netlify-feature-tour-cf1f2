@@ -21,6 +21,7 @@ import { ruleAdjustedWeights, kayfabeScore } from './kayfabe';
 import { pairWinProbability, multiManWinProbabilities } from './winProbability';
 import { rollFinish, isDrawFinish, isNonDecisiveFinish } from './finish';
 import { computeMatchRating } from './matchRating';
+import { paceEffect } from './pacing';
 import { generateBeats } from './narrative';
 import { effectiveRules } from '../../data/stipulations';
 
@@ -54,6 +55,10 @@ export interface SimulateMatchContext {
   titles?: readonly Title[];
   /** True for the last match on the card — it earns a longer write-up. */
   isMainEvent?: boolean;
+  /** First on the card, where a hot start is worth most. */
+  isOpener?: boolean;
+  /** How numb the crowd is to this pace, 0-100. */
+  paceSaturation?: number;
   pairChemistryBonus?: number;
   overexposurePenalty?: number;
 }
@@ -73,6 +78,11 @@ export interface MatchSimResult {
    * surfaced here so a shoot rivalry's cost is computed in one place.
    */
   injuryMultiplier: number;
+  /** Multipliers the aftermath applies to what the match cost the people in it. */
+  healthCostMultiplier: number;
+  energyCostMultiplier: number;
+  /** Added to the promotion's counter for this pace. */
+  paceSaturationAdded: number;
   /** How the rivalry moved, if these two were in one. Caller commits it. */
   heatChange: HeatChange | null;
 }
@@ -138,6 +148,18 @@ export function simulateMatch(
   const loserMembers = sides.filter((s) => s !== winnerSide).flatMap((s) => sideMembers.get(s)!);
   const winnerIsTechnician = winnerMembers.some((w) => w.archetype === 'technician');
 
+  // What the pace is worth here, and what it costs. Worked out once and used
+  // by the finish roll, the rating and the aftermath — the same call has to
+  // move all three or it is not a real lever.
+  const pace = paceEffect({
+    pace: rules.pace,
+    participants: sides.flatMap((s) => sideMembers.get(s)!),
+    isMainEvent: ctx.isMainEvent ?? false,
+    isOpener: ctx.isOpener ?? false,
+    saturation: ctx.paceSaturation ?? 0,
+    settings: ctx.settings,
+  });
+
   const finish = rollFinish(rng, {
     rules,
     violenceLevel: ctx.stipulation?.violenceLevel ?? 0,
@@ -149,7 +171,9 @@ export function simulateMatch(
       (ctx.stipulation?.injuryMult ?? 1) *
       shootInjuryMultiplier(rivalry ?? undefined, ctx.settings) *
       // Nobody to stop it when it goes wrong.
-      (ctx.ringside?.injuryMultiplier ?? 1),
+      (ctx.ringside?.injuryMultiplier ?? 1) *
+      // And what the booker asked them to go out and do.
+      pace.injuryMultiplier,
     // A crooked or incompetent official makes a screwy finish likelier; a
     // manager at ringside makes interference likelier still.
     ringsideWeights: ctx.ringside
@@ -179,6 +203,8 @@ export function simulateMatch(
     hardcoreSaturation: ctx.hardcoreSaturation ?? 0,
     slotExpectedPopularity: ctx.slotExpectedPopularity ?? null,
     instructionModifier: (ctx.instructionModifier ?? 0) + (ctx.ringside?.ratingBonus ?? 0),
+    paceBonus: pace.ratingBonus,
+    paceCeiling: pace.ratingCeiling,
     territoryFit: ctx.territoryFit ?? 0,
     houseStyleFit: ctx.houseStyleFit ?? 0,
     pairChemistryBonus: ctx.pairChemistryBonus ?? 0,
@@ -220,7 +246,13 @@ export function simulateMatch(
       (ctx.stipulation?.injuryMult ?? 1) *
       shootInjuryMultiplier(rivalry ?? undefined, ctx.settings) *
       // Nobody to stop it when it goes wrong.
-      (ctx.ringside?.injuryMultiplier ?? 1),
+      (ctx.ringside?.injuryMultiplier ?? 1) *
+      pace.injuryMultiplier,
+    // What the night takes out of them, and how numb the crowd now is to
+    // being shown this.
+    healthCostMultiplier: pace.healthCostMultiplier,
+    energyCostMultiplier: pace.energyCostMultiplier,
+    paceSaturationAdded: pace.saturationAdded,
     heatChange,
   };
 }

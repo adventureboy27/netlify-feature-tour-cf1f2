@@ -16,6 +16,7 @@ function baseRules(overrides: Partial<MatchRules> = {}): MatchRules {
     stoppage: 'referee',
     countOuts: 'normal',
     reward: 'none',
+    pace: 'standard',
     ...overrides,
   };
 }

@@ -808,6 +808,13 @@ export interface Stipulation {
 // §9 — Match rules
 // ============================================================================
 
+/**
+ * How a match is worked. Defined here rather than in data/pacing.ts so the
+ * dependency runs the usual way — content imports engine types, not the
+ * reverse. The numbers behind each one live in data/pacing.ts.
+ */
+export type PaceId = 'sprint' | 'standard' | 'slowBuild' | 'allOut';
+
 export interface MatchRules {
   preset:
     | 'singles'
@@ -827,6 +834,11 @@ export interface MatchRules {
   stoppage: 'none' | 'referee' | 'doctor' | 'towel';
   countOuts: 'normal' | 'slow' | 'none';
   reward: 'none' | 'defendTitles' | 'titleShot' | 'contract' | 'stipulation';
+  /**
+   * How the match is worked. See data/pacing.ts — no pace is strictly better
+   * than another, which is the whole point of it being a lever.
+   */
+  pace: PaceId;
 }
 
 // ============================================================================
@@ -1563,6 +1575,11 @@ export interface WorldSettings {
    * twenty-year-old should not die at a forty-five-year-old's rate.
    */
   deathYoungFloor: number;
+
+  // Pacing — engine/sim/pacing.ts.
+  /** How much a crowd tired of one pace takes off the match. */
+  paceSaturationPenalty: number;
+  paceSaturationDecayPerWeek: number;
   deathOldAge: number;
 
   // The fans. How many of them speak up, and how much they disagree.
