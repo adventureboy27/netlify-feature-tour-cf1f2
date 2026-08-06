@@ -559,6 +559,15 @@ export function defaultWorldSettings(): WorldSettings {
     refereeCleanNightReputationGain: 0.4,
     refereeReputationCeiling: 6,
 
+    // Changing jobs. A year, both directions. Long enough that converting
+    // somebody is a plan rather than a patch for tonight's injured official,
+    // short enough that a career has room for a second act.
+    roleTransitionLockWeeks: 52,
+    convertedRefereeBaseCompetence: 34,
+    convertedRefereeExperienceWeight: 1.1,
+    convertedRefereeLearningRate: 0.09,
+    convertedRefereeCompetenceCap: 78,
+
     // Casualties. A competitor is in the match; a referee is in the way; a
     // manager is at ringside asking for it. A guest referee is the worst of
     // both — in the middle of it without a wrestler's licence.

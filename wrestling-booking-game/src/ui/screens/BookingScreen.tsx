@@ -5,8 +5,8 @@
 import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { STIPULATIONS, stipulationById, stipulationRequirementsMet, effectiveRules } from '../../data/stipulations';
-import { MANAGERS, managerById } from '../../data/ringsidePool';
-import { managerFit } from '../../engine/sim/ringside';
+import { MANAGERS } from '../../data/ringsidePool';
+import { managerFit, type Manager } from '../../engine/sim/ringside';
 import { signedReferees, officialFor, sharpnessLabel, refereeGrade, isAvailable } from '../../engine/sim/referees';
 import { findRivalry } from '../../engine/sim/rivalry';
 import { ruleAdjustedWeights, kayfabeScore } from '../../engine/sim/kayfabe';
@@ -325,6 +325,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                     onReferee={(refereeId) => setReferee(index, refereeId)}
                     onGuestReferee={(id) => setGuestReferee(index, id)}
                     crew={crew}
+                    staffManagers={world.staffManagers}
                     defaultReferee={
                       world.defaultRefereeId
                         ? (crew.find((r) => r.id === world.defaultRefereeId) ?? null)
@@ -360,6 +361,7 @@ function SegmentEditor({
   onReferee,
   onGuestReferee,
   crew,
+  staffManagers,
   defaultReferee,
   settings,
 }: {
@@ -377,6 +379,8 @@ function SegmentEditor({
   onGuestReferee: (wrestlerId: Id | null) => void;
   /** The officials under contract, best first. */
   crew: Referee[];
+  /** Your own wrestlers working as managers. They cost nothing per night. */
+  staffManagers: Manager[];
   /** Who takes this match if it names nobody. */
   defaultReferee: Referee | null;
   settings: WorldSettings;
@@ -561,13 +565,15 @@ function SegmentEditor({
                 >
                   None
                 </button>
-                {MANAGERS.map((manager) => (
+                {/* Your own people first: a wrestler you moved into a suit
+                    costs nothing per night, because he is already paid. */}
+                {[...staffManagers, ...MANAGERS].map((manager) => (
                   <button
                     key={manager.id}
                     type="button"
                     data-testid={`manager-${side}-${manager.id}`}
                     onClick={() => onManager(manager.id, side)}
-                    title={`${manager.blurb} — $${manager.feePerShow}/show${
+                    title={`${manager.blurb}${manager.feePerShow > 0 ? ` — $${manager.feePerShow}/show` : ' — already on the payroll'}${
                       clientWrestler ? ` · ${managerFit(manager, clientWrestler, settings)}` : ''
                     }`}
                     className={`rounded px-2 py-1 text-[11px] ${
@@ -577,13 +583,19 @@ function SegmentEditor({
                     }`}
                   >
                     {manager.name}
-                    <span className="ml-1 text-neutral-500">${manager.feePerShow}</span>
+                    <span className={`ml-1 ${manager.feePerShow > 0 ? 'text-neutral-500' : 'text-sky-500'}`}>
+                      {manager.feePerShow > 0 ? `$${manager.feePerShow}` : 'yours'}
+                    </span>
                   </button>
                 ))}
               </div>
               {current && clientWrestler && (
                 <span className="text-[10px] text-sky-400">
-                  {managerFit(managerById(current.managerId)!, clientWrestler, settings)}
+                  {managerFit(
+                    [...staffManagers, ...MANAGERS].find((m) => m.id === current.managerId)!,
+                    clientWrestler,
+                    settings,
+                  )}
                 </span>
               )}
             </div>

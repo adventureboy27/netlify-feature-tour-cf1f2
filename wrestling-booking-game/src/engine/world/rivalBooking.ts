@@ -128,6 +128,10 @@ export interface RivalBookingContext {
 export function canWork(w: Wrestler, settings: WorldSettings): boolean {
   if (w.injury) return false;
   if (w.deceased || w.careerStatus === 'retired') return false;
+  // Somebody working as an official or a mouthpiece is not on the active
+  // roster. Gating it here covers the office's card and every rival's, so
+  // there is one answer to "can this person have a match" in the codebase.
+  if (w.role !== 'wrestler') return false;
   return w.health >= settings.rivalMinHealthToBook;
 }
 

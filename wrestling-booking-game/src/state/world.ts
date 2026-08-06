@@ -48,6 +48,7 @@ import type { PoachingOffer } from '../engine/world/poaching';
 import type { FreeAgent } from '../engine/world/freeAgents';
 import { generateFreeAgentPool } from '../engine/world/freeAgents';
 import { createRefereeContract, seedRefereePool } from '../engine/sim/referees';
+import type { Manager } from '../engine/sim/ringside';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
 import type { PendingEvent } from '../engine/events/types';
 import type { EventHistory } from '../engine/events/scheduler';
@@ -159,6 +160,12 @@ export interface World {
    * without the game saying where he went — same rule as everybody else.
    */
   refereeNews: string[];
+  /**
+   * Managers who are your own wrestlers rather than hires from the standing
+   * pool. They cost nothing per night because they are already on the
+   * payroll — see engine/career/transition.ts.
+   */
+  staffManagers: Manager[];
   /** Championships. A promotion's spine. */
   titles: Title[];
   /** The map. Twelve markets, each with its own memory of every promotion. */
@@ -482,6 +489,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     // the burnout system should teach is why one referee is not enough.
     defaultRefereeId: startingReferee?.id ?? null,
     refereeNews: [],
+    staffManagers: [],
     titles: [...playerTitles, ...rivalTitles],
     // You are from somewhere. A promotion does not open in a town that has
     // never heard of it — the home territory starts with a real following and

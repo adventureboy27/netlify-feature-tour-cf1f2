@@ -36,9 +36,11 @@ export interface Manager {
   presence: number; // 0-100
   /** Willingness to cheat for their client. Feeds interference finishes. */
   deviousness: number; // 0-100
-  /** Fee per appearance. */
+  /** Fee per appearance. Zero for one of your own — already on the payroll. */
   feePerShow: number;
   blurb: string;
+  /** Set when this is one of your wrestlers doing the job. */
+  wrestlerId?: Id;
 }
 
 export interface ManagerEffect {

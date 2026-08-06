@@ -65,6 +65,8 @@ export function refereeFromSeed(seed: RefereeSeed): Referee {
     recentMisses: 0,
     injury: null,
     weeksUnsigned: 0,
+    // A career official, not one of your wrestlers moonlighting.
+    wrestlerId: null,
   };
 }
 
@@ -119,6 +121,7 @@ export function generateReferee(rng: Rng, existingNames: ReadonlySet<string>): R
     recentMisses: 0,
     injury: null,
     weeksUnsigned: randInt(rng, 0, 30),
+    wrestlerId: null,
   };
 }
 
@@ -348,9 +351,16 @@ export function signedReferees(referees: readonly Referee[], promotionId: Id): R
   return rankReferees(referees.filter((r) => r.promotionId === promotionId));
 }
 
-/** Everybody available to sign, best first. */
+/**
+ * Everybody available to sign, best first.
+ *
+ * Converted wrestlers are never in here even when they are not currently
+ * officiating. They are somebody's signed talent — you cannot hire another
+ * promotion's wrestler out of the referee pool, and you cannot hire your own
+ * twice.
+ */
 export function availableReferees(referees: readonly Referee[]): Referee[] {
-  return rankReferees(referees.filter((r) => r.promotionId === null));
+  return rankReferees(referees.filter((r) => r.promotionId === null && !r.wrestlerId));
 }
 
 /**
@@ -433,7 +443,8 @@ export function tickRefereePool(
   ctx: RefereePoolTick,
 ): { signedAway: Id[]; newcomers: Referee[] } {
   const signedAway: Id[] = [];
-  const available = ctx.referees.filter((r) => r.promotionId === null);
+  // Same rule as the signing pool: a wrestler in a shirt is not for sale.
+  const available = ctx.referees.filter((r) => r.promotionId === null && !r.wrestlerId);
 
   for (const referee of available) {
     const desirability = referee.competence / 100;

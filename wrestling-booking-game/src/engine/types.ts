@@ -417,6 +417,15 @@ export interface Wrestler {
   promotionId: Id | null;
   contract: Contract | null;
   role: StaffRole;
+  /**
+   * When they took the job they are doing now.
+   *
+   * A role change is reversible but not casual: see career/transition.ts.
+   * Without this you could put somebody in the shirt for one night because
+   * your referee was hurt and have them wrestling again next week, which
+   * makes the whole officials roster decorative.
+   */
+  roleSinceWeek: number;
 
   // History
   record: WinLossRecord;
@@ -649,6 +658,15 @@ export interface Referee {
   injury: Injury | null;
   /** Weeks they have been sitting unsigned. Long enough and they come cheaper. */
   weeksUnsigned: number;
+  /**
+   * Set when this official is one of your wrestlers doing the job instead.
+   *
+   * They are the same person: the wage is already on the roster payroll, no
+   * rival can sign them out of the pool, and hurting the official hurts the
+   * wrestler. They learn the job as they work it, and they can take a bump
+   * in a way a career official cannot — but they never get all the way good.
+   */
+  wrestlerId: Id | null;
 }
 
 /**
@@ -1815,6 +1833,25 @@ export interface WorldSettings {
    * clean nights alone. Small — the business finds you out.
    */
   refereeReputationCeiling: number;
+
+  // Wrestlers changing jobs — engine/career/transition.ts.
+  /**
+   * How long somebody must stay in a role before changing again. Reversible,
+   * but never casual — the price of the change is the year, not a penalty.
+   */
+  roleTransitionLockWeeks: number;
+  /** Where a converted wrestler's officiating starts, before experience. */
+  convertedRefereeBaseCompetence: number;
+  /** How much a long ring career is worth to it. */
+  convertedRefereeExperienceWeight: number;
+  /** They learn the job by working it. Competence gained per match officiated. */
+  convertedRefereeLearningRate: number;
+  /**
+   * However many years they put in, a converted wrestler never becomes the
+   * best official in the business. Somebody who did it their whole life is
+   * still better at it.
+   */
+  convertedRefereeCompetenceCap: number;
 
   // Casualties — who gets hurt, and how badly. See engine/sim/casualties.ts.
   // Everyone at ringside can be hurt, because everyone at ringside is in the

@@ -20,6 +20,7 @@ import { retirementPressure } from '../../engine/career/retirement';
 import { canFormTeam, teamOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
 import { ATTIRE_PALETTE } from '../paperdoll/palette';
 import { contractUrgency } from '../../engine/economy/contracts';
+import { canChangeRole, lockLabel, TRANSITION_ROLE_LABELS } from '../../engine/career/transition';
 import { titlesHeldBy, shortTitleName, reignLength } from '../../data/titles';
 import {
   relationshipsFor,
@@ -31,6 +32,12 @@ import {
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { StatBar, HeatBadge, Money } from '../components/display';
 import type { Wrestler } from '../../engine/types';
+
+/**
+ * Short enough for a roster card. The long names live in the engine's
+ * TRANSITION_ROLE_LABELS, which is what the status line under them uses.
+ */
+const ROLE_BUTTON_LABELS = { wrestler: 'Wrestles', referee: 'Referees', manager: 'Manages' } as const;
 
 const SORTS = {
   popularity: { label: 'Popularity', of: (w: Wrestler) => w.popularity },
@@ -56,6 +63,7 @@ function alignmentOf(w: Wrestler): { label: string; className: string } {
 export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: string) => void } = {}) {
   const world = useGameStore((s) => s.world);
   const retireWrestler = useGameStore((s) => s.retireWrestler);
+  const changeRole = useGameStore((s) => s.changeRole);
   const [sort, setSort] = useState<SortKey>('popularity');
 
   const roster = useMemo(() => {
@@ -279,6 +287,44 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     </button>
                   </div>
                 )}
+
+                {/* What they do here, and whether they can be moved.
+                    A wrestler can take the shirt or the suit and come back
+                    from it — but they owe a year in the job first, so this is
+                    a plan, not a way to cover an injured official. */}
+                <div className="mt-1 border-t border-neutral-800 pt-1">
+                  <div className="flex flex-wrap items-center gap-1">
+                    {(['wrestler', 'referee', 'manager'] as const).map((role) => {
+                      const check = canChangeRole(w, role, world.week, world.settings);
+                      const current = w.role === role;
+                      return (
+                        <button
+                          key={role}
+                          type="button"
+                          data-testid={`role-${role}-${w.id}`}
+                          disabled={current || !check.ok}
+                          title={current ? 'What they do now' : (check.reason ?? 'Move them into this job')}
+                          onClick={() => changeRole(w.id, role)}
+                          className={`rounded px-1.5 py-0.5 text-[10px] ${
+                            current
+                              ? 'bg-emerald-700 text-white'
+                              : check.ok
+                                ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                                : 'cursor-not-allowed bg-neutral-900 text-neutral-700'
+                          }`}
+                        >
+                          {ROLE_BUTTON_LABELS[role]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {w.role !== 'wrestler' && (
+                    <div className="mt-0.5 text-[10px] text-sky-400">
+                      {TRANSITION_ROLE_LABELS[w.role as 'referee' | 'manager']} ·{' '}
+                      {lockLabel(w, world.week, world.settings)}
+                    </div>
+                  )}
+                </div>
 
                 {/* A character that is not working can be changed. Any of
                     them, any time — that is what a booker does. */}

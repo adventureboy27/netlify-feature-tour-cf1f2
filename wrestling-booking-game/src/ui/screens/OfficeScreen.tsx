@@ -863,11 +863,23 @@ function OfficialsTab() {
                     )}
                   </div>
                   <div className="shrink-0 text-right text-xs">
-                    <Money amount={referee.contract?.weeklyRate ?? 0} />
-                    <span className="text-neutral-600">/wk</span>
-                    <div className="text-[10px] text-neutral-600">
-                      {contractUrgency(referee.contract).toLowerCase()}
-                    </div>
+                    {referee.wrestlerId ? (
+                      // One of your own. His wage is already on the roster
+                      // payroll — and it is a wrestler's wage until his deal
+                      // runs out, which is the cost of converting your top guy.
+                      <>
+                        <span className="text-sky-400">On the roster</span>
+                        <div className="text-[10px] text-neutral-600">paid as a wrestler</div>
+                      </>
+                    ) : (
+                      <>
+                        <Money amount={referee.contract?.weeklyRate ?? 0} />
+                        <span className="text-neutral-600">/wk</span>
+                        <div className="text-[10px] text-neutral-600">
+                          {contractUrgency(referee.contract).toLowerCase()}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -881,14 +893,23 @@ function OfficialsTab() {
                   >
                     Give him the card
                   </button>
-                  <button
-                    type="button"
-                    data-testid={`official-release-${referee.id}`}
-                    onClick={() => release(referee.id)}
-                    className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-rose-300 hover:bg-neutral-700"
-                  >
-                    Let him go
-                  </button>
+                  {referee.wrestlerId ? (
+                    // Taking one of your own out of the shirt is a career
+                    // decision, not a release — it happens on the roster,
+                    // where the year he owes the job is written down.
+                    <span className="self-center text-[10px] text-neutral-600">
+                      One of your own — move him back on the roster page
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      data-testid={`official-release-${referee.id}`}
+                      onClick={() => release(referee.id)}
+                      className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-rose-300 hover:bg-neutral-700"
+                    >
+                      Let him go
+                    </button>
+                  )}
                 </div>
               </article>
             ))}

@@ -235,6 +235,9 @@ export function generateWrestler(
     promotionId: null,
     contract: null,
     role: 'wrestler',
+    // Everybody starts in the ring, from week zero, so the transition lock
+    // never blocks a role change on somebody who has never had a job change.
+    roleSinceWeek: 0,
 
     record: { wins: 0, losses: 0, draws: 0 },
     career: {

@@ -53,8 +53,27 @@ import {
   refereeAgenda,
   guestRefereeHealthCost,
 } from '../engine/sim/ringside';
-import { managerById } from '../data/ringsidePool';
+import { managerById as hiredManagerById } from '../data/ringsidePool';
 import { refereeMissById } from '../data/refereeMisses';
+import {
+  canChangeRole,
+  refereeFromWrestler,
+  managerFromWrestler,
+  learnOnTheJob,
+  type TransitionRole,
+} from '../engine/career/transition';
+import type { Manager } from '../engine/sim/ringside';
+
+/**
+ * A manager by id, from the standing pool or from your own roster.
+ *
+ * One lookup so no caller has to know which kind it got. A wrestler in a suit
+ * is a Manager record like any other; the only difference is that his fee is
+ * zero, because he is already on the payroll.
+ */
+function findManager(world: World, id: Id): Manager | undefined {
+  return hiredManagerById(id) ?? world.staffManagers.find((m) => m.id === id);
+}
 import {
   officialFor,
   workedMatch,
@@ -273,6 +292,11 @@ export interface GameStore {
   releaseReferee: (refereeId: Id) => void;
   /** Share the card out across the crew, best official on the main event. */
   spreadOfficialsAcrossCard: () => void;
+  /**
+   * Move somebody between the ring, the shirt and the suit. Reversible, but
+   * they owe a year in the job before they can move again.
+   */
+  changeRole: (wrestlerId: Id, role: TransitionRole) => { ok: boolean; reason: string | null };
   /** Name the company and pick its house style. Locked once you run a show. */
   setPromotionIdentity: (name: string, archetype: PromotionArchetype) => void;
   // Roster moves
@@ -1009,7 +1033,13 @@ export const useGameStore = create<GameStore>()(
               .map((id) => world.wrestlers[id])
               .filter(
                 (w): w is Wrestler =>
-                  Boolean(w) && !participantIds.includes(w!.id) && !w!.injury && !w!.deceased,
+                  Boolean(w) &&
+                  !participantIds.includes(w!.id) &&
+                  !w!.injury &&
+                  !w!.deceased &&
+                  // Your own official is not "one of the boys" — if he is
+                  // working tonight he is already counting somewhere.
+                  w!.role === 'wrestler',
               );
             if (spare.length > 0) draftedReferee = pick(rng, spare);
           }
@@ -1018,7 +1048,7 @@ export const useGameStore = create<GameStore>()(
             : draftedReferee;
           const ringside = ringsideTotals({
             managers: (segment.managerIds ?? [])
-              .map((m) => ({ manager: managerById(m.managerId), client: participantWrestlers[m.forSide] }))
+              .map((m) => ({ manager: findManager(world, m.managerId), client: participantWrestlers[m.forSide] }))
               .filter((m): m is { manager: NonNullable<typeof m.manager>; client: Wrestler } =>
                 Boolean(m.manager && m.client),
               ),
@@ -1240,11 +1270,21 @@ export const useGameStore = create<GameStore>()(
             });
             if (casualty) {
               assignedReferee.injury = injuryFrom(casualty, world.week);
+              // One of your own in the shirt is the same person as the
+              // wrestler. Hurting the official has to hurt him too, or a
+              // converted man would be quietly immortal.
+              const asWrestler = assignedReferee.wrestlerId
+                ? world.wrestlers[assignedReferee.wrestlerId]
+                : null;
+              if (asWrestler) {
+                asWrestler.injury = assignedReferee.injury;
+                asWrestler.health = clamp(asWrestler.health - world.settings.casualtyHealthCost, 0, 100);
+              }
               hurtTonight.push(casualty);
             }
           }
           for (const assignment of segment.managerIds ?? []) {
-            const manager = managerById(assignment.managerId);
+            const manager = findManager(world, assignment.managerId);
             if (!manager) continue;
             const casualty = rollCasualty(rng, {
               personId: manager.id,
@@ -1328,7 +1368,7 @@ export const useGameStore = create<GameStore>()(
               titleIds: titlesOnTheLine.map((t) => t.id),
               titleChanged,
               managers: (segment.managerIds ?? [])
-                .map((m) => ({ manager: managerById(m.managerId), forSide: m.forSide }))
+                .map((m) => ({ manager: findManager(world, m.managerId), forSide: m.forSide }))
                 .filter((m): m is { manager: NonNullable<typeof m.manager>; forSide: number } => Boolean(m.manager))
                 .map((m) => ({ id: m.manager.id, name: m.manager.name, forSide: m.forSide })),
               hasReferee: Boolean(assignedReferee) && !segment.guestRefereeId,
@@ -1438,7 +1478,7 @@ export const useGameStore = create<GameStore>()(
             continue;
           }
 
-          const mouthpiece = slot.promoMouthpieceId ? managerById(slot.promoMouthpieceId) : undefined;
+          const mouthpiece = slot.promoMouthpieceId ? findManager(world, slot.promoMouthpieceId) : undefined;
           const rivalry = target ? findRivalry(world.rivalries, [speaker!.id, target.id]) : null;
 
           const promo = resolvePromo(rng, {
@@ -1492,7 +1532,12 @@ export const useGameStore = create<GameStore>()(
         // return.
         for (const refereeId of refereesUsed) {
           const referee = world.referees.find((r) => r.id === refereeId);
-          if (referee) applyNightToReputation(referee, refereeMissesTonight.get(refereeId) ?? 0, world.settings);
+          if (!referee) continue;
+          applyNightToReputation(referee, refereeMissesTonight.get(refereeId) ?? 0, world.settings);
+          // A converted wrestler is still learning the job. This is what the
+          // year of commitment actually buys, and it is the only way any
+          // official's competence ever moves.
+          for (let i = 0; i < referee.matchesTonight; i++) learnOnTheJob(referee, world.settings);
         }
 
         const slotWeights = TV_SLOT_WEIGHTS.slice(0, world.currentCard.length);
@@ -2078,6 +2123,27 @@ export const useGameStore = create<GameStore>()(
         for (const referee of world.referees) {
           const wasHurt = Boolean(referee.injury);
           const employer = referee.promotionId;
+
+          // One of your own in the shirt is one person with one body. His
+          // injury lives on the wrestler and is mirrored here, or it would
+          // count down twice and heal in half the time.
+          const asWrestler = referee.wrestlerId ? world.wrestlers[referee.wrestlerId] : null;
+          if (asWrestler) {
+            // Rest is the same as anybody's; the injury and the name are the
+            // wrestler's, mirrored rather than tracked separately.
+            referee.matchesTonight = 0;
+            referee.sharpness = clamp(referee.sharpness + world.settings.refereeSharpnessRecoveryPerWeek, 0, 100);
+            referee.injury = asWrestler.injury;
+            referee.name = asWrestler.name;
+            // Death and retirement take them out of the shirt as well as out
+            // of the ring. Anything else leaves a ghost officiating.
+            if (asWrestler.deceased || asWrestler.careerStatus === 'retired') {
+              referee.promotionId = null;
+              if (world.defaultRefereeId === referee.id) world.defaultRefereeId = null;
+            }
+            continue;
+          }
+
           tickRefereeWeek(referee, world.settings);
 
           if (wasHurt && !referee.injury && employer === world.promotion.id) {
@@ -2949,6 +3015,67 @@ export const useGameStore = create<GameStore>()(
           segment.refereeId = assignments[i] ?? null;
         });
       });
+    },
+
+    changeRole: (wrestlerId, role) => {
+      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No game in progress.' };
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const person = world.wrestlers[wrestlerId];
+        if (!person || person.promotionId !== world.promotion.id) {
+          outcome = { ok: false, reason: 'They do not work for you.' };
+          return;
+        }
+
+        const check = canChangeRole(person, role, world.week, world.settings);
+        if (!check.ok) {
+          outcome = { ok: false, reason: check.reason };
+          return;
+        }
+
+        const currentYear = world.settings.startingYear + Math.floor(world.week / 52);
+
+        // Coming out of whatever they were doing. The officiating record is
+        // kept rather than deleted — a man who spent two years learning the
+        // job does not forget it because he wrestled a season — it just stops
+        // being available to book.
+        const existingReferee = world.referees.find((r) => r.wrestlerId === wrestlerId);
+        if (existingReferee) existingReferee.promotionId = null;
+        if (world.defaultRefereeId === existingReferee?.id) world.defaultRefereeId = null;
+
+        person.role = role;
+        person.roleSinceWeek = world.week;
+
+        if (role === 'referee') {
+          if (existingReferee) {
+            existingReferee.promotionId = world.promotion.id;
+            existingReferee.name = person.name;
+            existingReferee.injury = person.injury;
+          } else {
+            world.referees.push(refereeFromWrestler(person, currentYear, world.settings));
+          }
+        }
+
+        if (role === 'manager' && !world.staffManagers.some((m) => m.wrestlerId === wrestlerId)) {
+          world.staffManagers.push(managerFromWrestler(person));
+        }
+
+        // Whatever they were booked into this week, they are not doing it now.
+        for (const segment of [...world.currentCard, ...world.currentPromos]) {
+          segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
+          if (segment.guestRefereeId === wrestlerId) segment.guestRefereeId = null;
+          if (role !== 'manager') {
+            segment.managerIds = (segment.managerIds ?? []).filter(
+              (m) => m.managerId !== `mgr-of-${wrestlerId}`,
+            );
+          }
+          if (role !== 'referee' && segment.refereeId === existingReferee?.id) segment.refereeId = null;
+        }
+
+        outcome = { ok: true, reason: null };
+      });
+      return outcome;
     },
 
     signReferee: (refereeId) => {
