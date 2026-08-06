@@ -61,6 +61,14 @@ import { rollDeath } from '../engine/career/mortality';
 import { annualInductions } from '../engine/career/hallOfFame';
 import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult } from '../engine/career/awards';
 import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
+import {
+  rollCasualty,
+  stoppageCasualty,
+  injuryFrom,
+  outFor,
+  type Casualty,
+} from '../engine/sim/casualties';
+import { causesFor } from '../data/casualties';
 import { isPPVWeek, ppvNameForWeek, segmentsForWeek, computeBuys, computeBuyRevenue } from '../engine/world/calendar';
 import { resolvePromo, promoIsValid, promoShowContribution, promoEnergyCost } from '../engine/sim/promo';
 import { promoTopicById, type PromoTopicId } from '../data/promoTopics';
@@ -530,10 +538,20 @@ function applyEffect(world: World, effect: EventEffect): void {
     case 'injury': {
       const w = at(effect.wrestlerId);
       if (w) {
-        w.health = bump(w.health, -35);
+        w.health = bump(w.health, -world.settings.casualtyHealthCost);
+        // A named cause rather than a generic "Injured" — CLAUDE.md, nothing
+        // happens to a person off-screen. The event or incident that caused
+        // this already carries the sentence explaining it; this makes sure
+        // the roster card agrees with the story.
+        const cause = pick(rng, causesFor('competitor', 0));
         w.injury = {
-          severity: 'moderate',
-          description: 'Injured',
+          severity:
+            effect.weeks >= world.settings.injurySevereWeeks
+              ? 'severe'
+              : effect.weeks >= world.settings.injuryModerateWeeks
+                ? 'moderate'
+                : 'minor',
+          description: cause?.label ?? 'Injured',
           sufferedWeek: world.week,
           totalWeeks: effect.weeks,
           weeksRemaining: effect.weeks,
@@ -1058,24 +1076,100 @@ export const useGameStore = create<GameStore>()(
             guestRefereeUses += 1;
           }
 
+          // ---- who got hurt, and what the write-up says ------------------
+          // CLAUDE.md: nothing happens to a person off-screen. Every one of
+          // these carries the sentence explaining it; there is no path here
+          // that puts somebody on the shelf silently.
+          const hurtTonight: Casualty[] = [];
+          const violence = stipulation?.violenceLevel ?? 0;
+
+          const putOut = (casualty: Casualty) => {
+            const person = world.wrestlers[casualty.personId];
+            if (person) {
+              person.health = clamp(person.health - world.settings.casualtyHealthCost, 0, 100);
+              person.career.longestInjuryWeeks = Math.max(person.career.longestInjuryWeeks, casualty.weeks);
+              person.injury = injuryFrom(casualty, world.week);
+            }
+            hurtTonight.push(casualty);
+          };
+
           // A stretcher job actually puts somebody out — that is what makes
           // the finish worth fearing rather than just worth fewer points.
           if (result.finish === 'injuryStoppage') {
             const hurt = participantWrestlers.find((p) => !result.winnerWrestlerIds.includes(p.id));
             if (hurt && !hurt.injury) {
-              const weeks = Math.max(1, Math.round(2 + rng.next() * 8 * result.injuryMultiplier));
-              hurt.health = clamp(hurt.health - 30, 0, 100);
-              hurt.career.longestInjuryWeeks = Math.max(hurt.career.longestInjuryWeeks, weeks);
-              hurt.injury = {
-                severity: weeks >= 10 ? 'severe' : weeks >= 5 ? 'moderate' : 'minor',
-                description: 'Hurt in the ring',
-                sufferedWeek: world.week,
-                totalWeeks: weeks,
-                weeksRemaining: weeks,
-                permanentStatLoss: {},
-                earlyReturnWeeksUsed: 0,
-              };
+              putOut(
+                stoppageCasualty(rng, {
+                  personId: hurt.id,
+                  name: hurt.name,
+                  role: 'competitor',
+                  violenceLevel: violence,
+                  injuryMultiplier: result.injuryMultiplier,
+                  toughness: hurt.toughness,
+                  settings: world.settings,
+                }),
+              );
             }
+          }
+
+          // And everybody else who was out there. A wrestler is in the match,
+          // an official is in the way, a manager is at ringside asking for it.
+          for (const person of participantWrestlers) {
+            if (person.injury) continue;
+            const casualty = rollCasualty(rng, {
+              personId: person.id,
+              name: person.name,
+              role: 'competitor',
+              violenceLevel: violence,
+              injuryMultiplier: result.injuryMultiplier,
+              toughness: person.toughness,
+              settings: world.settings,
+            });
+            if (casualty) putOut(casualty);
+          }
+
+          if (officiatingWrestler && !officiatingWrestler.injury) {
+            const casualty = rollCasualty(rng, {
+              personId: officiatingWrestler.id,
+              name: officiatingWrestler.name,
+              role: 'guestReferee',
+              violenceLevel: violence,
+              injuryMultiplier: result.injuryMultiplier,
+              toughness: officiatingWrestler.toughness,
+              settings: world.settings,
+            });
+            if (casualty) putOut(casualty);
+          }
+
+          // Referees and managers are not on the roster, so they cannot be put
+          // on the shelf — but what happened to them is still news, and the
+          // rule says it gets said out loud.
+          const assignedReferee = segment.refereeId ? refereeById(segment.refereeId) : null;
+          if (assignedReferee) {
+            const casualty = rollCasualty(rng, {
+              personId: assignedReferee.id,
+              name: assignedReferee.name,
+              role: 'referee',
+              violenceLevel: violence,
+              injuryMultiplier: result.injuryMultiplier,
+              toughness: 50,
+              settings: world.settings,
+            });
+            if (casualty) hurtTonight.push(casualty);
+          }
+          for (const assignment of segment.managerIds ?? []) {
+            const manager = managerById(assignment.managerId);
+            if (!manager) continue;
+            const casualty = rollCasualty(rng, {
+              personId: manager.id,
+              name: manager.name,
+              role: 'manager',
+              violenceLevel: violence,
+              injuryMultiplier: result.injuryMultiplier,
+              toughness: 40,
+              settings: world.settings,
+            });
+            if (casualty) hurtTonight.push(casualty);
           }
 
           // Commit how the feud moved, and let a new one form organically.
@@ -1173,7 +1267,13 @@ export const useGameStore = create<GameStore>()(
             ratingBreakdown: result.ratingBreakdown,
             beats: result.beats,
             titleChanged,
-            injuries: [],
+            injuries: hurtTonight.map((casualty) => ({
+              wrestlerId: casualty.personId,
+              name: casualty.name,
+              role: casualty.role,
+              text: casualty.text,
+              outFor: outFor(casualty.weeks, world.settings),
+            })),
             incident,
           };
 

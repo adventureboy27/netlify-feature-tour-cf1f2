@@ -54,7 +54,16 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
             .map((title) => ({ titleName: title.name, championNames: namesOf(title.currentHolderIds) }))
         : [],
     ),
-    incidents: booked.map((segment) => segment.result!.incident?.headline).filter((h): h is string => Boolean(h)),
+    incidents: [
+      ...booked.map((segment) => segment.result!.incident?.headline).filter((h): h is string => Boolean(h)),
+      // Somebody being carried out is the story of the night, whatever else
+      // happened on it.
+      ...booked.flatMap((segment) =>
+        segment
+          .result!.injuries.filter((hurt) => hurt.outFor.includes('months') || hurt.outFor.includes('indefinitely'))
+          .map((hurt) => `${hurt.name} is ${hurt.outFor}. ${hurt.text}`),
+      ),
+    ],
     bestMatch: best
       ? {
           winnerNames: namesOf(best.result!.winnerWrestlerIds),
@@ -179,6 +188,27 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
                       <li key={i}>{beat.text}</li>
                     ))}
                 </ul>
+              )}
+
+              {/* Nothing happens to a person off-screen — CLAUDE.md. If
+                  somebody got hurt in this match, this is where the player
+                  finds out, not by spotting an icon on a roster card later. */}
+              {result.injuries.length > 0 && (
+                <div className="mb-2 flex flex-col gap-1">
+                  {result.injuries.map((hurt, i) => (
+                    <div
+                      key={`${hurt.wrestlerId}-${i}`}
+                      data-testid={`injury-${hurt.wrestlerId}`}
+                      className="rounded border border-amber-900/60 bg-amber-950/20 px-2 py-1.5"
+                    >
+                      <div className="text-[10px] uppercase tracking-wide text-amber-500">
+                        {hurt.role === 'competitor' ? 'Injury' : `Injury — ${hurt.role === 'manager' ? 'manager' : 'official'}`}
+                      </div>
+                      <p className="text-xs text-neutral-200">{hurt.text}</p>
+                      <p className="text-[11px] text-neutral-500">{hurt.name} is {hurt.outFor}.</p>
+                    </div>
+                  ))}
+                </div>
               )}
 
               {/* After the beats, because it is what happened next. */}

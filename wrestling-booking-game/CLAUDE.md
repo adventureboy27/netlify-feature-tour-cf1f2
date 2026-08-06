@@ -27,6 +27,11 @@ sections relevant to the current milestone.
 - Stats shown as bars and trend arrows, never numbers.
 - The game never warns the player before a bad decision.
 - Show results appear all at once at the end of the night.
+- **Nothing happens to a person off-screen.** Every injury, death, retirement,
+  and departure is reported *and says how it happened* — which match, which
+  spot, what gave out. The player must never discover a change by noticing a
+  status icon on a roster card. If a system can hurt somebody, that system
+  owes the write-up a sentence.
 - Fully offline. No network calls anywhere.
 
 ## Architecture rules

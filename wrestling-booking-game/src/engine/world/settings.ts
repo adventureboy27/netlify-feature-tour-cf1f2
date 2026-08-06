@@ -526,6 +526,20 @@ export function defaultWorldSettings(): WorldSettings {
     // annoys the room more than being booked into the role on purpose.
     draftedRefereeMoraleCost: 4,
 
+    // Casualties. A competitor is in the match; a referee is in the way; a
+    // manager is at ringside asking for it. A guest referee is the worst of
+    // both — in the middle of it without a wrestler's licence.
+    casualtyChanceCompetitor: 0.035,
+    casualtyChanceGuestReferee: 0.05,
+    casualtyChanceReferee: 0.012,
+    casualtyChanceManager: 0.02,
+    casualtyChanceCap: 0.4,
+    casualtyWeeksVariance: 0.5,
+    casualtyHealthCost: 30,
+    injuryModerateWeeks: 5,
+    injurySevereWeeks: 10,
+    injuryCareerThreateningWeeks: 26,
+
     // House style. A few points either way — enough to notice over a season,
     // never enough to stop you booking who you like.
     houseStyleRatingWeight: 4,

@@ -797,7 +797,12 @@ export interface SegmentResult {
   ratingBreakdown: RatingBreakdownEntry[];
   beats: MatchBeat[];
   titleChanged: boolean;
-  injuries: { wrestlerId: Id; injury: Injury }[];
+  /**
+   * Everybody hurt in this match, with the sentence explaining how — see
+   * CLAUDE.md: nothing happens to a person off-screen. Includes referees and
+   * managers, who are not on the roster but are in the same fight.
+   */
+  injuries: { wrestlerId: Id; name: string; role: string; text: string; outFor: string }[];
   /**
    * Something nobody booked. Read engine/sim/incidents.ts — it reacts to the
    * finish above, it never decides it.
@@ -1677,6 +1682,23 @@ export interface WorldSettings {
   guestRefereeMoraleCost: number;
   /** Who the office drafts when the player names nobody: fee of the stand-in. */
   draftedRefereeMoraleCost: number;
+
+  // Casualties — who gets hurt, and how badly. See engine/sim/casualties.ts.
+  // Everyone at ringside can be hurt, because everyone at ringside is in the
+  // same fight.
+  casualtyChanceCompetitor: number;
+  casualtyChanceGuestReferee: number;
+  casualtyChanceReferee: number;
+  casualtyChanceManager: number;
+  /** However violent it gets, nobody is certain to be hurt. */
+  casualtyChanceCap: number;
+  /** How far a given injury swings either side of its listed length. */
+  casualtyWeeksVariance: number;
+  /** Health taken off somebody who was hurt, on top of the time out. */
+  casualtyHealthCost: number;
+  injuryModerateWeeks: number;
+  injurySevereWeeks: number;
+  injuryCareerThreateningWeeks: number;
 
   /** Rating points a match gains for fitting the promotion's house style. */
   houseStyleRatingWeight: number;
