@@ -453,9 +453,6 @@ function letThemGo(world: World, wrestler: Wrestler, terms: ReturnType<typeof ex
     askingRate: askingRate(wrestler, world.settings),
     weeksUnsigned: 0,
   });
-  world.contractNews.push(terms.text);
-  // And onto the wire, so it is in the weekly highlights and not only on an
-  // office tab the player may never open.
   world.weeklyNews.push(wire('departure', terms.text, world.week));
 }
 
@@ -2254,7 +2251,6 @@ export const useGameStore = create<GameStore>()(
         // A release request is never a surprise: morale is on the roster card
         // for weeks before it gets here, so this is the consequence of
         // something the player watched happen.
-        world.contractNews = [];
         // Keep anything the player did since the last report — firing
         // somebody on a Tuesday has to appear in Monday's write-up, not
         // vanish because the show ran. Only the *previous* report's items go.
@@ -2269,9 +2265,13 @@ export const useGameStore = create<GameStore>()(
           }
           if (wantsOut(member, world.settings) && chance(rng, world.settings.releaseRequestChance)) {
             world.releaseRequests.push({ wrestlerId: id, openedWeek: world.week });
-            const asked = `${member.name} has asked to be let out of his contract. He says he will walk away from the money.`;
-            world.contractNews.push(asked);
-            world.weeklyNews.push(wire('departure', asked, world.week));
+            world.weeklyNews.push(
+              wire(
+                'departure',
+                `${member.name} has asked to be let out of his contract. He says he will walk away from the money.`,
+                world.week,
+              ),
+            );
           }
         }
 
@@ -2280,9 +2280,14 @@ export const useGameStore = create<GameStore>()(
           if ((person.noCompeteWeeks ?? 0) > 0) {
             person.noCompeteWeeks = (person.noCompeteWeeks ?? 0) - 1;
             if (person.noCompeteWeeks === 0) {
-              const clear = `${person.name} is out of his ninety days and can sign anywhere.`;
-              world.contractNews.push(clear);
-              world.weeklyNews.push(wire('departure', clear, world.week, 'minor'));
+              world.weeklyNews.push(
+                wire(
+                  'departure',
+                  `${person.name} is out of his ninety days and can sign anywhere.`,
+                  world.week,
+                  'minor',
+                ),
+              );
             }
           }
         }
@@ -2415,9 +2420,10 @@ export const useGameStore = create<GameStore>()(
         // sitting in the pool get signed by somebody else. Every one of those
         // is reported: an official disappearing off the assignment list
         // without a word is exactly the off-screen change the rule forbids.
-        world.refereeNews = [];
+        // One wire, one place. These used to be written to a second list
+        // that only the office tab read, so the same fact lived twice and
+        // could diverge.
         const official = (line: string) => {
-          world.refereeNews.push(line);
           world.weeklyNews.push(wire('official', line, world.week, 'minor'));
         };
         for (const referee of world.referees) {
@@ -3546,8 +3552,12 @@ export const useGameStore = create<GameStore>()(
           // He stays, and he is not happy about it. Saying no is often right
           // — he is still your wrestler and he still has to work.
           wrestler.morale = clamp(wrestler.morale - refusalCost(world.settings) * 2, 0, 100);
-          world.contractNews.push(
-            `${wrestler.name} asked for his release. He was told no, and he is still on the roster.`,
+          world.weeklyNews.push(
+            wire(
+              'departure',
+              `${wrestler.name} asked for his release. He was told no, and he is still on the roster.`,
+              world.week,
+            ),
           );
           return;
         }

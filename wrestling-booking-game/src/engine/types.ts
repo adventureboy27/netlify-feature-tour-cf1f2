@@ -1558,6 +1558,11 @@ export interface WorldSettings {
   deathAgeDoubling: number;
   deathHealthWeight: number;
   deathChanceCap: number;
+  /**
+   * Floor under the age curve. Accidents happen to the young, but a
+   * twenty-year-old should not die at a forty-five-year-old's rate.
+   */
+  deathYoungFloor: number;
   deathOldAge: number;
 
   // The fans. How many of them speak up, and how much they disagree.

@@ -69,7 +69,8 @@ export function OfficeScreen() {
   // A promotion with nobody in a striped shirt is a promotion where a
   // wrestler counts every fall, so that is worth a badge on its own.
   const officialsNeedYou =
-    world.refereeNews.length + (world.referees.some((r) => r.promotionId === world.promotion.id) ? 0 : 1);
+    world.weeklyNews.filter((n) => n.kind === 'official').length +
+    (world.referees.some((r) => r.promotionId === world.promotion.id) ? 0 : 1);
 
   const tabs: { id: Tab; label: string; badge: number }[] = [
     { id: 'desk', label: 'Desk', badge: onTheDesk },
@@ -658,11 +659,15 @@ function ContractsTab() {
 
   const wrestler = (id?: string): Wrestler | undefined => (id ? world.wrestlers[id] : undefined);
 
+  // Read off the one wire rather than a second list kept alongside it. The
+  // results page and this tab now cannot disagree about who left.
+  const departures = world.weeklyNews.filter((n) => n.kind === 'departure').map((n) => n.text);
+
   if (
     world.pendingRenewals.length === 0 &&
     world.tamperingOffers.length === 0 &&
     world.releaseRequests.length === 0 &&
-    world.contractNews.length === 0
+    departures.length === 0
   ) {
     return (
       <p className="rounded border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-500">
@@ -730,11 +735,11 @@ function ContractsTab() {
       )}
 
       {/* How people left. Nobody drops off the roster in silence. */}
-      {world.contractNews.length > 0 && (
+      {departures.length > 0 && (
         <section className="mb-4">
           <h2 className="mb-2 text-sm font-medium text-neutral-300">Comings and goings</h2>
           <ul className="flex flex-col gap-1 rounded border border-neutral-800 bg-neutral-900 p-2">
-            {world.contractNews.map((line, i) => (
+            {departures.map((line, i) => (
               <li key={i} className="text-[11px] text-neutral-400">
                 {line}
               </li>
@@ -880,6 +885,7 @@ function OfficialsTab() {
   const [refused, setRefused] = useState<string | null>(null);
   if (!world) return null;
 
+  const officialNews = world.weeklyNews.filter((n) => n.kind === 'official').map((n) => n.text);
   const crew = signedReferees(world.referees, world.promotion.id);
   const pool = availableReferees(world.referees);
   const wageBill = refereeWageBill(world.referees, world.promotion.id);
@@ -889,11 +895,11 @@ function OfficialsTab() {
       {/* What happened to them this week. Nothing about a person changes
           off-screen — CLAUDE.md — and that includes an official whose deal
           quietly ran out. */}
-      {world.refereeNews.length > 0 && (
+      {officialNews.length > 0 && (
         <section className="mb-4">
           <h2 className="mb-2 text-sm font-medium text-neutral-300">From the officials</h2>
           <ul className="flex flex-col gap-1 rounded border border-neutral-800 bg-neutral-900 p-2">
-            {world.refereeNews.map((line, i) => (
+            {officialNews.map((line, i) => (
               <li key={i} className="text-[11px] text-neutral-400">
                 {line}
               </li>

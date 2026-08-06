@@ -600,7 +600,13 @@ describe('the officials', () => {
     for (let week = 0; week < 60 && !announced; week++) {
       useGameStore.getState().autoFillCard();
       useGameStore.getState().resolveWeek();
-      if (world().refereeNews.some((line) => line.includes('contract has run out'))) announced = true;
+      if (
+        world().weeklyNews.some(
+          (item) => item.kind === 'official' && item.text.includes('contract has run out'),
+        )
+      ) {
+        announced = true;
+      }
     }
     expect(announced).toBe(true);
   });

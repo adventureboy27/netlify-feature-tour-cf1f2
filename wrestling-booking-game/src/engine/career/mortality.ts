@@ -20,10 +20,17 @@ import type { DeathCause, Passing, Wrestler, WorldSettings } from '../types';
 export function annualDeathChance(w: Wrestler, settings: WorldSettings): number {
   if (!settings.deathsEnabled) return 0;
 
-  // Doubling every `deathAgeDoubling` years past the base age. Gentle at 40,
-  // real at 70, high at 90.
-  const over = Math.max(0, w.age - settings.deathBaseAge);
-  const fromAge = settings.deathBaseChance * Math.pow(2, over / settings.deathAgeDoubling);
+  // Doubling every `deathAgeDoubling` years past the base age — and halving
+  // on the same clock below it. Clamping the exponent at zero made the curve
+  // flat under 45, so a twenty-year-old died at exactly a forty-four-year-
+  // old's rate. Over a long save that put a steady stream of kids on the
+  // memorial wall, which is not the business this is modelling.
+  const fromBase = (w.age - settings.deathBaseAge) / settings.deathAgeDoubling;
+  const fromAge = Math.max(
+    // A floor, because accidents happen to the young too — just rarely.
+    settings.deathYoungFloor,
+    settings.deathBaseChance * Math.pow(2, fromBase),
+  );
 
   // The road: hard living, hard matches, and a body that never recovered.
   const wear = clamp((100 - w.health) / 100, 0, 1) * settings.deathHealthWeight;

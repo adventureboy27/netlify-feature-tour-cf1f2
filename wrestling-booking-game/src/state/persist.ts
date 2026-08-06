@@ -22,7 +22,9 @@ const SLOT_KEY = 'wbg.save.v1';
 // and then throw on the first `world.weeklyNews.filter`. There is no
 // migration path by design: a mismatched save is refused with a message,
 // which is honest, and far better than loading one that explodes later.
-const SCHEMA_VERSION = 4;
+// Version 5 dropped refereeNews and contractNews in favour of the single
+// weeklyNews wire.
+const SCHEMA_VERSION = 5;
 
 export interface SaveFile {
   schema: number;

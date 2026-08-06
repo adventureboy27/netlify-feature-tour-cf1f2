@@ -156,12 +156,6 @@ export interface World {
    */
   defaultRefereeId: Id | null;
   /**
-   * What happened to the officials this week, in sentences. Cleared and
-   * rebuilt every week. A referee cannot vanish off the assignment list
-   * without the game saying where he went — same rule as everybody else.
-   */
-  refereeNews: string[];
-  /**
    * Managers who are your own wrestlers rather than hires from the standing
    * pool. They cost nothing per night because they are already on the
    * payroll — see engine/career/transition.ts.
@@ -172,12 +166,6 @@ export interface World {
    * working while they wait — and get unhappier every week they do.
    */
   releaseRequests: { wrestlerId: Id; openedWeek: number }[];
-  /**
-   * How people left, in sentences. Cleared and rebuilt weekly. Nobody leaves
-   * the roster without the game saying which of the three exits it was and
-   * what it cost — CLAUDE.md.
-   */
-  contractNews: string[];
   /**
    * Everything that happened to anybody this week — deaths, retirements,
    * comebacks, team splits, rival signings, inductions, debuts. Cleared at
@@ -490,7 +478,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   });
 
   return {
-    version: 4,
+    version: 5,
     settings,
     week: 1,
     wrestlers,
@@ -529,10 +517,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     // into the ground by the main event. That is deliberate: the first thing
     // the burnout system should teach is why one referee is not enough.
     defaultRefereeId: startingReferee?.id ?? null,
-    refereeNews: [],
     staffManagers: [],
     releaseRequests: [],
-    contractNews: [],
     weeklyNews: [],
     tradeRefusals: {},
     thisYear: { passings: [], retirements: [], comebacks: [] },

@@ -333,6 +333,7 @@ export function defaultWorldSettings(): WorldSettings {
     deathAgeDoubling: 12,
     deathHealthWeight: 0.8,
     deathChanceCap: 0.3,
+    deathYoungFloor: 0.0002,
     deathOldAge: 75,
 
     // The fans. Ten voices a show, and never more than 85% agreeing.
