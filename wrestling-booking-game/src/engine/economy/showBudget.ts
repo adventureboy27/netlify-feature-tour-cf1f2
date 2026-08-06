@@ -185,14 +185,21 @@ export function computeDemand(
   recentShowQuality: number,
   rosterStrength: number,
   settings: WorldSettings,
+  /**
+   * How over the promotion is in the town they are running. Demand is national
+   * reputation *shaded by* local memory rather than replaced by it: a big
+   * company still draws somewhere it has never been, just not as well, and a
+   * small one that has worked a town for two years outdraws its own rating
+   * there. A multiplier rather than a term for exactly that reason.
+   */
+  territoryFollowing = 50,
 ): number {
-  return clamp(
+  const national =
     companyRating * settings.demandFromCompanyRating +
-      recentShowQuality * settings.demandFromRecentShows +
-      rosterStrength * settings.demandFromRoster,
-    0,
-    100,
-  );
+    recentShowQuality * settings.demandFromRecentShows +
+    rosterStrength * settings.demandFromRoster;
+  const local = 1 + ((territoryFollowing - 50) / 50) * settings.demandFromTerritoryFollowing;
+  return clamp(national * local, 0, 100);
 }
 
 /**

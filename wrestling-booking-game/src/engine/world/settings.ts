@@ -436,6 +436,20 @@ export function defaultWorldSettings(): WorldSettings {
     newsGreatShowRating: 78,
     newsPoorShowRating: 35,
 
+    // Territories. A five-star show is worth 8 following; a week away costs
+    // 1.2 — so a town you run monthly holds roughly steady and a town you
+    // abandon has forgotten you inside a year.
+    territoryFollowingPerStar: 1.6,
+    territoryFollowingDecayPerWeek: 1.2,
+    territoryFitRatingWeight: 9,
+    territoryHardcoreFullViolence: 6,
+    territoryLongMatchMinutes: 20,
+    territoryInvasionDamagePerStar: 1.1,
+    territoryClaimMinimumAttendance: 500,
+    demandFromTerritoryFollowing: 0.5,
+    rivalHouseShare: 0.7,
+    startingTerritoryFollowing: 55,
+
     // House style. A few points either way — enough to notice over a season,
     // never enough to stop you booking who you like.
     houseStyleRatingWeight: 4,

@@ -9,6 +9,7 @@ import { OfficeScreen } from './ui/screens/OfficeScreen';
 import { PromotionScreen } from './ui/screens/PromotionScreen';
 import { FreeAgentsScreen } from './ui/screens/FreeAgentsScreen';
 import { RosterScreen } from './ui/screens/RosterScreen';
+import { TerritoriesScreen } from './ui/screens/TerritoriesScreen';
 import { ShowResults } from './ui/screens/ShowResults';
 import { ContactSheet } from './ui/screens/ContactSheet';
 import { WrestlerEditor } from './ui/screens/WrestlerEditor';
@@ -24,6 +25,7 @@ type Screen =
   | 'booking'
   | 'promotion'
   | 'roster'
+  | 'territories'
   | 'freeAgents'
   | 'results'
   | 'rankings'
@@ -38,6 +40,7 @@ const TABS: { id: Screen; label: string }[] = [
   { id: 'booking', label: 'Card' },
   { id: 'promotion', label: 'Promotion' },
   { id: 'roster', label: 'Roster' },
+  { id: 'territories', label: 'Territories' },
   { id: 'freeAgents', label: 'Free agents' },
   { id: 'results', label: 'Results' },
   { id: 'rankings', label: 'Rankings' },
@@ -128,6 +131,7 @@ export default function App() {
           }}
         />
       )}
+      {screen === 'territories' && <TerritoriesScreen />}
       {screen === 'freeAgents' && <FreeAgentsScreen />}
       {screen === 'results' &&
         (lastShow ? (

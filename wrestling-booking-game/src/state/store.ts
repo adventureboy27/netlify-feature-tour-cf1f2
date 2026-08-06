@@ -48,6 +48,18 @@ import { rollDeath } from '../engine/career/mortality';
 import { annualInductions } from '../engine/career/hallOfFame';
 import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult } from '../engine/career/awards';
 import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
+import {
+  followingOf,
+  followingGain,
+  followingDecay,
+  territoryFit,
+  readCardTraits,
+  isInvasion,
+  invasionDamage,
+  claimsTerritory,
+  strongestTerritory,
+  venueFitsTerritory,
+} from '../engine/world/territories';
 import { graduateClass, graduateCount, workingPopulation } from '../engine/world/academy';
 import { rollForNickname } from '../engine/generate/nickname';
 import {
@@ -105,7 +117,7 @@ import {
   repairAsset,
   repairCost,
 } from '../engine/economy/showBudget';
-import { venueById, fallbackVenue } from '../data/venues';
+import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import { productionAssetById, showExtraById } from '../data/production';
 import { expireContracts, weeklyWageBill, createStandardContract, askingRate, renewalRate } from '../engine/economy/contracts';
 import { driftEgo, targetEgo, contractDemand, clauseUpkeep } from '../engine/career/ego';
@@ -161,6 +173,8 @@ export interface GameStore {
   dismissYearInReview: () => void;
   // Staging the show
   setVenue: (venueId: Id) => void;
+  /** Where you are running this week. */
+  setTerritory: (territoryId: Id) => void;
   setTicketPrice: (price: number) => void;
   toggleShowExtra: (extraId: Id) => void;
   buyProductionAsset: (assetId: Id) => void;
@@ -714,6 +728,8 @@ export const useGameStore = create<GameStore>()(
         // could therefore come through the curtain.
         const bookedTonight = new Set<Id>(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
         const weeklyIncidents: { promotionId: Id; promotionName: string; incident: Incident }[] = [];
+        /** Which town each promotion worked this week. Everywhere else decays. */
+        const ranThisWeek = new Map<Id, Id>();
         const segmentPopAvgs: { stars: number; avgPopularity: number }[] = [];
         const violenceLevels: number[] = [];
         let ringsideCost = 0;
@@ -988,6 +1004,32 @@ export const useGameStore = create<GameStore>()(
         const slotWeights = TV_SLOT_WEIGHTS.slice(0, world.currentCard.length);
         const inRingRating = computeShowRating(segmentRatings, slotWeights);
 
+        // ---- where we are running ----------------------------------------
+        // The town has an opinion about the card, and a memory of how over
+        // this promotion is here. Both are read before the show is priced.
+        const territory =
+          world.territories.find((t) => t.id === world.showSetup.territoryId) ?? world.territories[0]!;
+        const homeFollowing = followingOf(territory, world.promotion.id);
+        const townFit = territoryFit(
+          territory,
+          readCardTraits(
+            world.currentCard
+              .filter((segment) => segment.result !== null)
+              .map((segment) => ({
+                participants: segment.participants
+                  .map((p) => wrestlerById.get(p.wrestlerId))
+                  .filter((w): w is Wrestler => Boolean(w)),
+                violenceLevel: segment.stipulation
+                  ? (stipulationById(segment.stipulation)?.violenceLevel ?? 0)
+                  : 0,
+                lengthMinutes:
+                  segment.rules.timeLimit > 0 ? segment.rules.timeLimit : world.settings.defaultMatchLength,
+              })),
+            world.settings,
+          ),
+          world.settings,
+        );
+
         // ---- staging the show -------------------------------------------
         const venue = venueById(world.showSetup.venueId) ?? fallbackVenue();
         const ownedAssets = world.ownedAssetIds
@@ -1032,6 +1074,7 @@ export const useGameStore = create<GameStore>()(
           world.promotion.recentShowQuality,
           cardStrength,
           world.settings,
+          homeFollowing,
         );
 
         const attendance = computeAttendanceForShow({
@@ -1059,7 +1102,9 @@ export const useGameStore = create<GameStore>()(
           settings: world.settings,
         });
 
-        const gate = revenue.gate;
+        // What a ticket is worth here. A sell-out in the small town is not the
+        // same money as a sell-out in the metro.
+        const gate = Math.round(revenue.gate * territory.revenueMult);
 
         const weeklyExpenses = computeWeeklyExpenses(
           world.promotion.bankBalance,
@@ -1110,7 +1155,8 @@ export const useGameStore = create<GameStore>()(
         // What happened in the ring, plus how the night was staged. Staging
         // modifies a show; it cannot manufacture one, so a card with nothing
         // booked rates zero no matter how good the building looked.
-        const showRating = segmentPopAvgs.length === 0 ? 0 : clamp(inRingRating + productionRating, 0, 100);
+        const showRating =
+          segmentPopAvgs.length === 0 ? 0 : clamp(inRingRating + productionRating + townFit, 0, 100);
         const showStars = ratingToStars(showRating);
 
         // §11.4 weapons model: violence booked tonight accrues, then the week
@@ -1123,6 +1169,45 @@ export const useGameStore = create<GameStore>()(
           ),
           world.settings.hardcoreSaturationDecayPerWeek,
         );
+
+        // ---- what the night did to the map ------------------------------
+        // Following is earned here and nowhere else. Everything the player
+        // does in a town — the card, the price, the building — comes out as
+        // one number: how many of them come back next time.
+        const homeIndex = world.territories.findIndex((t) => t.id === territory.id);
+        if (homeIndex >= 0) {
+          const town = world.territories[homeIndex]!;
+          town.following[world.promotion.id] = clamp(
+            followingOf(town, world.promotion.id) + followingGain(showStars, world.settings),
+            0,
+            100,
+          );
+
+          // Running somebody else's town costs them. This is how a promotion
+          // is pushed off the map, and it is not subtle.
+          if (isInvasion(town, world.promotion.id)) {
+            const holder = town.ownerPromotionId!;
+            town.following[holder] = clamp(
+              followingOf(town, holder) - invasionDamage(showStars, world.settings),
+              0,
+              100,
+            );
+          }
+
+          // And the house claims the town, if it was the biggest anybody has
+          // ever drawn here.
+          const record = world.attendanceRecords[town.id];
+          if (claimsTerritory(record, attendance, world.settings)) {
+            world.attendanceRecords[town.id] = {
+              territoryId: town.id,
+              promotionId: world.promotion.id,
+              attendance,
+              week: world.week,
+            };
+            town.ownerPromotionId = world.promotion.id;
+          }
+          ranThisWeek.set(world.promotion.id, town.id);
+        }
 
         // Tonight goes into the running average, which is what decides how
         // many people turn up next week. A night of draws and count-outs
@@ -1234,6 +1319,51 @@ export const useGameStore = create<GameStore>()(
           });
           if (!show) continue;
           rivalShows.set(rival.id, show);
+
+          // Rivals tour too. They run where they are most over, and a company
+          // that is over nowhere yet takes whatever is unclaimed — which is
+          // what gradually spreads seven promotions across twelve towns
+          // instead of stacking them all in the biggest market.
+          const strongest = strongestTerritory(world.territories, rival.id);
+          const unclaimed = world.territories.filter((t) => t.ownerPromotionId === null);
+          const home =
+            strongest && followingOf(strongest, rival.id) > 0
+              ? strongest
+              : (unclaimed.length > 0 ? pick(rng, unclaimed) : strongest);
+          if (home) {
+            ranThisWeek.set(rival.id, home.id);
+            const index = world.territories.findIndex((t) => t.id === home.id);
+            const town = world.territories[index]!;
+            town.following[rival.id] = clamp(
+              followingOf(town, rival.id) + followingGain(show.showStars, world.settings),
+              0,
+              100,
+            );
+            if (isInvasion(town, rival.id)) {
+              const holder = town.ownerPromotionId!;
+              town.following[holder] = clamp(
+                followingOf(town, holder) - invasionDamage(show.showStars, world.settings),
+                0,
+                100,
+              );
+            }
+            // A rival's house is estimated from how over they are — they do
+            // not have a venue or a ticket price, and inventing one would be
+            // a second, disagreeing economy.
+            const rivalHouse = Math.round(
+              (followingOf(town, rival.id) / 100) * town.capacity * world.settings.rivalHouseShare,
+            );
+            const record = world.attendanceRecords[town.id];
+            if (claimsTerritory(record, rivalHouse, world.settings)) {
+              world.attendanceRecords[town.id] = {
+                territoryId: town.id,
+                promotionId: rival.id,
+                attendance: rivalHouse,
+                week: world.week,
+              };
+              town.ownerPromotionId = rival.id;
+            }
+          }
 
           for (const match of show.matches) {
             for (const change of match.aftermath) {
@@ -1362,6 +1492,19 @@ export const useGameStore = create<GameStore>()(
           ],
           world.settings,
         );
+        // Eleven towns in twelve forget you a little every week. This is the
+        // whole reason a schedule is a decision: find the one big market and
+        // live there, and the rest of the map quietly stops knowing who you
+        // are.
+        for (const town of world.territories) {
+          for (const company of [world.promotion, ...world.rivals]) {
+            if (ranThisWeek.get(company.id) === town.id) continue;
+            const current = followingOf(town, company.id);
+            if (current <= 0) continue;
+            town.following[company.id] = Math.max(0, current - followingDecay(world.settings));
+          }
+        }
+
         world.rivalShows = [...rivalShows.values()];
         world.lastIncidents = weeklyIncidents;
         world.tvHistory.unshift({ week: world.week, results: tvResults });
@@ -1931,6 +2074,26 @@ export const useGameStore = create<GameStore>()(
     setVenue: (venueId) => {
       set((state) => {
         if (state.world) state.world.showSetup.venueId = venueId;
+      });
+    },
+
+    setTerritory: (territoryId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        world.showSetup.territoryId = territoryId;
+
+        // A building bigger than the town cannot be run there. Rather than
+        // refuse the move, drop to the biggest room the market can hold —
+        // the player picked where to go, and the venue follows.
+        const town = world.territories.find((t) => t.id === territoryId);
+        const venue = venueById(world.showSetup.venueId);
+        if (town && venue && !venueFitsTerritory(venue.capacity, town.capacity)) {
+          const fits = VENUES.filter(
+            (v) => world.promotion.rating >= v.minCompanyRating && venueFitsTerritory(v.capacity, town.capacity),
+          );
+          world.showSetup.venueId = (fits[fits.length - 1] ?? fallbackVenue()).id;
+        }
       });
     },
 

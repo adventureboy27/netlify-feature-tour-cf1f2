@@ -515,6 +515,8 @@ export interface ShowExtra {
 /** The production plan for one show. */
 export interface ShowSetup {
   venueId: Id;
+  /** Where you are running this week. */
+  territoryId: Id;
   ticketPrice: number;
   extraIds: Id[];
 }
@@ -1531,6 +1533,38 @@ export interface WorldSettings {
   newsLedeLength: number;
   newsGreatShowRating: number;
   newsPoorShowRating: number;
+
+  // Territories — §16. The decay is the load-bearing number: it is what stops
+  // the player finding one big market and running there forever.
+  /** Following earned per star of show quality. */
+  territoryFollowingPerStar: number;
+  /** Following lost every week in every town you did not run. */
+  territoryFollowingDecayPerWeek: number;
+  /** What a town's taste is worth on the show rating, at a weight of 1. */
+  territoryFitRatingWeight: number;
+  /** Violence level at which a card counts as fully hardcore. */
+  territoryHardcoreFullViolence: number;
+  /** Booked minutes at which a match counts as a long one. */
+  territoryLongMatchMinutes: number;
+  /** Following the owner loses per star when somebody runs their town. */
+  territoryInvasionDamagePerStar: number;
+  /** Below this house, a show is not a claim on anything. */
+  territoryClaimMinimumAttendance: number;
+  /**
+   * How far local following can swing demand either way. At 0.5, a town that
+   * has never heard of you draws half what your rating says and a town you own
+   * draws half again as much.
+   */
+  demandFromTerritoryFollowing: number;
+  /**
+   * What share of a town a rival fills at full following. They have no venue
+   * and no ticket price, so their house is estimated rather than simulated —
+   * inventing a second economy for them would be a second economy to keep
+   * agreeing with the first.
+   */
+  rivalHouseShare: number;
+  /** How over a new promotion already is in the town it comes from. */
+  startingTerritoryFollowing: number;
 
   /** Rating points a match gains for fitting the promotion's house style. */
   houseStyleRatingWeight: number;

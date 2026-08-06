@@ -32,6 +32,7 @@ import type {
   Title,
   Relationship,
   Passing,
+  Territory,
 } from '../engine/types';
 import type { HallOfFameEntry } from '../engine/career/hallOfFame';
 import type { AwardWinner, YearRecord } from '../engine/career/awards';
@@ -59,6 +60,8 @@ import type { PromotionArchetype } from '../data/promotionIdentity';
 import { seedRelationships } from '../engine/career/relationships';
 import { formTeams, teamIdFactory } from '../engine/world/tagTeams';
 import { bestAvailableVenue } from '../data/venues';
+import { TERRITORIES, createTerritories } from '../data/territories';
+import type { AttendanceRecord } from '../engine/world/territories';
 import type { AssetCondition } from '../engine/economy/showBudget';
 import type { ContractDemand } from '../engine/career/ego';
 
@@ -132,6 +135,10 @@ export interface World {
   freeAgents: FreeAgent[];
   /** Championships. A promotion's spine. */
   titles: Title[];
+  /** The map. Twelve markets, each with its own memory of every promotion. */
+  territories: Territory[];
+  /** The biggest house each town has ever drawn, keyed by territory id. */
+  attendanceRecords: Record<Id, AttendanceRecord>;
   /** Everyone who has died, oldest first. §19's memorial wall. */
   memoriam: Passing[];
   /** The hall of fame, in induction order. */
@@ -271,6 +278,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   );
   for (const agent of pool.wrestlers) wrestlers[agent.id] = agent;
 
+  const startingSetup = defaultShowSetup(settings);
+
   const promotion: Promotion = {
     id: 'player-promotion',
     name: settings.promotionName,
@@ -380,7 +389,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     ownedAssetIds: [],
     assetConditions: [],
     pendingRenewals: [],
-    showSetup: defaultShowSetup(settings),
+    showSetup: startingSetup,
     weeksInTheRed: 0,
     folded: null,
     signingBanWeeks: 0,
@@ -388,6 +397,16 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     tamperingOffenses: 0,
     freeAgents: pool.freeAgents,
     titles: [...playerTitles, ...rivalTitles],
+    // You are from somewhere. A promotion does not open in a town that has
+    // never heard of it — the home territory starts with a real following and
+    // everywhere else starts at nothing, which is the map the player has to
+    // go and change.
+    territories: createTerritories().map((t) =>
+      t.id === startingSetup.territoryId
+        ? { ...t, following: { [promotion.id]: settings.startingTerritoryFollowing } }
+        : t,
+    ),
+    attendanceRecords: {},
     memoriam: [],
     hallOfFame: [],
     yearInReview: null,
@@ -518,7 +537,20 @@ export interface RenewalOffer {
 
 /** Opening staging: the cheapest room, a modest ticket, nothing extra. */
 export function defaultShowSetup(settings: WorldSettings): ShowSetup {
-  return { venueId: bestAvailableVenue(settings.startingCompanyRating).id, ticketPrice: 12, extraIds: [] };
+  // Home is the smallest market that can actually host the building this
+  // promotion can rent. Starting somewhere too small for your own venue is a
+  // guaranteed bankruptcy, and starting in the metro is a story the player
+  // should have to earn.
+  const venue = bestAvailableVenue(settings.startingCompanyRating);
+  const home =
+    [...TERRITORIES].sort((a, b) => a.capacity - b.capacity).find((t) => t.capacity >= venue.capacity) ??
+    [...TERRITORIES].sort((a, b) => b.capacity - a.capacity)[0]!;
+  return {
+    venueId: venue.id,
+    territoryId: home.id,
+    ticketPrice: 12,
+    extraIds: [],
+  };
 }
 
 // DESIGN: §5 has the player start a *new* promotion, which argues for vacant
