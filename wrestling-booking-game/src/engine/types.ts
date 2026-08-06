@@ -1617,6 +1617,14 @@ export interface WorldSettings {
   ppvBuysFromBuild: number;
   ppvBuyPrice: number;
 
+  // Television and sponsorship — §14.
+  /** Weeks a rating must be held before a network will talk. */
+  broadcastWeeksToQualify: number;
+  /** Weeks a paymaster tolerates a broken condition before walking. */
+  broadcastWeeksOfGrace: number;
+  /** How many sponsors will fit on a banner. Keeps it a choice. */
+  maxSponsors: number;
+
   /** Rating points a match gains for fitting the promotion's house style. */
   houseStyleRatingWeight: number;
   /** Rating points a card loses for running past what this audience will take. */

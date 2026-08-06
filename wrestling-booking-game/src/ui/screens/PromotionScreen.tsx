@@ -30,6 +30,9 @@ import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
 import { titlesOf } from '../../data/titles';
 import { stipulationById } from '../../data/stipulations';
 import { Money } from '../components/display';
+import { broadcasterById } from '../../data/broadcasters';
+import { sponsorById } from '../../data/sponsors';
+import { weeklyBroadcastIncome } from '../../engine/economy/broadcast';
 
 export function PromotionScreen() {
   const world = useGameStore((s) => s.world);
@@ -129,6 +132,9 @@ export function PromotionScreen() {
           </p>
         )}
       </section>
+
+      {/* ---- who is paying for all this -------------------------------- */}
+      <BroadcastPanel />
 
       {/* ---- venue ----------------------------------------------------- */}
       <section className="mb-4">
@@ -410,5 +416,111 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
       <dt className="text-neutral-500">{label}</dt>
       <dd className="font-medium">{value}</dd>
     </div>
+  );
+}
+
+/**
+ * Television and sponsors.
+ *
+ * Both are shown with their conditions attached and how close each one is to
+ * breaking, because that is the only part the player can act on. The fee is
+ * the reward; the conditions are the actual system, and burying them would
+ * make losing a deal feel arbitrary rather than earned.
+ */
+function BroadcastPanel() {
+  const world = useGameStore((s) => s.world);
+  const dropSponsor = useGameStore((s) => s.dropSponsor);
+  if (!world) return null;
+
+  const deal = world.broadcastDealId ? broadcasterById(world.broadcastDealId) : null;
+  const sponsors = world.sponsorIds.map((id) => sponsorById(id)).filter((s): s is NonNullable<typeof s> => Boolean(s));
+  const weekly = weeklyBroadcastIncome(deal ?? null, sponsors);
+
+  const breachOn = (key: string) => world.breachWeeks[key] ?? 0;
+  const grace = world.settings.broadcastWeeksOfGrace;
+
+  return (
+    <section className="mb-4">
+      <div className="mb-2 flex items-baseline justify-between">
+        <h2 className="text-sm font-medium text-neutral-300">Television and sponsors</h2>
+        <span className="text-xs text-neutral-500">
+          <Money amount={weekly} /> a week
+        </span>
+      </div>
+
+      {!deal && sponsors.length === 0 ? (
+        <p className="text-xs text-neutral-500">
+          Nobody is paying you to be on television and nobody wants their name on the banner. Both come with a company
+          rating.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {deal && (
+            <div
+              data-testid={`deal-${deal.id}`}
+              className={`rounded border p-2 ${
+                breachOn(deal.id) > 0 ? 'border-rose-800 bg-rose-950/20' : 'border-neutral-800 bg-neutral-900'
+              }`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-xs font-medium">{deal.name}</span>
+                <span className="shrink-0 text-[11px] text-emerald-400">
+                  <Money amount={deal.weeklyFee} />
+                </span>
+              </div>
+              {deal.demands.map((demand) => (
+                <div key={demand.kind} className="text-[10px] text-neutral-500">
+                  {demand.text}
+                </div>
+              ))}
+              {breachOn(deal.id) > 0 && (
+                <div className="mt-1 text-[10px] text-rose-400">
+                  In breach {breachOn(deal.id)}w — {grace - breachOn(deal.id)} until they pull the show
+                </div>
+              )}
+            </div>
+          )}
+
+          {sponsors.map((sponsor) => (
+            <div
+              key={sponsor.id}
+              data-testid={`sponsor-${sponsor.id}`}
+              className={`rounded border p-2 ${
+                breachOn(sponsor.id) > 0 ? 'border-rose-800 bg-rose-950/20' : 'border-neutral-800 bg-neutral-900'
+              }`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-xs font-medium">{sponsor.name}</span>
+                <span className="shrink-0 text-[11px] text-emerald-400">
+                  <Money amount={sponsor.weeklyFee} />
+                </span>
+              </div>
+              {sponsor.conditions.map((condition) => (
+                <div key={condition.kind} className="text-[10px] text-neutral-500">
+                  {condition.text}
+                </div>
+              ))}
+              <div className="mt-1 flex items-center justify-between gap-2">
+                {breachOn(sponsor.id) > 0 ? (
+                  <span className="text-[10px] text-rose-400">
+                    In breach {breachOn(sponsor.id)}w — {grace - breachOn(sponsor.id)} until they walk
+                  </span>
+                ) : (
+                  <span />
+                )}
+                <button
+                  type="button"
+                  data-testid={`drop-sponsor-${sponsor.id}`}
+                  onClick={() => dropSponsor(sponsor.id)}
+                  className="shrink-0 rounded bg-neutral-800 px-2 py-0.5 text-[10px] text-neutral-400 hover:bg-neutral-700"
+                >
+                  End it
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

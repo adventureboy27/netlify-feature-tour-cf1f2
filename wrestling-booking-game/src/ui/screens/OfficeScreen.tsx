@@ -23,6 +23,8 @@ import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { egoLabel } from '../../engine/career/ego';
 import { awardById } from '../../engine/career/awards';
 import { strikeWarning } from '../../engine/world/mandates';
+import { broadcasterById } from '../../data/broadcasters';
+import { sponsorById } from '../../data/sponsors';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Money } from '../components/display';
 import { identityOf } from '../../data/promotionIdentity';
@@ -44,6 +46,9 @@ export function OfficeScreen() {
     (world.pendingAuction ? 1 : 0) +
     (world.yearInReview ? 1 : 0) +
     (world.mandate ? 1 : 0) +
+    (world.pendingBroadcastOffer ? 1 : 0) +
+    world.pendingSponsorOffers.length +
+    world.lastDealsLost.length +
     (world.lastMandateOutcome ? 1 : 0) +
     (world.lastEventOutcome ? 1 : 0) +
     (world.lastAuction ? 1 : 0);
@@ -257,6 +262,7 @@ function DeskTab() {
       )}
 
       <Mandate />
+      <DealOffers />
       {world.yearInReview && <YearInReview onDismiss={dismissYear} />}
 
       {world.lastEventOutcome && (
@@ -301,6 +307,113 @@ function DeskTab() {
         <p className="rounded border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-500">
           Quiet week. Nobody is at your door.
         </p>
+      )}
+    </>
+  );
+}
+
+/**
+ * Somebody wants to pay you, and somebody has stopped.
+ *
+ * Offers are answered rather than taken automatically: a national deal you
+ * cannot honour is worse than no deal, because the conditions constrain every
+ * card you book afterwards and losing it later is a hole rather than a
+ * setback. That has to be the booker's call.
+ */
+function DealOffers() {
+  const world = useGameStore((s) => s.world);
+  const answerBroadcast = useGameStore((s) => s.answerBroadcastOffer);
+  const signSponsor = useGameStore((s) => s.signSponsor);
+  if (!world) return null;
+
+  const offer = world.pendingBroadcastOffer ? broadcasterById(world.pendingBroadcastOffer) : null;
+  const sponsorOffers = world.pendingSponsorOffers
+    .map((id) => sponsorById(id))
+    .filter((s): s is NonNullable<typeof s> => Boolean(s));
+  const lost = world.lastDealsLost;
+
+  if (!offer && sponsorOffers.length === 0 && lost.length === 0) return null;
+
+  return (
+    <>
+      {lost.map((gone) => (
+        <section
+          key={gone.name}
+          data-testid={`deal-lost-${gone.name}`}
+          className="mb-3 rounded border border-rose-800 bg-rose-950/30 p-3"
+        >
+          <div className="text-xs uppercase tracking-wide text-rose-400">Gone</div>
+          <p className="mt-1 text-sm font-medium">{gone.name} has pulled out.</p>
+          <p className="mt-1 text-xs text-neutral-400">“{gone.reason}”</p>
+        </section>
+      ))}
+
+      {offer && (
+        <section data-testid="broadcast-offer" className="mb-3 rounded border border-sky-800 bg-sky-950/30 p-3">
+          <div className="text-xs uppercase tracking-wide text-sky-400">Television</div>
+          <h2 className="mt-1 text-sm font-semibold">{offer.name} wants the show</h2>
+          <p className="mt-1 text-xs text-neutral-400">{offer.blurb}</p>
+          <p className="mt-2 text-sm text-emerald-400">
+            <Money amount={offer.weeklyFee} /> a week
+          </p>
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {offer.demands.map((demand) => (
+              <li key={demand.kind} className="text-[11px] text-amber-400">
+                ↓ {demand.text}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              data-testid="accept-broadcast"
+              onClick={() => answerBroadcast(true)}
+              className="rounded bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-500"
+            >
+              Sign it
+            </button>
+            <button
+              type="button"
+              data-testid="decline-broadcast"
+              onClick={() => answerBroadcast(false)}
+              className="rounded bg-neutral-800 px-3 py-1 text-xs hover:bg-neutral-700"
+            >
+              Not yet
+            </button>
+          </div>
+        </section>
+      )}
+
+      {sponsorOffers.length > 0 && (
+        <section className="mb-3 rounded border border-neutral-800 bg-neutral-900 p-3">
+          <div className="text-xs uppercase tracking-wide text-neutral-400">Sponsors interested</div>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {sponsorOffers.map((sponsor) => (
+              <div key={sponsor.id} className="rounded border border-neutral-800 bg-neutral-950 p-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="truncate text-xs font-medium">{sponsor.name}</span>
+                  <span className="shrink-0 text-[11px] text-emerald-400">
+                    <Money amount={sponsor.weeklyFee} />
+                  </span>
+                </div>
+                <p className="text-[10px] text-neutral-500">{sponsor.blurb}</p>
+                {sponsor.conditions.map((condition) => (
+                  <div key={condition.kind} className="text-[10px] text-amber-400">
+                    ↓ {condition.text}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  data-testid={`sign-sponsor-${sponsor.id}`}
+                  onClick={() => signSponsor(sponsor.id)}
+                  className="mt-1 rounded bg-neutral-800 px-2 py-0.5 text-[11px] text-neutral-200 hover:bg-neutral-700"
+                >
+                  Take the money
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
     </>
   );

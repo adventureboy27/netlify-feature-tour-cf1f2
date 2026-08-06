@@ -483,6 +483,13 @@ export function defaultWorldSettings(): WorldSettings {
     ppvBuysFromBuild: 0.55,
     ppvBuyPrice: 12,
 
+    // Six weeks at a rating before a network believes it; four weeks of a
+    // broken condition before they walk. The second number is the window the
+    // player has to notice a problem and fix it.
+    broadcastWeeksToQualify: 6,
+    broadcastWeeksOfGrace: 4,
+    maxSponsors: 2,
+
     // House style. A few points either way — enough to notice over a season,
     // never enough to stop you booking who you like.
     houseStyleRatingWeight: 4,

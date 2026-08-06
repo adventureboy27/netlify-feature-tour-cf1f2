@@ -50,6 +50,16 @@ import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult 
 import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
 import { isPPVWeek, ppvNameForWeek, segmentsForWeek, computeBuys, computeBuyRevenue } from '../engine/world/calendar';
 import {
+  broadcastBreaches,
+  sponsorBreaches,
+  broadcastOffer,
+  availableSponsors,
+  weeklyBroadcastIncome,
+  shouldWalk,
+} from '../engine/economy/broadcast';
+import { broadcasterById, bestBroadcasterFor } from '../data/broadcasters';
+import { sponsorById } from '../data/sponsors';
+import {
   issueMandate,
   mandateMet,
   mandateExpired,
@@ -181,6 +191,12 @@ export interface GameStore {
   dismissYearInReview: () => void;
   /** Clear the owner's verdict on the last mandate once it has been read. */
   dismissMandateOutcome: () => void;
+  /** Sign the network currently on the table, or turn them down. */
+  answerBroadcastOffer: (accept: boolean) => void;
+  /** Take a sponsor's money, and their conditions with it. */
+  signSponsor: (sponsorId: string) => void;
+  /** Let one go before they walk. */
+  dropSponsor: (sponsorId: string) => void;
   // Staging the show
   setVenue: (venueId: Id) => void;
   /** Where you are running this week. */
@@ -1862,6 +1878,89 @@ export const useGameStore = create<GameStore>()(
           world.yearInReview = notices;
         }
 
+        // ---- television and sponsors ------------------------------------
+        // Money that arrives whether or not anybody bought a ticket, and
+        // leaves the moment you stop being the company they signed.
+        const recentShows = world.showHistory.slice(-4);
+        const businessSnapshot = {
+          companyRating: world.promotion.rating,
+          hardcoreSaturation: world.promotion.hardcoreSaturation,
+          averageAttendance:
+            recentShows.length === 0
+              ? 0
+              : recentShows.reduce((sum, show) => sum + show.attendance, 0) / recentShows.length,
+          topStarPopularity: world.promotion.rosterIds.reduce(
+            (best, id) => Math.max(best, world.wrestlers[id]?.popularity ?? 0),
+            0,
+          ),
+          showsThisMonth: recentShows.length,
+          ppvsThisQuarter: world.showHistory.slice(-13).filter((show) => show.type === 'ppv').length,
+        };
+
+        const currentDeal = world.broadcastDealId ? broadcasterById(world.broadcastDealId) : undefined;
+        const signedSponsors = world.sponsorIds
+          .map((id) => sponsorById(id))
+          .filter((s): s is NonNullable<typeof s> => Boolean(s));
+
+        world.promotion.bankBalance += weeklyBroadcastIncome(currentDeal ?? null, signedSponsors);
+
+        // A rating held is what a network believes, so the counter resets the
+        // moment it slips below the bar for the next tier up.
+        const nextTier = bestBroadcasterFor(world.promotion.rating);
+        world.weeksAtRating =
+          nextTier && (!currentDeal || nextTier.tier > currentDeal.tier) ? world.weeksAtRating + 1 : 0;
+
+        world.lastDealsLost = [];
+
+        // Every paymaster gets the same grace: four weeks of a broken
+        // condition, then they are gone.
+        const checkPaymaster = (key: string, name: string, breaches: { text: string }[], drop: () => void) => {
+          if (breaches.length === 0) {
+            delete world.breachWeeks[key];
+            return;
+          }
+          const weeks = (world.breachWeeks[key] ?? 0) + 1;
+          world.breachWeeks[key] = weeks;
+          if (shouldWalk(weeks, world.settings)) {
+            world.lastDealsLost.push({ name, reason: breaches[0]!.text });
+            delete world.breachWeeks[key];
+            drop();
+          }
+        };
+
+        if (currentDeal) {
+          checkPaymaster(
+            currentDeal.id,
+            currentDeal.name,
+            broadcastBreaches(currentDeal, businessSnapshot),
+            () => {
+              world.broadcastDealId = null;
+            },
+          );
+        }
+        for (const sponsor of signedSponsors) {
+          checkPaymaster(sponsor.id, sponsor.name, sponsorBreaches(sponsor, businessSnapshot), () => {
+            world.sponsorIds = world.sponsorIds.filter((id) => id !== sponsor.id);
+          });
+        }
+
+        // And who is offering. Both are answered by the player, not taken
+        // automatically — a national deal you cannot honour is worse than no
+        // deal at all, and that has to be the booker's call.
+        const offer = broadcastOffer(
+          world.promotion.rating,
+          world.weeksAtRating,
+          world.broadcastDealId,
+          world.settings,
+        );
+        world.pendingBroadcastOffer = offer?.id ?? null;
+        world.pendingSponsorOffers = availableSponsors(
+          world.promotion.rating,
+          world.sponsorIds,
+          businessSnapshot,
+          world.settings,
+        ).map((s) => s.id);
+
         // ---- the owner ---------------------------------------------------
         // Checked after everything else, so a mandate met on tonight's show
         // counts tonight rather than next week.
@@ -2161,6 +2260,40 @@ export const useGameStore = create<GameStore>()(
     dismissAuctionResult: () => {
       set((state) => {
         if (state.world) state.world.lastAuction = null;
+      });
+    },
+
+    answerBroadcastOffer: (accept) => {
+      set((state) => {
+        const world = state.world;
+        if (!world?.pendingBroadcastOffer) return;
+        if (accept) {
+          world.broadcastDealId = world.pendingBroadcastOffer;
+          // A new deal starts clean; whatever the last one was unhappy about
+          // is not this one's business.
+          world.breachWeeks = {};
+        }
+        world.pendingBroadcastOffer = null;
+        world.weeksAtRating = 0;
+      });
+    },
+
+    signSponsor: (sponsorId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world || world.sponsorIds.includes(sponsorId)) return;
+        if (!world.pendingSponsorOffers.includes(sponsorId)) return;
+        world.sponsorIds.push(sponsorId);
+        world.pendingSponsorOffers = world.pendingSponsorOffers.filter((id) => id !== sponsorId);
+      });
+    },
+
+    dropSponsor: (sponsorId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        world.sponsorIds = world.sponsorIds.filter((id) => id !== sponsorId);
+        delete world.breachWeeks[sponsorId];
       });
     },
 

@@ -147,6 +147,19 @@ export interface World {
   memoriam: Passing[];
   /** The hall of fame, in induction order. */
   hallOfFame: HallOfFameEntry[];
+  /** The network, if anybody is carrying the show. */
+  broadcastDealId: string | null;
+  /** Sponsors currently on the banner. */
+  sponsorIds: string[];
+  /** A deal on the table, awaiting an answer. */
+  pendingBroadcastOffer: string | null;
+  pendingSponsorOffers: string[];
+  /** How many weeks each paymaster has been looking at a broken condition. */
+  breachWeeks: Record<string, number>;
+  /** Weeks the company rating has been at or above its current tier's bar. */
+  weeksAtRating: number;
+  /** Paymasters who walked, shown once. */
+  lastDealsLost: { name: string; reason: string }[];
   /** What the owner currently wants, and when they want it by. */
   mandate: OwnerMandate | null;
   /** How the last one went. Shown once, then cleared. */
@@ -427,6 +440,13 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     attendanceRecords: {},
     memoriam: [],
     hallOfFame: [],
+    broadcastDealId: null,
+    sponsorIds: [],
+    pendingBroadcastOffer: null,
+    pendingSponsorOffers: [],
+    breachWeeks: {},
+    weeksAtRating: 0,
+    lastDealsLost: [],
     mandate: null,
     lastMandateOutcome: null,
     mandateStrikes: 0,
