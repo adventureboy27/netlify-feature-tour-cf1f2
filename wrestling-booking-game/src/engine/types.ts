@@ -343,6 +343,13 @@ export interface Wrestler {
   id: Id;
   name: string; // ring name
   nickname?: string;
+  /**
+   * Names they used to work under, oldest first. A repackage does not erase
+   * a career: a title lineage naming somebody by a name they have not used
+   * for ten years is the history, and the records screens need to be able to
+   * say "then known as".
+   */
+  formerNames?: { name: string; untilWeek: number }[];
 
   // Core stats, 0-100
   popularity: number;
@@ -1514,6 +1521,10 @@ export interface WorldSettings {
   nicknameEgoThreshold: number;
   /** Weekly chance an eligible wrestler picks one up. */
   nicknameWeeklyChance: number;
+
+  // Repackaging. What a ring name the player types is allowed to be.
+  ringNameMinLength: number;
+  ringNameMaxLength: number;
 
   /** Rating points a match gains for fitting the promotion's house style. */
   houseStyleRatingWeight: number;

@@ -53,7 +53,7 @@ function alignmentOf(w: Wrestler): { label: string; className: string } {
   return { label: 'TWEENER', className: 'bg-neutral-700 text-neutral-300' };
 }
 
-export function RosterScreen() {
+export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: string) => void } = {}) {
   const world = useGameStore((s) => s.world);
   const retireWrestler = useGameStore((s) => s.retireWrestler);
   const [sort, setSort] = useState<SortKey>('popularity');
@@ -151,6 +151,13 @@ export function RosterScreen() {
                   </span>
                   <span className="shrink-0 text-[10px] text-neutral-500">{w.age}</span>
                 </div>
+
+                {/* A repackage does not erase who they were. */}
+                {w.formerNames && w.formerNames.length > 0 && (
+                  <div className="truncate text-[9px] text-neutral-600">
+                    formerly {w.formerNames[w.formerNames.length - 1]!.name}
+                  </div>
+                )}
 
                 {/* championships */}
                 {belts.length > 0 && (
@@ -271,6 +278,19 @@ export function RosterScreen() {
                       Retire them
                     </button>
                   </div>
+                )}
+
+                {/* A character that is not working can be changed. Any of
+                    them, any time — that is what a booker does. */}
+                {onRepackage && (
+                  <button
+                    type="button"
+                    data-testid={`repackage-${w.id}`}
+                    onClick={() => onRepackage(w.id)}
+                    className="mt-1 w-full rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-neutral-300 hover:bg-neutral-700"
+                  >
+                    Repackage
+                  </button>
                 )}
 
                 {w.contract && w.contract.clauses.length > 0 && (

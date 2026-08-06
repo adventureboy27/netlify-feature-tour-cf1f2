@@ -53,6 +53,8 @@ export default function App() {
   const resolveWeek = useGameStore((s) => s.resolveWeek);
   const saveNow = useGameStore((s) => s.saveNow);
   const [screen, setScreen] = useState<Screen>('booking');
+  /** Who the editor is currently repackaging, if anybody. */
+  const [repackaging, setRepackaging] = useState<string | null>(null);
 
   // Autosave. The world is plain data, so this is cheap; debounced so that
   // typing in a text field does not write a save on every keystroke.
@@ -102,7 +104,10 @@ export default function App() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setScreen(tab.id)}
+              onClick={() => {
+                if (tab.id !== 'editor') setRepackaging(null);
+                setScreen(tab.id);
+              }}
               className={`shrink-0 rounded px-3 py-1.5 text-xs ${screen === tab.id ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
             >
               {tab.label}
@@ -115,7 +120,14 @@ export default function App() {
       {screen === 'office' && <OfficeScreen />}
       {screen === 'booking' && <BookingScreen onRunShow={runShow} />}
       {screen === 'promotion' && <PromotionScreen />}
-      {screen === 'roster' && <RosterScreen />}
+      {screen === 'roster' && (
+        <RosterScreen
+          onRepackage={(wrestlerId) => {
+            setRepackaging(wrestlerId);
+            setScreen('editor');
+          }}
+        />
+      )}
       {screen === 'freeAgents' && <FreeAgentsScreen />}
       {screen === 'results' &&
         (lastShow ? (
@@ -128,7 +140,18 @@ export default function App() {
       {screen === 'records' && <RecordsScreen />}
       {screen === 'legacy' && <LegacyScreen />}
       {screen === 'contactSheet' && <ContactSheet />}
-      {screen === 'editor' && <WrestlerEditor />}
+      {screen === 'editor' && (
+        <WrestlerEditor
+          // Keyed so switching to a different wrestler reloads the form
+          // rather than keeping the last one's name in the fields.
+          key={repackaging ?? 'sandbox'}
+          wrestlerId={repackaging ?? undefined}
+          onDone={() => {
+            setRepackaging(null);
+            setScreen('roster');
+          }}
+        />
+      )}
     </div>
   );
 }

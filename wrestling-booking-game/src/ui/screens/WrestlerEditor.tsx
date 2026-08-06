@@ -8,7 +8,8 @@
 // group: they're still part of the vector the distinctness check and the save
 // file care about, they just have no cell in the current atlas.
 import { useState } from 'react';
-import type { Appearance } from '../../engine/types';
+import type { Appearance, Id } from '../../engine/types';
+import { useGameStore } from '../../state/store';
 import { generateAppearance, APPEARANCE_TRAIT_RANGES } from '../../engine/generate/appearance';
 import { rngFromSeed } from '../../engine/rng';
 import { PaperDoll } from '../paperdoll/PaperDoll';
@@ -166,10 +167,44 @@ function TraitSlider({
   );
 }
 
-export function WrestlerEditor() {
-  const [appearance, setAppearance] = useState<Appearance>(() => generateAppearance(rngFromSeed('editor-default')));
-  const [alignment, setAlignment] = useState(0);
-  const [gender, setGender] = useState<'m' | 'f'>('m');
+/**
+ * The editor, in two modes.
+ *
+ * With no `wrestlerId` it is the sandbox it has always been: roll a look,
+ * push the sliders, nothing is saved. With one, it is a repackage — the
+ * wrestler's real name and real look are loaded, the ring name becomes
+ * editable, and Save writes both back through the store, which enforces the
+ * same distinctness rules generation obeys and refuses the change if the new
+ * name or look would read as somebody already in the business.
+ */
+export function WrestlerEditor({ wrestlerId, onDone }: { wrestlerId?: Id; onDone?: () => void } = {}) {
+  const world = useGameStore((s) => s.world);
+  const repackageWrestler = useGameStore((s) => s.repackageWrestler);
+  const subject = wrestlerId ? world?.wrestlers[wrestlerId] : undefined;
+
+  const [appearance, setAppearance] = useState<Appearance>(
+    () => subject?.appearance ?? generateAppearance(rngFromSeed('editor-default')),
+  );
+  const [alignment, setAlignment] = useState(subject?.alignment ?? 0);
+  const [gender, setGender] = useState<'m' | 'f'>(subject?.gender ?? 'm');
+  const [ringName, setRingName] = useState(subject?.name ?? '');
+  const [nickname, setNickname] = useState(subject?.nickname ?? '');
+  const [rejected, setRejected] = useState<string | null>(null);
+
+  function save() {
+    if (!subject) return;
+    const result = repackageWrestler(subject.id, {
+      name: ringName,
+      nickname: nickname.trim() ? nickname.trim() : null,
+      appearance,
+    });
+    if (!result.ok) {
+      setRejected(result.reason);
+      return;
+    }
+    setRejected(null);
+    onDone?.();
+  }
 
   const cells = selectCells(appearance);
   const masked = appearance.mask > 0;
@@ -188,16 +223,75 @@ export function WrestlerEditor() {
 
   return (
     <div className="min-h-screen bg-neutral-950 p-4 text-neutral-100">
-      <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Wrestler Editor</h1>
-        <button
-          type="button"
-          onClick={randomize}
-          className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700"
-        >
-          Randomize
-        </button>
+      <header className="mb-4 flex items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold">{subject ? `Repackage ${subject.name}` : 'Wrestler Editor'}</h1>
+        <div className="flex shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={randomize}
+            className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700"
+          >
+            Randomize
+          </button>
+          {subject && (
+            <>
+              <button
+                type="button"
+                onClick={onDone}
+                className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="save-repackage"
+                onClick={save}
+                className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+              >
+                Save
+              </button>
+            </>
+          )}
+        </div>
       </header>
+
+      {subject && (
+        <div className="mb-4 flex flex-col gap-2 rounded border border-neutral-800 p-3">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-neutral-300">Ring name</span>
+            <input
+              type="text"
+              value={ringName}
+              data-testid="ring-name"
+              onChange={(e) => {
+                setRingName(e.target.value);
+                setRejected(null);
+              }}
+              className="rounded bg-neutral-900 px-2 py-1.5 text-sm outline-none ring-1 ring-neutral-800 focus:ring-emerald-600"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-neutral-300">Billed as</span>
+            <input
+              type="text"
+              value={nickname}
+              placeholder="No nickname"
+              onChange={(e) => setNickname(e.target.value)}
+              className="rounded bg-neutral-900 px-2 py-1.5 text-sm outline-none ring-1 ring-neutral-800 focus:ring-emerald-600"
+            />
+          </label>
+          {rejected && (
+            <p data-testid="repackage-rejected" className="text-xs text-rose-400">
+              {rejected}
+            </p>
+          )}
+          {subject.formerNames && subject.formerNames.length > 0 && (
+            <p className="text-[11px] text-neutral-500">
+              Previously {subject.formerNames.map((f) => f.name).join(', ')}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-6 md:flex-row">
         <div className="flex flex-col items-center gap-3 md:sticky md:top-4 md:h-fit">

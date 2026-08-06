@@ -9,6 +9,7 @@ import { rngFromSeed, rngFromState } from '../engine/rng';
 import { saveGame, loadGame } from './persist';
 import type { Rng } from '../engine/rng';
 import type {
+  Appearance,
   FinishType,
   Id,
   MatchRules,
@@ -49,6 +50,13 @@ import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult 
 import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
 import { graduateClass, graduateCount, workingPopulation } from '../engine/world/academy';
 import { rollForNickname } from '../engine/generate/nickname';
+import {
+  checkRename,
+  checkRestyle,
+  namesInUse,
+  repackage,
+  RENAME_REJECTION_TEXT,
+} from '../engine/generate/repackage';
 import { rollWeeklyEvent, recordFired } from '../engine/events/scheduler';
 import { resolveOption } from '../engine/events/apply';
 import { CREATIVE_EVENTS, eventById } from '../data/events';
@@ -167,6 +175,15 @@ export interface GameStore {
   releaseWrestler: (wrestlerId: Id) => void;
   /** Send somebody out on their terms. They go to the Legacy wall, not the pool. */
   retireWrestler: (wrestlerId: Id) => void;
+  /**
+   * Change what somebody is called and what they look like. Rejected — and
+   * says why — if the new name or look would read as somebody else already in
+   * the business.
+   */
+  repackageWrestler: (
+    wrestlerId: Id,
+    change: { name?: string; nickname?: string | null; appearance?: Appearance },
+  ) => { ok: boolean; reason: string | null };
   /** Put two of your people together as a tag team. Empty name = let the announcers pick. */
   formTagTeam: (aId: Id, bId: Id, name?: string) => void;
   /** Split a team up. Any tag belts they were carrying go vacant. */
@@ -1800,6 +1817,41 @@ export const useGameStore = create<GameStore>()(
 
         team.disbandedWeek = world.week;
       });
+    },
+
+    repackageWrestler: (wrestlerId, change) => {
+      const world = get().world;
+      const w = world?.wrestlers[wrestlerId];
+      if (!world || !w) return { ok: false, reason: 'Nobody by that name.' };
+
+      // Checked before the write, so a rejected repackage changes nothing.
+      const everybody = Object.values(world.wrestlers);
+      if (change.name !== undefined) {
+        const check = checkRename(change.name, w.name, namesInUse(everybody), world.settings);
+        if (!check.ok) return { ok: false, reason: RENAME_REJECTION_TEXT[check.reason!] };
+      }
+      if (change.appearance) {
+        const look = checkRestyle(change.appearance, wrestlerId, everybody);
+        if (!look.ok) {
+          const clash = look.clashesWith ? world.wrestlers[look.clashesWith]?.name : null;
+          return {
+            ok: false,
+            reason: clash
+              ? `Too close to how ${clash} already looks. Change more than a couple of things.`
+              : 'Too close to how somebody else already looks.',
+          };
+        }
+      }
+
+      set((state) => {
+        const draft = state.world;
+        const target = draft?.wrestlers[wrestlerId];
+        if (!draft || !target) return;
+        repackage(target, change, draft.week);
+      });
+      const after = get().world;
+      if (after) saveGame(after, rng.state?.() ?? 0);
+      return { ok: true, reason: null };
     },
 
     retireWrestler: (wrestlerId) => {

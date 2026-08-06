@@ -425,6 +425,11 @@ export function defaultWorldSettings(): WorldSettings {
     nicknameMainEventChance: 0.7,
     nicknameEgoThreshold: 70,
     nicknameWeeklyChance: 0.02,
+    
+    // Ring names the player types. Long enough to be a name, short enough to
+    // fit on a poster and in a results line.
+    ringNameMinLength: 3,
+    ringNameMaxLength: 28,
 
     // House style. A few points either way — enough to notice over a season,
     // never enough to stop you booking who you like.
