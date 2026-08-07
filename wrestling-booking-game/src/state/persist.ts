@@ -29,7 +29,11 @@ const SLOT_KEY = 'wbg.save.v1';
 // are baked into the save, and the two biggest markets grew so the top of the
 // venue ladder could be booked at all. A version-5 save would keep its old
 // map and play it against the new buildings — a world that never existed.
-const SCHEMA_VERSION = 6;
+//
+// Version 7 adds ratingLadderAnchors and audienceLoyalCore to WorldSettings,
+// both of which the code reads without a guard — a version-6 save would pass
+// the version check and then throw on the first show it resolved.
+const SCHEMA_VERSION = 7;
 
 export interface SaveFile {
   schema: number;

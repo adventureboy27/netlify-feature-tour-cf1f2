@@ -1775,6 +1775,8 @@ export const useGameStore = create<GameStore>()(
           ticketPrice,
           demand,
           attendanceMultiplier: sumEffect(production, 'attendanceMultiplier', 'multiply'),
+          // The regulars in this town are the floor under a bad night.
+          territoryFollowing: homeFollowing,
           settings: world.settings,
         });
 
@@ -1966,7 +1968,7 @@ export const useGameStore = create<GameStore>()(
           world.settings,
         );
 
-        const target = targetCompanyRatingForStars(showStars);
+        const target = targetCompanyRatingForStars(showStars, world.settings);
         world.promotion.rating = stepCompanyRatingTowardTarget(
           world.promotion.rating,
           target,
@@ -2191,7 +2193,7 @@ export const useGameStore = create<GameStore>()(
           );
           rival.rating = stepCompanyRatingTowardTarget(
             rival.rating,
-            targetCompanyRatingForStars(show.showStars),
+            targetCompanyRatingForStars(show.showStars, world.settings),
             world.settings.ratingLadderStepPerWeek,
             false,
           );

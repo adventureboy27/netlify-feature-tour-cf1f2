@@ -70,6 +70,8 @@ export interface AttendanceContext {
   demand: number;
   /** Combined multiplier from assets and extras. */
   attendanceMultiplier: number;
+  /** How over the promotion is in this town, 0-100. Sets the loyal-core floor. */
+  territoryFollowing?: number;
   settings: WorldSettings;
 }
 
@@ -85,9 +87,24 @@ export interface AttendanceContext {
  * Steeply curved, so the difference between a promotion people quite like and
  * one they will travel for is enormous.
  */
-export function potentialAudience(demand: number, settings: WorldSettings): number {
+export function potentialAudience(demand: number, settings: WorldSettings, territoryFollowing = 0): number {
   const t = clamp(demand, 0, 100) / 100;
-  return settings.demandAudienceScale * t ** settings.demandAudienceCurve;
+  const national = settings.demandAudienceScale * t ** settings.demandAudienceCurve;
+
+  // The regulars. A promotion can be nationally worthless and still fill a
+  // hall in the one town that has watched it for years, and this is a floor
+  // rather than a bonus for exactly that reason: at any healthy demand the
+  // curve is far above it and it changes nothing, so opening night is still
+  // not a sell-out. It only appears when the curve has collapsed.
+  //
+  // Without it the bottom of the curve was a cliff, not a difficulty. Once
+  // the ladder let a company's rating fall, demand in the thirties returned
+  // twenty-odd people and demand in the twenties returned none at all — no
+  // gate, no merch, no way back, folded inside a month. You can still lose
+  // everything, but you have to lose the town too, and that takes long
+  // enough to see coming.
+  const regulars = settings.audienceLoyalCore * (clamp(territoryFollowing, 0, 100) / 100);
+  return Math.max(national, regulars);
 }
 
 /**
@@ -181,7 +198,8 @@ export function computeAttendanceForShow(ctx: AttendanceContext): number {
   // A nicer building pulls a little walk-up on its own, but only a little.
   const prestigePull = 1 + (ctx.venue.prestige / 100) * settings.venuePrestigeDraw;
 
-  const wantToCome = potentialAudience(ctx.demand, settings) * priceFactor * ctx.attendanceMultiplier * prestigePull;
+  const wantToCome =
+    potentialAudience(ctx.demand, settings, ctx.territoryFollowing) * priceFactor * ctx.attendanceMultiplier * prestigePull;
   return Math.max(0, Math.min(Math.floor(wantToCome), ctx.venue.capacity));
 }
 
@@ -194,7 +212,9 @@ export function turnedAway(ctx: AttendanceContext): number {
     priceRatio <= 1
       ? 1 + (1 - priceRatio) * settings.ticketUnderpriceBonus
       : Math.max(0.1, 1 - (priceRatio - 1) * settings.ticketOverpricePenalty);
-  const wantToCome = Math.floor(potentialAudience(ctx.demand, settings) * priceFactor * ctx.attendanceMultiplier);
+  const wantToCome = Math.floor(
+    potentialAudience(ctx.demand, settings, ctx.territoryFollowing) * priceFactor * ctx.attendanceMultiplier,
+  );
   return Math.max(0, wantToCome - ctx.venue.capacity);
 }
 

@@ -26,6 +26,7 @@ import {
   repairCost,
 } from '../../engine/economy/showBudget';
 import { weeklyWageBill } from '../../engine/economy/contracts';
+import { followingOf } from '../../engine/world/territories';
 import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
 import { titlesOf } from '../../data/titles';
 import { stipulationById } from '../../data/stipulations';
@@ -50,7 +51,18 @@ export function PromotionScreen() {
     const cardStrength = roster.length
       ? roster.reduce((sum, w) => sum + w.popularity, 0) / roster.length
       : 0;
-    const demand = computeDemand(world.promotion.rating, world.promotion.recentShowQuality, cardStrength, world.settings);
+    // The town the show is actually staged in, and how over the promotion is
+    // there. The projection used to omit this and quietly assume a neutral
+    // following of 50, so it disagreed with the show it was projecting.
+    const town = world.territories.find((t) => t.id === world.showSetup.territoryId) ?? world.territories[0]!;
+    const following = followingOf(town, world.promotion.id);
+    const demand = computeDemand(
+      world.promotion.rating,
+      world.promotion.recentShowQuality,
+      cardStrength,
+      world.settings,
+      following,
+    );
 
     const ownedAssets = world.ownedAssetIds
       .map((id) => productionAssetById(id))
@@ -70,6 +82,7 @@ export function PromotionScreen() {
       ticketPrice: world.showSetup.ticketPrice,
       demand,
       attendanceMultiplier: sumEffect(production, 'attendanceMultiplier', 'multiply'),
+      territoryFollowing: following,
       settings: world.settings,
     };
     const attendance = computeAttendanceForShow(attendanceCtx);

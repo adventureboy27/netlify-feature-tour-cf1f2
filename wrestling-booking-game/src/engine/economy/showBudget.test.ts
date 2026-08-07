@@ -8,6 +8,7 @@ import {
   sumEffect,
   fairTicketPrice,
   computeDemand,
+  potentialAudience,
   priceRatio,
   priceGoodwill,
   priceReaction,
@@ -423,5 +424,38 @@ describe('what greed costs', () => {
   it('says so out loud, naming the town', () => {
     expect(priceReactionLine('gouge', 'Ironbelt City')).toContain('Ironbelt City');
     expect(priceReactionLine('gouge', 'Ironbelt City')).toMatch(/liberty/);
+  });
+});
+
+describe('the loyal core', () => {
+  it('does nothing at a healthy demand — it is a floor, not a bonus', () => {
+    // Opening night must still not be a sell-out. If the core were additive it
+    // would quietly undo that.
+    const withTown = potentialAudience(58, settings, 100);
+    const withNobody = potentialAudience(58, settings, 0);
+    expect(withTown).toBe(withNobody);
+  });
+
+  it('catches a promotion whose national draw has collapsed', () => {
+    // The cliff this fixes: once the ladder let a rating fall, demand in the
+    // twenties returned no audience at all — no gate, no merch, no way back.
+    const collapsed = potentialAudience(24, settings, 0);
+    const collapsedAtHome = potentialAudience(24, settings, 80);
+    expect(collapsed).toBeLessThan(10);
+    expect(collapsedAtHome).toBeGreaterThan(200);
+  });
+
+  it('scales with the town, so losing the town really does end you', () => {
+    const loved = potentialAudience(20, settings, 100);
+    const half = potentialAudience(20, settings, 50);
+    const forgotten = potentialAudience(20, settings, 0);
+    expect(loved).toBeGreaterThan(half);
+    expect(half).toBeGreaterThan(forgotten);
+    expect(forgotten).toBeLessThan(5);
+  });
+
+  it('is small enough to be irrelevant to a real promotion', () => {
+    const big = potentialAudience(90, settings, 100);
+    expect(settings.audienceLoyalCore).toBeLessThan(big * 0.05);
   });
 });

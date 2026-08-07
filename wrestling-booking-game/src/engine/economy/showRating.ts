@@ -3,6 +3,7 @@
 // no effect on it (§8: "no broadcast, so no effect on the TV ladder").
 
 import { clamp } from '../rng';
+import type { WorldSettings } from '../types';
 
 export const TV_SLOT_WEIGHTS = [1.0, 1.1, 1.25, 1.4, 1.7, 2.4];
 export const PPV_SLOT_WEIGHTS = [0.8, 0.9, 1.0, 1.1, 1.25, 1.4, 1.6, 1.9, 2.3, 3.0];
@@ -33,27 +34,49 @@ export function ratingToStars(rating: number): number {
   return Math.round((rating / 20) * steps) / steps;
 }
 
-// §13 ladder table: show stars -> target company rating. Interpolated
-// linearly for half-stars, per the spec.
-const LADDER_ANCHORS: [stars: number, target: number][] = [
-  [1, 60],
-  [2, 70],
-  [3, 80],
-  [4, 90],
-  [5, 100],
-];
-
-export function targetCompanyRatingForStars(stars: number): number {
-  const clamped = clamp(stars, 1, 5);
-  for (let i = 0; i < LADDER_ANCHORS.length - 1; i++) {
-    const [starLo, targetLo] = LADDER_ANCHORS[i]!;
-    const [starHi, targetHi] = LADDER_ANCHORS[i + 1]!;
+/**
+ * Show stars -> the company rating those shows are worth. Interpolated
+ * linearly between anchors.
+ *
+ * DESIGN: §13's table reads 1★→60, 2★→70, 3★→80, 4★→90, 5★→100, and the
+ * sentence directly under it says the ladder exists to "make consistency the
+ * dominant strategy and make a bad month genuinely expensive to climb out
+ * of". Measured against what the sim actually produces, the table defeats
+ * that sentence completely:
+ *
+ *   - Median show on an auto-filled card, no player skill at all, is 2.5-3.25
+ *     stars across every preset. That maps to a target of 75-83. Booking
+ *     nothing but the default converged on rating 74 inside 22 weeks.
+ *   - The floor is 60. A promotion putting on the worst show the sim can
+ *     generate, every week forever, still climbs to 60/100. The bottom three
+ *     fifths of the scale cannot be reached by being bad at the game.
+ *
+ * So a bad month costs nothing (you were heading to 80 regardless) and
+ * consistency is not a strategy (it is the default outcome). §0 says to take
+ * the harder, more interesting reading when the spec argues with itself, so
+ * the anchors move to WorldSettings and rescale across the whole range,
+ * slightly convex at the top:
+ *
+ *   3.0★ (ordinary) -> 50   mid-table; cannot rent the Civic Arena
+ *   3.5★ (competent) -> 62  a real building
+ *   4.0★ (strong)    -> 75  the Major Arena
+ *   4.5★ (elite)     -> 87  the Domed Stadium is finally in reach
+ *
+ * Flagged per the §0 working agreement: this contradicts the §13 table as
+ * written, in service of the paragraph that explains what the table is for.
+ */
+export function targetCompanyRatingForStars(stars: number, settings: WorldSettings): number {
+  const anchors = settings.ratingLadderAnchors;
+  const clamped = clamp(stars, anchors[0]![0], anchors[anchors.length - 1]![0]);
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const [starLo, targetLo] = anchors[i]!;
+    const [starHi, targetHi] = anchors[i + 1]!;
     if (clamped >= starLo && clamped <= starHi) {
       const t = (clamped - starLo) / (starHi - starLo);
       return targetLo + t * (targetHi - targetLo);
     }
   }
-  return LADDER_ANCHORS[LADDER_ANCHORS.length - 1]![1];
+  return anchors[anchors.length - 1]![1];
 }
 
 /**

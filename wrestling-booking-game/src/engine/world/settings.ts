@@ -74,6 +74,19 @@ export function defaultWorldSettings(): WorldSettings {
     broadcastWindowTV: 120,
     broadcastWindowPPV: 180,
     ratingLadderStepPerWeek: 1,
+    // Show stars -> the company rating those shows are worth. See the DESIGN
+    // note on targetCompanyRatingForStars: §13's own table put the floor at
+    // 60 and paid 80 for an ordinary night, which made the ladder's stated
+    // purpose — consistency as a strategy, a bad month expensive to escape —
+    // unreachable. Convex at the top so the gap between strong and elite is
+    // the widest one on the ladder.
+    ratingLadderAnchors: [
+      [1, 15],
+      [2, 32],
+      [3, 50],
+      [4, 75],
+      [5, 100],
+    ],
     defaultMatchLength: 12,
     houseShowsEnabled: true,
     tournamentsEnabled: true,
@@ -211,6 +224,7 @@ export function defaultWorldSettings(): WorldSettings {
     // above your draw leaves visible empty seats — which is what
     // venueEmptyPenalty has always been for and has never once been able to
     // charge you.
+    audienceLoyalCore: 350,
     demandAudienceScale: 45000,
     demandAudienceCurve: 6.5,
     venuePrestigeDraw: 0.15,

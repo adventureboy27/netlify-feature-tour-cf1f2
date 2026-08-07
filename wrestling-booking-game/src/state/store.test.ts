@@ -2,8 +2,15 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { useGameStore } from './store';
 import { defaultWorldSettings } from '../engine/world/settings';
 
+// A roster big enough to survive its own injuries. This was 12, which was
+// never a viable promotion — it produced 1.5-star shows and injured itself to
+// a standstill inside twenty weeks. The old TV ladder hid that by putting a
+// floor of 60 under every company however bad it got, so the tests below ran
+// against a promotion that was quietly dying the whole time.
+const TEST_ROSTER_SIZE = 24;
+
 function freshSettings() {
-  return { ...defaultWorldSettings(), seed: 'store-test', startingRosterSize: 12 };
+  return { ...defaultWorldSettings(), seed: 'store-test', startingRosterSize: TEST_ROSTER_SIZE };
 }
 
 /**
@@ -26,10 +33,10 @@ describe('newGame', () => {
     // `wrestlers` is the whole population of the business — your roster, every
     // rival's, and everyone unsigned — so the roster is checked on the
     // promotion itself, and the population against all three.
-    expect(world!.promotion.rosterIds).toHaveLength(12);
+    expect(world!.promotion.rosterIds).toHaveLength(TEST_ROSTER_SIZE);
     const rivalRosters = world!.rivals.reduce((sum, r) => sum + r.rosterIds.length, 0);
     expect(rivalRosters).toBeGreaterThan(0);
-    expect(Object.keys(world!.wrestlers)).toHaveLength(12 + freshSettings().freeAgentPoolSize + rivalRosters);
+    expect(Object.keys(world!.wrestlers)).toHaveLength(TEST_ROSTER_SIZE + freshSettings().freeAgentPoolSize + rivalRosters);
     expect(world!.promotion.bankBalance).toBe(freshSettings().startingCash);
     expect(world!.week).toBe(1);
     expect(world!.currentCard).toHaveLength(world!.settings.segmentsPerTV);

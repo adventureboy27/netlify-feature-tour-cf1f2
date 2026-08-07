@@ -1241,6 +1241,8 @@ export interface WorldSettings {
   broadcastWindowTV: number;
   broadcastWindowPPV: number;
   ratingLadderStepPerWeek: number;
+  /** Show stars -> target company rating, interpolated between anchors. */
+  ratingLadderAnchors: [stars: number, target: number][];
   defaultMatchLength: number;
   houseShowsEnabled: boolean;
   tournamentsEnabled: boolean;
@@ -1404,6 +1406,8 @@ export interface WorldSettings {
   /** Past this multiple of fair, "steep" becomes "a liberty". */
   priceGougeRatio: number;
   merchSpendPerHead: number;
+  /** The regulars a town keeps however bad you get. A floor, not a bonus. */
+  audienceLoyalCore: number;
   /** Audience at maximum demand — the ceiling on how many people exist for you. */
   demandAudienceScale: number;
   /** Curve exponent. Higher makes the gap between liked and beloved wider. */
