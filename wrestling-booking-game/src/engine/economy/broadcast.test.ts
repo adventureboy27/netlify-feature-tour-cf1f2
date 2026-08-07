@@ -7,6 +7,7 @@ import {
   weeklyBroadcastIncome,
   shouldWalk,
   type BusinessSnapshot,
+  broadcastVerdict,
 } from './broadcast';
 import { BROADCASTERS, broadcasterById, bestBroadcasterFor } from '../../data/broadcasters';
 import { SPONSORS, sponsorById, sponsorsConflict } from '../../data/sponsors';
@@ -16,6 +17,9 @@ const settings = defaultWorldSettings();
 
 function snapshot(over: Partial<BusinessSnapshot> = {}): BusinessSnapshot {
   return {
+    // Comfortably above what any tier asks in the slot, so a snapshot is
+    // "healthy" on every axis unless a test says otherwise.
+    tvRating: 6,
     companyRating: 70,
     hardcoreSaturation: 30,
     averageAttendance: 3_000,
@@ -73,6 +77,15 @@ describe('breaking a television deal', () => {
     expect(breaches).toHaveLength(1);
     expect(breaches[0]!.actual).toBe(60);
     expect(breaches[0]!.wanted).toBe(75);
+  });
+
+  it('notices when the slot is not delivering, even from a well-regarded company', () => {
+    // Standing and viewership are different things. A promotion can be
+    // respected and still not be watched, and the network is buying the
+    // second one.
+    const breaches = broadcastBreaches(national, snapshot({ companyRating: 80, hardcoreSaturation: 20, tvRating: 1.1 }));
+    expect(breaches).toHaveLength(1);
+    expect(breaches[0]!.actual).toBe(1.1);
   });
 
   it('notices a card that has got too violent for them', () => {
@@ -148,16 +161,57 @@ describe('sponsors', () => {
 });
 
 describe('what it all pays', () => {
-  it('adds the network to every sponsor', () => {
+  it('adds the network to every sponsor, at the rating they signed you for', () => {
     const deal = broadcasterById('regionalCable')!;
     const signed = [sponsorById('localBusiness')!, sponsorById('apparelBrand')!];
-    expect(weeklyBroadcastIncome(deal, signed)).toBe(
+    // Deliver exactly what they expected and the fee is exactly the fee.
+    expect(weeklyBroadcastIncome(deal, signed, deal.expectedRating, settings)).toBe(
       deal.weeklyFee + signed[0]!.weeklyFee + signed[1]!.weeklyFee,
     );
   });
 
+  it('pays more for a rating that beats the deal and less for one that misses', () => {
+    // The whole reason this function takes a rating at all: the TV number
+    // used to be a scoreboard with no money behind it.
+    const deal = broadcasterById('nationalNetwork')!;
+    const hot = weeklyBroadcastIncome(deal, [], deal.expectedRating * 1.5, settings);
+    const par = weeklyBroadcastIncome(deal, [], deal.expectedRating, settings);
+    const cold = weeklyBroadcastIncome(deal, [], deal.expectedRating * 0.4, settings);
+    expect(hot).toBeGreaterThan(par);
+    expect(cold).toBeLessThan(par);
+  });
+
+  it('bounds the swing either side, so one soft week is not ruin', () => {
+    const deal = broadcasterById('premiumGlobal')!;
+    const disaster = weeklyBroadcastIncome(deal, [], 0, settings);
+    const phenomenon = weeklyBroadcastIncome(deal, [], 99, settings);
+    expect(disaster).toBe(Math.round(deal.weeklyFee * (1 - settings.broadcastRatingDownside)));
+    expect(phenomenon).toBe(Math.round(deal.weeklyFee * (1 + settings.broadcastRatingUpside)));
+  });
+
+  it('leaves sponsors flat — they are buying a banner, not a slot', () => {
+    const signed = [sponsorById('localBusiness')!];
+    expect(weeklyBroadcastIncome(null, signed, 0, settings)).toBe(signed[0]!.weeklyFee);
+    expect(weeklyBroadcastIncome(null, signed, 12, settings)).toBe(signed[0]!.weeklyFee);
+  });
+
+  it('says how the deal is going, in words', () => {
+    const deal = broadcasterById('nationalNetwork')!;
+    expect(broadcastVerdict(deal, deal.expectedRating * 1.5)).toBe('Beating the deal');
+    expect(broadcastVerdict(deal, deal.expectedRating)).toBe('Meeting the deal');
+    expect(broadcastVerdict(deal, deal.expectedRating * 0.5)).toBe('Below the guarantee');
+    expect(broadcastVerdict(null, 5)).toBeNull();
+    expect(broadcastVerdict(deal, 3)).not.toMatch(/\d/);
+  });
+
+  it('gives every tier a rating it was signed to deliver', () => {
+    for (let i = 1; i < BROADCASTERS.length; i++) {
+      expect(BROADCASTERS[i]!.expectedRating).toBeGreaterThan(BROADCASTERS[i - 1]!.expectedRating);
+    }
+  });
+
   it('is nothing at all with no deals', () => {
-    expect(weeklyBroadcastIncome(null, [])).toBe(0);
+    expect(weeklyBroadcastIncome(null, [], 0, settings)).toBe(0);
   });
 
   it('dwarfs the gate at every tier, which is why losing one hurts', () => {

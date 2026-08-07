@@ -17,11 +17,14 @@ import type { Broadcaster } from '../../data/broadcasters';
 import type { Sponsor } from '../../data/sponsors';
 import { bestBroadcasterFor, broadcasterById } from '../../data/broadcasters';
 import { SPONSORS, sponsorsConflict } from '../../data/sponsors';
+import { clamp } from '../rng';
 import type { WorldSettings } from '../types';
 
 /** What the promotion looks like this week, as far as a paymaster cares. */
 export interface BusinessSnapshot {
   companyRating: number;
+  /** What the show actually drew in the slot this week. */
+  tvRating: number;
   hardcoreSaturation: number;
   averageAttendance: number;
   /** The most popular wrestler on the roster, 0-100. */
@@ -47,6 +50,13 @@ export function broadcastBreaches(deal: Broadcaster, snapshot: BusinessSnapshot)
       case 'maintainRating':
         if (snapshot.companyRating < demand.value) {
           breaches.push({ text: demand.text, wanted: demand.value, actual: snapshot.companyRating });
+        }
+        break;
+      case 'maintainTvRating':
+        // Measured on what the slot actually did, not on standing. A
+        // promotion can be well regarded and still not be watched.
+        if (snapshot.tvRating < demand.value) {
+          breaches.push({ text: demand.text, wanted: demand.value, actual: snapshot.tvRating });
         }
         break;
       case 'hardcoreCeiling':
@@ -146,9 +156,50 @@ export function availableSponsors(
   });
 }
 
-/** What a week of deals is worth, before anybody has spent anything. */
-export function weeklyBroadcastIncome(deal: Broadcaster | null, sponsors: readonly Sponsor[]): number {
-  return (deal?.weeklyFee ?? 0) + sponsors.reduce((sum, s) => sum + s.weeklyFee, 0);
+/**
+ * What a week of deals is worth.
+ *
+ * A network pays for eyeballs. The rights fee is a floor — they signed a
+ * contract — but the rest moves with the rating you actually delivered
+ * against the one they signed you expecting. Beat it and they pay more; miss
+ * it and they pay less.
+ *
+ * This exists because the TV rating used to be a scoreboard with nothing
+ * behind it: computed every week, charted against the networks' other
+ * programmes, and read by no money path in the game. The number the game
+ * calls "what the whole business is judged by" now decides something.
+ *
+ * Sponsors stay flat. They are buying a banner in a building, not a slot.
+ */
+export function weeklyBroadcastIncome(
+  deal: Broadcaster | null,
+  sponsors: readonly Sponsor[],
+  tvRating: number,
+  settings: WorldSettings,
+): number {
+  const sponsorMoney = sponsors.reduce((sum, s) => sum + s.weeklyFee, 0);
+  if (!deal) return sponsorMoney;
+
+  const delivered = tvRating / Math.max(deal.expectedRating, 0.01);
+  const swing = clamp(
+    (delivered - 1) * settings.broadcastRatingSensitivity,
+    -settings.broadcastRatingDownside,
+    settings.broadcastRatingUpside,
+  );
+
+  return Math.round(deal.weeklyFee * (1 + swing)) + sponsorMoney;
+}
+
+/** What the network is paying against what they hoped, in words. */
+export type BroadcastVerdict = 'Below the guarantee' | 'Short of expectations' | 'Meeting the deal' | 'Beating the deal';
+
+export function broadcastVerdict(deal: Broadcaster | null, tvRating: number): BroadcastVerdict | null {
+  if (!deal) return null;
+  const delivered = tvRating / Math.max(deal.expectedRating, 0.01);
+  if (delivered < 0.75) return 'Below the guarantee';
+  if (delivered < 0.95) return 'Short of expectations';
+  if (delivered < 1.1) return 'Meeting the deal';
+  return 'Beating the deal';
 }
 
 /** How long a paymaster tolerates a breach before walking. */

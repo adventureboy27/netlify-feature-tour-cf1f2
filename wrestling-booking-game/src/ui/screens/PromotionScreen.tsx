@@ -32,7 +32,7 @@ import { stipulationById } from '../../data/stipulations';
 import { Money } from '../components/display';
 import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
-import { weeklyBroadcastIncome } from '../../engine/economy/broadcast';
+import { weeklyBroadcastIncome, broadcastVerdict } from '../../engine/economy/broadcast';
 import { FileTransfer } from '../components/FileTransfer';
 
 export function PromotionScreen() {
@@ -77,6 +77,10 @@ export function PromotionScreen() {
       attendance,
       ticketPrice: world.showSetup.ticketPrice,
       merchMultiplier: sumEffect(production, 'merchMultiplier', 'multiply'),
+      // The preview reads the card as neutral on gimmicks and cuts — it is a
+      // projection of the room, not of who ends up booked in it.
+      gimmickMerchMultiplier: 1,
+      merchCutShare: 0,
       revenuePerHead: sumEffect(production, 'revenuePerHead'),
       averagePopularity: cardStrength,
       settings: world.settings,
@@ -438,7 +442,11 @@ function BroadcastPanel() {
 
   const deal = world.broadcastDealId ? broadcasterById(world.broadcastDealId) : null;
   const sponsors = world.sponsorIds.map((id) => sponsorById(id)).filter((s): s is NonNullable<typeof s> => Boolean(s));
-  const weekly = weeklyBroadcastIncome(deal ?? null, sponsors);
+  // What the slot did last week. The network's money follows it, so the
+  // panel shows the number, the verdict and what it is currently worth.
+  const tvRating = world.tvHistory[0]?.results.find((r) => r.promotionId === world.promotion.id)?.rating ?? 0;
+  const weekly = weeklyBroadcastIncome(deal ?? null, sponsors, tvRating, world.settings);
+  const verdict = broadcastVerdict(deal ?? null, tvRating);
 
   const breachOn = (key: string) => world.breachWeeks[key] ?? 0;
   const grace = world.settings.broadcastWeeksOfGrace;
@@ -469,9 +477,25 @@ function BroadcastPanel() {
               <div className="flex items-baseline justify-between gap-2">
                 <span className="truncate text-xs font-medium">{deal.name}</span>
                 <span className="shrink-0 text-[11px] text-emerald-400">
-                  <Money amount={deal.weeklyFee} />
+                  <Money amount={weeklyBroadcastIncome(deal, [], tvRating, world.settings)} />
                 </span>
               </div>
+              {/* Half the fee rides on the rating you actually delivered
+                  against the one they signed you expecting, so the panel says
+                  which way it is going and what the guarantee was. */}
+              {verdict && (
+                <div
+                  className={`text-[10px] ${
+                    verdict === 'Beating the deal'
+                      ? 'text-emerald-400'
+                      : verdict === 'Meeting the deal'
+                        ? 'text-neutral-500'
+                        : 'text-amber-400'
+                  }`}
+                >
+                  {verdict} · guarantee <Money amount={deal.weeklyFee} />
+                </div>
+              )}
               {deal.demands.map((demand) => (
                 <div key={demand.kind} className="text-[10px] text-neutral-500">
                   {demand.text}

@@ -246,6 +246,7 @@ export function defaultWorldSettings(): WorldSettings {
     clauseInsuranceRate: 0.18,
     clauseTravelCost: 120,
     clauseGuaranteedDatesRate: 0.25,
+    clauseMerchandiseCut: 0.08,
 
     // Relationships. Most people get along; the ones who do not are the
     // interesting exception, and enemies work stiffer — better to watch,
@@ -338,6 +339,12 @@ export function defaultWorldSettings(): WorldSettings {
     // every week stops working inside a couple of months.
     paceSaturationPenalty: 14,
     paceSaturationDecayPerWeek: 7,
+    // Half the fee rides on the rating, capped at a 40% bonus and a 35% cut.
+    // Enough that a bad run on television is felt in the bank, bounded enough
+    // that one soft week does not end a promotion.
+    broadcastRatingSensitivity: 0.5,
+    broadcastRatingUpside: 0.4,
+    broadcastRatingDownside: 0.35,
     deathOldAge: 75,
 
     // The fans. Ten voices a show, and never more than 85% agreeing.

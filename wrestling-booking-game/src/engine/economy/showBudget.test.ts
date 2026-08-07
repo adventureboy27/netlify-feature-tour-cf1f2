@@ -186,10 +186,41 @@ describe('attendance', () => {
 });
 
 describe('revenue', () => {
-  const base = { attendance: 1000, ticketPrice: 20, merchMultiplier: 1, revenuePerHead: 0, averagePopularity: 50, settings };
+  const base = {
+    attendance: 1000,
+    ticketPrice: 20,
+    merchMultiplier: 1,
+    gimmickMerchMultiplier: 1,
+    merchCutShare: 0,
+    revenuePerHead: 0,
+    averagePopularity: 50,
+    settings,
+  };
 
   it('takes the gate at the door', () => {
     expect(computeShowRevenue(base).gate).toBe(20000);
+  });
+
+  it('sells more merchandise for a gimmick people buy shirts for', () => {
+    // Every gimmick in data/ has carried a merchMultiplier since the file was
+    // written and nothing read it. A luchador with a mask to sell moves more
+    // than a corporate stooge in a suit.
+    expect(computeShowRevenue({ ...base, gimmickMerchMultiplier: 1.3 }).merch).toBeGreaterThan(
+      computeShowRevenue({ ...base, gimmickMerchMultiplier: 0.7 }).merch,
+    );
+  });
+
+  it('hands over the slice owed to anybody with a merchandise cut', () => {
+    // The clause has always been offered as "a slice off the top of every
+    // shirt sold" and always cost exactly nothing.
+    const keptAll = computeShowRevenue(base).merch;
+    const shared = computeShowRevenue({ ...base, merchCutShare: 0.16 }).merch;
+    expect(shared).toBeLessThan(keptAll);
+    expect(shared).toBeCloseTo(keptAll * 0.84, -1);
+  });
+
+  it('never lets the cuts take more than the stand made', () => {
+    expect(computeShowRevenue({ ...base, merchCutShare: 5 }).merch).toBeGreaterThanOrEqual(0);
   });
 
   it('sells more merchandise for a more popular roster', () => {
@@ -238,7 +269,16 @@ describe('the shape of the decision', () => {
 
     const runIn = (venue: typeof gym) => {
       const attendance = computeAttendanceForShow({ venue, ticketPrice, demand, attendanceMultiplier: 1, settings });
-      const revenue = computeShowRevenue({ attendance, ticketPrice, merchMultiplier: 1, revenuePerHead: 0, averagePopularity: 50, settings });
+      const revenue = computeShowRevenue({
+        attendance,
+        ticketPrice,
+        merchMultiplier: 1,
+        gimmickMerchMultiplier: 1,
+        merchCutShare: 0,
+        revenuePerHead: 0,
+        averagePopularity: 50,
+        settings,
+      });
       const costs = computeShowCosts(costCtx({ venue }));
       return revenue.total - costs.total;
     };
@@ -251,7 +291,16 @@ describe('the shape of the decision', () => {
     const ticketPrice = 28;
     const runIn = (venue: typeof gym) => {
       const attendance = computeAttendanceForShow({ venue, ticketPrice, demand, attendanceMultiplier: 1, settings });
-      const revenue = computeShowRevenue({ attendance, ticketPrice, merchMultiplier: 1, revenuePerHead: 0, averagePopularity: 70, settings });
+      const revenue = computeShowRevenue({
+        attendance,
+        ticketPrice,
+        merchMultiplier: 1,
+        gimmickMerchMultiplier: 1,
+        merchCutShare: 0,
+        revenuePerHead: 0,
+        averagePopularity: 70,
+        settings,
+      });
       const costs = computeShowCosts(costCtx({ venue }));
       return revenue.total - costs.total;
     };

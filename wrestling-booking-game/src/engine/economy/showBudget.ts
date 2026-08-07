@@ -131,7 +131,23 @@ export function turnedAway(ctx: AttendanceContext): number {
 export interface ShowRevenueContext {
   attendance: number;
   ticketPrice: number;
+  /** From production assets — a merch stand you actually built. */
   merchMultiplier: number;
+  /**
+   * From the gimmicks on the card. A luchador with a mask to sell moves more
+   * shirts than a corporate stooge in a suit, and every gimmick in data/ has
+   * carried a merchMultiplier since the day the file was written — it was
+   * simply never read by anything.
+   */
+  gimmickMerchMultiplier: number;
+  /**
+   * Share of merchandise owed to wrestlers with a `merchandiseCut` clause.
+   *
+   * The clause has always been offered to the player as "a slice off the top
+   * of every shirt sold" and has always cost exactly nothing. This is the
+   * slice.
+   */
+  merchCutShare: number;
   revenuePerHead: number;
   /** Average roster popularity — people buy shirts for wrestlers they like. */
   averagePopularity: number;
@@ -149,8 +165,13 @@ export function computeShowRevenue(ctx: ShowRevenueContext): ShowRevenueBreakdow
   const gate = ctx.attendance * ctx.ticketPrice;
 
   const merchPerHead =
-    ctx.settings.merchSpendPerHead * (0.5 + (ctx.averagePopularity / 100) * 1.5) * ctx.merchMultiplier;
-  const merch = Math.round(ctx.attendance * merchPerHead);
+    ctx.settings.merchSpendPerHead *
+    (0.5 + (ctx.averagePopularity / 100) * 1.5) *
+    ctx.merchMultiplier *
+    ctx.gimmickMerchMultiplier;
+  // What the promotion keeps, after the people who negotiated a cut take it.
+  const gross = ctx.attendance * merchPerHead;
+  const merch = Math.round(gross * (1 - clamp(ctx.merchCutShare, 0, 0.9)));
 
   const other = Math.round(ctx.attendance * ctx.revenuePerHead);
 

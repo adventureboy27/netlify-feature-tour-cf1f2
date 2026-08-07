@@ -1457,6 +1457,14 @@ export interface WorldSettings {
   clauseInsuranceRate: number;
   clauseTravelCost: number;
   clauseGuaranteedDatesRate: number;
+  /**
+   * Share of the night's merchandise owed to one wrestler with the clause.
+   *
+   * Deliberately steep: the clause sits high on the ego ladder, it is offered
+   * as "a slice off the top of every shirt sold", and a slice that rounds to
+   * nothing is not a cost.
+   */
+  clauseMerchandiseCut: number;
 
   // Relationships (engine/career/relationships.ts)
   /** How many relationships to seed, per wrestler on the roster. */
@@ -1580,6 +1588,16 @@ export interface WorldSettings {
   /** How much a crowd tired of one pace takes off the match. */
   paceSaturationPenalty: number;
   paceSaturationDecayPerWeek: number;
+
+  // What television actually pays — engine/economy/broadcast.ts.
+  /**
+   * How hard the fee swings with the rating delivered against the one the
+   * network signed you expecting.
+   */
+  broadcastRatingSensitivity: number;
+  /** Caps either side, so a hot week is a bonus and a cold one is not ruin. */
+  broadcastRatingUpside: number;
+  broadcastRatingDownside: number;
   deathOldAge: number;
 
   // The fans. How many of them speak up, and how much they disagree.

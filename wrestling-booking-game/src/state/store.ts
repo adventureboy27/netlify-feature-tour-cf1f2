@@ -1775,10 +1775,33 @@ export const useGameStore = create<GameStore>()(
           settings: world.settings,
         });
 
+        // Who was actually out there tonight — the gimmicks that moved shirts
+        // and the people owed a slice of them.
+        const onTheCard = [
+          ...new Set(world.currentCard.flatMap((seg) => seg.participants.map((p) => p.wrestlerId))),
+        ]
+          .map((id) => world.wrestlers[id])
+          .filter((w): w is Wrestler => Boolean(w));
+
+        const gimmickMerch =
+          onTheCard.length === 0
+            ? 1
+            : onTheCard.reduce((sum, w) => sum + (w.gimmick.merchMultiplier ?? 1), 0) /
+              onTheCard.length;
+
+        const merchCutShare = onTheCard.reduce(
+          (share, w) =>
+            share +
+            (w.contract?.clauses.includes('merchandiseCut') ? world.settings.clauseMerchandiseCut : 0),
+          0,
+        );
+
         const revenue = computeShowRevenue({
           attendance,
           ticketPrice,
           merchMultiplier: sumEffect(production, 'merchMultiplier', 'multiply'),
+          gimmickMerchMultiplier: gimmickMerch,
+          merchCutShare,
           revenuePerHead: sumEffect(production, 'revenuePerHead'),
           averagePopularity: cardStrength,
           settings: world.settings,
@@ -2711,8 +2734,14 @@ export const useGameStore = create<GameStore>()(
         // Money that arrives whether or not anybody bought a ticket, and
         // leaves the moment you stop being the company they signed.
         const recentShows = world.showHistory.slice(-4);
+        // What the slot actually did this week. The network is buying
+        // eyeballs, so this is the number their money follows.
+        const tvRatingThisWeek =
+          world.tvHistory[0]?.results.find((r) => r.promotionId === world.promotion.id)?.rating ?? 0;
+
         const businessSnapshot = {
           companyRating: world.promotion.rating,
+          tvRating: tvRatingThisWeek,
           hardcoreSaturation: world.promotion.hardcoreSaturation,
           averageAttendance:
             recentShows.length === 0
@@ -2731,7 +2760,12 @@ export const useGameStore = create<GameStore>()(
           .map((id) => sponsorById(id))
           .filter((s): s is NonNullable<typeof s> => Boolean(s));
 
-        world.promotion.bankBalance += weeklyBroadcastIncome(currentDeal ?? null, signedSponsors);
+        world.promotion.bankBalance += weeklyBroadcastIncome(
+          currentDeal ?? null,
+          signedSponsors,
+          tvRatingThisWeek,
+          world.settings,
+        );
 
         // A rating held is what a network believes, so the counter resets the
         // moment it slips below the bar for the next tier up.
