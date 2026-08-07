@@ -5,7 +5,8 @@ import type { Contract } from '../types';
 function baseContract(overrides: Partial<Contract> = {}): Contract {
   return {
     type: 'fullTime',
-    weeklyRate: 1000,
+    weeklyRate: 400,
+    perAppearance: 1000,
     weeksRemaining: 20,
     totalWeeks: 52,
     clauses: [],

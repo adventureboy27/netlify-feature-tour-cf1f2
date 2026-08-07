@@ -19,12 +19,19 @@ export function defaultWorldSettings(): WorldSettings {
     arenaTiersEnabled: true,
 
     // Roster and talent
-    startingRosterSize: 30,
-    targetRosterSize: 35,
+    startingRosterSize: 34,
+    targetRosterSize: 38,
     freeAgentPoolSize: 40,
     talentQualityCurve: 0,
     starDensity: 0.07,
     womensDivision: 'separate',
+    // A women's championship needs a division, not two wrestlers taking turns.
+    womensRosterShare: 0.3,
+    womensDivisionFloor: 6,
+    // One team per this many wrestlers, within bounds.
+    wrestlersPerTagTeam: 7,
+    tagTeamsMin: 2,
+    tagTeamsMax: 7,
     agingEnabled: true,
     deathsEnabled: true,
     retirementEnabled: true,
@@ -74,6 +81,9 @@ export function defaultWorldSettings(): WorldSettings {
     broadcastWindowTV: 120,
     broadcastWindowPPV: 180,
     ratingLadderStepPerWeek: 1,
+    // Standing is lost at two fifths the speed it is won. See
+    // stepCompanyRatingTowardTarget.
+    ratingLadderFallMultiplier: 0.4,
     // Show stars -> the company rating those shows are worth. See the DESIGN
     // note on targetCompanyRatingForStars: §13's own table put the floor at
     // 60 and paid 80 for an ordinary night, which made the ladder's stated
@@ -160,6 +170,14 @@ export function defaultWorldSettings(): WorldSettings {
     contractBaseWeeklyRate: 60,
     contractRateRange: 2200,
     contractRateCurve: 2,
+    // Pay splits into a retainer everybody draws and an appearance fee only
+    // the booked collect. An enhancement talent is on 30% guaranteed and
+    // works for the rest; a genuine draw is on 75% and gets paid to exist.
+    // This is what makes carrying thirty-five people possible at all — the
+    // card uses fourteen of them, and the other twenty-one cost a retainer
+    // rather than a wage.
+    retainerShareBase: 0.18,
+    retainerShareRange: 0.5,
     contractDrawWeight: 0.7,
     contractCraftWeight: 0.3,
     contractRenewalFloor: 1.05,
@@ -736,7 +754,7 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
   territoryDays: {
     promotionArchetype: 'territory',
     startingCash: 25_000,
-    startingRosterSize: 18,
+    startingRosterSize: 26,
     // Small national name, big local one — the shape of a territory. Sells
     // the armoury out every week and still cannot quite cover the payroll.
     startingCompanyRating: 48,
@@ -748,7 +766,7 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
   },
   standard: {
     startingCash: 75_000,
-    startingRosterSize: 30,
+    startingRosterSize: 34,
     rivalPromotionCount: 6,
     rivalMinHealthToBook: 45,
     rivalTitleDefenceChance: 0.12,
@@ -796,12 +814,18 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
     promotionName: 'Apex Wrestling Entertainment',
     promotionArchetype: 'sportsEntertainment',
     startingCash: 400_000,
-    startingRosterSize: 40,
+    startingRosterSize: 44,
     // Already a big company: an arena, four thousand people, and a gate three
     // times the payroll. The money is not the difficulty here and cannot be
     // made into it — a promotion this size prints cash under any tuning that
     // leaves the smaller starts playable.
-    startingCompanyRating: 70,
+    // Was 70. A forty-four person roster generated at the same tier spread as
+    // everybody else's puts on the same two-and-a-bit star shows, and the TV
+    // ladder marks that at the high forties — so a starting 70 was a number
+    // the company could not hold, and it collapsed rather than declined.
+    // Making a rich promotion's roster genuinely better needs starDensity and
+    // talentQualityCurve wired up, which neither is.
+    startingCompanyRating: 62,
     startingTerritoryFollowing: 60,
     // So the squeeze is the owner instead. He inherited a company that is
     // already where he wanted it, and has one strike less of patience for
@@ -813,12 +837,18 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
   sinkOrSwim: {
     promotionName: 'Blackline Pro',
     promotionArchetype: 'hardcore',
-    startingCash: 12_000,
-    startingRosterSize: 14,
+    // Twenty-four on the payroll needs more than one week of rent behind it.
+    // At 12,000 this folded in week eight, which is a cutscene rather than a
+    // difficulty — the same mistake the fourteen-man version made.
+    startingCash: 30_000,
+    startingRosterSize: 24,
     // Opening night grosses 16,578 against a payroll of 16,460. That margin
     // is the entire preset. Twelve wrestlers on 8k folded by week nine even
     // playing perfectly, which is not a difficulty setting, it is a cutscene.
-    startingCompanyRating: 52,
+    // Opening night has to roughly break even — that margin is the whole
+    // preset. Twenty-four on the payroll at 52 could not cover itself at any
+    // cash pile, so the draw comes up rather than the roster coming down.
+    startingCompanyRating: 54,
     startingTerritoryFollowing: 50,
     rivalPromotionCount: 8,
     chaosLevel: 3,

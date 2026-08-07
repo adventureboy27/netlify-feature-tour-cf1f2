@@ -96,3 +96,13 @@ export function weightedPick<T>(rng: Rng, entries: readonly (readonly [T, number
   // Floating point fallback — return the last entry.
   return entries[entries.length - 1]![0];
 }
+
+/** Fisher-Yates, seeded. Returns a new array; the input is untouched. */
+export function shuffle<T>(rng: Rng, arr: readonly T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = randInt(rng, 0, i);
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}

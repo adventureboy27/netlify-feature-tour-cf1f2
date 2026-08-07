@@ -33,7 +33,11 @@ const SLOT_KEY = 'wbg.save.v1';
 // Version 7 adds ratingLadderAnchors and audienceLoyalCore to WorldSettings,
 // both of which the code reads without a guard — a version-6 save would pass
 // the version check and then throw on the first show it resolved.
-const SCHEMA_VERSION = 7;
+//
+// Version 8 splits Contract into weeklyRate + perAppearance and adds the
+// division/tag-team/retainer settings. A version-7 save has no perAppearance
+// on any contract, so every wrestler would silently work for free.
+const SCHEMA_VERSION = 8;
 
 export interface SaveFile {
   schema: number;

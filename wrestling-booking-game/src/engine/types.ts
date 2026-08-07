@@ -605,6 +605,10 @@ export type Clause =
 
 export interface Contract {
   /**
+   * Paid every week whether they are booked or not. The other half of the
+   * money is perAppearance — see economy/contracts.ts retainerShare.
+   */
+  /**
    * How much of the remaining term is guaranteed, 0-1.
    *
    * The single number the whole exit system turns on. Firing somebody costs
@@ -619,6 +623,11 @@ export interface Contract {
   guaranteedPct: number;
   type: ContractType;
   weeklyRate: number;
+  /**
+   * Paid only for a show they actually worked. Splitting pay this way is what
+   * makes a deep roster affordable — see economy/contracts.ts splitRate.
+   */
+  perAppearance: number;
   weeksRemaining: number;
   totalWeeks: number;
   clauses: Clause[];
@@ -1214,6 +1223,14 @@ export interface WorldSettings {
   talentQualityCurve: number; // -2..+2
   starDensity: number; // 0-1
   womensDivision: WomensDivisionMode;
+  /** Target share of a generated roster that is women. */
+  womensRosterShare: number;
+  /** ...and the fewest a company will ever be built with. */
+  womensDivisionFloor: number;
+  /** One tag team per this many wrestlers. */
+  wrestlersPerTagTeam: number;
+  tagTeamsMin: number;
+  tagTeamsMax: number;
   agingEnabled: boolean;
   deathsEnabled: boolean;
   retirementEnabled: boolean;
@@ -1241,6 +1258,8 @@ export interface WorldSettings {
   broadcastWindowTV: number;
   broadcastWindowPPV: number;
   ratingLadderStepPerWeek: number;
+  /** How much slower the rating falls than it climbs. */
+  ratingLadderFallMultiplier: number;
   /** Show stars -> target company rating, interpolated between anchors. */
   ratingLadderAnchors: [stars: number, target: number][];
   defaultMatchLength: number;
@@ -1337,6 +1356,10 @@ export interface WorldSettings {
   contractRateRange: number;
   /** Exponent on value. >1 makes stars cost multiples of a midcarder. */
   contractRateCurve: number;
+  /** Share of the asking price paid as a retainer, at zero popularity. */
+  retainerShareBase: number;
+  /** How much more of it a genuine draw gets guaranteed. */
+  retainerShareRange: number;
   contractDrawWeight: number;
   contractCraftWeight: number;
   /** A renewal never comes in below this multiple of the current rate. */

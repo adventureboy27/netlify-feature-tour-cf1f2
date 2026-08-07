@@ -80,12 +80,32 @@ export function targetCompanyRatingForStars(stars: number, settings: WorldSettin
 }
 
 /**
- * The company rating moves 1 point/week toward the target, or 2 points
- * after a PPV (settings.ratingLadderStepPerWeek), §13.
+ * The company rating moves toward the target a point a week, or two after a
+ * PPV (settings.ratingLadderStepPerWeek), §13.
+ *
+ * Falling is slower than climbing. §13 gives one speed for both, which was
+ * survivable while the ladder's floor was 60 and nothing could really drop.
+ * Once the anchors used the whole scale it stopped being: a promotion putting
+ * on ordinary shows shed fifteen rating points in nine weeks, and because the
+ * audience curve is steep that is an eighty-eight per cent collapse in the
+ * gate. Companies folded inside ten weeks with the player given no time to
+ * notice, let alone react.
+ *
+ * Reputation is stickier than that in both directions, but especially
+ * downward — people keep turning up out of habit long after the shows stop
+ * being worth it. Slower to lose than to win still leaves a bad run
+ * expensive; it just makes it a decline you can see coming and fight, rather
+ * than a trapdoor.
  */
-export function stepCompanyRatingTowardTarget(current: number, target: number, stepPerWeek: number, isPPV: boolean): number {
+export function stepCompanyRatingTowardTarget(
+  current: number,
+  target: number,
+  stepPerWeek: number,
+  isPPV: boolean,
+  fallMultiplier = 1,
+): number {
   const step = isPPV ? stepPerWeek * 2 : stepPerWeek;
   if (current < target) return Math.min(target, current + step);
-  if (current > target) return Math.max(target, current - step);
+  if (current > target) return Math.max(target, current - step * fallMultiplier);
   return current;
 }

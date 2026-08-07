@@ -42,13 +42,48 @@ export function askingRate(wrestler: Wrestler, settings: WorldSettings): number 
 }
 
 /**
+ * What share of a wrestler's asking price they want as a retainer — money
+ * that arrives whether they are booked or not — with the rest paid per
+ * appearance.
+ *
+ * Everybody used to be on a full weekly salary regardless of use, which had
+ * two consequences that fought the game. A thirty-five person roster cost
+ * thirty-five full wages against a card that uses fourteen, so it was
+ * unaffordable; and since a small roster was strictly cheaper with no
+ * downside, the optimal play was to carry as few people as the card allowed.
+ * Depth was punished.
+ *
+ * Stars are the ones with leverage, so they are the ones who get guaranteed
+ * money; enhancement talent works for what it works for. That makes a deep
+ * roster of cheap hands genuinely affordable and a deep roster of stars
+ * genuinely ruinous, which is the right shape.
+ */
+export function retainerShare(wrestler: Wrestler, settings: WorldSettings): number {
+  const standing = clamp(wrestler.popularity / 100, 0, 1);
+  return settings.retainerShareBase + standing * settings.retainerShareRange;
+}
+
+/** The two halves of a deal: paid every week, and paid only when they work. */
+export function splitRate(
+  wrestler: Wrestler,
+  settings: WorldSettings,
+  total = askingRate(wrestler, settings),
+): { weeklyRate: number; perAppearance: number } {
+  const share = retainerShare(wrestler, settings);
+  const weeklyRate = Math.round((total * share) / 5) * 5;
+  // Sized so somebody booked every single week earns roughly their full ask.
+  const perAppearance = Math.round((total - weeklyRate) / 5) * 5;
+  return { weeklyRate, perAppearance: Math.max(0, perAppearance) };
+}
+
+/**
  * A plain two-year deal. No creative control, no bonuses, nothing to read
  * twice.
  */
 export function createStandardContract(wrestler: Wrestler, settings: WorldSettings, signedYear: number): Contract {
   return {
     type: 'fullTime',
-    weeklyRate: askingRate(wrestler, settings),
+    ...splitRate(wrestler, settings),
     weeksRemaining: STARTING_CONTRACT_WEEKS,
     totalWeeks: STARTING_CONTRACT_WEEKS,
     clauses: [],
@@ -60,9 +95,22 @@ export function createStandardContract(wrestler: Wrestler, settings: WorldSettin
   };
 }
 
-/** Total weekly wage bill for a roster, whether or not anyone is booked. */
+/**
+ * The retainer bill: what the roster costs before anybody is booked. This is
+ * the cost of depth, and it is deliberately the smaller half of the money.
+ */
 export function weeklyWageBill(roster: readonly Wrestler[]): number {
   return roster.reduce((sum, w) => sum + (w.contract?.weeklyRate ?? 0), 0);
+}
+
+/** What tonight's card costs on top of the retainers. */
+export function appearanceBill(worked: readonly Wrestler[]): number {
+  return worked.reduce((sum, w) => sum + (w.contract?.perAppearance ?? 0), 0);
+}
+
+/** What somebody costs across a week they were booked — the full ask. */
+export function fullWeeklyCost(wrestler: Wrestler): number {
+  return (wrestler.contract?.weeklyRate ?? 0) + (wrestler.contract?.perAppearance ?? 0);
 }
 
 /** Tick every deal down a week. Returns the ids whose contracts just expired. */

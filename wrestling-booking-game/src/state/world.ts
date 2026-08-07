@@ -64,7 +64,7 @@ import { createStartingTitles, awardTitle } from '../data/titles';
 import { identityOf } from '../data/promotionIdentity';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import { seedRelationships } from '../engine/career/relationships';
-import { formTeams, teamIdFactory } from '../engine/world/tagTeams';
+import { formTeams, teamIdFactory, tagTeamCountFor } from '../engine/world/tagTeams';
 import { bestFittingVenue } from '../data/venues';
 import { computeDemand, fairTicketPrice, potentialAudience } from '../engine/economy/showBudget';
 import { TERRITORIES, createTerritories } from '../data/territories';
@@ -368,7 +368,14 @@ function pseudoRandInt(rng: Rng, max: number): number {
 }
 
 export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
-  const roster = generateWrestlers(rng, settings.startingRosterSize, { currentYear: settings.startingYear });
+  const roster = generateWrestlers(rng, settings.startingRosterSize, {
+    currentYear: settings.startingYear,
+    // Built to a division split rather than rolled per head. Left to chance a
+    // small roster regularly produced a two-woman division, which is one
+    // match for a championship, repeated until somebody retires.
+    divisionShare: settings.womensRosterShare,
+    divisionFloor: settings.womensDivisionFloor,
+  });
   const wrestlers: Record<Id, Wrestler> = {};
   for (const w of roster) {
     w.promotionId = 'player-promotion';
@@ -456,7 +463,14 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
       rng,
       people,
       promotionId,
-      { taken: takenTeamNames, week: 1, count: settings.tagTeamsPerPromotion },
+      // Teams scale with the roster. A fixed three put six of a fourteen-person
+      // company in tag teams and left a forty-person company with the same
+      // three, so tag division depth had nothing to do with company size.
+      {
+        taken: takenTeamNames,
+        week: 1,
+        count: tagTeamCountFor(people.length, settings),
+      },
       teamIdFactory(promotionId),
     );
     for (const team of formed) takenTeamNames.add(team.name);

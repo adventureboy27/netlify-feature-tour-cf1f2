@@ -159,6 +159,10 @@ export function currentRefereeAskingRate(referee: Referee, settings: WorldSettin
 export function createRefereeContract(referee: Referee, settings: WorldSettings, signedYear: number): Contract {
   return {
     type: 'fullTime',
+    // Officials are salaried outright: they work every match on the card, so
+    // splitting their pay into an appearance fee would be the same number
+    // with extra steps.
+    perAppearance: 0,
     weeklyRate: currentRefereeAskingRate(referee, settings),
     weeksRemaining: settings.refereeContractWeeks,
     totalWeeks: settings.refereeContractWeeks,

@@ -222,7 +222,12 @@ import { productionAssetById, showExtraById } from '../data/production';
 import { expireContracts, weeklyWageBill, createStandardContract, askingRate, renewalRate } from '../engine/economy/contracts';
 import { driftEgo, targetEgo, contractDemand, clauseUpkeep } from '../engine/career/ego';
 import { canSign, currentAskingRate } from '../engine/world/freeAgents';
-import { computeWeeklyExpenses, computeShowExpenseSplit } from '../engine/economy/payroll';
+import {
+  computeWeeklyExpenses,
+  computeShowExpenseSplit,
+  computeAppearanceFee,
+  computeDownsideGuarantee,
+} from '../engine/economy/payroll';
 import {
   slotExpectedPopularities,
   saturationFromShow,
@@ -1758,8 +1763,15 @@ export const useGameStore = create<GameStore>()(
 
         // Demand is what the promotion has earned: its standing, plus how
         // good the card the player actually built is.
+        // Weighted by where people are on the card, exactly as the show
+        // rating is. A flat mean meant the opener counted as much as the main
+        // event, so adding an undercard match of two enhancement hands
+        // actively lowered how many tickets the show sold — depth ate its own
+        // gate, and a deep roster was self-defeating before payroll was even
+        // considered. People come for the top of the card.
         const cardStrength = segmentPopAvgs.length
-          ? segmentPopAvgs.reduce((sum, s) => sum + s.avgPopularity, 0) / segmentPopAvgs.length
+          ? segmentPopAvgs.reduce((sum, s, i) => sum + s.avgPopularity * (slotWeights[i] ?? 1), 0) /
+            segmentPopAvgs.reduce((sum, _s, i) => sum + (slotWeights[i] ?? 1), 0)
           : 0;
         // What you have been putting on drives this, not what you are called.
         const demand = computeDemand(
@@ -1829,13 +1841,38 @@ export const useGameStore = create<GameStore>()(
           world.settings.weeklyExpenseRate,
           world.promotion.ownedTerritoryIds.length,
         );
-        // A guaranteed weekly deal is paid every week, booked or not — that
-        // is what "two years, flat rate" means. §14's 50% expense cap applies
-        // to *show* expenses, not to wages: capping the wage bill made the
-        // bank rise every week no matter what, because the overflow was
-        // silently discarded.
+        // Pay splits in two. The retainer is what everybody draws for being
+        // under contract at all, booked or not — that is what "two years,
+        // flat rate" means, and it is the price of carrying depth. The
+        // appearance money is only paid to the people who actually worked
+        // tonight, which is what makes a thirty-five person roster against a
+        // fourteen-person card affordable rather than suicidal.
+        //
+        // §14's 50% expense cap applies to *show* expenses, not to wages:
+        // capping the wage bill made the bank rise every week no matter what,
+        // because the overflow was silently discarded.
+        const signed = world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean);
+        const mainEventIds = new Set(
+          (world.currentCard[world.currentCard.length - 1]?.participants ?? []).map((p) => p.wrestlerId),
+        );
+        const nightsWork = signed.reduce((sum, member) => {
+          if (!member.contract) return sum;
+          // Somebody who sat at home collects nothing extra, unless their deal
+          // says otherwise — which is the whole point of a downside guarantee.
+          if (!worked.has(member.id)) return sum + computeDownsideGuarantee(member.contract);
+          return (
+            sum +
+            computeAppearanceFee({
+              contract: member.contract,
+              role: 'competitor',
+              isMainEvent: mainEventIds.has(member.id),
+              isPPV,
+            })
+          );
+        }, 0);
         payroll =
-          weeklyWageBill(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean)) +
+          weeklyWageBill(signed) +
+          Math.round(nightsWork) +
           // Officials are on the payroll like everybody else — a weekly wage
           // whether they worked the card or sat at home. Carrying four of
           // them is a real line on the budget; it is just a much smaller one
@@ -1976,6 +2013,7 @@ export const useGameStore = create<GameStore>()(
           // A pay-per-view moves the ladder twice as fast, in either
           // direction. It is the night people judge you on.
           isPPV,
+          world.settings.ratingLadderFallMultiplier,
         );
 
         world.showHistory.push({

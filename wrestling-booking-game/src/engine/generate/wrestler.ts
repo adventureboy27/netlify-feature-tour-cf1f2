@@ -4,7 +4,7 @@
 // status), a reasonable default is used and flagged // DESIGN.
 
 import type { Rng } from '../rng';
-import { clamp, gaussian, randInt, weightedPick, pick, chance } from '../rng';
+import { clamp, gaussian, randInt, weightedPick, pick, chance, shuffle } from '../rng';
 import type { Appearance, Archetype, CardStatus, Id, Wrestler } from '../types';
 import { ARCHETYPES, archetypeById } from '../../data/archetypes';
 import { WRESTLING_STYLES } from '../../data/styles';
@@ -114,6 +114,12 @@ export interface GenerateWrestlerOptions {
    * kept graduating a second Blackout every few years.
    */
   existingNames?: Set<string>;
+  /** Force this wrestler's gender instead of rolling for it. */
+  gender?: 'm' | 'f';
+  /** Build a whole roster to this women's share rather than rolling per head. */
+  divisionShare?: number;
+  /** ...and never fewer than this many, so a small company still has a division. */
+  divisionFloor?: number;
 }
 
 export function generateWrestler(
@@ -166,7 +172,12 @@ export function generateWrestler(
   // DESIGN: gender ratio isn't specified by §6; skewed toward men to match
   // the reference genre while keeping the women's division well-populated.
   // Rolled before the name, because the name follows from it.
-  const gender: 'm' | 'f' = chance(rng, 0.78) ? 'm' : 'f';
+  //
+  // generateWrestlers overrides this when it is building a whole roster, so
+  // that a division is never left with two wrestlers in it by bad luck. Rolled
+  // per head, a fourteen-person roster produced a two-woman division in four
+  // seeds out of five — one match, every week, forever, for a belt.
+  const gender: 'm' | 'f' = options.gender ?? (chance(rng, 0.78) ? 'm' : 'f');
 
   const name = generateName(rng, existingNames, gender);
   existingNames.add(name.trim().toLowerCase());
@@ -260,12 +271,31 @@ export function generateWrestler(
   return wrestler;
 }
 
+/**
+ * Decide the make-up of a roster before generating anybody, so both divisions
+ * are staffable. Passing no floor keeps the old per-head roll, which is right
+ * for topping up a free-agent pool but wrong for building a company.
+ */
+export function divisionSplit(count: number, share: number, floor: number): ('m' | 'f')[] {
+  const women = Math.min(count, Math.max(Math.round(count * share), Math.min(floor, Math.floor(count / 2))));
+  return Array.from({ length: count }, (_, i) => (i < women ? 'f' : 'm'));
+}
+
 export function generateWrestlers(rng: Rng, count: number, options: GenerateWrestlerOptions = {}): Wrestler[] {
   const existingNames = new Set(options.existingNames ?? []);
   const existingAppearances = options.existingAppearances ?? [];
+  // Shuffled so the forced split does not come out as "all the women first",
+  // which would show up anywhere the roster is read in generation order.
+  const genders = options.divisionShare
+    ? shuffle(rng, divisionSplit(count, options.divisionShare, options.divisionFloor ?? 0))
+    : [];
   const wrestlers: Wrestler[] = [];
   for (let i = 0; i < count; i++) {
-    const wrestler = generateWrestler(rng, existingNames, { ...options, existingAppearances });
+    const wrestler = generateWrestler(rng, existingNames, {
+      ...options,
+      existingAppearances,
+      gender: genders[i] ?? options.gender,
+    });
     existingAppearances.push(wrestler.appearance);
     wrestlers.push(wrestler);
   }

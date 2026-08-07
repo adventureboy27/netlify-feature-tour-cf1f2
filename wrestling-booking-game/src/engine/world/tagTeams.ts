@@ -12,6 +12,8 @@
 // acts in it that can be ranked, feuded with, and remembered.
 
 import type { Rng } from '../rng';
+import { clamp } from '../rng';
+import type { WorldSettings } from '../types';
 import { pick, randInt } from '../rng';
 import type { Id, Stable, Wrestler } from '../types';
 import { TEAM_NAMES, WOMENS_TEAM_NAMES, surnamePair } from '../../data/teamNames';
@@ -251,4 +253,16 @@ export function teamIdFactory(prefix: string): () => string {
 export function randomPartner(rng: Rng, candidates: readonly Wrestler[]): Wrestler | undefined {
   if (candidates.length === 0) return undefined;
   return candidates[randInt(rng, 0, candidates.length - 1)];
+}
+
+
+/**
+ * How many teams a roster of this size should carry. A fixed count put six of
+ * a fourteen-person company into tag teams while leaving a forty-person
+ * company with the same three, so the tag division's depth had nothing to do
+ * with the size of the company it belonged to.
+ */
+export function tagTeamCountFor(rosterSize: number, settings: WorldSettings): number {
+  const wanted = Math.round(rosterSize / settings.wrestlersPerTagTeam);
+  return clamp(wanted, settings.tagTeamsMin, settings.tagTeamsMax);
 }

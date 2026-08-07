@@ -425,6 +425,13 @@ describe('the owner', () => {
   });
 
   it('fires you on the third strike, and the save stops there', () => {
+    // This test is about the owner's patience, not about solvency, and three
+    // mandates take the better part of a year to run their deadlines out. A
+    // promotion booking auto-filled cards for that long can genuinely go
+    // under first, at which point nobody is left to fire anybody — so it is
+    // given the cash to still be trading when the third strike lands.
+    useGameStore.getState().newGame({ ...freshSettings(), startingCash: 2_000_000 });
+
     // Ignore everything the owner ever says.
     for (let i = 0; i < 60 && !useGameStore.getState().world!.fired; i++) {
       useGameStore.getState().autoFillCard();
@@ -578,8 +585,14 @@ describe('the officials', () => {
     }
 
     expect(seen.length).toBeGreaterThan(0);
+    // Every miss names the official who made it. Not necessarily the one we
+    // signed: rivals sign officials away, and across twelve weeks they do, at
+    // which point somebody else is counting. Naming *an* official is the
+    // invariant — asserting a name captured up front was testing the poaching
+    // system by accident, and failed the moment it worked.
+    const everyName = world().referees.map((r) => r.name);
     for (const text of seen) {
-      expect(text).toContain(worst.name);
+      expect(everyName.some((name) => text.includes(name)), text).toBe(true);
       // A miss that reaches the screen with a placeholder in it is the bug
       // this is guarding.
       expect(text).not.toMatch(/\{[a-z]+\}/i);

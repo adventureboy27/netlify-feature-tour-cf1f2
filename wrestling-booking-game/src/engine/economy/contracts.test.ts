@@ -1,14 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  askingRate,
-  createStandardContract,
-  STARTING_CONTRACT_WEEKS,
-  weeklyWageBill,
-  expireContracts,
-  contractUrgency,
-  renewalRate,
-  willResign,
-} from './contracts';
+import { askingRate, createStandardContract, STARTING_CONTRACT_WEEKS, weeklyWageBill, expireContracts, contractUrgency, renewalRate, willResign, splitRate, retainerShare, appearanceBill, fullWeeklyCost } from './contracts';
 import { defaultWorldSettings } from '../world/settings';
 import { generateWrestler, generateWrestlers } from '../generate/wrestler';
 import { rngFromSeed } from '../rng';
@@ -128,5 +119,46 @@ describe('renewals', () => {
     const target = w({ popularity: 70, morale: 50, momentum: 50 });
     const fair = renewalRate(target, settings);
     expect(willResign(target, fair * 0.2, settings)).toBeLessThan(willResign(target, fair, settings));
+  });
+});
+
+describe('the two halves of a deal', () => {
+  const settings = defaultWorldSettings();
+  const makeOne = (popularity: number) => {
+    const [w] = generateWrestlers(rngFromSeed(`pay-${popularity}`), 1);
+    return { ...w!, popularity };
+  };
+
+  it('splits into a retainer and an appearance fee that add up to the ask', () => {
+    const w = makeOne(50);
+    const { weeklyRate, perAppearance } = splitRate(w, settings);
+    expect(weeklyRate).toBeGreaterThan(0);
+    expect(perAppearance).toBeGreaterThan(0);
+    // Rounded to the nearest five either side, so allow the rounding.
+    expect(weeklyRate + perAppearance).toBeCloseTo(askingRate(w, settings), -1);
+  });
+
+  it('guarantees a star more and makes an undercard hand work for it', () => {
+    // Leverage buys guarantees. This is what lets a promotion carry a deep
+    // roster of cheap hands and still be ruined by a deep roster of stars.
+    expect(retainerShare(makeOne(90), settings)).toBeGreaterThan(retainerShare(makeOne(10), settings));
+  });
+
+  it('makes carrying depth far cheaper than working it', () => {
+    // The bug this locks: everybody drew a full weekly wage whether booked or
+    // not, so a thirty-four person roster cost thirty-four wages against a
+    // card that uses about fourteen. Carrying anybody spare was punished, and
+    // the optimal roster was the smallest one that could fill a card.
+    const roster = Array.from({ length: 34 }, (_, i) => makeOne(30 + (i % 50)));
+    const contracted = roster.map((w) => ({ ...w, contract: createStandardContract(w, settings, 2026) }));
+    const retainers = weeklyWageBill(contracted);
+    const everyoneWorking = retainers + appearanceBill(contracted);
+    expect(retainers).toBeLessThan(everyoneWorking * 0.5);
+  });
+
+  it('pays somebody booked every week roughly their full asking price', () => {
+    const w = makeOne(65);
+    const contracted = { ...w, contract: createStandardContract(w, settings, 2026) };
+    expect(fullWeeklyCost(contracted)).toBeCloseTo(askingRate(w, settings), -1);
   });
 });
