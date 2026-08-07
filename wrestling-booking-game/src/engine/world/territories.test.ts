@@ -69,7 +69,7 @@ describe('the map', () => {
   it('keeps every territory inside the ranges the spec sets', () => {
     for (const t of TERRITORIES) {
       expect(t.capacity).toBeGreaterThanOrEqual(2000);
-      expect(t.capacity).toBeLessThanOrEqual(18000);
+      expect(t.capacity).toBeLessThanOrEqual(52000);
       expect(t.revenueMult).toBeGreaterThanOrEqual(0.8);
       expect(t.revenueMult).toBeLessThanOrEqual(1.4);
       for (const weight of Object.values(t.preferenceWeights)) {

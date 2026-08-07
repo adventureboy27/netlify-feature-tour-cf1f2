@@ -91,13 +91,26 @@ export function potentialAudience(demand: number, settings: WorldSettings): numb
 }
 
 /**
+ * What a ticket to this show is worth to the people who might buy one.
+ *
+ * Exported because three separate places need the same number and two of them
+ * used to compute it inline while a third — the opening night's default price
+ * — was a hardcoded 12 that had drifted to 43% of fair. A promotion was
+ * giving away well over half its gate on day one and nothing in the game said
+ * so.
+ */
+export function fairTicketPrice(demand: number, settings: WorldSettings): number {
+  return settings.ticketFairPriceBase + (clamp(demand, 0, 100) / 100) * settings.ticketFairPriceRange;
+}
+
+/**
  * How many actually turn up: the interested audience, moved by price, then
  * capped by the seats available.
  */
 export function computeAttendanceForShow(ctx: AttendanceContext): number {
   const { settings } = ctx;
 
-  const fairPrice = settings.ticketFairPriceBase + (ctx.demand / 100) * settings.ticketFairPriceRange;
+  const fairPrice = fairTicketPrice(ctx.demand, settings);
   const priceRatio = ctx.ticketPrice / Math.max(fairPrice, 1);
 
   // Under the fair price people still only turn up so fast; over it they stop
@@ -118,7 +131,7 @@ export function computeAttendanceForShow(ctx: AttendanceContext): number {
 /** People who wanted in and could not get a seat — the case for a bigger room. */
 export function turnedAway(ctx: AttendanceContext): number {
   const { settings } = ctx;
-  const fairPrice = settings.ticketFairPriceBase + (ctx.demand / 100) * settings.ticketFairPriceRange;
+  const fairPrice = fairTicketPrice(ctx.demand, settings);
   const priceRatio = ctx.ticketPrice / Math.max(fairPrice, 1);
   const priceFactor =
     priceRatio <= 1

@@ -76,7 +76,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'ironbeltCity',
     name: 'Ironbelt City',
-    capacity: 14000,
+    capacity: 26000,
     revenueMult: 1.3,
     preferenceWeights: { starPower: 0.6, heels: 0.3, faces: 0.3, hardcore: -0.25 },
     blurb: 'The big one. Everybody wants it, almost nobody can fill it, and it thinks deathmatches are bush league.',
@@ -116,7 +116,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'harborlineMetro',
     name: 'Harborline Metro',
-    capacity: 18000,
+    capacity: 52000,
     revenueMult: 1.4,
     preferenceWeights: { starPower: 0.8, highFlying: 0.3, longMatches: -0.4, hardcore: -0.3 },
     blurb: 'The biggest building in the world and the shortest attention span.',

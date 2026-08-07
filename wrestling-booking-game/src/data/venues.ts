@@ -75,6 +75,15 @@ export const VENUES: Venue[] = [
     blurb: 'Where the big promotions run. They will take your money either way.',
   },
   {
+    id: 'coliseum',
+    name: 'The Coliseum',
+    capacity: 25000,
+    rentalCost: 140000,
+    prestige: 82,
+    minCompanyRating: 80,
+    blurb: 'The room you graduate into. The upper bowl is the honest part.',
+  },
+  {
     id: 'domeStadium',
     name: 'Domed Stadium',
     capacity: 45000,
@@ -103,8 +112,37 @@ export function fallbackVenue(): Venue {
  * The biggest building this promotion is allowed to rent. A company carrying
  * thirty wrestlers is not running a school gym — the gym is what you fall back
  * to when the money is gone, not where you start with a full payroll.
+ *
+ * This is a *permission* gate and nothing more. It says what a promotion may
+ * rent, not what it can fill, and renting the biggest room you are allowed is
+ * usually a mistake — see bestFittingVenue.
  */
 export function bestAvailableVenue(companyRating: number): Venue {
   const allowed = VENUES.filter((v) => companyRating >= v.minCompanyRating);
   return allowed[allowed.length - 1] ?? fallbackVenue();
 }
+
+/**
+ * The room this promotion should actually be in: the largest one it can both
+ * rent and come close to filling.
+ *
+ * Separate from bestAvailableVenue because the two answers are different, and
+ * conflating them is what put a brand-new promotion into a theatre it could
+ * fill to 39% and bankrupt itself inside a month. A hall that looks packed is
+ * worth more than an arena that looks abandoned — that is what
+ * venueFullBonus and venueEmptyPenalty are for.
+ */
+export function bestFittingVenue(companyRating: number, expectedAudience: number): Venue {
+  const allowed = VENUES.filter((v) => companyRating >= v.minCompanyRating);
+  // Walk down from the biggest permitted room to the first one the audience
+  // would genuinely fill, and fall back to the smallest if nothing fits.
+  const fits = allowed.filter((v) => expectedAudience >= v.capacity * VENUE_COMFORTABLE_FILL);
+  return fits[fits.length - 1] ?? allowed[0] ?? fallbackVenue();
+}
+
+/**
+ * How full a room has to be before it is the right room. Set just under the
+ * threshold that earns the full-house bonus, so "the venue that fits" is also
+ * "the venue that looks good on camera".
+ */
+export const VENUE_COMFORTABLE_FILL = 0.7;

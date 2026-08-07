@@ -65,7 +65,8 @@ import { identityOf } from '../data/promotionIdentity';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import { seedRelationships } from '../engine/career/relationships';
 import { formTeams, teamIdFactory } from '../engine/world/tagTeams';
-import { bestAvailableVenue } from '../data/venues';
+import { bestFittingVenue } from '../data/venues';
+import { computeDemand, fairTicketPrice, potentialAudience } from '../engine/economy/showBudget';
 import { TERRITORIES, createTerritories } from '../data/territories';
 import { OWNER_PROFILES } from '../data/owners';
 import { ppvCalendarFor } from '../data/ppvNames';
@@ -691,14 +692,30 @@ export function defaultShowSetup(settings: WorldSettings): ShowSetup {
   // promotion can rent. Starting somewhere too small for your own venue is a
   // guaranteed bankruptcy, and starting in the metro is a story the player
   // should have to earn.
-  const venue = bestAvailableVenue(settings.startingCompanyRating);
+  //
+  // The room is chosen to FIT the opening draw, not to be the biggest one the
+  // rating permits. Those are different questions, and answering the second
+  // put a new promotion into a theatre it filled to 39% and bankrupted itself
+  // in a month.
+  const openingDemand = computeDemand(
+    settings.startingCompanyRating,
+    settings.startingCompanyRating,
+    settings.startingCompanyRating,
+    settings,
+    settings.startingTerritoryFollowing,
+  );
+  const venue = bestFittingVenue(settings.startingCompanyRating, potentialAudience(openingDemand, settings));
   const home =
     [...TERRITORIES].sort((a, b) => a.capacity - b.capacity).find((t) => t.capacity >= venue.capacity) ??
     [...TERRITORIES].sort((a, b) => b.capacity - a.capacity)[0]!;
   return {
     venueId: venue.id,
     territoryId: home.id,
-    ticketPrice: 12,
+    // What the show is actually worth, rather than a hardcoded number. The
+    // old default of 12 had drifted to 43% of fair, so a new promotion opened
+    // by giving away more than half its gate — and since the room sold out
+    // anyway, nothing in the game ever told the player.
+    ticketPrice: Math.round(fairTicketPrice(openingDemand, settings)),
     extraIds: [],
   };
 }

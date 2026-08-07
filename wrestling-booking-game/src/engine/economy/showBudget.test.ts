@@ -6,10 +6,13 @@ import {
   attendanceRatingModifier,
   canAffordShow,
   sumEffect,
+  fairTicketPrice,
+  computeDemand,
 } from './showBudget';
 import { VENUES, venueById, availableVenues } from '../../data/venues';
 import { PRODUCTION_ASSETS, SHOW_EXTRAS, availableExtras, productionAssetById, showExtraById } from '../../data/production';
 import { defaultWorldSettings } from '../world/settings';
+import { defaultShowSetup } from '../../state/world';
 
 const settings = defaultWorldSettings();
 const gym = venueById('schoolGym')!;
@@ -306,5 +309,48 @@ describe('the shape of the decision', () => {
     };
 
     expect(runIn(arena)).toBeGreaterThan(runIn(gym));
+  });
+});
+
+describe('the ticket price', () => {
+  it('rises with demand, because a hot show is worth more', () => {
+    expect(fairTicketPrice(90, settings)).toBeGreaterThan(fairTicketPrice(40, settings));
+  });
+
+  it('is what the opening show defaults to', () => {
+    // The bug this locks: the default was a hardcoded 12 while fair was ~28,
+    // so a new promotion opened by handing back more than half its gate. The
+    // room sold out anyway, so no screen in the game ever showed the loss —
+    // it just quietly folded around week thirteen.
+    const openingDemand = computeDemand(
+      settings.startingCompanyRating,
+      settings.startingCompanyRating,
+      settings.startingCompanyRating,
+      settings,
+      settings.startingTerritoryFollowing,
+    );
+    const setup = defaultShowSetup(settings);
+    expect(setup.ticketPrice).toBe(Math.round(fairTicketPrice(openingDemand, settings)));
+  });
+
+  it('leaves the opening house short of a sell-out, so the room is a real choice', () => {
+    const openingDemand = computeDemand(
+      settings.startingCompanyRating,
+      settings.startingCompanyRating,
+      settings.startingCompanyRating,
+      settings,
+      settings.startingTerritoryFollowing,
+    );
+    const setup = defaultShowSetup(settings);
+    const venue = venueById(setup.venueId)!;
+    const attendance = computeAttendanceForShow({
+      venue,
+      ticketPrice: setup.ticketPrice,
+      demand: openingDemand,
+      attendanceMultiplier: 1,
+      settings,
+    });
+    expect(attendance).toBeLessThan(venue.capacity);
+    expect(attendance).toBeGreaterThan(venue.capacity * 0.5);
   });
 });

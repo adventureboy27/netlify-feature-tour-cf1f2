@@ -24,7 +24,12 @@ const SLOT_KEY = 'wbg.save.v1';
 // which is honest, and far better than loading one that explodes later.
 // Version 5 dropped refereeNews and contractNews in favour of the single
 // weeklyNews wire.
-const SCHEMA_VERSION = 5;
+//
+// Version 6 is not a shape change but a world change: territory capacities
+// are baked into the save, and the two biggest markets grew so the top of the
+// venue ladder could be booked at all. A version-5 save would keep its old
+// map and play it against the new buildings — a world that never existed.
+const SCHEMA_VERSION = 6;
 
 export interface SaveFile {
   schema: number;

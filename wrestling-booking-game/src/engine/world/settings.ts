@@ -183,9 +183,20 @@ export function defaultWorldSettings(): WorldSettings {
     ticketUnderpriceBonus: 0.45,
     ticketOverpricePenalty: 0.85,
     merchSpendPerHead: 4.5,
-    // demand 25 -> ~310 people, 50 -> ~3,500, 80 -> ~18,000, 100 -> 40,000.
-    demandAudienceScale: 40000,
-    demandAudienceCurve: 3.5,
+    // The venue ladder is the progression, so the audience curve has to map
+    // onto it. Before this it did not: a brand-new promotion at demand 54
+    // drew 4,500 people, outgrew the top of the ladder by week fifteen, and
+    // sold out every room it ever rented for the rest of the save. Picking a
+    // building stopped being a decision because bigger was always free.
+    //
+    // Now: demand 54 -> ~750 (an armoury), 70 -> ~4,400 (a theatre), 85 ->
+    // ~15,600 (a real arena), 95 -> ~32,000, 100 -> 45,000 (the dome). Each
+    // rung needs a promotion that has genuinely grown into it, and reaching
+    // above your draw leaves visible empty seats — which is what
+    // venueEmptyPenalty has always been for and has never once been able to
+    // charge you.
+    demandAudienceScale: 45000,
+    demandAudienceCurve: 6.5,
     venuePrestigeDraw: 0.15,
     // What you have been putting on matters more than what you are called or
     // who is on the payroll.
