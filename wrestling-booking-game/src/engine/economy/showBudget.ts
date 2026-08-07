@@ -11,7 +11,7 @@
 // over it and the building looks empty on television.
 
 import { clamp } from '../rng';
-import type { ProductionAsset, ShowExtra, Venue, ProductionEffects, WorldSettings } from '../types';
+import type { ProductionAsset, ShowExtra, Venue, ProductionEffects, WorldSettings, PriceReaction } from '../types';
 
 export interface ShowCostContext {
   venue: Venue;
@@ -101,6 +101,63 @@ export function potentialAudience(demand: number, settings: WorldSettings): numb
  */
 export function fairTicketPrice(demand: number, settings: WorldSettings): number {
   return settings.ticketFairPriceBase + (clamp(demand, 0, 100) / 100) * settings.ticketFairPriceRange;
+}
+
+/** What tonight's price is, as a multiple of what the show is worth. */
+export function priceRatio(ticketPrice: number, demand: number, settings: WorldSettings): number {
+  return ticketPrice / Math.max(fairTicketPrice(demand, settings), 1);
+}
+
+/**
+ * What charging this leaves behind in the town, in following.
+ *
+ * Price used to be a decision that lasted exactly one night: it moved how many
+ * turned up, and then the number was forgotten. That made gouging free the
+ * moment a promotion outgrew its building — if thirty thousand want in and the
+ * room holds fifteen, doubling the price still sells every seat, so the greedy
+ * price was strictly the best price and got better the bigger you got.
+ *
+ * A town remembers. This is computed from the price alone, deliberately not
+ * from how empty the building looked, so that it still bites on a sold-out
+ * night — which is exactly the night it needs to bite on.
+ *
+ * Asymmetric, because people are: getting stung is remembered much longer than
+ * getting a deal. A serious gouge outweighs everything a great card earned.
+ */
+export function priceGoodwill(ratio: number, settings: WorldSettings): number {
+  const over = Math.max(0, ratio - 1 - settings.priceGougeForgiveness);
+  if (over > 0) return -over * settings.priceGougeGoodwillPenalty;
+  return Math.max(0, 1 - ratio) * settings.priceBargainGoodwillBonus;
+}
+
+/**
+ * What the town made of the price. Reported after the fact, never before —
+ * the game does not warn anybody off a decision, it just makes sure they can
+ * read what it cost.
+ */
+export function priceReaction(ratio: number, settings: WorldSettings): PriceReaction {
+  if (ratio <= settings.priceGiveawayRatio) return 'giveaway';
+  if (ratio < 1 - settings.priceGougeForgiveness) return 'bargain';
+  if (ratio <= 1 + settings.priceGougeForgiveness) return 'fair';
+  if (ratio <= settings.priceGougeRatio) return 'steep';
+  return 'gouge';
+}
+
+/** The sentence the results page prints about the box office. */
+export function priceReactionLine(reaction: PriceReaction, townName: string): string {
+  switch (reaction) {
+    case 'giveaway':
+      return `${townName} got in for next to nothing and knows it.`;
+    case 'bargain':
+      return `${townName} thought the ticket was good value.`;
+    case 'steep':
+      return `${townName} paid up, and grumbled about it on the way out.`;
+    case 'gouge':
+      return `${townName} thought the ticket price was a liberty. That one will be remembered.`;
+    case 'fair':
+    default:
+      return `${townName} thought the ticket was about right.`;
+  }
 }
 
 /**

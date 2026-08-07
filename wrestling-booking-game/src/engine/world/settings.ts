@@ -182,6 +182,22 @@ export function defaultWorldSettings(): WorldSettings {
     ticketFairPriceRange: 34,
     ticketUnderpriceBonus: 0.45,
     ticketOverpricePenalty: 0.85,
+    // Greed used to be free. Price moved how many turned up tonight and was
+    // then forgotten, so once a promotion outgrew its building — thirty
+    // thousand wanting in, fifteen thousand seats — doubling the price still
+    // sold out and the greedy price was strictly the best one. Now the town
+    // remembers, and it remembers the price rather than the empty seats, so
+    // it still stings on a night that sold out.
+    //
+    // Calibrated against territoryFollowingPerStar (1.6): a four-star show
+    // earns 6.4 following. At 1.5x fair the gouge takes 5.6 of it back, so a
+    // great card barely holds its ground. At 2x it takes 12.6 and the town
+    // goes backwards however good the wrestling was.
+    priceGougeForgiveness: 0.1,
+    priceGougeGoodwillPenalty: 14,
+    priceBargainGoodwillBonus: 3,
+    priceGiveawayRatio: 0.6,
+    priceGougeRatio: 1.4,
     merchSpendPerHead: 4.5,
     // The venue ladder is the progression, so the audience curve has to map
     // onto it. Before this it did not: a brand-new promotion at demand 54

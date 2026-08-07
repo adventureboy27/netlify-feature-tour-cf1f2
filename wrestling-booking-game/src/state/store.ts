@@ -206,6 +206,9 @@ import {
   attendanceRatingModifier,
   sumEffect,
   computeDemand,
+  priceRatio,
+  priceGoodwill,
+  priceReaction,
   updateRecentShowQuality,
   newAssetCondition,
   wearAsset,
@@ -1893,11 +1896,18 @@ export const useGameStore = create<GameStore>()(
         // Following is earned here and nowhere else. Everything the player
         // does in a town — the card, the price, the building — comes out as
         // one number: how many of them come back next time.
+        //
+        // The price half of that used to be a lie in this comment: it moved
+        // tonight's headcount and was then forgotten, which made gouging free
+        // for any promotion whose draw exceeded its building. It is real now.
+        const ratioPaid = priceRatio(ticketPrice, demand, world.settings);
+        const goodwill = priceGoodwill(ratioPaid, world.settings);
+        const reaction = priceReaction(ratioPaid, world.settings);
         const homeIndex = world.territories.findIndex((t) => t.id === territory.id);
         if (homeIndex >= 0) {
           const town = world.territories[homeIndex]!;
           town.following[world.promotion.id] = clamp(
-            followingOf(town, world.promotion.id) + followingGain(showStars, world.settings),
+            followingOf(town, world.promotion.id) + followingGain(showStars, world.settings) + goodwill,
             0,
             100,
           );
@@ -1972,7 +1982,10 @@ export const useGameStore = create<GameStore>()(
           week: world.week,
           type: isPPV ? 'ppv' : 'tvTaping',
           name: ppvName,
-          territoryId: world.promotion.homeTerritoryId,
+          // Where it actually ran, which is not the same as where the
+          // promotion is based. This recorded homeTerritoryId regardless, so
+          // every show on the road filed itself under the wrong town.
+          territoryId: territory.id,
           segments: [...world.currentCard, ...world.currentPromos.filter((slot) => slot.promoResult)],
           attendance,
           ticketPrice,
@@ -1988,6 +2001,7 @@ export const useGameStore = create<GameStore>()(
           showRating,
           showStars,
           broadcast: true,
+          priceReaction: reaction,
         });
 
         // ---- what the fans made of it -----------------------------------

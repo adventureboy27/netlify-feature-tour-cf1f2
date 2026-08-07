@@ -8,6 +8,10 @@ import {
   sumEffect,
   fairTicketPrice,
   computeDemand,
+  priceRatio,
+  priceGoodwill,
+  priceReaction,
+  priceReactionLine,
 } from './showBudget';
 import { VENUES, venueById, availableVenues } from '../../data/venues';
 import { PRODUCTION_ASSETS, SHOW_EXTRAS, availableExtras, productionAssetById, showExtraById } from '../../data/production';
@@ -352,5 +356,72 @@ describe('the ticket price', () => {
     });
     expect(attendance).toBeLessThan(venue.capacity);
     expect(attendance).toBeGreaterThan(venue.capacity * 0.5);
+  });
+});
+
+describe('what greed costs', () => {
+  const fairAt = (demand: number) => fairTicketPrice(demand, settings);
+
+  it('charges nothing for a fair price', () => {
+    expect(priceGoodwill(priceRatio(fairAt(60), 60, settings), settings)).toBe(0);
+  });
+
+  it('costs more the greedier you get', () => {
+    const steep = priceGoodwill(1.4, settings);
+    const gouge = priceGoodwill(2, settings);
+    expect(steep).toBeLessThan(0);
+    expect(gouge).toBeLessThan(steep);
+  });
+
+  it('outweighs a great card once the price is a real gouge', () => {
+    // A four-star show earns four stars' worth of following. Doubling the
+    // ticket has to take more than that back, or gouging is still free.
+    const earned = 4 * settings.territoryFollowingPerStar;
+    expect(earned + priceGoodwill(2, settings)).toBeLessThan(0);
+  });
+
+  it('bites on a sold-out night, which is the night it has to bite on', () => {
+    // The bug: price only moved tonight's headcount, so once demand outran
+    // the building — 28,000 wanting in, 15,000 seats — a moderate overcharge
+    // still sold every seat and took 30% more at the door for nothing. An
+    // outrageous price was always punished; it was the quietly greedy one
+    // that was free, and it got freer the bigger the promotion grew.
+    // Goodwill is computed from the price alone, so it lands anyway.
+    const arena = venueById('majorArena')!;
+    const demand = 93;
+    const at = (price: number) =>
+      computeAttendanceForShow({ venue: arena, ticketPrice: price, demand, attendanceMultiplier: 1, settings });
+    const fair = fairAt(demand);
+    expect(at(fair)).toBe(arena.capacity);
+    expect(at(fair * 1.3)).toBe(arena.capacity); // still a sell-out tonight
+    expect(priceGoodwill(1.3, settings)).toBeLessThan(0); // and still costs you
+  });
+
+  it('rewards a bargain, but only a little — people forget a deal', () => {
+    const deal = priceGoodwill(0.5, settings);
+    expect(deal).toBeGreaterThan(0);
+    expect(deal).toBeLessThan(-priceGoodwill(1.5, settings));
+  });
+
+  it('is forgiven if you go back to pricing fairly', () => {
+    // Harsh is fine; unrecoverable is not. One gouge costs a town roughly one
+    // good show's worth of goodwill, so the way back is to put on a good show
+    // and charge properly for it.
+    const gouged = priceGoodwill(1.5, settings);
+    const oneGoodNight = 4 * settings.territoryFollowingPerStar + priceGoodwill(1, settings);
+    expect(oneGoodNight + gouged).toBeGreaterThan(0);
+  });
+
+  it('names what the town made of it', () => {
+    expect(priceReaction(0.5, settings)).toBe('giveaway');
+    expect(priceReaction(0.8, settings)).toBe('bargain');
+    expect(priceReaction(1, settings)).toBe('fair');
+    expect(priceReaction(1.25, settings)).toBe('steep');
+    expect(priceReaction(1.8, settings)).toBe('gouge');
+  });
+
+  it('says so out loud, naming the town', () => {
+    expect(priceReactionLine('gouge', 'Ironbelt City')).toContain('Ironbelt City');
+    expect(priceReactionLine('gouge', 'Ironbelt City')).toMatch(/liberty/);
   });
 });

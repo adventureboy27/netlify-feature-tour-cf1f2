@@ -11,6 +11,7 @@ import { sortWire, WIRE_KIND_LABELS } from '../../engine/world/wire';
 import { stipulationById } from '../../data/stipulations';
 import { incidentById } from '../../data/incidents';
 import { showLede } from '../../engine/world/newsfeed';
+import { priceReactionLine } from '../../engine/economy/showBudget';
 import { billedAs } from '../../engine/generate/nickname';
 import { Stars, BreakdownPanel, Money, HeatBadge } from '../components/display';
 import { PaperDoll } from '../paperdoll/PaperDoll';
@@ -40,6 +41,7 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
     const w = world.wrestlers[id];
     return w ? billedAs(w) : 'Someone';
   };
+  const townName = world.territories.find((t) => t.id === show.territoryId)?.name ?? 'The town';
   const booked = show.segments.filter((s) => s.kind !== 'promo' && s.result !== null);
   const promos = show.segments.filter((s) => s.kind === 'promo' && s.promoResult);
 
@@ -135,6 +137,24 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
             </>
           )}
         </dl>
+
+        {/* What the town made of the price. After the fact, never before —
+            the game does not talk anybody out of a decision, it just makes
+            sure the cost is readable once it has been paid. */}
+        {show.priceReaction && (
+          <p
+            data-testid="price-reaction"
+            className={`mt-2 text-xs ${
+              show.priceReaction === 'gouge'
+                ? 'text-red-400'
+                : show.priceReaction === 'steep'
+                  ? 'text-amber-400'
+                  : 'text-neutral-500'
+            }`}
+          >
+            {priceReactionLine(show.priceReaction, townName)}
+          </p>
+        )}
       </header>
 
       <div className="flex flex-col gap-3">

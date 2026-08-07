@@ -991,6 +991,9 @@ export interface Segment {
   result: SegmentResult | null;
 }
 
+/** What a town made of what it was charged. See economy/showBudget.ts. */
+export type PriceReaction = 'giveaway' | 'bargain' | 'fair' | 'steep' | 'gouge';
+
 export interface Show {
   id: Id;
   promotionId: Id;
@@ -1016,6 +1019,12 @@ export interface Show {
   merch: number;
   otherRevenue: number;
   showCosts: number;
+  /**
+   * What the town made of what it was charged. Optional because it is a
+   * player decision: rival promotions do not model a ticket price, so their
+   * shows genuinely have no reaction rather than a defaulted one.
+   */
+  priceReaction?: PriceReaction;
 }
 
 // ============================================================================
@@ -1384,6 +1393,16 @@ export interface WorldSettings {
   ticketFairPriceRange: number;
   ticketUnderpriceBonus: number;
   ticketOverpricePenalty: number;
+  /** How far over fair a price can go before the town takes it personally. */
+  priceGougeForgiveness: number;
+  /** Following burned per unit of gouge past the forgiveness band. */
+  priceGougeGoodwillPenalty: number;
+  /** Following earned for genuinely undercharging. Small — deals are cheap. */
+  priceBargainGoodwillBonus: number;
+  /** At or under this multiple of fair, the town knows it got in for nothing. */
+  priceGiveawayRatio: number;
+  /** Past this multiple of fair, "steep" becomes "a liberty". */
+  priceGougeRatio: number;
   merchSpendPerHead: number;
   /** Audience at maximum demand — the ceiling on how many people exist for you. */
   demandAudienceScale: number;

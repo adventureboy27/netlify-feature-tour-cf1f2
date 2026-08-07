@@ -198,7 +198,8 @@ export function PromotionScreen() {
             className="accent-emerald-500"
           />
           <span className="text-[11px] text-neutral-500">
-            Charge under the odds and you sell out cheap. Charge over it and the building looks empty on television.
+            Charge under the odds and you sell out cheap. Charge over it and the building looks empty on television —
+            and the town remembers what it was charged long after the night is over.
           </span>
         </label>
       </section>
