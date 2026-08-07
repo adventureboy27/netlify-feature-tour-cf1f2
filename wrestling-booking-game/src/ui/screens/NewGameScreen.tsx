@@ -14,14 +14,16 @@ import { RIVAL_PROMOTIONS } from '../../state/world';
 import { savedGameSummary } from '../../state/persist';
 import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
 import { createStartingTitles } from '../../data/titles';
-import { defaultWorldSettings } from '../../engine/world/settings';
-import type { PromotionArchetype } from '../../engine/types';
+import { worldSettingsFromPreset } from '../../engine/world/settings';
+import { WORLD_PRESET_INFO } from '../../data/worldPresets';
+import type { PromotionArchetype, WorldPresetName } from '../../engine/types';
 
 export function NewGameScreen() {
   const newGame = useGameStore((s) => s.newGame);
   const continueGame = useGameStore((s) => s.continueGame);
 
-  const defaults = defaultWorldSettings();
+  const [preset, setPreset] = useState<Exclude<WorldPresetName, 'custom'>>('standard');
+  const defaults = worldSettingsFromPreset(preset);
   const [name, setName] = useState(defaults.promotionName);
   const [archetype, setArchetype] = useState<PromotionArchetype>(defaults.promotionArchetype);
   const [confirmingOverwrite, setConfirmingOverwrite] = useState(false);
@@ -29,6 +31,16 @@ export function NewGameScreen() {
 
   const identity = identityOf(archetype);
   const belts = createStartingTitles('preview', name || 'Your Promotion', archetype);
+
+  // Picking a preset fills in the name and house style it comes with rather
+  // than overriding them at start time, so the player can see what they got
+  // and type over it.
+  function choosePreset(id: Exclude<WorldPresetName, 'custom'>) {
+    const next = worldSettingsFromPreset(id);
+    setPreset(id);
+    setName(next.promotionName);
+    setArchetype(next.promotionArchetype);
+  }
 
   function start() {
     newGame({ ...defaults, promotionName: name.trim() || defaults.promotionName, promotionArchetype: archetype });
@@ -56,6 +68,38 @@ export function NewGameScreen() {
           </button>
         </section>
       )}
+
+      <section className="mb-4">
+        <div className="mb-1 text-xs uppercase tracking-wide text-neutral-500">Where you come in</div>
+        <div className="flex flex-col gap-1">
+          {WORLD_PRESET_INFO.map((option) => {
+            const chosen = preset === option.id;
+            const s = worldSettingsFromPreset(option.id);
+            return (
+              <button
+                key={option.id}
+                type="button"
+                data-testid={`preset-${option.id}`}
+                onClick={() => choosePreset(option.id)}
+                className={`rounded border p-2 text-left ${
+                  chosen
+                    ? 'border-emerald-500 bg-emerald-950/40'
+                    : 'border-neutral-800 bg-neutral-900 hover:border-neutral-600'
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-sm font-medium">{option.label}</span>
+                  <span className="shrink-0 font-mono text-[10px] text-neutral-500">
+                    ${s.startingCash.toLocaleString()} · {s.startingRosterSize} on the payroll
+                  </span>
+                </div>
+                <div className={`text-[11px] ${chosen ? 'text-neutral-200' : 'text-neutral-400'}`}>{option.blurb}</div>
+                {chosen && <div className="mt-1 text-[11px] text-amber-300">{option.theSqueeze}</div>}
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="mb-4">
         <label className="mb-1 block text-xs uppercase tracking-wide text-neutral-500" htmlFor="promotion-name">

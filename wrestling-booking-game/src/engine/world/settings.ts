@@ -706,10 +706,29 @@ export function defaultWorldSettings(): WorldSettings {
 
 /** §5 "Presets" table. Each preset overrides a subset of the defaults. */
 export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<WorldSettings>> = {
+  // Measured week-one positions, at fair pricing with an auto-filled card:
+  //
+  //   territoryDays  900 in a 900-seat armoury, -2.4k/wk, low 28.8k
+  //   standard     1,141 in a 1,600-seat hall,  -5.5k wk1, low 74.4k
+  //   bigMoney     4,623 in a 6,000-seat arena, +124k wk1, low 504k
+  //   sinkOrSwim     797 in a 900-seat armoury,  break-even, low 17.8k
+  //
+  // Cash and roster size used to be the only things a preset moved, and that
+  // produced four openings that were indistinguishable: same building, same
+  // ticket, same first show. Starting cash barely matters once the doors are
+  // open — what decides the first year is how well known you are, how over
+  // you are at home, and how many people you are paying. Those are the levers
+  // now.
   territoryDays: {
     promotionArchetype: 'territory',
     startingCash: 25_000,
     startingRosterSize: 18,
+    // Small national name, big local one — the shape of a territory. Sells
+    // the armoury out every week and still cannot quite cover the payroll.
+    startingCompanyRating: 48,
+    startingTerritoryFollowing: 62,
+    // An owner who has seen bookers come and go and is in no hurry.
+    mandateStrikesBeforeFiring: 4,
     rivalPromotionCount: 7,
     chaosLevel: 2,
   },
@@ -764,14 +783,29 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
     promotionArchetype: 'sportsEntertainment',
     startingCash: 400_000,
     startingRosterSize: 40,
+    // Already a big company: an arena, four thousand people, and a gate three
+    // times the payroll. The money is not the difficulty here and cannot be
+    // made into it — a promotion this size prints cash under any tuning that
+    // leaves the smaller starts playable.
+    startingCompanyRating: 70,
+    startingTerritoryFollowing: 60,
+    // So the squeeze is the owner instead. He inherited a company that is
+    // already where he wanted it, and has one strike less of patience for
+    // the booker who lets it slip.
+    mandateStrikesBeforeFiring: 2,
     rivalPromotionCount: 5,
     chaosLevel: 0,
   },
   sinkOrSwim: {
     promotionName: 'Blackline Pro',
     promotionArchetype: 'hardcore',
-    startingCash: 8_000,
-    startingRosterSize: 12,
+    startingCash: 12_000,
+    startingRosterSize: 14,
+    // Opening night grosses 16,578 against a payroll of 16,460. That margin
+    // is the entire preset. Twelve wrestlers on 8k folded by week nine even
+    // playing perfectly, which is not a difficulty setting, it is a cutscene.
+    startingCompanyRating: 52,
+    startingTerritoryFollowing: 50,
     rivalPromotionCount: 8,
     chaosLevel: 3,
   },
