@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "sim": "tsx scripts/sim.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "play": "npm run build && node scripts/single-file.mjs"
   },
   "dependencies": {
     "idb-keyval": "^6.2.1",

@@ -62,7 +62,13 @@ npm run dev        # Vite dev server
 npm run sim        # Headless balance harness — run after every sim change
 npm run test       # Unit tests
 npm run build      # Production PWA build
+npm run play       # Build, then fold it into one openable HTML file
 ```
+
+`npm run play` writes `dist/wrestling-booker.html` — the whole game in a
+single file, CSS and JS inlined, sprite atlas already data-URI'd by Vite.
+Open it directly, no server; mail it to a phone and it works there too. The
+game is offline-only by design, so nothing is lost in the folding.
 
 ## When the spec is ambiguous
 
