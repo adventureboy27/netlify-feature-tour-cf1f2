@@ -16,6 +16,7 @@ import { Odds, HeatBadge, AlignmentDot, StatBar } from '../components/display';
 import { eligibleTitles, titleStakesLabel } from '../../engine/sim/titleMatch';
 import { shortTitleName } from '../../data/titles';
 import { isPPVWeek, ppvNameForWeek, weeksUntilPPV } from '../../engine/world/calendar';
+import { holidayForWeek, seasonForWeek, weeksUntilHoliday, SEASON_LABELS } from '../../engine/world/seasons';
 import { PromoSlots } from '../components/PromoSlots';
 import type { Id, Wrestler, Segment, Title, WorldSettings, Referee, PaceId } from '../../engine/types';
 import { PACES, paceById } from '../../data/pacing';
@@ -107,6 +108,12 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
     world.promotion.ppvCalendar,
     world.settings,
   );
+  // The year has a shape whether or not the booker uses it: a holiday is a
+  // night the town turns out for the date rather than the card, and knowing
+  // one is three weeks out is the whole reason to build toward it.
+  const tonightsHoliday = holidayForWeek(world.week);
+  const nextHoliday = weeksUntilHoliday(world.week);
+  const season = SEASON_LABELS[seasonForWeek(world.week)];
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
@@ -120,8 +127,21 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
           ) : (
             <h1 className="text-base font-semibold">This week&apos;s card</h1>
           )}
+          {tonightsHoliday && (
+            <div className="text-[11px] font-medium text-amber-300">
+              {tonightsHoliday.name} — {tonightsHoliday.blurb}
+            </div>
+          )}
           <p className="text-xs text-neutral-500">
             {filledSegments} of {world.currentCard.length} segments booked
+            <span className="text-neutral-600"> · {season}</span>
+            {!tonightsHoliday && nextHoliday && nextHoliday.weeksAway <= 6 && (
+              <span className="text-neutral-600">
+                {' '}
+                · {nextHoliday.holiday.name} in {nextHoliday.weeksAway}{' '}
+                {nextHoliday.weeksAway === 1 ? 'week' : 'weeks'}
+              </span>
+            )}
             {!tonightIsPPV && weeksToPPV > 0 && (
               <span className="text-neutral-600">
                 {' '}

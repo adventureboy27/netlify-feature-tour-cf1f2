@@ -25,6 +25,34 @@ export function defaultWorldSettings(): WorldSettings {
     talentQualityCurve: 0,
     starDensity: 0.07,
     womensDivision: 'separate',
+    // Weather and the year. The dice are deliberately lopsided: something
+    // worth a line happens about a third of the weeks, and of those the vast
+    // majority is drizzle. The catastrophe tier is two parts in a thousand of
+    // the rolls that land, which puts "no show at all" at roughly once every
+    // four or five years of weekly television at the default chaos level, and
+    // measured at exactly that: a storm bad enough to cost a third of the
+    // house lands about every eighteen months, and a show is called off
+    // outright about every four years. A calm world stretches that to a
+    // decade; a chaotic one shortens it to about eighteen months.
+    //
+    // chaosLevel bends only the two dangerous tiers, so a chaotic world is
+    // not a noisier one week to week — it is one where the rare thing is less
+    // rare. At chaos 0 they are damped to a fifth; at chaos 3 they are three
+    // times the baseline.
+    weatherChancePerShow: 0.34,
+    weatherSeverityWeights: {
+      flavour: 55,
+      minor: 30,
+      notable: 11,
+      severe: 5,
+      catastrophe: 1.6,
+    },
+    weatherChaosDamping: 0.3,
+    weatherChaosPerLevel: 0.55,
+    // The rent and the crew were committed before anybody looked at the sky.
+    // Nobody collects an appearance fee for a show that did not happen.
+    cancelledShowCostShare: 0.8,
+    memoriamDrawBonus: 1.35,
     // A women's championship needs a division, not two wrestlers taking turns.
     womensRosterShare: 0.3,
     womensDivisionFloor: 6,

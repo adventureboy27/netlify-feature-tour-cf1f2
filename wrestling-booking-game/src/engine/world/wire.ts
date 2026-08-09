@@ -28,6 +28,7 @@ export type WireKind =
   | 'comeback'
   | 'team'
   | 'official'
+  | 'weather'
   | 'honour'
   | 'debut'
   | 'title';
@@ -55,6 +56,7 @@ export const WIRE_KIND_LABELS: Record<WireKind, string> = {
   honour: 'Honours',
   debut: 'Debut',
   title: 'Title',
+  weather: 'The road',
 };
 
 /**
@@ -75,6 +77,7 @@ const KIND_ORDER: WireKind[] = [
   'honour',
   'debut',
   'official',
+  'weather',
 ];
 
 export function sortWire(items: readonly WireItem[]): WireItem[] {

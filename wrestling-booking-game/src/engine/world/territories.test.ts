@@ -41,6 +41,7 @@ function town(over: Partial<Territory> = {}): Territory {
     preferenceWeights: {},
     following: {},
     ownerPromotionId: null,
+  climate: 'temperate',
     ...over,
   };
 }

@@ -37,7 +37,12 @@ const SLOT_KEY = 'wbg.save.v1';
 // Version 8 splits Contract into weeklyRate + perAppearance and adds the
 // division/tag-team/retainer settings. A version-7 save has no perAppearance
 // on any contract, so every wrestler would silently work for free.
-const SCHEMA_VERSION = 8;
+//
+// Version 9 adds a climate to every territory, pendingMemoriam to the world,
+// and the weather settings. A version-8 save has no climate on its towns, so
+// the weather roll would find nothing eligible anywhere and the year would be
+// silent forever.
+const SCHEMA_VERSION = 9;
 
 export interface SaveFile {
   schema: number;

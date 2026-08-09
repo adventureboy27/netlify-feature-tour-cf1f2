@@ -11,10 +11,12 @@
 // through, so "where do we run this week" is a real question about the card
 // you have built.
 
-import type { Territory, TerritoryPreferenceTag } from '../engine/types';
+import type { Climate, Territory, TerritoryPreferenceTag } from '../engine/types';
 
 export interface TerritoryDefinition {
   id: string;
+  /** What the sky does here. Gates which weather this town can get. */
+  climate: Climate;
   name: string;
   /** How big the market could ever get. Gates which buildings make sense. */
   capacity: number;
@@ -27,6 +29,7 @@ export interface TerritoryDefinition {
 export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'millValley',
+    climate: 'temperate',
     name: 'Mill Valley',
     capacity: 2400,
     revenueMult: 0.8,
@@ -35,6 +38,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   },
   {
     id: 'crescentPort',
+    climate: 'coastal',
     name: 'Crescent Port',
     capacity: 5200,
     revenueMult: 1.1,
@@ -43,6 +47,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   },
   {
     id: 'graniteFalls',
+    climate: 'mountain',
     name: 'Granite Falls',
     capacity: 3100,
     revenueMult: 0.9,
@@ -51,6 +56,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   },
   {
     id: 'sunKingCounty',
+    climate: 'desert',
     name: 'Sun King County',
     capacity: 8000,
     revenueMult: 1.2,
@@ -59,6 +65,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   },
   {
     id: 'lowlandParish',
+    climate: 'coastal',
     name: 'Lowland Parish',
     capacity: 4400,
     revenueMult: 0.95,
@@ -67,6 +74,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   },
   {
     id: 'northRidge',
+    climate: 'northern',
     name: 'North Ridge',
     capacity: 6600,
     revenueMult: 1.05,
@@ -75,6 +83,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   },
   {
     id: 'ironbeltCity',
+    climate: 'northern',
     name: 'Ironbelt City',
     capacity: 26000,
     revenueMult: 1.3,
@@ -83,6 +92,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   },
   {
     id: 'brambleHollow',
+    climate: 'mountain',
     name: 'Bramble Hollow',
     capacity: 2000,
     revenueMult: 0.8,
@@ -91,6 +101,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   },
   {
     id: 'saltMarketPlains',
+    climate: 'plains',
     name: 'Salt Market Plains',
     capacity: 5800,
     revenueMult: 1.0,
@@ -99,6 +110,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   },
   {
     id: 'ashfordHeights',
+    climate: 'temperate',
     name: 'Ashford Heights',
     capacity: 9500,
     revenueMult: 1.15,
@@ -107,6 +119,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   },
   {
     id: 'copperGulch',
+    climate: 'desert',
     name: 'Copper Gulch',
     capacity: 3600,
     revenueMult: 0.85,
@@ -115,6 +128,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
   },
   {
     id: 'harborlineMetro',
+    climate: 'coastal',
     name: 'Harborline Metro',
     capacity: 52000,
     revenueMult: 1.4,
@@ -132,6 +146,7 @@ export function createTerritories(): Territory[] {
   return TERRITORIES.map((definition) => ({
     id: definition.id,
     name: definition.name,
+    climate: definition.climate,
     capacity: definition.capacity,
     revenueMult: definition.revenueMult,
     preferenceWeights: { ...definition.preferenceWeights },

@@ -1084,6 +1084,12 @@ export interface Promotion {
   ppvCalendar: string[];
 }
 
+/** What the sky does in a town. See data/seasons.ts. */
+export type Climate = 'northern' | 'coastal' | 'plains' | 'desert' | 'mountain' | 'temperate';
+
+/** The four seasons of a 52-week year. */
+export type Season = 'winter' | 'spring' | 'summer' | 'autumn';
+
 // ============================================================================
 // §4 — Territory
 // ============================================================================
@@ -1106,6 +1112,8 @@ export interface Territory {
   preferenceWeights: Partial<Record<TerritoryPreferenceTag, number>>; // -1..1
   following: Partial<Record<Id, number>>; // promotionId -> 0-100
   ownerPromotionId: Id | null;
+  /** What the sky does here. Gates which weather this town can get. */
+  climate: Climate;
 }
 
 // ============================================================================
@@ -1223,6 +1231,18 @@ export interface WorldSettings {
   talentQualityCurve: number; // -2..+2
   starDensity: number; // 0-1
   womensDivision: WomensDivisionMode;
+  /** Chance any weather at all is worth reporting on a given show. */
+  weatherChancePerShow: number;
+  /** Relative likelihood of each severity tier, before chaos bends the top. */
+  weatherSeverityWeights: Record<'flavour' | 'minor' | 'notable' | 'severe' | 'catastrophe', number>;
+  /** Multiplier on the dangerous tiers at chaosLevel 0. */
+  weatherChaosDamping: number;
+  /** ...and how much each level of chaos adds to it. */
+  weatherChaosPerLevel: number;
+  /** Share of the show's committed costs you still pay when it is called off. */
+  cancelledShowCostShare: number;
+  /** What a tribute show draws. */
+  memoriamDrawBonus: number;
   /** Target share of a generated roster that is women. */
   womensRosterShare: number;
   /** ...and the fewest a company will ever be built with. */

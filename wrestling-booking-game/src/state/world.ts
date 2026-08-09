@@ -50,6 +50,7 @@ import { generateFreeAgentPool } from '../engine/world/freeAgents';
 import { createRefereeContract, seedRefereePool } from '../engine/sim/referees';
 import type { Manager } from '../engine/sim/ringside';
 import type { WireItem } from '../engine/world/wire';
+import type { MemoriamShow } from '../engine/world/seasons';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
 import type { PendingEvent } from '../engine/events/types';
 import type { EventHistory } from '../engine/events/scheduler';
@@ -137,6 +138,12 @@ export interface World {
   weeksInTheRed: number;
   /** Set when the promotion goes under. The save becomes a record, not a game. */
   folded: { week: number; reason: string } | null;
+  /**
+   * Set when somebody on the roster dies. The next show the promotion runs is
+   * a tribute — the business does this whether or not the booker feels like
+   * it, so it is applied rather than offered, and cleared once it has run.
+   */
+  pendingMemoriam: MemoriamShow | null;
   /** Weeks left on a signing ban from being caught tampering. */
   signingBanWeeks: number;
   /** Weeks dark from a tampering suspension. No shows, wages still due. */
@@ -531,6 +538,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     showSetup: startingSetup,
     weeksInTheRed: 0,
     folded: null,
+    pendingMemoriam: null,
     signingBanWeeks: 0,
     suspensionWeeks: 0,
     tamperingOffenses: 0,

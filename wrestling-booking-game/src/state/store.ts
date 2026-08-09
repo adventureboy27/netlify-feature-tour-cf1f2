@@ -228,6 +228,7 @@ import {
   computeAppearanceFee,
   computeDownsideGuarantee,
 } from '../engine/economy/payroll';
+import { nightModifiers, memoriamFor, cancellationCost } from '../engine/world/seasons';
 import {
   slotExpectedPopularities,
   saturationFromShow,
@@ -1107,7 +1108,19 @@ export const useGameStore = create<GameStore>()(
           percentileMax: world.settings.slotExpectationPercentileMax,
         });
 
-        world.currentCard.forEach((segment, i) => {
+        // ---- the town, the date and the sky ------------------------------
+        // Rolled before a single match is simulated, because one outcome of
+        // the roll is that there is no show to simulate. A card that never
+        // happened has no results, no injuries and no title changes — the
+        // rent and the crew are owed all the same.
+        const territory =
+          world.territories.find((t) => t.id === world.showSetup.territoryId) ?? world.territories[0]!;
+        const homeFollowing = followingOf(territory, world.promotion.id);
+        const night = nightModifiers(rng, world.week, territory, world.settings);
+        const memoriam = world.pendingMemoriam;
+        const nightDraw = night.draw * (memoriam ? memoriam.draw : 1);
+
+        if (!night.cancelled) world.currentCard.forEach((segment, i) => {
           const sides = new Set(segment.participants.map((p) => p.side));
           if (segment.participants.length < 2 || sides.size < 2) {
             segmentRatings.push(null);
@@ -1704,10 +1717,9 @@ export const useGameStore = create<GameStore>()(
 
         // ---- where we are running ----------------------------------------
         // The town has an opinion about the card, and a memory of how over
-        // this promotion is here. Both are read before the show is priced.
-        const territory =
-          world.territories.find((t) => t.id === world.showSetup.territoryId) ?? world.territories[0]!;
-        const homeFollowing = followingOf(territory, world.promotion.id);
+        // this promotion is here. Both were read at the top of the week,
+        // before the card was simulated, because the weather gets a vote on
+        // whether the card happens at all.
         const townFit = territoryFit(
           territory,
           readCardTraits(
@@ -1782,15 +1794,18 @@ export const useGameStore = create<GameStore>()(
           homeFollowing,
         );
 
-        const attendance = computeAttendanceForShow({
-          venue,
-          ticketPrice,
-          demand,
-          attendanceMultiplier: sumEffect(production, 'attendanceMultiplier', 'multiply'),
-          // The regulars in this town are the floor under a bad night.
-          territoryFollowing: homeFollowing,
-          settings: world.settings,
-        });
+        const attendance = night.cancelled
+          ? 0
+          : computeAttendanceForShow({
+              venue,
+              ticketPrice,
+              demand,
+              attendanceMultiplier:
+                sumEffect(production, 'attendanceMultiplier', 'multiply') * nightDraw,
+              // The regulars in this town are the floor under a bad night.
+              territoryFollowing: homeFollowing,
+              settings: world.settings,
+            });
 
         // Who was actually out there tonight — the gimmicks that moved shirts
         // and the people owed a slice of them.
@@ -1817,7 +1832,7 @@ export const useGameStore = create<GameStore>()(
           attendance,
           ticketPrice,
           merchMultiplier: sumEffect(production, 'merchMultiplier', 'multiply'),
-          gimmickMerchMultiplier: gimmickMerch,
+          gimmickMerchMultiplier: gimmickMerch * night.merch,
           merchCutShare,
           revenuePerHead: sumEffect(production, 'revenuePerHead'),
           averagePopularity: cardStrength,
@@ -1878,11 +1893,16 @@ export const useGameStore = create<GameStore>()(
           // them is a real line on the budget; it is just a much smaller one
           // than carrying a fifth wrestler.
           refereeWageBill(world.referees, world.promotion.id);
-        const { payable: showPayable } = computeShowExpenseSplit(
-          showCosts.total,
-          revenue.total,
-          world.settings.expenseCapPctOfRevenue,
-        );
+        // A show that never happened still costs most of what it was going to.
+        // The building was booked, the crew was called and the trucks went out
+        // before anybody looked at the sky — that is what makes the venue a
+        // bet rather than a purchase. The 50% expense cap is against revenue,
+        // which on a cancelled night is nothing, so the cap is skipped: it
+        // exists to stop a show eating its own gate, not to make a washout
+        // free.
+        const { payable: showPayable } = night.cancelled
+          ? { payable: cancellationCost(showCosts.total, world.settings) }
+          : computeShowExpenseSplit(showCosts.total, revenue.total, world.settings.expenseCapPctOfRevenue);
         // Clauses you agreed to have a weekly price of their own.
         const clauseBill = world.promotion.rosterIds.reduce((sum, id) => {
           const member = world.wrestlers[id];
@@ -2350,6 +2370,28 @@ export const useGameStore = create<GameStore>()(
         // somebody on a Tuesday has to appear in Monday's write-up, not
         // vanish because the show ran. Only the *previous* report's items go.
         world.weeklyNews = world.weeklyNews.filter((item) => item.week >= world.week);
+
+        // ---- what the sky did, and who the night was for -----------------
+        // Nothing happens off-screen: if the weather moved the gate, or the
+        // date did, or the show was called off entirely, the paper says so.
+        //
+        // Pushed here rather than where the night was rolled, because the
+        // week has ticked over by now and the line above drops anything
+        // stamped with a week earlier than the current one. Every other piece
+        // of weekly news is filed after the increment for the same reason.
+        if (night.weather) {
+          const loud = night.weather.severity === 'catastrophe' || night.weather.severity === 'severe';
+          world.weeklyNews.push(wire('weather', night.weather.line, world.week, loud ? 'lead' : 'minor'));
+        }
+        if (night.holiday && !night.cancelled) {
+          world.weeklyNews.push(
+            wire('weather', `${night.holiday.name}. ${night.holiday.blurb}`, world.week, 'minor'),
+          );
+        }
+        if (memoriam) {
+          world.weeklyNews.push(wire('death', memoriam.line, world.week, 'lead'));
+          world.pendingMemoriam = null;
+        }
         for (const id of world.promotion.rosterIds) {
           const member = world.wrestlers[id];
           if (!member || member.deceased) continue;
@@ -2425,6 +2467,17 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 deathLine(person.name, person.age, `${DEATH_CAUSE_TEXT[passing.cause]}.`, world.week),
               );
+              // The business runs a tribute for its own. Applied rather than
+              // offered — a promotion does not decide whether to ring ten
+              // bells for somebody who was on the card last week.
+              if (world.promotion.rosterIds.includes(person.id)) {
+                world.pendingMemoriam = memoriamFor(
+                  person.id,
+                  person.name,
+                  world.promotion.name,
+                  world.settings,
+                );
+              }
               leaveTheBusiness(world, person.id, 'died');
               continue;
             }
