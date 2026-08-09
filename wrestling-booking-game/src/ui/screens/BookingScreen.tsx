@@ -119,7 +119,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           {tonightIsPPV ? (
             <>
@@ -152,7 +152,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
             )}
           </p>
         </div>
-        <div className="flex shrink-0 gap-1">
+        <div className="flex shrink-0 gap-2">
           <button
             type="button"
             data-testid="auto-fill"

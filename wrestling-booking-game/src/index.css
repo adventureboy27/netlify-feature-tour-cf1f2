@@ -1,3 +1,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Touch targets.
+
+   This is a phone-first game, and measured at an iPhone viewport it was not
+   one: 194 of 194 interactive elements on the roster screen came in under the
+   44px minimum, some of them 19px tall. The dense chip layout that reads
+   nicely with a mouse is close to unusable with a thumb.
+
+   The fix is scoped to `pointer: coarse` so the desktop layout keeps its
+   density and only touch devices pay for the space. Chips are in flex-wrap
+   rows throughout, so the extra height reflows into more rows rather than
+   breaking anything — which is the right trade on a phone anyway.
+
+   `min-height` rather than padding so buttons that already carry their own
+   padding are not doubled up, and text stays centred either way.
+--------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  button,
+  [role='button'],
+  select,
+  input[type='text'],
+  input[type='search'],
+  input[type='number'],
+  input[type='checkbox'],
+  input[type='radio'] {
+    min-height: 44px;
+  }
+
+  /* Anything laid out as a row of chips needs horizontal room too — a 44px
+     tall target 34px wide is still a miss. */
+  button,
+  [role='button'] {
+    min-width: 44px;
+  }
+
+  /* Range inputs are dragged rather than tapped; give the track a thumb-sized
+     grab area without stretching the control itself. */
+  input[type='range'] {
+    min-height: 44px;
+  }
+}

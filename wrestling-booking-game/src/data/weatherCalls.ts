@@ -33,21 +33,27 @@ export interface WeatherCallOption {
 export const WEATHER_CALL_OPTIONS: WeatherCallOption[] = [
   {
     id: 'runIt',
-    label: 'Run it',
-    gains: 'Whatever crowd braves it still pays, and the town remembers you turned up.',
-    costs: 'If it lands, somebody gets hurt getting through it and the gear takes a beating.',
+    label: 'Open the doors anyway',
+    gains:
+      'Everybody who fights their way there pays to get in, and a town does not forget the promotion that turned up when it said it would.',
+    costs:
+      'If it lands you are working to a half-empty building with the boys driving home through it afterwards, and somebody is going to get hurt doing it.',
   },
   {
     id: 'callItOff',
-    label: 'Call it off',
-    gains: 'Nobody travels, nobody gets hurt, and the building is somebody else’s problem.',
-    costs: 'The deposit is gone, the house is refunded, and the town remembers you did not show.',
+    label: 'Pull the plug',
+    gains:
+      'Nobody drives, nobody climbs a ladder in a gale, and whatever happens to that building tonight happens without your name on it.',
+    costs:
+      'The deposit is gone whatever the sky does, every ticket goes back, and the regulars find out you were the promotion that cancelled on them.',
   },
   {
     id: 'moveIt',
-    label: 'Move it',
-    gains: 'A smaller room out of the weather. The show happens and the television gets made.',
-    costs: 'It draws badly, the scramble is billed to you, and half the ticket-holders cannot get there.',
+    label: 'Find another building',
+    gains:
+      'A smaller hall out from under it, booked overnight. The card gets worked, the television gets made, and the week is not a write-off.',
+    costs:
+      'You are paying twice to run somewhere nobody knows, in front of whoever could face the drive, and the room will look thin on camera.',
   },
 ];
 
@@ -68,14 +74,16 @@ export type ForecastStrength = 'likely' | 'even';
  */
 export const FORECAST_LINES: Record<ForecastStrength, string[]> = {
   likely: [
-    'Every service says the same thing, and none of them say it is turning.',
-    'The forecast is as bad as forecasts get. Nobody local thinks this misses.',
-    'The county has already told people to stay off the roads tomorrow night.',
+    'Every service is saying the same thing and not one of them has it turning.',
+    'Nobody local thinks this misses. The men who load the truck are already talking about it like it has happened.',
+    'The county has told people to stay off the roads tomorrow night, and the county does not do that lightly.',
+    'The building manager rang you. He never rings you.',
   ],
   even: [
-    'It could go either way. Half the models turn it north of the building.',
-    'There is a real chance this misses entirely, and a real chance it does not.',
-    'The man on the radio would not commit to it, which tells you something.',
+    'It could go either way. Half of them turn it north of the building and half of them do not.',
+    'There is a real chance this misses altogether, and a real chance you are the fool who bet on that.',
+    'The man on the radio would not commit to it, which tells you roughly as much as you knew this morning.',
+    'Ask two people in {town} and you get two answers, and both of them sound sure.',
   ],
 };
 

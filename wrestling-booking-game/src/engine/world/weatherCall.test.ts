@@ -57,6 +57,34 @@ describe('when the call is offered', () => {
     }
   });
 
+  it('warns about a storm that has not happened yet, not one that has', () => {
+    // `lines` report a night that already went ahead, in the past tense. Using
+    // one as a warning told the booker the blizzard had already shut the town
+    // down and then asked whether they fancied running the show.
+    for (const e of WEATHER_EVENTS) {
+      if (e.severity !== 'severe') continue;
+      expect(e.warnings, e.id).toBeDefined();
+      expect(e.warnings!.length, e.id).toBeGreaterThan(1);
+      for (const w of e.warnings!) expect(w, e.id).toContain('{town}');
+    }
+    const rng = rngFromSeed('tense');
+    const roll = severeRoll();
+    const call = weatherCallFrom(rng, roll, 1, town.id, town.name, settings)!;
+    expect(roll.event.warnings).toContain(
+      call.warning.replace(new RegExp(town.name, 'g'), '{town}'),
+    );
+  });
+
+  it('leaves no placeholder in anything it shows the player', () => {
+    const rng = rngFromSeed('placeholders');
+    const roll = severeRoll();
+    for (let i = 0; i < 100; i += 1) {
+      const call = weatherCallFrom(rng, roll, 1, town.id, town.name, settings)!;
+      expect(call.warning).not.toMatch(/\{[a-z]+\}/i);
+      expect(call.forecast).not.toMatch(/\{[a-z]+\}/i);
+    }
+  });
+
   it('says how sure the forecast is in words, never a number', () => {
     for (const lines of Object.values(FORECAST_LINES)) {
       for (const line of lines) {

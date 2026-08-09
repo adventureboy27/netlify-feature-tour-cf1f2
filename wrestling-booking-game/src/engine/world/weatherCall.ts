@@ -73,8 +73,11 @@ export function weatherCallFrom(
     territoryName,
     eventId: roll.event.id,
     eventName: roll.event.name,
-    warning: roll.line,
-    forecast: pick(rng, FORECAST_LINES[strength]),
+    // The forward-looking line, not the report of a night that has not
+    // happened yet. Falling back to roll.line would tell the booker the storm
+    // had already shut the town down and then ask what they wanted to do.
+    warning: pick(rng, roll.event.warnings ?? roll.event.lines).replace(/\{town\}/g, territoryName),
+    forecast: pick(rng, FORECAST_LINES[strength]).replace(/\{town\}/g, territoryName),
     strength,
     willHit: chance(rng, hitChance),
     options: WEATHER_CALL_OPTIONS,

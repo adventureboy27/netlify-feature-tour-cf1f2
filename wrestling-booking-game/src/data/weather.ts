@@ -42,6 +42,14 @@ export interface WeatherEvent {
   draw: number;
   /** Relative likelihood against other events in the same severity tier. */
   weight: number;
+  /**
+   * How it reads the day *before*, when it is still a forecast and the booker
+   * has a call to make. Severe events need this: `lines` are written in the
+   * past tense because they report a night that already happened, and showing
+   * one as a warning told the player the blizzard had already shut the town
+   * down and then asked whether they would like to run the show.
+   */
+  warnings?: string[];
 }
 
 export const WEATHER_EVENTS: WeatherEvent[] = [
@@ -354,6 +362,10 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     severity: 'severe',
     draw: 0.4,
     weight: 22,
+    warnings: [
+      'The service has {town} under a blizzard watch from noon. They are talking about feet, not inches.',
+      'There is a system coming down on {town} that has already buried three counties north of it.',
+    ],
   },
   {
     id: 'tropicalStorm',
@@ -364,6 +376,10 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     severity: 'severe',
     draw: 0.35,
     weight: 20,
+    warnings: [
+      'The storm is tracking up the coast and {town} is inside the cone.',
+      'They have started boarding up the front on the seaward side of {town}.',
+    ],
   },
   {
     id: 'tornadoWarning',
@@ -377,6 +393,10 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     severity: 'severe',
     draw: 0.32,
     weight: 20,
+    warnings: [
+      "The whole of {town}'s county is under a watch box from four in the afternoon.",
+      'There is a line of cells building west of {town} and the air has gone that colour.',
+    ],
   },
   {
     id: 'powerCut',
@@ -387,6 +407,10 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     severity: 'severe',
     draw: 0.45,
     weight: 14,
+    warnings: [
+      'The grid over {town} has been browning out all week and the utility is not promising anything.',
+      '{town} is on rolling outages and nobody will say which block goes dark when.',
+    ],
   },
   {
     id: 'floodWarning',
@@ -397,6 +421,10 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     severity: 'severe',
     draw: 0.38,
     weight: 12,
+    warnings: [
+      'The river through {town} is a foot off the top and it has been raining upstream for three days.',
+      'They have sandbags on the low road into {town} and they did not put them there for fun.',
+    ],
   },
 
   // ---- catastrophe: no show ---------------------------------------------
