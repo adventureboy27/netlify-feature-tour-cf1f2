@@ -1243,6 +1243,31 @@ export interface WorldSettings {
   cancelledShowCostShare: number;
   /** What a tribute show draws. */
   memoriamDrawBonus: number;
+
+  // The call on bad weather. See engine/world/weatherCall.ts.
+  /** Share of severe forecasts that come in as the confident kind. */
+  forecastLikelyShare: number;
+  /** ...and how often each kind is right. Never shown as a number. */
+  forecastLikelyHitChance: number;
+  forecastEvenHitChance: number;
+  /** What you still owe on a show you called off yourself. */
+  calledOffCostShare: number;
+  /** Following lost for calling off a show the weather justified. */
+  calledOffFollowing: number;
+  /** ...and for calling off one it did not. */
+  calledOffWronglyFollowing: number;
+  /** Running into it and being right there with them is worth something. */
+  ranThroughItFollowing: number;
+  ranThroughItInjuryRisk: number;
+  ranThroughItWear: number;
+  /** What the house does when the storm turns and you ran anyway. */
+  stormMissedDraw: number;
+  /** Moving at a day's notice: a smaller room, a worse house, a bill. */
+  movedShowDraw: number;
+  movedShowScrambleCost: number;
+  movedShowFollowing: number;
+  /** Longest layoff from getting hurt travelling to a show, not in it. */
+  weatherInjuryMaxWeeks: number;
   /** Target share of a generated roster that is women. */
   womensRosterShare: number;
   /** ...and the fewest a company will ever be built with. */

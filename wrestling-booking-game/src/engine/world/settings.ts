@@ -53,6 +53,29 @@ export function defaultWorldSettings(): WorldSettings {
     // Nobody collects an appearance fee for a show that did not happen.
     cancelledShowCostShare: 0.8,
     memoriamDrawBonus: 1.35,
+    // The call on bad weather. Two forecast strengths so the answer is not
+    // the same every time: a confident one is usually worth calling off, an
+    // even one usually is not, and telling them apart is the skill the
+    // decision asks for.
+    //
+    // Calling it off is deliberately expensive. If it were free the player
+    // would take it every single time a warning appeared, which is the exact
+    // failure this whole decision exists to avoid — and the storm can miss,
+    // so it is a gamble in both directions rather than an insurance premium.
+    forecastLikelyShare: 0.45,
+    forecastLikelyHitChance: 0.85,
+    forecastEvenHitChance: 0.45,
+    calledOffCostShare: 0.45,
+    calledOffFollowing: -3,
+    calledOffWronglyFollowing: -8,
+    ranThroughItFollowing: 4,
+    ranThroughItInjuryRisk: 0.35,
+    ranThroughItWear: 2.5,
+    stormMissedDraw: 0.88,
+    movedShowDraw: 0.55,
+    movedShowScrambleCost: 4500,
+    movedShowFollowing: -2,
+    weatherInjuryMaxWeeks: 3,
     // A women's championship needs a division, not two wrestlers taking turns.
     womensRosterShare: 0.3,
     womensDivisionFloor: 6,

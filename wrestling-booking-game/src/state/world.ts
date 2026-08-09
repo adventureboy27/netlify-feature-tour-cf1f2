@@ -51,6 +51,8 @@ import { createRefereeContract, seedRefereePool } from '../engine/sim/referees';
 import type { Manager } from '../engine/sim/ringside';
 import type { WireItem } from '../engine/world/wire';
 import type { MemoriamShow } from '../engine/world/seasons';
+import type { WeatherCall } from '../engine/world/weatherCall';
+import type { WeatherCallOptionId } from '../data/weatherCalls';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
 import type { PendingEvent } from '../engine/events/types';
 import type { EventHistory } from '../engine/events/scheduler';
@@ -144,6 +146,14 @@ export interface World {
    * it, so it is applied rather than offered, and cleared once it has run.
    */
   pendingMemoriam: MemoriamShow | null;
+  /**
+   * A severe forecast waiting on a decision. The week does not resolve until
+   * it is answered — this is the one thing in the game that stops the clock,
+   * and it stops it because running the show *is* the decision.
+   */
+  pendingWeatherCall: WeatherCall | null;
+  /** What was decided, carried into the resolve that follows. */
+  weatherChoice: WeatherCallOptionId | null;
   /** Weeks left on a signing ban from being caught tampering. */
   signingBanWeeks: number;
   /** Weeks dark from a tampering suspension. No shows, wages still due. */
@@ -539,6 +549,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     weeksInTheRed: 0,
     folded: null,
     pendingMemoriam: null,
+    pendingWeatherCall: null,
+    weatherChoice: null,
     signingBanWeeks: 0,
     suspensionWeeks: 0,
     tamperingOffenses: 0,

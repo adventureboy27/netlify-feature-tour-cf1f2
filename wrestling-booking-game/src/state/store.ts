@@ -173,7 +173,7 @@ import { applyGimmickLook, stableColorsFrom } from '../engine/generate/gimmickLo
 import { GIMMICKS } from '../data/gimmicks';
 import type { EventEffect, EventSubjects } from '../engine/events/types';
 import type { Wrestler } from '../engine/types';
-import { clamp, pick, chance } from '../engine/rng';
+import { clamp, pick, chance, randInt } from '../engine/rng';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { stipulationById, stipulationRequirementsMet } from '../data/stipulations';
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
@@ -228,7 +228,15 @@ import {
   computeAppearanceFee,
   computeDownsideGuarantee,
 } from '../engine/economy/payroll';
-import { nightModifiers, memoriamFor, cancellationCost } from '../engine/world/seasons';
+import { nightModifiers, memoriamFor, cancellationCost, holidayForWeek, seasonForWeek } from '../engine/world/seasons';
+import type { WeatherCallOptionId } from '../data/weatherCalls';
+import {
+  weatherCallFrom,
+  resolveWeatherCall,
+  hasCallLines,
+  carriedWeather,
+  type WeatherCall,
+} from '../engine/world/weatherCall';
 import {
   slotExpectedPopularities,
   saturationFromShow,
@@ -341,6 +349,7 @@ export interface GameStore {
    * week you make them stay.
    */
   answerReleaseRequest: (wrestlerId: Id, grant: boolean) => void;
+  answerWeatherCall: (choice: WeatherCallOptionId) => void;
   /** Send somebody out on their terms. They go to the Legacy wall, not the pool. */
   retireWrestler: (wrestlerId: Id) => void;
   /**
@@ -397,6 +406,23 @@ function dropFromCard(world: World, wrestlerId: Id): void {
  * roll to a weekly one. Returns the belts it had to vacate so the year-end
  * digest can still list them.
  */
+/**
+ * The night, rebuilt from a forecast the booker has just answered. The
+ * holiday is looked up again because it is a fact about the date, but the
+ * weather is carried rather than re-rolled.
+ */
+function carriedNight(week: number, call: WeatherCall) {
+  const holiday = holidayForWeek(week);
+  return {
+    season: seasonForWeek(week),
+    holiday,
+    weather: carriedWeather(call),
+    draw: holiday?.draw ?? 1,
+    merch: holiday?.merch ?? 1,
+    cancelled: false,
+  };
+}
+
 function leaveTheBusiness(world: World, id: Id, method: TitleReignEndMethod): Id[] {
   const vacated: Id[] = [];
   // A champion who is gone cannot carry a belt. It goes vacant, and the
@@ -1116,9 +1142,46 @@ export const useGameStore = create<GameStore>()(
         const territory =
           world.territories.find((t) => t.id === world.showSetup.territoryId) ?? world.territories[0]!;
         const homeFollowing = followingOf(territory, world.promotion.id);
-        const night = nightModifiers(rng, world.week, territory, world.settings);
+        // A severe forecast is the one thing in the game that stops the
+        // clock, and it stops it because running the show *is* the decision.
+        // The roll is carried on the pending call rather than re-rolled when
+        // the player answers — their choice must not be able to change
+        // whether the storm was ever going to arrive.
+        const carried = world.pendingWeatherCall?.week === world.week ? world.pendingWeatherCall : null;
+        const night = carried
+          ? carriedNight(world.week, carried)
+          : nightModifiers(rng, world.week, territory, world.settings);
+
+        if (!carried && night.weather?.severity === 'severe' && hasCallLines(night.weather.event.id)) {
+          const call = weatherCallFrom(
+            rng,
+            night.weather,
+            world.week,
+            territory.id,
+            territory.name,
+            world.settings,
+          );
+          if (call) {
+            world.pendingWeatherCall = call;
+            world.weatherChoice = null;
+            return; // nothing resolves until the booker answers
+          }
+        }
+
+        // A call that is still open holds the week, however many times the
+        // player presses the button. Without this, resolving again while the
+        // forecast sat unanswered ran the show as if nothing had been asked.
+        if (carried && !world.weatherChoice) return;
+
+        const choice = carried ? world.weatherChoice : null;
+        const callOutcome =
+          carried && choice
+            ? resolveWeatherCall(carried, choice, world.settings, night.weather?.draw ?? 1)
+            : null;
         const memoriam = world.pendingMemoriam;
-        const nightDraw = night.draw * (memoriam ? memoriam.draw : 1);
+        const nightDraw =
+          (callOutcome ? callOutcome.draw : night.draw) * (memoriam ? memoriam.draw : 1);
+        const showIsOff = callOutcome ? !callOutcome.ran : night.cancelled;
 
         if (!night.cancelled) world.currentCard.forEach((segment, i) => {
           const sides = new Set(segment.participants.map((p) => p.side));
@@ -1794,7 +1857,7 @@ export const useGameStore = create<GameStore>()(
           homeFollowing,
         );
 
-        const attendance = night.cancelled
+        const attendance = showIsOff
           ? 0
           : computeAttendanceForShow({
               venue,
@@ -1900,9 +1963,14 @@ export const useGameStore = create<GameStore>()(
         // which on a cancelled night is nothing, so the cap is skipped: it
         // exists to stop a show eating its own gate, not to make a washout
         // free.
-        const { payable: showPayable } = night.cancelled
-          ? { payable: cancellationCost(showCosts.total, world.settings) }
-          : computeShowExpenseSplit(showCosts.total, revenue.total, world.settings.expenseCapPctOfRevenue);
+        const { payable: showPayable } = callOutcome
+          ? {
+              payable:
+                Math.round(showCosts.total * callOutcome.costShare) + callOutcome.extraCost,
+            }
+          : night.cancelled
+            ? { payable: cancellationCost(showCosts.total, world.settings) }
+            : computeShowExpenseSplit(showCosts.total, revenue.total, world.settings.expenseCapPctOfRevenue);
         // Clauses you agreed to have a weekly price of their own.
         const clauseBill = world.promotion.rosterIds.reduce((sum, id) => {
           const member = world.wrestlers[id];
@@ -1966,7 +2034,10 @@ export const useGameStore = create<GameStore>()(
         if (homeIndex >= 0) {
           const town = world.territories[homeIndex]!;
           town.following[world.promotion.id] = clamp(
-            followingOf(town, world.promotion.id) + followingGain(showStars, world.settings) + goodwill,
+            followingOf(town, world.promotion.id) +
+              followingGain(showStars, world.settings) +
+              goodwill +
+              (callOutcome ? callOutcome.following : 0),
             0,
             100,
           );
@@ -2348,7 +2419,14 @@ export const useGameStore = create<GameStore>()(
         world.rivalries = world.rivalries.map((r) => decayRivalry(r, world.week, world.settings));
 
         // A show's worth of wear on everything that was hauled out tonight.
-        world.assetConditions = world.assetConditions.map((state) => wearAsset(state, world.settings));
+        world.assetConditions = world.assetConditions.map((state) =>
+          wearAsset(state, {
+            ...world.settings,
+            // A night spent hauling gear through a storm ages it faster than
+            // an ordinary one.
+            assetWearPerShow: world.settings.assetWearPerShow + (callOutcome?.extraWear ?? 0),
+          }),
+        );
 
         // Injuries count down whether or not you booked around them.
         for (const id of world.promotion.rosterIds) {
@@ -2379,7 +2457,46 @@ export const useGameStore = create<GameStore>()(
         // week has ticked over by now and the line above drops anything
         // stamped with a week earlier than the current one. Every other piece
         // of weekly news is filed after the increment for the same reason.
-        if (night.weather) {
+        if (callOutcome) {
+          // What the call turned out to be worth. Always a lead — the booker
+          // made a decision and is owed the result of it in plain words.
+          world.weeklyNews.push(wire('weather', callOutcome.line, world.week, 'lead'));
+
+          // Running into a storm can cost somebody. Nothing happens to a
+          // person off-screen, so this says who and how, in the paper, the
+          // same week it happened.
+          if (callOutcome.injuryRisk > 0 && chance(rng, callOutcome.injuryRisk)) {
+            const candidates = [...worked]
+              .map((id) => world.wrestlers[id])
+              .filter((w) => Boolean(w) && !w!.injury && !w!.deceased)
+              .map((w) => w!);
+            const unlucky = candidates.length ? pick(rng, candidates) : null;
+            if (unlucky) {
+              const weeks = randInt(rng, 1, world.settings.weatherInjuryMaxWeeks);
+              unlucky.health = clamp(unlucky.health - world.settings.casualtyHealthCost, 0, 100);
+              unlucky.career.longestInjuryWeeks = Math.max(unlucky.career.longestInjuryWeeks, weeks);
+              unlucky.injury = {
+                severity: 'minor',
+                description: 'Hurt getting to the building',
+                sufferedWeek: world.week,
+                totalWeeks: weeks,
+                weeksRemaining: weeks,
+                permanentStatLoss: {},
+                earlyReturnWeeksUsed: 0,
+              };
+              world.weeklyNews.push(
+                wire(
+                  'departure',
+                  `${unlucky.name} went over on the ice in the loading bay carrying his own bag in and is out for ${weeks} ${weeks === 1 ? 'week' : 'weeks'}. Nothing to do with the match.`,
+                  world.week,
+                  'normal',
+                ),
+              );
+            }
+          }
+          world.pendingWeatherCall = null;
+          world.weatherChoice = null;
+        } else if (night.weather) {
           const loud = night.weather.severity === 'catastrophe' || night.weather.severity === 'severe';
           world.weeklyNews.push(wire('weather', night.weather.line, world.week, loud ? 'lead' : 'minor'));
         }
@@ -3702,6 +3819,18 @@ export const useGameStore = create<GameStore>()(
         outcome = { ok: true, reason: null, cost: terms.severance };
       });
       return outcome;
+    },
+
+    answerWeatherCall: (choice) => {
+      set((state) => {
+        const world = state.world;
+        if (!world?.pendingWeatherCall) return;
+        world.weatherChoice = choice;
+      });
+      // Answering *is* running the show. The week was held open waiting for
+      // this, so it resolves the moment the booker decides rather than making
+      // them press the same button twice.
+      get().resolveWeek();
     },
 
     answerReleaseRequest: (wrestlerId, grant) => {

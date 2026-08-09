@@ -79,6 +79,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   const spreadCrew = useGameStore((s) => s.spreadOfficialsAcrossCard);
   const toggleTitle = useGameStore((s) => s.toggleSegmentTitle);
   const autoFill = useGameStore((s) => s.autoFillCard);
+  const answerWeatherCall = useGameStore((s) => s.answerWeatherCall);
   const [openSlot, setOpenSlot] = useState(0);
 
   const roster = useMemo(
@@ -111,6 +112,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   // The year has a shape whether or not the booker uses it: a holiday is a
   // night the town turns out for the date rather than the card, and knowing
   // one is three weeks out is the whole reason to build toward it.
+  const call = world.pendingWeatherCall;
   const tonightsHoliday = holidayForWeek(world.week);
   const nextHoliday = weeksUntilHoliday(world.week);
   const season = SEASON_LABELS[seasonForWeek(world.week)];
@@ -169,6 +171,37 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
           </button>
         </div>
       </div>
+
+      {/* The call on the weather. This is the one thing in the game that
+          stops the week: the show does not resolve until it is answered,
+          because deciding whether to run it *is* running it. */}
+      {call && (
+        <section
+          data-testid="weather-call"
+          className="mb-3 rounded border border-amber-700 bg-amber-950/30 p-3"
+        >
+          <div className="text-[10px] uppercase tracking-wide text-amber-500">
+            {call.eventName} — {call.territoryName}
+          </div>
+          <p className="mt-1 text-sm text-amber-100">{call.warning}</p>
+          <p className="mt-1 text-xs italic text-amber-300/90">{call.forecast}</p>
+          <div className="mt-3 flex flex-col gap-1.5">
+            {call.options.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                data-testid={`weather-${option.id}`}
+                onClick={() => answerWeatherCall(option.id)}
+                className="rounded border border-neutral-700 bg-neutral-900 p-2 text-left hover:border-amber-500"
+              >
+                <div className="text-sm font-medium">{option.label}</div>
+                <div className="text-[11px] text-neutral-400">{option.gains}</div>
+                <div className="text-[11px] text-rose-300/80">{option.costs}</div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* The card's official. Boxing does it this way: one referee named for
           the night, and the good one saved for the fights that matter. */}

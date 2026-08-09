@@ -26,6 +26,20 @@ beforeEach(() => {
   useGameStore.getState().newGame(freshSettings());
 });
 
+/**
+ * Resolve the week, answering a severe-weather call if one is waiting.
+ *
+ * A bad forecast holds the week open until the booker decides — that is the
+ * point of it — so anything that just wants the show to have happened has to
+ * answer. 'runIt' is the choice that still produces a show.
+ */
+function runWeek(choice: 'runIt' | 'callItOff' | 'moveIt' = 'runIt') {
+  useGameStore.getState().resolveWeek();
+  if (useGameStore.getState().world?.pendingWeatherCall) {
+    useGameStore.getState().answerWeatherCall(choice);
+  }
+}
+
 describe('newGame', () => {
   it('creates a world with the requested roster size, starting cash, and week 1', () => {
     const { world } = useGameStore.getState();
@@ -506,7 +520,7 @@ describe('the officials', () => {
     const wage = world().referees.find((r) => r.id === target.id)!.contract!.weeklyRate;
 
     // Run a week with nobody booked at all: the wage is still due.
-    useGameStore.getState().resolveWeek();
+    runWeek();
     const show = world().showHistory[0]!;
     expect(show.payroll).toBeGreaterThanOrEqual(wage);
     expect(world().promotion.bankBalance).not.toBe(before);
@@ -514,7 +528,7 @@ describe('the officials', () => {
 
   it('names an official beside every match it resolves', () => {
     useGameStore.getState().autoFillCard();
-    useGameStore.getState().resolveWeek();
+    runWeek();
     const show = world().showHistory[0]!;
     const booked = show.segments.filter((s) => s.result);
     expect(booked.length).toBeGreaterThan(0);
@@ -606,7 +620,7 @@ describe('the officials', () => {
     expect(mine()).toHaveLength(0);
 
     useGameStore.getState().autoFillCard();
-    useGameStore.getState().resolveWeek();
+    runWeek();
     const show = world().showHistory[0]!;
     const booked = show.segments.filter((s) => s.result);
     expect(booked.length).toBeGreaterThan(0);
@@ -619,7 +633,7 @@ describe('the officials', () => {
     let announced = false;
     for (let week = 0; week < 60 && !announced; week++) {
       useGameStore.getState().autoFillCard();
-      useGameStore.getState().resolveWeek();
+      runWeek();
       if (
         world().weeklyNews.some(
           (item) => item.kind === 'official' && item.text.includes('contract has run out'),
@@ -674,7 +688,7 @@ describe('second careers', () => {
     expect(asOfficial!.toughness).toBe(anyone.toughness);
 
     useGameStore.getState().autoFillCard();
-    useGameStore.getState().resolveWeek();
+    runWeek();
     const show = world().showHistory[0]!;
     expect(show.segments.some((seg) => seg.participants.some((p) => p.wrestlerId === anyone.id))).toBe(false);
   });
@@ -691,7 +705,7 @@ describe('second careers', () => {
 
     useGameStore.getState().autoFillCard();
     useGameStore.getState().setSegmentManager(0, asManager!.id, 0);
-    useGameStore.getState().resolveWeek();
+    runWeek();
 
     const show = world().showHistory[0]!;
     expect(show.segments.some((seg) => seg.participants.some((p) => p.wrestlerId === talker.id))).toBe(false);
@@ -803,5 +817,60 @@ describe('trades', () => {
       );
       expect(stillBooked).toBe(false);
     }
+  });
+});
+
+describe('the call on the weather', () => {
+  // Forcing the roll is the only way to test a decision that fires roughly
+  // every eighteen months. Everything after the roll is the real code path.
+  function forceCall(): boolean {
+    for (let i = 0; i < 400; i += 1) {
+      useGameStore.getState().autoFillCard();
+      useGameStore.getState().resolveWeek();
+      if (useGameStore.getState().world?.pendingWeatherCall) return true;
+      useGameStore.getState().dismissMandateOutcome();
+      const w = useGameStore.getState().world!;
+      if (w.folded || w.fired) useGameStore.getState().newGame({ ...freshSettings(), chaosLevel: 3, seed: `w${i}` });
+    }
+    return false;
+  }
+
+  it('holds the week open until the booker answers, and then resolves it', () => {
+    useGameStore.getState().newGame({ ...freshSettings(), chaosLevel: 3, seed: 'weather-call' });
+    expect(forceCall(), 'no severe forecast in 400 weeks').toBe(true);
+
+    const call = useGameStore.getState().world!.pendingWeatherCall!;
+    const showsBefore = useGameStore.getState().world!.showHistory.length;
+    const weekBefore = useGameStore.getState().world!.week;
+
+    // The week really is held: resolving again changes nothing.
+    useGameStore.getState().resolveWeek();
+    expect(useGameStore.getState().world!.week).toBe(weekBefore);
+    expect(useGameStore.getState().world!.showHistory.length).toBe(showsBefore);
+    expect(call.options).toHaveLength(3);
+    expect(call.forecast).not.toMatch(/\d/);
+
+    useGameStore.getState().answerWeatherCall('runIt');
+    const after = useGameStore.getState().world!;
+    expect(after.pendingWeatherCall).toBeNull();
+    expect(after.weatherChoice).toBeNull();
+    expect(after.week).toBe(weekBefore + 1);
+    expect(after.showHistory.length).toBe(showsBefore + 1);
+    // And it says what happened, in the paper, that week.
+    expect(after.weeklyNews.some((n) => n.kind === 'weather' && n.weight === 'lead')).toBe(true);
+  });
+
+  it('calling it off means no show, and it still costs', () => {
+    useGameStore.getState().newGame({ ...freshSettings(), chaosLevel: 3, seed: 'weather-off' });
+    expect(forceCall()).toBe(true);
+    const bankBefore = useGameStore.getState().world!.promotion.bankBalance;
+
+    useGameStore.getState().answerWeatherCall('callItOff');
+    const after = useGameStore.getState().world!;
+    const show = after.showHistory[after.showHistory.length - 1]!;
+    expect(show.attendance).toBe(0);
+    expect(show.gate).toBe(0);
+    // The building was booked and the crew was called. It is not free.
+    expect(after.promotion.bankBalance).toBeLessThan(bankBefore);
   });
 });

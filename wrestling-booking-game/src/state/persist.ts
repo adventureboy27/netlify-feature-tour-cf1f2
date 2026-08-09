@@ -42,7 +42,9 @@ const SLOT_KEY = 'wbg.save.v1';
 // and the weather settings. A version-8 save has no climate on its towns, so
 // the weather roll would find nothing eligible anywhere and the year would be
 // silent forever.
-const SCHEMA_VERSION = 9;
+//
+// Version 10 adds pendingWeatherCall/weatherChoice and the forecast settings.
+const SCHEMA_VERSION = 10;
 
 export interface SaveFile {
   schema: number;
