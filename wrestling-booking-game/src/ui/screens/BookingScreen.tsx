@@ -21,6 +21,7 @@ import { PromoSlots } from '../components/PromoSlots';
 import type { Id, Wrestler, Segment, Title, WorldSettings, Referee, PaceId } from '../../engine/types';
 import { PACES, paceById } from '../../data/pacing';
 import { paceFit } from '../../engine/sim/pacing';
+import { slotLabel } from '../cardLabels';
 
 /**
  * How worn an official is, as a colour. The player is managing a crew across
@@ -35,12 +36,6 @@ function sharpnessTone(referee: Referee): string {
   return 'text-rose-400';
 }
 
-const SLOT_LABELS = ['Opener', 'Second', 'Third', 'Fourth', 'Semi-main', 'Main event'];
-
-function slotLabel(index: number, total: number): string {
-  if (index === total - 1) return 'Main event';
-  return SLOT_LABELS[index] ?? `Match ${index + 1}`;
-}
 
 /** Preview odds using the same path the sim will take, so the words don't lie. */
 function previewOdds(segment: Segment, wrestlers: Wrestler[]): number | null {

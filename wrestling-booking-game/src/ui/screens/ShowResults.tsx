@@ -14,8 +14,18 @@ import { showLede } from '../../engine/world/newsfeed';
 import { priceReactionLine } from '../../engine/economy/showBudget';
 import { billedAs } from '../../engine/generate/nickname';
 import { Stars, BreakdownPanel, Money, HeatBadge } from '../components/display';
+import { Panel, SectionHead, Figure, BigStars, promotionTheme } from '../components/chrome';
+import { Bout, VersusMark, type BoutSide } from '../components/Bout';
+import { slotLabel } from '../cardLabels';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import type { FinishType, Show, Wrestler } from '../../engine/types';
+
+const SHOW_TYPE_LABEL: Record<Show['type'], string> = {
+  tvTaping: 'TV taping',
+  ppv: 'Pay-per-view',
+  houseShow: 'House show',
+  charity: 'Charity show',
+};
 
 const FINISH_TEXT: Record<FinishType, string> = {
   cleanPin: 'by pinfall',
@@ -83,57 +93,86 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
     settings: world.settings,
   });
 
+  const theme = promotionTheme(world.promotion.identity);
+
   return (
     <div className="p-3 pb-24 text-neutral-100">
-      <header className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            {show.type === 'ppv' && (
-              <div className="text-[10px] uppercase tracking-wide text-amber-500">Pay-per-view</div>
+      {/* The marquee.
+          Everything below this is detail; this is the answer to the only
+          question the player asked when they pressed the button. It used to
+          be a 12px star string in the corner of a grey box the same size as
+          the twenty grey boxes under it. */}
+      <Panel elevation="hero" className={`overflow-hidden bg-gradient-to-b ${theme.wash} to-neutral-900`}>
+        <div className="p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
+            Week {show.week}
+            <span className="mx-1.5 text-neutral-700">·</span>
+            {show.type === 'ppv' ? (
+              <span className="text-amber-500">Pay-per-view</span>
+            ) : (
+              SHOW_TYPE_LABEL[show.type]
             )}
-            <h1 className={`text-base font-semibold ${show.type === 'ppv' ? 'text-amber-400' : ''}`}>
-              {show.name ?? `Week ${show.week} — results`}
-            </h1>
-            <div className="mt-1 flex items-center gap-2">
-              <Stars stars={show.showStars} />
-              <span className="text-xs text-neutral-500">show rating</span>
-            </div>
+            {/* An unnamed show puts the town in the headline instead, so the
+                eyebrow does not say it twice. */}
+            {show.name && (
+              <>
+                <span className="mx-1.5 text-neutral-700">·</span>
+                {townName}
+              </>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={onContinue}
-            className="shrink-0 rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
-          >
-            Next week
-          </button>
+          <h1 className={`mt-1 text-2xl font-bold leading-tight ${show.type === 'ppv' ? 'text-amber-300' : ''}`}>
+            {show.name ?? `Live from ${townName}`}
+          </h1>
+
+          <div className="mt-3 flex items-end justify-between gap-3">
+            <BigStars stars={show.showStars} />
+            <button
+              type="button"
+              onClick={onContinue}
+              className={`shrink-0 rounded-lg px-5 py-2.5 text-sm font-semibold text-white ${theme.action}`}
+            >
+              Next week →
+            </button>
+          </div>
+
+          <ul className="mt-3 flex flex-col gap-1.5" data-testid="show-lede">
+            {lede.map((item) => (
+              <li
+                key={item.text}
+                className={`text-[15px] leading-snug ${
+                  item.kind === 'titleChange'
+                    ? 'font-semibold text-amber-300'
+                    : item.kind === 'incident'
+                      ? 'text-rose-300'
+                      : 'text-neutral-300'
+                }`}
+              >
+                {item.text}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <ul className="mt-3 flex flex-col gap-1" data-testid="show-lede">
-          {lede.map((item) => (
-            <li
-              key={item.text}
-              className={`text-sm leading-snug ${
-                item.kind === 'titleChange'
-                  ? 'font-medium text-amber-400'
-                  : item.kind === 'incident'
-                    ? 'text-rose-300'
-                    : 'text-neutral-300'
-              }`}
-            >
-              {item.text}
-            </li>
-          ))}
-        </ul>
-
-        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
-          <Stat label="Attendance" value={show.attendance.toLocaleString()} />
-          <Stat label="Gate" value={<Money amount={show.gate} />} />
-          <Stat label="Payroll" value={<Money amount={-show.payroll} />} />
-          <Stat label="Bank" value={<Money amount={world.promotion.bankBalance} />} />
+        {/* The night's money, on its own ground so it reads as a ledger
+            rather than as four more sentences. */}
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-neutral-800 bg-neutral-950/60 px-4 py-3 sm:grid-cols-4">
+          <Figure label="Attendance">{show.attendance.toLocaleString()}</Figure>
+          <Figure label="Gate">
+            <Money amount={show.gate} />
+          </Figure>
+          <Figure label="Payroll">
+            <Money amount={-show.payroll} />
+          </Figure>
+          <Figure label="Bank">
+            <Money amount={world.promotion.bankBalance} />
+          </Figure>
           {show.type === 'ppv' && (
             <>
-              <Stat label="Buys" value={(show.buys ?? 0).toLocaleString()} />
-              <Stat label="From buys" value={<Money amount={show.buyRevenue ?? 0} />} />
+              <Figure label="Buys">{(show.buys ?? 0).toLocaleString()}</Figure>
+              <Figure label="From buys">
+                <Money amount={show.buyRevenue ?? 0} />
+              </Figure>
             </>
           )}
         </dl>
@@ -144,18 +183,20 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
         {show.priceReaction && (
           <p
             data-testid="price-reaction"
-            className={`mt-2 text-xs ${
+            className={`border-t border-neutral-800 px-4 py-2 text-xs ${
               show.priceReaction === 'gouge'
-                ? 'text-red-400'
+                ? 'bg-red-950/30 text-red-300'
                 : show.priceReaction === 'steep'
-                  ? 'text-amber-400'
+                  ? 'bg-amber-950/30 text-amber-300'
                   : 'text-neutral-500'
             }`}
           >
             {priceReactionLine(show.priceReaction, townName)}
           </p>
         )}
-      </header>
+      </Panel>
+
+      <SectionHead hint={`${booked.length} ${booked.length === 1 ? 'match' : 'matches'}`}>The card</SectionHead>
 
       <div className="flex flex-col gap-3">
         {booked.map((segment) => {
@@ -167,44 +208,77 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
             .map((p) => world.wrestlers[p.wrestlerId])
             .filter((w): w is Wrestler => Boolean(w));
 
+          // The corners, in side order, so the tableau matches the card.
+          const sides: BoutSide[] = [...new Set(segment.participants.map((p) => p.side))]
+            .filter((side) => side >= 0)
+            .sort((a, b) => a - b)
+            .map((side) => ({
+              wrestlers: segment.participants
+                .filter((p) => p.side === side && p.role === 'competitor')
+                .map((p) => world.wrestlers[p.wrestlerId])
+                .filter((w): w is Wrestler => Boolean(w)),
+              won: result.winnerSide === null ? null : result.winnerSide === side,
+            }))
+            .filter((s) => s.wrestlers.length > 0);
+          const titleNames = segment.titleIds
+            .map((id) => world.titles.find((t) => t.id === id)?.name)
+            .filter((n): n is string => Boolean(n));
+
           return (
-            <article key={segment.slot} className="rounded border border-neutral-800 bg-neutral-900 p-3">
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-sm">
-                    {segment.participants
-                      .map((p) => wrestlerName(p.wrestlerId))
-                      .join(result.winnerSide === null ? ' vs ' : ' vs ')}
-                  </div>
-                  {stipulation && <div className="text-[11px] text-sky-400">{stipulation.name}</div>}
-                  {/* Who counted it, named beside the match the way a boxing
-                      card names its referee before the bell. */}
-                  {result.officialName && (
-                    <div className="text-[11px] text-neutral-500">Referee: {result.officialName}</div>
-                  )}
-                  {segment.titleIds.length > 0 && (
-                    <div className="text-[11px] text-amber-400">
-                      {segment.titleIds
-                        .map((id) => world.titles.find((t) => t.id === id)?.name)
-                        .filter(Boolean)
-                        .join(' & ')}
-                      {result.titleChanged && <span className="ml-1 font-bold">— NEW CHAMPION</span>}
-                    </div>
-                  )}
-                </div>
-                <Stars stars={result.stars} />
+            <Panel
+              key={segment.slot}
+              elevation="raised"
+              className={`overflow-hidden ${result.titleChanged ? 'border-amber-700/70' : ''}`}
+            >
+              {/* The billing strip: where this sat on the card, what it was
+                  for, and what it got. */}
+              <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-950/60 px-3 py-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  {slotLabel(segment.slot, booked.length)}
+                </span>
+                {stipulation && <span className="truncate text-[11px] text-sky-400">{stipulation.name}</span>}
+                <span className="ml-auto shrink-0">
+                  <Stars stars={result.stars} />
+                </span>
               </div>
 
-              <p className="mb-2 text-sm text-neutral-300">
-                {result.winnerSide === null ? (
-                  <>Went to a {FINISH_TEXT[result.finish]}.</>
-                ) : (
-                  <>
-                    <span className="font-medium text-emerald-400">{winners.join(' & ')}</span> beat{' '}
-                    {losers.map((w) => w.name).join(' & ')} {FINISH_TEXT[result.finish]}.
-                  </>
-                )}
-              </p>
+              {titleNames.length > 0 && (
+                <div
+                  className={`px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider ${
+                    result.titleChanged ? 'bg-amber-900/40 text-amber-200' : 'text-amber-500/80'
+                  }`}
+                >
+                  {titleNames.join(' & ')}
+                  {result.titleChanged && <span className="ml-1.5">— new champion</span>}
+                </div>
+              )}
+
+              <div className="px-3 pt-2">
+                <Bout
+                  sides={sides}
+                  centre={
+                    result.winnerSide === null ? <VersusMark>draw</VersusMark> : <VersusMark>def.</VersusMark>
+                  }
+                />
+              </div>
+
+              <div className="p-3 pt-2">
+                <p className="mb-2 text-sm text-neutral-300">
+                  {result.winnerSide === null ? (
+                    <>Went to a {FINISH_TEXT[result.finish]}.</>
+                  ) : (
+                    <>
+                      <span className="font-medium text-emerald-400">{winners.join(' & ')}</span> beat{' '}
+                      {losers.map((w) => w.name).join(' & ')} {FINISH_TEXT[result.finish]}.
+                    </>
+                  )}
+                </p>
+
+              {/* Who counted it, named beside the match the way a boxing card
+                  names its referee before the bell. */}
+              {result.officialName && (
+                <p className="mb-2 text-[11px] text-neutral-500">Referee: {result.officialName}</p>
+              )}
 
               {result.beats.filter((b) => b.significant).length > 0 && (
                 <ul className="mb-2 flex flex-col gap-0.5 border-l-2 border-neutral-800 pl-3 text-xs text-neutral-400">
@@ -277,36 +351,46 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
                   <BreakdownPanel breakdown={result.ratingBreakdown} rating={result.rating} />
                 </div>
               </details>
-            </article>
+              </div>
+            </Panel>
           );
         })}
 
         {booked.length === 0 && (
-          <p className="rounded border border-neutral-800 bg-neutral-900 p-6 text-center text-sm text-neutral-500">
+          <Panel className="p-6 text-center text-sm text-neutral-500">
             You ran a show with nothing on it. The rating reflects that.
-          </p>
+          </Panel>
         )}
       </div>
 
       {promos.length > 0 && (
-        <section className="mt-4">
-          <h2 className="mb-2 text-sm font-medium text-neutral-300">On the microphone</h2>
+        <section>
+          <SectionHead>On the microphone</SectionHead>
           <div className="flex flex-col gap-1.5">
-            {promos.map((slot, i) => (
-              <article
-                key={i}
-                data-testid={`promo-result-${i}`}
-                className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5"
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="truncate text-[11px] font-medium text-neutral-400">
-                    {slot.promoSpeakerId ? wrestlerName(slot.promoSpeakerId) : 'Somebody'}
-                  </span>
-                  <Stars stars={Math.max(0.5, Math.round((slot.promoResult!.quality / 20) * 2) / 2)} />
-                </div>
-                <p className="text-xs text-neutral-200">{slot.promoResult!.text}</p>
-              </article>
-            ))}
+            {promos.map((slot, i) => {
+              const speaker = slot.promoSpeakerId ? world.wrestlers[slot.promoSpeakerId] : null;
+              return (
+                <Panel key={i} data-testid={`promo-result-${i}`} className="flex items-start gap-2 p-2">
+                  {speaker && (
+                    <PaperDoll
+                      appearance={speaker.appearance}
+                      gender={speaker.gender}
+                      alignment={speaker.alignment}
+                      size="thumb"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="truncate text-xs font-semibold text-neutral-300">
+                        {speaker ? billedAs(speaker) : 'Somebody'}
+                      </span>
+                      <Stars stars={Math.max(0.5, Math.round((slot.promoResult!.quality / 20) * 2) / 2)} />
+                    </div>
+                    <p className="text-xs text-neutral-200">{slot.promoResult!.text}</p>
+                  </div>
+                </Panel>
+              );
+            })}
           </div>
         </section>
       )}
@@ -320,14 +404,6 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
   );
 }
 
-function Stat({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-neutral-500">{label}</dt>
-      <dd className="font-medium">{value}</dd>
-    </div>
-  );
-}
 
 /**
  * What the fans made of it.
@@ -343,18 +419,17 @@ function FanReaction() {
   const { verdict, tweets } = world.lastFanReaction;
 
   return (
-    <section className="mt-4">
-      <h2 className="mb-1 text-sm font-medium text-neutral-300">The fans</h2>
-      <p className="mb-2 text-[11px] text-neutral-500">{verdict}</p>
+    <section>
+      <SectionHead hint={verdict}>The fans</SectionHead>
       <div className="flex flex-col gap-1">
         {tweets.map((tweet) => (
           <article
             key={tweet.handle}
             data-testid={`tweet-${tweet.handle}`}
-            className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5"
+            className="rounded-lg border-l-2 border-sky-800 bg-neutral-900/60 px-2.5 py-1.5"
           >
             <div className="flex items-baseline justify-between gap-2">
-              <span className="truncate text-[11px] font-medium text-sky-400">@{tweet.handle}</span>
+              <span className="truncate text-[11px] font-semibold text-sky-400">@{tweet.handle}</span>
               <span className="shrink-0 text-[10px] text-neutral-600">
                 {tweet.likes >= 1000 ? `${(tweet.likes / 1000).toFixed(1)}k` : tweet.likes} ♥
               </span>
@@ -381,14 +456,14 @@ function AroundTheBusiness() {
   if (elsewhere.length === 0) return null;
 
   return (
-    <section className="mt-4">
-      <h2 className="mb-2 text-sm font-medium text-neutral-300">Around the business</h2>
+    <section>
+      <SectionHead>Around the business</SectionHead>
       <div className="flex flex-col gap-1.5">
         {elsewhere.map((entry) => (
           <article
             key={`${entry.promotionId}-${entry.incident.id}`}
             data-testid={`elsewhere-incident-${entry.promotionId}`}
-            className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5"
+            className="rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1.5"
           >
             <div className="flex items-baseline justify-between gap-2">
               <span className="truncate text-[11px] font-medium text-neutral-400">{entry.promotionName}</span>
@@ -418,16 +493,16 @@ function TheWire() {
   const items = sortWire(world.weeklyNews);
 
   return (
-    <section className="mt-4">
-      <h2 className="mb-2 text-sm font-medium text-neutral-300">This week in the business</h2>
+    <section>
+      <SectionHead>This week in the business</SectionHead>
       <div className="flex flex-col gap-1.5">
         {items.map((item, i) => (
           <article
             key={`${item.kind}-${i}`}
             data-testid={`wire-${item.kind}`}
-            className={`rounded border px-2 py-1.5 ${
+            className={`rounded-lg border px-2.5 py-1.5 ${
               item.weight === 'lead'
-                ? 'border-amber-900/60 bg-amber-950/20'
+                ? 'border-amber-800/70 bg-amber-950/30'
                 : 'border-neutral-800 bg-neutral-900'
             }`}
           >
@@ -456,8 +531,8 @@ function ElsewhereTonight() {
   const shows = [...world.rivalShows].sort((a, b) => b.showRating - a.showRating);
 
   return (
-    <section className="mt-4">
-      <h2 className="mb-2 text-sm font-medium text-neutral-300">Elsewhere tonight</h2>
+    <section>
+      <SectionHead hint="what the competition ran">Elsewhere tonight</SectionHead>
       <div className="flex flex-col gap-1.5">
         {shows.map((show) => {
           const promotion = world.rivals.find((r) => r.id === show.promotionId);
@@ -473,10 +548,10 @@ function ElsewhereTonight() {
             <div
               key={show.promotionId}
               data-testid={`rival-show-${show.promotionId}`}
-              className="rounded border border-neutral-800 bg-neutral-900 p-2"
+              className="rounded-lg border border-neutral-800 bg-neutral-900 p-2"
             >
               <div className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-xs font-medium">{promotion.name}</span>
+                <span className="truncate text-xs font-semibold">{promotion.name}</span>
                 <Stars stars={show.showStars} />
               </div>
               <div className="truncate text-[11px] text-neutral-500">{names.join(' vs ')}</div>
@@ -506,20 +581,28 @@ function RivalryDigest() {
   if (live.length === 0) return null;
 
   return (
-    <section className="mt-4">
-      <h2 className="mb-2 text-sm font-medium text-neutral-300">Running feuds</h2>
+    <section>
+      <SectionHead hint="carries into next week">Running feuds</SectionHead>
       <div className="flex flex-col gap-1.5">
         {live.map((rivalry) => {
           const people = rivalry.participantIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
           return (
-            <div key={rivalry.id} className="flex items-center gap-2 rounded border border-neutral-800 bg-neutral-900 p-2">
-              <div className="flex -space-x-2">
-                {people.map((w) => (
-                  <PaperDoll key={w.id} appearance={w.appearance} gender={w.gender} alignment={w.alignment} size="thumb" />
+            <div key={rivalry.id} className="flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 p-2">
+              {/* Facing each other, because that is what a feud is. */}
+              <div className="flex shrink-0">
+                {people.map((w, i) => (
+                  <PaperDoll
+                    key={w.id}
+                    appearance={w.appearance}
+                    gender={w.gender}
+                    alignment={w.alignment}
+                    size="thumb"
+                    flip={i > 0}
+                  />
                 ))}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-xs">{people.map((w) => w.name).join(' vs ')}</div>
+                <div className="truncate text-xs font-semibold">{people.map((w) => w.name).join(' vs ')}</div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-1">
                   <HeatBadge heat={rivalry.heat} shootHeat={rivalry.shootHeat} />
                   {rivalry.origin === 'shoot' && (

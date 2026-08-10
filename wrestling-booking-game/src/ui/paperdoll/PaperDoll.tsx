@@ -18,9 +18,16 @@ export interface PaperDollProps {
   alignment: number; // -100..100, drives the heel/face palette shift (§7)
   size: PaperDollSize;
   className?: string;
+  /**
+   * Mirror horizontally. The atlas frames are front-on, so this is not a
+   * turn of the head — it mirrors the asymmetric cells (hair part, single
+   * knee pad, a strap over one shoulder) so a pair billed against each other
+   * composes as two corners rather than as the same pose printed twice.
+   */
+  flip?: boolean;
 }
 
-export function PaperDoll({ appearance, gender, alignment, size, className }: PaperDollProps) {
+export function PaperDoll({ appearance, gender, alignment, size, className, flip = false }: PaperDollProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sheets = useAtlasSheets();
   const spec = cropSpec(size);
@@ -56,6 +63,7 @@ export function PaperDoll({ appearance, gender, alignment, size, className }: Pa
         height: spec.displayHeight,
         imageRendering: 'pixelated',
         filter: ALIGNMENT_FILTER[alignmentBucket(alignment)],
+        ...(flip ? { transform: 'scaleX(-1)' } : {}),
       }}
     />
   );
