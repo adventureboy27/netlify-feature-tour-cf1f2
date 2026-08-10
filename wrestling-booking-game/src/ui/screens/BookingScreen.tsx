@@ -22,6 +22,7 @@ import type { Id, Wrestler, Segment, Title, WorldSettings, Referee, PaceId } fro
 import { PACES, paceById } from '../../data/pacing';
 import { paceFit } from '../../engine/sim/pacing';
 import { slotLabel } from '../cardLabels';
+import { promotionTheme } from '../components/chrome';
 
 /**
  * How worn an official is, as a colour. The player is managing a crew across
@@ -35,7 +36,6 @@ function sharpnessTone(referee: Referee): string {
   if (label === 'Fading') return 'text-amber-400';
   return 'text-rose-400';
 }
-
 
 /** Preview odds using the same path the sim will take, so the words don't lie. */
 function previewOdds(segment: Segment, wrestlers: Wrestler[]): number | null {
@@ -111,6 +111,9 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   const tonightsHoliday = holidayForWeek(world.week);
   const nextHoliday = weeksUntilHoliday(world.week);
   const season = SEASON_LABELS[seasonForWeek(world.week)];
+  // "Run the show" is the one primary action in the game; it wears the
+  // company's own colour rather than a generic green.
+  const theme = promotionTheme(world.promotion.identity);
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
@@ -160,7 +163,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
           <button
             type="button"
             onClick={onRunShow}
-            className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+            className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${theme.action}`}
           >
             Run the show
           </button>
