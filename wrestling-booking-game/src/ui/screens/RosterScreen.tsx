@@ -32,6 +32,7 @@ import {
 } from '../../engine/career/relationships';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { StatBar, HeatBadge, Money } from '../components/display';
+import { scout } from '../../engine/career/scouting';
 import type { Wrestler } from '../../engine/types';
 
 /**
@@ -204,6 +205,20 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                 </div>
                 <div className="truncate text-[10px] text-neutral-500">
                   {w.archetype} · {w.style} · {w.gimmick.name}
+                </div>
+
+                {/* the read — why you would use him, and why you might not.
+                    First, above the bars, because it is the thing a booker
+                    actually decides on and the bars are the detail behind it. */}
+                <div className="mt-1 flex flex-col gap-px">
+                  <span className="text-[11px] leading-snug text-neutral-300">{scout(w, world.settings).pitch}</span>
+                  {scout(w, world.settings).catch ? (
+                    <span className="text-[11px] leading-snug text-rose-300/80">{scout(w, world.settings).catch}</span>
+                  ) : (
+                    <span className="text-[11px] leading-snug text-emerald-300/70">
+                      {scout(w, world.settings).cleanBill}
+                    </span>
+                  )}
                 </div>
 
                 {/* physical stats */}

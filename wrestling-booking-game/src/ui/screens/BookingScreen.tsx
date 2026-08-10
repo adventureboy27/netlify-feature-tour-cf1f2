@@ -11,8 +11,8 @@ import { signedReferees, officialFor, sharpnessLabel, refereeGrade, isAvailable 
 import { findRivalry } from '../../engine/sim/rivalry';
 import { ruleAdjustedWeights, kayfabeScore } from '../../engine/sim/kayfabe';
 import { pairWinProbability } from '../../engine/sim/winProbability';
-import { PaperDoll } from '../paperdoll/PaperDoll';
-import { Odds, HeatBadge, AlignmentDot, StatBar } from '../components/display';
+import { Odds, HeatBadge } from '../components/display';
+import { WrestlerRow, RowKey } from '../components/WrestlerRow';
 import { eligibleTitles, titleStakesLabel } from '../../engine/sim/titleMatch';
 import { shortTitleName } from '../../data/titles';
 import { isPPVWeek, ppvNameForWeek, weeksUntilPPV } from '../../engine/world/calendar';
@@ -488,34 +488,25 @@ function SegmentEditor({
                   const wrestler = roster.find((w) => w.id === p.wrestlerId);
                   if (!wrestler) return null;
                   return (
-                    <div key={p.wrestlerId} className="flex items-center gap-2 rounded bg-neutral-950 p-1.5">
-                      <PaperDoll
-                        appearance={wrestler.appearance}
-                        gender={wrestler.gender}
-                        alignment={wrestler.alignment}
-                        size="thumb"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 truncate text-xs">
-                          <AlignmentDot alignment={wrestler.alignment} />
-                          {wrestler.name}
-                        </div>
-                        <StatBar label="Popularity" value={wrestler.popularity} />
-                        <StatBar label="Condition" value={wrestler.health} tone="health" />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => onRemove(p.wrestlerId)}
-                        className="shrink-0 rounded px-1.5 text-xs text-neutral-500 hover:text-rose-400"
-                        aria-label={`Remove ${wrestler.name}`}
-                      >
-                        ✕
-                      </button>
-                    </div>
+                    <WrestlerRow
+                      key={p.wrestlerId}
+                      wrestler={wrestler}
+                      settings={settings}
+                      trailing={
+                        <button
+                          type="button"
+                          onClick={() => onRemove(p.wrestlerId)}
+                          className="rounded px-2 py-1 text-xs text-neutral-500 hover:text-rose-400"
+                          aria-label={`Remove ${wrestler.name}`}
+                        >
+                          ✕
+                        </button>
+                      }
+                    />
                   );
                 })}
               {segment.participants.filter((p) => p.side === s).length === 0 && (
-                <p className="py-2 text-center text-[11px] text-neutral-600">Nobody yet</p>
+                <p className="text-[11px] text-neutral-600">Nobody yet</p>
               )}
             </div>
           </div>
@@ -530,19 +521,18 @@ function SegmentEditor({
           placeholder="Search the roster…"
           className="mb-2 w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600"
         />
-        <div data-testid="roster-picker" className="flex max-h-48 flex-wrap gap-1 overflow-y-auto">
+        <RowKey />
+        <div data-testid="roster-picker" className="flex max-h-96 flex-col gap-1 overflow-y-auto">
           {available.map((w) => (
-            <button
-              key={w.id}
-              type="button"
-              data-testid="roster-pick"
-              onClick={() => onAdd(w.id, side)}
-              className="flex items-center gap-1.5 rounded bg-neutral-800 px-2 py-1 text-[11px] hover:bg-neutral-700"
-            >
-              <AlignmentDot alignment={w.alignment} />
-              {w.name}
-            </button>
+            <div key={w.id} data-testid="roster-pick">
+              <WrestlerRow wrestler={w} settings={settings} onClick={() => onAdd(w.id, side)} />
+            </div>
           ))}
+          {available.length === 0 && (
+            <p className="py-3 text-center text-[11px] text-neutral-600">
+              Nobody left who is not already on this match.
+            </p>
+          )}
         </div>
       </div>
 

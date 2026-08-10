@@ -12,8 +12,8 @@ import { useGameStore } from '../../state/store';
 import { rankPool, currentAskingRate, canSign, AVAILABILITY_LABELS } from '../../engine/world/freeAgents';
 import { noCompeteLabel } from '../../engine/economy/termination';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
-import { PaperDoll } from '../paperdoll/PaperDoll';
-import { StatBar, AlignmentDot, Money } from '../components/display';
+import { Money } from '../components/display';
+import { WrestlerRow } from '../components/WrestlerRow';
 
 export function FreeAgentsScreen() {
   const world = useGameStore((s) => s.world);
@@ -57,27 +57,14 @@ export function FreeAgentsScreen() {
               key={agent.wrestlerId}
               className="flex gap-2 rounded border border-neutral-800 bg-neutral-900 p-2"
             >
-              <PaperDoll
-                appearance={wrestler.appearance}
-                gender={wrestler.gender}
-                alignment={wrestler.alignment}
-                size="bust"
-              />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <AlignmentDot alignment={wrestler.alignment} />
-                  <span className="truncate text-sm font-medium">{wrestler.name}</span>
-                </div>
-                <div className="truncate text-[10px] text-amber-500/80">
-                  {CAREER_STATUS_LABELS[wrestler.careerStatus]} · age {wrestler.age}
-                </div>
-                <div className="mb-1 truncate text-[10px] text-neutral-500">
+                <WrestlerRow wrestler={wrestler} settings={world.settings} />
+                <div className="mt-1 truncate text-[10px] text-amber-500/80">
+                  {CAREER_STATUS_LABELS[wrestler.careerStatus]} · age {wrestler.age} ·{' '}
                   {AVAILABILITY_LABELS[agent.reason]}
                   {agent.weeksUnsigned > 20 && <span className="text-neutral-600"> · {agent.weeksUnsigned}w unsigned</span>}
                 </div>
-                {sittingOut && <div className="mb-1 text-[10px] text-amber-400">{sittingOut}</div>}
-                <StatBar label="Popularity" value={wrestler.popularity} />
-                <StatBar label="Skill" value={wrestler.skill} />
+                {sittingOut && <div className="text-[10px] text-amber-400">{sittingOut}</div>}
 
                 <button
                   type="button"

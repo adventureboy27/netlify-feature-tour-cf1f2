@@ -1364,6 +1364,22 @@ export interface WorldSettings {
   /** Popularity fallen below career peak that marks someone a fallen star. */
   fallenStarDrop: number;
 
+  // The read on a wrestler — career/scouting.ts. Thresholds for the one-line
+  // pitch and catch shown wherever somebody is picked.
+  scoutExhaustedFatigue: number;
+  scoutWornDownHealth: number;
+  scoutUnhappyMorale: number;
+  scoutHotMomentum: number;
+  scoutColdMomentum: number;
+  scoutDrawPopularity: number;
+  scoutKnownPopularity: number;
+  scoutEliteCraft: number;
+  scoutStrongCraft: number;
+  scoutBigEgo: number;
+  scoutBadAttitude: number;
+  scoutOldAge: number;
+  scoutProspectAge: number;
+
   // TV ratings (engine/world/tvRatings.ts)
   tvRatingBase: number;
   tvRatingCeiling: number;

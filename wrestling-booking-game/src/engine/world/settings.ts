@@ -189,6 +189,23 @@ export function defaultWorldSettings(): WorldSettings {
     mainEventPopularity: 75,
     fallenStarDrop: 28,
 
+    // The read on a wrestler. Set so that on a starting roster most people
+    // have a real catch against them and a handful genuinely do not — a
+    // screen where everybody reads "fine" tells the player nothing.
+    scoutExhaustedFatigue: 70,
+    scoutWornDownHealth: 55,
+    scoutUnhappyMorale: 35,
+    scoutHotMomentum: 72,
+    scoutColdMomentum: 25,
+    scoutDrawPopularity: 78,
+    scoutKnownPopularity: 60,
+    scoutEliteCraft: 80,
+    scoutStrongCraft: 65,
+    scoutBigEgo: 78,
+    scoutBadAttitude: 25,
+    scoutOldAge: 44,
+    scoutProspectAge: 26,
+
     // TV ratings
     tvRatingBase: 2.4,
     tvRatingCeiling: 12,
