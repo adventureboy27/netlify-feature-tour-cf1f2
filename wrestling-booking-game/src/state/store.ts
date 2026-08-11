@@ -68,6 +68,15 @@ import type { Manager } from '../engine/sim/ringside';
 import { evaluateTrade, tradeLine } from '../engine/world/trades';
 import { decayPaceSaturation } from '../engine/sim/pacing';
 import { resolveConfrontation } from '../engine/sim/confrontation';
+import { factionEgoDrift, factionHeat, factionStanding } from '../engine/world/faction';
+import {
+  canSignSecretly,
+  revealImpact,
+  rollLeak,
+  secretSigningAppeal,
+  secretWeeklyCost,
+  stillSecret,
+} from '../engine/world/secretSigning';
 import { confrontationById } from '../data/confrontations';
 import {
   injuryFromMisfortune,
@@ -404,6 +413,16 @@ export interface GameStore {
    */
   answerChampionCall: (choice: ChampionInjuryChoice, interimHolderId?: Id) => void;
   /** Create a championship mid-run. It starts vacant, like any new belt. */
+  /**
+   * Sign somebody who works for a rival, without telling anybody. They stay
+   * on the rival's roster and keep appearing on the rival's shows until the
+   * booker uses them.
+   */
+  signSecretly: (wrestlerId: Id) => { ok: boolean; reason: string | null };
+  /** Walk them out. The whole thing exists for this moment. */
+  revealSecretSigning: (wrestlerId: Id) => void;
+  /** Change your mind. They stay where they are and the money stops. */
+  tearUpSecretSigning: (wrestlerId: Id) => void;
   createTitle: (blueprint: TitleBlueprint) => void;
   /**
    * Retire a championship. It keeps its entire lineage and stays on the
@@ -3061,11 +3080,70 @@ export const useGameStore = create<GameStore>()(
           if (person.clearedToWorkHurt && !person.injury) person.clearedToWorkHurt = false;
         }
 
+        // ---- what the group does to the people in it ---------------------
+        // Being in the faction that is running the place is very good for a
+        // career and very bad for a locker room. The ego inflation is the
+        // cost of the angle, and it is what eventually turns it into a
+        // problem — the same way it did in life.
+        for (const faction of world.stables) {
+          if (faction.disbandedWeek !== null || faction.memberIds.length < 2) continue;
+          const members = faction.memberIds.map((id) => world.wrestlers[id]).filter(Boolean);
+          if (!members.some((m) => world.promotion.rosterIds.includes(m!.id))) continue;
+
+          const heat = factionHeat(faction, world.wrestlers, world.settings);
+          const standing = factionStanding(
+            heat,
+            faction.memberIds.length,
+            world.promotion.rating,
+            world.settings,
+          );
+          const drift = factionEgoDrift(standing, world.settings);
+          if (drift === 0) continue;
+          for (const member of members) {
+            if (member) member.ego = clamp(member.ego + drift, 0, 100);
+          }
+        }
+
         // A crowd forgets. Whatever the player has not leaned on lately goes
         // back to being effective.
         for (const key of Object.keys(world.paceSaturation)) {
           world.paceSaturation[key] = decayPaceSaturation(world.paceSaturation[key] ?? 0, world.settings);
         }
+
+        // ---- the contracts nobody knows about ----------------------------
+        // Paid every week they are held, because you are paying somebody who
+        // is working for a competitor. Then the roll: every week it stays
+        // true is another week somebody could say it out loud.
+        for (const signing of world.secretSignings) {
+          world.promotion.bankBalance -= signing.weeklyRate;
+          const person = world.wrestlers[signing.wrestlerId];
+          if (!person) continue;
+
+          // Somebody who leaves the business takes the secret with them.
+          if (person.deceased || person.careerStatus === 'retired') {
+            signing.leakedWeek = signing.leakedWeek ?? world.week;
+            continue;
+          }
+
+          if (rollLeak(rng, signing, person, world.week, world.settings)) {
+            signing.leakedWeek = world.week;
+            world.weeklyNews.push(
+              wire(
+                'signing',
+                `The sheets have it that ${person.name} signed with ${world.promotion.name} weeks ago and has been working ${signing.fromPromotionName} dates on a contract that is already over. Whatever that was going to be, it is not a surprise now.`,
+                world.week + 1,
+                'lead',
+              ),
+            );
+            // The company he is still working for now knows too, and it does
+            // not make them kind about it.
+            person.morale = clamp(person.morale - world.settings.secretSigningLeakMorale, 0, 100);
+          }
+        }
+        world.secretSignings = world.secretSignings.filter((signing) => {
+          const person = world.wrestlers[signing.wrestlerId];
+          return Boolean(person) && !person!.deceased && person!.careerStatus !== 'retired';
+        });
 
         // Who was actually in front of a crowd this week — the player's card
         // and every rival's, so a rival's ace wears out on the same clock the
@@ -4368,6 +4446,109 @@ export const useGameStore = create<GameStore>()(
         outcome = { ok: true, reason: null, cost: terms.severance };
       });
       return outcome;
+    },
+
+    signSecretly: (wrestlerId) => {
+      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No world.' };
+      set((state) => {
+        const world = state.world;
+        const person = world?.wrestlers[wrestlerId];
+        if (!world || !person) return;
+
+        if (!canSignSecretly(person, world.promotion.id)) {
+          outcome = { ok: false, reason: 'They are not somebody else’s to take.' };
+          return;
+        }
+        if (world.secretSignings.some((s2) => s2.wrestlerId === wrestlerId)) {
+          outcome = { ok: false, reason: 'You already have them.' };
+          return;
+        }
+        const cost = secretWeeklyCost(person, world.settings);
+        if (world.promotion.bankBalance < cost * world.settings.secretSigningWeeksUpFront) {
+          outcome = { ok: false, reason: 'You cannot cover the money to keep this quiet.' };
+          return;
+        }
+        // Whether they go for it at all. A happy man in a good spot mostly
+        // does not, which is why the list of who *would* is the interesting
+        // half of the screen.
+        if (!chance(rng, secretSigningAppeal(person, world.settings))) {
+          outcome = { ok: false, reason: `${person.name} turned it down, and now knows you asked.` };
+          // They know. That is a real cost of trying.
+          person.morale = clamp(person.morale - world.settings.secretSigningRefusalMorale, 0, 100);
+          return;
+        }
+
+        const rival = world.rivals.find((r) => r.id === person.promotionId);
+        world.secretSignings.push({
+          wrestlerId,
+          wrestlerName: person.name,
+          fromPromotionId: person.promotionId!,
+          fromPromotionName: rival?.name ?? 'somewhere else',
+          signedWeek: world.week,
+          weeklyRate: cost,
+          leakedWeek: null,
+        });
+        outcome = { ok: true, reason: null };
+        // Deliberately no wire item. That is the entire point.
+      });
+      return outcome;
+    },
+
+    revealSecretSigning: (wrestlerId) => {
+      set((state) => {
+        const world = state.world;
+        const index = world?.secretSignings.findIndex((s2) => s2.wrestlerId === wrestlerId) ?? -1;
+        if (!world || index < 0) return;
+        const signing = world.secretSignings[index]!;
+        const person = world.wrestlers[wrestlerId];
+        if (!person) return;
+
+        const impact = revealImpact(signing, person, world.week, world.settings);
+        const wasSecret = stillSecret(signing);
+
+        // They are yours now, in public. Off the rival's roster and onto
+        // yours, which is the moment the world changes.
+        for (const rival of world.rivals) {
+          rival.rosterIds = rival.rosterIds.filter((id) => id !== wrestlerId);
+        }
+        person.promotionId = world.promotion.id;
+        if (!world.promotion.rosterIds.includes(wrestlerId)) world.promotion.rosterIds.push(wrestlerId);
+        world.secretSignings.splice(index, 1);
+
+        // The pop. A reveal nobody saw coming is worth several times a
+        // signing announcement; one the sheets already printed is worth a
+        // fraction of it.
+        person.momentum = clamp(person.momentum + impact * world.settings.revealMomentumPerImpact, 0, 100);
+        person.popularity = clamp(person.popularity + impact * world.settings.revealPopularityPerImpact, 0, 100);
+        world.promotion.rating = clamp(
+          world.promotion.rating + impact * world.settings.revealCompanyRatingPerImpact,
+          0,
+          100,
+        );
+        const victim = world.rivals.find((r) => r.id === signing.fromPromotionId);
+        if (victim) {
+          victim.rating = clamp(victim.rating - impact * world.settings.revealRivalRatingPerImpact, 0, 100);
+        }
+
+        world.weeklyNews.push(
+          wire(
+            'signing',
+            wasSecret
+              ? `${person.name} walked out on ${world.promotion.name}'s show tonight. Everybody in the building thought he worked for ${signing.fromPromotionName}. He has been signed here for ${Math.max(1, world.week - signing.signedWeek)} weeks.`
+              : `${person.name} finally turned up for ${world.promotion.name}. The sheets had it weeks ago, which took most of it away.`,
+            world.week,
+            'lead',
+          ),
+        );
+      });
+    },
+
+    tearUpSecretSigning: (wrestlerId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        world.secretSignings = world.secretSignings.filter((s2) => s2.wrestlerId !== wrestlerId);
+      });
     },
 
     createTitle: (blueprint) => {

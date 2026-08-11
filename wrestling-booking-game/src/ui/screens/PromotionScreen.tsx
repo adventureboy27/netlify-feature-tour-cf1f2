@@ -36,6 +36,7 @@ import { sponsorById } from '../../data/sponsors';
 import { weeklyBroadcastIncome, broadcastVerdict } from '../../engine/economy/broadcast';
 import { FileTransfer } from '../components/FileTransfer';
 import { TitleBuilder } from '../components/TitleBuilder';
+import { factionHeat, factionStanding } from '../../engine/world/faction';
 import { retiredTitlesOf } from '../../data/titles';
 import { beltPrefix } from '../../data/promotionIdentity';
 import type { TitleBlueprint } from '../../engine/types';
@@ -474,7 +475,81 @@ function IdentityPanel() {
       </ul>
 
       <TitleWorkshop />
+      <Factions />
     </section>
+  );
+}
+
+/**
+ * The groups, and how big they have got.
+ *
+ * A stable used to be a tag team with extra members — shared colours, a
+ * shared record, and no reason for anybody to care. What makes a faction
+ * worth booking is that it can outgrow the company housing it, so the thing
+ * worth showing is exactly that: how hot it is against how hot you are.
+ *
+ * Said in words, per §0. "Running the place" is a standing, not a number.
+ */
+function Factions() {
+  const world = useGameStore((s) => s.world);
+  if (!world) return null;
+
+  const mine = world.stables.filter(
+    (g) =>
+      g.disbandedWeek === null &&
+      g.memberIds.length >= 2 &&
+      g.memberIds.some((id) => world.promotion.rosterIds.includes(id)),
+  );
+  if (mine.length === 0) return null;
+
+  return (
+    <div className="mt-3 border-t border-neutral-800 pt-3">
+      <div className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">Groups</div>
+      <ul className="flex flex-col gap-1">
+        {mine.map((faction) => {
+          const heat = factionHeat(faction, world.wrestlers, world.settings);
+          const standing = factionStanding(
+            heat,
+            faction.memberIds.length,
+            world.promotion.rating,
+            world.settings,
+          );
+          const names = faction.memberIds
+            .map((id) => world.wrestlers[id]?.name)
+            .filter(Boolean)
+            .join(', ');
+          return (
+            <li
+              key={faction.id}
+              data-testid={`faction-${faction.id}`}
+              className="rounded bg-neutral-950 p-1.5 text-[11px]"
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-medium">{faction.name}</span>
+                <span
+                  className={
+                    standing === 'out of control'
+                      ? 'text-rose-400'
+                      : standing === 'running the place'
+                        ? 'text-amber-400'
+                        : 'text-neutral-500'
+                  }
+                >
+                  {standing}
+                </span>
+              </div>
+              <div className="text-neutral-600">{names}</div>
+              {standing === 'out of control' && (
+                <div className="mt-0.5 text-rose-300/80">
+                  Bigger than the company it is in. Everybody in it knows it, and it is showing up in what
+                  they want.
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 

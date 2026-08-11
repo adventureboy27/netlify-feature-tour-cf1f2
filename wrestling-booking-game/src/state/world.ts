@@ -39,6 +39,7 @@ import type {
 import type { HallOfFameEntry } from '../engine/career/hallOfFame';
 import type { AwardWinner, YearRecord } from '../engine/career/awards';
 import type { Incident } from '../engine/sim/incidents';
+import type { SecretSigning } from '../engine/world/secretSigning';
 import { emptyYearRecord } from '../engine/career/awards';
 import type { RivalShow } from '../engine/world/rivalBooking';
 import type { AuctionLot, AuctionResult } from '../engine/world/auction';
@@ -177,6 +178,12 @@ export interface World {
    * title for you, and says so.
    */
   pendingChampionCall: ChampionCall | null;
+  /**
+   * Contracts the world cannot see. Everybody on this list is still on a
+   * rival's roster, still working their shows, and still listed there by
+   * every sheet in the business — until the booker uses them.
+   */
+  secretSignings: SecretSigning[];
   /** What was decided, carried into the resolve that follows. */
   weatherChoice: WeatherCallOptionId | null;
   /** Weeks left on a signing ban from being caught tampering. */
@@ -579,6 +586,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     pendingMemoriam: null,
     pendingWeatherCall: null,
     pendingChampionCall: null,
+    secretSignings: [],
     weatherChoice: null,
     signingBanWeeks: 0,
     suspensionWeeks: 0,

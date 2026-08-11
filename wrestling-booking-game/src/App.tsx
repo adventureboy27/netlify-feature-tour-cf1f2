@@ -18,6 +18,7 @@ import { LegacyScreen } from './ui/screens/LegacyScreen';
 import { RecordsScreen } from './ui/screens/RecordsScreen';
 import { RankingsScreen } from './ui/screens/RankingsScreen';
 import { SheetScreen } from './ui/screens/SheetScreen';
+import { SecretsScreen } from './ui/screens/SecretsScreen';
 import { Money } from './ui/components/display';
 import { promotionTheme } from './ui/components/chrome';
 import { BottomNav, MoreScreen, BEHIND_MORE, type Screen } from './ui/components/Nav';
@@ -119,6 +120,7 @@ export default function App() {
           ))}
         {screen === 'rankings' && <RankingsScreen />}
         {screen === 'sheet' && <SheetScreen />}
+        {screen === 'secrets' && <SecretsScreen />}
         {screen === 'records' && <RecordsScreen />}
         {screen === 'legacy' && <LegacyScreen />}
         {screen === 'contactSheet' && <ContactSheet />}

@@ -50,7 +50,12 @@ const SLOT_KEY = 'wbg.save.v1';
 // the world, and the freshness and circuit settings. A version-10 save has no
 // lastDefendedWeek, which reads as 0 — every belt in the company would be
 // stripped as undefended on the first week it loaded.
-const SCHEMA_VERSION = 11;
+//
+// Version 12 adds secretSignings to the world, the confrontation fields on a
+// segment, and the freshness/circuit/confrontation/faction settings. A
+// version-11 save has no secretSignings array, which the weekly tick iterates
+// without a guard.
+const SCHEMA_VERSION = 12;
 
 export interface SaveFile {
   schema: number;

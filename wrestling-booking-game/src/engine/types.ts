@@ -1989,6 +1989,66 @@ export interface WorldSettings {
   /** Talking is work. Both of them pay it. */
   confrontationEnergyCost: number;
 
+  // Secret signings — see world/secretSigning.ts.
+  /** Multiple of their ordinary rate to pay somebody working for a rival. */
+  secretSigningPremium: number;
+  /** Fallback weekly rate per point of popularity, when they have no contract. */
+  secretSigningRateFloor: number;
+  /** How much being miserable where they are moves them. */
+  secretSigningMoraleWeight: number;
+  /** How much liking the idea of being the secret moves them. */
+  secretSigningEgoWeight: number;
+  secretSigningBaseAppeal: number;
+  /** Odds it gets out in the first week, and how fast that climbs. */
+  secretSigningLeakBase: number;
+  secretSigningLeakPerWeek: number;
+  secretSigningLeakAttitude: number;
+  secretSigningLeakCap: number;
+  /** Multiplier on an ordinary debut that a clean reveal is worth. */
+  secretSigningBaseImpact: number;
+  /** What is left of it once the newsletter has printed it. */
+  secretSigningLeakedImpact: number;
+  /** Weeks after which the room has had time to guess. */
+  secretSigningStaleWeeks: number;
+  secretSigningStalePenalty: number;
+  /** Weeks of the premium you must be able to cover before anybody signs. */
+  secretSigningWeeksUpFront: number;
+  /** What it costs when somebody turns you down and knows you asked. */
+  secretSigningRefusalMorale: number;
+  /** What it costs them when the company they still work for finds out. */
+  secretSigningLeakMorale: number;
+  /** What a reveal's impact is worth, per point, to each thing it moves. */
+  revealMomentumPerImpact: number;
+  revealPopularityPerImpact: number;
+  revealCompanyRatingPerImpact: number;
+  revealRivalRatingPerImpact: number;
+
+  // Factions — see world/faction.ts.
+  factionDrawWeight: number;
+  factionFormWeight: number;
+  /** What each member past the second adds, and the ceiling on it. */
+  factionSizeBonus: number;
+  factionSizeBonusCap: number;
+  /** How far past the company's own rating counts as running the place. */
+  factionOvershadowMargin: number;
+  factionEstablishedSize: number;
+  factionOutOfControlSize: number;
+  /** What makes somebody want in. */
+  factionRecruitMoraleWeight: number;
+  factionRecruitEgoWeight: number;
+  factionRecruitOverlookedWeight: number;
+  /** How hard the group pulls, by how well it is doing. */
+  factionPullForming: number;
+  factionPullEstablished: number;
+  factionPullRunning: number;
+  factionPullOutOfControl: number;
+  /** What makes somebody want out, and the cap on it. */
+  factionDefectionWeight: number;
+  factionDefectionCap: number;
+  /** What being in the group that runs the place does to an ego, per week. */
+  factionEgoDriftRunning: number;
+  factionEgoDriftOutOfControl: number;
+
   // A wrestler's week outside the ring — see world/misfortune.ts.
   /** Odds per healthy wrestler per week that something happens to them. */
   misfortuneChanceHealthy: number;
