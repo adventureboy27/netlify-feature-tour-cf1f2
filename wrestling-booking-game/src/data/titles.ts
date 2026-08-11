@@ -13,21 +13,32 @@ import type {
   Id,
   PromotionArchetype,
   Title,
+  TitleBlueprint,
   TitleTier,
-  TitleDivision,
-  WeightClass,
 } from '../engine/types';
+
+export type { TitleBlueprint };
 import { identityOf, beltPrefix } from './promotionIdentity';
 
-interface TitleBlueprint {
-  /** Everything after the promotion prefix, e.g. "Heavyweight Title". */
-  suffix: string;
-  blurb: string;
-  tier: TitleTier;
-  division: TitleDivision;
-  weightClass: WeightClass;
-  prestige: number;
-  signatureStipulationId: Id | null;
+/**
+ * What a belt is worth the day it is created, by what kind of belt it is.
+ *
+ * A world championship opens above a tag championship because the company
+ * says it is the top of the mountain, and everything after that is earned.
+ */
+const PRESTIGE_BY_TIER: Record<TitleTier, number> = {
+  world: 70,
+  secondary: 45,
+  television: 40,
+  cruiserweight: 40,
+  hardcore: 40,
+  tertiary: 30,
+  tag: 50,
+  trios: 35,
+};
+
+export function startingPrestige(tier: TitleTier): number {
+  return PRESTIGE_BY_TIER[tier] ?? 35;
 }
 
 /** Straps and plates by tier, so a world title never looks like a tag belt. */
@@ -52,7 +63,7 @@ function colorwayFor(tier: TitleTier) {
  * Iron Man Title. Two companies never have the same lineup, which is the
  * point — the belt tells you what kind of company you are looking at.
  */
-function startingBlueprints(archetype: PromotionArchetype): TitleBlueprint[] {
+export function startingBlueprints(archetype: PromotionArchetype): TitleBlueprint[] {
   const identity = identityOf(archetype);
   const word = identity.beltWord;
 
@@ -63,7 +74,6 @@ function startingBlueprints(archetype: PromotionArchetype): TitleBlueprint[] {
       tier: 'world',
       division: 'mens',
       weightClass: 'open',
-      prestige: 70,
       signatureStipulationId: null,
     },
     {
@@ -72,7 +82,6 @@ function startingBlueprints(archetype: PromotionArchetype): TitleBlueprint[] {
       tier: identity.secondaryBeltTier,
       division: 'mens',
       weightClass: 'open',
-      prestige: 45,
       signatureStipulationId: null,
     },
     {
@@ -81,7 +90,6 @@ function startingBlueprints(archetype: PromotionArchetype): TitleBlueprint[] {
       tier: 'world',
       division: 'womens',
       weightClass: 'open',
-      prestige: 55,
       signatureStipulationId: null,
     },
     {
@@ -90,7 +98,6 @@ function startingBlueprints(archetype: PromotionArchetype): TitleBlueprint[] {
       tier: 'tag',
       division: 'open',
       weightClass: 'open',
-      prestige: 50,
       signatureStipulationId: null,
     },
     {
@@ -99,7 +106,6 @@ function startingBlueprints(archetype: PromotionArchetype): TitleBlueprint[] {
       tier: identity.signatureBelt.tier,
       division: 'open',
       weightClass: 'open',
-      prestige: identity.signatureBelt.prestige,
       signatureStipulationId: identity.signatureBelt.stipulationId,
     },
   ];
@@ -114,11 +120,17 @@ export function createStartingTitles(
   promotionId: string,
   promotionName: string,
   archetype: PromotionArchetype,
+  /**
+   * The player's own lineup, if they built one on the new-game screen.
+   * Omitted, the archetype's suggested set is used — which is what every
+   * rival promotion in the world gets.
+   */
+  blueprints?: readonly TitleBlueprint[],
 ): Title[] {
   // A short prefix reads better on a roster card than the full promotion name.
   const prefix = beltPrefix(promotionName);
 
-  return startingBlueprints(archetype).map((blueprint, i) => ({
+  return (blueprints ?? startingBlueprints(archetype)).map((blueprint, i) => ({
     id: `${promotionId}-title-${i}`,
     promotionId,
     name: `${prefix} ${blueprint.suffix}`,
@@ -128,7 +140,7 @@ export function createStartingTitles(
     weightClass: blueprint.weightClass,
     lineageProtected: true,
     vacant: true,
-    prestige: blueprint.prestige,
+    prestige: startingPrestige(blueprint.tier),
     currentHolderIds: [],
     reignStartWeek: 0,
     history: [],

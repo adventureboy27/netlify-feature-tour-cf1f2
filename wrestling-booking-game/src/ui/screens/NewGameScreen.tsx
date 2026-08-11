@@ -13,10 +13,15 @@ import { useGameStore } from '../../state/store';
 import { RIVAL_PROMOTIONS } from '../../state/world';
 import { savedGameSummary } from '../../state/persist';
 import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
-import { createStartingTitles } from '../../data/titles';
+import { startingBlueprints } from '../../data/titles';
+import { beltPrefix } from '../../data/promotionIdentity';
+import { TitleBuilder } from '../components/TitleBuilder';
 import { worldSettingsFromPreset } from '../../engine/world/settings';
 import { WORLD_PRESET_INFO } from '../../data/worldPresets';
-import type { PromotionArchetype, WorldPresetName } from '../../engine/types';
+import type { PromotionArchetype, TitleBlueprint, WorldPresetName } from '../../engine/types';
+
+/** Enough for a company with divisions; past this no belt means anything. */
+const MAX_BELTS = 10;
 
 export function NewGameScreen() {
   const newGame = useGameStore((s) => s.newGame);
@@ -27,10 +32,25 @@ export function NewGameScreen() {
   const [name, setName] = useState(defaults.promotionName);
   const [archetype, setArchetype] = useState<PromotionArchetype>(defaults.promotionArchetype);
   const [confirmingOverwrite, setConfirmingOverwrite] = useState(false);
+  // The house style's suggestion, until the player edits it. `touched` is what
+  // keeps switching house style from quietly wiping work: before you have
+  // changed anything, the lineup follows the style; after, it is yours.
+  const [belts, setBelts] = useState<TitleBlueprint[]>(() => startingBlueprints(archetype));
+  const [touched, setTouched] = useState(false);
   const saved = savedGameSummary();
 
   const identity = identityOf(archetype);
-  const belts = createStartingTitles('preview', name || 'Your Promotion', archetype);
+  const prefix = beltPrefix(name || 'Your Promotion');
+
+  function chooseArchetype(next: PromotionArchetype) {
+    setArchetype(next);
+    if (!touched) setBelts(startingBlueprints(next));
+  }
+
+  function editBelts(next: TitleBlueprint[]) {
+    setTouched(true);
+    setBelts(next);
+  }
 
   // Picking a preset fills in the name and house style it comes with rather
   // than overriding them at start time, so the player can see what they got
@@ -39,11 +59,22 @@ export function NewGameScreen() {
     const next = worldSettingsFromPreset(id);
     setPreset(id);
     setName(next.promotionName);
-    setArchetype(next.promotionArchetype);
+    chooseArchetype(next.promotionArchetype);
   }
 
   function start() {
-    newGame({ ...defaults, promotionName: name.trim() || defaults.promotionName, promotionArchetype: archetype });
+    newGame({
+      ...defaults,
+      promotionName: name.trim() || defaults.promotionName,
+      promotionArchetype: archetype,
+      // Drop belts the player emptied the name out of rather than creating a
+      // championship called "". Running none at all is allowed — the game does
+      // not warn you out of a decision, and a promotion with no belts is a
+      // real, if hard, way to run one.
+      startingTitles: belts
+        .filter((b) => b.suffix.trim().length > 0)
+        .map((b) => ({ ...b, suffix: b.suffix.trim(), blurb: b.blurb.trim() || 'A championship.' })),
+    });
   }
 
   return (
@@ -125,7 +156,7 @@ export function NewGameScreen() {
               data-testid={`takeover-${p.archetype}`}
               onClick={() => {
                 setName(p.name);
-                setArchetype(p.archetype);
+                chooseArchetype(p.archetype);
               }}
               className={`rounded px-2 py-1 text-[11px] ${
                 name === p.name ? 'bg-sky-700 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
@@ -148,7 +179,7 @@ export function NewGameScreen() {
               key={option}
               type="button"
               data-testid={`house-style-${option}`}
-              onClick={() => setArchetype(option)}
+              onClick={() => chooseArchetype(option)}
               className={`rounded px-2 py-1 text-[11px] ${
                 archetype === option ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
               }`}
@@ -160,22 +191,27 @@ export function NewGameScreen() {
         <p className="mt-2 text-xs text-neutral-400">{identity.knownFor}.</p>
       </section>
 
-      <section className="mb-5 rounded border border-neutral-800 bg-neutral-900 p-3">
-        <div className="mb-1 text-xs uppercase tracking-wide text-neutral-500">Your championships</div>
-        <ul className="flex flex-col gap-0.5 text-[11px]">
-          {belts.map((belt) => (
-            <li key={belt.id} className="flex items-baseline gap-2">
-              <span
-                className="relative top-[3px] h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: belt.colorway.plate }}
-              />
-              <span className="min-w-0">
-                <span className="font-medium">{belt.name}</span>
-                <span className="block text-neutral-500">{belt.blurb}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
+      <section className="mb-5">
+        <div className="mb-1 flex items-baseline justify-between gap-2">
+          <div className="text-xs uppercase tracking-wide text-neutral-500">Your championships</div>
+          {touched && (
+            <button
+              type="button"
+              data-testid="belts-reset"
+              onClick={() => {
+                setTouched(false);
+                setBelts(startingBlueprints(archetype));
+              }}
+              className="text-[11px] text-neutral-500 underline hover:text-neutral-300"
+            >
+              Back to the house lineup
+            </button>
+          )}
+        </div>
+        <p className="mb-2 text-[11px] text-neutral-500">
+          Name them what you want. These are what every card you ever book will be built toward.
+        </p>
+        <TitleBuilder belts={belts} prefix={prefix} onChange={editBelts} maxBelts={MAX_BELTS} />
       </section>
 
       {saved && !confirmingOverwrite ? (

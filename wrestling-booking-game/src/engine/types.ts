@@ -747,6 +747,30 @@ export type PromotionArchetype =
   | 'oldSchool'
   | 'athletic';
 
+/**
+ * A belt before it exists — what the player is editing on the new-game screen.
+ *
+ * The archetype fills this in, and then the player can rename, re-divide,
+ * remove or add. Pre-filled rather than blank on purpose: a page that opens
+ * with "you have no championships" is a worse start than one that opens with
+ * a sensible five you can immediately make yours.
+ *
+ * `prestige` is deliberately not on here. A belt's standing is earned by who
+ * carries it and how long, and letting the player type 100 into their own
+ * world title on day one would hand them a promotion's worth of credibility
+ * for free. It comes from the tier instead — see PRESTIGE_BY_TIER.
+ */
+export interface TitleBlueprint {
+  /** Everything after the promotion prefix, e.g. "Heavyweight Title". */
+  suffix: string;
+  blurb: string;
+  tier: TitleTier;
+  division: TitleDivision;
+  weightClass: WeightClass;
+  signatureStipulationId: Id | null;
+}
+
+
 export interface Title {
   id: Id;
   promotionId: Id;
@@ -1835,6 +1859,14 @@ export interface WorldSettings {
   circuitAgilityFloor: number;
   /** How many wrestlers each circuit list ranks. */
   circuitRankingSize: number;
+  /**
+   * The championships the player's company opens with.
+   *
+   * Omitted, the house style's suggested lineup is used — which is what every
+   * rival gets. Set from the new-game screen, where the player can rename
+   * them, change a division, drop one, or run eight.
+   */
+  startingTitles?: TitleBlueprint[];
 
   // Freshness — see sim/freshness.ts. Both of these existed as dead wiring:
   // the rating formula has always had an `overexposurePenalty` term nothing

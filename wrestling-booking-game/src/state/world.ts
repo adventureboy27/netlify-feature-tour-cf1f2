@@ -499,7 +499,10 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   }
 
   const playerTitles = crownOpeningChampions(
-    createStartingTitles(promotion.id, promotion.name, promotion.identity),
+    // The player's own lineup if they built one on the new-game screen,
+    // otherwise the house style's suggestion. Rivals always take the
+    // suggestion — see below.
+    createStartingTitles(promotion.id, promotion.name, promotion.identity, settings.startingTitles),
     roster,
   );
   promotion.titleIds = playerTitles.map((t) => t.id);
