@@ -568,6 +568,20 @@ export function defaultWorldSettings(): WorldSettings {
     workingHurtInjuryMultiplier: 2.6,
     titleSignatureHonoured: 4,
     titleSignatureIgnored: 7,
+    confrontationCharismaWeight: 0.62,
+    confrontationPopularityWeight: 0.38,
+    confrontationLuck: 14,
+    confrontationDeadHeat: 4,
+    confrontationBestShare: 0.65,
+    confrontationHeatBonus: 12,
+    confrontationRingBonus: 5,
+    confrontationBackstageHeatScale: 0.7,
+    confrontationBackstageShootBias: 2.2,
+    confrontationTurnShift: 55,
+    confrontationWinMomentum: 7,
+    confrontationWinPopularity: 2,
+    confrontationLossMomentum: 4,
+    confrontationEnergyCost: 5,
     // Roughly one wrestler on a thirty-odd roster every two or three weeks —
     // often enough to be part of the game, rare enough that most weeks are
     // quiet. Measured in misfortune.test.ts.

@@ -67,6 +67,8 @@ import {
 import type { Manager } from '../engine/sim/ringside';
 import { evaluateTrade, tradeLine } from '../engine/world/trades';
 import { decayPaceSaturation } from '../engine/sim/pacing';
+import { resolveConfrontation } from '../engine/sim/confrontation';
+import { confrontationById } from '../data/confrontations';
 import {
   injuryFromMisfortune,
   pickReplacement,
@@ -313,6 +315,21 @@ export interface GameStore {
     slot: number,
     cast: { topicId?: string | null; speakerId?: Id | null; targetId?: Id | null; mouthpieceId?: Id | null },
   ) => void;
+  /**
+   * Turn a talking slot into a confrontation, or back into a promo. The two
+   * share the card's talking budget on purpose: time on the microphone is
+   * finite, so a confrontation costs a promo.
+   */
+  setConfrontation: (
+    slot: number,
+    cast: {
+      confrontationId?: Id | null;
+      venue?: 'ring' | 'backstage';
+      speakerId?: Id | null;
+      oppositeId?: Id | null;
+      thirdId?: Id | null;
+    },
+  ) => void;
   setSegmentStipulation: (slot: number, stipulationId: Id | null) => void;
   /**
    * Let the office book whatever is still empty on the card. Not a shortcut
@@ -522,6 +539,109 @@ function closeInterimClaim(world: World, title: Title, winnerIds: readonly Id[])
   }
   title.interimHolderIds = [];
   title.interimSinceWeek = null;
+}
+
+/**
+ * Run one confrontation slot and apply everything it did.
+ *
+ * Returns the segment's contribution to the show, or null when the slot was
+ * not filled in properly. Lives beside the promo loop rather than inside it
+ * because a confrontation touches more of the world than a promo does — heat,
+ * real animosity, an alignment, and occasionally somebody's ribs.
+ */
+function resolveConfrontationSlot(
+  world: World,
+  slot: Segment,
+  wrestlerById: Map<Id, Wrestler>,
+  rng: Rng,
+): number | null {
+  const speaker = slot.promoSpeakerId ? wrestlerById.get(slot.promoSpeakerId) : undefined;
+  const opposite = slot.confrontationOppositeId ? wrestlerById.get(slot.confrontationOppositeId) : undefined;
+  const third = slot.confrontationThirdId ? wrestlerById.get(slot.confrontationThirdId) : undefined;
+  if (!slot.confrontationId || !speaker || !opposite || speaker.id === opposite.id) {
+    slot.confrontationResult = null;
+    return null;
+  }
+
+  const rivalry = findRivalry(world.rivalries, [speaker.id, opposite.id]);
+  const outcome = resolveConfrontation(rng, {
+    definitionId: slot.confrontationId,
+    venue: slot.confrontationVenue ?? 'ring',
+    speaker,
+    opposite,
+    third: third ?? null,
+    existingHeat: rivalry?.heat ?? 0,
+    settings: world.settings,
+  });
+  if (!outcome) {
+    slot.confrontationResult = null;
+    return null;
+  }
+
+  // A confrontation is the deliberate way to start a feud, so it makes one
+  // where there was not one — that is the whole point of booking it. Routed
+  // through the same closed effect set promos use, so a confrontation can
+  // only do things the game can already do.
+  const pair = [speaker.id, opposite.id];
+  if (outcome.heat !== 0) applyEffect(world, { kind: 'crowdHeat', wrestlerIds: pair, delta: outcome.heat });
+  if (outcome.shootHeat !== 0) {
+    applyEffect(world, { kind: 'shootHeat', wrestlerIds: pair, delta: outcome.shootHeat });
+  }
+
+  // Whoever won the exchange got the night; whoever lost it paid for being
+  // out there. A segment you came second in is worse than one you missed.
+  const winner = outcome.wonBy ? wrestlerById.get(outcome.wonBy) : undefined;
+  const loser = outcome.wonBy
+    ? outcome.wonBy === speaker.id
+      ? opposite
+      : speaker
+    : undefined;
+  if (winner) {
+    winner.momentum = clamp(winner.momentum + world.settings.confrontationWinMomentum, 0, 100);
+    winner.popularity = clamp(winner.popularity + world.settings.confrontationWinPopularity, 0, 100);
+  }
+  if (loser) {
+    loser.momentum = clamp(loser.momentum - world.settings.confrontationLossMomentum, 0, 100);
+  }
+
+  // A booked turn moves the speaker. The crowd gets a vote on which way.
+  if (outcome.alignmentShift !== 0) {
+    speaker.alignment = clamp(
+      speaker.alignment + (speaker.alignment >= 0 ? -1 : 1) * outcome.alignmentShift,
+      -100,
+      100,
+    );
+  }
+
+  // Talking is work, and a confrontation that goes physical is more of it.
+  speaker.energy = clamp(speaker.energy - world.settings.confrontationEnergyCost, 0, 100);
+  opposite.energy = clamp(opposite.energy - world.settings.confrontationEnergyCost, 0, 100);
+
+  // Nothing happens to a person off-screen. If somebody got hurt in a
+  // corridor, the results page says who and how.
+  if (outcome.casualty) {
+    const hurt = wrestlerById.get(outcome.casualty.wrestlerId);
+    if (hurt && !hurt.injury) {
+      hurt.injury = {
+        severity: outcome.casualty.weeks >= 4 ? 'moderate' : 'minor',
+        description: outcome.twistLabel,
+        sufferedWeek: world.week,
+        totalWeeks: outcome.casualty.weeks,
+        weeksRemaining: outcome.casualty.weeks,
+        permanentStatLoss: {},
+        earlyReturnWeeksUsed: 0,
+      };
+      hurt.health = clamp(hurt.health - world.settings.casualtyHealthCost, 0, 100);
+    }
+  }
+
+  slot.confrontationResult = {
+    quality: outcome.quality,
+    text: outcome.text,
+    twistLabel: outcome.twistLabel,
+    wonByName: winner?.name ?? null,
+  };
+  return promoShowContribution(outcome.quality, world.settings);
 }
 
 function leaveTheBusiness(world: World, id: Id, method: TitleReignEndMethod): Id[] {
@@ -1987,6 +2107,14 @@ export const useGameStore = create<GameStore>()(
         // show on their own smaller scale.
         let promoRating = 0;
         for (const slot of world.currentPromos) {
+          // A talking slot can be a promo or a confrontation. The budget is
+          // shared on purpose — time on the microphone is finite.
+          if (slot.kind === 'confrontation') {
+            const outcome = resolveConfrontationSlot(world, slot, wrestlerById, rng);
+            if (outcome !== null) promoRating += outcome;
+            continue;
+          }
+
           const speaker = slot.promoSpeakerId ? wrestlerById.get(slot.promoSpeakerId) : undefined;
           const topicId = slot.promoTopicId as PromoTopicId | null;
           const target = slot.promoTargetId ? wrestlerById.get(slot.promoTargetId) : undefined;
@@ -2407,7 +2535,13 @@ export const useGameStore = create<GameStore>()(
           // promotion is based. This recorded homeTerritoryId regardless, so
           // every show on the road filed itself under the wrong town.
           territoryId: territory.id,
-          segments: [...world.currentCard, ...world.currentPromos.filter((slot) => slot.promoResult)],
+          // Talking slots that actually happened. A confrontation carries its
+          // own result, so filtering on promoResult alone dropped every one of
+          // them out of the record and off the results page.
+          segments: [
+            ...world.currentCard,
+            ...world.currentPromos.filter((slot) => slot.promoResult || slot.confrontationResult),
+          ],
           attendance,
           ticketPrice,
           gate,
@@ -3823,6 +3957,34 @@ export const useGameStore = create<GameStore>()(
         if (cast.speakerId !== undefined) promo.promoSpeakerId = cast.speakerId;
         if (cast.targetId !== undefined) promo.promoTargetId = cast.targetId;
         if (cast.mouthpieceId !== undefined) promo.promoMouthpieceId = cast.mouthpieceId;
+      });
+    },
+
+    setConfrontation: (slot, cast) => {
+      set((state) => {
+        const segment = state.world?.currentPromos[slot];
+        if (!segment) return;
+
+        if (cast.confrontationId !== undefined) {
+          segment.confrontationId = cast.confrontationId;
+          if (cast.confrontationId) {
+            segment.kind = 'confrontation';
+            // A promo's target is the obvious person to carry over.
+            segment.confrontationOppositeId ??= segment.promoTargetId ?? null;
+            segment.confrontationVenue ??= confrontationById(cast.confrontationId)?.venues[0] ?? 'ring';
+            segment.promoTopicId = null;
+          } else {
+            // Back to being a promo, and nothing stale left behind.
+            segment.kind = 'promo';
+            segment.confrontationOppositeId = null;
+            segment.confrontationThirdId = null;
+            segment.confrontationResult = null;
+          }
+        }
+        if (cast.venue !== undefined) segment.confrontationVenue = cast.venue;
+        if (cast.speakerId !== undefined) segment.promoSpeakerId = cast.speakerId;
+        if (cast.oppositeId !== undefined) segment.confrontationOppositeId = cast.oppositeId;
+        if (cast.thirdId !== undefined) segment.confrontationThirdId = cast.thirdId;
       });
     },
 

@@ -1061,7 +1061,26 @@ export interface Segment {
   refereeId?: Id | null;
   /** A wrestler in the shirt instead. Replaces refereeId when set. */
   guestRefereeId?: Id | null;
-  kind: 'match' | 'promo' | 'interview' | 'angle';
+  /**
+   * 'interview' and 'angle' were declared with the segment type and never
+   * checked anywhere; 'confrontation' is the one that got built. See
+   * sim/confrontation.ts.
+   */
+  kind: 'match' | 'promo' | 'interview' | 'angle' | 'confrontation';
+  /** Which confrontation, where, and who is in it. Set on 'confrontation'. */
+  confrontationId?: Id | null;
+  confrontationVenue?: 'ring' | 'backstage';
+  /** The person opposite the speaker. Both of them talk. */
+  confrontationOppositeId?: Id | null;
+  /** The partner who takes the shot, or the person being fought over. */
+  confrontationThirdId?: Id | null;
+  /** How it went. Set when the show resolves. */
+  confrontationResult?: {
+    quality: number;
+    text: string;
+    twistLabel: string;
+    wonByName: string | null;
+  } | null;
   subjectId?: Id; // for interviews: who is being elevated
   /** What a promo slot is about. See data/promoTopics.ts. */
   promoTopicId?: string | null;
@@ -1939,6 +1958,36 @@ export interface WorldSettings {
   titleSignatureHonoured: number;
   /** Rating points lost for ignoring that tradition. Deliberately the larger. */
   titleSignatureIgnored: number;
+
+  // Confrontations — see sim/confrontation.ts.
+  /** How much a confrontation rates off talking rather than off standing. */
+  confrontationCharismaWeight: number;
+  confrontationPopularityWeight: number;
+  /** Luck either way on the exchange, so a great talker still loses one. */
+  confrontationLuck: number;
+  /** Inside this margin nobody won it. */
+  confrontationDeadHeat: number;
+  /** How much the better of the two carries the segment, 0-1. */
+  confrontationBestShare: number;
+  /** Rating points a hot feud is worth to the segment. */
+  confrontationHeatBonus: number;
+  /** Rating points for doing it in front of a crowd instead of in a corridor. */
+  confrontationRingBonus: number;
+  /** Backstage moves a feud less, because nobody paid to see it. */
+  confrontationBackstageHeatScale: number;
+  /**
+   * How much likelier a twist that turns it real is backstage. There is
+   * nobody watching to keep it a performance.
+   */
+  confrontationBackstageShootBias: number;
+  /** How hard a booked turn pushes an alignment. */
+  confrontationTurnShift: number;
+  /** What winning the exchange is worth, and what losing it costs. */
+  confrontationWinMomentum: number;
+  confrontationWinPopularity: number;
+  confrontationLossMomentum: number;
+  /** Talking is work. Both of them pay it. */
+  confrontationEnergyCost: number;
 
   // A wrestler's week outside the ring — see world/misfortune.ts.
   /** Odds per healthy wrestler per week that something happens to them. */

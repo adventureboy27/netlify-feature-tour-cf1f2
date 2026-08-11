@@ -54,6 +54,7 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
   const townName = world.territories.find((t) => t.id === show.territoryId)?.name ?? 'The town';
   const booked = show.segments.filter((s) => s.kind !== 'promo' && s.result !== null);
   const promos = show.segments.filter((s) => s.kind === 'promo' && s.promoResult);
+  const confrontations = show.segments.filter((s) => s.kind === 'confrontation' && s.confrontationResult);
 
   // What the night led with. Everything below is the detail behind it.
   const namesOf = (ids: readonly string[]) => ids.map(wrestlerName);
@@ -407,6 +408,48 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
                     </div>
                     <p className="text-xs text-neutral-200">{slot.promoResult!.text}</p>
                   </div>
+                </Panel>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {confrontations.length > 0 && (
+        <section data-testid="confrontations">
+          <SectionHead hint="two people and a microphone">Confrontations</SectionHead>
+          <div className="flex flex-col gap-1.5">
+            {confrontations.map((slot, i) => {
+              const result = slot.confrontationResult!;
+              const speaker = slot.promoSpeakerId ? world.wrestlers[slot.promoSpeakerId] : null;
+              const opposite = slot.confrontationOppositeId
+                ? world.wrestlers[slot.confrontationOppositeId]
+                : null;
+              return (
+                <Panel key={i} data-testid={`confrontation-result-${i}`} className="overflow-hidden">
+                  <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-950/60 px-3 py-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                      {slot.confrontationVenue === 'backstage' ? 'Backstage' : 'In the ring'}
+                    </span>
+                    <span className="truncate text-[11px] text-sky-400">{result.twistLabel}</span>
+                    <span className="ml-auto shrink-0">
+                      <Stars stars={Math.max(0.5, Math.round((result.quality / 20) * 2) / 2)} />
+                    </span>
+                  </div>
+
+                  {speaker && opposite && (
+                    <div className="px-3 pt-2">
+                      <Bout
+                        sides={[
+                          { wrestlers: [speaker], won: result.wonByName === speaker.name ? true : null },
+                          { wrestlers: [opposite], won: result.wonByName === opposite.name ? true : null },
+                        ]}
+                        centre={<VersusMark>vs</VersusMark>}
+                      />
+                    </div>
+                  )}
+
+                  <p className="p-3 pt-2 text-sm leading-snug text-neutral-200">{result.text}</p>
                 </Panel>
               );
             })}
