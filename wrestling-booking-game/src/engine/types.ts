@@ -1808,6 +1808,33 @@ export interface WorldSettings {
   rankReignsForFullCredit: number;
   rankChampionWeeksForFullCredit: number;
   worldRankingSize: number;
+  /**
+   * How hard a circuit's taste bends its ranking, in points of standing.
+   *
+   * Load-bearing rather than cosmetic, and it trades off two failures against
+   * each other. Measured across four 189-wrestler worlds:
+   *
+   *   weight   distinct names in the 4 top-fives   shared of 10   top world names place on
+   *   0        5                                   10             4.0 circuits
+   *   20       11                                  5.3            3.8
+   *   35       16                                  2.7            2.7
+   *   60       17                                  1.1            1.5
+   *
+   * Too low and the four lists are one list in four coats. Too high and taste
+   * swamps standing: the biggest name in the business stops appearing on
+   * loops that have no strong opinion about him, which is the point at which
+   * a ranking is no longer about who is a draw. circuits.test.ts holds both
+   * ends, so neither failure can return quietly.
+   */
+  circuitTasteWeight: number;
+  /**
+   * Agility below this counts as no high-flying at all. Without a floor,
+   * every ordinary wrestler scores a little bit spectacular and the tag stops
+   * separating anybody.
+   */
+  circuitAgilityFloor: number;
+  /** How many wrestlers each circuit list ranks. */
+  circuitRankingSize: number;
   /** How many wrestlers the weekly sheet ranks in each division. */
   publicationWrestlerListSize: number;
   /** How many tag teams it ranks in each division. */

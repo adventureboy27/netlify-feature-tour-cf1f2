@@ -552,6 +552,12 @@ export function defaultWorldSettings(): WorldSettings {
     rankReignsForFullCredit: 5,
     rankChampionWeeksForFullCredit: 200,
     worldRankingSize: 25,
+    // The knee of the curve in types.ts: the lists genuinely disagree (16 of
+    // the 20 top-five places go to different people, and two circuits share
+    // under 3 of their top ten) while a real draw still places on most loops.
+    circuitTasteWeight: 35,
+    circuitAgilityFloor: 55,
+    circuitRankingSize: 10,
     publicationWrestlerListSize: 10,
     publicationTeamListSize: 5,
     publicationTeamRecordWeight: 0.45,
