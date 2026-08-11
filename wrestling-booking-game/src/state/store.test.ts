@@ -891,3 +891,106 @@ describe('the call on the weather', () => {
     expect(after.promotion.bankBalance).toBeLessThan(bankBefore);
   });
 });
+
+describe('the quiet business', () => {
+  /** Somebody at a rival whose deal has `weeks` left on it. */
+  function targetWithWeeks(weeks: number) {
+    const world = useGameStore.getState().world!;
+    const candidate = Object.values(world.wrestlers).find(
+      (w) => w.promotionId && w.promotionId !== world.promotion.id && w.role === 'wrestler' && w.contract,
+    )!;
+    useGameStore.setState((state) => {
+      state.world!.wrestlers[candidate.id]!.contract!.weeksRemaining = weeks;
+      // Guaranteed to say yes, so the test is about the rules and not the roll.
+      state.world!.wrestlers[candidate.id]!.morale = 0;
+      state.world!.wrestlers[candidate.id]!.ego = 100;
+    });
+    return candidate.id;
+  }
+
+  it('will not touch somebody with real time left on his deal', () => {
+    const id = targetWithWeeks(90);
+    const result = useGameStore.getState().signSecretly(id);
+    expect(result.ok).toBe(false);
+    expect(useGameStore.getState().world!.secretSignings).toHaveLength(0);
+  });
+
+  it('is a handshake first — nothing signed, nothing paid, nobody moved', () => {
+    const id = targetWithWeeks(6);
+    const bankBefore = useGameStore.getState().world!.promotion.bankBalance;
+    let ok = false;
+    for (let i = 0; i < 40 && !ok; i++) ok = useGameStore.getState().signSecretly(id).ok;
+    expect(ok).toBe(true);
+
+    const world = useGameStore.getState().world!;
+    const signing = world.secretSignings.find((s) => s.wrestlerId === id)!;
+    expect(signing.signedWeek).toBeNull();
+    expect(signing.freeWeek).toBe(world.week + 6);
+    // He is still theirs, in every sense. This is the whole correction: no man
+    // is under two contracts at once.
+    expect(world.wrestlers[id]!.promotionId).not.toBe(world.promotion.id);
+    expect(world.rivals.some((r) => r.rosterIds.includes(id))).toBe(true);
+    expect(world.promotion.bankBalance).toBe(bankBefore);
+  });
+
+  it('refuses to walk somebody out while he still works for them', () => {
+    const id = targetWithWeeks(6);
+    let ok = false;
+    for (let i = 0; i < 40 && !ok; i++) ok = useGameStore.getState().signSecretly(id).ok;
+    expect(ok).toBe(true);
+
+    useGameStore.getState().revealSecretSigning(id);
+    const world = useGameStore.getState().world!;
+    expect(world.promotion.rosterIds).not.toContain(id);
+    expect(world.secretSignings.some((s) => s.wrestlerId === id)).toBe(true);
+  });
+
+  it('takes him the week the old deal lapses, and tells nobody until he is walked out', () => {
+    const id = targetWithWeeks(2);
+    let ok = false;
+    for (let i = 0; i < 40 && !ok; i++) ok = useGameStore.getState().signSecretly(id).ok;
+    expect(ok).toBe(true);
+
+    // Two weeks of exposure, which this seed survives. If an rng change ever
+    // makes it not survive, the fix is a different seed — not a softer test.
+    for (let i = 0; i < 3; i++) runWeek();
+    const world = useGameStore.getState().world!;
+    const signing = world.secretSignings.find((s) => s.wrestlerId === id);
+    expect(signing, 'his old company re-signed him before the deal lapsed').toBeDefined();
+
+    expect(signing!.signedWeek).not.toBeNull();
+    expect(world.wrestlers[id]!.promotionId).toBe(world.promotion.id);
+    expect(world.rivals.some((r) => r.rosterIds.includes(id))).toBe(false);
+    // Signed, and still not bookable — because as far as the world is
+    // concerned he is not here.
+    expect(world.promotion.rosterIds).not.toContain(id);
+
+    useGameStore.getState().revealSecretSigning(id);
+    const after = useGameStore.getState().world!;
+    expect(after.promotion.rosterIds).toContain(id);
+    expect(after.secretSignings.some((s) => s.wrestlerId === id)).toBe(false);
+    // Nothing happens off-screen: the walkout is in the paper the week it
+    // happened, and it says where he came from.
+    expect(
+      after.weeklyNews.some(
+        (n) => n.kind === 'signing' && n.text.includes(after.wrestlers[id]!.name) && n.week === after.week,
+      ),
+    ).toBe(true);
+  });
+
+  it('runs every deal in the business down, not only the player’s', () => {
+    const before = Object.values(useGameStore.getState().world!.wrestlers)
+      .filter((w) => w.promotionId && w.promotionId !== useGameStore.getState().world!.promotion.id)
+      .map((w) => w.contract?.weeksRemaining ?? 0);
+    // Staggered at creation, or nobody in the world is ever close to free.
+    expect(new Set(before).size).toBeGreaterThan(5);
+
+    for (let i = 0; i < 4; i++) runWeek();
+    const world = useGameStore.getState().world!;
+    const sample = Object.values(world.wrestlers).find(
+      (w) => w.promotionId && w.promotionId !== world.promotion.id && (w.contract?.weeksRemaining ?? 0) > 20,
+    )!;
+    // Four weeks on, and four weeks shorter. Nothing renews early.
+    expect(sample.contract!.weeksRemaining).toBeLessThan(sample.contract!.totalWeeks);
+  });
+});

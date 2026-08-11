@@ -23,6 +23,8 @@ import { PACES, paceById } from '../../data/pacing';
 import { paceFit } from '../../engine/sim/pacing';
 import { slotLabel } from '../cardLabels';
 import { defenceWatch } from '../../engine/world/titleDefence';
+import { fanDemands } from '../../engine/world/fanDemand';
+import { recallBookings } from '../../engine/sim/freshness';
 import { promotionTheme } from '../components/chrome';
 
 /**
@@ -118,6 +120,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
+      <WhatTheyWant />
       <BeltsOnTheClock />
 
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -863,5 +866,53 @@ function BeltsOnTheClock() {
         })}
       </ul>
     </div>
+  );
+}
+
+/**
+ * What the audience is asking for, on the screen where you would give it to
+ * them.
+ *
+ * Information, not advice — the same line the defence clock walks. It says
+ * what they want; it does not say to book it, and the game will happily let
+ * you ignore the lot. The entry that names somebody on a rival's roster is
+ * the one worth reading twice: that is where a secret signing starts.
+ */
+function WhatTheyWant() {
+  const world = useGameStore((s) => s.world);
+  if (!world) return null;
+
+  const demands = fanDemands({
+    wrestlers: Object.values(world.wrestlers).filter((w): w is Wrestler => Boolean(w)),
+    playerRosterIds: world.promotion.rosterIds,
+    titles: world.titles,
+    rivalries: world.rivalries,
+    memory: recallBookings(world.showHistory, world.week, world.settings),
+    currentWeek: world.week,
+    playerPromotionId: world.promotion.id,
+    settings: world.settings,
+  });
+  if (demands.length === 0) return null;
+
+  return (
+    <details className="mb-3 rounded-lg border border-sky-900/50 bg-sky-950/20" data-testid="fan-demands">
+      <summary className="cursor-pointer px-2.5 py-2 text-[11px] text-sky-300">
+        What they want to see ({demands.length})
+      </summary>
+      <ul className="flex flex-col gap-1 px-2.5 pb-2.5">
+        {demands.map((demand) => (
+          <li key={demand.id} className="text-[11px] leading-snug text-neutral-300">
+            <span className={demand.kind === 'enoughOfHim' ? 'text-rose-300' : 'text-neutral-300'}>
+              {demand.text}
+            </span>
+            {demand.signableFrom && (
+              <span className="ml-1 text-amber-400">
+                His deal there is nearly up — see The quiet business.
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

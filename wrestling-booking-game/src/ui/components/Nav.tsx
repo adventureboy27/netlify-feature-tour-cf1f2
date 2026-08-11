@@ -186,7 +186,7 @@ const MORE: { id: Screen; label: string; blurb: string }[] = [
   {
     id: 'secrets',
     label: 'The quiet business',
-    blurb: 'Sign somebody who works for a competitor. Nobody knows until you walk them out.',
+    blurb: 'Whose deal is running out at a competitor, and being the one holding a pen when it does.',
   },
   { id: 'editor', label: 'Editor', blurb: 'Rename anybody, repackage them, or build somebody from scratch.' },
 ];

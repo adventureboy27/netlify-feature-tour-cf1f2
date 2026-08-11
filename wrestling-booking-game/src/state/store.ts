@@ -69,13 +69,18 @@ import { evaluateTrade, tradeLine } from '../engine/world/trades';
 import { decayPaceSaturation } from '../engine/sim/pacing';
 import { resolveConfrontation } from '../engine/sim/confrontation';
 import { factionEgoDrift, factionHeat, factionStanding } from '../engine/world/faction';
+import { demandsDelivered, deliveryBonus, fanDemands } from '../engine/world/fanDemand';
 import {
   canSignSecretly,
+  canWalkOut,
+  isFree,
   revealImpact,
-  rollLeak,
+  rollExposure,
+  rollRetention,
   secretSigningAppeal,
   secretWeeklyCost,
   stillSecret,
+  weeksUntilFree,
 } from '../engine/world/secretSigning';
 import { confrontationById } from '../data/confrontations';
 import {
@@ -260,7 +265,14 @@ import {
 } from '../engine/economy/showBudget';
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import { productionAssetById, showExtraById } from '../data/production';
-import { expireContracts, weeklyWageBill, createStandardContract, askingRate, renewalRate } from '../engine/economy/contracts';
+import {
+  expireContracts,
+  weeklyWageBill,
+  createStandardContract,
+  askingRate,
+  renewalRate,
+  STARTING_CONTRACT_WEEKS,
+} from '../engine/economy/contracts';
 import { driftEgo, targetEgo, contractDemand, clauseUpkeep } from '../engine/career/ego';
 import { canSign, currentAskingRate } from '../engine/world/freeAgents';
 import {
@@ -1567,6 +1579,20 @@ export const useGameStore = create<GameStore>()(
         // against the same memory rather than each one penalising the next.
         const bookingMemory = recallBookings(world.showHistory, world.week, world.settings);
 
+        // What the audience was asking for before tonight. Read once, before
+        // the card runs, so the show is judged against what they wanted
+        // rather than against what it turned out you did.
+        const askedFor = fanDemands({
+          wrestlers: Object.values(world.wrestlers).filter((w): w is Wrestler => Boolean(w)),
+          playerRosterIds: world.promotion.rosterIds,
+          titles: world.titles,
+          rivalries: world.rivalries,
+          memory: bookingMemory,
+          currentWeek: world.week,
+          playerPromotionId: world.promotion.id,
+          settings: world.settings,
+        });
+
         if (!night.cancelled) world.currentCard.forEach((segment, i) => {
           const sides = new Set(segment.participants.map((p) => p.side));
           if (segment.participants.length < 2 || sides.size < 2) {
@@ -2210,6 +2236,33 @@ export const useGameStore = create<GameStore>()(
         const slotWeights = TV_SLOT_WEIGHTS.slice(0, world.currentCard.length);
         const inRingRating = computeShowRating(segmentRatings, slotWeights);
 
+        // Did you give them what they were asking for? Judged on what was
+        // booked rather than on how it went: the crowd asked for a match,
+        // not for a result, and giving them the match and having it go badly
+        // is a different failure from never giving it to them at all.
+        const delivered = demandsDelivered(
+          askedFor,
+          world.currentCard
+            .filter((segment) => segment.participants.length >= 2)
+            .map((segment) => ({
+              participantIds: segment.participants.map((p) => p.wrestlerId),
+              titleIds: segment.titleIds,
+            })),
+        );
+        const demandBonus = deliveryBonus(delivered, world.settings);
+        for (const demand of delivered) {
+          world.weeklyNews.push(
+            wire(
+              'misfortune',
+              demand.kind === 'enoughOfHim'
+                ? `Giving everybody a week off from ${demand.text.split(' has been')[0]} went down well. People noticed the change.`
+                : `They had been asking for it, and they got it. ${demand.text}`,
+              world.week + 1,
+              'minor',
+            ),
+          );
+        }
+
         // ---- where we are running ----------------------------------------
         // The town has an opinion about the card, and a memory of how over
         // this promotion is here. Both were read at the top of the week,
@@ -2437,7 +2490,9 @@ export const useGameStore = create<GameStore>()(
         // modifies a show; it cannot manufacture one, so a card with nothing
         // booked rates zero no matter how good the building looked.
         const showRating =
-          segmentPopAvgs.length === 0 ? 0 : clamp(inRingRating + productionRating + townFit + promoRating, 0, 100);
+          segmentPopAvgs.length === 0
+            ? 0
+            : clamp(inRingRating + productionRating + townFit + promoRating + demandBonus, 0, 100);
         const showStars = ratingToStars(showRating);
 
         // §11.4 weapons model: violence booked tonight accrues, then the week
@@ -3110,40 +3165,114 @@ export const useGameStore = create<GameStore>()(
           world.paceSaturation[key] = decayPaceSaturation(world.paceSaturation[key] ?? 0, world.settings);
         }
 
-        // ---- the contracts nobody knows about ----------------------------
-        // Paid every week they are held, because you are paying somebody who
-        // is working for a competitor. Then the roll: every week it stays
-        // true is another week somebody could say it out loud.
+        // ---- the deals nobody knows about --------------------------------
+        //
+        // Nobody works for two companies. A handshake costs nothing and buys
+        // nothing except being first in the door the hour his old deal runs
+        // out — and every week it sits there is a week his own office might
+        // hear about it and simply re-sign him. Once the ink is on he is
+        // yours, on your payroll, and off everybody's radar; from that moment
+        // the only thing that matters is how fast you walk him out.
+        const lost: string[] = [];
         for (const signing of world.secretSignings) {
-          world.promotion.bankBalance -= signing.weeklyRate;
           const person = world.wrestlers[signing.wrestlerId];
-          if (!person) continue;
-
-          // Somebody who leaves the business takes the secret with them.
-          if (person.deceased || person.careerStatus === 'retired') {
-            signing.leakedWeek = signing.leakedWeek ?? world.week;
+          if (!person) {
+            lost.push(signing.wrestlerId);
             continue;
           }
 
-          if (rollLeak(rng, signing, person, world.week, world.settings)) {
-            signing.leakedWeek = world.week;
+          // Somebody who leaves the business takes it with them. Their own
+          // system files the write-up for the retirement or the death; this
+          // only has to stop pretending the agreement still exists.
+          if (person.deceased || person.careerStatus === 'retired') {
+            lost.push(signing.wrestlerId);
+            continue;
+          }
+
+          if (!isFree(signing, world.week)) {
+            // Still under contract to them. Nothing is owed and nothing has
+            // happened — except that somebody might have talked.
+            const holder = world.rivals.find((r) => r.id === signing.fromPromotionId);
+            if (rollRetention(rng, signing, person, holder?.rating ?? 0, world.settings)) {
+              lost.push(signing.wrestlerId);
+              // A rival that re-signs somebody announces it, so this is
+              // ordinary news the player would have seen either way. What
+              // they know and nobody else does is what it cost them.
+              if (person.contract) {
+                person.contract.weeksRemaining = STARTING_CONTRACT_WEEKS;
+                person.contract.totalWeeks = STARTING_CONTRACT_WEEKS;
+              }
+              world.weeklyNews.push(
+                wire(
+                  'signing',
+                  `${signing.fromPromotionName} have tied ${person.name} down to a new deal. Somebody there heard he had been talking to people and got in first.`,
+                  world.week,
+                  'normal',
+                ),
+              );
+            }
+            continue;
+          }
+
+          if (signing.signedWeek === null) {
+            // The hour it lapsed. He comes off their books and onto yours,
+            // and not one person outside this office is told.
+            signing.signedWeek = world.week;
+            const holder = world.rivals.find((r) => r.id === signing.fromPromotionId);
+            if (holder) holder.rosterIds = holder.rosterIds.filter((id) => id !== person.id);
+            person.promotionId = world.promotion.id;
+            person.contract = {
+              ...createStandardContract(
+                person,
+                world.settings,
+                world.settings.startingYear + Math.floor(world.week / 52),
+              ),
+              weeklyRate: signing.weeklyRate,
+            };
+            // Deliberately no wire item, and deliberately not added to
+            // promotion.rosterIds: he cannot be booked, because as far as the
+            // world is concerned he is not here. The walkout is what puts him
+            // on the roster. See revealSecretSigning.
+            continue;
+          }
+
+          // Signed, paid, and still not on television. This is the expensive
+          // part, and it is meant to be.
+          world.promotion.bankBalance -= signing.weeklyRate;
+          if (rollExposure(rng, signing, world.week, world.settings)) {
+            signing.blownWeek = world.week;
             world.weeklyNews.push(
               wire(
                 'signing',
-                `The sheets have it that ${person.name} signed with ${world.promotion.name} weeks ago and has been working ${signing.fromPromotionName} dates on a contract that is already over. Whatever that was going to be, it is not a surprise now.`,
-                world.week + 1,
+                `The sheets have worked out where ${person.name} went. He has not been on a ${signing.fromPromotionName} show since his deal ran out and somebody finally asked why. Whatever you were saving him for, it is not a surprise now.`,
+                world.week,
                 'lead',
               ),
             );
-            // The company he is still working for now knows too, and it does
-            // not make them kind about it.
-            person.morale = clamp(person.morale - world.settings.secretSigningLeakMorale, 0, 100);
           }
         }
-        world.secretSignings = world.secretSignings.filter((signing) => {
-          const person = world.wrestlers[signing.wrestlerId];
-          return Boolean(person) && !person!.deceased && person!.careerStatus !== 'retired';
-        });
+        if (lost.length > 0) {
+          const dropped = new Set(lost);
+          world.secretSignings = world.secretSignings.filter((s2) => !dropped.has(s2.wrestlerId));
+        }
+
+        // Every deal in the business runs down, not only yours. This is what
+        // makes somebody quietly available in the first place — without it
+        // nobody outside your own company is ever within reach.
+        const spokenFor = new Set(world.secretSignings.map((s2) => s2.wrestlerId));
+        for (const rival of world.rivals) {
+          const roster = rival.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean);
+          for (const id of expireContracts(roster)) {
+            // Their own office does the obvious thing, unless somebody got
+            // there first — in which case the lapse is the whole point and
+            // the block above will collect him next week.
+            if (spokenFor.has(id)) continue;
+            const person = world.wrestlers[id];
+            if (!person?.contract) continue;
+            person.contract.weeksRemaining = STARTING_CONTRACT_WEEKS;
+            person.contract.totalWeeks = STARTING_CONTRACT_WEEKS;
+          }
+        }
 
         // Who was actually in front of a crowd this week — the player's card
         // and every rival's, so a rival's ace wears out on the same clock the
@@ -4455,17 +4584,22 @@ export const useGameStore = create<GameStore>()(
         const person = world?.wrestlers[wrestlerId];
         if (!world || !person) return;
 
-        if (!canSignSecretly(person, world.promotion.id)) {
-          outcome = { ok: false, reason: 'They are not somebody else’s to take.' };
+        if (!canSignSecretly(person, world.promotion.id, world.settings)) {
+          outcome = {
+            ok: false,
+            reason: 'There is nothing to talk about. He is not out of contract any time soon.',
+          };
           return;
         }
         if (world.secretSignings.some((s2) => s2.wrestlerId === wrestlerId)) {
-          outcome = { ok: false, reason: 'You already have them.' };
+          outcome = { ok: false, reason: 'You already have an understanding with him.' };
           return;
         }
         const cost = secretWeeklyCost(person, world.settings);
-        if (world.promotion.bankBalance < cost * world.settings.secretSigningWeeksUpFront) {
-          outcome = { ok: false, reason: 'You cannot cover the money to keep this quiet.' };
+        // Nothing is paid today — nothing is signed today. But you do not
+        // shake on a number you cannot cover when it comes due.
+        if (world.promotion.bankBalance < cost * world.settings.secretSigningProofWeeks) {
+          outcome = { ok: false, reason: 'You cannot cover what you would be promising him.' };
           return;
         }
         // Whether they go for it at all. A happy man in a good spot mostly
@@ -4484,12 +4618,17 @@ export const useGameStore = create<GameStore>()(
           wrestlerName: person.name,
           fromPromotionId: person.promotionId!,
           fromPromotionName: rival?.name ?? 'somewhere else',
-          signedWeek: world.week,
+          agreedWeek: world.week,
+          // What was shaken on: the week his deal runs out. He works every
+          // date they have booked him for between now and then.
+          freeWeek: world.week + weeksUntilFree(person),
           weeklyRate: cost,
-          leakedWeek: null,
+          signedWeek: null,
+          blownWeek: null,
         });
         outcome = { ok: true, reason: null };
-        // Deliberately no wire item. That is the entire point.
+        // Deliberately no wire item. Nothing has happened yet — that is the
+        // entire point.
       });
       return outcome;
     },
@@ -4502,12 +4641,16 @@ export const useGameStore = create<GameStore>()(
         const signing = world.secretSignings[index]!;
         const person = world.wrestlers[wrestlerId];
         if (!person) return;
+        // He cannot walk out on your show while he is still working theirs.
+        // The whole thing rests on this: no man is under two contracts.
+        if (!canWalkOut(signing)) return;
 
         const impact = revealImpact(signing, person, world.week, world.settings);
         const wasSecret = stillSecret(signing);
 
-        // They are yours now, in public. Off the rival's roster and onto
-        // yours, which is the moment the world changes.
+        // He has been yours since his old deal lapsed. This is the moment the
+        // rest of the world finds out — which is also the moment he becomes
+        // somebody you can book.
         for (const rival of world.rivals) {
           rival.rosterIds = rival.rosterIds.filter((id) => id !== wrestlerId);
         }
@@ -4530,12 +4673,15 @@ export const useGameStore = create<GameStore>()(
           victim.rating = clamp(victim.rating - impact * world.settings.revealRivalRatingPerImpact, 0, 100);
         }
 
+        const sinceFree = Math.max(0, world.week - signing.freeWeek);
         world.weeklyNews.push(
           wire(
             'signing',
-            wasSecret
-              ? `${person.name} walked out on ${world.promotion.name}'s show tonight. Everybody in the building thought he worked for ${signing.fromPromotionName}. He has been signed here for ${Math.max(1, world.week - signing.signedWeek)} weeks.`
-              : `${person.name} finally turned up for ${world.promotion.name}. The sheets had it weeks ago, which took most of it away.`,
+            !wasSecret
+              ? `${person.name} finally turned up for ${world.promotion.name}. The sheets had already placed him, which took most of it away.`
+              : sinceFree <= 1
+                ? `${person.name} walked out on ${world.promotion.name}'s show tonight. He worked his last date for ${signing.fromPromotionName} on the final day of his contract and signed here before the week was out. Nobody had time to catch on.`
+                : `${person.name} walked out on ${world.promotion.name}'s show tonight. Everybody in the building still had him down at ${signing.fromPromotionName}. His deal there quietly ran out ${sinceFree} weeks ago and he has been signed here ever since.`,
             world.week,
             'lead',
           ),
@@ -4547,6 +4693,17 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const world = state.world;
         if (!world) return;
+        const signing = world.secretSignings.find((s2) => s2.wrestlerId === wrestlerId);
+        const person = world.wrestlers[wrestlerId];
+        // Walking away from a handshake costs nothing, because a handshake is
+        // nothing. Walking away from a signed contract nobody has seen means
+        // releasing a man the world thinks still works somewhere else — so he
+        // becomes exactly what he is: a free agent nobody has announced.
+        if (signing?.signedWeek !== null && signing !== undefined && person) {
+          person.promotionId = null;
+          person.contract = null;
+          world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestlerId);
+        }
         world.secretSignings = world.secretSignings.filter((s2) => s2.wrestlerId !== wrestlerId);
       });
     },

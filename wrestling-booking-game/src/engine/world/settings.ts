@@ -582,25 +582,39 @@ export function defaultWorldSettings(): WorldSettings {
     confrontationWinPopularity: 2,
     confrontationLossMomentum: 4,
     confrontationEnergyCost: 5,
-    // Paying somebody who is working for a competitor is expensive, and the
+    // A quarter of a year: long enough that a handful of people are always in
+    // the window, short enough that you cannot simply agree deals with a
+    // rival's whole roster and wait.
+    secretSigningWindowWeeks: 13,
+    // Bidding blind against an incumbent whose number you cannot see. The
     // premium is the whole reason this is not simply better than signing
     // somebody the ordinary way.
     secretSigningPremium: 1.7,
     secretSigningRateFloor: 9,
-    secretSigningMoraleWeight: 0.45,
-    secretSigningEgoWeight: 0.3,
-    secretSigningBaseAppeal: 0.12,
-    secretSigningLeakBase: 0.04,
-    secretSigningLeakPerWeek: 0.012,
-    secretSigningLeakAttitude: 0.05,
-    secretSigningLeakCap: 0.4,
+    // These four sum to less than one on purpose: a miserable egomaniac with
+    // the whole window still to run is a very likely yes and never a certain
+    // one, so approaching somebody is always a risk.
+    secretSigningMoraleWeight: 0.4,
+    secretSigningEgoWeight: 0.28,
+    secretSigningRunwayWeight: 0.2,
+    secretSigningBaseAppeal: 0.08,
+    // Roughly one in eight a week against a mid-table company, which is what
+    // makes shaking hands three months out a genuinely bad idea.
+    secretRetentionBase: 0.03,
+    secretRetentionClout: 0.14,
+    secretRetentionMorale: 0.09,
+    secretRetentionTalk: 0.05,
+    secretRetentionCap: 0.35,
+    // And once it is signed, the clock is brutal on purpose. Two weeks of
+    // sitting on it is roughly even money that somebody prints it.
+    secretExposureBase: 0.12,
+    secretExposurePerWeek: 0.22,
+    secretExposureCap: 0.95,
     secretSigningBaseImpact: 3.2,
-    secretSigningLeakedImpact: 0.35,
-    secretSigningStaleWeeks: 26,
-    secretSigningStalePenalty: 0.5,
-    secretSigningWeeksUpFront: 8,
+    secretSigningBlownImpact: 0.35,
+    secretDebutDecayPerWeek: 0.45,
+    secretSigningProofWeeks: 8,
     secretSigningRefusalMorale: 6,
-    secretSigningLeakMorale: 10,
     revealMomentumPerImpact: 9,
     revealPopularityPerImpact: 2.5,
     revealCompanyRatingPerImpact: 1.6,
@@ -623,6 +637,17 @@ export function defaultWorldSettings(): WorldSettings {
     factionDefectionCap: 0.12,
     factionEgoDriftRunning: 0.6,
     factionEgoDriftOutOfControl: 1.2,
+    demandDreamMatchPopularity: 72,
+    demandWastedGap: 26,
+    demandTitleShotMomentum: 74,
+    demandRematchHeat: 55,
+    demandOverexposedWeeks: 7,
+    demandOverexposedHeatPerWeek: 9,
+    demandPushPopularity: 55,
+    demandPushGap: 12,
+    demandBoardSize: 6,
+    demandPerKindCap: 2,
+    demandDeliveryRatingBonus: 5,
     // Roughly one wrestler on a thirty-odd roster every two or three weeks —
     // often enough to be part of the game, rare enough that most weeks are
     // quiet. Measured in misfortune.test.ts.
@@ -885,6 +910,11 @@ export function defaultWorldSettings(): WorldSettings {
     tagTeamsPerPromotion: 3,
     rivalRosterSizeMin: 10,
     rivalRosterSizeMax: 26,
+    // From one week to two and a half years. The floor matters: at 6 the
+    // opening world had nobody inside the safe end of the signing window, so
+    // week one could only ever offer a long-odds handshake.
+    rivalContractMinWeeks: 1,
+    rivalContractMaxWeeks: 130,
     territoryCount: 12,
     startingTerritories: 1,
     startingYear: new Date().getFullYear(),

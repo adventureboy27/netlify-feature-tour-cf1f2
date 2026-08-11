@@ -55,7 +55,15 @@ const SLOT_KEY = 'wbg.save.v1';
 // segment, and the freshness/circuit/confrontation/faction settings. A
 // version-11 save has no secretSignings array, which the weekly tick iterates
 // without a guard.
-const SCHEMA_VERSION = 12;
+//
+// Version 13 reshapes a SecretSigning entirely — it is now a handshake with
+// somebody whose rival deal is running out rather than a contract held while
+// he works for two companies, so signedWeek/leakedWeek became
+// agreedWeek/freeWeek/signedWeek/blownWeek. It also stakes the whole thing on
+// rival contracts having staggered, ticking terms, which a version-12 save
+// does not: every rival deal in one would sit at the same 104 weeks forever
+// and nobody in the business would ever come free.
+const SCHEMA_VERSION = 13;
 
 export interface SaveFile {
   schema: number;

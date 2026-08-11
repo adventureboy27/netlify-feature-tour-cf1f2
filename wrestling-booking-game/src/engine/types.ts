@@ -1990,7 +1990,13 @@ export interface WorldSettings {
   confrontationEnergyCost: number;
 
   // Secret signings — see world/secretSigning.ts.
-  /** Multiple of their ordinary rate to pay somebody working for a rival. */
+  /**
+   * How close to the end of somebody's deal you can reach an understanding.
+   * Outside this there is nothing to talk about: he is not going anywhere and
+   * you cannot pay a man to break a contract.
+   */
+  secretSigningWindowWeeks: number;
+  /** Multiple of their ordinary rate, for bidding blind against an incumbent. */
   secretSigningPremium: number;
   /** Fallback weekly rate per point of popularity, when they have no contract. */
   secretSigningRateFloor: number;
@@ -1998,25 +2004,32 @@ export interface WorldSettings {
   secretSigningMoraleWeight: number;
   /** How much liking the idea of being the secret moves them. */
   secretSigningEgoWeight: number;
+  /** How much easier it is to get a yes while nobody has made him an offer yet. */
+  secretSigningRunwayWeight: number;
   secretSigningBaseAppeal: number;
-  /** Odds it gets out in the first week, and how fast that climbs. */
-  secretSigningLeakBase: number;
-  secretSigningLeakPerWeek: number;
-  secretSigningLeakAttitude: number;
-  secretSigningLeakCap: number;
-  /** Multiplier on an ordinary debut that a clean reveal is worth. */
+  /** Odds a week that his own office gets wind and re-signs him first. */
+  secretRetentionBase: number;
+  /** A big company notices sooner and fixes it faster. */
+  secretRetentionClout: number;
+  /** A happy man signs the renewal in front of him. */
+  secretRetentionMorale: number;
+  /** A man who talks is a man whose office hears. */
+  secretRetentionTalk: number;
+  secretRetentionCap: number;
+  /** Odds the sheets place him the first week his new deal is live, and the climb. */
+  secretExposureBase: number;
+  secretExposurePerWeek: number;
+  secretExposureCap: number;
+  /** Multiplier on an ordinary debut that a walkout the night he came free is worth. */
   secretSigningBaseImpact: number;
   /** What is left of it once the newsletter has printed it. */
-  secretSigningLeakedImpact: number;
-  /** Weeks after which the room has had time to guess. */
-  secretSigningStaleWeeks: number;
-  secretSigningStalePenalty: number;
-  /** Weeks of the premium you must be able to cover before anybody signs. */
-  secretSigningWeeksUpFront: number;
+  secretSigningBlownImpact: number;
+  /** How fast the moment bleeds out for every week he sits at home unused. */
+  secretDebutDecayPerWeek: number;
+  /** Weeks of the new rate you must be able to cover before shaking on it. */
+  secretSigningProofWeeks: number;
   /** What it costs when somebody turns you down and knows you asked. */
   secretSigningRefusalMorale: number;
-  /** What it costs them when the company they still work for finds out. */
-  secretSigningLeakMorale: number;
   /** What a reveal's impact is worth, per point, to each thing it moves. */
   revealMomentumPerImpact: number;
   revealPopularityPerImpact: number;
@@ -2048,6 +2061,32 @@ export interface WorldSettings {
   /** What being in the group that runs the place does to an ego, per week. */
   factionEgoDriftRunning: number;
   factionEgoDriftOutOfControl: number;
+
+  // What the audience is asking for — see world/fanDemand.ts.
+  /** How over somebody must be before a match with them counts as a dream one. */
+  demandDreamMatchPopularity: number;
+  /** Talent-minus-position gap before the crowd calls somebody wasted. */
+  demandWastedGap: number;
+  /** Momentum at which they start asking why he has had no shot. */
+  demandTitleShotMomentum: number;
+  /** Crowd heat at which a feud is owed another match. */
+  demandRematchHeat: number;
+  /** Weeks on the show inside the window before they have had enough. */
+  demandOverexposedWeeks: number;
+  demandOverexposedHeatPerWeek: number;
+  /** How over, and how underused, before they want somebody pushed. */
+  demandPushPopularity: number;
+  demandPushGap: number;
+  /** How many things the board shows. A wishlist of forty is unread. */
+  demandBoardSize: number;
+  /**
+   * Most of any one kind. Without this the loudest kind takes the whole
+   * board — a roster of eight stars makes twenty-eight dream matches and
+   * every one of them outscores everything else.
+   */
+  demandPerKindCap: number;
+  /** Rating points a fully-demanded match is worth for giving it to them. */
+  demandDeliveryRatingBonus: number;
 
   // A wrestler's week outside the ring — see world/misfortune.ts.
   /** Odds per healthy wrestler per week that something happens to them. */
@@ -2445,6 +2484,14 @@ export interface WorldSettings {
   rivalRosterSizeMin: number;
   /** Roster size of a rival at the top of the ladder. */
   rivalRosterSizeMax: number;
+  /**
+   * A rival roster is dealt contracts of staggered length rather than all the
+   * same one, so that at any given week a handful of people in the business
+   * are running down and the rest are not. Without this every deal in the
+   * world would lapse on the same day.
+   */
+  rivalContractMinWeeks: number;
+  rivalContractMaxWeeks: number;
   territoryCount: number;
   startingTerritories: number;
   startingYear: number;

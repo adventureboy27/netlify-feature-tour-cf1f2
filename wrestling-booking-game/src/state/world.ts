@@ -60,7 +60,7 @@ import type { EventHistory } from '../engine/events/scheduler';
 import type { TamperingAttempt } from '../engine/world/tampering';
 import { emptyEventHistory } from '../engine/events/scheduler';
 import type { Rng } from '../engine/rng';
-import { pick } from '../engine/rng';
+import { pick, randInt } from '../engine/rng';
 import { generateWrestlers } from '../engine/generate/wrestler';
 import { createRivalry } from '../engine/sim/rivalry';
 import { createStandardContract } from '../engine/economy/contracts';
@@ -179,9 +179,9 @@ export interface World {
    */
   pendingChampionCall: ChampionCall | null;
   /**
-   * Contracts the world cannot see. Everybody on this list is still on a
-   * rival's roster, still working their shows, and still listed there by
-   * every sheet in the business — until the booker uses them.
+   * Deals the world cannot see. Either a handshake with somebody whose rival
+   * contract is running out, or a signed contract that started the hour their
+   * old one lapsed and that nobody has been told about yet.
    */
   secretSignings: SecretSigning[];
   /** What was decided, carried into the resolve that follows. */
@@ -498,6 +498,15 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     for (const w of signed) {
       w.promotionId = rival.id;
       w.contract = createStandardContract(w, settings, settings.startingYear);
+      // Staggered, not uniform. Every rival deal being the same length means
+      // nobody in the business is ever running down until one week when
+      // everybody is at once — and a deal running down is the only thing that
+      // makes a man quietly available. See world/secretSigning.ts.
+      w.contract.weeksRemaining = randInt(
+        rng,
+        settings.rivalContractMinWeeks,
+        settings.rivalContractMaxWeeks,
+      );
       wrestlers[w.id] = w;
     }
     rival.rosterIds = signed.map((w) => w.id);
