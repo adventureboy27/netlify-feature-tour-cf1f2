@@ -1614,7 +1614,7 @@ export const useGameStore = create<GameStore>()(
         // match on the card so one observation is not made about four of
         // them — measured, "the official is losing this one" turned up in
         // four of six matches on the same show.
-        const saidTonight = new Set<string>();
+        const saidTonight = new Map<string, number>();
 
         if (!night.cancelled) world.currentCard.forEach((segment, i) => {
           const sides = new Set(segment.participants.map((p) => p.side));
@@ -2115,6 +2115,39 @@ export const useGameStore = create<GameStore>()(
             .filter(Boolean);
           const winnerProbability =
             result.winnerSide === null ? 1 : (result.winProbabilitiesBySide[result.winnerSide] ?? 1);
+
+          // ---- who these people are, beyond tonight -----------------------
+          //
+          // All of it read off records the game already keeps. The announcers
+          // never guess at a career: if there is no former champion in this
+          // match, the lookup comes back null and nobody says there is one.
+          const onTheLine = new Set(titlesOnTheLine.map((t) => t.id));
+          const holdsNow = (w: Wrestler) =>
+            world.titles.filter((t) => !t.vacant && t.currentHolderIds.includes(w.id));
+          const formerChampion = participantWrestlers.find(
+            (w) => w.titleReigns.length > 0 && holdsNow(w).length === 0,
+          );
+          const formerReign = formerChampion?.titleReigns[formerChampion.titleReigns.length - 1] ?? null;
+          // A belt they are carrying that is not the one being contested —
+          // "the tag champion, in a singles match here tonight".
+          const otherBeltHolder = participantWrestlers
+            .map((w) => ({ w, belt: holdsNow(w).find((t) => !onTheLine.has(t.id)) }))
+            .find((entry) => entry.belt);
+          const streaking = participantWrestlers.find(
+            (w) => w.career.streak >= world.settings.commentaryStreakRun,
+          );
+          const slumping = participantWrestlers.find(
+            (w) => w.career.streak <= -world.settings.commentarySlumpRun,
+          );
+          const debutant = participantWrestlers.find((w) => w.career.matches === 0);
+          const seasonNow = world.settings.startingYear + Math.floor(world.week / 52);
+          const oldHand = [...participantWrestlers].sort((a, b) => a.debutYear - b.debutYear)[0];
+          const timesMet =
+            participantIds.length === 2
+              ? (bookingMemory.pairings.get(
+                  [participantIds[0]!, participantIds[1]!].sort().join('|'),
+                ) ?? 0)
+              : 0;
           const call =
             world.settings.commentaryEnabled && world.promotion.commentaryTeam && sideAMembers.length > 0 && sideBMembers.length > 0
               ? callTheMatch(rngFromSeed(`${world.settings.seed}-call-${world.week}-${i}`), {
@@ -2154,6 +2187,31 @@ export const useGameStore = create<GameStore>()(
                   incidentText: incident?.headline ?? null,
                   crowd: crowdMood,
                   upset: winnerProbability <= world.settings.commentaryUpsetProbability,
+                  formerChampionName: formerChampion?.name ?? null,
+                  formerChampionTitle:
+                    (formerReign && world.titles.find((t) => t.id === formerReign.titleId)?.name) ?? null,
+                  otherBeltHolderName: otherBeltHolder?.w.name ?? null,
+                  otherBeltName: otherBeltHolder?.belt?.name ?? null,
+                  onATearName: streaking?.name ?? null,
+                  onATearRun: streaking?.career.streak ?? 0,
+                  slumpingName: slumping?.name ?? null,
+                  // Stored negative — the announcers want the length of it.
+                  slumpingRun: Math.abs(slumping?.career.streak ?? 0),
+                  debutantName: debutant?.name ?? null,
+                  oldHandName: oldHand?.name ?? null,
+                  oldHandYears: oldHand ? Math.max(0, seasonNow - oldHand.debutYear) : 0,
+                  timesMet,
+                  feudWeeks: rivalry ? Math.max(0, world.week - rivalry.startWeek) : 0,
+                  feudMatches: rivalry?.matchesContested ?? 0,
+                  isBlowoff: Boolean(stipulation?.isBlowoff) || Boolean(rivalry?.blowoffBooked),
+                  townName: territory.name,
+                  // Only when the sky actually took money off the gate. A
+                  // drizzle that cost nothing is not worth a line.
+                  weatherLine:
+                    nightDraw < world.settings.commentaryWeatherDrawHit && night.weather
+                      ? night.weather.event.name
+                      : null,
+                  isPPV,
                   saidTonight,
                   settings: world.settings,
                 })

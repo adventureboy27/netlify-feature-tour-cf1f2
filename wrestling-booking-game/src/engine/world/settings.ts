@@ -438,6 +438,19 @@ export function defaultWorldSettings(): WorldSettings {
     commentaryFlatHouseShare: 0.45,
     commentaryUpsetProbability: 0.3,
     commentaryDeviousManager: 60,
+    commentaryStreakRun: 4,
+    commentarySlumpRun: 3,
+    // Against a ten-week booking memory, four meetings is a pairing nobody
+    // would actually book; three is a real feud's cadence. Measured: at four,
+    // "they have met this often" fired in 0 of 1246 called matches.
+    commentaryMetOftenTimes: 3,
+    // And at 55 "they have never met" needed a three-and-a-half-star match to
+    // be worth saying, which never happened in a mid-table company. 45 is a
+    // solid TV match.
+    commentaryFirstMeetingRating: 45,
+    commentaryLongFeudWeeks: 8,
+    commentaryWeatherDrawHit: 0.9,
+    commentaryLongCareerYears: 12,
 
     // Relationships. Most people get along; the ones who do not are the
     // interesting exception, and enemies work stiffer — better to watch,

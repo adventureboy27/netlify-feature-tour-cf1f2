@@ -59,16 +59,40 @@ function bare(over: Partial<CommentaryContext> = {}): CommentaryContext {
     incidentText: null,
     crowd: 'warm',
     upset: false,
+    formerChampionName: null,
+    formerChampionTitle: null,
+    otherBeltHolderName: null,
+    otherBeltName: null,
+    onATearName: null,
+    onATearRun: 0,
+    slumpingName: null,
+    slumpingRun: 0,
+    debutantName: null,
+    oldHandName: null,
+    oldHandYears: 0,
+    timesMet: 1,
+    feudWeeks: 0,
+    feudMatches: 0,
+    isBlowoff: false,
+    townName: 'Bramble Hollow',
+    weatherLine: null,
+    isPPV: false,
     settings,
     ...over,
   };
 }
 
-/** Everything the call put on screen, as one blob. */
+/**
+ * Everything the call put on screen, as one blob.
+ *
+ * Joined on a full stop rather than a space so that the first word of every
+ * line still reads as sentence-initial — otherwise "Live from Bramble Hollow"
+ * looks like somebody called Live to the name check below.
+ */
 function said(ctx: CommentaryContext, seed = 'call'): string {
   return callTheMatch(rngFromSeed(seed), ctx)
     .map((l) => l.text)
-    .join(' ');
+    .join('. ');
 }
 
 // ---------------------------------------------------------------------------
@@ -101,10 +125,35 @@ const BACKED_BY: Record<string, string[]> = {
   small: ['sizeGap'],
   onTopPartner: ['tagMatch'],
   inTroublePartner: ['tagMatch'],
+  formerChamp: ['formerChampion'],
+  formerTitle: ['formerChampion'],
+  otherChamp: ['reigningElsewhere'],
+  otherBelt: ['reigningElsewhere'],
+  streaking: ['onATear'],
+  slumping: ['slumping'],
+  debutant: ['debut'],
+  timesMet: ['metOften'],
+  feudWeeks: ['longFeud'],
+  feudMatches: ['longFeud'],
+  weather: ['weatherHurtGate'],
+  tearRun: ['onATear'],
+  slumpRun: ['slumping'],
+  oldHand: ['longCareer'],
+  oldHandYears: ['longCareer'],
 };
 
 /** Placeholders that are always safe — they resolve from the match itself. */
-const ALWAYS_SAFE = new Set(['play', 'colour', 'onTop', 'inTrouble', 'finisher', 'sideA', 'sideB']);
+const ALWAYS_SAFE = new Set([
+  'play',
+  'colour',
+  'onTop',
+  'inTrouble',
+  'finisher',
+  'sideA',
+  'sideB',
+  // The town is always known — the show is being staged somewhere.
+  'town',
+]);
 
 /** Placeholders nobody on commentary could know before the bell. */
 const SPOILERS = new Set(['winner', 'loser', 'winnerFinisher']);
@@ -242,15 +291,19 @@ describe('every word is spoken by somebody with a name', () => {
 
     for (let seed = 0; seed < 25; seed++) {
       const text = said(ctx, `names-${seed}`);
-      // Anything capitalised that is not opening a sentence has to be a name
-      // the match actually contained.
-      for (const match of text.matchAll(/(^|[^.!?—]\s)([A-Z][a-z]+)/g)) {
-        const word = match[2]!;
-        if (ORDINARY.has(word)) continue;
-        expect(
-          allowedWords.has(word),
-          `seed ${seed}: the call said "${word}", who was not part of this match`,
-        ).toBe(true);
+      // Sentence by sentence, dropping the opening word of each — a
+      // capitalised word at the start of a sentence is grammar, not a name.
+      for (const sentence of text.split(/[.!?—]+\s*/)) {
+        const words = sentence.trim().split(/\s+/).slice(1);
+        for (const raw of words) {
+          const word = raw.replace(/[^A-Za-z]/g, '');
+          if (!/^[A-Z][a-z]+$/.test(word)) continue;
+          if (ORDINARY.has(word)) continue;
+          expect(
+            allowedWords.has(word),
+            `seed ${seed}: the call said "${word}", who was not part of this match`,
+          ).toBe(true);
+        }
       }
     }
   });
@@ -340,6 +393,71 @@ describe('what it is allowed to talk about', () => {
     expect(factsOf(bare()).has('sizeGap')).toBe(false);
   });
 
+  it('knows a former champion from somebody who has never held anything', () => {
+    const was = bare({ formerChampionName: 'Bo Halvorsen', formerChampionTitle: 'The Southside Title' });
+    expect(factsOf(was).has('formerChampion')).toBe(true);
+    // Half the fact is not the fact — a name with no belt behind it says
+    // nothing, and the line would read "used to carry a championship".
+    expect(factsOf(bare({ formerChampionName: 'Bo Halvorsen' })).has('formerChampion')).toBe(false);
+    expect(factsOf(bare()).has('formerChampion')).toBe(false);
+    expect(said(was, 'former')).toMatch(/Bo Halvorsen|Southside/);
+  });
+
+  it('separates a belt somebody is carrying from the one being contested', () => {
+    const other = bare({ otherBeltHolderName: 'Aaron Quist', otherBeltName: 'The Tag Titles' });
+    expect(factsOf(other).has('reigningElsewhere')).toBe(true);
+    expect(factsOf(bare()).has('reigningElsewhere')).toBe(false);
+  });
+
+  it('notices a run of form in either direction, and says so about the right man', () => {
+    expect(factsOf(bare({ onATearName: 'Aaron Quist' })).has('onATear')).toBe(true);
+    expect(factsOf(bare({ slumpingName: 'Bo Halvorsen' })).has('slumping')).toBe(true);
+    expect(said(bare({ slumpingName: 'Bo Halvorsen' }), 'slump')).toMatch(/Bo Halvorsen/);
+  });
+
+  it('knows a debut from an ordinary night', () => {
+    expect(factsOf(bare({ debutantName: 'Aaron Quist' })).has('debut')).toBe(true);
+    expect(factsOf(bare()).has('debut')).toBe(false);
+  });
+
+  it('only calls a match a first meeting when it is worth remarking on', () => {
+    // Two people nobody has heard of meeting for the first time is not a
+    // story, so a poor match does not get the line.
+    expect(factsOf(bare({ timesMet: 0, rating: 70 })).has('firstMeeting')).toBe(true);
+    expect(factsOf(bare({ timesMet: 0, rating: 20 })).has('firstMeeting')).toBe(false);
+    expect(factsOf(bare({ timesMet: 5, rating: 70 })).has('firstMeeting')).toBe(false);
+  });
+
+  it('counts a history between two people, at a cadence a booker would run', () => {
+    expect(factsOf(bare({ timesMet: settings.commentaryMetOftenTimes })).has('metOften')).toBe(true);
+    expect(factsOf(bare({ timesMet: 1 })).has('metOften')).toBe(false);
+  });
+
+  it('recaps a feud only once it has actually run', () => {
+    expect(factsOf(bare({ feudWeeks: 20 })).has('longFeud')).toBe(true);
+    expect(factsOf(bare({ feudWeeks: 1 })).has('longFeud')).toBe(false);
+  });
+
+  it('mentions the weather only when the weather actually cost the house', () => {
+    const wet = bare({ weatherLine: 'a foot of snow' });
+    expect(factsOf(wet).has('weatherHurtGate')).toBe(true);
+    expect(said(wet, 'wet')).toMatch(/a foot of snow|Bramble Hollow/);
+    // A dry night never mentions the sky.
+    for (let i = 0; i < 20; i++) {
+      expect(said(bare(), `dry-${i}`), `seed ${i}`).not.toMatch(/snow|rain|stayed home|empty seats/i);
+    }
+  });
+
+  it('always knows what town it is in', () => {
+    // The one placeholder that needs no fact, because a show is always
+    // somewhere. It should turn up often enough to ground the broadcast.
+    let mentioned = 0;
+    for (let i = 0; i < 40; i++) {
+      if (said(bare(), `town-${i}`).includes('Bramble Hollow')) mentioned++;
+    }
+    expect(mentioned).toBeGreaterThan(4);
+  });
+
   it('only calls a reign long when it has actually been long', () => {
     const titles = createStartingTitles('me', 'Southside', 'territory').slice(0, 1);
     expect(factsOf(bare({ titles, championName: 'Aaron Quist', championWeeks: 60 })).has('longReign')).toBe(
@@ -359,6 +477,72 @@ describe('what it is allowed to talk about', () => {
     );
     expect(withManager).toMatch(/Cyrus Fell/);
     expect(said(bare(), 'mgr')).not.toMatch(/Cyrus Fell/);
+  });
+});
+
+describe('every fact has something to say about it', () => {
+  // This exists because a patch once landed the colour lines for a new set of
+  // facts and silently dropped the stakes lines for the same ones. Nothing
+  // failed: the facts were computed, the tests passed, and the announcers
+  // simply never mentioned any of it. A fact nothing can say is dead weight.
+  const ALL_FACTS: string[] = [
+    'manager',
+    'deviousManager',
+    'referee',
+    'refereeMiss',
+    'guestReferee',
+    'title',
+    'titleChange',
+    'titleRetained',
+    'longReign',
+    'grudge',
+    'injuredInMatch',
+    'carryingInjury',
+    'incident',
+    'stipulation',
+    'mainEvent',
+    'interference',
+    'hotCrowd',
+    'flatCrowd',
+    'greatMatch',
+    'poorMatch',
+    'veteran',
+    'rookie',
+    'sizeGap',
+    'upset',
+    'tagMatch',
+    'rookieInTrouble',
+    'vetInTrouble',
+    'smallInTrouble',
+    'formerChampion',
+    'reigningElsewhere',
+    'onATear',
+    'slumping',
+    'debut',
+    'firstMeeting',
+    'metOften',
+    'longFeud',
+    'blowoff',
+    'weatherHurtGate',
+    'bigShow',
+    'longCareer',
+  ];
+
+  const everyTemplate = [...OPENERS, ...STAKES, ...COLOUR, ...CLOSERS, ...BANTER, ...COMEBACKS];
+
+  it('has at least one line for every fact the engine can set', () => {
+    for (const fact of ALL_FACTS) {
+      const users = everyTemplate.filter((t) => t.needs.includes(fact as never));
+      expect(users.length, `nothing in the script ever mentions "${fact}"`).toBeGreaterThan(0);
+    }
+  });
+
+  it('declares no fact the engine cannot set', () => {
+    for (const template of everyTemplate) {
+      for (const fact of template.needs) {
+        expect(ALL_FACTS, `"${template.text}" needs an unknown fact "${fact}"`).toContain(fact);
+      }
+    }
   });
 });
 

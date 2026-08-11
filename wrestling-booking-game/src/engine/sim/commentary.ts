@@ -91,7 +91,28 @@ export type CommentaryFact =
   // call worse than no call. Recomputed at every beat.
   | 'rookieInTrouble'
   | 'vetInTrouble'
-  | 'smallInTrouble';
+  | 'smallInTrouble'
+  // --- who these people are, beyond tonight ------------------------------
+  /** Held a championship at some point and is not holding one now. */
+  | 'formerChampion'
+  /** Walked in carrying a belt that is not the one on the line. */
+  | 'reigningElsewhere'
+  | 'onATear'
+  | 'slumping'
+  /** First match this company has ever given them. */
+  | 'debut'
+  // --- what has happened between them ------------------------------------
+  | 'firstMeeting'
+  | 'metOften'
+  | 'longFeud'
+  /** The stipulation or the feud says this one settles it. */
+  | 'blowoff'
+  // --- what kind of night this is ----------------------------------------
+  /** The weather took a bite out of the house and everybody can see it. */
+  | 'weatherHurtGate'
+  | 'bigShow'
+  /** Somebody who has been doing this long enough for the number to matter. */
+  | 'longCareer';
 
 export type Speaker = 'play' | 'colour';
 
@@ -152,12 +173,43 @@ export interface CommentaryContext {
   /** The winner was a heavy underdog on paper. */
   upset: boolean;
   /**
-   * Colour lines already used elsewhere on tonight's card, so the same
-   * observation is not made about four different matches in one evening.
-   * The caller adds to it. Measured: without this, "the official is losing
-   * this one" turned up in four of six matches on the same show.
+   * Who these two are beyond tonight. Every one of these is a name the
+   * engine has looked up, or null — the announcers never guess at a career.
    */
-  saidTonight?: Set<string>;
+  formerChampionName: string | null;
+  formerChampionTitle: string | null;
+  /** Somebody carrying a different belt into a match it is not on the line in. */
+  otherBeltHolderName: string | null;
+  otherBeltName: string | null;
+  onATearName: string | null;
+  /** How long that run is. Announcers deal in exact numbers; bars are for the office. */
+  onATearRun: number;
+  slumpingName: string | null;
+  slumpingRun: number;
+  debutantName: string | null;
+  /** The most experienced person in the match, and how many years that is. */
+  oldHandName: string | null;
+  oldHandYears: number;
+  /** How many times these two have been in with each other lately. */
+  timesMet: number;
+  /** The feud they are in, if they are in one. */
+  feudWeeks: number;
+  feudMatches: number;
+  isBlowoff: boolean;
+  /** The town. Always known, so always safe to say. */
+  townName: string;
+  /** What the weather did to the house, in the forecast's own words. */
+  weatherLine: string | null;
+  isPPV: boolean;
+  /**
+   * How many times each colour line has been used elsewhere on tonight's
+   * card. The caller adds to it. Counted rather than merely remembered
+   * because once a thin card exhausts what is actually true, the fallback
+   * has to repeat *something* — and it should repeat the thing it has leaned
+   * on least, not whatever the dice hand it. Measured: without the count, a
+   * six-match card produced five duplicate colour lines.
+   */
+  saidTonight?: Map<string, number>;
   settings: WorldSettings;
 }
 
@@ -193,6 +245,21 @@ export function factsOf(ctx: CommentaryContext): Set<CommentaryFact> {
   if (everyone.some((w) => w.age <= s.commentaryRookieAge)) facts.add('rookie');
   if (ctx.sideA.length > 1 || ctx.sideB.length > 1) facts.add('tagMatch');
   if (ctx.upset) facts.add('upset');
+
+  if (ctx.formerChampionName && ctx.formerChampionTitle) facts.add('formerChampion');
+  if (ctx.otherBeltHolderName && ctx.otherBeltName) facts.add('reigningElsewhere');
+  if (ctx.onATearName) facts.add('onATear');
+  if (ctx.slumpingName) facts.add('slumping');
+  if (ctx.debutantName) facts.add('debut');
+  if (ctx.oldHandName && ctx.oldHandYears >= s.commentaryLongCareerYears) facts.add('longCareer');
+  // "They have never met" is only worth saying about two people the crowd
+  // has heard of, which the match having any stature at all stands in for.
+  if (ctx.timesMet === 0 && ctx.rating >= s.commentaryFirstMeetingRating) facts.add('firstMeeting');
+  if (ctx.timesMet >= s.commentaryMetOftenTimes) facts.add('metOften');
+  if (ctx.feudWeeks >= s.commentaryLongFeudWeeks) facts.add('longFeud');
+  if (ctx.isBlowoff) facts.add('blowoff');
+  if (ctx.weatherLine) facts.add('weatherHurtGate');
+  if (ctx.isPPV) facts.add('bigShow');
 
   // Weight, not billing: two men of the same size do not make a size story.
   const weights = everyone.map((w) => w.weightLbs).filter((n): n is number => typeof n === 'number');
@@ -261,6 +328,22 @@ function filler(ctx: CommentaryContext, rng: Rng) {
       momentum.inTrouble.find((w) => w.age <= ctx.settings.commentaryRookieAge) ??
       everyone.find((w) => w.age <= ctx.settings.commentaryRookieAge);
     return text
+      .replace(/\{town\}/g, ctx.townName)
+      .replace(/\{formerChamp\}/g, ctx.formerChampionName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{formerTitle\}/g, ctx.formerChampionTitle ?? 'a championship')
+      .replace(/\{otherChamp\}/g, ctx.otherBeltHolderName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{otherBelt\}/g, ctx.otherBeltName ?? 'a championship')
+      .replace(/\{streaking\}/g, ctx.onATearName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{tearRun\}/g, String(Math.max(2, ctx.onATearRun)))
+      .replace(/\{slumping\}/g, ctx.slumpingName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{slumpRun\}/g, String(Math.max(2, ctx.slumpingRun)))
+      .replace(/\{oldHand\}/g, ctx.oldHandName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{oldHandYears\}/g, String(Math.max(1, ctx.oldHandYears)))
+      .replace(/\{debutant\}/g, ctx.debutantName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{timesMet\}/g, String(ctx.timesMet))
+      .replace(/\{feudWeeks\}/g, String(Math.max(1, ctx.feudWeeks)))
+      .replace(/\{feudMatches\}/g, String(Math.max(1, ctx.feudMatches)))
+      .replace(/\{weather\}/g, ctx.weatherLine ?? 'the weather')
       .replace(/\{play\}/g, ctx.team.playByPlayName)
       .replace(/\{colour\}/g, ctx.team.colourName)
       .replace(/\{onTop\}/g, momentum.onTop[0]?.name ?? 'the man in control')
@@ -329,14 +412,21 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
   const lines: CommentaryLine[] = [];
   // Seeded with whatever the colour man has already said elsewhere tonight.
   // An observation is only worth making once an evening.
-  const usedColour = new Set<string>(ctx.saidTonight ?? []);
+  const usedColour = new Set<string>(ctx.saidTonight?.keys() ?? []);
   /** Only what this match has used — the floor the night-wide set falls back to. */
   const usedThisMatch = new Set<string>();
   const usedPlay = new Set<string>();
   const remember = (text: string) => {
     usedColour.add(text);
     usedThisMatch.add(text);
-    ctx.saidTonight?.add(text);
+    ctx.saidTonight?.set(text, (ctx.saidTonight.get(text) ?? 0) + 1);
+  };
+  /** Of what is left, whatever he has leaned on least tonight. */
+  const leastWorn = (options: ColourTemplate[]): ColourTemplate[] => {
+    if (options.length === 0) return options;
+    const wear = (t: ColourTemplate) => ctx.saidTonight?.get(t.text) ?? 0;
+    const fewest = Math.min(...options.map(wear));
+    return options.filter((t) => wear(t) === fewest);
   };
 
   const winners = ctx.winningSide === 'b' ? ctx.sideB : ctx.sideA;
@@ -364,7 +454,9 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
 
   const freshStakes = eligible(STAKES, facts, ctx.team.leaning, usedColour, null);
   const stakes =
-    freshStakes.length > 0 ? freshStakes : eligible(STAKES, facts, ctx.team.leaning, usedThisMatch, null);
+    freshStakes.length > 0
+      ? freshStakes
+      : leastWorn(eligible(STAKES, facts, ctx.team.leaning, usedThisMatch, null));
   if (stakes.length > 0) {
     const chosen = pick(rng, stakes);
     remember(chosen.text);
@@ -406,7 +498,9 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     // — which is precisely where the main event is.
     const fresh = eligible(COLOUR, nowFacts, ctx.team.leaning, usedColour, beat.kind);
     const available =
-      fresh.length > 0 ? fresh : eligible(COLOUR, nowFacts, ctx.team.leaning, usedThisMatch, beat.kind);
+      fresh.length > 0
+        ? fresh
+        : leastWorn(eligible(COLOUR, nowFacts, ctx.team.leaning, usedThisMatch, beat.kind));
     if (available.length === 0) continue;
     const chosen = pick(rng, available);
     remember(chosen.text);
@@ -435,7 +529,9 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
   // ---- and out -----------------------------------------------------------
   const freshClosers = eligible(CLOSERS, facts, ctx.team.leaning, usedColour, null);
   const closers =
-    freshClosers.length > 0 ? freshClosers : eligible(CLOSERS, facts, ctx.team.leaning, usedThisMatch, null);
+    freshClosers.length > 0
+      ? freshClosers
+      : leastWorn(eligible(CLOSERS, facts, ctx.team.leaning, usedThisMatch, null));
   if (closers.length > 0) {
     const chosen = pick(rng, closers);
     remember(chosen.text);
@@ -492,6 +588,16 @@ export function permittedNames(ctx: CommentaryContext): Set<string> {
   if (ctx.championName) names.add(ctx.championName);
   if (ctx.hurtComingIn) names.add(ctx.hurtComingIn);
   for (const t of ctx.titles) names.add(t.name);
+  if (ctx.formerChampionName) names.add(ctx.formerChampionName);
+  if (ctx.formerChampionTitle) names.add(ctx.formerChampionTitle);
+  if (ctx.otherBeltHolderName) names.add(ctx.otherBeltHolderName);
+  if (ctx.otherBeltName) names.add(ctx.otherBeltName);
+  if (ctx.onATearName) names.add(ctx.onATearName);
+  if (ctx.slumpingName) names.add(ctx.slumpingName);
+  if (ctx.debutantName) names.add(ctx.debutantName);
+  if (ctx.oldHandName) names.add(ctx.oldHandName);
+  names.add(ctx.townName);
+  if (ctx.weatherLine) for (const word of ctx.weatherLine.split(/\s+/)) names.add(word);
   for (const i of ctx.injuries) names.add(i.name);
   names.add(ctx.team.playByPlayName);
   names.add(ctx.team.colourName);

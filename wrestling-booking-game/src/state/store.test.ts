@@ -1042,10 +1042,15 @@ describe('the call', () => {
     const said = after.showHistory[0]!.segments.flatMap((s) =>
       (s.result?.commentary ?? []).filter((l) => l.name === colourName).map((l) => l.text),
     );
-    // A few repeats are allowed once the night has exhausted what is true —
-    // a wall of them is what this guards against.
-    const repeats = said.length - new Set(said).size;
-    expect(repeats).toBeLessThanOrEqual(3);
+    // Some repetition is the designed fallback: on a bare card — no managers,
+    // no belts, no stipulations — there are only so many true things to say,
+    // and saying one of them twice beats going silent. What must not happen
+    // is one observation becoming the card's refrain, so the bar is per line
+    // rather than a total.
+    const timesSaid = new Map<string, number>();
+    for (const line of said) timesSaid.set(line, (timesSaid.get(line) ?? 0) + 1);
+    const worst = [...timesSaid.entries()].sort((a, b) => b[1] - a[1])[0];
+    expect(worst?.[1] ?? 0, `"${worst?.[0]}" was said ${worst?.[1]} times on one card`).toBeLessThanOrEqual(2);
   });
 
   it('is narration, not simulation — it never moves a result', () => {

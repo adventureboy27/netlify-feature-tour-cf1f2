@@ -1779,6 +1779,19 @@ export interface WorldSettings {
   commentaryUpsetProbability: number;
   /** Deviousness at which a manager is worth accusing of something. */
   commentaryDeviousManager: number;
+  /** Win/loss streak length before a run of form is worth remarking on. */
+  commentaryStreakRun: number;
+  commentarySlumpRun: number;
+  /** Meetings before two people count as having a history. */
+  commentaryMetOftenTimes: number;
+  /** Match rating below which "they have never met" is not worth saying. */
+  commentaryFirstMeetingRating: number;
+  /** Weeks a feud has to have run before the announcers recap it. */
+  commentaryLongFeudWeeks: number;
+  /** Draw multiplier below which the weather visibly cost the house. */
+  commentaryWeatherDrawHit: number;
+  /** Years in the business before the number itself is worth saying out loud. */
+  commentaryLongCareerYears: number;
 
   // Relationships (engine/career/relationships.ts)
   /** How many relationships to seed, per wrestler on the roster. */

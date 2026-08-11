@@ -32,6 +32,17 @@
 //   {stip}                       needs 'stipulation'
 //   {vet} {rookie}               needs 'veteran' / 'rookie'
 //   {big} {small}                needs 'sizeGap'
+//   {town}                       always known — the building we are in
+//   {formerChamp} {formerTitle}  needs 'formerChampion'
+//   {otherChamp} {otherBelt}     needs 'reigningElsewhere'
+//   {streaking}                  needs 'onATear'
+//   {slumping}                   needs 'slumping'
+//   {debutant}                   needs 'debut'
+//   {timesMet}                   needs 'metOften'
+//   {feudWeeks} {feudMatches}    needs 'longFeud'
+//   {weather}                    needs 'weatherHurtGate'
+//   {tearRun} {slumpRun}         needs 'onATear' / 'slumping'
+//   {oldHand} {oldHandYears}     needs 'longCareer'
 
 import type { CommentaryFact, Speaker } from '../engine/sim/commentary';
 import type { MatchBeatKind } from '../engine/types';
@@ -139,6 +150,22 @@ export const OPENERS: readonly ColourTemplate[] = [
     needs: ['grudge'],
   },
   { text: '{sideA} and {sideB}. Referee {ref} calls for the bell.', needs: ['referee'] },
+  {
+    text: 'Live from {town} — and it is {sideA} against {sideB}.',
+    needs: [],
+  },
+  {
+    text: 'This is the one they paid for. {sideA} and {sideB}, here in {town}.',
+    needs: ['bigShow'],
+  },
+  {
+    text: 'This settles it. {sideA} and {sideB}, and after tonight there is nothing left to argue about.',
+    needs: ['blowoff'],
+  },
+  {
+    text: 'Debut night. {debutant} has never worked a match for this company, and he starts against {sideB}.',
+    needs: ['debut'],
+  },
   { text: 'Next up: {sideA} taking on {sideB}.', needs: [] },
   { text: 'The bell rings. {sideA} and {sideB} in the middle of the ring.', needs: [] },
 ];
@@ -193,11 +220,111 @@ export const STAKES: readonly ColourTemplate[] = [
     needs: ['stipulation'],
   },
   {
+    text: 'For anybody just joining us: this is {stip}. There are almost no rules left.',
+    needs: ['stipulation'],
+  },
+  {
+    text: '{stip}. I have called a lot of these and somebody always gets hurt.',
+    needs: ['stipulation'],
+  },
+  {
+    text: 'They asked for {stip} and they got it. Whatever happens now, they asked for it.',
+    needs: ['stipulation', 'grudge'],
+  },
+  {
+    text: 'A {oldHandYears}-year man in a {stip} match. At some point the body says no.',
+    needs: ['stipulation', 'longCareer'],
+  },
+  {
     text: 'Look at the size of {big} next to {small}. That is not a fair fight on paper.',
     needs: ['sizeGap'],
   },
   { text: '{rookie} is a baby in this business and he is in there with a wolf.', needs: ['rookie'] },
   { text: 'Listen to this place. They are up for this one already.', needs: ['hotCrowd'] },
+
+  // --- who they are, before a hand has been laid on anybody ---------------
+  {
+    text: '{formerChamp} used to carry the {formerTitle}, {play}. People forget that.',
+    needs: ['formerChampion'],
+  },
+  {
+    text: 'A former {formerTitle} holder in there tonight. {formerChamp} has been at the top of this company before and he wants it back.',
+    needs: ['formerChampion'],
+  },
+  {
+    text: '{otherChamp} is the {otherBelt} holder and it is not even on the line here. He is wrestling for nothing but pride.',
+    needs: ['reigningElsewhere'],
+  },
+  {
+    text: '{streaking} has not lost in weeks. Whatever he is doing, it is working.',
+    needs: ['onATear'],
+  },
+  {
+    text: 'That is {tearRun} straight for {streaking}, {play}. Nobody has come close to him.',
+    needs: ['onATear'],
+  },
+  {
+    text: '{oldHandYears} years {oldHand} has been doing this. {oldHandYears} years, and he is still here.',
+    needs: ['longCareer'],
+  },
+  {
+    text: 'You are looking at {oldHandYears} years of this business standing in that corner.',
+    needs: ['longCareer'],
+  },
+  {
+    text: 'A {oldHandYears}-year veteran against somebody who has never worked a match here. That is the whole of wrestling in one picture.',
+    needs: ['longCareer', 'debut'],
+  },
+  {
+    text: '{slumping} cannot buy a win at the moment, {play}. He needs this one badly.',
+    needs: ['slumping'],
+  },
+  {
+    text: '{slumpRun} in a row {slumping} has dropped now. You start to wonder what is going on with him.',
+    needs: ['slumping'],
+  },
+  {
+    text: 'On a {slumpRun}-match losing run and now this. It does not get easier.',
+    needs: ['slumping'],
+  },
+  {
+    text: 'These two have never been in a ring together. Not once, in all this time.',
+    needs: ['firstMeeting'],
+  },
+  {
+    text: 'They have met {timesMet} times now and neither one has settled it.',
+    needs: ['metOften'],
+  },
+  {
+    text: 'This has been going on {feudWeeks} weeks, {play}. It has to end sometime.',
+    needs: ['longFeud'],
+  },
+  {
+    text: 'Whatever happens tonight, that is the end of it. This is the blow-off.',
+    needs: ['blowoff'],
+  },
+
+  // --- the night itself ---------------------------------------------------
+  {
+    text: 'Half of {town} stayed home tonight and you cannot blame them — {weather} out there.',
+    needs: ['weatherHurtGate'],
+  },
+  {
+    text: 'A lot of empty seats in {town}, {play}, and that is the {weather} rather than the card.',
+    needs: ['weatherHurtGate'],
+  },
+  {
+    text: 'Thin house in {town} tonight. These two deserve better than this.',
+    needs: ['flatCrowd'],
+  },
+  {
+    text: 'They are hanging off the rafters in {town} tonight.',
+    needs: ['hotCrowd', 'bigShow'],
+  },
+  {
+    text: 'A debut is the hardest night of anybody\u2019s career. Everything {debutant} does from here, they will remember this first.',
+    needs: ['debut'],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -254,7 +381,13 @@ export const COLOUR: readonly ColourTemplate[] = [
     provocative: true,
   },
   {
-    text: '{ref} {refMiss}. He did not see a thing.',
+    // A pass-through, like {incident}: the miss already has its own written
+    // sentence, and it already names the official. Embedding it in a frame
+    // produced "Dennis Poole Wherever the action was, Dennis Poole was
+    // somewhere else... He did not see a thing." — the name twice and two
+    // full stops. The colour man relays it and the reaction lines below do
+    // the reacting.
+    text: '{refMiss}',
     needs: ['refereeMiss'],
     provocative: true,
   },
@@ -262,6 +395,47 @@ export const COLOUR: readonly ColourTemplate[] = [
     text: 'You cannot officiate what you cannot see, and {ref} was on the wrong side of the ring.',
     needs: ['refereeMiss'],
     leaning: 'analyst',
+  },
+  {
+    text: 'That is twice now. Somebody in the back needs a word with {ref}.',
+    needs: ['refereeMiss'],
+    provocative: true,
+  },
+  {
+    text: 'If you are wrestling tonight and {ref} has your match, you are on your own out there.',
+    needs: ['refereeMiss'],
+  },
+  {
+    text: 'I am not blaming {ref}. It happens fast and there is one of him.',
+    needs: ['refereeMiss'],
+    leaning: 'analyst',
+    provocative: true,
+  },
+  {
+    text: 'And nobody will remember that except the man it happened to.',
+    needs: ['refereeMiss'],
+    after: ['nearFall', 'signature'],
+  },
+  {
+    text: '{oldHandYears} years in this business and {oldHand} still knows exactly when to do that.',
+    needs: ['longCareer'],
+    after: ['hopeSpot', 'signature'],
+    leaning: 'analyst',
+  },
+  {
+    text: 'You do not last {oldHandYears} years by being brave, {play}. You last by being clever.',
+    needs: ['longCareer'],
+    after: ['control', 'nearFall'],
+  },
+  {
+    text: '{tearRun} wins on the bounce and he is wrestling like it.',
+    needs: ['onATear'],
+    after: ['control', 'signature'],
+  },
+  {
+    text: 'That is what {slumpRun} straight losses does to a man. He has stopped trusting himself.',
+    needs: ['slumping'],
+    after: ['nearFall', 'control'],
   },
   {
     text: 'And that is why you do not put a wrestler in the shirt. {guestRef} has a horse in this race.',
@@ -435,6 +609,99 @@ export const COLOUR: readonly ColourTemplate[] = [
     after: ['signature', 'nearFall'],
   },
 
+  // --- careers, mid-match -------------------------------------------------
+  {
+    text: 'He has been here before, {play}. {formerChamp} held the {formerTitle} and he knows what this feels like.',
+    needs: ['formerChampion'],
+    after: ['nearFall', 'signature'],
+  },
+  {
+    text: 'That is championship experience. You do not learn that anywhere but at the top.',
+    needs: ['formerChampion'],
+    after: ['hopeSpot'],
+    leaning: 'analyst',
+  },
+  {
+    text: '{otherChamp} is a champion in this company and he is being made to look ordinary.',
+    needs: ['reigningElsewhere'],
+    after: ['control'],
+    provocative: true,
+  },
+  {
+    text: 'This is what a run of form does for a man. {streaking} believes he is going to win this.',
+    needs: ['onATear'],
+    after: ['hopeSpot', 'signature'],
+  },
+  {
+    text: 'You can see it in {slumping}. He has stopped expecting things to go his way.',
+    needs: ['slumping'],
+    after: ['control', 'nearFall'],
+  },
+  {
+    text: 'That is nerves, {play}. {debutant} has never had a crowd like this in front of him.',
+    needs: ['debut'],
+    after: ['control'],
+  },
+  {
+    text: 'Not bad for a first night. {debutant} belongs in there.',
+    needs: ['debut'],
+    after: ['hopeSpot', 'nearFall'],
+    leaning: 'face',
+  },
+
+  // --- what has already happened between them -----------------------------
+  {
+    text: 'Neither of them has an answer for the other, because neither of them has seen the other do this before.',
+    needs: ['firstMeeting'],
+    after: ['nearFall', 'signature'],
+    leaning: 'analyst',
+  },
+  {
+    text: '{timesMet} matches and he still fell for that. You would think he would learn.',
+    needs: ['metOften'],
+    after: ['signature', 'nearFall'],
+    provocative: true,
+  },
+  {
+    text: 'They know each other far too well. Every counter is a counter to a counter.',
+    needs: ['metOften'],
+    after: ['control', 'hopeSpot'],
+    leaning: 'analyst',
+  },
+  {
+    text: '{feudWeeks} weeks of this and it comes down to who wants it more.',
+    needs: ['longFeud'],
+    after: ['nearFall'],
+  },
+  {
+    text: 'Nobody walks away from a blow-off happy. One of them leaves here with nothing.',
+    needs: ['blowoff'],
+    after: ['nearFall', 'signature'],
+  },
+
+  // --- the room and the night ---------------------------------------------
+  {
+    text: 'The ones who did make it through the {weather} are getting their money back on this.',
+    needs: ['weatherHurtGate', 'greatMatch'],
+    after: ['nearFall', 'signature'],
+  },
+  {
+    text: 'Three thousand people should be watching this, {play}, and there are not three thousand people in {town} tonight.',
+    needs: ['weatherHurtGate'],
+    after: ['signature', 'nearFall'],
+  },
+  {
+    text: '{town} is on its feet, and it takes a lot to get {town} on its feet.',
+    needs: ['hotCrowd'],
+    after: ['signature'],
+  },
+  {
+    text: 'This is a pay-per-view. You do not get to have an off night on a pay-per-view.',
+    needs: ['bigShow', 'poorMatch'],
+    after: ['control'],
+    provocative: true,
+  },
+
   // --- tag ----------------------------------------------------------------
   {
     text: '{inTrouble} needs to make the tag. {inTroublePartner} has his hand out and he cannot reach him.',
@@ -513,6 +780,34 @@ export const CLOSERS: readonly ColourTemplate[] = [
     needs: ['refereeMiss'],
     leaning: 'face',
   },
+  {
+    text: 'A former {formerTitle} holder, and he is right back in the conversation after that.',
+    needs: ['formerChampion'],
+  },
+  {
+    text: 'And that is {feudWeeks} weeks settled in about fifteen minutes.',
+    needs: ['longFeud'],
+  },
+  {
+    text: 'It is finished. Whatever they had, it ends here, and one of them has to live with it.',
+    needs: ['blowoff'],
+  },
+  {
+    text: 'The people who stayed home tonight because of the {weather} are going to hear about this one.',
+    needs: ['weatherHurtGate'],
+  },
+  {
+    text: 'What a way to start a career. {debutant} will not forget {town}.',
+    needs: ['debut'],
+  },
+  {
+    text: 'That is the run over. {streaking} could not make it stand up.',
+    needs: ['onATear'],
+  },
+  {
+    text: '{slumping} needed that more than anybody in this building knows.',
+    needs: ['slumping'],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -544,6 +839,16 @@ export const BANTER: readonly ColourTemplate[] = [
   {
     text: 'We are out of time. What a way to go off the air.',
     needs: ['mainEvent', 'hotCrowd'],
+    speaker: 'play',
+  },
+  {
+    text: 'For everybody who braved the {weather} to be here in {town} — thank you. Goodnight.',
+    needs: ['weatherHurtGate', 'mainEvent'],
+    speaker: 'play',
+  },
+  {
+    text: 'Every one of those {feudMatches} matches was leading here, {colour}. Every single one.',
+    needs: ['longFeud', 'mainEvent'],
     speaker: 'play',
   },
 ];
