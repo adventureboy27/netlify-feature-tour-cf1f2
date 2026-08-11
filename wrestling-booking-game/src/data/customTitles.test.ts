@@ -7,7 +7,11 @@ import {
   startingPrestige,
   TITLE_PRESETS,
   TITLE_PRESET_FAMILIES,
+  TITLE_COLORWAYS,
+  defaultHolders,
 } from './titles';
+import { eligibleTitles } from '../engine/sim/titleMatch';
+import { generateWrestlers } from '../engine/generate/wrestler';
 import { stipulationById } from './stipulations';
 import { PROMOTION_ARCHETYPES } from './promotionIdentity';
 import { defaultWorldSettings } from '../engine/world/settings';
@@ -187,5 +191,100 @@ describe('the preset library', () => {
       expect(belt!.name, preset.suffix).toContain(preset.suffix);
       expect(belt!.vacant).toBe(true);
     }
+  });
+});
+
+describe('a belt that can only be won one way', () => {
+  const roster = () => generateWrestlers(rngFromSeed('stip-gate'), 8);
+
+  function eligible(title: TitleBlueprint, sides: number[][], stipulationId: string | null) {
+    const people = roster();
+    const [belt] = createStartingTitles('p', 'Atlas Pro', 'athletic', [title]);
+    return eligibleTitles([belt!], {
+      promotionId: 'p',
+      stipulationId,
+      participants: sides.flatMap((side, index) =>
+        side.map((i) => ({ wrestler: people[i]!, side: index })),
+      ),
+    });
+  }
+
+  const trophy = (over: Partial<TitleBlueprint> = {}): TitleBlueprint =>
+    belt({
+      suffix: 'Battle Royal Trophy',
+      tier: 'tertiary',
+      signatureStipulationId: 'battleRoyal',
+      stipulationRequired: true,
+      ...over,
+    });
+
+  it('refuses to go on the line under anything else', () => {
+    expect(eligible(trophy(), [[0], [1]], null)).toEqual([]);
+    expect(eligible(trophy(), [[0], [1]], 'steelCage')).toEqual([]);
+  });
+
+  it('goes on the line under the one it demands', () => {
+    expect(eligible(trophy(), [[0], [1]], 'battleRoyal')).toHaveLength(1);
+  });
+
+  it('leaves an ordinary signature belt bookable anywhere', () => {
+    // A tradition is not a rule unless the booker says it is.
+    const soft = trophy({ stipulationRequired: false });
+    expect(eligible(soft, [[0], [1]], null)).toHaveLength(1);
+  });
+});
+
+describe('how many people hold it', () => {
+  it('defaults to what the tier implies', () => {
+    expect(defaultHolders('tag')).toBe(2);
+    expect(defaultHolders('trios')).toBe(3);
+    expect(defaultHolders('world')).toBe(1);
+    const [tag] = createStartingTitles('p', 'Atlas Pro', 'athletic', [belt({ tier: 'tag' })]);
+    expect(tag!.holdersRequired).toBe(2);
+  });
+
+  it("takes the booker's number over the tier's", () => {
+    // "Held by two" should be sayable about any belt, not only a tag title.
+    const [four] = createStartingTitles('p', 'Atlas Pro', 'athletic', [
+      belt({ suffix: 'Stable Championship', tier: 'secondary', holdersRequired: 4 }),
+    ]);
+    expect(four!.holdersRequired).toBe(4);
+  });
+
+  it('is what the eligibility check actually counts', () => {
+    const people = generateWrestlers(rngFromSeed('holders'), 8);
+    const [pair] = createStartingTitles('p', 'Atlas Pro', 'athletic', [
+      belt({ suffix: 'Duos Championship', tier: 'secondary', holdersRequired: 2 }),
+    ]);
+    const check = (sides: number[][]) =>
+      eligibleTitles([pair!], {
+        promotionId: 'p',
+        participants: sides.flatMap((side, index) => side.map((i) => ({ wrestler: people[i]!, side: index }))),
+      });
+    expect(check([[0], [1]]), 'singles should not fit a two-person belt').toEqual([]);
+    expect(check([[0, 1], [2, 3]])).toHaveLength(1);
+  });
+});
+
+describe('what a belt looks like', () => {
+  it('offers a range of schemes, each with a strap and a plate', () => {
+    expect(TITLE_COLORWAYS.length).toBeGreaterThan(8);
+    for (const scheme of TITLE_COLORWAYS) {
+      expect(scheme.strap, scheme.name).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(scheme.plate, scheme.name).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(scheme.strap).not.toBe(scheme.plate);
+    }
+    expect(new Set(TITLE_COLORWAYS.map((c) => c.name)).size).toBe(TITLE_COLORWAYS.length);
+  });
+
+  it("uses the booker's choice, and the tier's when they have none", () => {
+    const chosen = TITLE_COLORWAYS[4]!;
+    const [painted] = createStartingTitles('p', 'Atlas Pro', 'athletic', [
+      belt({ colorway: { strap: chosen.strap, plate: chosen.plate } }),
+    ]);
+    expect(painted!.colorway).toEqual({ strap: chosen.strap, plate: chosen.plate });
+
+    const [defaulted] = createStartingTitles('p', 'Atlas Pro', 'athletic', [belt({ tier: 'world' })]);
+    expect(defaulted!.colorway.plate).toBeDefined();
   });
 });

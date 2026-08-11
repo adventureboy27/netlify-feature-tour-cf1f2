@@ -17,7 +17,13 @@
 // free. It comes from the tier instead.
 
 import { useState } from 'react';
-import { startingPrestige, TITLE_PRESETS, TITLE_PRESET_FAMILIES } from '../../data/titles';
+import {
+  defaultHolders,
+  startingPrestige,
+  TITLE_COLORWAYS,
+  TITLE_PRESETS,
+  TITLE_PRESET_FAMILIES,
+} from '../../data/titles';
 import { STIPULATIONS } from '../../data/stipulations';
 import type { TitleBlueprint, TitleDivision, TitleTier, WeightClass } from '../../engine/types';
 
@@ -180,6 +186,77 @@ export function TitleBuilder({
               ))}
             </select>
           </label>
+
+          {/* Only defendable under it, rather than merely suited to it. A
+              Battle Royal Trophy that can be won in a singles match is not a
+              Battle Royal Trophy. */}
+          {belt.signatureStipulationId && (
+            <label className="mt-1.5 flex items-center gap-2 text-[11px] text-neutral-400">
+              <input
+                type="checkbox"
+                data-testid={`belt-stip-required-${index}`}
+                checked={Boolean(belt.stipulationRequired)}
+                onChange={(e) => update(index, { stipulationRequired: e.target.checked })}
+                className="h-4 w-4"
+              />
+              And only under it — it cannot be defended any other way
+            </label>
+          )}
+
+          <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+            <label className="text-[10px] uppercase tracking-wider text-neutral-500">
+              Held by
+              <select
+                aria-label={`How many people hold the ${belt.suffix}`}
+                data-testid={`belt-holders-${index}`}
+                value={belt.holdersRequired ?? defaultHolders(belt.tier)}
+                onChange={(e) => update(index, { holdersRequired: Number(e.target.value) })}
+                className="mt-0.5 w-full rounded border border-neutral-800 bg-neutral-900 px-1.5 py-1.5 text-xs normal-case tracking-normal text-neutral-200"
+              >
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    {n === 1 ? 'One person' : `${n} people`}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-[10px] uppercase tracking-wider text-neutral-500">
+              Strap and plate
+              <select
+                aria-label={`${belt.suffix} colours`}
+                data-testid={`belt-colorway-${index}`}
+                value={belt.colorway ? `${belt.colorway.strap}|${belt.colorway.plate}` : ''}
+                onChange={(e) => {
+                  const [strap, plate] = e.target.value.split('|');
+                  update(index, { colorway: strap && plate ? { strap, plate } : undefined });
+                }}
+                className="mt-0.5 w-full rounded border border-neutral-800 bg-neutral-900 px-1.5 py-1.5 text-xs normal-case tracking-normal text-neutral-200"
+              >
+                <option value="">Whatever suits the tier</option>
+                {TITLE_COLORWAYS.map((c) => (
+                  <option key={c.name} value={`${c.strap}|${c.plate}`}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {belt.colorway && (
+            <div className="mt-1 flex items-center gap-1.5">
+              <span
+                className="inline-block h-4 w-8 rounded-sm border border-neutral-700"
+                style={{ backgroundColor: belt.colorway.strap }}
+                aria-hidden
+              />
+              <span
+                className="inline-block h-4 w-4 rounded-sm"
+                style={{ backgroundColor: belt.colorway.plate }}
+                aria-hidden
+              />
+            </div>
+          )}
 
           <div className="mt-1.5 text-[10px] text-neutral-600">
             {TIERS.find((t) => t.id === belt.tier)?.hint} Opens at{' '}

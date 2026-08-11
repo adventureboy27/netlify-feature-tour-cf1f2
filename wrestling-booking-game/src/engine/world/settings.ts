@@ -566,6 +566,8 @@ export function defaultWorldSettings(): WorldSettings {
     titleDefenceWarningWeeks: 1,
     championInjuryGraceWeeks: 3,
     workingHurtInjuryMultiplier: 2.6,
+    titleSignatureHonoured: 4,
+    titleSignatureIgnored: 7,
     // Roughly one wrestler on a thirty-odd roster every two or three weeks —
     // often enough to be part of the game, rare enough that most weeks are
     // quiet. Measured in misfortune.test.ts.

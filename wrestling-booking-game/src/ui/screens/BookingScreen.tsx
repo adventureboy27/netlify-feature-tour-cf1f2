@@ -271,6 +271,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
 
           // Which belts this match could be for, and what it is billed as.
           const bookable = eligibleTitles(world.titles, {
+            stipulationId: segment.stipulation,
             participants: participants.map((p) => ({ wrestler: p.wrestler, side: p.role.side })),
             promotionId: world.promotion.id,
           });

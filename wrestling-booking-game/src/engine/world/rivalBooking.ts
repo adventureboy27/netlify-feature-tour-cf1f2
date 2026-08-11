@@ -274,6 +274,7 @@ export function bookRivalCard(rng: Rng, ctx: RivalBookingContext): RivalCard {
     if (!chance(rng, ctx.settings.rivalTitleDefenceChance)) continue;
 
     const options = eligibleTitles(ctx.titles, {
+      stipulationId: null,
       participants: match.sides.flatMap((members, side) => members.map((wrestler) => ({ wrestler, side }))),
       promotionId: ctx.promotion.id,
     });

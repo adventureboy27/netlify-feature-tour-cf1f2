@@ -37,6 +37,13 @@ const PRESTIGE_BY_TIER: Record<TitleTier, number> = {
   trios: 35,
 };
 
+/** What a tier implies about how many people hold the thing. */
+export function defaultHolders(tier: TitleTier): number {
+  if (tier === 'tag') return 2;
+  if (tier === 'trios') return 3;
+  return 1;
+}
+
 export function startingPrestige(tier: TitleTier): number {
   return PRESTIGE_BY_TIER[tier] ?? 35;
 }
@@ -56,6 +63,28 @@ const COLORWAYS: Partial<Record<TitleTier, { strap: string; plate: string }>> = 
 function colorwayFor(tier: TitleTier) {
   return COLORWAYS[tier] ?? COLORWAYS.tertiary!;
 }
+
+/**
+ * Schemes a booker can put on a belt.
+ *
+ * The tier picks a sensible default so nobody has to care, but two companies
+ * whose world titles look identical is a missed chance — the strap and plate
+ * are the only thing about a championship the player ever sees drawn.
+ */
+export const TITLE_COLORWAYS: { name: string; strap: string; plate: string }[] = [
+  { name: 'Classic gold', strap: '#3a2214', plate: '#f1c40f' },
+  { name: 'White leather', strap: '#e8e3d9', plate: '#d4af37' },
+  { name: 'Silver', strap: '#212529', plate: '#adb5bd' },
+  { name: 'Bronze', strap: '#2b1a10', plate: '#b87333' },
+  { name: 'Blood red', strap: '#3a1414', plate: '#c0392b' },
+  { name: 'Midnight blue', strap: '#141c2e', plate: '#5b8fd4' },
+  { name: 'Emerald', strap: '#10261a', plate: '#2ecc71' },
+  { name: 'Royal purple', strap: '#2a1b3a', plate: '#b58fde' },
+  { name: 'Sky', strap: '#1b2a3a', plate: '#8fb8de' },
+  { name: 'Copper', strap: '#2e1c12', plate: '#e08a4b' },
+  { name: 'Jet black', strap: '#0f0f10', plate: '#6b6b70' },
+  { name: 'Rose gold', strap: '#33201f', plate: '#e6a58c' },
+];
 
 /**
  * The belts a promotion starts with, named out of its own identity. A
@@ -149,8 +178,10 @@ export function createStartingTitles(
     interimHolderIds: [],
     interimSinceWeek: null,
     history: [],
-    colorway: colorwayFor(blueprint.tier),
+    colorway: blueprint.colorway ?? colorwayFor(blueprint.tier),
     signatureStipulationId: blueprint.signatureStipulationId,
+    stipulationRequired: blueprint.stipulationRequired ?? false,
+    holdersRequired: blueprint.holdersRequired ?? defaultHolders(blueprint.tier),
   }));
 }
 

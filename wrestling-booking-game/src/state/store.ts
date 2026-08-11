@@ -207,7 +207,12 @@ import {
   canFormTeam,
   createTeam,
 } from '../engine/world/tagTeams';
-import { resolveTitleOutcomes, matchTitlePrestige, eligibleTitles } from '../engine/sim/titleMatch';
+import {
+  resolveTitleOutcomes,
+  matchTitlePrestige,
+  eligibleTitles,
+  signatureStipulationFit,
+} from '../engine/sim/titleMatch';
 import type { ChampionInjuryChoice } from '../engine/world/titleDefence';
 import {
   championInjuryOptions,
@@ -1467,6 +1472,7 @@ export const useGameStore = create<GameStore>()(
                 side: p.side,
               })),
               promotionId: world.promotion.id,
+              stipulationId: segment.stipulation,
             },
           );
 
@@ -1579,6 +1585,13 @@ export const useGameStore = create<GameStore>()(
             // penalising the next.
             overexposurePenalty: overexposurePenalty(segment, bookingMemory, world.settings),
             staleGimmickPenalty: staleGimmickPenalty(participantWrestlers, world.settings),
+            // A deathmatch title in a normal match is a broken promise, and
+            // the crowd is entitled to notice.
+            signatureStipulationFit: signatureStipulationFit(
+              titlesOnTheLine,
+              segment.stipulation,
+              world.settings,
+            ),
             rivalry,
             ringside,
             // The thumb on the scale. The [8%, 92%] clamp still applies, so

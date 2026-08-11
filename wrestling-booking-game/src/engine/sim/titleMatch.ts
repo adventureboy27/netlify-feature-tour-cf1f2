@@ -39,6 +39,13 @@ export interface TitleEligibilityContext {
   participants: { wrestler: Wrestler; side: number }[];
   /** Only belts this promotion owns can be booked on its show. */
   promotionId: Id;
+  /**
+   * What the match is booked as. Read only by belts that *require* a
+   * stipulation; optional so the many callers that do not care are unchanged,
+   * and a belt with a hard requirement is simply not offered when it is
+   * missing rather than being wrongly allowed.
+   */
+  stipulationId?: Id | null;
 }
 
 /**
@@ -65,8 +72,15 @@ export function eligibleTitles(
     if (title.division === 'womens' && ctx.participants.some((p) => p.wrestler.gender !== 'f')) return false;
     if (title.division === 'mens' && ctx.participants.some((p) => p.wrestler.gender !== 'm')) return false;
 
-    // Tag and trios belts need teams on both sides; singles belts need singles.
-    const required = title.tier === 'tag' ? 2 : title.tier === 'trios' ? 3 : 1;
+    // A belt only goes on the line under the stipulation it demands. A
+    // Battle Royal Trophy that can be won in a singles match is not a Battle
+    // Royal Trophy.
+    if (title.stipulationRequired && ctx.stipulationId !== title.signatureStipulationId) return false;
+
+    // However many people carry it, that is how many have to be on each side.
+    // Taken off the title rather than guessed from the tier, so "held by two"
+    // is a thing a booker can say about any belt they invent.
+    const required = title.holdersRequired || (title.tier === 'tag' ? 2 : title.tier === 'trios' ? 3 : 1);
     if ([...sideSizes.values()].some((size) => size !== required)) return false;
 
     if (title.vacant) return true;
@@ -138,6 +152,31 @@ export function resolveTitleOutcomes(ctx: ResolveTitlesContext): TitleOutcome[] 
  * toward the rating of its last defence, slowly enough that one bad night
  * does not devalue a belt and one good one does not make it.
  */
+/**
+ * How much the crowd cares that a belt was defended the way it is meant to
+ * be, in rating points.
+ *
+ * A belt with no tradition is neutral. Honouring one is worth something;
+ * ignoring one costs more than honouring it pays, because a Deathmatch
+ * Championship in a normal match is a broken promise and a normal belt in a
+ * cage is just a good match.
+ */
+export function signatureStipulationFit(
+  titles: readonly Title[],
+  stipulationId: Id | null,
+  settings: WorldSettings,
+): number {
+  let total = 0;
+  for (const title of titles) {
+    if (!title.signatureStipulationId) continue;
+    total +=
+      title.signatureStipulationId === stipulationId
+        ? settings.titleSignatureHonoured
+        : -settings.titleSignatureIgnored;
+  }
+  return total;
+}
+
 export function prestigeAfterMatch(title: Title, matchRating: number, settings: WorldSettings): number {
   const drift = (matchRating - title.prestige) * settings.titlePrestigeDrift;
   return Math.max(0, Math.min(100, title.prestige + drift));

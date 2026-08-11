@@ -54,6 +54,15 @@ export interface MatchRatingContext {
    * repackage, an overexposed one wants a night off.
    */
   staleGimmickPenalty?: number;
+  /**
+   * A belt defended the way it is meant to be, or not.
+   *
+   * Title.signatureStipulationId has existed since championships were built
+   * and nothing ever read it, so a deathmatch title contested under normal
+   * rules was worth exactly as much as one in a barbed-wire match. Positive
+   * when the tradition is honoured, negative when it is ignored.
+   */
+  signatureStipulationFit?: number;
   /** What the booker asked them to go out and do — see sim/pacing.ts. */
   paceBonus: number;
   /**
@@ -139,6 +148,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
   const pairChemistry = term('Pair chemistry', ctx.pairChemistryBonus);
   const overexposure = term('Overexposure', -Math.abs(ctx.overexposurePenalty));
   const staleGimmick = term('Stale act', -Math.abs(ctx.staleGimmickPenalty ?? 0));
+  const signature = term('Signature', ctx.signatureStipulationFit ?? 0);
   const hardcoreSaturation = term('Hardcore saturation', -(ctx.hardcoreSaturation / 100) * 12);
   const shootHeat = term('Bad blood', ctx.shootHeatBonus);
   const pace = term('Pace', ctx.paceBonus);
@@ -186,6 +196,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
     pairChemistry +
     overexposure +
     staleGimmick +
+    signature +
     hardcoreSaturation +
     shootHeat +
     pace +

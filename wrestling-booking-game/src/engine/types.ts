@@ -781,6 +781,12 @@ export interface TitleBlueprint {
   division: TitleDivision;
   weightClass: WeightClass;
   signatureStipulationId: Id | null;
+  /** Only defendable under that stipulation, rather than merely suited to it. */
+  stipulationRequired?: boolean;
+  /** How many people carry it. Defaults to what the tier implies. */
+  holdersRequired?: number;
+  /** Strap and plate. Defaults to the tier's scheme. */
+  colorway?: { strap: string; plate: string };
 }
 
 
@@ -823,10 +829,26 @@ export interface Title {
   interimSinceWeek: number | null;
   /**
    * The stipulation this belt is traditionally defended under, if any. A
-   * deathmatch title contested under normal rules is a disappointment, and
-   * the crowd says so — see engine/economy/showRating.ts.
+   * deathmatch title contested under normal rules is a disappointment and the
+   * crowd says so; defended the way it is meant to be, it rates better.
+   * Applied in engine/sim/matchRating.ts via the 'Signature' term.
    */
   signatureStipulationId: Id | null;
+  /**
+   * Turns the tradition into a rule. A Battle Royal Trophy that can be won in
+   * a singles match is not a Battle Royal Trophy — with this set the belt
+   * cannot go on the line at all except under its signature stipulation.
+   */
+  stipulationRequired: boolean;
+  /**
+   * How many people hold it at once. Two for a tag championship, three for
+   * trios, and any number the booker wants for anything else — a belt held by
+   * four is a real thing a promotion can invent.
+   *
+   * Was derived from the tier, which meant "tag" was the only way to say
+   * "two people" and a trios belt could never be anything else.
+   */
+  holdersRequired: number;
 }
 
 // ============================================================================
@@ -1913,6 +1935,10 @@ export interface WorldSettings {
   championInjuryGraceWeeks: number;
   /** How much more likely a fresh injury is for somebody the booker sent out hurt. */
   workingHurtInjuryMultiplier: number;
+  /** Rating points for defending a belt under the stipulation it is known for. */
+  titleSignatureHonoured: number;
+  /** Rating points lost for ignoring that tradition. Deliberately the larger. */
+  titleSignatureIgnored: number;
 
   // A wrestler's week outside the ring — see world/misfortune.ts.
   /** Odds per healthy wrestler per week that something happens to them. */
