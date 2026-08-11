@@ -63,7 +63,11 @@ const SLOT_KEY = 'wbg.save.v1';
 // rival contracts having staggered, ticking terms, which a version-12 save
 // does not: every rival deal in one would sit at the same 104 weeks forever
 // and nobody in the business would ever come free.
-const SCHEMA_VERSION = 13;
+//
+// Version 14 adds moraleNote and moraleLastDelta to Wrestler and the whole
+// morale settings block. A version-13 save has neither, so the mood face
+// would read undefined for every person on the roster.
+const SCHEMA_VERSION = 14;
 
 export interface SaveFile {
   schema: number;

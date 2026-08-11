@@ -375,6 +375,49 @@ export function defaultWorldSettings(): WorldSettings {
     clauseGuaranteedDatesRate: 0.25,
     clauseMerchandiseCut: 0.08,
 
+    // The mood bands. Everybody starts at 65 — "Happy" — so the opening
+    // locker room is content rather than delighted, and has somewhere to go
+    // in both directions.
+    moodDelightedAbove: 82,
+    moodHappyAbove: 64,
+    moodContentAbove: 48,
+    moodRestlessAbove: 34,
+    moodUnhappyAbove: 18,
+    // What somebody thinks they are owed. A popular man with a big opinion
+    // of himself expects the main event; a nobody is glad of the work.
+    moraleExpectationStanding: 0.65,
+    moraleExpectationEgo: 0.35,
+    moralePositionWeight: 3.2,
+    moraleMainEventFloor: 1.2,
+    moraleWinGain: 0.9,
+    moraleRoutineLoss: 0.5,
+    moraleBadLossGap: 0.35,
+    moraleBadLossWeight: 4.5,
+    // Two weeks off is a week off. Three is a message. Measured: at a grace
+    // of 0 a 24-man roster running a 6-match card lost every person morale
+    // every single week, because half the roster is idle by construction.
+    moraleIdleGraceWeeks: 2,
+    moraleIdlePerWeek: 1.1,
+    moraleIdleCap: 6,
+    moraleIdleFloor: 0.35,
+    moraleChampionGain: 0.7,
+    // Deliberately the largest single positive term in the system. Reading
+    // what the audience is asking for and booking it should be the best week
+    // anybody on the roster has.
+    moraleDemandDelivered: 3.5,
+    moraleAllyGain: 0.5,
+    moraleEnemyCost: 1.4,
+    moraleShowNeutral: 55,
+    moraleShowWeight: 4,
+    // Even a small company is a fine place to work if the booker uses you.
+    // Pulling everybody toward the company rating instead dragged a mid-table
+    // locker room to "restless" however well it was booked.
+    moraleSetPointBase: 45,
+    moraleSetPointRange: 35,
+    moraleSettleRate: 0.06,
+    moraleSettleReportable: 0.6,
+    moraleWeeklyCap: 9,
+
     // Relationships. Most people get along; the ones who do not are the
     // interesting exception, and enemies work stiffer — better to watch,
     // likelier to hurt somebody.

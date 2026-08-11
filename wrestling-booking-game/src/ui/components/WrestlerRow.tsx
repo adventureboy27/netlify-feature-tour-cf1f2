@@ -14,6 +14,7 @@
 import type { Wrestler, WorldSettings } from '../../engine/types';
 import { scout, alignmentLabel, type Availability } from '../../engine/career/scouting';
 import { billedAs } from '../../engine/generate/nickname';
+import { MoodFace } from './Mood';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 
 const AVAILABILITY_STYLE: Record<Availability['tone'], string> = {
@@ -60,6 +61,10 @@ export function WrestlerRow({
       <PaperDoll appearance={wrestler.appearance} gender={wrestler.gender} alignment={wrestler.alignment} size="thumb" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
+          {/* The face goes first, before the name — when you are scanning a
+              list to decide who to book, the mood of the room is the thing
+              you are scanning for. */}
+          <MoodFace wrestler={wrestler} settings={settings} size="sm" />
           <span className="truncate text-sm font-medium text-neutral-100">{billedAs(wrestler)}</span>
           <Tag className={ALIGNMENT_STYLE[alignment] ?? ALIGNMENT_STYLE.Tweener!}>{alignment}</Tag>
           <Tag className={AVAILABILITY_STYLE[read.availability.tone]}>{read.availability.label}</Tag>

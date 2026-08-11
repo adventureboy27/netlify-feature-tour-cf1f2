@@ -212,6 +212,8 @@ export function generateWrestler(
     health: 100,
     energy: 100,
     morale: 65,
+    moraleNote: null,
+    moraleLastDelta: 0,
     momentum: 50,
     cardStatus: TIER_TO_CARD_STATUS[tier],
     // Placeholder — derived properly by engine/career/status.ts once the

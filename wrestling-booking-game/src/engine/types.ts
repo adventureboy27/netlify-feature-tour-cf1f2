@@ -381,6 +381,16 @@ export interface Wrestler {
   health: number; // 0-100
   energy: number; // 0-100
   morale: number; // 0-100
+  /**
+   * Why their morale is where it is, in their words — the loudest thing the
+   * last week did to them. Stored rather than derived because it is a fact
+   * about a week that has already happened: what the crowd was asking for
+   * last Monday cannot be recovered from this Monday's state. Null before
+   * their first week. See career/morale.ts.
+   */
+  moraleNote: string | null;
+  /** Which way it moved last week, for the trend arrow. */
+  moraleLastDelta: number;
   momentum: number; // 0-100
   cardStatus: CardStatus;
   careerStatus: CareerStatus;
@@ -1677,6 +1687,54 @@ export interface WorldSettings {
    * nothing is not a cost.
    */
   clauseMerchandiseCut: number;
+
+  // How the room feels about the booker — see career/morale.ts.
+  /** Band thresholds for the mood face. Descending. */
+  moodDelightedAbove: number;
+  moodHappyAbove: number;
+  moodContentAbove: number;
+  moodRestlessAbove: number;
+  moodUnhappyAbove: number;
+  /** How much standing and ego each raise what somebody expects of a booking. */
+  moraleExpectationStanding: number;
+  moraleExpectationEgo: number;
+  /** How hard card position pulls, against what they expected. */
+  moralePositionWeight: number;
+  /** The main event is always worth something, whoever you are. */
+  moraleMainEventFloor: number;
+  moraleWinGain: number;
+  /** An ordinary loss. Small — losing is the job. */
+  moraleRoutineLoss: number;
+  /** How far below them the winner has to be before a loss is an insult. */
+  moraleBadLossGap: number;
+  moraleBadLossWeight: number;
+  /**
+   * Weeks off the card that cost nothing. A roster is always bigger than a
+   * card; without this, depth itself would rot a locker room.
+   */
+  moraleIdleGraceWeeks: number;
+  /** Per week beyond the grace period, and the ceiling on that. */
+  moraleIdlePerWeek: number;
+  moraleIdleCap: number;
+  /** What even a nobody feels about being left off, before expectation. */
+  moraleIdleFloor: number;
+  moraleChampionGain: number;
+  /** Being the thing the crowd was asking for. See world/fanDemand.ts. */
+  moraleDemandDelivered: number;
+  moraleAllyGain: number;
+  moraleEnemyCost: number;
+  /** The show rating everybody is neutral about, and how much it swings. */
+  moraleShowNeutral: number;
+  moraleShowWeight: number;
+  /** Where morale settles at a company rated 0, and how far the top adds. */
+  moraleSetPointBase: number;
+  moraleSetPointRange: number;
+  /** Pull per week toward that set point. */
+  moraleSettleRate: number;
+  /** Below this the settle is real but not worth a sentence. */
+  moraleSettleReportable: number;
+  /** Nothing here should move somebody more than this in one week. */
+  moraleWeeklyCap: number;
 
   // Relationships (engine/career/relationships.ts)
   /** How many relationships to seed, per wrestler on the roster. */

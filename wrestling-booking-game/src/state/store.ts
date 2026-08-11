@@ -70,6 +70,8 @@ import { decayPaceSaturation } from '../engine/sim/pacing';
 import { resolveConfrontation } from '../engine/sim/confrontation';
 import { factionEgoDrift, factionHeat, factionStanding } from '../engine/world/faction';
 import { demandsDelivered, deliveryBonus, fanDemands } from '../engine/world/fanDemand';
+import { deliveredTo, moraleContext, weeklyMorale } from '../engine/career/morale';
+import { isAlly, isEnemy } from '../engine/career/relationships';
 import {
   canSignSecretly,
   canWalkOut,
@@ -3014,6 +3016,59 @@ export const useGameStore = create<GameStore>()(
           world.weeklyNews.push(wire('death', memoriam.line, world.week, 'lead'));
           world.pendingMemoriam = null;
         }
+        // ---- how the room feels about the booker -------------------------
+        //
+        // Morale used to move only when something happened *to* somebody — an
+        // event fired, an award landed, a referee blew a call. You could main
+        // event a man for a year or leave him off forty cards running and it
+        // made no difference at all. This is the week's read on how each of
+        // them was actually used, and it carries the sentence explaining
+        // itself, because the roster card has to be able to answer "why".
+        const rewarded = deliveredTo(delivered);
+        const lastSeenWeek = new Map<Id, number>();
+        for (const past of world.showHistory) {
+          for (const segment of past.segments) {
+            for (const p of segment.participants) {
+              if (p.role !== 'competitor') continue;
+              lastSeenWeek.set(p.wrestlerId, Math.max(lastSeenWeek.get(p.wrestlerId) ?? 0, past.week));
+            }
+          }
+        }
+        const alliesOf = new Map<Id, Set<Id>>();
+        const enemiesOf = new Map<Id, Set<Id>>();
+        for (const relationship of world.relationships) {
+          const bucket = isAlly(relationship) ? alliesOf : isEnemy(relationship) ? enemiesOf : null;
+          if (!bucket) continue;
+          const { aId, bId } = relationship;
+          if (!bucket.has(aId)) bucket.set(aId, new Set());
+          if (!bucket.has(bId)) bucket.set(bId, new Set());
+          bucket.get(aId)!.add(bId);
+          bucket.get(bId)!.add(aId);
+        }
+        const noneSet: ReadonlySet<Id> = new Set();
+        const moraleShow = world.showHistory[world.showHistory.length - 1] ?? null;
+        for (const id of world.promotion.rosterIds) {
+          const member = world.wrestlers[id];
+          if (!member || member.deceased) continue;
+          const report = weeklyMorale(
+            member,
+            moraleContext(member, moraleShow, {
+              popularityOf: (other) => world.wrestlers[other]?.popularity ?? 0,
+              alliesOf: (who) => alliesOf.get(who) ?? noneSet,
+              enemiesOf: (who) => enemiesOf.get(who) ?? noneSet,
+              beltsHeldBy: (who) =>
+                world.titles.filter((t) => !t.vacant && t.currentHolderIds.includes(who)).length,
+              weeksIdle: world.week - (lastSeenWeek.get(id) ?? 0),
+              companyRating: world.promotion.rating,
+              deliveredTo: rewarded,
+            }),
+            world.settings,
+          );
+          member.morale = clamp(member.morale + report.delta, 0, 100);
+          member.moraleLastDelta = report.delta;
+          member.moraleNote = report.reasons[0]?.text ?? null;
+        }
+
         for (const id of world.promotion.rosterIds) {
           const member = world.wrestlers[id];
           if (!member || member.deceased) continue;

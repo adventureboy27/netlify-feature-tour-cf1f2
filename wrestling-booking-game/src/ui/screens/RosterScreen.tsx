@@ -30,6 +30,7 @@ import {
   isEnemy,
   RELATIONSHIP_LABELS,
 } from '../../engine/career/relationships';
+import { MoodLine } from '../components/Mood';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { StatBar, HeatBadge, Money } from '../components/display';
 import { scout } from '../../engine/career/scouting';
@@ -220,6 +221,10 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     </span>
                   )}
                 </div>
+
+                {/* how they feel about you, and why. Above the bars because
+                    it is a thing the booker can act on this week. */}
+                <MoodLine wrestler={w} settings={world.settings} size="sm" />
 
                 {/* physical stats */}
                 <div className="mt-1 grid grid-cols-2 gap-x-3">
