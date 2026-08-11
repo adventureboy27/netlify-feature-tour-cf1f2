@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { useGameStore } from './store';
 import { defaultWorldSettings } from '../engine/world/settings';
+import { eventById } from '../data/events';
 
 // A roster big enough to survive its own injuries. This was 12, which was
 // never a viable promotion — it produced 1.5-star shows and injured itself to
@@ -314,6 +315,17 @@ describe('the awards night', () => {
   function toTheTurnOfTheYear(): void {
     useGameStore.getState().newGame(patientOwner());
     for (let i = 0; i < 60; i++) {
+      // Anything waiting on the booker holds the week open, so a helper that
+      // only presses "resolve" stalls forever. Neither of these used to fire
+      // inside sixty weeks of autofill: the repackage event could not fire at
+      // all, being gated on a stale gimmick that nothing ever staled.
+      const pending = useGameStore.getState().world!.pendingEvent;
+      const firstOption = pending ? eventById(pending.eventId)?.options[0] : undefined;
+      if (firstOption) useGameStore.getState().chooseEventOption(firstOption.id);
+      useGameStore.getState().dismissEventOutcome();
+      if (useGameStore.getState().world!.pendingWeatherCall) {
+        useGameStore.getState().answerWeatherCall('runIt');
+      }
       useGameStore.getState().autoFillCard();
       useGameStore.getState().resolveWeek();
       if (useGameStore.getState().world!.yearInReview) return;

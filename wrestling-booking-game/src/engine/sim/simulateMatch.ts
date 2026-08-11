@@ -61,6 +61,7 @@ export interface SimulateMatchContext {
   paceSaturation?: number;
   pairChemistryBonus?: number;
   overexposurePenalty?: number;
+  staleGimmickPenalty?: number;
 }
 
 export interface MatchSimResult {
@@ -209,6 +210,7 @@ export function simulateMatch(
     houseStyleFit: ctx.houseStyleFit ?? 0,
     pairChemistryBonus: ctx.pairChemistryBonus ?? 0,
     overexposurePenalty: ctx.overexposurePenalty ?? 0,
+    staleGimmickPenalty: ctx.staleGimmickPenalty ?? 0,
   });
 
   const beats = generateBeats(rng, {

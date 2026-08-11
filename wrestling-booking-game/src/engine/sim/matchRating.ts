@@ -48,6 +48,12 @@ export interface MatchRatingContext {
   houseStyleFit: number;
   pairChemistryBonus: number;
   overexposurePenalty: number;
+  /**
+   * What a worn-out act costs. Separate from overexposure because they are
+   * different problems with different fixes: a stale gimmick wants a
+   * repackage, an overexposed one wants a night off.
+   */
+  staleGimmickPenalty?: number;
   /** What the booker asked them to go out and do — see sim/pacing.ts. */
   paceBonus: number;
   /**
@@ -132,6 +138,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
   const houseStyle = term('House style', ctx.houseStyleFit);
   const pairChemistry = term('Pair chemistry', ctx.pairChemistryBonus);
   const overexposure = term('Overexposure', -Math.abs(ctx.overexposurePenalty));
+  const staleGimmick = term('Stale act', -Math.abs(ctx.staleGimmickPenalty ?? 0));
   const hardcoreSaturation = term('Hardcore saturation', -(ctx.hardcoreSaturation / 100) * 12);
   const shootHeat = term('Bad blood', ctx.shootHeatBonus);
   const pace = term('Pace', ctx.paceBonus);
@@ -178,6 +185,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
     houseStyle +
     pairChemistry +
     overexposure +
+    staleGimmick +
     hardcoreSaturation +
     shootHeat +
     pace +

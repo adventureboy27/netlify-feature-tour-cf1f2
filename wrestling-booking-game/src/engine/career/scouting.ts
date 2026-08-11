@@ -147,6 +147,9 @@ export function theCatch(wrestler: Wrestler, settings: WorldSettings): string | 
   if (wrestler.morale <= settings.scoutUnhappyMorale) return 'Miserable, and it shows in the ring.';
   if (wrestler.ego >= settings.scoutBigEgo) return `Knows what ${p.they} is worth and will tell you.`;
   if (wrestler.attitude <= settings.scoutBadAttitude) return 'A problem in the locker room.';
+  if (wrestler.gimmickFreshness < settings.staleGimmickThreshold) {
+    return `The act has gone stale. They have seen all of this.`;
+  }
   if (wrestler.momentum <= settings.scoutColdMomentum) return `Ice cold. Nobody reacts to ${p.them}.`;
   if (wrestler.popularity <= settings.enhancementPopularity) return `Nobody knows who ${p.they} is.`;
   if (wrestler.age >= settings.scoutOldAge) return `Near the end. Every night costs ${p.them}.`;

@@ -18,11 +18,30 @@
 
 import type { Rng } from '../rng';
 import { chance, clamp, randInt } from '../rng';
-import type { FinishType, Id, MatchRules, Promotion, Stable, Title, Wrestler, WorldSettings } from '../types';
+import type { FinishType, Id, MatchRules, Promotion, Segment, Stable, Title, Wrestler, WorldSettings } from '../types';
 import { availableTeams } from './tagTeams';
 import { simulateMatch, type SimParticipant } from '../sim/simulateMatch';
 import { computeShowRating, ratingToStars, TV_SLOT_WEIGHTS } from '../economy/showRating';
 import { computeAftermath, type AftermathChange } from '../sim/aftermath';
+import { overexposurePenalty, staleGimmickPenalty, type BookingMemory } from '../sim/freshness';
+
+/** Same key the crowd's memory uses, so the two agree on what a pairing is. */
+function pairKeyFor(a: Id, b: Id): string {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+/**
+ * A rival's match in the shape the freshness module reads. Rival cards are
+ * stored as sides of wrestlers rather than as Segments, and rather than
+ * teaching freshness about a second shape the adapter lives here.
+ */
+function asSegment(match: BookedMatch): Segment {
+  return {
+    participants: match.sides.flatMap((members, side) =>
+      members.map((w) => ({ wrestlerId: w.id, side, role: 'competitor' as const })),
+    ),
+  } as Segment;
+}
 import { houseStyleRatingBonus } from '../sim/houseStyle';
 import { resolveTitleOutcomes, eligibleTitles, matchTitlePrestige, type TitleOutcome } from '../sim/titleMatch';
 import { identityOf } from '../../data/promotionIdentity';
@@ -120,6 +139,12 @@ export interface RivalBookingContext {
   stables?: readonly Stable[];
   week: number;
   settings: WorldSettings;
+  /**
+   * What this promotion's crowd has already been shown. Optional so callers
+   * that do not care (tests, the first show of a save) can leave it out, but
+   * without it the office books the same card every week — see below.
+   */
+  memory?: BookingMemory;
 }
 
 /**
@@ -140,9 +165,33 @@ export function canWork(w: Wrestler, settings: WorldSettings): boolean {
  * Build the card. The AI books the way a competent, unimaginative booker
  * does: best against best on top, and the rest paired off down the sheet by
  * standing, so the card gets smaller as it goes down.
+ *
+ * "Unimaginative" used to mean *identical*. Sorting by standing and pairing
+ * adjacent ranks produces exactly the same six matches every week, forever,
+ * and since nothing charged for repetition that was free — for the office's
+ * Fill the card and for all six rival promotions at once. The moment
+ * overexposure started costing rating points, this booker walked its own
+ * company into the ground in half a season.
+ *
+ * So the office now rests people and varies the card. It is still not
+ * imaginative: it does not build stories or plan three weeks ahead. It just
+ * knows not to run the same main event fifty-two times.
  */
 export function bookRivalCard(rng: Rng, ctx: RivalBookingContext): RivalCard {
-  const roster = [...ctx.available].sort((a, b) => b.popularity + b.momentum * 0.3 - (a.popularity + a.momentum * 0.3));
+  const weeksSeen = (id: Id) => ctx.memory?.weeksSeen.get(id) ?? 0;
+  const met = (a: Id, b: Id) => ctx.memory?.pairings.get(pairKeyFor(a, b)) ?? 0;
+
+  // Standing decides the running order, minus how much the crowd has had of
+  // you lately — so somebody who worked the last four weeks slides down the
+  // sheet and somebody rested rises, and the card rotates without anybody
+  // having to plan it.
+  const roster = [...ctx.available].sort(
+    (a, b) =>
+      b.popularity +
+      b.momentum * 0.3 -
+      weeksSeen(b.id) * ctx.settings.bookerRestWeight -
+      (a.popularity + a.momentum * 0.3 - weeksSeen(a.id) * ctx.settings.bookerRestWeight),
+  );
   const segments = Math.min(ctx.settings.segmentsPerTV, Math.floor(roster.length / 2));
 
   const matches: BookedMatch[] = [];
@@ -180,6 +229,37 @@ export function bookRivalCard(rng: Rng, ctx: RivalBookingContext): RivalCard {
     i += 2;
   }
   if (mainEventers.length === 2) matches.push({ sides: [[mainEventers[0]!], [mainEventers[1]!]] });
+
+  // Break up the reruns. Pairing by adjacent standing means the same two
+  // names meet every week; swapping one side of a stale match with one side
+  // of another keeps the running order intact while giving the crowd a
+  // match-up it has not just sat through.
+  for (let a = 0; a < matches.length; a++) {
+    const staleness = (m: BookedMatch) =>
+      Math.max(0, ...m.sides.flatMap((side) => side.flatMap((x) => m.sides.flatMap((other) =>
+        other === side ? [] : other.map((y) => met(x.id, y.id))))));
+    if (staleness(matches[a]!) <= ctx.settings.overexposureFreeMeetings) continue;
+    for (let b = 0; b < matches.length; b++) {
+      if (a === b) continue;
+      const left = matches[a]!;
+      const right = matches[b]!;
+      // Only swap singles; a tag team is a unit and splitting it to freshen
+      // the card would undo the whole reason teams exist.
+      if (left.teamIds || right.teamIds) continue;
+      if (left.sides[1]?.length !== 1 || right.sides[1]?.length !== 1) continue;
+      const before = staleness(left) + staleness(right);
+      const swapped: BookedMatch[] = [
+        { ...left, sides: [left.sides[0]!, right.sides[1]!] },
+        { ...right, sides: [right.sides[0]!, left.sides[1]!] },
+      ];
+      const after = staleness(swapped[0]!) + staleness(swapped[1]!);
+      if (after < before) {
+        matches[a] = swapped[0]!;
+        matches[b] = swapped[1]!;
+        break;
+      }
+    }
+  }
 
   // Belts. A promotion that never defends its top title is not a promotion,
   // and one that defends something every week devalues everything. At most
@@ -248,6 +328,13 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
       hardcoreSaturation: ctx.promotion.hardcoreSaturation,
       titlePrestige: matchTitlePrestige(titles, ctx.settings),
       houseStyleFit: houseStyleRatingBonus(everyone, ctx.promotion.identity, ctx.settings),
+      // Rivals pay for overexposure on the same terms the player does.
+      // Charging only the player would quietly hand every AI company a rating
+      // bonus for booking lazily, which is the opposite of the point. Their
+      // memory is the weaker roster-derived one (see memoryFromRoster), so
+      // this catches running the same people, not the same match.
+      overexposurePenalty: ctx.memory ? overexposurePenalty(asSegment(booked), ctx.memory, ctx.settings) : 0,
+      staleGimmickPenalty: staleGimmickPenalty(everyone, ctx.settings),
       titles,
       isMainEvent,
       // A rival's booking credibility stands in for everything the player does

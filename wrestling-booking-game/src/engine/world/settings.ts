@@ -558,6 +558,21 @@ export function defaultWorldSettings(): WorldSettings {
     circuitTasteWeight: 35,
     circuitAgilityFloor: 55,
     circuitRankingSize: 10,
+    // Tuned against the measurement in freshness.test.ts: rotating a deep
+    // roster has to beat running the same twelve people every week, or the
+    // roster the game asks you to build is money you had no reason to spend.
+    overexposureLookbackWeeks: 10,
+    overexposureFreeMeetings: 1,
+    overexposureRepeatPenalty: 5,
+    overexposureRepeatCap: 16,
+    overexposureFreeWeeks: 4,
+    overexposureAppearancePenalty: 2.5,
+    overexposureAppearanceCap: 12,
+    gimmickFreshnessDecayPerWeek: 0.5,
+    gimmickFreshnessWorkedDecay: 0.9,
+    staleGimmickThreshold: 60,
+    staleGimmickPenaltyMax: 8,
+    bookerRestWeight: 22,
     publicationWrestlerListSize: 10,
     publicationTeamListSize: 5,
     publicationTeamRecordWeight: 0.45,

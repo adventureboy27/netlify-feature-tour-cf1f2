@@ -66,6 +66,13 @@ import type { Manager } from '../engine/sim/ringside';
 import { evaluateTrade, tradeLine } from '../engine/world/trades';
 import { decayPaceSaturation } from '../engine/sim/pacing';
 import {
+  ageGimmick,
+  memoryFromRoster,
+  overexposurePenalty,
+  recallBookings,
+  staleGimmickPenalty,
+} from '../engine/sim/freshness';
+import {
   wire,
   teamSplitLine,
   teamFormedLine,
@@ -1055,6 +1062,9 @@ export const useGameStore = create<GameStore>()(
           stables: world.stables,
           week: world.week,
           settings: { ...world.settings, segmentsPerTV: emptySlots.length },
+          // Without this the office books the same six matches every week and
+          // walks the company into the ground on repetition alone.
+          memory: recallBookings(world.showHistory, world.week, world.settings),
         });
 
         card.matches.forEach((match, i) => {
@@ -1182,6 +1192,11 @@ export const useGameStore = create<GameStore>()(
         const nightDraw =
           (callOutcome ? callOutcome.draw : night.draw) * (memoriam ? memoriam.draw : 1);
         const showIsOff = callOutcome ? !callOutcome.ran : night.cancelled;
+
+        // What the crowd has been shown lately, read once before tonight is
+        // added to the record — so the six matches on this card are judged
+        // against the same memory rather than each one penalising the next.
+        const bookingMemory = recallBookings(world.showHistory, world.week, world.settings);
 
         if (!night.cancelled) world.currentCard.forEach((segment, i) => {
           const sides = new Set(segment.participants.map((p) => p.side));
@@ -1333,6 +1348,12 @@ export const useGameStore = create<GameStore>()(
             // at the level the promotion opened the show with — so every
             // match on one card is judged against the same number.
             paceSaturation: world.paceSaturation[segment.rules.pace] ?? 0,
+            // What the crowd has already been shown. Read once for the whole
+            // card, before tonight is added to it, so the six matches on one
+            // show are judged against the same memory rather than each one
+            // penalising the next.
+            overexposurePenalty: overexposurePenalty(segment, bookingMemory, world.settings),
+            staleGimmickPenalty: staleGimmickPenalty(participantWrestlers, world.settings),
             rivalry,
             ringside,
             // The thumb on the scale. The [8%, 92%] clamp still applies, so
@@ -2204,6 +2225,7 @@ export const useGameStore = create<GameStore>()(
             stables: world.stables,
             week: world.week,
             settings: world.settings,
+            memory: memoryFromRoster(available),
           });
           if (!show) continue;
           rivalShows.set(rival.id, show);
@@ -2550,6 +2572,25 @@ export const useGameStore = create<GameStore>()(
         // back to being effective.
         for (const key of Object.keys(world.paceSaturation)) {
           world.paceSaturation[key] = decayPaceSaturation(world.paceSaturation[key] ?? 0, world.settings);
+        }
+
+        // Who was actually in front of a crowd this week — the player's card
+        // and every rival's, so a rival's ace wears out on the same clock the
+        // player's does.
+        const workedThisWeek = new Set<string>([
+          ...world.currentCard.flatMap((segment) =>
+            segment.participants.filter((p) => p.role === 'competitor').map((p) => p.wrestlerId),
+          ),
+          ...world.rivalShows.flatMap((show) => show.matches.flatMap((m) => m.participantIds)),
+        ]);
+
+        // And an act wears out. Everybody in the business ages their gimmick,
+        // not just the player's roster, so a rival's ace goes stale on the
+        // same clock — but working is what does most of the damage, so the
+        // people who were on this week lose more than the people who were not.
+        for (const person of Object.values(world.wrestlers)) {
+          if (person.deceased || person.careerStatus === 'retired') continue;
+          ageGimmick(person, workedThisWeek.has(person.id), world.settings);
         }
 
         // ---- who left the business this week -----------------------------

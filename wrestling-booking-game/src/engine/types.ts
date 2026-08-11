@@ -1835,6 +1835,39 @@ export interface WorldSettings {
   circuitAgilityFloor: number;
   /** How many wrestlers each circuit list ranks. */
   circuitRankingSize: number;
+
+  // Freshness — see sim/freshness.ts. Both of these existed as dead wiring:
+  // the rating formula has always had an `overexposurePenalty` term nothing
+  // filled, and Wrestler.gimmickFreshness was documented as decaying and
+  // never did.
+  /** How many weeks back the crowd remembers what it has been shown. */
+  overexposureLookbackWeeks: number;
+  /** Meetings inside that window before a match-up counts as a rerun. */
+  overexposureFreeMeetings: number;
+  /** Rating points lost per repeat beyond that. */
+  overexposureRepeatPenalty: number;
+  /** Most a match can lose to repetition alone. */
+  overexposureRepeatCap: number;
+  /** Weeks somebody can work inside the window before the crowd tires of them. */
+  overexposureFreeWeeks: number;
+  /** Rating points lost per week worked beyond that. */
+  overexposureAppearancePenalty: number;
+  /** Most a match can lose to overexposure alone. */
+  overexposureAppearanceCap: number;
+  /** Freshness lost every week, worked or not. */
+  gimmickFreshnessDecayPerWeek: number;
+  /** Extra freshness lost by working. Exposure wears an act out, not time. */
+  gimmickFreshnessWorkedDecay: number;
+  /** Below this an act reads as stale, and the repackage event can fire. */
+  staleGimmickThreshold: number;
+  /** Most a completely worn-out act can cost a match. */
+  staleGimmickPenaltyMax: number;
+  /**
+   * How much the office values a rested act when it sorts the card, in
+   * points of standing per week already worked. Zero books the same six
+   * matches every week forever, which is what it used to do.
+   */
+  bookerRestWeight: number;
   /** How many wrestlers the weekly sheet ranks in each division. */
   publicationWrestlerListSize: number;
   /** How many tag teams it ranks in each division. */
