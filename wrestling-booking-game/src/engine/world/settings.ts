@@ -566,6 +566,12 @@ export function defaultWorldSettings(): WorldSettings {
     titleDefenceWarningWeeks: 1,
     championInjuryGraceWeeks: 3,
     workingHurtInjuryMultiplier: 2.6,
+    // Roughly one wrestler on a thirty-odd roster every two or three weeks —
+    // often enough to be part of the game, rare enough that most weeks are
+    // quiet. Measured in misfortune.test.ts.
+    misfortuneChanceHealthy: 0.012,
+    misfortuneChanceInjured: 0.06,
+    mysteryOpponentLongShotWeight: 18,
     // Tuned against the measurement in freshness.test.ts: rotating a deep
     // roster has to beat running the same twelve people every week, or the
     // roster the game asks you to build is money you had no reason to spend.

@@ -134,5 +134,8 @@ export function outFor(weeks: number, settings: WorldSettings): string {
   if (weeks >= settings.injuryCareerThreateningWeeks) return 'out indefinitely';
   if (weeks >= settings.injurySevereWeeks) return 'out for months';
   if (weeks >= settings.injuryModerateWeeks) return 'out for weeks';
-  return 'should be back soon';
+  // Every branch has to read correctly after "is", because that is how the
+  // results page and the wire both say it. "X is should be back soon" shipped
+  // for every short injury in the game until somebody read one out loud.
+  return 'out for a week or two';
 }

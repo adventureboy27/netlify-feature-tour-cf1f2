@@ -129,10 +129,18 @@ describe('who gets hurt and how often', () => {
 
 describe('how long they are out', () => {
   it('grades the same injury differently as it gets worse', () => {
-    expect(outFor(2, settings)).toContain('back soon');
+    expect(outFor(2, settings)).toContain('a week or two');
     expect(outFor(6, settings)).toContain('weeks');
     expect(outFor(14, settings)).toContain('months');
     expect(outFor(40, settings)).toContain('indefinitely');
+  });
+
+  it('reads correctly after "is", which is how every caller says it', () => {
+    // "Moss Jessup is should be back soon." shipped for every short injury in
+    // the game until somebody read one out loud.
+    for (const weeks of [1, 2, 6, 14, 40]) {
+      expect(`Somebody is ${outFor(weeks, settings)}.`, `${weeks} weeks`).toMatch(/is out /);
+    }
   });
 
   it('says it in words, never a bare number', () => {

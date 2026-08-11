@@ -196,6 +196,25 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
         )}
       </Panel>
 
+      {/* Who was not in the building. Above the card, because it changed
+          what the card was — and because a wrestler disappearing off a match
+          without explanation is exactly what CLAUDE.md forbids. */}
+      {(show.standIns ?? []).length > 0 && (
+        <section data-testid="stand-ins">
+          <SectionHead>Not in the building</SectionHead>
+          <div className="flex flex-col gap-1.5">
+            {(show.standIns ?? []).map((swap, i) => (
+              <div key={i} className="rounded-lg border border-amber-900/60 bg-amber-950/20 px-2.5 py-2">
+                <p className="text-xs text-neutral-200">{swap.reason}</p>
+                <p className="mt-0.5 text-[11px] text-amber-300">
+                  {swap.replacementName} went out there instead.
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <SectionHead hint={`${booked.length} ${booked.length === 1 ? 'match' : 'matches'}`}>The card</SectionHead>
 
       <div className="flex flex-col gap-3">

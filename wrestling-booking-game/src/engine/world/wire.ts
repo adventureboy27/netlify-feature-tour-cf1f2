@@ -31,7 +31,9 @@ export type WireKind =
   | 'weather'
   | 'honour'
   | 'debut'
-  | 'title';
+  | 'title'
+  /** Something that happened to somebody away from a ring. */
+  | 'misfortune';
 
 /** How loudly the results page should say it. */
 export type WireWeight = 'lead' | 'normal' | 'minor';
@@ -57,6 +59,7 @@ export const WIRE_KIND_LABELS: Record<WireKind, string> = {
   debut: 'Debut',
   title: 'Title',
   weather: 'The road',
+  misfortune: 'The road',
 };
 
 /**

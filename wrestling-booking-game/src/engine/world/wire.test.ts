@@ -28,6 +28,7 @@ const SAMPLES: Record<WireKind, WireItem> = {
   official: wire('official', 'Earl Hollis has signed.', 12, 'minor'),
   title: wire('title', 'The belt changed hands.', 12),
   weather: wire('weather', 'Snow came down on Ironbelt City all afternoon.', 12, 'minor'),
+  misfortune: wire('misfortune', 'Duke Rawlins blew a tyre on the interstate.', 12, 'minor'),
 };
 
 describe('every kind of news can be said', () => {

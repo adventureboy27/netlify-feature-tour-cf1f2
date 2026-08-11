@@ -1071,6 +1071,12 @@ export interface Show {
   buys?: number;
   buyRevenue?: number;
   broadcast: boolean;
+  /**
+   * Who did not make the building, and who the office sent out instead.
+   * Reported on the results page — a wrestler cannot vanish off a card
+   * without a sentence saying why.
+   */
+  standIns?: { absentName: string; replacementName: string; reason: string }[];
   /** Where it was staged, and what the staging cost and returned. */
   venueId: Id;
   venueCapacity: number;
@@ -1898,6 +1904,21 @@ export interface WorldSettings {
   championInjuryGraceWeeks: number;
   /** How much more likely a fresh injury is for somebody the booker sent out hurt. */
   workingHurtInjuryMultiplier: number;
+
+  // A wrestler's week outside the ring — see world/misfortune.ts.
+  /** Odds per healthy wrestler per week that something happens to them. */
+  misfortuneChanceHealthy: number;
+  /**
+   * The same for somebody already hurt, and deliberately higher: the
+   * dangerous time for an injury is while you still have one.
+   */
+  misfortuneChanceInjured: number;
+  /**
+   * Floor on how likely an unlikely replacement is. The office reaches for
+   * somebody near the missing wrestler's level, but the whole appeal of a
+   * mystery opponent is that it might be anybody, so nobody's weight is zero.
+   */
+  mysteryOpponentLongShotWeight: number;
   /**
    * The championships the player's company opens with.
    *

@@ -67,6 +67,13 @@ import type { Manager } from '../engine/sim/ringside';
 import { evaluateTrade, tradeLine } from '../engine/world/trades';
 import { decayPaceSaturation } from '../engine/sim/pacing';
 import {
+  injuryFromMisfortune,
+  pickReplacement,
+  rollMisfortune,
+  type Misfortune,
+  type Replacement,
+} from '../engine/world/misfortune';
+import {
   ageGimmick,
   memoryFromRoster,
   overexposurePenalty,
@@ -1257,6 +1264,85 @@ export const useGameStore = create<GameStore>()(
           (callOutcome ? callOutcome.draw : night.draw) * (memoriam ? memoriam.draw : 1);
         const showIsOff = callOutcome ? !callOutcome.ran : night.cancelled;
 
+        // ---- the week everybody else had ---------------------------------
+        // Rolled before the card resolves, because some of it decides who is
+        // actually in the building. Most weeks this is empty.
+        const misfortunes: Misfortune[] = [];
+        const misfortuneNews: { text: string; lead: boolean }[] = [];
+        for (const person of world.promotion.rosterIds.map((id) => world.wrestlers[id])) {
+          if (!person) continue;
+          const misfortune = rollMisfortune(rng, person, world.settings);
+          if (!misfortune) continue;
+          misfortunes.push(misfortune);
+
+          if (misfortune.kind !== 'absence') {
+            person.injury = injuryFromMisfortune(misfortune, world.week, person.injury);
+            person.health = clamp(person.health - world.settings.casualtyHealthCost, 0, 100);
+            person.career.longestInjuryWeeks = Math.max(
+              person.career.longestInjuryWeeks,
+              person.injury.totalWeeks,
+            );
+            // Whatever the booker had cleared them for, this is not it.
+            person.clearedToWorkHurt = false;
+          }
+
+          // Filed further down, after the week ticks over. The wire keeps
+          // only items dated at or after the current week, so anything
+          // pushed before the increment is silently dropped as last week's
+          // news — which is exactly what happened the first time this was
+          // written.
+          misfortuneNews.push({
+            text:
+              misfortune.kind === 'absence'
+                ? misfortune.text
+                : `${misfortune.text} ${misfortune.wrestlerName} is ${outFor(misfortune.weeks ?? 1, world.settings)}.`,
+            lead: misfortune.attacked || (misfortune.weeks ?? 0) >= 8,
+          });
+        }
+
+        // Anybody who will not be in the building tonight. A fresh injury
+        // keeps you out just as surely as a blown tyre does.
+        const missingTonight = new Map(
+          misfortunes.filter((m) => m.kind !== 'aggravation').map((m) => [m.wrestlerId, m]),
+        );
+
+        // The office fills the hole. Somebody has to go out there, and who it
+        // is was nobody's plan — which is the whole appeal.
+        const standIns: Replacement[] = [];
+        if (!showIsOff) {
+          for (const segment of world.currentCard) {
+            for (const role of segment.participants) {
+              const missed = missingTonight.get(role.wrestlerId);
+              if (!missed) continue;
+              const absent = world.wrestlers[role.wrestlerId];
+              if (!absent) continue;
+              const bookedNow = new Set(
+                world.currentCard.flatMap((seg) => seg.participants.map((p) => p.wrestlerId)),
+              );
+              const available = world.promotion.rosterIds
+                .map((id) => world.wrestlers[id])
+                .filter(
+                  (w): w is Wrestler =>
+                    Boolean(w) && !bookedNow.has(w!.id) && !missingTonight.has(w!.id) && canWork(w!, world.settings),
+                );
+              const standIn = pickReplacement(rng, absent, available, world.settings);
+              if (!standIn) {
+                // Nobody left. The match comes off rather than going on a man
+                // short, and the results page says why.
+                segment.participants = segment.participants.filter((p) => p.wrestlerId !== role.wrestlerId);
+                continue;
+              }
+              role.wrestlerId = standIn.id;
+              standIns.push({
+                absentId: absent.id,
+                absentName: absent.name,
+                replacementId: standIn.id,
+                replacementName: standIn.name,
+              });
+            }
+          }
+        }
+
         // What the crowd has been shown lately, read once before tonight is
         // added to the record — so the six matches on this card are judged
         // against the same memory rather than each one penalising the next.
@@ -2219,6 +2305,11 @@ export const useGameStore = create<GameStore>()(
         );
 
         world.showHistory.push({
+          standIns: standIns.map((swap) => ({
+            absentName: swap.absentName,
+            replacementName: swap.replacementName,
+            reason: missingTonight.get(swap.absentId)?.text ?? 'They never made the building.',
+          })),
           id: `show-${world.week}`,
           promotionId: world.promotion.id,
           week: world.week,
@@ -2523,6 +2614,12 @@ export const useGameStore = create<GameStore>()(
         });
         world.ratingsChart.unshift({ week: world.week, rows: chartRows });
         world.ratingsChart = world.ratingsChart.slice(0, 52);
+
+        // Everything that happened to somebody away from a ring this week,
+        // dated to the week the player is about to read.
+        for (const item of misfortuneNews) {
+          world.weeklyNews.push(wire('misfortune', item.text, world.week + 1, item.lead ? 'lead' : 'minor'));
+        }
 
         world.week += 1;
 
