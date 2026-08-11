@@ -390,6 +390,14 @@ export interface GameStore {
   retireTitle: (titleId: Id) => void;
   /** Bring a retired championship back. It returns vacant. */
   unretireTitle: (titleId: Id) => void;
+  /**
+   * Rename or re-describe a belt, or change what it is traditionally defended
+   * under. Everything else about it is fixed once it has a lineage: the
+   * division is locked at creation by §3.1, and the tier decides who can
+   * challenge and what the belt is worth, so moving it under a reign would
+   * rewrite history rather than change the future.
+   */
+  editTitle: (titleId: Id, patch: { name?: string; blurb?: string; signatureStipulationId?: Id | null }) => void;
   /** Send somebody out on their terms. They go to the Legacy wall, not the pool. */
   retireWrestler: (wrestlerId: Id) => void;
   /**
@@ -513,6 +521,63 @@ function closeInterimClaim(world: World, title: Title, winnerIds: readonly Id[])
 
 function leaveTheBusiness(world: World, id: Id, method: TitleReignEndMethod): Id[] {
   const vacated: Id[] = [];
+
+  // A belt split between a hurt champion and an interim has to be resolved
+  // before anything else, because whichever of them is leaving changes what
+  // happens to the other. Without this the interim claim outlives the person
+  // holding it: `needsUnification` stays true against somebody who is off
+  // every roster, so the belt can never be defended again and the defence
+  // clock quietly strips it. A soft-lock that reads as a bug.
+  for (const title of world.titles) {
+    if (!title.interimHolderIds.includes(id) && !title.currentHolderIds.includes(id)) continue;
+    if (title.interimHolderIds.length === 0) continue;
+
+    if (title.interimHolderIds.includes(id)) {
+      // The stand-in is gone. There is nobody left to settle it with, so the
+      // champion who never lost it is simply the champion.
+      const champion = title.currentHolderIds.map((h) => world.wrestlers[h]?.name).filter(Boolean).join(' & ');
+      title.interimHolderIds = [];
+      title.interimSinceWeek = null;
+      if (champion) {
+        world.weeklyNews.push(
+          wire(
+            'title',
+            `There is no unification to book for the ${title.name} any more. ${champion} is the champion, undisputed by default.`,
+            world.week,
+            'normal',
+          ),
+        );
+      }
+    } else {
+      // The champion is gone and the stand-in is still here. An interim
+      // champion is exactly the person who should inherit it — that is what
+      // the belt was crowned for — so they get it outright rather than the
+      // company vacating a title somebody is already carrying.
+      const [heir] = title.interimHolderIds;
+      const heirName = heir ? world.wrestlers[heir]?.name : undefined;
+      if (heir && heirName) {
+        const last = title.history[title.history.length - 1];
+        if (last && last.endWeek === null) {
+          last.endWeek = world.week;
+          last.endMethod = method;
+        }
+        title.currentHolderIds = [heir];
+        title.interimHolderIds = [];
+        title.interimSinceWeek = null;
+        title.vacant = false;
+        title.reignStartWeek = world.week;
+        world.weeklyNews.push(
+          wire(
+            'title',
+            `${heirName} is no longer the interim ${title.name}. With the champion gone there is nothing left to settle, and the belt is theirs.`,
+            world.week,
+            'lead',
+          ),
+        );
+      }
+    }
+  }
+
   // A champion who is gone cannot carry a belt. It goes vacant, and the
   // lineage records why.
   for (const title of world.titles) {
@@ -3611,27 +3676,14 @@ export const useGameStore = create<GameStore>()(
         const w = world?.wrestlers[wrestlerId];
         if (!world || !w || w.careerStatus === 'retired') return;
 
-        // Belts do not retire with their holder.
-        for (const title of world.titles) {
-          if (title.vacant || !title.currentHolderIds.includes(wrestlerId)) continue;
-          const last = title.history[title.history.length - 1];
-          if (last && last.endWeek === null) {
-            last.endWeek = world.week;
-            last.endMethod = 'retired';
-          }
-          title.vacant = true;
-          title.currentHolderIds = [];
-        }
-        const open = w.titleReigns.find((r) => r.endWeek === null);
-        if (open) {
-          open.endWeek = world.week;
-          open.endMethod = 'retired';
-        }
-
+        // Belts do not retire with their holder. This used to be its own copy
+        // of the vacating logic, which is how it drifted: leaveTheBusiness
+        // learned to resolve a split belt's interim claim and this path did
+        // not, so retiring an interim champion by hand left a claim on a title
+        // for somebody who was gone — and a belt owing a unification nobody
+        // can turn up for can never be defended again.
         retire(w);
-        world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestlerId);
-        world.freeAgents = world.freeAgents.filter((agent) => agent.wrestlerId !== wrestlerId);
-        world.pendingRenewals = world.pendingRenewals.filter((r) => r.wrestlerId !== wrestlerId);
+        leaveTheBusiness(world, wrestlerId, 'retired');
       });
     },
 
@@ -4193,6 +4245,26 @@ export const useGameStore = create<GameStore>()(
             'lead',
           ),
         );
+      });
+    },
+
+    editTitle: (titleId, patch) => {
+      set((state) => {
+        const world = state.world;
+        const title = world?.titles.find((t) => t.id === titleId);
+        if (!world || !title) return;
+
+        const renamed = patch.name?.trim();
+        if (renamed && renamed !== title.name) {
+          world.weeklyNews.push(
+            wire('title', `The ${title.name} is now the ${renamed}.`, world.week, 'normal'),
+          );
+          title.name = renamed;
+        }
+        if (patch.blurb !== undefined) title.blurb = patch.blurb.trim() || title.blurb;
+        if (patch.signatureStipulationId !== undefined) {
+          title.signatureStipulationId = patch.signatureStipulationId;
+        }
       });
     },
 

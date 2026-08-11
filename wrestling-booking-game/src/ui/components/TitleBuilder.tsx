@@ -16,7 +16,8 @@
 // title on day one would hand you a promotion's worth of credibility for
 // free. It comes from the tier instead.
 
-import { startingPrestige } from '../../data/titles';
+import { useState } from 'react';
+import { startingPrestige, TITLE_PRESETS, TITLE_PRESET_FAMILIES } from '../../data/titles';
 import { STIPULATIONS } from '../../data/stipulations';
 import type { TitleBlueprint, TitleDivision, TitleTier, WeightClass } from '../../engine/types';
 
@@ -70,6 +71,7 @@ export function TitleBuilder({
   onChange: (next: TitleBlueprint[]) => void;
   maxBelts: number;
 }) {
+  const [picking, setPicking] = useState(false);
   const update = (index: number, patch: Partial<TitleBlueprint>) =>
     onChange(belts.map((belt, i) => (i === index ? { ...belt, ...patch } : belt)));
 
@@ -191,7 +193,7 @@ export function TitleBuilder({
         </div>
       ))}
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           data-testid="belt-add"
@@ -199,7 +201,16 @@ export function TitleBuilder({
           disabled={belts.length >= maxBelts}
           className="rounded-lg border border-neutral-700 px-3 py-2 text-xs text-neutral-300 hover:border-neutral-500 disabled:border-neutral-900 disabled:text-neutral-700"
         >
-          Add a championship
+          Add a blank one
+        </button>
+        <button
+          type="button"
+          data-testid="belt-from-preset"
+          onClick={() => setPicking((open) => !open)}
+          disabled={belts.length >= maxBelts}
+          className="rounded-lg border border-neutral-700 px-3 py-2 text-xs text-neutral-300 hover:border-neutral-500 disabled:border-neutral-900 disabled:text-neutral-700"
+        >
+          {picking ? 'Never mind' : 'Start from something'}
         </button>
         <span className="text-[10px] text-neutral-600">
           {belts.length === 0
@@ -207,6 +218,37 @@ export function TitleBuilder({
             : `${belts.length} of ${maxBelts}. A company with too many has none that mean anything.`}
         </span>
       </div>
+
+      {/* Starting points, not a menu — everything is editable the moment it
+          is picked, which is the whole reason the presets are safe to offer. */}
+      {picking && (
+        <div className="mt-2 rounded-lg border border-neutral-800 bg-neutral-950 p-2">
+          {TITLE_PRESET_FAMILIES.map((family) => (
+            <div key={family} className="mb-2 last:mb-0">
+              <div className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">{family}</div>
+              <div className="flex flex-wrap gap-1">
+                {TITLE_PRESETS.filter((preset) => preset.family === family).map((preset) => (
+                  <button
+                    key={preset.suffix}
+                    type="button"
+                    data-testid={`preset-${preset.suffix.replace(/\s+/g, '-')}`}
+                    title={preset.blurb}
+                    onClick={() => {
+                      if (belts.length >= maxBelts) return;
+                      const { family: _family, ...blueprint } = preset;
+                      onChange([...belts, blueprint]);
+                      setPicking(false);
+                    }}
+                    className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5 text-[11px] text-neutral-300 hover:border-emerald-700 hover:text-neutral-100"
+                  >
+                    {preset.suffix}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -180,6 +180,256 @@ export function retiredTitlesOf(titles: readonly Title[], promotionId: Id): Titl
   return titles.filter((t) => t.promotionId === promotionId && !isActiveTitle(t));
 }
 
+/**
+ * A library of championships to start from.
+ *
+ * The house style suggests a lineup, but a booker who wants to build their
+ * own should not be typing every belt from a blank field — and "Championship"
+ * is not the only thing a promotion has ever put on the line. A trophy, a
+ * crown, a cup and a medal all say something different about a company before
+ * anybody has wrestled for them.
+ *
+ * These are starting points, not a menu: every field is editable the moment
+ * it is picked.
+ */
+export interface TitlePreset extends TitleBlueprint {
+  /** Grouping for the picker. */
+  family: 'Championships' | 'Trophies and crowns' | 'Divisions' | 'Specialist';
+}
+
+export const TITLE_PRESETS: TitlePreset[] = [
+  // --- The ordinary spine of a promotion -------------------------------
+  {
+    family: 'Championships',
+    suffix: 'World Heavyweight Championship',
+    blurb: 'The top of the mountain. Everything on the card is built toward it.',
+    tier: 'world',
+    division: 'mens',
+    weightClass: 'heavyweight',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Championships',
+    suffix: 'Undisputed Championship',
+    blurb: 'One belt, no arguments, nobody with a claim to a different one.',
+    tier: 'world',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Championships',
+    suffix: 'National Championship',
+    blurb: 'The belt that says this company is bigger than the towns it runs.',
+    tier: 'secondary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Championships',
+    suffix: 'Television Championship',
+    blurb: 'Defended every week on the show, whether it suits anybody or not.',
+    tier: 'television',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Championships',
+    suffix: 'Tag Team Championship',
+    blurb: 'Two people who trust each other beat two who are better. Usually.',
+    tier: 'tag',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Championships',
+    suffix: 'Six-Man Tag Championship',
+    blurb: 'Three a side, and twice the argument about who takes the fall.',
+    tier: 'trios',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+
+  // --- Not a belt at all ------------------------------------------------
+  {
+    family: 'Trophies and crowns',
+    suffix: 'Cup',
+    blurb: 'Won in a tournament and carried for a year. Silver, not leather.',
+    tier: 'secondary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Trophies and crowns',
+    suffix: 'Crown',
+    blurb: 'A king, and everybody else on the roster is not.',
+    tier: 'secondary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Trophies and crowns',
+    suffix: 'Trophy',
+    blurb: 'It goes in a case, not around a waist, and it still gets fought over.',
+    tier: 'tertiary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Trophies and crowns',
+    suffix: 'Gold Medal',
+    blurb: 'For the one who can genuinely wrestle, and everybody knows which one that is.',
+    tier: 'tertiary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Trophies and crowns',
+    suffix: 'Ring',
+    blurb: 'Small, expensive, and worn where everybody can see it.',
+    tier: 'tertiary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Trophies and crowns',
+    suffix: 'Briefcase',
+    blurb: 'A shot at the top, carried around until whoever holds it decides to use it.',
+    tier: 'tertiary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+
+  // --- Who it is for ----------------------------------------------------
+  {
+    family: 'Divisions',
+    suffix: "Women's World Championship",
+    blurb: 'The top of the women’s division, and its whole reason to exist.',
+    tier: 'world',
+    division: 'womens',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Divisions',
+    suffix: "Women's Tag Team Championship",
+    blurb: 'Two of them, and a division deep enough to mean it.',
+    tier: 'tag',
+    division: 'womens',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Divisions',
+    suffix: 'Cruiserweight Championship',
+    blurb: 'For the ones who move. Nobody heavy is getting near it.',
+    tier: 'cruiserweight',
+    division: 'open',
+    weightClass: 'juniorHeavy',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Divisions',
+    suffix: 'Junior Heavyweight Championship',
+    blurb: 'The division where the wrestling happens and everybody knows it.',
+    tier: 'cruiserweight',
+    division: 'mens',
+    weightClass: 'juniorHeavy',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Divisions',
+    suffix: 'Openweight Championship',
+    blurb: 'No divisions, no excuses. Anybody can challenge for it.',
+    tier: 'secondary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+  {
+    family: 'Divisions',
+    suffix: 'Rookie Championship',
+    blurb: 'For the people who have not done anything yet. Somebody has to be first.',
+    tier: 'tertiary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  },
+
+  // --- Belts with a rule attached ---------------------------------------
+  {
+    family: 'Specialist',
+    suffix: 'Hardcore Championship',
+    blurb: 'No count-outs, no disqualifications, and no shortage of challengers.',
+    tier: 'hardcore',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: 'hardcore',
+  },
+  {
+    family: 'Specialist',
+    suffix: 'Deathmatch Championship',
+    blurb: 'They know what they signed for and they came anyway.',
+    tier: 'hardcore',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: 'flamingTables',
+  },
+  {
+    family: 'Specialist',
+    suffix: 'Iron Man Championship',
+    blurb: 'Sixty minutes, most falls wins, and nobody argues with the result.',
+    tier: 'secondary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: 'ironMan',
+  },
+  {
+    family: 'Specialist',
+    suffix: 'Submission Championship',
+    blurb: 'You do not pin anybody for this. They give up or they do not.',
+    tier: 'secondary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: 'submissionMatch',
+  },
+  {
+    family: 'Specialist',
+    suffix: 'Street Championship',
+    blurb: 'Defended wherever it gets challenged for, and it usually is not in the ring.',
+    tier: 'hardcore',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: 'streetFight',
+  },
+  {
+    family: 'Specialist',
+    suffix: 'Cage Championship',
+    blurb: 'Won and lost inside the steel, and nobody has ever walked out of it happy.',
+    tier: 'secondary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: 'steelCage',
+  },
+];
+
+export const TITLE_PRESET_FAMILIES = [
+  'Championships',
+  'Trophies and crowns',
+  'Divisions',
+  'Specialist',
+] as const;
+
 export function titlesOf(titles: readonly Title[], promotionId: Id): Title[] {
   // Active only. A retired belt still exists in world.titles for its lineage,
   // but "the company's championships" means the ones it defends — anything

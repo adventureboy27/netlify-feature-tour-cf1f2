@@ -369,6 +369,7 @@ function IdentityPanel() {
   const name = draftName ?? world.promotion.name;
   const belts = titlesOf(world.titles, world.promotion.id);
   const retireTitle = useGameStore((s) => s.retireTitle);
+  const editTitle = useGameStore((s) => s.editTitle);
 
   return (
     <section className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">
@@ -430,10 +431,27 @@ function IdentityPanel() {
                 aria-hidden
               />
               <span className="min-w-0 flex-1">
-                <span className="font-medium">{belt.name}</span>
-                <span className="block text-neutral-500">{belt.blurb}</span>
+                {/* Editable in place. A belt can be renamed for its twentieth
+                    anniversary or when the company outgrows the name it
+                    opened with — what it cannot do is change division or
+                    tier, which would rewrite the reigns already on it. */}
+                <input
+                  type="text"
+                  aria-label={`${belt.name} name`}
+                  data-testid={`belt-rename-${belt.id}`}
+                  defaultValue={belt.name}
+                  onBlur={(e) => editTitle(belt.id, { name: e.target.value })}
+                  className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 font-medium hover:border-neutral-800 focus:border-neutral-700 focus:bg-neutral-900"
+                />
+                <input
+                  type="text"
+                  aria-label={`What the ${belt.name} is for`}
+                  defaultValue={belt.blurb}
+                  onBlur={(e) => editTitle(belt.id, { blurb: e.target.value })}
+                  className="mt-0.5 w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-neutral-500 hover:border-neutral-800 focus:border-neutral-700 focus:bg-neutral-900"
+                />
                 {belt.signatureStipulationId && (
-                  <span className="block text-amber-500/80">
+                  <span className="block px-1 text-amber-500/80">
                     Defended under {stipulationById(belt.signatureStipulationId)?.name ?? belt.signatureStipulationId}
                   </span>
                 )}

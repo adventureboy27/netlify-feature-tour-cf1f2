@@ -1,7 +1,14 @@
 // Custom championships — the player's own lineup, not the house style's.
 
 import { describe, expect, it } from 'vitest';
-import { createStartingTitles, startingBlueprints, startingPrestige } from './titles';
+import {
+  createStartingTitles,
+  startingBlueprints,
+  startingPrestige,
+  TITLE_PRESETS,
+  TITLE_PRESET_FAMILIES,
+} from './titles';
+import { stipulationById } from './stipulations';
 import { PROMOTION_ARCHETYPES } from './promotionIdentity';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { createInitialWorld } from '../state/world';
@@ -138,5 +145,47 @@ describe('a save built with custom belts', () => {
     expect(mine).toHaveLength(1);
     // crownOpeningChampions runs over whatever lineup it is handed.
     expect(mine[0]!.name).toContain('The Big One');
+  });
+});
+
+describe('the preset library', () => {
+  it('offers a good spread beyond "Championship"', () => {
+    // A booker building their own lineup should not be typing every belt from
+    // a blank field, and a trophy, a crown and a cup all say something
+    // different about a company before anybody has wrestled for them.
+    expect(TITLE_PRESETS.length).toBeGreaterThan(15);
+    for (const family of TITLE_PRESET_FAMILIES) {
+      expect(TITLE_PRESETS.filter((p) => p.family === family).length, family).toBeGreaterThan(2);
+    }
+    const names = TITLE_PRESETS.map((p) => p.suffix).join(' ');
+    for (const word of ['Trophy', 'Crown', 'Cup', 'Medal', 'Briefcase']) {
+      expect(names, word).toContain(word);
+    }
+  });
+
+  it('names a stipulation that actually exists', () => {
+    // A preset pointing at a stipulation id that was renamed is silent — the
+    // belt just never gets its signature match. 'submission' vs
+    // 'submissionMatch' was exactly that, caught here.
+    for (const preset of TITLE_PRESETS) {
+      if (!preset.signatureStipulationId) continue;
+      expect(stipulationById(preset.signatureStipulationId), preset.suffix).toBeDefined();
+    }
+  });
+
+  it('gives every preset a distinct name and a real blurb', () => {
+    const names = TITLE_PRESETS.map((p) => p.suffix);
+    expect(new Set(names).size).toBe(names.length);
+    for (const preset of TITLE_PRESETS) {
+      expect(preset.blurb.length, preset.suffix).toBeGreaterThan(20);
+    }
+  });
+
+  it('makes a real title out of any of them', () => {
+    for (const preset of TITLE_PRESETS) {
+      const [belt] = createStartingTitles('p', 'Atlas Pro', 'athletic', [preset]);
+      expect(belt!.name, preset.suffix).toContain(preset.suffix);
+      expect(belt!.vacant).toBe(true);
+    }
   });
 });

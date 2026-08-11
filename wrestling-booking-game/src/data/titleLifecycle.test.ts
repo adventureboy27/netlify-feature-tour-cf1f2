@@ -112,6 +112,69 @@ describe('retiring one', () => {
   });
 });
 
+describe('a split belt when somebody leaves the business', () => {
+  /** Hurt the champion and crown an interim, returning both ids. */
+  function splitBelt(): { titleId: string; championId: string; interimId: string } {
+    const belt = titlesOf(world().titles, world().promotion.id).find(
+      (t) => !t.vacant && t.currentHolderIds.length === 1,
+    )!;
+    const championId = belt.currentHolderIds[0]!;
+    useGameStore.setState((s) => {
+      s.world!.wrestlers[championId]!.injury = {
+        severity: 'moderate',
+        description: 'Blown knee',
+        sufferedWeek: 1,
+        totalWeeks: 8,
+        weeksRemaining: 8,
+        permanentStatLoss: {},
+        earlyReturnWeeksUsed: 0,
+      };
+      return s;
+    });
+    useGameStore.getState().autoFillCard();
+    useGameStore.getState().resolveWeek();
+    if (world().pendingWeatherCall) useGameStore.getState().answerWeatherCall('runIt');
+    const interim = world()
+      .promotion.rosterIds.map((id) => world().wrestlers[id]!)
+      .find((w) => w && !w.injury && w.role === 'wrestler' && w.id !== championId)!;
+    useGameStore.getState().answerChampionCall('interim', interim.id);
+    return { titleId: belt.id, championId, interimId: interim.id };
+  }
+
+  it('does not leave a claim on the belt for somebody who is gone', () => {
+    // The soft-lock this exists to prevent: an interim champion retires, the
+    // belt still owes a unification against them, no match can ever satisfy
+    // it, and the defence clock quietly strips the title.
+    const { titleId, interimId } = splitBelt();
+    expect(world().titles.find((t) => t.id === titleId)!.interimHolderIds).toContain(interimId);
+
+    useGameStore.getState().retireWrestler(interimId);
+    const after = world().titles.find((t) => t.id === titleId)!;
+    expect(after.interimHolderIds, 'a claim outlived the person holding it').toEqual([]);
+  });
+
+  it('leaves the champion undisputed when the stand-in goes', () => {
+    const { titleId, championId, interimId } = splitBelt();
+    useGameStore.getState().retireWrestler(interimId);
+    const after = world().titles.find((t) => t.id === titleId)!;
+    expect(after.vacant).toBe(false);
+    expect(after.currentHolderIds).toEqual([championId]);
+    expect(world().weeklyNews.some((n) => n.text.includes('undisputed'))).toBe(true);
+  });
+
+  it('hands the belt to the interim when the champion goes, rather than vacating it', () => {
+    // An interim champion is exactly the person who should inherit it — that
+    // is what the belt was crowned for. Vacating a title somebody is already
+    // carrying would be the wrong answer.
+    const { titleId, championId, interimId } = splitBelt();
+    useGameStore.getState().retireWrestler(championId);
+    const after = world().titles.find((t) => t.id === titleId)!;
+    expect(after.vacant).toBe(false);
+    expect(after.currentHolderIds).toEqual([interimId]);
+    expect(after.interimHolderIds).toEqual([]);
+  });
+});
+
 describe('bringing one back', () => {
   it('returns it, vacant, with its history intact', () => {
     const belt = titlesOf(world().titles, world().promotion.id).find((t) => !t.vacant)!;
@@ -163,5 +226,50 @@ describe('bringing one back', () => {
     const holders = [...belt.currentHolderIds];
     useGameStore.getState().unretireTitle(belt.id);
     expect(world().titles.find((t) => t.id === belt.id)!.currentHolderIds).toEqual(holders);
+  });
+});
+
+describe('editing a belt that already has a lineage', () => {
+  it('renames it without touching a single reign', () => {
+    const belt = titlesOf(world().titles, world().promotion.id).find((t) => !t.vacant)!;
+    const historyBefore = belt.history.length;
+    const holders = [...belt.currentHolderIds];
+
+    useGameStore.getState().editTitle(belt.id, { name: 'The Ironbelt Crown' });
+    const after = world().titles.find((t) => t.id === belt.id)!;
+    expect(after.name).toBe('The Ironbelt Crown');
+    expect(after.history).toHaveLength(historyBefore);
+    expect(after.currentHolderIds).toEqual(holders);
+  });
+
+  it('says so, because a belt changing name unannounced is a silent change', () => {
+    const belt = titlesOf(world().titles, world().promotion.id)[0]!;
+    const oldName = belt.name;
+    useGameStore.getState().editTitle(belt.id, { name: 'The Ironbelt Crown' });
+    expect(
+      world().weeklyNews.some((n) => n.text.includes(oldName) && n.text.includes('Ironbelt Crown')),
+    ).toBe(true);
+  });
+
+  it('changes what it is traditionally defended under', () => {
+    const belt = titlesOf(world().titles, world().promotion.id)[0]!;
+    useGameStore.getState().editTitle(belt.id, { signatureStipulationId: 'steelCage' });
+    expect(world().titles.find((t) => t.id === belt.id)!.signatureStipulationId).toBe('steelCage');
+    useGameStore.getState().editTitle(belt.id, { signatureStipulationId: null });
+    expect(world().titles.find((t) => t.id === belt.id)!.signatureStipulationId).toBeNull();
+  });
+
+  it('ignores an empty name rather than creating a nameless belt', () => {
+    const belt = titlesOf(world().titles, world().promotion.id)[0]!;
+    useGameStore.getState().editTitle(belt.id, { name: '   ' });
+    expect(world().titles.find((t) => t.id === belt.id)!.name).toBe(belt.name);
+  });
+
+  it('leaves division and tier alone — those would rewrite the reigns on it', () => {
+    const belt = titlesOf(world().titles, world().promotion.id)[0]!;
+    useGameStore.getState().editTitle(belt.id, { name: 'Something Else' });
+    const after = world().titles.find((t) => t.id === belt.id)!;
+    expect(after.division).toBe(belt.division);
+    expect(after.tier).toBe(belt.tier);
   });
 });
