@@ -418,6 +418,27 @@ export function defaultWorldSettings(): WorldSettings {
     moraleSettleReportable: 0.6,
     moraleWeeklyCap: 9,
 
+    // The live call. Sixteen lines is about forty seconds of reading, which
+    // is long enough to tell the story of a match and short enough that six
+    // of them on a card is not a chore.
+    commentaryEnabled: true,
+    commentaryMaxLines: 16,
+    // Not every beat gets a remark. A colour man who speaks after every
+    // single line is the thing that makes commentary feel like filler.
+    commentaryColourChance: 0.62,
+    commentaryComebackChance: 0.45,
+    commentaryBanterChance: 0.4,
+    commentaryGrudgeHeat: 40,
+    commentaryGreatMatch: 74,
+    commentaryPoorMatch: 32,
+    commentaryLongReignWeeks: 20,
+    commentaryRookieAge: 23,
+    commentarySizeGapLbs: 80,
+    commentaryHotHouseShare: 0.85,
+    commentaryFlatHouseShare: 0.45,
+    commentaryUpsetProbability: 0.3,
+    commentaryDeviousManager: 60,
+
     // Relationships. Most people get along; the ones who do not are the
     // interesting exception, and enemies work stiffer — better to watch,
     // likelier to hurt somebody.

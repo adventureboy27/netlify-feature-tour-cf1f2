@@ -1049,6 +1049,13 @@ export interface SegmentResult {
     headline: string;
     involvedIds: Id[];
   } | null;
+  /**
+   * The live call, two voices, for the player's own card only. Typed
+   * structurally because types.ts has no imports by design — the real shape
+   * is CommentaryLine in sim/commentary.ts. Absent on rival shows, which
+   * still get the written highlight.
+   */
+  commentary?: { speaker: 'play' | 'colour'; name: string; text: string }[];
 }
 
 // ============================================================================
@@ -1192,6 +1199,13 @@ export interface Promotion {
   weeksInTheRed: number;
   /** Set when the company closes. A closed company runs no shows. */
   closedWeek: number | null;
+  /**
+   * Who calls this company's matches. Drawn once at world creation and kept,
+   * because a promotion whose announcers changed every week would not sound
+   * like a promotion. Structural for the same no-imports reason as above;
+   * see sim/commentary.ts CommentaryTeam.
+   */
+  commentaryTeam?: { playByPlayName: string; colourName: string; leaning: 'heel' | 'face' | 'analyst' } | null;
   ownerId: Id; // a Wrestler record with role 'owner'
   /** What the person signing the cheques is like. Biases what they demand. */
   ownerPersonality: OwnerPersonality;
@@ -1735,6 +1749,36 @@ export interface WorldSettings {
   moraleSettleReportable: number;
   /** Nothing here should move somebody more than this in one week. */
   moraleWeeklyCap: number;
+
+  // The live call — see sim/commentary.ts.
+  /** Off means the results screen is the written highlight and nothing else. */
+  commentaryEnabled: boolean;
+  /** Hard ceiling on a call. It has to tell the whole story inside this. */
+  commentaryMaxLines: number;
+  /** Odds the colour man says something after any given beat. */
+  commentaryColourChance: number;
+  /** Odds the play-by-play man answers a provocative line. */
+  commentaryComebackChance: number;
+  /** Odds of a last word after the bell. */
+  commentaryBanterChance: number;
+  /** Shoot heat at which the call treats it as a fight rather than a match. */
+  commentaryGrudgeHeat: number;
+  /** Match ratings at which the call may call it great, or call it poor. */
+  commentaryGreatMatch: number;
+  commentaryPoorMatch: number;
+  /** Weeks with a belt before the reign itself is worth talking about. */
+  commentaryLongReignWeeks: number;
+  /** At or under this age the colour man is allowed to call somebody green. */
+  commentaryRookieAge: number;
+  /** Pounds between the heaviest and lightest before size is a story. */
+  commentarySizeGapLbs: number;
+  /** Share of the building filled, last time out, at which the room is hot or flat. */
+  commentaryHotHouseShare: number;
+  commentaryFlatHouseShare: number;
+  /** Win probability at or below which the winner counts as an upset. */
+  commentaryUpsetProbability: number;
+  /** Deviousness at which a manager is worth accusing of something. */
+  commentaryDeviousManager: number;
 
   // Relationships (engine/career/relationships.ts)
   /** How many relationships to seed, per wrestler on the roster. */

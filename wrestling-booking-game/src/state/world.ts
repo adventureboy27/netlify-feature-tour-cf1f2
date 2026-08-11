@@ -60,7 +60,9 @@ import type { EventHistory } from '../engine/events/scheduler';
 import type { TamperingAttempt } from '../engine/world/tampering';
 import { emptyEventHistory } from '../engine/events/scheduler';
 import type { Rng } from '../engine/rng';
-import { pick, randInt } from '../engine/rng';
+import { pick, randInt, rngFromSeed } from '../engine/rng';
+import { assignCommentaryTeam } from '../engine/sim/commentary';
+import { COMMENTARY_TEAMS } from '../data/commentators';
 import { generateWrestlers } from '../engine/generate/wrestler';
 import { createRivalry } from '../engine/sim/rivalry';
 import { createStandardContract } from '../engine/economy/contracts';
@@ -468,6 +470,18 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     closedWeek: null,
     // DESIGN: a real Wrestler with role 'owner' is M5 (owner mandates); a
     // bare id placeholder is enough for M2, which never dereferences it.
+    // Who calls the matches. Drawn once and kept — see sim/commentary.ts.
+    //
+    // From its own stream, not the world's. Commentary is narration: it must
+    // never move the simulation's random sequence, or adding a line of banter
+    // would change who wins matches three years from now. Measured the hard
+    // way — assigning this from `rng` shifted every seeded outcome in the
+    // game and broke two unrelated tests.
+    commentaryTeam: assignCommentaryTeam(
+      rngFromSeed(`${settings.seed}-broadcast`),
+      COMMENTARY_TEAMS,
+      new Set(),
+    ),
     ownerId: randomId(rng, 'owner'),
     // Who you work for, and therefore what you are going to be leaned on
     // about for the rest of the save.

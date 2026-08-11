@@ -1,0 +1,549 @@
+// What the two of them say.
+//
+// Read engine/sim/commentary.ts first; it explains the rules. The short
+// version, because it governs every line in this file:
+//
+//   A colour line may only use a placeholder backed by a fact it declares in
+//   `needs`. {manager} requires 'manager'. {title} requires 'title'. {ref}
+//   requires 'referee'. If you add a line that mentions something without
+//   declaring it, the call will eventually say it about a match where it is
+//   not true, and the whole feature stops being worth having.
+//
+//   Nothing before the finish may reference {winner} or {loser}. Nobody on
+//   commentary knows how it ends. Mid-match, the two people you can talk
+//   about are {onTop} and {inTrouble}, and the caller hands that advantage
+//   over at the moment the match turns.
+//
+// PLACEHOLDERS
+//   {onTop} {onTopPartner}       whoever currently has the advantage
+//   {inTrouble} {inTroublePartner}  whoever is currently getting it
+//   {sideA} {sideB}              the two corners, before anything has happened
+//   {winner} {loser}             finish and wrap-up only
+//   {finisher}                   the finisher of whoever is on top
+//   {winnerFinisher}             finish only
+//   {play} {colour}              the two announcers, by name
+//   {manager} {managerClient}    needs 'manager'
+//   {ref} {refMiss}              needs 'referee' / 'refereeMiss'
+//   {guestRef}                   needs 'guestReferee'
+//   {title} {champion} {reign}   needs 'title' / 'titleRetained' / 'longReign'
+//   {hurt} {hurtHow}             needs 'injuredInMatch'
+//   {hurtComingIn}               needs 'carryingInjury'
+//   {incident}                   needs 'incident'
+//   {stip}                       needs 'stipulation'
+//   {vet} {rookie}               needs 'veteran' / 'rookie'
+//   {big} {small}                needs 'sizeGap'
+
+import type { CommentaryFact, Speaker } from '../engine/sim/commentary';
+import type { MatchBeatKind } from '../engine/types';
+
+/** Which way the colour man leans, and therefore what he is willing to say. */
+export type Leaning = 'heel' | 'face' | 'analyst';
+
+export interface ColourTemplate {
+  text: string;
+  /** Every one of these must be true of the match, or the line is not said. */
+  needs: CommentaryFact[];
+  /** Only after these beats. Omitted means anywhere in the body. */
+  after?: MatchBeatKind[];
+  /** Only from a colour man who leans this way. */
+  leaning?: Leaning;
+  /** Worth arguing with — the play-by-play man may answer it. */
+  provocative?: boolean;
+  /** For pools where either of them might say it. */
+  speaker?: Speaker;
+}
+
+// ---------------------------------------------------------------------------
+// Play-by-play — the action, in the present tense, from the man whose job is
+// to say what is happening.
+// ---------------------------------------------------------------------------
+
+export const PLAY_BY_PLAY: Partial<Record<MatchBeatKind, readonly string[]>> = {
+  openingExchange: [
+    'And they lock up. Neither one of them giving an inch early.',
+    'Collar and elbow to start, and {onTop} backs {inTrouble} into the corner.',
+    'They circle. {inTrouble} goes for the leg, {onTop} sprawls out of it.',
+    'A shove from {onTop}. {inTrouble} shoves back harder, and here we go.',
+    'Feeling-out process early, both of them working the wristlock.',
+    'No handshake. Straight into it — {onTop} with the first real strike.',
+    'Off the ropes, shoulder block, and {inTrouble} goes down hard.',
+    'Chain wrestling to open, and neither one can hold an advantage for long.',
+  ],
+  control: [
+    '{onTop} takes over now. Stomps in the corner and the referee is counting.',
+    '{onTop} grounds him. Wearing {inTrouble} down, taking his time about it.',
+    'A hard whip into the corner and {inTrouble} folds up on impact.',
+    '{onTop} has the arm and he is not letting go of it.',
+    'Right hands. One after another, and {inTrouble} has nowhere to go.',
+    '{onTop} drives a knee into the midsection and {inTrouble} drops to a knee.',
+    'He is picking him apart. {onTop} in complete control here.',
+    'Elbow. Elbow. Another one. {inTrouble} is in serious trouble.',
+    '{onTop} slows it right down — a chinlock, and the crowd does not like it.',
+    'Backbreaker, and {onTop} holds him there across the knee.',
+  ],
+  hopeSpot: [
+    '{onTop} fires back! Out of nowhere!',
+    'Wait — {onTop} ducks under and catches him coming in!',
+    'He is up! {onTop} is up and the building is coming with him!',
+    '{onTop} blocks it, blocks it again, and now the right hands are his!',
+    'Reversal! {onTop} sends him across and follows in behind!',
+    'Out of nothing — {onTop} catches the foot and turns it into a takedown!',
+    '{onTop} will not stay down. He is on his feet and he is throwing bombs!',
+  ],
+  nearFall: [
+    'Cover — one, two, and {inTrouble} gets the shoulder up!',
+    'ONE, TWO — no! How is he still in this?',
+    'He hooks the leg — two and a half! That was as close as it gets.',
+    'Cover, and {inTrouble} kicks out at the very last instant!',
+    'One! Two! Th— no! I thought that was it.',
+    'That has to be it — no! {inTrouble} is still alive!',
+  ],
+  signature: [
+    '{onTop} up top now. He is going to fly.',
+    'He is setting up for {finisher}. This could be it.',
+    '{onTop} lifts him up — and drives him straight through the mat!',
+    'Off the top rope and he connects flush! Nobody is moving.',
+    'He is calling for it. {onTop} is calling for the end.',
+    'What a shot! {onTop} caught him square and {inTrouble} went down like a bag of sand.',
+  ],
+  interference: [
+    'Hang on — somebody else is out here. This is falling apart.',
+    'There is a body on the apron and the referee has lost sight of the match.',
+    'Now it has broken down entirely. Bodies everywhere.',
+  ],
+  finish: [
+    '{winnerFinisher}! Cover — one, two, three! It is over!',
+    'That is it! {winner} gets the three and this one is finished!',
+    'One, two, three — {winner} has done it!',
+    'He hooks the leg and gets it! {winner} wins it!',
+    '{winner} put him away, and {loser} has no answer for it.',
+    'It is over. {winner} stands, {loser} does not.',
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// The opening. Always the play-by-play man, always naming who is in there.
+// ---------------------------------------------------------------------------
+
+export const OPENERS: readonly ColourTemplate[] = [
+  { text: 'Here we go — {sideA} and {sideB}, and this crowd is ready.', needs: ['hotCrowd'] },
+  { text: 'Our main event of the evening: {sideA} against {sideB}.', needs: ['mainEvent'] },
+  {
+    text: 'Main event time, and there is a championship on the line — {sideA} and {sideB} for the {title}.',
+    needs: ['mainEvent', 'title'],
+  },
+  { text: 'And it is for the {title}. {sideA}, {sideB}, and one of them leaves with it.', needs: ['title'] },
+  { text: '{stip} rules here tonight, and it is {sideA} against {sideB}.', needs: ['stipulation'] },
+  {
+    text: 'These two do not like each other, folks. {sideA} and {sideB}, and this is not going to be pretty.',
+    needs: ['grudge'],
+  },
+  { text: '{sideA} and {sideB}. Referee {ref} calls for the bell.', needs: ['referee'] },
+  { text: 'Next up: {sideA} taking on {sideB}.', needs: [] },
+  { text: 'The bell rings. {sideA} and {sideB} in the middle of the ring.', needs: [] },
+];
+
+// ---------------------------------------------------------------------------
+// The stakes. The colour man's first job is to say why this matters, and
+// there is only anything to say when something is actually at stake.
+// ---------------------------------------------------------------------------
+
+export const STAKES: readonly ColourTemplate[] = [
+  {
+    text: '{champion} has held that belt {reign} weeks, {play}. Nobody has come close in all that time.',
+    needs: ['longReign'],
+  },
+  {
+    text: 'And a title changes everything. You wrestle differently when you have something to lose.',
+    needs: ['title'],
+    leaning: 'analyst',
+  },
+  {
+    text: 'I will say this for the champion — he did not steal that belt. He earned it.',
+    needs: ['titleRetained'],
+    leaning: 'face',
+  },
+  {
+    text: 'This is not a wrestling match, {play}. This is a fight, and it has been coming for months.',
+    needs: ['grudge'],
+  },
+  {
+    text: '{manager} is out here with {managerClient}, and that man has never been at ringside for an honest three-count in his life.',
+    needs: ['deviousManager'],
+    leaning: 'face',
+    provocative: true,
+  },
+  {
+    text: 'Look at {manager} down there. That is a professional at work, {play}, and I will not apologise for admiring it.',
+    needs: ['deviousManager'],
+    leaning: 'heel',
+    provocative: true,
+  },
+  {
+    text: '{manager} in the corner, and a good manager is worth ten pounds of muscle. Watch the difference it makes.',
+    needs: ['manager'],
+    leaning: 'analyst',
+  },
+  {
+    text: '{hurtComingIn} should not be in this building tonight, never mind in that ring.',
+    needs: ['carryingInjury'],
+  },
+  {
+    text: 'Under {stip} rules, half of what you know about wrestling goes out the window.',
+    needs: ['stipulation'],
+  },
+  {
+    text: 'Look at the size of {big} next to {small}. That is not a fair fight on paper.',
+    needs: ['sizeGap'],
+  },
+  { text: '{rookie} is a baby in this business and he is in there with a wolf.', needs: ['rookie'] },
+  { text: 'Listen to this place. They are up for this one already.', needs: ['hotCrowd'] },
+];
+
+// ---------------------------------------------------------------------------
+// Colour. Every one of these is gated on something being true.
+// ---------------------------------------------------------------------------
+
+export const COLOUR: readonly ColourTemplate[] = [
+  // --- the manager -------------------------------------------------------
+  {
+    text: '{manager} is up on the apron again. {ref} has to deal with that.',
+    needs: ['manager', 'referee'],
+    after: ['control', 'nearFall'],
+  },
+  {
+    text: 'Watch {manager} — every time {ref} turns his back, that man moves.',
+    needs: ['deviousManager', 'referee'],
+    provocative: true,
+  },
+  {
+    text: 'That is coaching, {play}. {manager} is telling him exactly where to go and he is going there.',
+    needs: ['manager'],
+    after: ['control', 'signature'],
+    leaning: 'analyst',
+  },
+  {
+    text: '{manager} has not stopped shouting since the bell. I would pay money for five minutes of quiet.',
+    needs: ['manager'],
+    provocative: true,
+  },
+  {
+    text: 'And {manager} is loving this. Look at him.',
+    needs: ['manager'],
+    after: ['control'],
+    leaning: 'heel',
+  },
+  {
+    text: 'Somebody get {manager} away from that ring. He is a participant at this point.',
+    needs: ['deviousManager'],
+    leaning: 'face',
+    provocative: true,
+  },
+
+  // --- the official ------------------------------------------------------
+  {
+    text: '{ref} is losing this one, {play}. He has been a step behind since the bell.',
+    needs: ['referee'],
+    after: ['control', 'nearFall'],
+    provocative: true,
+  },
+  {
+    text: 'That was a slow count. {ref} was miles behind that.',
+    needs: ['referee'],
+    after: ['nearFall'],
+    provocative: true,
+  },
+  {
+    text: '{ref} {refMiss}. He did not see a thing.',
+    needs: ['refereeMiss'],
+    provocative: true,
+  },
+  {
+    text: 'You cannot officiate what you cannot see, and {ref} was on the wrong side of the ring.',
+    needs: ['refereeMiss'],
+    leaning: 'analyst',
+  },
+  {
+    text: 'And that is why you do not put a wrestler in the shirt. {guestRef} has a horse in this race.',
+    needs: ['guestReferee'],
+    provocative: true,
+  },
+  {
+    text: '{guestRef} counted that one quick. Very quick.',
+    needs: ['guestReferee'],
+    after: ['nearFall'],
+    leaning: 'face',
+  },
+
+  // --- the championship --------------------------------------------------
+  {
+    text: 'And remember what is hanging over this ring — the {title}.',
+    needs: ['title'],
+    after: ['nearFall', 'signature'],
+  },
+  {
+    text: 'That nearly cost {champion} the {title} right there.',
+    needs: ['titleRetained'],
+    after: ['nearFall'],
+  },
+  {
+    text: '{reign} weeks with that belt and I have never seen the champion in trouble like this.',
+    needs: ['longReign'],
+    after: ['nearFall', 'hopeSpot'],
+  },
+  {
+    text: 'You do not get many shots at the {title}. You take the one you get.',
+    needs: ['title'],
+    after: ['hopeSpot'],
+    leaning: 'analyst',
+  },
+
+  // --- somebody is hurt --------------------------------------------------
+  {
+    text: 'He is hurt, {play}. That is not selling. {hurt} is genuinely hurt.',
+    needs: ['injuredInMatch'],
+    after: ['control', 'signature'],
+  },
+  {
+    text: '{hurtHow} — and he is trying to get up. He should not be trying to get up.',
+    needs: ['injuredInMatch'],
+  },
+  {
+    text: 'Somebody is getting beaten up tonight and it is {hurt}. This has stopped being a wrestling match.',
+    needs: ['injuredInMatch'],
+    after: ['control'],
+  },
+  {
+    text: '{hurtComingIn} came in here carrying something and now they are working it. Of course they are.',
+    needs: ['carryingInjury'],
+    after: ['control'],
+  },
+  {
+    text: 'That is the leg {hurtComingIn} has been favouring all month. This is deliberate.',
+    needs: ['carryingInjury'],
+    after: ['control', 'signature'],
+    leaning: 'analyst',
+  },
+  {
+    text: 'Good. You find the injury and you live on it. That is the business.',
+    needs: ['carryingInjury'],
+    leaning: 'heel',
+    provocative: true,
+  },
+
+  // --- bad blood ---------------------------------------------------------
+  {
+    text: 'There is nothing professional about this any more. They are trying to hurt each other.',
+    needs: ['grudge'],
+    after: ['control', 'signature'],
+  },
+  {
+    text: 'Those punches are closed fists, {play}. Nobody is pulling anything.',
+    needs: ['grudge'],
+    provocative: true,
+  },
+  {
+    text: 'This stopped being about winning about ten minutes ago.',
+    needs: ['grudge'],
+    after: ['nearFall'],
+  },
+
+  // --- the gimmick -------------------------------------------------------
+  {
+    text: 'And under {stip} rules there is nothing {ref} can do about that.',
+    needs: ['stipulation', 'referee'],
+    after: ['control', 'signature'],
+  },
+  {
+    text: 'This is exactly what {stip} does to people. It takes the wrestling out of them.',
+    needs: ['stipulation'],
+    after: ['control'],
+    leaning: 'analyst',
+  },
+
+  // --- size and age ------------------------------------------------------
+  {
+    text: '{small} cannot match {big} for power. He has to be smarter than that.',
+    needs: ['sizeGap', 'smallInTrouble'],
+    after: ['control'],
+    leaning: 'analyst',
+  },
+  {
+    text: 'Every pound of that size difference is showing right now.',
+    needs: ['sizeGap'],
+    after: ['control'],
+  },
+  {
+    text: '{vet} has been doing this for twenty years. He does not panic in that position.',
+    needs: ['veteran', 'vetInTrouble'],
+    after: ['control', 'nearFall'],
+    leaning: 'analyst',
+  },
+  {
+    text: 'There is a lot of mileage on {vet}, {play}. A body only takes so much.',
+    needs: ['veteran', 'vetInTrouble'],
+    after: ['control'],
+  },
+  {
+    text: '{rookie} is learning something tonight and it is costing him.',
+    needs: ['rookie', 'rookieInTrouble'],
+    after: ['control'],
+  },
+  {
+    text: 'Green as grass, {rookie}, but he has heart. You cannot teach that.',
+    needs: ['rookie'],
+    after: ['hopeSpot'],
+    leaning: 'face',
+  },
+
+  // --- the room ----------------------------------------------------------
+  {
+    text: 'Listen to this building. They are on their feet.',
+    needs: ['hotCrowd'],
+    after: ['hopeSpot', 'nearFall', 'signature'],
+  },
+  {
+    text: 'You can hear individual people out there, {play}. That is not a good sign.',
+    needs: ['flatCrowd'],
+    after: ['control'],
+    provocative: true,
+  },
+  {
+    text: 'This one has been a hell of a match and we are not close to done.',
+    needs: ['greatMatch'],
+    after: ['nearFall', 'signature'],
+  },
+  {
+    text: 'I have seen better on a wet Tuesday in a school gym.',
+    needs: ['poorMatch'],
+    after: ['control'],
+    provocative: true,
+  },
+
+  // --- something nobody booked -------------------------------------------
+  { text: '{incident}', needs: ['incident'] },
+  {
+    text: 'What was that? Did you see that, {play}? Neither did I, properly.',
+    needs: ['incident'],
+    after: ['signature', 'nearFall'],
+  },
+
+  // --- it broke down ------------------------------------------------------
+  {
+    text: 'This has gone completely off the rails. There are people out here who do not belong.',
+    needs: ['interference'],
+    after: ['signature', 'nearFall'],
+  },
+
+  // --- tag ----------------------------------------------------------------
+  {
+    text: '{inTrouble} needs to make the tag. {inTroublePartner} has his hand out and he cannot reach him.',
+    needs: ['tagMatch'],
+    after: ['control'],
+  },
+  {
+    text: 'Great tag team wrestling, that. {onTop} and {onTopPartner} are cutting the ring in half.',
+    needs: ['tagMatch'],
+    after: ['control', 'signature'],
+    leaning: 'analyst',
+  },
+];
+
+// ---------------------------------------------------------------------------
+// The play-by-play man answering back. Only ever fires after a line marked
+// provocative, so it always has something to be answering.
+// ---------------------------------------------------------------------------
+
+export const COMEBACKS: readonly ColourTemplate[] = [
+  { text: 'You would say that, {colour}.', needs: [] },
+  { text: 'That is a disgraceful thing to say and you know it.', needs: [] },
+  { text: 'I am not sure the people in this building agree with you, {colour}.', needs: [] },
+  { text: 'You have been defending that all night.', needs: [], leaning: 'heel' },
+  { text: 'All right, all right. Back to the match.', needs: [] },
+  { text: 'I will give you that one, {colour}. Just that one.', needs: [] },
+  { text: 'Will you listen to yourself?', needs: [], leaning: 'heel' },
+  { text: 'Say what you like, it is working.', needs: [], leaning: 'analyst' },
+];
+
+// ---------------------------------------------------------------------------
+// The wrap. What it meant, said once the bell has gone.
+// ---------------------------------------------------------------------------
+
+export const CLOSERS: readonly ColourTemplate[] = [
+  {
+    text: 'New champion! I do not believe it — the {title} has a new holder.',
+    needs: ['titleChange'],
+    speaker: 'play',
+  },
+  {
+    text: 'And {champion} walks out of here still carrying the {title}.',
+    needs: ['titleRetained'],
+  },
+  {
+    text: 'Nobody saw that coming, {play}. Nobody in this building had {winner} winning that.',
+    needs: ['upset'],
+  },
+  {
+    text: 'That is not over. Whatever that was, it is not over.',
+    needs: ['grudge'],
+  },
+  {
+    text: 'And {loser} is still down. We need somebody out here.',
+    needs: ['injuredInMatch'],
+  },
+  {
+    text: 'They will be talking about that one for a long time.',
+    needs: ['greatMatch'],
+  },
+  {
+    text: '{winner} won it, and {manager} is already in the ring celebrating like he did it himself.',
+    needs: ['manager'],
+  },
+  {
+    text: 'A win is a win. It does not have to be pretty and that certainly was not.',
+    needs: ['poorMatch'],
+    leaning: 'heel',
+  },
+  {
+    text: 'Listen to that reaction. That is what this business is for.',
+    needs: ['hotCrowd', 'greatMatch'],
+  },
+  {
+    text: 'I hope {ref} is proud of what he let happen out here.',
+    needs: ['refereeMiss'],
+    leaning: 'face',
+  },
+];
+
+// ---------------------------------------------------------------------------
+// The last word. Rare, and only when the night has earned one.
+// ---------------------------------------------------------------------------
+
+export const BANTER: readonly ColourTemplate[] = [
+  {
+    text: 'Twenty years I have been doing this, {colour}, and that is in the top ten.',
+    needs: ['greatMatch'],
+    speaker: 'play',
+  },
+  {
+    text: 'I have nothing bad to say. That is the first time all night.',
+    needs: ['greatMatch'],
+    speaker: 'colour',
+    leaning: 'heel',
+  },
+  {
+    text: 'Main event of the evening, and it delivered every bit of it.',
+    needs: ['mainEvent', 'greatMatch'],
+    speaker: 'play',
+  },
+  {
+    text: 'Get me a drink, {play}.',
+    needs: ['grudge', 'greatMatch'],
+    speaker: 'colour',
+  },
+  {
+    text: 'We are out of time. What a way to go off the air.',
+    needs: ['mainEvent', 'hotCrowd'],
+    speaker: 'play',
+  },
+];

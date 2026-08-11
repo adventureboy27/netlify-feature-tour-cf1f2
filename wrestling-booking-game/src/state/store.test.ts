@@ -994,3 +994,86 @@ describe('the quiet business', () => {
     expect(sample.contract!.weeksRemaining).toBeLessThan(sample.contract!.totalWeeks);
   });
 });
+
+describe('the call', () => {
+  it('gives every match on our own card two voices and a whole story', () => {
+    const world = useGameStore.getState().world!;
+    const ids = world.promotion.rosterIds;
+    for (let slot = 0; slot < 6; slot++) {
+      useGameStore.getState().setSegmentParticipant(slot, ids[slot * 2]!, 0);
+      useGameStore.getState().setSegmentParticipant(slot, ids[slot * 2 + 1]!, 1);
+    }
+    runWeek();
+
+    const show = useGameStore.getState().world!.showHistory[0]!;
+    const team = useGameStore.getState().world!.promotion.commentaryTeam!;
+    const called = show.segments.filter((s) => s.result?.commentary?.length);
+    expect(called.length).toBe(6);
+
+    for (const segment of called) {
+      const lines = segment.result!.commentary!;
+      // Two named people, nobody else.
+      expect(new Set(lines.map((l) => l.name)).size).toBeLessThanOrEqual(2);
+      for (const line of lines) {
+        expect([team.playByPlayName, team.colourName]).toContain(line.name);
+        // Nothing unresolved ever reaches the screen.
+        expect(line.text).not.toMatch(/\{|\}/);
+      }
+      // It opens on who is in there and it closes on the result.
+      const names = segment.participants.map((p) => useGameStore.getState().world!.wrestlers[p.wrestlerId]!.name);
+      expect(names.some((n) => lines[0]!.text.includes(n))).toBe(true);
+      expect(lines.length).toBeLessThanOrEqual(
+        useGameStore.getState().world!.settings.commentaryMaxLines,
+      );
+    }
+  });
+
+  it('does not repeat the colour man across the card', () => {
+    const world = useGameStore.getState().world!;
+    const ids = world.promotion.rosterIds;
+    for (let slot = 0; slot < 6; slot++) {
+      useGameStore.getState().setSegmentParticipant(slot, ids[slot * 2]!, 0);
+      useGameStore.getState().setSegmentParticipant(slot, ids[slot * 2 + 1]!, 1);
+    }
+    runWeek();
+
+    const after = useGameStore.getState().world!;
+    const colourName = after.promotion.commentaryTeam!.colourName;
+    const said = after.showHistory[0]!.segments.flatMap((s) =>
+      (s.result?.commentary ?? []).filter((l) => l.name === colourName).map((l) => l.text),
+    );
+    // A few repeats are allowed once the night has exhausted what is true —
+    // a wall of them is what this guards against.
+    const repeats = said.length - new Set(said).size;
+    expect(repeats).toBeLessThanOrEqual(3);
+  });
+
+  it('is narration, not simulation — it never moves a result', () => {
+    // The call draws from its own stream. Running the same seed twice with
+    // commentary on and off has to produce identical matches, or a line of
+    // banter could change who holds a title three years from now.
+    function starsFor(commentaryEnabled: boolean) {
+      useGameStore.getState().newGame({ ...freshSettings(), commentaryEnabled });
+      const ids = useGameStore.getState().world!.promotion.rosterIds;
+      for (let slot = 0; slot < 6; slot++) {
+        useGameStore.getState().setSegmentParticipant(slot, ids[slot * 2]!, 0);
+        useGameStore.getState().setSegmentParticipant(slot, ids[slot * 2 + 1]!, 1);
+      }
+      for (let i = 0; i < 3; i++) runWeek();
+      return useGameStore
+        .getState()
+        .world!.showHistory.flatMap((s) => s.segments.map((seg) => `${seg.result?.stars}:${seg.result?.winnerSide}`));
+    }
+    expect(starsFor(true)).toEqual(starsFor(false));
+  });
+
+  it('says nothing at all when the booker has switched it off', () => {
+    useGameStore.getState().newGame({ ...freshSettings(), commentaryEnabled: false });
+    const ids = useGameStore.getState().world!.promotion.rosterIds;
+    useGameStore.getState().setSegmentParticipant(0, ids[0]!, 0);
+    useGameStore.getState().setSegmentParticipant(0, ids[1]!, 1);
+    runWeek();
+    const show = useGameStore.getState().world!.showHistory[0]!;
+    expect(show.segments.every((s) => (s.result?.commentary ?? []).length === 0)).toBe(true);
+  });
+});

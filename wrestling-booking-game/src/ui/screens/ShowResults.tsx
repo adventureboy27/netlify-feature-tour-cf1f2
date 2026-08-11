@@ -17,6 +17,7 @@ import { Stars, BreakdownPanel, Money, HeatBadge } from '../components/display';
 import { Panel, SectionHead, Figure, BigStars, promotionTheme } from '../components/chrome';
 import { Bout, VersusMark, type BoutSide } from '../components/Bout';
 import { slotLabel } from '../cardLabels';
+import { CallWindow } from '../components/CallWindow';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import type { FinishType, Show, Wrestler } from '../../engine/types';
 
@@ -298,6 +299,15 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
                   names its referee before the bell. */}
               {result.officialName && (
                 <p className="mb-2 text-[11px] text-neutral-500">Referee: {result.officialName}</p>
+              )}
+
+              {/* The call, if this was our show. A rival's night is a result
+                  in a newspaper — nobody has a broadcast of it. */}
+              {(result.commentary ?? []).length > 0 && (
+                <CallWindow
+                  lines={result.commentary ?? []}
+                  matchLabel={`${winners.join(' & ')} vs ${losers.map((w) => w.name).join(' & ')}`}
+                />
               )}
 
               {result.beats.filter((b) => b.significant).length > 0 && (

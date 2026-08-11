@@ -71,6 +71,7 @@ import { resolveConfrontation } from '../engine/sim/confrontation';
 import { factionEgoDrift, factionHeat, factionStanding } from '../engine/world/faction';
 import { demandsDelivered, deliveryBonus, fanDemands } from '../engine/world/fanDemand';
 import { deliveredTo, moraleContext, weeklyMorale } from '../engine/career/morale';
+import { callTheMatch } from '../engine/sim/commentary';
 import { isAlly, isEnemy } from '../engine/career/relationships';
 import {
   canSignSecretly,
@@ -1595,6 +1596,26 @@ export const useGameStore = create<GameStore>()(
           settings: world.settings,
         });
 
+        // How full the houses have been. Tonight's gate is not counted until
+        // every match has run, so the honest thing the announcers can know at
+        // bell time is what the last one drew.
+        const lastHouse = world.showHistory[world.showHistory.length - 1] ?? null;
+        const houseShare = lastHouse && lastHouse.venueCapacity > 0
+          ? lastHouse.attendance / lastHouse.venueCapacity
+          : 0.5;
+        const crowdMood: 'hot' | 'warm' | 'flat' =
+          houseShare >= world.settings.commentaryHotHouseShare
+            ? 'hot'
+            : houseShare <= world.settings.commentaryFlatHouseShare
+              ? 'flat'
+              : 'warm';
+
+        // What the colour man has already said tonight. Shared across every
+        // match on the card so one observation is not made about four of
+        // them — measured, "the official is losing this one" turned up in
+        // four of six matches on the same show.
+        const saidTonight = new Set<string>();
+
         if (!night.cancelled) world.currentCard.forEach((segment, i) => {
           const sides = new Set(segment.participants.map((p) => p.side));
           if (segment.participants.length < 2 || sides.size < 2) {
@@ -1607,6 +1628,10 @@ export const useGameStore = create<GameStore>()(
           const participantIds = participantWrestlers.map((w) => w.id);
           const rivalry = findRivalry(world.rivalries, participantIds) ?? null;
           if (rivalry) heatOnTheCard.push(rivalry.heat);
+          // Read before the bell, because the match is about to change both:
+          // somebody hurt tonight is a different story from somebody who
+          // limped in, and the champion changes the moment the belt does.
+          const hurtBeforeTheBell = participantWrestlers.find((w) => w.injury)?.name ?? null;
 
           const requirementsMet = stipulation
             ? stipulationRequirementsMet(stipulation, {
@@ -1642,6 +1667,14 @@ export const useGameStore = create<GameStore>()(
               stipulationId: segment.stipulation,
             },
           );
+
+          // Who is defending, captured now — commitTitleChange rewrites the
+          // holder in place, so after the finish there is no way back to it.
+          const beltBefore = titlesOnTheLine[0] ?? null;
+          const championBefore = beltBefore && !beltBefore.vacant
+            ? (world.wrestlers[beltBefore.currentHolderIds[0] ?? '']?.name ?? null)
+            : null;
+          const championWeeksBefore = beltBefore ? Math.max(0, world.week - beltBefore.reignStartWeek) : 0;
 
           // Everyone at ringside who is not wrestling (§10). A guest referee
           // replaces the assigned official rather than joining them.
@@ -2059,6 +2092,73 @@ export const useGameStore = create<GameStore>()(
             });
           }
 
+          const injuriesTonight = hurtTonight.map((casualty) => ({
+            wrestlerId: casualty.personId,
+            name: casualty.name,
+            role: casualty.role,
+            text: casualty.text,
+            outFor: outFor(casualty.weeks, world.settings),
+          }));
+
+          // ---- the call ---------------------------------------------------
+          //
+          // Built here rather than in simulateMatch because half of what the
+          // two of them talk about does not exist until now: who got hurt,
+          // what the official missed, whether the belt moved, what nobody
+          // booked. The player's card only — a rival's show is a result in a
+          // newspaper, and nobody has a broadcast of somebody else's night.
+          const sideAIds = segment.participants.filter((p) => p.side === 0).map((p) => p.wrestlerId);
+          const sideAMembers = sideAIds.map((id) => wrestlerById.get(id)!).filter(Boolean);
+          const sideBMembers = segment.participants
+            .filter((p) => p.side !== 0)
+            .map((p) => wrestlerById.get(p.wrestlerId)!)
+            .filter(Boolean);
+          const winnerProbability =
+            result.winnerSide === null ? 1 : (result.winProbabilitiesBySide[result.winnerSide] ?? 1);
+          const call =
+            world.settings.commentaryEnabled && world.promotion.commentaryTeam && sideAMembers.length > 0 && sideBMembers.length > 0
+              ? callTheMatch(rngFromSeed(`${world.settings.seed}-call-${world.week}-${i}`), {
+                  team: world.promotion.commentaryTeam,
+                  sideA: sideAMembers,
+                  sideB: sideBMembers,
+                  winningSide: result.winnerSide === null ? null : result.winnerSide === 0 ? 'a' : 'b',
+                  managers: (segment.managerIds ?? [])
+                    .map((m) => ({
+                      manager: findManager(world, m.managerId),
+                      client: participantWrestlers[m.forSide],
+                    }))
+                    .filter((m) => Boolean(m.manager))
+                    .map((m) => ({
+                      name: m.manager!.name,
+                      clientName: m.client?.name ?? sideAMembers[0]!.name,
+                      devious: m.manager!.deviousness >= world.settings.commentaryDeviousManager,
+                    })),
+                  refereeName: assignedReferee?.name ?? null,
+                  guestRefereeName: officiatingWrestler?.name ?? null,
+                  // Only what he actually missed, in the words the write-up
+                  // already uses. A colour man who invents a blown call is
+                  // exactly the thing this whole module refuses to do.
+                  refereeMiss: misses[0]?.text ?? null,
+                  titles: titlesOnTheLine,
+                  championName: championBefore,
+                  championWeeks: championWeeksBefore,
+                  titleChanged,
+                  stipulationName: stipulation?.name ?? null,
+                  shootHeat: rivalry?.shootHeat ?? 0,
+                  isMainEvent: i === world.currentCard.length - 1,
+                  finish: result.finish,
+                  rating: result.rating,
+                  beats: result.beats,
+                  injuries: injuriesTonight.map((casualty) => ({ name: casualty.name, text: casualty.text })),
+                  hurtComingIn: hurtBeforeTheBell,
+                  incidentText: incident?.headline ?? null,
+                  crowd: crowdMood,
+                  upset: winnerProbability <= world.settings.commentaryUpsetProbability,
+                  saidTonight,
+                  settings: world.settings,
+                })
+              : undefined;
+
           segment.result = {
             winnerSide: result.winnerSide,
             winnerWrestlerIds: result.winnerWrestlerIds,
@@ -2068,18 +2168,13 @@ export const useGameStore = create<GameStore>()(
             ratingBreakdown: result.ratingBreakdown,
             beats: result.beats,
             titleChanged,
-            injuries: hurtTonight.map((casualty) => ({
-              wrestlerId: casualty.personId,
-              name: casualty.name,
-              role: casualty.role,
-              text: casualty.text,
-              outFor: outFor(casualty.weeks, world.settings),
-            })),
+            injuries: injuriesTonight,
             refereeMisses: misses,
             // Printed beside the match on the card and in the results, the
             // way a boxing bout names its referee before the bell.
             officialName: assignedReferee?.name ?? (officiatingWrestler ? `${officiatingWrestler.name} (guest)` : null),
             incident,
+            commentary: call,
           };
 
           // What the match did to the people in it: records, momentum, the
