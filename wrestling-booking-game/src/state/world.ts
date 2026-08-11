@@ -80,6 +80,24 @@ import type { ContractDemand } from '../engine/career/ego';
 
 export const SEGMENTS_PER_CARD = 6; // matches WorldSettings.segmentsPerTV default
 
+/**
+ * A hurt champion, waiting on a decision. Carries the names rather than only
+ * the ids so the Office can read without looking anything up, and so the wire
+ * item still makes sense after the person retires.
+ */
+export interface ChampionCall {
+  titleId: Id;
+  titleName: string;
+  championIds: Id[];
+  championName: string;
+  /** What is wrong with them, in the injury's own words. */
+  injuryText: string;
+  outFor: string;
+  raisedWeek: number;
+  /** Team-held belts have exactly one option and it is to vacate. */
+  teamHeld: boolean;
+}
+
 export interface World {
   version: number;
   settings: WorldSettings;
@@ -152,6 +170,13 @@ export interface World {
    * and it stops it because running the show *is* the decision.
    */
   pendingWeatherCall: WeatherCall | null;
+  /**
+   * A champion is hurt and the booker has not said what to do about the belt.
+   * Unlike the weather this does not hold the week open — the show goes on —
+   * but it does expire: leave it long enough and the company vacates the
+   * title for you, and says so.
+   */
+  pendingChampionCall: ChampionCall | null;
   /** What was decided, carried into the resolve that follows. */
   weatherChoice: WeatherCallOptionId | null;
   /** Weeks left on a signing ban from being caught tampering. */
@@ -553,6 +578,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     folded: null,
     pendingMemoriam: null,
     pendingWeatherCall: null,
+    pendingChampionCall: null,
     weatherChoice: null,
     signingBanWeeks: 0,
     suspensionWeeks: 0,

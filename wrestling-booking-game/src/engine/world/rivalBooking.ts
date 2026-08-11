@@ -152,7 +152,10 @@ export interface RivalBookingContext {
  * as they would on the player's card.
  */
 export function canWork(w: Wrestler, settings: WorldSettings): boolean {
-  if (w.injury) return false;
+  // An injured wrestler sits, unless the booker has explicitly signed off on
+  // them working hurt — which today only happens when a champion is sent out
+  // to defend rather than vacate. See world/titleDefence.ts.
+  if (w.injury && !w.clearedToWorkHurt) return false;
   if (w.deceased || w.careerStatus === 'retired') return false;
   // Somebody working as an official or a mouthpiece is not on the active
   // roster. Gating it here covers the office's card and every rival's, so

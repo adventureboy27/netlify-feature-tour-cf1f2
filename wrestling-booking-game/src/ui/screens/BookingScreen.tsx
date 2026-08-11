@@ -22,6 +22,7 @@ import type { Id, Wrestler, Segment, Title, WorldSettings, Referee, PaceId } fro
 import { PACES, paceById } from '../../data/pacing';
 import { paceFit } from '../../engine/sim/pacing';
 import { slotLabel } from '../cardLabels';
+import { defenceWatch } from '../../engine/world/titleDefence';
 import { promotionTheme } from '../components/chrome';
 
 /**
@@ -117,6 +118,8 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
+      <BeltsOnTheClock />
+
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           {tonightIsPPV ? (
@@ -813,6 +816,51 @@ function SegmentEditor({
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Which belts are running out of time, on the screen where you would do
+ * something about it.
+ *
+ * This is information, not advice. It says the deadline and whose belt it is;
+ * it does not say to book the match, and there is nothing stopping the player
+ * ignoring it and losing the title. A deadline you cannot see is a hidden
+ * rule rather than a difficulty — see engine/world/titleDefence.ts.
+ */
+function BeltsOnTheClock() {
+  const world = useGameStore((s) => s.world);
+  if (!world) return null;
+  const watch = defenceWatch(world.titles, world.promotion.id, world.week, world.settings);
+  if (watch.length === 0) return null;
+
+  return (
+    <div className="mb-3 rounded-lg border border-amber-900/60 bg-amber-950/20 p-2.5" data-testid="belts-on-the-clock">
+      <div className="text-[10px] uppercase tracking-wider text-amber-500">On the clock</div>
+      <ul className="mt-1 flex flex-col gap-0.5">
+        {watch.map((item) => {
+          const holders = item.holderIds
+            .map((id) => world.wrestlers[id]?.name)
+            .filter(Boolean)
+            .join(' & ');
+          return (
+            <li key={item.titleId} className="text-[11px] leading-snug">
+              <span className={item.status === 'finalWarning' ? 'font-semibold text-amber-200' : 'text-neutral-300'}>
+                {item.titleName}
+              </span>
+              <span className="text-neutral-500">
+                {' — '}
+                {holders || 'vacant'}
+                {', '}
+                {item.weeksLeft <= 1
+                  ? 'defend it this week or the company takes it back'
+                  : `${item.weeksLeft} weeks to defend it`}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

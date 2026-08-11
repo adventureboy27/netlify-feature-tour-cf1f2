@@ -24,6 +24,7 @@ import type {
   Segment,
   SegmentResult,
   RefereeMissRecord,
+  Title,
   TitleReignEndMethod,
   WorldSettings,
 } from '../engine/types';
@@ -199,6 +200,15 @@ import {
   createTeam,
 } from '../engine/world/tagTeams';
 import { resolveTitleOutcomes, matchTitlePrestige, eligibleTitles } from '../engine/sim/titleMatch';
+import type { ChampionInjuryChoice } from '../engine/world/titleDefence';
+import {
+  championInjuryOptions,
+  defenceStatus,
+  isTeamHeld,
+  isUnificationMatch,
+  needsUnification,
+  workingHurtRisk,
+} from '../engine/world/titleDefence';
 import {
   computeShowRating,
   ratingToStars,
@@ -357,6 +367,12 @@ export interface GameStore {
    */
   answerReleaseRequest: (wrestlerId: Id, grant: boolean) => void;
   answerWeatherCall: (choice: WeatherCallOptionId) => void;
+  /**
+   * Decide what happens to a hurt champion's belt. `interimHolderId` is only
+   * read for the 'interim' choice — who the booker is putting the interim
+   * version on.
+   */
+  answerChampionCall: (choice: ChampionInjuryChoice, interimHolderId?: Id) => void;
   /** Send somebody out on their terms. They go to the Legacy wall, not the pool. */
   retireWrestler: (wrestlerId: Id) => void;
   /**
@@ -428,6 +444,54 @@ function carriedNight(week: number, call: WeatherCall) {
     merch: holiday?.merch ?? 1,
     cancelled: false,
   };
+}
+
+/**
+ * Close the reign a lineage is currently showing for a belt, with a reason.
+ * Shared by every path that takes a title off somebody without a pin.
+ */
+function closeReign(world: World, title: Title, method: TitleReignEndMethod): void {
+  const last = title.history[title.history.length - 1];
+  if (last && last.endWeek === null) {
+    last.endWeek = world.week;
+    last.endMethod = method;
+  }
+  for (const id of title.currentHolderIds) {
+    const open = world.wrestlers[id]?.titleReigns.find((r) => r.endWeek === null);
+    if (open) {
+      open.endWeek = world.week;
+      open.endMethod = method;
+    }
+  }
+}
+
+/** Take a belt back off whoever has it and leave it vacant. */
+function stripTitle(world: World, title: Title, method: TitleReignEndMethod): void {
+  closeReign(world, title, method);
+  title.vacant = true;
+  title.currentHolderIds = [];
+  title.interimHolderIds = [];
+  title.interimSinceWeek = null;
+  title.lastDefendedWeek = world.week;
+}
+
+/**
+ * The unification is over. The loser's claim ends — recorded as 'unified'
+ * rather than a loss, because for whichever of them was the interim it never
+ * was the real belt.
+ */
+function closeInterimClaim(world: World, title: Title, winnerIds: readonly Id[]): void {
+  const winners = new Set(winnerIds);
+  const losers = [...title.currentHolderIds, ...title.interimHolderIds].filter((id) => !winners.has(id));
+  for (const id of losers) {
+    const open = world.wrestlers[id]?.titleReigns.find((r) => r.endWeek === null);
+    if (open) {
+      open.endWeek = world.week;
+      open.endMethod = 'unified';
+    }
+  }
+  title.interimHolderIds = [];
+  title.interimSinceWeek = null;
 }
 
 function leaveTheBusiness(world: World, id: Id, method: TitleReignEndMethod): Id[] {
@@ -1445,7 +1509,15 @@ export const useGameStore = create<GameStore>()(
             if (person) {
               person.health = clamp(person.health - world.settings.casualtyHealthCost, 0, 100);
               person.career.longestInjuryWeeks = Math.max(person.career.longestInjuryWeeks, casualty.weeks);
-              person.injury = injuryFrom(casualty, world.week);
+              // Somebody working hurt keeps whichever is worse. A champion
+              // sent out on a bad knee who tears something else does not get
+              // to swap a six-week injury for a two-week one.
+              const existing = person.injury;
+              const next = injuryFrom(casualty, world.week);
+              person.injury = existing && existing.weeksRemaining > next.weeksRemaining ? existing : next;
+              // Whatever the arrangement was, it is over — the booker cleared
+              // them for the injury they had, not for this one.
+              person.clearedToWorkHurt = false;
             }
             hurtTonight.push(casualty);
           };
@@ -1472,13 +1544,17 @@ export const useGameStore = create<GameStore>()(
           // And everybody else who was out there. A wrestler is in the match,
           // an official is in the way, a manager is at ringside asking for it.
           for (const person of participantWrestlers) {
-            if (person.injury) continue;
+            // Already hurt and not cleared means they should not be out here
+            // at all. Already hurt *and* cleared is the champion the booker
+            // sent out anyway, and the whole point of that decision is that
+            // it can go badly — so they roll, at much worse odds.
+            if (person.injury && !person.clearedToWorkHurt) continue;
             const casualty = rollCasualty(rng, {
               personId: person.id,
               name: person.name,
               role: 'competitor',
               violenceLevel: violence,
-              injuryMultiplier: result.injuryMultiplier,
+              injuryMultiplier: result.injuryMultiplier * workingHurtRisk(person, world.settings),
               toughness: person.toughness,
               settings: world.settings,
             });
@@ -1590,6 +1666,20 @@ export const useGameStore = create<GameStore>()(
             if (index < 0) continue;
             const title = world.titles[index]!;
             title.prestige = outcome.prestige;
+            // It was on the line, so the clock resets whoever walked out with
+            // it. Defending successfully is a defence.
+            title.lastDefendedWeek = world.week;
+
+            // A unification settles a split belt: whoever wins holds the only
+            // version of it, and the interim claim ends here.
+            if (isUnificationMatch(title, participantIds)) {
+              const winners = outcome.newHolderIds ?? result.winnerWrestlerIds;
+              closeInterimClaim(world, title, winners);
+              titleChanged = true;
+              commitTitleChange(world, index, winners);
+              continue;
+            }
+
             if (!outcome.changed || !outcome.newHolderIds) continue;
 
             titleChanged = true;
@@ -2566,6 +2656,90 @@ export const useGameStore = create<GameStore>()(
               );
             }
           }
+        }
+
+        // ---- the championships ------------------------------------------
+        // A belt nobody puts on the line is a belt the card is not being
+        // built toward. The company takes it back, and — CLAUDE.md, nothing
+        // happens to anybody off-screen — says which belt, off whom, and why.
+        for (const title of world.titles) {
+          if (title.promotionId !== world.promotion.id) continue;
+          const status = defenceStatus(title, world.week, world.settings);
+          if (status === 'overdue') {
+            const names = title.currentHolderIds
+              .map((id) => world.wrestlers[id]?.name)
+              .filter(Boolean)
+              .join(' & ');
+            stripTitle(world, title, 'strippedUndefended');
+            world.weeklyNews.push(
+              wire(
+                'title',
+                `The ${title.name} has been stripped from ${names || 'its champion'}. It went undefended too long and the company took it back. It is vacant.`,
+                world.week,
+                'lead',
+              ),
+            );
+          } else if (status === 'finalWarning') {
+            world.weeklyNews.push(
+              wire(
+                'title',
+                `The ${title.name} has to be defended this week or the company vacates it.`,
+                world.week,
+                'lead',
+              ),
+            );
+          }
+        }
+
+        // A decision left to rot decides itself. The belt vacates and the
+        // player is told that their not answering is what did it.
+        const call = world.pendingChampionCall;
+        if (call && world.week - call.raisedWeek >= world.settings.championInjuryGraceWeeks) {
+          const title = world.titles.find((t) => t.id === call.titleId);
+          if (title && !title.vacant) {
+            stripTitle(world, title, 'vacatedByBooker');
+            world.weeklyNews.push(
+              wire(
+                'title',
+                `Nobody made a call on the ${title.name} while ${call.championName} sat hurt, so the company vacated it.`,
+                world.week,
+                'lead',
+              ),
+            );
+          }
+          world.pendingChampionCall = null;
+        }
+
+        // A champion who got hurt tonight is a decision, not a footnote.
+        // Only one call is open at a time; a second hurt champion waits until
+        // the first is answered rather than stacking up unread.
+        if (!world.pendingChampionCall) {
+          for (const title of world.titles) {
+            if (title.promotionId !== world.promotion.id || title.vacant) continue;
+            if (needsUnification(title)) continue;
+            const hurt = title.currentHolderIds
+              .map((id) => world.wrestlers[id])
+              .find((w) => w?.injury && !w.clearedToWorkHurt);
+            if (!hurt?.injury) continue;
+            world.pendingChampionCall = {
+              titleId: title.id,
+              titleName: title.name,
+              championIds: [...title.currentHolderIds],
+              championName: hurt.name,
+              injuryText: hurt.injury.description,
+              outFor: `${hurt.injury.weeksRemaining} ${hurt.injury.weeksRemaining === 1 ? 'week' : 'weeks'}`,
+              raisedWeek: world.week,
+              teamHeld: isTeamHeld(title),
+            };
+            break;
+          }
+        }
+
+        // Somebody the booker cleared to work hurt is only cleared while they
+        // are hurt. Healing ends the arrangement rather than leaving a flag
+        // set that would quietly apply to a future injury.
+        for (const person of Object.values(world.wrestlers)) {
+          if (person.clearedToWorkHurt && !person.injury) person.clearedToWorkHurt = false;
         }
 
         // A crowd forgets. Whatever the player has not leaned on lately goes
@@ -3860,6 +4034,81 @@ export const useGameStore = create<GameStore>()(
         outcome = { ok: true, reason: null, cost: terms.severance };
       });
       return outcome;
+    },
+
+    answerChampionCall: (choice, interimHolderId) => {
+      set((state) => {
+        const world = state.world;
+        const call = world?.pendingChampionCall;
+        if (!world || !call) return;
+        const title = world.titles.find((t) => t.id === call.titleId);
+        if (!title || title.vacant) {
+          world.pendingChampionCall = null;
+          return;
+        }
+
+        // A team-held belt has one option however it is asked for. Enforced
+        // here rather than only in the UI, so the rule is the rule.
+        const options = championInjuryOptions(title);
+        const settled = options.some((o) => o.id === choice) ? choice : 'vacate';
+
+        if (settled === 'vacate') {
+          stripTitle(world, title, 'vacatedByBooker');
+          world.weeklyNews.push(
+            wire(
+              'title',
+              `The ${title.name} is vacant. ${call.championName} could not defend it and the company would not let it sit.`,
+              world.week,
+              'lead',
+            ),
+          );
+        } else if (settled === 'defendAnyway') {
+          // The only route by which an injured wrestler gets on a card at
+          // all. They were told what it costs; casualties.ts charges it.
+          for (const id of title.currentHolderIds) {
+            const person = world.wrestlers[id];
+            if (person?.injury) person.clearedToWorkHurt = true;
+          }
+          // The clock does not stop for an injury. Clearing them to work is
+          // a decision to keep defending, so it had better be defended.
+          world.weeklyNews.push(
+            wire(
+              'title',
+              `${call.championName} will defend the ${title.name} hurt. ${call.injuryText}, and the company is letting it happen.`,
+              world.week,
+              'lead',
+            ),
+          );
+        } else if (settled === 'interim' && interimHolderId) {
+          const interim = world.wrestlers[interimHolderId];
+          if (!interim) return;
+          title.interimHolderIds = [interimHolderId];
+          title.interimSinceWeek = world.week;
+          // An interim reign is a reign — it goes on the record, and the
+          // unification is what decides whether it stays there.
+          interim.titleReigns.push({
+            titleId: title.id,
+            promotionId: title.promotionId,
+            holderIds: [interimHolderId],
+            holderAges: [interim.age],
+            wonFromIds: null,
+            wonByMethod: 'awarded',
+            startWeek: world.week,
+            endWeek: null,
+            endMethod: null,
+          });
+          world.weeklyNews.push(
+            wire(
+              'title',
+              `${interim.name} is the interim ${title.name}. ${call.championName} keeps the real one, and when they are fit the two of them settle it in one match.`,
+              world.week,
+              'lead',
+            ),
+          );
+        }
+
+        world.pendingChampionCall = null;
+      });
     },
 
     answerWeatherCall: (choice) => {

@@ -23,6 +23,7 @@ import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { egoLabel } from '../../engine/career/ego';
 import { awardById } from '../../engine/career/awards';
 import { strikeWarning } from '../../engine/world/mandates';
+import { championInjuryOptions } from '../../engine/world/titleDefence';
 import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
 import { PaperDoll } from '../paperdoll/PaperDoll';
@@ -200,6 +201,8 @@ function DeskTab() {
 
   return (
     <>
+      <ChampionCallPanel />
+
       {/* A company has closed, and everything it had is on the table. */}
       {world.pendingAuction && (
         <section className="mb-3 rounded border border-sky-800 bg-sky-950/30 p-3" data-testid="auction">
@@ -1279,6 +1282,97 @@ function TelevisionTab() {
               </span>
             )}
             <span className="shrink-0 text-[10px] text-neutral-600">{row.network}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * A champion is hurt and the belt is waiting on a decision.
+ *
+ * Deliberately not a warning: every option states plainly what it gains and
+ * what it costs, and none of them says which one to take. It also does not
+ * hold the week open the way a weather call does — the show goes on — but it
+ * does expire, and the panel says so, because a decision that decides itself
+ * without the player knowing it was running out is the kind of thing
+ * CLAUDE.md exists to prevent.
+ */
+function ChampionCallPanel() {
+  const world = useGameStore((s) => s.world);
+  const answer = useGameStore((s) => s.answerChampionCall);
+  const [interimId, setInterimId] = useState<string>('');
+  if (!world?.pendingChampionCall) return null;
+
+  const call = world.pendingChampionCall;
+  const title = world.titles.find((t) => t.id === call.titleId);
+  if (!title) return null;
+
+  const options = championInjuryOptions(title);
+  const weeksLeft = world.settings.championInjuryGraceWeeks - (world.week - call.raisedWeek);
+  // Anybody fit, in the right division, who is not the champion.
+  const candidates = world.promotion.rosterIds
+    .map((id) => world.wrestlers[id])
+    .filter(
+      (w): w is NonNullable<typeof w> =>
+        Boolean(w) &&
+        !w!.injury &&
+        w!.role === 'wrestler' &&
+        !call.championIds.includes(w!.id) &&
+        (title.division === 'open' ||
+          (title.division === 'womens' ? w!.gender === 'f' : w!.gender === 'm')),
+    )
+    .sort((a, b) => b.popularity - a.popularity);
+
+  return (
+    <section className="mb-3 rounded-lg border border-amber-800 bg-amber-950/30 p-3" data-testid="champion-call">
+      <div className="text-xs uppercase tracking-wide text-amber-400">The champion is hurt</div>
+      <h2 className="mt-1 text-sm font-semibold">
+        {call.championName} and the {call.titleName}
+      </h2>
+      <p className="mt-1 text-xs text-neutral-300">
+        {call.injuryText}. Out {call.outFor}.
+      </p>
+      <p className="mt-1 text-[11px] text-neutral-500">
+        {weeksLeft <= 1
+          ? 'Decide this week, or the company vacates it for you.'
+          : `${weeksLeft} weeks to decide before the company vacates it for you.`}
+      </p>
+
+      <div className="mt-2 flex flex-col gap-1.5">
+        {options.map((option) => (
+          <div key={option.id} className="rounded border border-neutral-800 bg-neutral-900 p-2">
+            <div className="text-xs font-medium">{option.label}</div>
+            <div className="mt-0.5 text-[11px] text-emerald-300/80">{option.gains}</div>
+            <div className="text-[11px] text-rose-300/80">{option.costs}</div>
+
+            {option.id === 'interim' && (
+              <select
+                aria-label="Who holds the interim championship"
+                data-testid="interim-pick"
+                value={interimId}
+                onChange={(e) => setInterimId(e.target.value)}
+                className="mt-1.5 w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs"
+              >
+                <option value="">Choose who carries it…</option>
+                {candidates.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <button
+              type="button"
+              data-testid={`champion-call-${option.id}`}
+              onClick={() => answer(option.id, interimId || undefined)}
+              disabled={option.id === 'interim' && !interimId}
+              className="mt-1.5 w-full rounded bg-neutral-800 px-3 py-2 text-xs font-medium hover:bg-neutral-700 disabled:bg-neutral-900 disabled:text-neutral-600"
+            >
+              {option.label}
+            </button>
           </div>
         ))}
       </div>

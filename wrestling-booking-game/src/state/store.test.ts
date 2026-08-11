@@ -406,9 +406,14 @@ describe('the awards night', () => {
   it('does not give one person two of the individual awards in a year', () => {
     toTheTurnOfTheYear();
     const world = useGameStore.getState().world!;
-    const individual = world.awardHistory.filter(
-      (a) => a.awardId !== 'matchOfTheYear' && a.awardId !== 'worstMatchOfTheYear',
-    );
+    // Team awards are not individual awards. Match of the Year names both
+    // people in it and Tag Team of the Year names a whole team, and winning
+    // Wrestler of the Year while also being half of the best tag team in the
+    // company is a perfectly ordinary year — excluding it would make the tag
+    // award go to the wrong team. The guard in awards.ts is about the
+    // individual readings of a year, and so is this.
+    const TEAM_AWARDS = new Set(['matchOfTheYear', 'worstMatchOfTheYear', 'tagTeamOfTheYear']);
+    const individual = world.awardHistory.filter((a) => !TEAM_AWARDS.has(a.awardId));
     const named = individual.flatMap((a) => a.wrestlerIds);
     expect(new Set(named).size).toBe(named.length);
   });

@@ -558,6 +558,14 @@ export function defaultWorldSettings(): WorldSettings {
     circuitTasteWeight: 35,
     circuitAgilityFloor: 55,
     circuitRankingSize: 10,
+    // Roughly a season. Long enough that a belt can miss a few weeks for a
+    // story, short enough that it cannot be forgotten about for a year.
+    titleDefenceWindowWeeks: 12,
+    titleDefenceWindowTelevisionWeeks: 6,
+    titleDefenceNoticeWeeks: 4,
+    titleDefenceWarningWeeks: 1,
+    championInjuryGraceWeeks: 3,
+    workingHurtInjuryMultiplier: 2.6,
     // Tuned against the measurement in freshness.test.ts: rotating a deep
     // roster has to beat running the same twelve people every week, or the
     // roster the game asks you to build is money you had no reason to spend.

@@ -19,6 +19,7 @@
 // wrestling and the sim should let you book it deliberately.
 
 import type { FinishType, Id, Stipulation, Title, WorldSettings, Wrestler } from '../types';
+import { isUnificationMatch, needsUnification } from '../world/titleDefence';
 
 /** Finishes that actually move a championship. */
 export function titleCanChangeHands(finish: FinishType, stipulation: Stipulation | null): boolean {
@@ -65,6 +66,12 @@ export function eligibleTitles(
     if ([...sideSizes.values()].some((size) => size !== required)) return false;
 
     if (title.vacant) return true;
+
+    // A belt with two claimants can only be in the match that settles it.
+    // That is what makes the unification mandatory rather than optional: the
+    // defence clock keeps running the whole time, so ducking it eventually
+    // strips the thing off both of them.
+    if (needsUnification(title)) return isUnificationMatch(title, [...ids]);
 
     // A team defends together or not at all: one half of the champions in a
     // singles match is not a title defence, and letting it be one is what

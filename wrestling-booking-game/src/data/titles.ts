@@ -143,6 +143,11 @@ export function createStartingTitles(
     prestige: startingPrestige(blueprint.tier),
     currentHolderIds: [],
     reignStartWeek: 0,
+    // A belt starts its clock the day the company opens, so a promotion that
+    // never puts its titles on the line loses them like anybody else.
+    lastDefendedWeek: 0,
+    interimHolderIds: [],
+    interimSinceWeek: null,
     history: [],
     colorway: colorwayFor(blueprint.tier),
     signatureStipulationId: blueprint.signatureStipulationId,

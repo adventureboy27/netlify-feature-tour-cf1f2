@@ -264,6 +264,7 @@ export function generateWrestler(
     },
     titleReigns: [],
     injury: null,
+    clearedToWorkHurt: false,
     careerHighPopularity: popularity,
     alignment,
   };

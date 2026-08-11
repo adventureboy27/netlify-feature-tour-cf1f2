@@ -157,6 +157,10 @@ export type TitleReignEndMethod =
   | 'lostMatch'
   | 'vacatedByBooker'
   | 'strippedForCause'
+  /** Nobody put it on the line inside the window, so the company took it back. */
+  | 'strippedUndefended'
+  /** Ended by a unification match rather than an ordinary defence. */
+  | 'unified'
   | 'retired'
   | 'released'
   | 'contractExpired'
@@ -439,6 +443,13 @@ export interface Wrestler {
   career: CareerMarks;
   titleReigns: TitleReignRecord[];
   injury: Injury | null;
+  /**
+   * The booker has signed off on this person working while hurt — the only
+   * way an injured wrestler gets on a card at all. Set when a champion is
+   * sent out to defend rather than vacate, and cleared the moment they heal
+   * or get hurt worse. See engine/world/titleDefence.ts.
+   */
+  clearedToWorkHurt: boolean;
   careerHighPopularity: number;
   /** Set when they die. A wrestler with this set is never booked again. */
   deceased?: Passing;
@@ -787,6 +798,20 @@ export interface Title {
   reignStartWeek: number;
   history: TitleReignRecord[];
   colorway: { strap: string; plate: string };
+  /**
+   * Week it was last actually on the line. A belt nobody defends is a belt
+   * the card is not being built toward, so the company eventually takes it
+   * back — see engine/world/titleDefence.ts.
+   */
+  lastDefendedWeek: number;
+  /**
+   * Who holds the interim version while the real champion is hurt. Empty
+   * almost always. While this is set the belt has two claimants and the only
+   * match it can be in is the one that settles it.
+   */
+  interimHolderIds: Id[];
+  /** When the interim was crowned, for the lineage. */
+  interimSinceWeek: number | null;
   /**
    * The stipulation this belt is traditionally defended under, if any. A
    * deathmatch title contested under normal rules is a disappointment, and
@@ -1859,6 +1884,20 @@ export interface WorldSettings {
   circuitAgilityFloor: number;
   /** How many wrestlers each circuit list ranks. */
   circuitRankingSize: number;
+
+  // Defending a championship — see world/titleDefence.ts.
+  /** Weeks a belt can go unfought before the company strips it. */
+  titleDefenceWindowWeeks: number;
+  /** The same, for a television title, whose whole identity is defending often. */
+  titleDefenceWindowTelevisionWeeks: number;
+  /** Inside this many weeks the belt starts appearing on the watch list. */
+  titleDefenceNoticeWeeks: number;
+  /** Inside this many, it is the last call — defend it or lose it. */
+  titleDefenceWarningWeeks: number;
+  /** Weeks a hurt-champion decision can sit unanswered before the belt vacates itself. */
+  championInjuryGraceWeeks: number;
+  /** How much more likely a fresh injury is for somebody the booker sent out hurt. */
+  workingHurtInjuryMultiplier: number;
   /**
    * The championships the player's company opens with.
    *

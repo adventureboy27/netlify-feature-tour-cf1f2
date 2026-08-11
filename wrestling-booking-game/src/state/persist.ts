@@ -44,7 +44,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // silent forever.
 //
 // Version 10 adds pendingWeatherCall/weatherChoice and the forecast settings.
-const SCHEMA_VERSION = 10;
+//
+// Version 11 puts a defence clock on every belt (lastDefendedWeek, the interim
+// holder fields), clearedToWorkHurt on every wrestler, pendingChampionCall on
+// the world, and the freshness and circuit settings. A version-10 save has no
+// lastDefendedWeek, which reads as 0 — every belt in the company would be
+// stripped as undefended on the first week it loaded.
+const SCHEMA_VERSION = 11;
 
 export interface SaveFile {
   schema: number;
