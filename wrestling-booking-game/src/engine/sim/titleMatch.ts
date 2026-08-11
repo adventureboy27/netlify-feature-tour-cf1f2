@@ -56,6 +56,10 @@ export function eligibleTitles(
 
   return titles.filter((title) => {
     if (title.promotionId !== ctx.promotionId) return false;
+    // A retired championship is not defended. It keeps its lineage and stays
+    // on the records; it just cannot be put on a card again until the company
+    // brings it back.
+    if (title.retiredWeek) return false;
 
     // The division is locked at creation and never moves (§3.1).
     if (title.division === 'womens' && ctx.participants.some((p) => p.wrestler.gender !== 'f')) return false;

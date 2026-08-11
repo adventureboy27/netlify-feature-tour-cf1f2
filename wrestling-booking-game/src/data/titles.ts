@@ -166,8 +166,25 @@ export function shortTitleName(title: Title): string {
 }
 
 /** Every belt a given promotion owns. World.titles holds everyone's. */
+/** Whether a belt is one the company currently defends. */
+export function isActiveTitle(title: Title): boolean {
+  return !title.retiredWeek;
+}
+
+/**
+ * A belt the company retired. It keeps every reign it ever had — that is the
+ * whole point of retiring one rather than deleting it — and the records and
+ * legacy screens still read it.
+ */
+export function retiredTitlesOf(titles: readonly Title[], promotionId: Id): Title[] {
+  return titles.filter((t) => t.promotionId === promotionId && !isActiveTitle(t));
+}
+
 export function titlesOf(titles: readonly Title[], promotionId: Id): Title[] {
-  return titles.filter((t) => t.promotionId === promotionId);
+  // Active only. A retired belt still exists in world.titles for its lineage,
+  // but "the company's championships" means the ones it defends — anything
+  // that lists belts to book, defend or rank is asking about those.
+  return titles.filter((t) => t.promotionId === promotionId && isActiveTitle(t));
 }
 
 /** Every belt this wrestler currently holds. */

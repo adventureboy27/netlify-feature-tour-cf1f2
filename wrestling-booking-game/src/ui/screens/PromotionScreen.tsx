@@ -35,6 +35,22 @@ import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
 import { weeklyBroadcastIncome, broadcastVerdict } from '../../engine/economy/broadcast';
 import { FileTransfer } from '../components/FileTransfer';
+import { TitleBuilder } from '../components/TitleBuilder';
+import { retiredTitlesOf } from '../../data/titles';
+import { beltPrefix } from '../../data/promotionIdentity';
+import type { TitleBlueprint } from '../../engine/types';
+
+/** A belt the player is about to introduce, before they have typed anything. */
+function blankTitleBlueprint(): TitleBlueprint {
+  return {
+    suffix: 'Championship',
+    blurb: 'A new championship.',
+    tier: 'secondary',
+    division: 'open',
+    weightClass: 'open',
+    signatureStipulationId: null,
+  };
+}
 
 export function PromotionScreen() {
   const world = useGameStore((s) => s.world);
@@ -352,6 +368,7 @@ function IdentityPanel() {
   const identity = identityOf(world.promotion.identity);
   const name = draftName ?? world.promotion.name;
   const belts = titlesOf(world.titles, world.promotion.id);
+  const retireTitle = useGameStore((s) => s.retireTitle);
 
   return (
     <section className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">
@@ -424,11 +441,120 @@ function IdentityPanel() {
               <span className="shrink-0 text-right text-neutral-400">
                 {holders.length > 0 ? holders.join(' & ') : <span className="text-neutral-600">vacant</span>}
               </span>
+              <button
+                type="button"
+                data-testid={`retire-belt-${belt.id}`}
+                onClick={() => retireTitle(belt.id)}
+                title="Retire it. The lineage stays."
+                className="shrink-0 rounded border border-neutral-800 px-1.5 py-1 text-[10px] text-neutral-500 hover:border-amber-800 hover:text-amber-400"
+              >
+                Retire
+              </button>
             </li>
           );
         })}
       </ul>
+
+      <TitleWorkshop />
     </section>
+  );
+}
+
+/**
+ * Adding a belt, and bringing an old one back.
+ *
+ * A promotion's championships change over thirty years — a company introduces
+ * a women's division, retires a tag belt nobody was using, brings back
+ * something from its own history for an anniversary. Retiring is deliberately
+ * not deleting: the lineage stays, the records still read it, and it can come
+ * back. That is the whole difference between retiring a title and pretending
+ * it never existed.
+ */
+function TitleWorkshop() {
+  const world = useGameStore((s) => s.world);
+  const createTitle = useGameStore((s) => s.createTitle);
+  const unretireTitle = useGameStore((s) => s.unretireTitle);
+  const [drafts, setDrafts] = useState<TitleBlueprint[]>([]);
+  if (!world) return null;
+
+  const retired = retiredTitlesOf(world.titles, world.promotion.id);
+
+  return (
+    <div className="mt-3 border-t border-neutral-800 pt-3">
+      {retired.length > 0 && (
+        <div className="mb-3">
+          <div className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">Retired championships</div>
+          <ul className="flex flex-col gap-1">
+            {retired.map((belt) => {
+              const reigns = belt.history.length;
+              const last = belt.history[belt.history.length - 1];
+              const lastHolder = last?.holderIds.map((id) => world.wrestlers[id]?.name).filter(Boolean).join(' & ');
+              return (
+                <li key={belt.id} className="flex items-start gap-2 rounded bg-neutral-950 p-1.5 text-[11px]">
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium text-neutral-400">{belt.name}</span>
+                    <span className="block text-neutral-600">
+                      {reigns} {reigns === 1 ? 'reign' : 'reigns'}
+                      {lastHolder && ` · last held by ${lastHolder}`}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    data-testid={`unretire-belt-${belt.id}`}
+                    onClick={() => unretireTitle(belt.id)}
+                    className="shrink-0 rounded border border-neutral-800 px-1.5 py-1 text-[10px] text-neutral-400 hover:border-emerald-800 hover:text-emerald-400"
+                  >
+                    Bring it back
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {drafts.length === 0 ? (
+        <button
+          type="button"
+          data-testid="new-belt"
+          onClick={() => setDrafts([blankTitleBlueprint()])}
+          className="rounded border border-neutral-700 px-3 py-2 text-xs text-neutral-300 hover:border-neutral-500"
+        >
+          Introduce a new championship
+        </button>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <TitleBuilder
+            belts={drafts}
+            prefix={beltPrefix(world.promotion.name)}
+            onChange={setDrafts}
+            maxBelts={1}
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              data-testid="create-belt"
+              onClick={() => {
+                for (const draft of drafts) {
+                  if (draft.suffix.trim()) createTitle({ ...draft, suffix: draft.suffix.trim() });
+                }
+                setDrafts([]);
+              }}
+              className="rounded bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+            >
+              Introduce it
+            </button>
+            <button
+              type="button"
+              onClick={() => setDrafts([])}
+              className="rounded border border-neutral-800 px-3 py-2 text-xs text-neutral-400"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

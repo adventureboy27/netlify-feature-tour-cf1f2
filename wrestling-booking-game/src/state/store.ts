@@ -25,6 +25,7 @@ import type {
   SegmentResult,
   RefereeMissRecord,
   Title,
+  TitleBlueprint,
   TitleReignEndMethod,
   WorldSettings,
 } from '../engine/types';
@@ -38,7 +39,7 @@ import {
   type World,
   type YearInReview,
 } from './world';
-import { createStartingTitles, awardTitle } from '../data/titles';
+import { createStartingTitles, awardTitle, isActiveTitle } from '../data/titles';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import {
   findRivalry,
@@ -380,6 +381,15 @@ export interface GameStore {
    * version on.
    */
   answerChampionCall: (choice: ChampionInjuryChoice, interimHolderId?: Id) => void;
+  /** Create a championship mid-run. It starts vacant, like any new belt. */
+  createTitle: (blueprint: TitleBlueprint) => void;
+  /**
+   * Retire a championship. It keeps its entire lineage and stays on the
+   * records; it simply stops being defended. Reversible.
+   */
+  retireTitle: (titleId: Id) => void;
+  /** Bring a retired championship back. It returns vacant. */
+  unretireTitle: (titleId: Id) => void;
   /** Send somebody out on their terms. They go to the Legacy wall, not the pool. */
   retireWrestler: (wrestlerId: Id) => void;
   /**
@@ -2760,7 +2770,7 @@ export const useGameStore = create<GameStore>()(
         // built toward. The company takes it back, and — CLAUDE.md, nothing
         // happens to anybody off-screen — says which belt, off whom, and why.
         for (const title of world.titles) {
-          if (title.promotionId !== world.promotion.id) continue;
+          if (title.promotionId !== world.promotion.id || !isActiveTitle(title)) continue;
           const status = defenceStatus(title, world.week, world.settings);
           if (status === 'overdue') {
             const names = title.currentHolderIds
@@ -2813,7 +2823,7 @@ export const useGameStore = create<GameStore>()(
         if (!world.pendingChampionCall) {
           for (const title of world.titles) {
             if (title.promotionId !== world.promotion.id || title.vacant) continue;
-            if (needsUnification(title)) continue;
+            if (!isActiveTitle(title) || needsUnification(title)) continue;
             const hurt = title.currentHolderIds
               .map((id) => world.wrestlers[id])
               .find((w) => w?.injury && !w.clearedToWorkHurt);
@@ -4131,6 +4141,87 @@ export const useGameStore = create<GameStore>()(
         outcome = { ok: true, reason: null, cost: terms.severance };
       });
       return outcome;
+    },
+
+    createTitle: (blueprint) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const [belt] = createStartingTitles(world.promotion.id, world.promotion.name, world.promotion.identity, [
+          blueprint,
+        ]);
+        if (!belt) return;
+        // Ids are positional within a batch, so a mid-run belt has to take one
+        // nothing else has ever used — including belts that were retired.
+        belt.id = `${world.promotion.id}-title-${world.week}-${world.titles.length}`;
+        belt.lastDefendedWeek = world.week;
+        world.titles.push(belt);
+        world.promotion.titleIds.push(belt.id);
+        world.weeklyNews.push(
+          wire('title', `${world.promotion.name} has introduced the ${belt.name}. It is vacant.`, world.week, 'lead'),
+        );
+      });
+    },
+
+    retireTitle: (titleId) => {
+      set((state) => {
+        const world = state.world;
+        const title = world?.titles.find((t) => t.id === titleId);
+        if (!world || !title || title.retiredWeek) return;
+
+        // Whoever is carrying it stops being champion — but the lineage says
+        // the belt was retired, not that they lost it, because they did not.
+        const holders = title.currentHolderIds
+          .map((id) => world.wrestlers[id]?.name)
+          .filter(Boolean)
+          .join(' & ');
+        if (!title.vacant) closeReign(world, title, 'titleRetired');
+        title.vacant = true;
+        title.currentHolderIds = [];
+        title.interimHolderIds = [];
+        title.interimSinceWeek = null;
+        title.retiredWeek = world.week;
+        world.promotion.titleIds = world.promotion.titleIds.filter((id) => id !== titleId);
+
+        world.weeklyNews.push(
+          wire(
+            'title',
+            holders
+              ? `The ${title.name} has been retired. ${holders} was the last to hold it.`
+              : `The ${title.name} has been retired.`,
+            world.week,
+            'lead',
+          ),
+        );
+      });
+    },
+
+    unretireTitle: (titleId) => {
+      set((state) => {
+        const world = state.world;
+        const title = world?.titles.find((t) => t.id === titleId);
+        if (!world || !title || !title.retiredWeek) return;
+        title.retiredWeek = null;
+        title.vacant = true;
+        title.currentHolderIds = [];
+        // The clock starts again from today rather than from whenever it was
+        // last defended, which might be twenty years ago.
+        title.lastDefendedWeek = world.week;
+        if (!world.promotion.titleIds.includes(title.id)) world.promotion.titleIds.push(title.id);
+
+        const previous = title.history[title.history.length - 1];
+        const lastHolder = previous?.holderIds.map((id) => world.wrestlers[id]?.name).filter(Boolean).join(' & ');
+        world.weeklyNews.push(
+          wire(
+            'title',
+            lastHolder
+              ? `The ${title.name} is back. It has not been defended since ${lastHolder} held it, and it is vacant.`
+              : `The ${title.name} is back, and vacant.`,
+            world.week,
+            'lead',
+          ),
+        );
+      });
     },
 
     answerChampionCall: (choice, interimHolderId) => {

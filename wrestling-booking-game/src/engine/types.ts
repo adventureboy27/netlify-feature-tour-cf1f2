@@ -161,6 +161,8 @@ export type TitleReignEndMethod =
   | 'strippedUndefended'
   /** Ended by a unification match rather than an ordinary defence. */
   | 'unified'
+  /** The championship itself was retired out from under them. */
+  | 'titleRetired'
   | 'retired'
   | 'released'
   | 'contractExpired'
@@ -798,6 +800,13 @@ export interface Title {
   reignStartWeek: number;
   history: TitleReignRecord[];
   colorway: { strap: string; plate: string };
+  /**
+   * Set when the belt is retired. A retired championship keeps its whole
+   * lineage — every reign, every change — but is not defended, does not run a
+   * defence clock, and cannot be put on a card. Bringing it back is a real
+   * thing promotions do, so this clears again on an unretire.
+   */
+  retiredWeek?: number | null;
   /**
    * Week it was last actually on the line. A belt nobody defends is a belt
    * the card is not being built toward, so the company eventually takes it
