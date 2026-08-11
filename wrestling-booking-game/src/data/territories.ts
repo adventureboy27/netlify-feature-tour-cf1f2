@@ -14,6 +14,21 @@
 import type { Climate, Territory, TerritoryPreferenceTag } from '../engine/types';
 
 export interface TerritoryDefinition {
+  /**
+   * Where the town sits on the map, 0-100 with north at the top and the
+   * coasts on the left and right edges.
+   *
+   * Hand-placed rather than derived. Two constraints: the position has to
+   * agree with the town's `climate`, or the map and the weather system tell
+   * the player different things about the same place; and the three towns of
+   * a circuit have to be drivable as a loop, because that is what a circuit
+   * historically was — a string of towns you could physically tour, which
+   * came to share a taste precisely because the same crowds saw the same
+   * shows. Taste is still what defines a circuit (see data/circuits.ts); the
+   * geography is what makes it a road.
+   */
+  x: number;
+  y: number;
   id: string;
   /** What the sky does here. Gates which weather this town can get. */
   climate: Climate;
@@ -30,6 +45,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'millValley',
     climate: 'temperate',
+    x: 26,
+    y: 58,
     name: 'Mill Valley',
     capacity: 2400,
     revenueMult: 0.8,
@@ -39,6 +56,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'crescentPort',
     climate: 'coastal',
+    x: 82,
+    y: 64,
     name: 'Crescent Port',
     capacity: 5200,
     revenueMult: 1.1,
@@ -48,6 +67,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'graniteFalls',
     climate: 'mountain',
+    x: 22,
+    y: 20,
     name: 'Granite Falls',
     capacity: 3100,
     revenueMult: 0.9,
@@ -57,6 +78,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'sunKingCounty',
     climate: 'desert',
+    x: 60,
+    y: 74,
     name: 'Sun King County',
     capacity: 8000,
     revenueMult: 1.2,
@@ -66,6 +89,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'lowlandParish',
     climate: 'coastal',
+    x: 14,
+    y: 76,
     name: 'Lowland Parish',
     capacity: 4400,
     revenueMult: 0.95,
@@ -75,6 +100,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'northRidge',
     climate: 'northern',
+    x: 50,
+    y: 12,
     name: 'North Ridge',
     capacity: 6600,
     revenueMult: 1.05,
@@ -84,6 +111,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'ironbeltCity',
     climate: 'northern',
+    x: 78,
+    y: 16,
     name: 'Ironbelt City',
     capacity: 26000,
     revenueMult: 1.3,
@@ -93,6 +122,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'brambleHollow',
     climate: 'mountain',
+    x: 34,
+    y: 34,
     name: 'Bramble Hollow',
     capacity: 2000,
     revenueMult: 0.8,
@@ -102,6 +133,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'saltMarketPlains',
     climate: 'plains',
+    x: 62,
+    y: 40,
     name: 'Salt Market Plains',
     capacity: 5800,
     revenueMult: 1.0,
@@ -111,6 +144,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'ashfordHeights',
     climate: 'temperate',
+    x: 16,
+    y: 44,
     name: 'Ashford Heights',
     capacity: 9500,
     revenueMult: 1.15,
@@ -120,6 +155,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'copperGulch',
     climate: 'desert',
+    x: 36,
+    y: 86,
     name: 'Copper Gulch',
     capacity: 3600,
     revenueMult: 0.85,
@@ -129,6 +166,8 @@ export const TERRITORIES: TerritoryDefinition[] = [
   {
     id: 'harborlineMetro',
     climate: 'coastal',
+    x: 88,
+    y: 42,
     name: 'Harborline Metro',
     capacity: 52000,
     revenueMult: 1.4,

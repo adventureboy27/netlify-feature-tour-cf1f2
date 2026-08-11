@@ -1,14 +1,24 @@
 // The map.
 //
-// Deliberately a list rather than a drawn map: on a phone, twelve rows you can
-// read beat a picture you have to pinch. What the player needs at a glance is
-// where they are over, where they are forgotten, who holds what, and what each
-// town wants — and a row says all four.
+// This screen was deliberately a list and no picture: on a phone, twelve rows
+// you can read beat a map you have to pinch, and a row says all four things
+// the player needs — where they are over, where they are forgotten, who holds
+// what, and what each town wants. That reasoning still holds, so the rows are
+// still here and still carry the detail.
+//
+// What changed is that the towns became a road. Circuits (data/circuits.ts)
+// group them into touring loops, and a loop is a shape — you cannot see from
+// a list that your reach covers one corner of the business and stops, or that
+// a rival holds every town on the route you were about to expand into. So the
+// map sits above the list as the overview, and the list stays as the detail.
 //
 // Following is a bar, not a number (CLAUDE.md: stats as bars, never numbers).
 // The house record is a number because it is a record, and records are numbers.
 
+import { useState } from 'react';
 import { useGameStore } from '../../state/store';
+import { TerritoryMap } from '../components/TerritoryMap';
+import { circuitForTerritory } from '../../data/circuits';
 import { followingOf, venueFitsTerritory } from '../../engine/world/territories';
 import { territoryDefinitionById } from '../../data/territories';
 import { venueById } from '../../data/venues';
@@ -28,6 +38,10 @@ const TAG_LABELS: Record<TerritoryPreferenceTag, string> = {
 export function TerritoriesScreen() {
   const world = useGameStore((s) => s.world);
   const setTerritory = useGameStore((s) => s.setTerritory);
+  // Tapping the map selects a town to read about; it does not book a show
+  // there. Moving the whole promotion to another state on a mis-tap is not a
+  // thing the player should be able to do with one thumb.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   if (!world) return null;
 
   const nameOf = (id: string | null) => {
@@ -36,13 +50,51 @@ export function TerritoriesScreen() {
     return world.rivals.find((r) => r.id === id)?.name ?? null;
   };
   const venue = venueById(world.showSetup.venueId);
+  const selected = selectedId ? (world.territories.find((t) => t.id === selectedId) ?? null) : null;
+  const selectedCircuit = selected ? circuitForTerritory(selected.id) : undefined;
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
       <h1 className="mb-1 text-base font-semibold">The territories</h1>
-      <p className="mb-3 text-[11px] text-neutral-500">
+      <p className="mb-2 text-[11px] text-neutral-500">
         Every town remembers you separately, and forgets you a little every week you are not there.
       </p>
+
+      <TerritoryMap
+        territories={world.territories}
+        playerPromotionId={world.promotion.id}
+        runningTerritoryId={world.showSetup.territoryId}
+        selectedTerritoryId={selectedId}
+        onSelect={(id) => setSelectedId((current) => (current === id ? null : id))}
+        nameOf={nameOf}
+      />
+
+      {selected && (
+        <div className="mt-2 rounded-lg border border-neutral-700 bg-neutral-900 p-2.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-sm font-semibold">{selected.name}</span>
+            <span className="shrink-0 text-[10px] text-neutral-500">
+              {selectedCircuit ? selectedCircuit.name : 'off the map'}
+            </span>
+          </div>
+          <p className="mt-0.5 text-[11px] italic leading-snug text-neutral-500">
+            {territoryDefinitionById(selected.id)?.blurb}
+          </p>
+          <button
+            type="button"
+            data-testid="map-run-here"
+            onClick={() => setTerritory(selected.id)}
+            disabled={world.showSetup.territoryId === selected.id}
+            className="mt-2 w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:bg-neutral-800 disabled:text-neutral-500"
+          >
+            {world.showSetup.territoryId === selected.id ? 'Running here this week' : `Run this week in ${selected.name}`}
+          </button>
+        </div>
+      )}
+
+      <h2 className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+        Town by town
+      </h2>
 
       <div className="flex flex-col gap-2">
         {world.territories.map((territory) => {
