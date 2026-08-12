@@ -29,9 +29,9 @@
     "15": "rgba"
   },
   "frames": {
-    "masc": {
+    "masc_slim_short": {
       "head": {
-        "file": "masc_head.png",
+        "file": "masc_slim_short_head.png",
         "cells": [
           "short",
           "buzz",
@@ -45,7 +45,7 @@
         "count": 8
       },
       "upper": {
-        "file": "masc_upper.png",
+        "file": "masc_slim_short_upper.png",
         "cells": [
           "bare",
           "singlet",
@@ -57,7 +57,7 @@
         "count": 6
       },
       "lower": {
-        "file": "masc_lower.png",
+        "file": "masc_slim_short_lower.png",
         "cells": [
           "trunks",
           "trunks_pads",
@@ -69,7 +69,7 @@
         "count": 6
       },
       "feet": {
-        "file": "masc_feet.png",
+        "file": "masc_slim_short_feet.png",
         "cells": [
           "boots_mid",
           "boots_high",
@@ -80,9 +80,9 @@
         "count": 5
       }
     },
-    "fem": {
+    "masc_slim_average": {
       "head": {
-        "file": "fem_head.png",
+        "file": "masc_slim_average_head.png",
         "cells": [
           "short",
           "buzz",
@@ -96,7 +96,7 @@
         "count": 8
       },
       "upper": {
-        "file": "fem_upper.png",
+        "file": "masc_slim_average_upper.png",
         "cells": [
           "bare",
           "singlet",
@@ -108,7 +108,7 @@
         "count": 6
       },
       "lower": {
-        "file": "fem_lower.png",
+        "file": "masc_slim_average_lower.png",
         "cells": [
           "trunks",
           "trunks_pads",
@@ -120,7 +120,823 @@
         "count": 6
       },
       "feet": {
-        "file": "fem_feet.png",
+        "file": "masc_slim_average_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "masc_slim_tall": {
+      "head": {
+        "file": "masc_slim_tall_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "masc_slim_tall_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "masc_slim_tall_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "masc_slim_tall_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "masc_average_short": {
+      "head": {
+        "file": "masc_average_short_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "masc_average_short_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "masc_average_short_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "masc_average_short_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "masc_average_average": {
+      "head": {
+        "file": "masc_average_average_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "masc_average_average_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "masc_average_average_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "masc_average_average_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "masc_average_tall": {
+      "head": {
+        "file": "masc_average_tall_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "masc_average_tall_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "masc_average_tall_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "masc_average_tall_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "masc_heavy_short": {
+      "head": {
+        "file": "masc_heavy_short_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "masc_heavy_short_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "masc_heavy_short_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "masc_heavy_short_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "masc_heavy_average": {
+      "head": {
+        "file": "masc_heavy_average_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "masc_heavy_average_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "masc_heavy_average_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "masc_heavy_average_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "masc_heavy_tall": {
+      "head": {
+        "file": "masc_heavy_tall_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "masc_heavy_tall_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "masc_heavy_tall_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "masc_heavy_tall_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "fem_slim_short": {
+      "head": {
+        "file": "fem_slim_short_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "fem_slim_short_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "fem_slim_short_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "fem_slim_short_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "fem_slim_average": {
+      "head": {
+        "file": "fem_slim_average_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "fem_slim_average_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "fem_slim_average_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "fem_slim_average_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "fem_slim_tall": {
+      "head": {
+        "file": "fem_slim_tall_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "fem_slim_tall_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "fem_slim_tall_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "fem_slim_tall_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "fem_average_short": {
+      "head": {
+        "file": "fem_average_short_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "fem_average_short_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "fem_average_short_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "fem_average_short_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "fem_average_average": {
+      "head": {
+        "file": "fem_average_average_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "fem_average_average_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "fem_average_average_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "fem_average_average_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "fem_average_tall": {
+      "head": {
+        "file": "fem_average_tall_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "fem_average_tall_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "fem_average_tall_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "fem_average_tall_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "fem_heavy_short": {
+      "head": {
+        "file": "fem_heavy_short_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "fem_heavy_short_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "fem_heavy_short_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "fem_heavy_short_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "fem_heavy_average": {
+      "head": {
+        "file": "fem_heavy_average_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "fem_heavy_average_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "fem_heavy_average_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "fem_heavy_average_feet.png",
+        "cells": [
+          "boots_mid",
+          "boots_high",
+          "boots_low",
+          "sneakers",
+          "barefoot"
+        ],
+        "count": 5
+      }
+    },
+    "fem_heavy_tall": {
+      "head": {
+        "file": "fem_heavy_tall_head.png",
+        "cells": [
+          "short",
+          "buzz",
+          "mohawk",
+          "long",
+          "ponytail",
+          "afro",
+          "mask",
+          "bald_beard"
+        ],
+        "count": 8
+      },
+      "upper": {
+        "file": "fem_heavy_tall_upper.png",
+        "cells": [
+          "bare",
+          "singlet",
+          "tank",
+          "tee",
+          "longsleeve",
+          "vest"
+        ],
+        "count": 6
+      },
+      "lower": {
+        "file": "fem_heavy_tall_lower.png",
+        "cells": [
+          "trunks",
+          "trunks_pads",
+          "tights",
+          "shorts",
+          "jeans",
+          "skirt"
+        ],
+        "count": 6
+      },
+      "feet": {
+        "file": "fem_heavy_tall_feet.png",
         "cells": [
           "boots_mid",
           "boots_high",

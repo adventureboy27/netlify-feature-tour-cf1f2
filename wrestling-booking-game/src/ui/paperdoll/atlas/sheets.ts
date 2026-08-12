@@ -12,21 +12,101 @@
 // no network calls anywhere" rule true by construction rather than by
 // service-worker configuration.
 
-import mascHeadUrl from './sheets/masc_head.png?inline';
-import mascUpperUrl from './sheets/masc_upper.png?inline';
-import mascLowerUrl from './sheets/masc_lower.png?inline';
-import mascFeetUrl from './sheets/masc_feet.png?inline';
-import femHeadUrl from './sheets/fem_head.png?inline';
-import femUpperUrl from './sheets/fem_upper.png?inline';
-import femLowerUrl from './sheets/fem_lower.png?inline';
-import femFeetUrl from './sheets/fem_feet.png?inline';
+import mascSlimShortHeadUrl from './sheets/masc_slim_short_head.png?inline';
+import mascSlimShortUpperUrl from './sheets/masc_slim_short_upper.png?inline';
+import mascSlimShortLowerUrl from './sheets/masc_slim_short_lower.png?inline';
+import mascSlimShortFeetUrl from './sheets/masc_slim_short_feet.png?inline';
+import mascSlimAverageHeadUrl from './sheets/masc_slim_average_head.png?inline';
+import mascSlimAverageUpperUrl from './sheets/masc_slim_average_upper.png?inline';
+import mascSlimAverageLowerUrl from './sheets/masc_slim_average_lower.png?inline';
+import mascSlimAverageFeetUrl from './sheets/masc_slim_average_feet.png?inline';
+import mascSlimTallHeadUrl from './sheets/masc_slim_tall_head.png?inline';
+import mascSlimTallUpperUrl from './sheets/masc_slim_tall_upper.png?inline';
+import mascSlimTallLowerUrl from './sheets/masc_slim_tall_lower.png?inline';
+import mascSlimTallFeetUrl from './sheets/masc_slim_tall_feet.png?inline';
+import mascAverageShortHeadUrl from './sheets/masc_average_short_head.png?inline';
+import mascAverageShortUpperUrl from './sheets/masc_average_short_upper.png?inline';
+import mascAverageShortLowerUrl from './sheets/masc_average_short_lower.png?inline';
+import mascAverageShortFeetUrl from './sheets/masc_average_short_feet.png?inline';
+import mascAverageAverageHeadUrl from './sheets/masc_average_average_head.png?inline';
+import mascAverageAverageUpperUrl from './sheets/masc_average_average_upper.png?inline';
+import mascAverageAverageLowerUrl from './sheets/masc_average_average_lower.png?inline';
+import mascAverageAverageFeetUrl from './sheets/masc_average_average_feet.png?inline';
+import mascAverageTallHeadUrl from './sheets/masc_average_tall_head.png?inline';
+import mascAverageTallUpperUrl from './sheets/masc_average_tall_upper.png?inline';
+import mascAverageTallLowerUrl from './sheets/masc_average_tall_lower.png?inline';
+import mascAverageTallFeetUrl from './sheets/masc_average_tall_feet.png?inline';
+import mascHeavyShortHeadUrl from './sheets/masc_heavy_short_head.png?inline';
+import mascHeavyShortUpperUrl from './sheets/masc_heavy_short_upper.png?inline';
+import mascHeavyShortLowerUrl from './sheets/masc_heavy_short_lower.png?inline';
+import mascHeavyShortFeetUrl from './sheets/masc_heavy_short_feet.png?inline';
+import mascHeavyAverageHeadUrl from './sheets/masc_heavy_average_head.png?inline';
+import mascHeavyAverageUpperUrl from './sheets/masc_heavy_average_upper.png?inline';
+import mascHeavyAverageLowerUrl from './sheets/masc_heavy_average_lower.png?inline';
+import mascHeavyAverageFeetUrl from './sheets/masc_heavy_average_feet.png?inline';
+import mascHeavyTallHeadUrl from './sheets/masc_heavy_tall_head.png?inline';
+import mascHeavyTallUpperUrl from './sheets/masc_heavy_tall_upper.png?inline';
+import mascHeavyTallLowerUrl from './sheets/masc_heavy_tall_lower.png?inline';
+import mascHeavyTallFeetUrl from './sheets/masc_heavy_tall_feet.png?inline';
+import femSlimShortHeadUrl from './sheets/fem_slim_short_head.png?inline';
+import femSlimShortUpperUrl from './sheets/fem_slim_short_upper.png?inline';
+import femSlimShortLowerUrl from './sheets/fem_slim_short_lower.png?inline';
+import femSlimShortFeetUrl from './sheets/fem_slim_short_feet.png?inline';
+import femSlimAverageHeadUrl from './sheets/fem_slim_average_head.png?inline';
+import femSlimAverageUpperUrl from './sheets/fem_slim_average_upper.png?inline';
+import femSlimAverageLowerUrl from './sheets/fem_slim_average_lower.png?inline';
+import femSlimAverageFeetUrl from './sheets/fem_slim_average_feet.png?inline';
+import femSlimTallHeadUrl from './sheets/fem_slim_tall_head.png?inline';
+import femSlimTallUpperUrl from './sheets/fem_slim_tall_upper.png?inline';
+import femSlimTallLowerUrl from './sheets/fem_slim_tall_lower.png?inline';
+import femSlimTallFeetUrl from './sheets/fem_slim_tall_feet.png?inline';
+import femAverageShortHeadUrl from './sheets/fem_average_short_head.png?inline';
+import femAverageShortUpperUrl from './sheets/fem_average_short_upper.png?inline';
+import femAverageShortLowerUrl from './sheets/fem_average_short_lower.png?inline';
+import femAverageShortFeetUrl from './sheets/fem_average_short_feet.png?inline';
+import femAverageAverageHeadUrl from './sheets/fem_average_average_head.png?inline';
+import femAverageAverageUpperUrl from './sheets/fem_average_average_upper.png?inline';
+import femAverageAverageLowerUrl from './sheets/fem_average_average_lower.png?inline';
+import femAverageAverageFeetUrl from './sheets/fem_average_average_feet.png?inline';
+import femAverageTallHeadUrl from './sheets/fem_average_tall_head.png?inline';
+import femAverageTallUpperUrl from './sheets/fem_average_tall_upper.png?inline';
+import femAverageTallLowerUrl from './sheets/fem_average_tall_lower.png?inline';
+import femAverageTallFeetUrl from './sheets/fem_average_tall_feet.png?inline';
+import femHeavyShortHeadUrl from './sheets/fem_heavy_short_head.png?inline';
+import femHeavyShortUpperUrl from './sheets/fem_heavy_short_upper.png?inline';
+import femHeavyShortLowerUrl from './sheets/fem_heavy_short_lower.png?inline';
+import femHeavyShortFeetUrl from './sheets/fem_heavy_short_feet.png?inline';
+import femHeavyAverageHeadUrl from './sheets/fem_heavy_average_head.png?inline';
+import femHeavyAverageUpperUrl from './sheets/fem_heavy_average_upper.png?inline';
+import femHeavyAverageLowerUrl from './sheets/fem_heavy_average_lower.png?inline';
+import femHeavyAverageFeetUrl from './sheets/fem_heavy_average_feet.png?inline';
+import femHeavyTallHeadUrl from './sheets/fem_heavy_tall_head.png?inline';
+import femHeavyTallUpperUrl from './sheets/fem_heavy_tall_upper.png?inline';
+import femHeavyTallLowerUrl from './sheets/fem_heavy_tall_lower.png?inline';
+import femHeavyTallFeetUrl from './sheets/fem_heavy_tall_feet.png?inline';
 
 import { FRAME_H, FRAMES, DRAW_ORDER, sheetWidth, type AtlasFrame, type AtlasSlot } from './manifest';
 import { SOURCE_PALETTE, PALETTE_SIZE } from './indexPalette';
 
 const SHEET_URLS: Record<AtlasFrame, Record<AtlasSlot, string>> = {
-  masc: { head: mascHeadUrl, upper: mascUpperUrl, lower: mascLowerUrl, feet: mascFeetUrl },
-  fem: { head: femHeadUrl, upper: femUpperUrl, lower: femLowerUrl, feet: femFeetUrl },
+  masc_slim_short: { head: mascSlimShortHeadUrl, upper: mascSlimShortUpperUrl, lower: mascSlimShortLowerUrl, feet: mascSlimShortFeetUrl },
+  masc_slim_average: { head: mascSlimAverageHeadUrl, upper: mascSlimAverageUpperUrl, lower: mascSlimAverageLowerUrl, feet: mascSlimAverageFeetUrl },
+  masc_slim_tall: { head: mascSlimTallHeadUrl, upper: mascSlimTallUpperUrl, lower: mascSlimTallLowerUrl, feet: mascSlimTallFeetUrl },
+  masc_average_short: { head: mascAverageShortHeadUrl, upper: mascAverageShortUpperUrl, lower: mascAverageShortLowerUrl, feet: mascAverageShortFeetUrl },
+  masc_average_average: { head: mascAverageAverageHeadUrl, upper: mascAverageAverageUpperUrl, lower: mascAverageAverageLowerUrl, feet: mascAverageAverageFeetUrl },
+  masc_average_tall: { head: mascAverageTallHeadUrl, upper: mascAverageTallUpperUrl, lower: mascAverageTallLowerUrl, feet: mascAverageTallFeetUrl },
+  masc_heavy_short: { head: mascHeavyShortHeadUrl, upper: mascHeavyShortUpperUrl, lower: mascHeavyShortLowerUrl, feet: mascHeavyShortFeetUrl },
+  masc_heavy_average: { head: mascHeavyAverageHeadUrl, upper: mascHeavyAverageUpperUrl, lower: mascHeavyAverageLowerUrl, feet: mascHeavyAverageFeetUrl },
+  masc_heavy_tall: { head: mascHeavyTallHeadUrl, upper: mascHeavyTallUpperUrl, lower: mascHeavyTallLowerUrl, feet: mascHeavyTallFeetUrl },
+  fem_slim_short: { head: femSlimShortHeadUrl, upper: femSlimShortUpperUrl, lower: femSlimShortLowerUrl, feet: femSlimShortFeetUrl },
+  fem_slim_average: { head: femSlimAverageHeadUrl, upper: femSlimAverageUpperUrl, lower: femSlimAverageLowerUrl, feet: femSlimAverageFeetUrl },
+  fem_slim_tall: { head: femSlimTallHeadUrl, upper: femSlimTallUpperUrl, lower: femSlimTallLowerUrl, feet: femSlimTallFeetUrl },
+  fem_average_short: { head: femAverageShortHeadUrl, upper: femAverageShortUpperUrl, lower: femAverageShortLowerUrl, feet: femAverageShortFeetUrl },
+  fem_average_average: { head: femAverageAverageHeadUrl, upper: femAverageAverageUpperUrl, lower: femAverageAverageLowerUrl, feet: femAverageAverageFeetUrl },
+  fem_average_tall: { head: femAverageTallHeadUrl, upper: femAverageTallUpperUrl, lower: femAverageTallLowerUrl, feet: femAverageTallFeetUrl },
+  fem_heavy_short: { head: femHeavyShortHeadUrl, upper: femHeavyShortUpperUrl, lower: femHeavyShortLowerUrl, feet: femHeavyShortFeetUrl },
+  fem_heavy_average: { head: femHeavyAverageHeadUrl, upper: femHeavyAverageUpperUrl, lower: femHeavyAverageLowerUrl, feet: femHeavyAverageFeetUrl },
+  fem_heavy_tall: { head: femHeavyTallHeadUrl, upper: femHeavyTallUpperUrl, lower: femHeavyTallLowerUrl, feet: femHeavyTallFeetUrl },
 };
 
 export interface IndexedSheet {

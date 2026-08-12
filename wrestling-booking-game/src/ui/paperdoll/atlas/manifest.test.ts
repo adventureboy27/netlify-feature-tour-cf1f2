@@ -14,7 +14,6 @@ import {
   cellIndex,
   cellOriginX,
   sheetWidth,
-  type AtlasFrame,
   type AtlasSlot,
 } from './manifest';
 
@@ -28,7 +27,7 @@ describe('atlas manifest', () => {
     expect(Object.keys(atlas.frames).sort()).toEqual([...FRAMES].sort());
   });
 
-  it.each(FRAMES)('lists %s cells in the generator order, with matching counts', (frame: AtlasFrame) => {
+  it.each([...FRAMES])('lists %s cells in the generator order, with matching counts', (frame) => {
     const generated = atlas.frames[frame] as Record<AtlasSlot, { cells: string[]; count: number; file: string }>;
     for (const slot of DRAW_ORDER) {
       expect(generated[slot].cells).toEqual([...SLOT_CELLS[slot]]);
@@ -37,12 +36,28 @@ describe('atlas manifest', () => {
     }
   });
 
-  it('both frames cut the same cells, so a wrestler keeps their look across frames', () => {
-    const masc = atlas.frames.masc as Record<AtlasSlot, { cells: string[] }>;
-    const fem = atlas.frames.fem as Record<AtlasSlot, { cells: string[] }>;
-    for (const slot of DRAW_ORDER) {
-      expect(fem[slot].cells).toEqual(masc[slot].cells);
+  it('every frame cuts the same cells, so a wrestler keeps their look whatever body they have', () => {
+    // Eighteen bodies now — two genders, three builds, three heights. A
+    // repackage must not silently change somebody's hair because they are
+    // heavy rather than slim.
+    const reference = atlas.frames.masc_average_average as Record<AtlasSlot, { cells: string[] }>;
+    for (const frame of FRAMES) {
+      const cut = atlas.frames[frame] as Record<AtlasSlot, { cells: string[] }>;
+      for (const slot of DRAW_ORDER) {
+        expect(cut[slot].cells, `${frame}/${slot}`).toEqual(reference[slot].cells);
+      }
     }
+  });
+
+  it('covers every build and height the appearance vector can produce', () => {
+    for (const gender of ['masc', 'fem']) {
+      for (const build of ['slim', 'average', 'heavy']) {
+        for (const height of ['short', 'average', 'tall']) {
+          expect(FRAMES, `${gender}_${build}_${height}`).toContain(`${gender}_${build}_${height}`);
+        }
+      }
+    }
+    expect(FRAMES).toHaveLength(18);
   });
 
   it('locates cells at whole-frame offsets across the sheet', () => {

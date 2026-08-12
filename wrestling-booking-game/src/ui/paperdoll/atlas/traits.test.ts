@@ -4,8 +4,8 @@ import { generateAppearance, APPEARANCE_TRAIT_RANGES } from '../../../engine/gen
 import { rngFromSeed } from '../../../engine/rng';
 import { SKIN_TONE_PALETTE, HAIR_COLOR_PALETTE, ATTIRE_PALETTE } from '../palette';
 import { hexToRgb } from './indexPalette';
-import { DRAW_ORDER, SLOT_CELLS } from './manifest';
-import { frameForGender, selectCells, selectSlotColors, selectSprite, selectionKey } from './traits';
+import { DRAW_ORDER, FRAMES, SLOT_CELLS } from './manifest';
+import { frameFor, selectCells, selectSlotColors, selectSprite, selectionKey } from './traits';
 
 const BASE: Appearance = {
   skinTone: 2,
@@ -32,10 +32,38 @@ const BASE: Appearance = {
 
 const appearance = (overrides: Partial<Appearance>): Appearance => ({ ...BASE, ...overrides });
 
-describe('frameForGender', () => {
-  it('picks the atlas body frame from the wrestler gender field', () => {
-    expect(frameForGender('m')).toBe('masc');
-    expect(frameForGender('f')).toBe('fem');
+describe('frameFor', () => {
+  it('picks the body from gender, build and height together', () => {
+    expect(frameFor('m', appearance({ build: 1, height: 2 }))).toBe('masc_average_average');
+    expect(frameFor('f', appearance({ build: 1, height: 2 }))).toBe('fem_average_average');
+  });
+
+  it('gives the ends of the build scale a different silhouette', () => {
+    // build and height were generated, edited, saved and counted by the §7
+    // distinctness check while changing nothing about the sprite at all.
+    expect(frameFor('m', appearance({ build: 0, height: 2 }))).toBe('masc_slim_average');
+    expect(frameFor('m', appearance({ build: 4, height: 2 }))).toBe('masc_heavy_average');
+  });
+
+  it('gives the ends of the height scale a different silhouette', () => {
+    expect(frameFor('m', appearance({ build: 1, height: 0 }))).toBe('masc_average_short');
+    expect(frameFor('m', appearance({ build: 1, height: 4 }))).toBe('masc_average_tall');
+  });
+
+  it('never asks the atlas for a body it does not have', () => {
+    for (let build = 0; build <= 5; build++) {
+      for (let height = 0; height <= 4; height++) {
+        for (const gender of ['m', 'f'] as const) {
+          expect(FRAMES, `${gender}/${build}/${height}`).toContain(
+            frameFor(gender, appearance({ build, height })),
+          );
+        }
+      }
+    }
+  });
+
+  it('falls back to the average body rather than throwing on a value off the end', () => {
+    expect(frameFor('m', appearance({ build: 99, height: 99 }))).toBe('masc_average_average');
   });
 });
 

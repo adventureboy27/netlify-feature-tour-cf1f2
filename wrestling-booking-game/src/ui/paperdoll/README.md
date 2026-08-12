@@ -45,21 +45,50 @@ be.
 
 ## What the atlas does not express yet
 
-`Appearance` carries 20 traits; the current sheets cut cells for six of them
-(`skinTone`, `hairStyle`, `mask`, `attireTop`, `attireBottom`, `boots`) plus
-the three color slots. The rest — **`build` and `height` most visibly**, along
-with `faceShape`, `eyes`, `facialHair`, `accessory`, `glasses`, `shirt`,
-`tattoos` — are still generated, still edited, still saved, and still counted
-by the §7 visual-distinctness check, but they do not change the sprite.
+`Appearance` carries 20 traits. The sheets cut cells for six of them
+(`skinTone`, `hairStyle`, `mask`, `attireTop`, `attireBottom`, `boots`), the
+three colour slots, and — since the body-frame work below — `build` and
+`height`. The rest (`faceShape`, `eyes`, `facialHair`, `accessory`, `glasses`,
+`shirt`, `tattoos`) are still generated, still edited, still saved, and still
+counted by the §7 visual-distinctness check, but they do not change the sprite.
 
-This is deliberate. `build` used to reshape the silhouette when the renderer
-drew shapes procedurally; faking it now by stretching a finished sprite at
-display time would give non-integer nearest-neighbour scaling and visibly
-uneven pixels, which is the opposite of what §7 asks for. The honest fix is
-generator-side: `build_frame()` in `wrestler_atlas.py` already takes a full
-set of skeletal landmarks, so emitting `masc_heavy`, `fem_tall` and friends is
-a matter of adding frames there. When those land, extend `FRAMES` in
-`atlas/manifest.ts` and `frameForGender` in `atlas/traits.ts`.
+## Body frames: build and height
+
+There are eighteen frames — two genders x `slim`/`average`/`heavy` x
+`short`/`average`/`tall` — keyed `masc_heavy_tall` and so on. `frameFor` in
+`atlas/traits.ts` maps an `Appearance` onto one; the tables there are authored,
+so `athletic` and `thick` both land on the average body because most of a
+roster should look like most of a roster and the ends of the scale are where a
+silhouette earns its keep. Measured on a 24-person roster: 15 of the 18 bodies
+in use.
+
+This is done generator-side, in the landmarks, before a single pixel is
+rasterised — never by stretching a finished sprite at display time, which
+would give non-integer nearest-neighbour scaling and visibly uneven pixels.
+`_widen` pushes every x away from the centre line; `_stretch` handles height.
+
+Two earlier attempts at height are worth recording, because both looked
+plausible and neither worked:
+
+- **Moving the body below the collarbone down.** Invisible. The silhouette
+  still filled the same cell, so short and tall were indistinguishable side by
+  side.
+- **Scaling the whole figure about the floor.** Read as a height difference
+  but stretched the *neck* — a tall wrestler's head floated above his
+  shoulders, a short one's sank into them, and the tall head clipped the top
+  of the frame.
+
+What works is anatomy: the skull-to-pelvis block is rigid and simply moves,
+and only the legs lengthen or shorten to make up the difference, feet pinned
+to the floor. `HEIGHTS` offsets the *average* body downward rather than
+sitting at zero, because the original art already filled the 96-pixel cell to
+the pixel and "taller" had nowhere to go.
+
+Adding a build or a height means extending `BUILDS`/`HEIGHTS` in
+`wrestler_atlas.py`, `FRAMES` in `atlas/manifest.ts`, the URL map in
+`atlas/sheets.ts`, and the two tables in `atlas/traits.ts`. The sheets cost
+about 19 KB per frame, so the axis count is a real budget: eighteen frames is
+~344 KB inlined.
 
 The mapping tables in `atlas/traits.ts` are authored rather than modulo
 arithmetic, so trait ranges wider than the cell list (24 hair styles onto 7

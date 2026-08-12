@@ -14,7 +14,29 @@ export const FRAME_H = 96;
  * it's which set of skeletal landmarks the sprite was drawn on (§7 keeps
  * gender as a separate Wrestler field).
  */
-export const FRAMES = ['masc', 'fem'] as const;
+// Two genders x three builds x three heights. `build` and `height` used to
+// be generated, edited, saved and counted by the distinctness check while
+// changing nothing at all about the sprite — see the paperdoll README.
+export const FRAMES = [
+  'masc_slim_short',
+  'masc_slim_average',
+  'masc_slim_tall',
+  'masc_average_short',
+  'masc_average_average',
+  'masc_average_tall',
+  'masc_heavy_short',
+  'masc_heavy_average',
+  'masc_heavy_tall',
+  'fem_slim_short',
+  'fem_slim_average',
+  'fem_slim_tall',
+  'fem_average_short',
+  'fem_average_average',
+  'fem_average_tall',
+  'fem_heavy_short',
+  'fem_heavy_average',
+  'fem_heavy_tall',
+] as const;
 export type AtlasFrame = (typeof FRAMES)[number];
 
 /**

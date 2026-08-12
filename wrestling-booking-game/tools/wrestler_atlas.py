@@ -104,9 +104,96 @@ def over(dst, src):
 SKIN, MAT1, MAT2 = 1, 6, 10
 
 # ---------------------------------------------------------------- body frames
-def build_frame(kind):
+# How wide and how tall each variant is, against the "average" baseline.
+#
+# `build` moves everything horizontally away from the centre line and thickens
+# the limbs; `height` moves everything below the neck down or up. Both are
+# applied to the landmarks *before* any mask is rasterised, which is the whole
+# reason this is honest: the sprite is drawn at the right size rather than a
+# finished sprite being stretched at display time, which is what the old note
+# in the paperdoll README ruled out on nearest-neighbour grounds.
+BUILDS = {"slim": 0.82, "average": 1.0, "heavy": 1.26}
+#: Pixels the upper body drops by. Average is deliberately offset rather than
+#: zero so that "tall" has somewhere to go — at zero the existing art already
+#: fills the cell to the pixel and a taller frame clipped the head off.
+HEIGHTS = {"short": 9, "average": 4, "tall": 0}
+#: Nothing may leave the 64x96 cell, and the feet must stay on the floor.
+FLOOR_Y = 90
+
+
+def _widen(F, factor):
+    """Push every x away from the centre line by `factor`."""
+    cx = W / 2
+
+    def fx(x):
+        return int(round(cx + (x - cx) * factor))
+
+    for key in ("skull", "jaw", "neck", "delt", "hand"):
+        x0, y0, x1, y1 = F[key]
+        F[key] = [fx(x0), y0, fx(x1), y1]
+    for key in ("traps", "torso", "pelvis", "leg"):
+        F[key] = [(fx(x), y) for (x, y) in F[key]]
+    for key in ("uarm", "farm"):
+        x0, y0, x1, y1 = F[key]
+        F[key] = (fx(x0), y0, fx(x1), y1)
+    ex0, ey, ex1, ey1 = F["eyes"]
+    F["eyes"] = (fx(ex0), ey, fx(ex1), ey1)
+    nx, ny = F["nose"]
+    F["nose"] = (fx(nx), ny)
+    mx0, my, mx1 = F["mouth"]
+    F["mouth"] = (fx(mx0), my, fx(mx1))
+    fw0, fw1 = F["foot_w"]
+    F["foot_w"] = (fx(fw0), fx(fw1))
+    an0, an1 = F["ankle"]
+    F["ankle"] = (fx(an0), fx(an1))
+
+
+def _stretch(F, dy):
+    """
+    Height, done the way a body actually differs: in the legs.
+
+    Two earlier attempts were wrong and both are worth recording. Moving only
+    the body below the collarbone down was invisible — the silhouette still
+    filled the same cell. Scaling the whole figure about the floor read as a
+    height difference but stretched the *neck*, so a tall wrestler had his head
+    floating above his shoulders and a short one had it sunk into them, and the
+    tall head clipped the top of the frame.
+
+    So: everything from the skull down to the pelvis is a rigid block that
+    simply moves, and only the legs get longer or shorter to make up the
+    difference. The feet stay on the floor. Nobody's neck changes.
+    """
+    if dy == 0:
+        return
+
+    for key in ("skull", "jaw", "neck", "delt", "hand"):
+        x0, y0, x1, y1 = F[key]
+        F[key] = [x0, y0 + dy, x1, y1 + dy]
+    for key in ("traps", "torso", "pelvis"):
+        F[key] = [(x, y + dy) for (x, y) in F[key]]
+    for key in ("uarm", "farm"):
+        x0, y0, x1, y1 = F[key]
+        F[key] = (x0, y0 + dy, x1, y1 + dy)
+    ex0, ey, ex1, ey1 = F["eyes"]
+    F["eyes"] = (ex0, ey + dy, ex1, ey1 + dy)
+    nx, ny = F["nose"]
+    F["nose"] = (nx, ny + dy)
+    mx0, my, mx1 = F["mouth"]
+    F["mouth"] = (mx0, my + dy, mx1)
+    F["hip_y"] += dy
+    F["waist_y"] += dy
+
+    # The legs take up the slack, pinned at the sole.
+    hip = F["hip_y"]
+    span = FLOOR_Y - (hip - dy)
+    scale = (FLOOR_Y - hip) / span if span else 1.0
+    F["leg"] = [(x, int(round(FLOOR_Y - (FLOOR_Y - y) * scale))) for (x, y) in F["leg"]]
+    F["knee_y"] = int(round(FLOOR_Y - (FLOOR_Y - F["knee_y"]) * scale))
+
+
+def build_frame(kind, build="average", height="average"):
     """Landmarks + base masks. All parts of one frame share these; frames don't mix."""
-    F = {"kind": kind}
+    F = {"kind": kind, "build": build, "height": height}
     if kind == "masc":
         F.update(
             skull=[25,2,39,18], jaw=[27,8,37,21], neck=[29,19,35,28],
@@ -131,6 +218,10 @@ def build_frame(kind):
             leg=[(23,50),(31,50),(31,70),(30,74),(30,90),(25,90),(24,74),(23,63)],
             foot_w=(22,32), ankle=(24,32), knee_y=72, hip_y=48, waist_y=45,
         )
+    # Shape the skeleton before a single pixel is rasterised.
+    _widen(F, BUILDS[build])
+    _stretch(F, HEIGHTS[height])
+
     F["m_skull"] = ell(F["skull"]) | ell(F["jaw"])
     F["m_neck"]  = rect(F["neck"])
     F["m_torso"] = poly(F["torso"]) | poly(F["traps"]) | mirror(ell(F["delt"]))
@@ -142,7 +233,14 @@ def build_frame(kind):
     F["m_leg"]   = mirror(poly(F["leg"])) & ~rect([32, F["hip_y"]+8, 32, 96])
     return F
 
-FRAMES = {k: build_frame(k) for k in ("masc", "fem")}
+#: masc/fem x slim/average/heavy x short/average/tall. The key is what
+#: atlas/traits.ts asks for, so it has to stay stable: "masc_heavy_tall".
+FRAMES = {
+    f"{k}_{b}_{h}": build_frame(k, b, h)
+    for k in ("masc", "fem")
+    for b in BUILDS
+    for h in HEIGHTS
+}
 
 # ---------------------------------------------------------------- HEAD slot
 HEADS = ["short", "buzz", "mohawk", "long", "ponytail", "afro", "mask", "bald_beard"]
@@ -405,7 +503,8 @@ def build_all():
 if __name__ == "__main__":
     m = build_all()
     total = 1
-    for slot in m["frames"]["masc"].values():
+    for slot in m["frames"]["masc_average_average"].values():
         total *= slot["count"]
-    print("cells per frame:", {k: v["count"] for k, v in m["frames"]["masc"].items()})
+    print("frames:", len(m["frames"]))
+    print("cells per frame:", {k: v["count"] for k, v in m["frames"]["masc_average_average"].items()})
     print("shape combos per frame:", total)

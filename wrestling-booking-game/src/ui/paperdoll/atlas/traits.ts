@@ -88,8 +88,44 @@ function paletteRgb(palette: readonly string[], index: number): Rgb {
   return hexToRgb(pick(palette, index));
 }
 
+/**
+ * Which body a wrestler gets.
+ *
+ * `build` is 0-5 (slim, athletic, thick, heavy, massive, tall) and `height`
+ * is 0-4; both have been generated, edited and saved since the beginning
+ * while changing nothing at all about the sprite. Authored tables rather than
+ * modulo arithmetic, like every other mapping in this file, so the
+ * distribution is one somebody chose: "athletic" and "thick" both read as the
+ * average frame because most of a roster should look like most of a roster,
+ * and the ends of the scale are where the silhouette actually changes.
+ */
+const BUILD_TO_FRAME: readonly ('slim' | 'average' | 'heavy')[] = [
+  'slim', // slim
+  'average', // athletic
+  'average', // thick
+  'heavy', // heavy
+  'heavy', // massive
+  'slim', // tall — carried by the height axis, not the width one
+];
+
+const HEIGHT_TO_FRAME: readonly ('short' | 'average' | 'tall')[] = [
+  'short',
+  'short',
+  'average',
+  'tall',
+  'tall',
+];
+
+export function frameFor(gender: 'm' | 'f', appearance: Appearance): AtlasFrame {
+  const body = gender === 'f' ? 'fem' : 'masc';
+  const build = BUILD_TO_FRAME[appearance.build] ?? 'average';
+  const height = HEIGHT_TO_FRAME[appearance.height] ?? 'average';
+  return `${body}_${build}_${height}` as AtlasFrame;
+}
+
+/** @deprecated Kept only so nothing calls the old gender-only shape by accident. */
 export function frameForGender(gender: 'm' | 'f'): AtlasFrame {
-  return gender === 'f' ? 'fem' : 'masc';
+  return gender === 'f' ? 'fem_average_average' : 'masc_average_average';
 }
 
 export function selectCells(appearance: Appearance): CellSelection {
@@ -138,7 +174,7 @@ export interface SpriteSelection {
 
 export function selectSprite(appearance: Appearance, gender: 'm' | 'f'): SpriteSelection {
   return {
-    frame: frameForGender(gender),
+    frame: frameFor(gender, appearance),
     cells: selectCells(appearance),
     slotColors: selectSlotColors(appearance),
   };
