@@ -17,6 +17,7 @@ import {
 
 /** One built line per kind, so the shape of every kind is covered. */
 const SAMPLES: Record<WireKind, WireItem> = {
+  story: wire('story', 'Bad Blood is over. Duke Rawlins finished it in a cage.', 12, 'lead'),
   team: teamSplitLine('The Brass Knuckles', ['Duke Rawlins', 'Cyclone'], 12),
   signing: rivalSigningLine('Duke Rawlins', 'Northern Combat League', 12),
   death: deathLine('Earl Mercer', 61, 'A heart attack, at home.', 12),

@@ -1793,6 +1793,33 @@ export interface WorldSettings {
   /** Years in the business before the number itself is worth saying out loud. */
   commentaryLongCareerYears: number;
 
+  // Storylines — see world/storyline.ts.
+  /** Investment at which an arc stops being new, and at which it is ready. */
+  storylineBuildingInvestment: number;
+  storylineBoilingInvestment: number;
+  /** Consecutive empty weeks before a story is dead. */
+  storylineFizzleWeeks: number;
+  /** Weeks idle before the board says they are forgetting it. */
+  storylineColdWeeks: number;
+  /** Weeks a boiling story can sit before the wait starts costing it. */
+  storylineStaleAfterWeeks: number;
+  storylineStalePerWeek: number;
+  /** How the blow-off multiplier is made up: story told, match on the night, floor. */
+  storylineToldWeight: number;
+  storylineNightWeight: number;
+  storylineBlowoffFloor: number;
+  /** Multipliers at which the write-up calls a blow-off great or merely fair. */
+  storylineGreatBlowoff: number;
+  storylineFairBlowoff: number;
+  /** Rivalry heat at which the office suggests naming it. */
+  storylineSuggestHeat: number;
+  /** What a blow-off's quality is worth to the people in it and the company. */
+  storylinePayoffPopularity: number;
+  storylinePayoffMomentum: number;
+  storylinePayoffCompanyRating: number;
+  /** What a story fizzling costs the company. Small, and entirely deserved. */
+  storylineFizzleRating: number;
+
   // Relationships (engine/career/relationships.ts)
   /** How many relationships to seed, per wrestler on the roster. */
   relationshipsPerWrestler: number;

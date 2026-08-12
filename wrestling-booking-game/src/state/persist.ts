@@ -67,7 +67,11 @@ const SLOT_KEY = 'wbg.save.v1';
 // Version 14 adds moraleNote and moraleLastDelta to Wrestler and the whole
 // morale settings block. A version-13 save has neither, so the mood face
 // would read undefined for every person on the roster.
-const SCHEMA_VERSION = 14;
+//
+// Version 15 adds world.storylines and the storyline settings block. A
+// version-14 save has no array, which the weekly tick iterates without a
+// guard.
+const SCHEMA_VERSION = 15;
 
 export interface SaveFile {
   schema: number;

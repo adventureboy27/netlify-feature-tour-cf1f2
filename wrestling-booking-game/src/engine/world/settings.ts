@@ -452,6 +452,31 @@ export function defaultWorldSettings(): WorldSettings {
     commentaryWeatherDrawHit: 0.9,
     commentaryLongCareerYears: 12,
 
+    // Storylines. Against the beat weights in data/storylineBeats.ts these
+    // put "building" at three or four real events and "boiling" at seven or
+    // eight — about two months of weekly television for a story told
+    // properly. A feud built in a fortnight is a feud nobody believed in.
+    storylineBuildingInvestment: 25,
+    storylineBoilingInvestment: 60,
+    // Five weeks of silence kills it. Long enough that a week off is fine,
+    // short enough that forgetting about a feud is a real thing you did.
+    storylineFizzleWeeks: 5,
+    storylineColdWeeks: 3,
+    storylineStaleAfterWeeks: 3,
+    storylineStalePerWeek: 0.12,
+    // A blow-off is worth most when the story was told and the match
+    // delivered. The floor means even a badly built one pays something.
+    storylineToldWeight: 0.8,
+    storylineNightWeight: 0.5,
+    storylineBlowoffFloor: 0.2,
+    storylineGreatBlowoff: 1.2,
+    storylineFairBlowoff: 0.75,
+    storylineSuggestHeat: 45,
+    storylinePayoffPopularity: 6,
+    storylinePayoffMomentum: 10,
+    storylinePayoffCompanyRating: 2.5,
+    storylineFizzleRating: 0.8,
+
     // Relationships. Most people get along; the ones who do not are the
     // interesting exception, and enemies work stiffer — better to watch,
     // likelier to hurt somebody.

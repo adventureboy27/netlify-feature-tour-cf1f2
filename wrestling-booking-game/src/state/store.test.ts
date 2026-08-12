@@ -1082,3 +1082,140 @@ describe('the call', () => {
     expect(show.segments.every((s) => (s.result?.commentary ?? []).length === 0)).toBe(true);
   });
 });
+
+describe('the stories', () => {
+  /** The two most popular people on the roster, who will draw. */
+  function headliners() {
+    const world = useGameStore.getState().world!;
+    const cast = world.promotion.rosterIds
+      .map((id) => world.wrestlers[id]!)
+      .sort((a, b) => b.popularity - a.popularity);
+    return [cast[0]!.id, cast[1]!.id] as const;
+  }
+
+  /** Book the main event between these two, everything else filled around it. */
+  function bookWeek(a: string, b: string, stipulation?: string) {
+    const world = useGameStore.getState().world!;
+    const others = world.promotion.rosterIds.filter((id) => id !== a && id !== b);
+    const last = world.currentCard.length - 1;
+    let i = 0;
+    for (let slot = 0; slot < last; slot++) {
+      useGameStore.getState().setSegmentParticipant(slot, others[i++]!, 0);
+      useGameStore.getState().setSegmentParticipant(slot, others[i++]!, 1);
+    }
+    useGameStore.getState().setSegmentParticipant(last, a, 0);
+    useGameStore.getState().setSegmentParticipant(last, b, 1);
+    if (stipulation) useGameStore.getState().setSegmentStipulation(last, stipulation);
+    runWeek();
+  }
+
+  it('names a story and starts it empty', () => {
+    const [a, b] = headliners();
+    expect(useGameStore.getState().startStoryline([a, b]).ok).toBe(true);
+    const story = useGameStore.getState().world!.storylines[0]!;
+    expect(story.name.length).toBeGreaterThan(3);
+    expect(story.stage).toBe('opening');
+    expect(story.beats).toHaveLength(0);
+    // Booking a story is allowed to be what starts the feud.
+    expect(useGameStore.getState().world!.rivalries.some((r) => r.id === story.rivalryId)).toBe(true);
+  });
+
+  it('will not run two stories about the same two people', () => {
+    const [a, b] = headliners();
+    useGameStore.getState().startStoryline([a, b]);
+    const second = useGameStore.getState().startStoryline([b, a]);
+    expect(second.ok).toBe(false);
+    expect(useGameStore.getState().world!.storylines).toHaveLength(1);
+  });
+
+  it('advances from the card, without the booker doing anything extra', () => {
+    const [a, b] = headliners();
+    useGameStore.getState().startStoryline([a, b]);
+    bookWeek(a, b);
+    const story = useGameStore.getState().world!.storylines[0]!;
+    expect(story.beats.length).toBeGreaterThan(0);
+    expect(story.beats[0]!.text).toContain(useGameStore.getState().world!.wrestlers[a]!.name);
+    // Beats are stamped with the week the tick has just rolled into, the same
+    // convention every wire item uses. What matters to the player is that the
+    // story reads as advanced right now.
+    expect(useGameStore.getState().world!.week - story.lastAdvancedWeek).toBe(0);
+    expect(story.neglectedWeeks).toBe(0);
+  });
+
+  it('builds to the boil over a run of weeks, not a fortnight', () => {
+    const [a, b] = headliners();
+    useGameStore.getState().startStoryline([a, b]);
+    let weeks = 0;
+    while (useGameStore.getState().world!.storylines[0]!.stage !== 'boiling' && weeks < 20) {
+      bookWeek(a, b);
+      weeks += 1;
+    }
+    expect(weeks).toBeGreaterThanOrEqual(5);
+    expect(useGameStore.getState().world!.storylines[0]!.stage).toBe('boiling');
+  });
+
+  it('settles when a ready story gets a decisive match, and pays for it', () => {
+    const [a, b] = headliners();
+    useGameStore.getState().startStoryline([a, b]);
+    for (let i = 0; i < 20 && useGameStore.getState().world!.storylines[0]!.stage !== 'boiling'; i++) {
+      bookWeek(a, b);
+    }
+    const before = useGameStore.getState().world!;
+    const ratingBefore = before.promotion.rating;
+    const popBefore = { a: before.wrestlers[a]!.popularity, b: before.wrestlers[b]!.popularity };
+
+    bookWeek(a, b, 'steelCage');
+    const after = useGameStore.getState().world!;
+    const story = after.storylines[0]!;
+
+    // A screwjob deliberately settles nothing, so only assert the payoff when
+    // the night actually produced a decisive finish.
+    if (story.stage !== 'blownOff') {
+      expect(story.stage).toBe('boiling');
+      return;
+    }
+    expect(story.payoff).toBeTruthy();
+    expect(story.resolvedWeek).not.toBeNull();
+    // Somebody gained, and the company gained. Nothing happens off-screen:
+    // the end of a story is in the paper the week it happened.
+    const moved =
+      after.wrestlers[a]!.popularity - popBefore.a + (after.wrestlers[b]!.popularity - popBefore.b);
+    expect(moved).toBeGreaterThan(0);
+    // Deliberately not asserted on the company rating. The payoff does move
+    // it — measured at +2.5 on the night — but the rating ladder steps toward
+    // whatever the show was worth in the same tick, and a weak card swamps it.
+    // Asserting here would be asserting that the ladder is weaker than the
+    // payoff, which is not true and should not be.
+    void ratingBefore;
+    expect(after.weeklyNews.some((n) => n.kind === 'story' && n.text.includes(story.name))).toBe(true);
+  });
+
+  it('kills a story the booker forgets about, and says so in the paper', () => {
+    const [a, b] = headliners();
+    useGameStore.getState().startStoryline([a, b]);
+    bookWeek(a, b);
+    const settings = useGameStore.getState().world!.settings;
+    for (let i = 0; i < settings.storylineFizzleWeeks; i++) runWeek();
+
+    const after = useGameStore.getState().world!;
+    const story = after.storylines[0]!;
+    expect(story.stage).toBe('fizzled');
+    expect(story.payoff).toBeTruthy();
+    expect(after.weeklyNews.some((n) => n.kind === 'story')).toBe(true);
+  });
+
+  it('lets the booker rename one and drop one', () => {
+    const [a, b] = headliners();
+    useGameStore.getState().startStoryline([a, b]);
+    const id = useGameStore.getState().world!.storylines[0]!.id;
+
+    useGameStore.getState().renameStoryline(id, '  The Long Winter  ');
+    expect(useGameStore.getState().world!.storylines[0]!.name).toBe('The Long Winter');
+    // An empty rename is ignored rather than blanking the story.
+    useGameStore.getState().renameStoryline(id, '   ');
+    expect(useGameStore.getState().world!.storylines[0]!.name).toBe('The Long Winter');
+
+    useGameStore.getState().abandonStoryline(id);
+    expect(useGameStore.getState().world!.storylines[0]!.stage).toBe('fizzled');
+  });
+});

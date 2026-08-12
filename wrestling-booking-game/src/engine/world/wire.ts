@@ -33,7 +33,9 @@ export type WireKind =
   | 'debut'
   | 'title'
   /** Something that happened to somebody away from a ring. */
-  | 'misfortune';
+  | 'misfortune'
+  /** An arc the booker is running started, boiled over, ended or died. */
+  | 'story';
 
 /** How loudly the results page should say it. */
 export type WireWeight = 'lead' | 'normal' | 'minor';
@@ -60,6 +62,7 @@ export const WIRE_KIND_LABELS: Record<WireKind, string> = {
   title: 'Title',
   weather: 'The road',
   misfortune: 'The road',
+  story: 'The story',
 };
 
 /**
@@ -74,6 +77,7 @@ const KIND_ORDER: WireKind[] = [
   'retirement',
   'comeback',
   'title',
+  'story',
   'departure',
   'signing',
   'team',

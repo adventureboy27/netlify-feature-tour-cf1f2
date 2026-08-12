@@ -40,6 +40,7 @@ import type { HallOfFameEntry } from '../engine/career/hallOfFame';
 import type { AwardWinner, YearRecord } from '../engine/career/awards';
 import type { Incident } from '../engine/sim/incidents';
 import type { SecretSigning } from '../engine/world/secretSigning';
+import type { Storyline } from '../engine/world/storyline';
 import { emptyYearRecord } from '../engine/career/awards';
 import type { RivalShow } from '../engine/world/rivalBooking';
 import type { AuctionLot, AuctionResult } from '../engine/world/auction';
@@ -112,6 +113,12 @@ export interface World {
   currentPromos: Segment[];
   showHistory: Show[];
   rivalries: Rivalry[];
+  /**
+   * The arcs the booker is running, on top of those rivalries. See
+   * engine/world/storyline.ts — a rivalry is heat between two people, a
+   * storyline is the story being told through it.
+   */
+  storylines: Storyline[];
   tournaments: Tournament[];
   stables: Stable[];
   /** AI promotions competing for the same audience. */
@@ -585,6 +592,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     currentPromos: createEmptyPromoSlots(settings.promoSlotsPerCard),
     showHistory: [],
     rivalries: seedShootRivalries(roster),
+    // Nothing is named at the start. The booker names what they build.
+    storylines: [],
     tournaments: [],
     stables,
     rivals,

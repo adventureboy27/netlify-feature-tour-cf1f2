@@ -71,6 +71,17 @@ import { resolveConfrontation } from '../engine/sim/confrontation';
 import { factionEgoDrift, factionHeat, factionStanding } from '../engine/world/faction';
 import { demandsDelivered, deliveryBonus, fanDemands } from '../engine/world/fanDemand';
 import { deliveredTo, moraleContext, weeklyMorale } from '../engine/career/morale';
+import {
+  advance,
+  blowOff,
+  blowOffQuality,
+  isLive,
+  neglect,
+  readyToBlowOff,
+  storylineBetween,
+} from '../engine/world/storyline';
+import type { StorylineBeatKind } from '../data/storylineBeats';
+import { MATCH_BEAT_LINES, STORYLINE_NAME_PATTERNS } from '../data/storylineBeats';
 import { callTheMatch } from '../engine/sim/commentary';
 import { isAlly, isEnemy } from '../engine/career/relationships';
 import {
@@ -438,6 +449,15 @@ export interface GameStore {
   revealSecretSigning: (wrestlerId: Id) => void;
   /** Change your mind. They stay where they are and the money stops. */
   tearUpSecretSigning: (wrestlerId: Id) => void;
+  /**
+   * Give a feud a name and start running it as a story. Creates the rivalry
+   * if these two have not been in one — booking a story is allowed to be the
+   * thing that starts the feud.
+   */
+  startStoryline: (participantIds: Id[], name?: string) => { ok: boolean; reason: string | null };
+  renameStoryline: (storylineId: Id, name: string) => void;
+  /** Walk away from an arc. It counts as fizzled, because it is. */
+  abandonStoryline: (storylineId: Id) => void;
   createTitle: (blueprint: TitleBlueprint) => void;
   /**
    * Retire a championship. It keeps its entire lineage and stays on the
@@ -588,6 +608,8 @@ function resolveConfrontationSlot(
   slot: Segment,
   wrestlerById: Map<Id, Wrestler>,
   rng: Rng,
+  /** Where this slot's storyline beat is reported, if it produced one. */
+  confrontationBeats: { participantIds: Id[]; kind: StorylineBeatKind; text: string }[],
 ): number | null {
   const speaker = slot.promoSpeakerId ? wrestlerById.get(slot.promoSpeakerId) : undefined;
   const opposite = slot.confrontationOppositeId ? wrestlerById.get(slot.confrontationOppositeId) : undefined;
@@ -617,6 +639,13 @@ function resolveConfrontationSlot(
   // through the same closed effect set promos use, so a confrontation can
   // only do things the game can already do.
   const pair = [speaker.id, opposite.id];
+  // Two people in the same room is a story beat, and a bigger one than a
+  // monologue. Collected by the caller — see tonightsBeats.
+  confrontationBeats.push({
+    participantIds: pair,
+    kind: 'confrontation',
+    text: `${speaker.name} and ${opposite.name} came face to face. ${outcome.twistLabel}.`,
+  });
   if (outcome.heat !== 0) applyEffect(world, { kind: 'crowdHeat', wrestlerIds: pair, delta: outcome.heat });
   if (outcome.shootHeat !== 0) {
     applyEffect(world, { kind: 'shootHeat', wrestlerIds: pair, delta: outcome.shootHeat });
@@ -1616,6 +1645,20 @@ export const useGameStore = create<GameStore>()(
         // four of six matches on the same show.
         const saidTonight = new Map<string, number>();
 
+        // ---- what happened in the stories tonight ------------------------
+        // Collected from the matches, the talking and the confrontations
+        // alike, then folded into the arcs in one pass after the show. Beats
+        // are reactions to results the simulation already produced — nothing
+        // here decides anything.
+        const tonightsBeats: { participantIds: Id[]; kind: StorylineBeatKind; text: string }[] = [];
+        /** Stories the booker actually settled in the ring tonight. */
+        const blowoffsTonight: {
+          storylineId: Id;
+          rating: number;
+          winnerName: string;
+          winnerIds: Id[];
+        }[] = [];
+
         if (!night.cancelled) world.currentCard.forEach((segment, i) => {
           const sides = new Set(segment.participants.map((p) => p.side));
           if (segment.participants.length < 2 || sides.size < 2) {
@@ -2235,6 +2278,63 @@ export const useGameStore = create<GameStore>()(
             commentary: call,
           };
 
+          // Did this settle a story? The same test the rivalry system uses —
+          // a grudge stipulation with a decisive finish — so the two can
+          // never disagree about whether something ended.
+          // A story that is ready, settled decisively, is over — whatever the
+          // match was. Requiring a hair-or-mask stipulation was too narrow:
+          // those are the only four in the table with isBlowoff, so every
+          // feud in the game would have had to end in somebody's hair, and a
+          // cage match that plainly finished it would leave the arc running.
+          // A non-decisive finish deliberately does not count, which is the
+          // whole reason screwjobs exist.
+          const settledStory = storylineBetween(world.storylines, participantIds);
+          if (
+            settledStory &&
+            readyToBlowOff(settledStory) &&
+            result.winnerSide !== null &&
+            result.winnerWrestlerIds.length > 0 &&
+            result.finish !== 'interference' &&
+            result.finish !== 'disqualification'
+          ) {
+            blowoffsTonight.push({
+              storylineId: settledStory.id,
+              rating: result.rating,
+              winnerName: world.wrestlers[result.winnerWrestlerIds[0]!]?.name ?? 'The winner',
+              winnerIds: [...result.winnerWrestlerIds],
+            });
+          }
+
+          // What this match was, as far as any story running through it is
+          // concerned. Interference outranks the match itself because a
+          // finish that settles nothing is what feuds are made of.
+          if (participantIds.length >= 2) {
+            const namesHere = participantWrestlers.map((w) => w.name).join(' and ');
+            const beatKind: StorylineBeatKind =
+              result.finish === 'interference' || result.finish === 'disqualification'
+                ? 'interference'
+                : injuriesTonight.length > 0
+                  ? 'injury'
+                  : titlesOnTheLine.length > 0
+                    ? 'titleMatch'
+                    : 'match';
+            const beatText =
+              beatKind === 'interference'
+                ? `${namesHere} did not settle it — somebody got involved.`
+                : beatKind === 'injury'
+                  ? `${namesHere} went at it and ${injuriesTonight[0]!.name} came out of it hurt.`
+                  : beatKind === 'titleMatch'
+                    ? `${namesHere} met with the ${titlesOnTheLine[0]!.name} on the line.`
+                    : // Varied by how far into the story it is rather than by a
+                    // dice roll, so the recap reads as a sequence and the call
+                    // stays out of the simulation's random stream.
+                    MATCH_BEAT_LINES[
+                      (storylineBetween(world.storylines, participantIds)?.beats.length ?? 0) %
+                        MATCH_BEAT_LINES.length
+                    ]!.replace('{who}', namesHere);
+            tonightsBeats.push({ participantIds: [...participantIds], kind: beatKind, text: beatText });
+          }
+
           // What the match did to the people in it: records, momentum, the
           // popularity a good match is worth, and the physical cost.
           const changes = computeAftermath({
@@ -2310,7 +2410,7 @@ export const useGameStore = create<GameStore>()(
           // A talking slot can be a promo or a confrontation. The budget is
           // shared on purpose — time on the microphone is finite.
           if (slot.kind === 'confrontation') {
-            const outcome = resolveConfrontationSlot(world, slot, wrestlerById, rng);
+            const outcome = resolveConfrontationSlot(world, slot, wrestlerById, rng, tonightsBeats);
             if (outcome !== null) promoRating += outcome;
             continue;
           }
@@ -2372,6 +2472,13 @@ export const useGameStore = create<GameStore>()(
 
           slot.promoResult = { quality: promo.quality, text: promo.text };
           worked.add(speaker!.id);
+          if (target) {
+            tonightsBeats.push({
+              participantIds: [speaker!.id, target.id],
+              kind: 'promo',
+              text: `${speaker!.name} took a microphone and had something to say about ${target.name}.`,
+            });
+          }
         }
 
         // What the night did to the officials' standing. An official builds a
@@ -3169,6 +3276,105 @@ export const useGameStore = create<GameStore>()(
           world.weeklyNews.push(wire('death', memoriam.line, world.week, 'lead'));
           world.pendingMemoriam = null;
         }
+        // ---- the stories -------------------------------------------------
+        //
+        // Everything booked tonight, folded into whatever arcs it belongs to.
+        // A storyline is advanced by the things the player was already doing,
+        // which is the whole point: no extra clicks, and forgetting to book a
+        // feud is a thing that can actually happen to you.
+        const advancedTonight = new Set<Id>();
+        for (const beat of tonightsBeats) {
+          for (const story of world.storylines) {
+            if (!isLive(story)) continue;
+            // Everybody in the story has to be in the thing that happened.
+            if (!story.participantIds.every((id) => beat.participantIds.includes(id))) continue;
+            const before = story.stage;
+            const moved = advance(
+              story,
+              { week: world.week, kind: beat.kind, text: beat.text },
+              world.settings,
+            );
+            Object.assign(story, moved);
+            advancedTonight.add(story.id);
+
+            // Nothing happens off-screen: a story coming to the boil is news,
+            // and the booker is owed the sentence rather than having to spot
+            // a label change on a board.
+            if (before !== moved.stage && moved.stage === 'boiling') {
+              world.weeklyNews.push(
+                wire(
+                  'story',
+                  `${story.name} is as hot as it is going to get. Whatever happens next had better settle it.`,
+                  world.week,
+                  'normal',
+                ),
+              );
+            }
+          }
+        }
+
+        // A blow-off, when the booker actually booked one. Only a decisive
+        // finish in a grudge stipulation settles a story — the same rule the
+        // rivalry system already uses, so the two never disagree about
+        // whether something ended.
+        for (const settled of blowoffsTonight) {
+          const story = world.storylines.find((st) => st.id === settled.storylineId);
+          if (!story || !isLive(story)) continue;
+          const quality = blowOffQuality(story, settled.rating, world.week, world.settings);
+          Object.assign(story, blowOff(story, world.week, settled.winnerName, quality, world.settings));
+          advancedTonight.add(story.id);
+
+          // What it was worth. Scaled entirely by how well it was built and
+          // how it went on the night — see world/storyline.ts.
+          for (const id of story.participantIds) {
+            const person = world.wrestlers[id];
+            if (!person) continue;
+            const won = settled.winnerIds.includes(id);
+            person.popularity = clamp(
+              person.popularity + quality * world.settings.storylinePayoffPopularity * (won ? 1 : 0.4),
+              0,
+              100,
+            );
+            person.momentum = clamp(
+              person.momentum +
+                quality * world.settings.storylinePayoffMomentum * (won ? 1 : -0.3),
+              0,
+              100,
+            );
+          }
+          world.promotion.rating = clamp(
+            world.promotion.rating + quality * world.settings.storylinePayoffCompanyRating,
+            0,
+            100,
+          );
+          world.weeklyNews.push(
+            wire('story', `${story.name} is over. ${story.payoff}`, world.week, 'lead'),
+          );
+        }
+
+        // And the ones nobody touched. A week off is survivable; five is not,
+        // and the board has been saying so the whole time.
+        for (const story of world.storylines) {
+          if (!isLive(story) || advancedTonight.has(story.id)) continue;
+          const before = story.stage;
+          Object.assign(story, neglect(story, world.week, world.settings));
+          if (before !== story.stage && story.stage === 'fizzled') {
+            world.promotion.rating = clamp(
+              world.promotion.rating - world.settings.storylineFizzleRating,
+              0,
+              100,
+            );
+            world.weeklyNews.push(
+              wire(
+                'story',
+                `${story.name} has quietly died. Nobody has done anything with it in ${story.neglectedWeeks} weeks and the crowd has moved on.`,
+                world.week,
+                'normal',
+              ),
+            );
+          }
+        }
+
         // ---- how the room feels about the booker -------------------------
         //
         // Morale used to move only when something happened *to* somebody — an
@@ -4913,6 +5119,89 @@ export const useGameStore = create<GameStore>()(
           world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestlerId);
         }
         world.secretSignings = world.secretSignings.filter((s2) => s2.wrestlerId !== wrestlerId);
+      });
+    },
+
+    startStoryline: (participantIds, name) => {
+      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No world.' };
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const people = participantIds
+          .map((id) => world.wrestlers[id])
+          .filter((w): w is Wrestler => Boolean(w));
+        if (people.length < 2) {
+          outcome = { ok: false, reason: 'A story needs two people in it.' };
+          return;
+        }
+        if (storylineBetween(world.storylines, participantIds)) {
+          outcome = { ok: false, reason: 'These two are already in a story.' };
+          return;
+        }
+
+        // Booking a story is allowed to be what starts the feud — that is
+        // how most of them start in the real thing.
+        let rivalry = findRivalry(world.rivalries, participantIds);
+        if (!rivalry) {
+          rivalry = createRivalry(
+            `rivalry-story-${world.week}-${world.rivalries.length}`,
+            [...participantIds],
+            'worked',
+            world.week,
+            0,
+          );
+          world.rivalries.push(rivalry);
+        }
+
+        const surnames = people.map((w) => w.name.split(' ').slice(-1)[0] ?? w.name);
+        const town = world.territories.find((t) => t.id === world.promotion.homeTerritoryId);
+        const pattern = pick(
+          rngFromSeed(`${world.settings.seed}-story-${world.week}-${participantIds.join('-')}`),
+          STORYLINE_NAME_PATTERNS,
+        );
+        const generated = pattern
+          .replace('{a}', surnames[0] ?? 'Them')
+          .replace('{b}', surnames[1] ?? 'Him')
+          .replace('{town}', town?.name ?? 'Town');
+
+        world.storylines.push({
+          id: `story-${world.week}-${world.storylines.length}`,
+          name: (name ?? '').trim() || generated,
+          participantIds: [...participantIds],
+          rivalryId: rivalry.id,
+          stage: 'opening',
+          startWeek: world.week,
+          lastAdvancedWeek: world.week,
+          beats: [],
+          neglectedWeeks: 0,
+          resolvedWeek: null,
+          payoff: null,
+        });
+        outcome = { ok: true, reason: null };
+      });
+      return outcome;
+    },
+
+    renameStoryline: (storylineId, name) => {
+      set((state) => {
+        const story = state.world?.storylines.find((s2) => s2.id === storylineId);
+        if (!story) return;
+        const trimmed = name.trim();
+        if (trimmed) story.name = trimmed;
+      });
+    },
+
+    abandonStoryline: (storylineId) => {
+      set((state) => {
+        const world = state.world;
+        const story = world?.storylines.find((s2) => s2.id === storylineId);
+        if (!world || !story || !isLive(story)) return;
+        story.stage = 'fizzled';
+        story.resolvedWeek = world.week;
+        story.payoff = 'Dropped. Whatever it was going to be, it is not going to be it.';
+        world.weeklyNews.push(
+          wire('story', `${story.name} has been quietly dropped.`, world.week, 'minor'),
+        );
       });
     },
 
