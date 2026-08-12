@@ -2801,6 +2801,24 @@ export interface WorldSettings {
   hypeRatedAt: number;
   hypePhenomAt: number;
 
+  // --- Where somebody gets over, engine/career/fit.ts ----------------------
+  fitEnabled: boolean;
+  /** How much of the legible half is what they work, and what the room buys. */
+  fitStyleWeight: number;
+  fitDrawWeight: number;
+  /** How much of it nobody can explain. */
+  fitChemistryWeight: number;
+  /** How far fit moves the ceiling either way, and the hard stops. */
+  fitSpread: number;
+  fitFloor: number;
+  fitCeiling: number;
+  /** Difference in fit at which a rival can see somebody suits them better. */
+  fitPoachingGap: number;
+  /** Where the sheet starts saying so, in words. */
+  fitLovedAt: number;
+  fitSuitsAt: number;
+  fitPoorAt: number;
+
   // --- Contract perks, engine/economy/perks.ts -----------------------------
   perksEnabled: boolean;
   /** How hard the room takes what somebody else was given. */
@@ -2872,6 +2890,8 @@ export interface WorldSettings {
   /** How many of a roster's best count toward "how good are they". */
   biddingRosterTopN: number;
   biddingKeennessHunger: number;
+  /** ...and how much it cares whether he is the kind of wrestler it sells. */
+  biddingKeennessFit: number;
   /** Chance a company decides this is the signing that defines its year. */
   biddingBigSwingChance: number;
   /** How far past their usual ceiling that takes them. */

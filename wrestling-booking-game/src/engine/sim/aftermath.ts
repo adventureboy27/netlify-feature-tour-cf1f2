@@ -20,7 +20,8 @@
 
 import { clamp } from '../rng';
 import { perkExposure, perkFatigueRelief, perkRecovery } from '../economy/perks';
-import type { FinishType, Stipulation, Wrestler, WorldSettings } from '../types';
+import { promotionFit } from '../career/fit';
+import type { FinishType, Promotion, Stipulation, Wrestler, WorldSettings } from '../types';
 
 export interface AftermathContext {
   participants: Wrestler[];
@@ -31,6 +32,12 @@ export interface AftermathContext {
   stipulation: Stipulation | null;
   /** True for a main event — the spot amplifies everything. */
   isMainEvent: boolean;
+  /**
+   * The company whose show this is. Optional only so the older tests can call
+   * this without one; every real caller has it, and without it nobody's fit
+   * with the room is felt at all.
+   */
+  promotion?: Pick<Promotion, 'id' | 'identity'>;
   /**
    * What the pace they were asked to work costs their bodies. An all-out
    * match takes nearly twice what a sprint does — see sim/pacing.ts.
@@ -66,6 +73,19 @@ function popularityChase(rating: number, current: number, settings: WorldSetting
   return (rating - current) * settings.matchPopularityChase;
 }
 
+/**
+ * What the same match is worth *here*.
+ *
+ * Fit moves the target rather than the movement, which is the whole design of
+ * career/fit.ts: a signing does not lose anything the week they arrive, they
+ * just stop climbing somewhere short of what their work says they are worth —
+ * or keep climbing past it, in a room that suits them.
+ */
+function ratingHere(ctx: AftermathContext, wrestler: Wrestler): number {
+  if (!ctx.settings.fitEnabled || !ctx.promotion) return ctx.rating;
+  return ctx.rating * promotionFit(wrestler, ctx.promotion, ctx.settings);
+}
+
 export function computeAftermath(ctx: AftermathContext): AftermathChange[] {
   const s = ctx.settings;
   const winners = new Set(ctx.winnerIds);
@@ -94,7 +114,8 @@ export function computeAftermath(ctx: AftermathContext): AftermathChange[] {
     // out of the midcard and not how you get from 95 to 100.
     const headroom = (100 - w.popularity) / 100;
     const popularity =
-      popularityChase(ctx.rating, w.popularity, s) * spot + (outcome === 'win' ? s.popularityPerWin * headroom : 0);
+      popularityChase(ratingHere(ctx, w), w.popularity, s) * spot +
+      (outcome === 'win' ? s.popularityPerWin * headroom : 0);
 
     return {
       wrestlerId: w.id,

@@ -374,6 +374,7 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
         rating: result.rating,
         stipulation,
         isMainEvent,
+        promotion: ctx.promotion,
         settings: ctx.settings,
       }),
     });

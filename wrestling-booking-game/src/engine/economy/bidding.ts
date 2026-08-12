@@ -49,6 +49,7 @@ import { askingRate } from './contracts';
 import { CLAUSE_LADDER, clauseLabel } from '../career/ego';
 import { temperamentOf, type Temperament } from '../../data/biddingTemperaments';
 import { isAlly, isEnemy, otherParty } from '../career/relationships';
+import { legibleFit } from '../career/fit';
 
 // ---------------------------------------------------------------------------
 // What an offer is
@@ -421,12 +422,21 @@ export function keenness(
   // stacked promotion would treat as a luxury.
   const hunger = clamp((s.biddingRosterFullAt - rosterStrength) / 100, -0.5, 0.5);
 
+  // Whether he is the kind of wrestler this company sells. Deliberately the
+  // *legible* half of fit only — a room can watch a tape and see that a
+  // deathmatch worker will not headline their technical company. What it
+  // cannot see, and neither can the player, is the chemistry: whether this
+  // particular man happens to click in this particular building. That stays
+  // hidden, which is what keeps a correct-looking signing a bet.
+  const suits = s.fitEnabled ? legibleFit(wrestler, promotion.identity, s) : 0;
+
   return clamp(
     s.biddingKeennessBase +
       lift * s.biddingKeennessLift * nowWeight +
       upside * s.biddingKeennessUpside * laterWeight +
       youth * s.biddingKeennessYouth +
-      hunger * s.biddingKeennessHunger,
+      hunger * s.biddingKeennessHunger +
+      suits * s.biddingKeennessFit,
     0.05,
     1,
   );

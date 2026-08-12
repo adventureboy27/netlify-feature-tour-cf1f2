@@ -1703,6 +1703,7 @@ export const useGameStore = create<GameStore>()(
         if (world.pendingBiddingWar) settleBiddingWar(world, rng, null);
         const wrestlerById = new Map(Object.values(world.wrestlers).map((w) => [w.id, w]));
 
+
         // Tonight is either television or the show everything has been built
         // towards. Decided here, once, and read by everything below.
         const isPPV = isPPVWeek(world.week, world.settings);
@@ -2614,6 +2615,7 @@ export const useGameStore = create<GameStore>()(
             isMainEvent: i === world.currentCard.length - 1,
             healthCostMultiplier: result.healthCostMultiplier,
             energyCostMultiplier: result.energyCostMultiplier,
+            promotion: world.promotion,
             settings: world.settings,
           });
           for (const change of changes) {

@@ -36,6 +36,7 @@ import { strongholds } from '../../engine/career/reach';
 import { patienceLeft } from '../../engine/career/lineage';
 import { blockedBecause, perkUpkeep } from '../../engine/economy/perks';
 import { hypeLabel } from '../../engine/career/hype';
+import { fitLabel } from '../../engine/career/fit';
 import { PERKS } from '../../data/perks';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { HeatBadge, Money } from '../components/display';
@@ -310,6 +311,29 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     <span className="ml-1 text-sky-400">· {hypeLabel(w, world.settings)}</span>
                   )}
                 </div>
+
+                {/* Whether this room is the right room for them. Its own line
+                    rather than another chip on the one above, which already
+                    truncates — this is the read that changes who you sign, and
+                    a read that gets cut off is not a read.
+
+                    Only ever speaks at the ends (engine/career/fit.ts): most
+                    people are a reasonable fit most places, and saying so every
+                    week would bury the one that matters. Half of what it
+                    reports is chemistry nobody can explain, which is why it is
+                    a read and not a reason. */}
+                {fitLabel(w, world.promotion, world.settings) && (
+                  <div
+                    className={`mt-0.5 truncate text-[10px] ${
+                      fitLabel(w, world.promotion, world.settings) === 'never quite fitted here'
+                        ? 'text-rose-400/80'
+                        : 'text-emerald-400/80'
+                    }`}
+                    title="How over this person can get in this company in particular. Somewhere else they would be worth something different — and half of why is nothing anybody can put their finger on."
+                  >
+                    {fitLabel(w, world.promotion, world.settings)}
+                  </div>
+                )}
 
                 {/* Whose kid this is, and whether the name is still doing the
                     work. The clock matters to the booker: an unproven second

@@ -1169,6 +1169,46 @@ export function defaultWorldSettings(): WorldSettings {
     //   92 -> y1 74 -> y2 63 -> y3 55 -> y4 50 -> y5 46 -> y6 44
     // ...and kept off television for those same six years: still 73.
 
+    // Where somebody gets over. Fit multiplies the target a wrestler's
+    // popularity chases, so nothing is confiscated when they sign — a name is
+    // still a name on their first night — but a bad fit stops climbing well
+    // short of what his matches are worth and drifts back down toward it.
+    //
+    // The chemistry weight is deliberately close to the legible half. If
+    // reading the promotion correctly guaranteed the signing worked, fit
+    // would just be a checklist; the point is that it is a bet.
+    fitEnabled: true,
+    fitStyleWeight: 0.55,
+    fitDrawWeight: 0.45,
+    fitChemistryWeight: 0.8,
+    // ±22% on the ceiling at the stops, and the stops bind often enough to
+    // matter. Measured across the business, the gap between somebody's best
+    // room and their worst is 0.18 at the median and 0.26 at the ninetieth
+    // percentile — so a popularity-80 wrestler is worth about fourteen points
+    // more in the right company than the wrong one, and twenty at the ends.
+    // The difference between a main eventer and an upper midcarder, without
+    // making a mis-signing unrecoverable.
+    fitSpread: 0.22,
+    fitFloor: 0.72,
+    fitCeiling: 1.28,
+    fitPoachingGap: 0.12,
+    fitLovedAt: 1.15,
+    fitSuitsAt: 1.06,
+    fitPoorAt: 0.9,
+    //
+    // Measured. The same wrestler, working matches of the same quality at the
+    // same cadence, starting at popularity 60:
+    //
+    //   fit 0.80   y1 57   y2 56   y3 56   y5 55
+    //   fit 1.00   y1 63   y2 65   y3 66   y5 67
+    //   fit 1.13   y1 68   y2 72   y3 74   y5 74
+    //
+    // Nineteen points between the room that suits him and the one that does
+    // not, arrived at over two or three years rather than announced. Which is
+    // how it should read: not a revelation, a wrestler who quietly never
+    // becomes what he was supposed to become here — and becomes it somewhere
+    // else after you let him go.
+
     // Contract perks. The resentment scale is what makes a private locker
     // room a decision rather than a free morale point: cheap in money, and
     // paid for weekly by twenty-five people who noticed.
@@ -1241,6 +1281,10 @@ export function defaultWorldSettings(): WorldSettings {
     biddingRosterFullAt: 70,
     biddingRosterTopN: 5,
     biddingKeennessHunger: 0.35,
+    // Companies bid on the fit they can see. A hardcore promotion pays up
+    // for a hardcore worker and passes on a mat technician, which is what
+    // makes free agency a market rather than an auction of the same list.
+    biddingKeennessFit: 0.14,
     biddingBigSwingChance: 0.12,
     biddingBigSwingMultiple: 1.55,
 
