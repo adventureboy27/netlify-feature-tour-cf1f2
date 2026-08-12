@@ -127,8 +127,11 @@ import {
   biddingSettledLine,
 } from '../engine/world/wire';
 import {
+  askingMinimum,
   decideBids,
   interestedIn,
+  minimumLine,
+  rosterStrengthOf,
   invitationLine,
   resultLine,
   rivalBid,
@@ -1058,6 +1061,9 @@ function openBiddingWar(world: World, wrestler: Wrestler, reason: BiddingReason)
   if (world.pendingBiddingWar) return false;
   if (!worthAnAuction(wrestler, world.settings)) return false;
 
+  // Drawn once, before anybody is asked anything — the number is the thing
+  // that decides who is even in the room.
+  const minimum = askingMinimum(rng, wrestler, world.settings);
   const everyone = [world.promotion, ...world.rivals];
   const interested = interestedIn(
     wrestler,
@@ -1065,6 +1071,7 @@ function openBiddingWar(world: World, wrestler: Wrestler, reason: BiddingReason)
     {
       weeklyPayroll: (id) => payrollOf(world, id),
       banned: (id) => (id === world.promotion.id ? world.signingBanWeeks > 0 : false),
+      minimum,
     },
     world.settings,
   );
@@ -1081,6 +1088,7 @@ function openBiddingWar(world: World, wrestler: Wrestler, reason: BiddingReason)
     reason,
     openedWeek: world.week,
     stage: 'invited',
+    minimum,
     round: 1,
     reBidReason: null,
     // The player is only invited if they are one of the interested parties.
@@ -1091,7 +1099,10 @@ function openBiddingWar(world: World, wrestler: Wrestler, reason: BiddingReason)
     result: null,
   };
   world.weeklyNews.push(
-    biddingOpenedLine(invitationLine(world.pendingBiddingWar, wrestler, rivals.length), world.week),
+    biddingOpenedLine(
+      `${invitationLine(world.pendingBiddingWar, wrestler, rivals.length)} ${minimumLine(wrestler, minimum)}`,
+      world.week,
+    ),
   );
   return true;
 }
@@ -1142,8 +1153,21 @@ function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid | null)
   for (const rivalId of war.rivalIds) {
     const rival = world.rivals.find((r) => r.id === rivalId);
     if (!rival || rival.closedWeek !== null) continue;
-    // Null when they cannot afford to be in the room at all.
-    const offer = rivalBid(rng, wrestler, rival, payrollOf(world, rival.id), world.settings);
+    // Null when they cannot make the announced number at all.
+    const offer = rivalBid(
+      rng,
+      wrestler,
+      rival,
+      {
+        weeklyPayroll: payrollOf(world, rival.id),
+        minimum: war.minimum,
+        rosterStrength: rosterStrengthOf(
+          rival.rosterIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w)),
+          world.settings,
+        ),
+      },
+      world.settings,
+    );
     if (offer) bids.push(offer);
   }
 
@@ -1163,6 +1187,7 @@ function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid | null)
     },
     world.settings,
     war.round,
+    war.minimum,
   );
 
   // Nobody in the room was worth signing. They say so, and everybody goes

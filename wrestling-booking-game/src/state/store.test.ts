@@ -346,6 +346,57 @@ describe('the bidding war', () => {
     throw new Error('no auction opened');
   }
 
+  it('still opens on the money a world actually starts with', () => {
+    // The fixture above hands everybody three million so the auction is
+    // certain. This one does not touch a single bank balance: the announced
+    // number thins the room by design, and a feature that only fires in a
+    // laboratory is not a feature.
+    useGameStore.getState().newGame(patientOwner());
+    const world = useGameStore.getState().world!;
+    const target = world.rivals[0]!.rosterIds.map((id) => world.wrestlers[id]!)[0]!;
+    useGameStore.setState((state) => {
+      const person = state.world!.wrestlers[target.id]!;
+      person.popularity = 88;
+      person.ego = 70;
+      person.age = 30;
+      person.contract!.weeksRemaining = 1;
+    });
+    useGameStore.getState().autoFillCard();
+    runWeek();
+
+    const war = useGameStore.getState().world!.pendingBiddingWar;
+    expect(war, 'no auction opened at ordinary rival wealth').not.toBeNull();
+    expect(war!.minimum).toBeGreaterThan(0);
+    expect(war!.rivalIds.length).toBeGreaterThanOrEqual(world.settings.biddingMinRivals);
+  });
+
+  it('announces a number, and holds every bid to it', () => {
+    starOnTheMarket();
+    untilTheAuction();
+    const war = useGameStore.getState().world!.pendingBiddingWar!;
+    expect(war.minimum).toBeGreaterThan(0);
+
+    useGameStore.getState().answerBiddingInvitation(true);
+    // Bid under the announced number. It is read as no bid at all.
+    useGameStore.getState().submitBid({
+      weeklyRate: Math.floor(war.minimum / 2),
+      signingBonus: 0,
+      weeks: 104,
+      clauses: [],
+    });
+
+    const after = useGameStore.getState().world!;
+    const settled = after.lastBiddingWar;
+    if (settled?.result) {
+      expect(settled.result.winningPromotionId).not.toBe(after.promotion.id);
+      const mine = settled.result.vetoed.find((v) => v.bid.promotionId === after.promotion.id);
+      expect(mine?.reason).toContain('under the number');
+    } else {
+      // Or nobody made it and they sent the room away — also correct.
+      expect(after.pendingBiddingWar?.round).toBeGreaterThan(1);
+    }
+  });
+
   it('opens when a real star hits the open market, and invites the booker', () => {
     const id = starOnTheMarket();
     untilTheAuction();

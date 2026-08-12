@@ -94,7 +94,12 @@ const SLOT_KEY = 'wbg.save.v1';
 // wrestler sent the room away), adds Wrestler.grudges, and replaces the flat
 // ally/enemy bid weights with the market-value and relationship-pricing
 // settings. A version-18 save would price every offer against undefined.
-const SCHEMA_VERSION = 19;
+//
+// Version 20 puts the announced minimum on a BiddingWar and replaces the
+// hidden walk-away share with it, along with the hunger and big-swing
+// settings. A version-19 save has no minimum on a war in flight, so every bid
+// in it would be compared against undefined.
+const SCHEMA_VERSION = 20;
 
 export interface SaveFile {
   schema: number;

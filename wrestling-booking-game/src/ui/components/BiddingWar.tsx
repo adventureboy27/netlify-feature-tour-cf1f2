@@ -56,7 +56,9 @@ export function BiddingWarPanel() {
   const [primed, setPrimed] = useState<string | null>(null);
   if (war && war.stage === 'bidding' && primed !== war.id) {
     setPrimed(war.id);
-    setRate(Math.round(base / 25) * 25);
+    // Opens at the number their people named, because that is the one figure
+    // in this whole screen that is not a guess.
+    setRate(war.minimum);
     setBonus(0);
     setWeeks(world!.settings.biddingMinWeeks * 2);
     setClauses([]);
@@ -170,9 +172,13 @@ export function BiddingWarPanel() {
                 ? `${subject.age} years old, out of the school this week, and already able to work. ${war.rivalIds.length} other companies want them.`
                 : `${subject.name}'s deal is up and they are not re-signing quietly. ${war.rivalIds.length} other companies are in.`}
             </p>
-            <p className="mt-2 text-xs text-amber-300/90">
-              Everybody submits one offer. Nobody sees anybody else&apos;s. They pick, and there is no
-              second round. If you stay out of this, you are out — you will not get another look at them.
+            <p className="mt-2 text-sm font-medium text-amber-200">
+              Their people have named a number: nothing under {money(war.minimum)} a week gets read.
+            </p>
+            <p className="mt-1 text-xs text-amber-300/90">
+              How you get there — the rate, money up front, what else you put on the table — is up to
+              you. Everybody submits one offer, nobody sees anybody else&apos;s, and they pick. If you
+              stay out of this, you are out.
             </p>
           </div>
         </div>
@@ -223,8 +229,8 @@ export function BiddingWarPanel() {
             {subject.health < 60 && <span className="text-rose-300"> · carrying damage</span>}
             {subject.ego >= 70 && <span className="text-amber-300"> · knows what they are worth</span>}
           </p>
-          <p className="mt-1 text-[11px] text-neutral-500">
-            Their people are asking around {money(base)} a week.
+          <p className="mt-1 text-[11px] text-amber-300">
+            Nothing under {money(war.minimum)} a week gets read.
           </p>
           {/* Who is in your building, and what it does to your price. Not a
               hint about the bid — a fact about the person, the kind any
@@ -256,21 +262,21 @@ export function BiddingWarPanel() {
           <input
             type="range"
             data-testid="bid-rate"
-            min={0}
-            max={Math.round(base * 3)}
+            min={war.minimum}
+            max={Math.max(war.minimum + 25, Math.round(base * 3))}
             step={25}
             value={rate}
             onChange={(e) => setRate(Number(e.target.value))}
             className="accent-amber-500"
           />
           <span className="text-[10px] text-neutral-500">
-            {weeklyOverAsk >= 1.5
-              ? 'Well over what they are asking.'
-              : weeklyOverAsk >= 1.05
-                ? 'Above what they are asking.'
-                : weeklyOverAsk >= 0.95
-                  ? 'About what they are asking.'
-                  : 'Under what they are asking.'}
+            {rate <= war.minimum
+              ? `Exactly the number they named.`
+              : weeklyOverAsk >= 1.5
+                ? 'Well over what they are asking.'
+                : weeklyOverAsk >= 1.05
+                  ? 'Above what they are asking.'
+                  : 'About what they are asking.'}
           </span>
         </label>
 

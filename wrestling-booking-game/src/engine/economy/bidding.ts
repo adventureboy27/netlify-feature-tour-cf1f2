@@ -88,6 +88,13 @@ export interface BiddingWar {
    * told you are not bidding.
    */
   playerIn: boolean | null;
+  /**
+   * The floor their people announced, in dollars a week. Public from the
+   * moment the room opens: it is what the booker is told before they decide
+   * whether to be in it, and it is what emptied the room of everybody who
+   * could not say yes.
+   */
+  minimum: number;
   /** Which round of offers this is. Only a wrestler can call for another. */
   round: number;
   /** Why they sent the room away, when they did. Shown on the second ask. */
@@ -154,24 +161,34 @@ export function canBid(promotion: Promotion, banned: boolean): boolean {
 export function interestedIn(
   wrestler: Wrestler,
   promotions: readonly Promotion[],
-  ctx: { weeklyPayroll: (promotionId: Id) => number; banned: (promotionId: Id) => boolean },
+  ctx: {
+    weeklyPayroll: (promotionId: Id) => number;
+    banned: (promotionId: Id) => boolean;
+    /** The announced floor. A company that cannot reach it is not in the room. */
+    minimum: number;
+  },
   settings: WorldSettings,
 ): Promotion[] {
   return promotions.filter((promotion) => {
     if (!canBid(promotion, ctx.banned(promotion.id))) return false;
-    if (promotion.rosterIds.includes(wrestler.id)) {
-      // The current employer is always in — they are the ones about to lose
-      // him, and they get to fight for him like everybody else.
-      return true;
-    }
     // Measured with the same runway maths the bid itself uses, so a company
     // that turns up cannot then bid the floor. Two different affordability
     // checks put ghost bidders in the room: broke companies entered on the
     // looser test and then offered the statutory minimum, which is not an
     // offer, it is noise on the result screen.
+    //
+    // The announced minimum does this job on its own now, and it does it in
+    // public: a number somebody has earned the right to name empties the room
+    // of everybody who cannot say yes to it, including the office that
+    // currently employs them.
     const mood = temperamentOf(promotion.ownerPersonality);
     const ceiling = bidCeiling(promotion, ctx.weeklyPayroll(promotion.id), mood, settings);
-    if (ceiling < marketValue(wrestler, mood.future, settings) * settings.biddingEntryShare) return false;
+    if (ceiling < ctx.minimum) return false;
+    if (promotion.rosterIds.includes(wrestler.id)) {
+      // The current employer is in if they can pay — they are the ones about
+      // to lose him, and they fight for him like everybody else.
+      return true;
+    }
     // And they have to actually want him: somebody who would not improve the
     // top of their card is not worth an auction to them.
     return wrestler.popularity >= promotion.rating * settings.biddingWantsThreshold;
@@ -214,6 +231,41 @@ export function marketValue(wrestler: Wrestler, future: number, settings: WorldS
 
   const value = ask * (s.biddingValueFloor + blend * s.biddingValueRange) * condition * form;
   return Math.max(s.contractBaseWeeklyRate, Math.round(value / 25) * 25);
+}
+
+/**
+ * The number their people put out before anybody bids.
+ *
+ * This is announced with the invitation and it is the floor: an offer under it
+ * is not a low offer, it is not an offer. How a company gets over the line —
+ * weekly money, cash up front, insurance, creative control — is entirely
+ * theirs to decide.
+ *
+ * It does two jobs at once. It tells the booker what the ticket costs before
+ * they decide whether to be in the room at all, which is the honest version of
+ * the thing a blind auction otherwise hides. And it thins the field by itself:
+ * a modest number brings the whole business in, and a number somebody has
+ * earned the right to name leaves three companies who can even talk.
+ *
+ * The roll is small and seeded. Two identical wrestlers do not name the same
+ * figure, because the number is what somebody's people *decided to say*, not a
+ * readout of their stats — and a minimum the player could compute exactly
+ * would turn the whole auction back into arithmetic.
+ */
+export function askingMinimum(rng: Rng, wrestler: Wrestler, settings: WorldSettings): number {
+  const s = settings;
+  const value = marketValue(wrestler, s.biddingSelfRegardFuture, s);
+  // What somebody thinks they are worth is not what the business thinks. Ego
+  // is the whole gap, and it is why a modest draw is often a better signing
+  // than a slightly bigger one.
+  const selfRegard = s.biddingMinimumBase + (wrestler.ego / 100) * s.biddingMinimumEgoRange;
+  const nerve = 1 + gaussian(rng, 0, s.biddingMinimumNerve);
+  return Math.max(s.contractBaseWeeklyRate, Math.round((value * selfRegard * nerve) / 25) * 25);
+}
+
+/** Said plainly, for the invitation. Never a percentage, never a probability. */
+export function minimumLine(wrestler: Wrestler, minimum: number): string {
+  return `${wrestler.name}'s people have named a number: nothing under $${minimum.toLocaleString()} a week gets read. How anybody gets there — the rate, money up front, what else they put on the table — is up to them.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -335,7 +387,17 @@ export function stanceToward(
  * appetite alone. It scales the stretch their temperament allows, so a
  * penny-pincher who badly wants somebody still bids like a penny-pincher.
  */
-export function keenness(wrestler: Wrestler, promotion: Promotion, settings: WorldSettings): number {
+export function keenness(
+  wrestler: Wrestler,
+  promotion: Promotion,
+  settings: WorldSettings,
+  /**
+   * How good the roster they already have is, 0-100 — the mean of their best
+   * few. A company with nobody wants somebody badly; a company whose top of
+   * the card is already full is shopping rather than starving.
+   */
+  rosterStrength = promotion.rating,
+): number {
   const s = settings;
   const mood = temperamentOf(promotion.ownerPersonality);
   // A star is worth more to a company he would headline than to one where he
@@ -351,14 +413,31 @@ export function keenness(wrestler: Wrestler, promotion: Promotion, settings: Wor
   // even want. So the two halves of the read are weighted by temperament.
   const nowWeight = (1 - mood.future) * 2;
   const laterWeight = mood.future * 2;
+
+  // Hunger. What a company already has is the other half of what it wants:
+  // somebody with a thin top of the card will stretch for a name that a
+  // stacked promotion would treat as a luxury.
+  const hunger = clamp((s.biddingRosterFullAt - rosterStrength) / 100, -0.5, 0.5);
+
   return clamp(
     s.biddingKeennessBase +
       lift * s.biddingKeennessLift * nowWeight +
       upside * s.biddingKeennessUpside * laterWeight +
-      youth * s.biddingKeennessYouth,
+      youth * s.biddingKeennessYouth +
+      hunger * s.biddingKeennessHunger,
     0.05,
     1,
   );
+}
+
+/** The mean of a roster's best few, which is what "how good are they" means. */
+export function rosterStrengthOf(roster: readonly Wrestler[], settings: WorldSettings): number {
+  const top = [...roster]
+    .filter((w) => !w.deceased && w.careerStatus !== 'retired')
+    .sort((a, b) => b.popularity - a.popularity)
+    .slice(0, settings.biddingRosterTopN);
+  if (top.length === 0) return 0;
+  return top.reduce((sum, w) => sum + w.popularity, 0) / top.length;
 }
 
 /**
@@ -396,11 +475,19 @@ export function bidCeiling(
  * Anchored on what the business reckons somebody is worth, shaped by the kind
  * of company it is, and clipped by what the booker can defend to the owner.
  */
+export interface RivalBidContext {
+  weeklyPayroll: number;
+  /** The floor their people announced. Nobody bids under it and gets read. */
+  minimum: number;
+  /** How good the roster they already have is. Drives hunger. */
+  rosterStrength?: number;
+}
+
 export function rivalBid(
   rng: Rng,
   wrestler: Wrestler,
   promotion: Promotion,
-  weeklyPayroll: number,
+  ctx: RivalBidContext,
   settings: WorldSettings,
 ): Bid | null {
   const s = settings;
@@ -408,24 +495,38 @@ export function rivalBid(
   // Each company values them their own way: a builder pays for the ceiling, a
   // win-now company pays for the name on the poster.
   const value = marketValue(wrestler, mood.future, s);
-  const want = keenness(wrestler, promotion, s);
+  const want = keenness(wrestler, promotion, s, ctx.rosterStrength);
 
   // Appetite scales the stretch their temperament allows, so a keen
   // penny-pincher still bids like a penny-pincher.
   const nerve = 1 + gaussian(rng, 0, mood.nerve);
-  const wanted = value * (1 + (mood.stretch - 1) * want) * nerve;
 
-  const ceiling = bidCeiling(promotion, weeklyPayroll, mood, s);
-  // A company that cannot cover the entry price does not put in a token
+  // ...and then, once in a while, somebody decides this is the signing that
+  // defines their year and goes to the wall for it.
+  //
+  // This is the thing that stops a rich player simply buying every auction.
+  // Without it the field was predictable from the settings table: bid enough
+  // over the top of what the temperaments allow and you win every time, which
+  // makes an auction a purchase. A big swing is rare, it is capped by the same
+  // runway as everything else — nobody bankrupts themselves — and it is drawn
+  // per company per auction, so the player never knows which room they are in.
+  const swinging = chance(rng, s.biddingBigSwingChance * (0.4 + want));
+  const stretch = swinging ? mood.stretch * s.biddingBigSwingMultiple : mood.stretch;
+  const wanted = value * (1 + (stretch - 1) * want) * nerve;
+
+  const ceiling = bidCeiling(promotion, ctx.weeklyPayroll, mood, s);
+  // A company that cannot make the announced number does not put in a token
   // offer, it stays home. Floored at the statutory minimum instead, a
   // promotion that had gone broke between the room opening and the offers
   // being read still turned up on the result screen bidding sixty dollars a
   // week — which is not an offer, it is noise.
-  if (ceiling < value * s.biddingEntryShare) return null;
+  if (ceiling < ctx.minimum) return null;
 
+  // Whatever they wanted to pay, the floor is the floor. A company in the
+  // room has already decided the number is worth saying yes to.
   const weeklyRate = Math.max(
-    s.contractBaseWeeklyRate,
-    Math.round(Math.min(wanted, ceiling) / 25) * 25,
+    ctx.minimum,
+    Math.round(Math.min(Math.max(wanted, ctx.minimum), ceiling) / 25) * 25,
   );
 
   // Up-front money is a different appetite from weekly money, and it is the
@@ -632,9 +733,9 @@ export type BiddingOutcome =
   /** Somebody won it. */
   | { kind: 'signed'; result: BiddingResult }
   /**
-   * Nothing on the table was worth signing, and they have told the room to go
-   * again. Everybody who is still interested gets one more offer — including
-   * whoever they refused to work for, who is still refused.
+   * Nobody made the number, and they have told the room to go again.
+   * Everybody who is still interested gets one more offer — including whoever
+   * they refused to work for, who is still refused.
    */
   | { kind: 'reBid'; reason: string; vetoed: readonly Bid[] };
 
@@ -659,6 +760,8 @@ export function decideBids(
   ctx: ChoiceContext,
   settings: WorldSettings,
   round = 1,
+  /** The floor their people announced. Anything under it is not read. */
+  minimum = 0,
 ): BiddingOutcome | null {
   if (bids.length === 0) return null;
 
@@ -669,37 +772,32 @@ export function decideBids(
     })
     .sort((a, b) => b.score - a.score);
 
+  // Two ways an envelope goes unopened, and they are different things. One is
+  // a company they will not work for at any price; the other is a company
+  // that did not make the number they announced. The result screen says which.
   const vetoed = scored.filter((entry) => entry.stance.stance === 'refuses');
-  const live = scored.filter((entry) => entry.stance.stance !== 'refuses');
+  const short = scored.filter(
+    (entry) => entry.stance.stance !== 'refuses' && entry.bid.weeklyRate < minimum,
+  );
+  const live = scored.filter(
+    (entry) => entry.stance.stance !== 'refuses' && entry.bid.weeklyRate >= minimum,
+  );
 
   if (live.length === 0) {
-    // Everybody in the room is somewhere they will not go. Ask again; if the
-    // rounds run out, the auction produces nobody and they stay unsigned.
+    // Nobody in the room either made the number or is somewhere they would
+    // go. Ask again; if the rounds run out, the auction produces nobody and
+    // they stay unsigned rather than taking something they said they would
+    // not take.
     if (round >= settings.biddingMaxRounds) return null;
-    return {
-      kind: 'reBid',
-      reason: vetoed[0]?.stance.reason
-        ? `${wrestler.name} will not sign any of these — ${vetoed[0]!.stance.reason}.`
-        : `${wrestler.name} turned the room down flat.`,
-      vetoed: vetoed.map((entry) => entry.bid),
-    };
+    const reason = vetoed[0]?.stance.reason
+      ? `${wrestler.name} will not sign any of these — ${vetoed[0]!.stance.reason}.`
+      : short.length > 0
+        ? `Nobody met ${wrestler.name}'s number. Their people have put it out again and asked the room to come back properly.`
+        : `${wrestler.name} turned the room down flat.`;
+    return { kind: 'reBid', reason, vetoed: [...vetoed, ...short].map((entry) => entry.bid) };
   }
 
   const winner = live[0]!;
-
-  // Is the best of it actually worth signing? Measured against the money
-  // rather than the whole sheet, because "I am not being paid what I am
-  // worth" is the thing somebody sends a room away over — not the term.
-  const want = marketValue(wrestler, settings.biddingSelfRegardFuture, settings) * winner.stance.multiplier;
-  const insulting = winner.bid.weeklyRate < want * settings.biddingWalkAwayShare;
-  if (insulting && round < settings.biddingMaxRounds) {
-    return {
-      kind: 'reBid',
-      reason: `${wrestler.name} does not think anybody in that room has taken them seriously. They have asked everyone to go again.`,
-      vetoed: vetoed.map((entry) => entry.bid),
-    };
-  }
-
   const runnerUp = live[1];
   const swungIt =
     runnerUp && winner.score - runnerUp.score < settings.biddingCloseCall
@@ -713,7 +811,13 @@ export function decideBids(
       winningPromotionName: winner.bid.promotionName,
       bid: winner.bid,
       allBids: scored.map((entry) => entry.bid),
-      vetoed: vetoed.map((entry) => ({ bid: entry.bid, reason: entry.stance.reason ?? 'they would not go there' })),
+      vetoed: [
+        ...vetoed.map((entry) => ({
+          bid: entry.bid,
+          reason: entry.stance.reason ?? 'they would not go there',
+        })),
+        ...short.map((entry) => ({ bid: entry.bid, reason: 'under the number they named' })),
+      ],
       swungIt,
     },
   };

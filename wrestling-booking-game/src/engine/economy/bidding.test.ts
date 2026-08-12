@@ -4,8 +4,10 @@ import { defaultWorldSettings } from '../world/settings';
 import { generateWrestler } from '../generate/wrestler';
 import type { Bid, ChoiceContext } from './bidding';
 import {
+  askingMinimum,
   bidCeiling,
   decideBids,
+  rosterStrengthOf,
   clauseAppeal,
   guaranteeFor,
   interestedIn,
@@ -59,11 +61,11 @@ function company(id: string, over: Partial<Promotion> = {}): Promotion {
   } as Promotion;
 }
 
-const NOBODY_BANNED = { weeklyPayroll: () => 20_000, banned: () => false };
+const NOBODY_BANNED = { weeklyPayroll: () => 20_000, banned: () => false, minimum: 1_500 };
 
 /** A rival's offer, asserted to exist. Most tests are about a company that bids. */
-function offerFrom(seed: string, w: Wrestler, c: Promotion, payroll = 20_000): Bid {
-  const offer = rivalBid(rngFromSeed(seed), w, c, payroll, settings);
+function offerFrom(seed: string, w: Wrestler, c: Promotion, payroll = 20_000, minimum = 0): Bid {
+  const offer = rivalBid(rngFromSeed(seed), w, c, { weeklyPayroll: payroll, minimum }, settings);
   expect(offer, `${c.id} did not bid at all`).not.toBeNull();
   return offer!;
 }
@@ -135,7 +137,7 @@ describe('who is interested', () => {
   });
 
   it('leaves out a company that has been caught tampering', () => {
-    const ctx = { weeklyPayroll: () => 20_000, banned: (id: string) => id === 'b' };
+    const ctx = { weeklyPayroll: () => 20_000, banned: (id: string) => id === 'b', minimum: 1_500 };
     const rooms = interestedIn(star(), [company('a'), company('b')], ctx, settings);
     expect(rooms.map((p) => p.id)).toEqual(['a']);
   });
@@ -145,9 +147,17 @@ describe('who is interested', () => {
     expect(interestedIn(star(), [gone], NOBODY_BANNED, settings)).toEqual([]);
   });
 
-  it('keeps the current employer in even when they cannot really afford it', () => {
-    const holder = company('holder', { bankBalance: 1_000, rosterIds: [star().id] });
+  it('keeps the current employer in, so long as they can make the number', () => {
+    const holder = company('holder', { bankBalance: 4_000_000, rosterIds: [star().id] });
     expect(interestedIn(star(), [holder], NOBODY_BANNED, settings).map((p) => p.id)).toEqual(['holder']);
+  });
+
+  it('throws the current employer out when they cannot', () => {
+    // The number does not make an exception for the office that already has
+    // them. A company that cannot say yes to it loses their man, and that is
+    // the whole reason a booker should be watching what their stars are worth.
+    const skint = company('skint', { bankBalance: 200_000, rosterIds: [star().id] });
+    expect(interestedIn(star(), [skint], NOBODY_BANNED, settings)).toEqual([]);
   });
 
   it('is not interested in somebody who would not improve the top of the card', () => {
@@ -183,7 +193,7 @@ describe('what a rival offers', () => {
     // Floored at the statutory minimum instead, a company that had gone broke
     // turned up on the result screen bidding sixty dollars a week.
     const broke = company('broke', { bankBalance: 300_000 });
-    expect(rivalBid(rngFromSeed('broke'), star(), broke, 14_000, settings)).toBeNull();
+    expect(rivalBid(rngFromSeed('broke'), star(), broke, { weeklyPayroll: 14_000, minimum: 1_500 }, settings)).toBeNull();
   });
 
   it('does not all bid the same thing', () => {
@@ -246,7 +256,7 @@ describe('what a booker will risk', () => {
     const tight = company('tight', { bankBalance: 700_000, ownerPersonality: 'starChaser' });
     const ceiling = bidCeiling(tight, 12_000, temperamentOf('starChaser'), settings);
     for (let i = 0; i < 50; i++) {
-      const offer = rivalBid(rngFromSeed(`cap-${i}`), star({ popularity: 99 }), tight, 12_000, settings);
+      const offer = rivalBid(rngFromSeed(`cap-${i}`), star({ popularity: 99 }), tight, { weeklyPayroll: 12_000, minimum: 0 }, settings);
       if (offer) expect(offer.weeklyRate).toBeLessThanOrEqual(ceiling + 25);
     }
   });
@@ -360,25 +370,47 @@ describe('sending the room away', () => {
     expect(outcome.result.vetoed[0]!.reason).toContain('Delia Voss');
   });
 
-  it('asks everybody to go again when nothing on the table is serious', () => {
+  it('asks everybody to go again when nobody made the number', () => {
     const subject = star();
     const outcome = decideBids(
       rngFromSeed('insult'),
       subject,
-      [bid({ promotionId: 'a', weeklyRate: 200 }), bid({ promotionId: 'b', weeklyRate: 250 })],
+      [bid({ promotionId: 'a', weeklyRate: 900 }), bid({ promotionId: 'b', weeklyRate: 950 })],
       choiceCtx(),
       settings,
       1,
+      2_000,
     )!;
     expect(outcome.kind).toBe('reBid');
-    if (outcome.kind === 'reBid') expect(outcome.reason).toContain('go again');
+    if (outcome.kind === 'reBid') expect(outcome.reason).toContain('Nobody met');
   });
 
-  it('takes the best of a bad lot rather than asking a third time', () => {
+  it('signs nobody rather than taking less than it said it would', () => {
+    // The number is a floor, not an opening position. Somebody who announced
+    // it and then took half of it never had a number.
     const subject = star();
-    const lowball = [bid({ promotionId: 'a', weeklyRate: 200 }), bid({ promotionId: 'b', weeklyRate: 250 })];
-    const outcome = decideBids(rngFromSeed('final'), subject, lowball, choiceCtx(), settings, settings.biddingMaxRounds)!;
+    const lowball = [bid({ promotionId: 'a', weeklyRate: 900 }), bid({ promotionId: 'b', weeklyRate: 950 })];
+    expect(
+      decideBids(rngFromSeed('final'), subject, lowball, choiceCtx(), settings, settings.biddingMaxRounds, 2_000),
+    ).toBeNull();
+  });
+
+  it('reads the offers that did make it, and says who fell short', () => {
+    const subject = star();
+    const outcome = decideBids(
+      rngFromSeed('mixed'),
+      subject,
+      [bid({ promotionId: 'poor', weeklyRate: 900 }), bid({ promotionId: 'rich', weeklyRate: 4_000 })],
+      choiceCtx(),
+      settings,
+      1,
+      2_000,
+    )!;
     expect(outcome.kind).toBe('signed');
+    if (outcome.kind !== 'signed') return;
+    expect(outcome.result.winningPromotionId).toBe('rich');
+    expect(outcome.result.vetoed).toHaveLength(1);
+    expect(outcome.result.vetoed[0]!.reason).toContain('under the number');
   });
 
   it('signs nobody at all when every door is one they will not walk through', () => {
@@ -395,6 +427,111 @@ describe('sending the room away', () => {
       settings.biddingMaxRounds,
     );
     expect(lastRound).toBeNull();
+  });
+});
+
+describe('the number their people name', () => {
+  it('is more than the business thinks they are worth when they know it', () => {
+    const humble = star({ ego: 5 });
+    const proud = star({ ego: 95 });
+    expect(askingMinimum(rngFromSeed('m1'), proud, settings)).toBeGreaterThan(
+      askingMinimum(rngFromSeed('m1'), humble, settings),
+    );
+  });
+
+  it('cannot be computed exactly from the stats', () => {
+    const seen = new Set<number>();
+    for (let i = 0; i < 40; i++) seen.add(askingMinimum(rngFromSeed(`m-${i}`), star(), settings));
+    expect(seen.size).toBeGreaterThan(5);
+  });
+
+  it('empties the room of everybody who cannot say yes to it', () => {
+    const field = [company('a'), company('b', { bankBalance: 4_000_000 })];
+    const cheap = interestedIn(star(), field, { ...NOBODY_BANNED, minimum: 1_200 }, settings);
+    const dear = interestedIn(star(), field, { ...NOBODY_BANNED, minimum: 30_000 }, settings);
+    expect(cheap.length).toBeGreaterThan(dear.length);
+    // The rich one is the survivor.
+    expect(dear.map((p) => p.id)).not.toContain('a');
+  });
+
+  it('is the floor every bid in the room starts from', () => {
+    for (let i = 0; i < 40; i++) {
+      const offer = rivalBid(
+        rngFromSeed(`floor-${i}`),
+        star(),
+        company('rich', { bankBalance: 4_000_000 }),
+        { weeklyPayroll: 15_000, minimum: 3_000 },
+        settings,
+      );
+      if (offer) expect(offer.weeklyRate).toBeGreaterThanOrEqual(3_000);
+    }
+  });
+
+  it('sends home a company that cannot reach it, however much it wants them', () => {
+    const keen = company('keen', { rating: 20, bankBalance: 900_000 });
+    expect(
+      rivalBid(rngFromSeed('cant'), star(), keen, { weeklyPayroll: 15_000, minimum: 40_000 }, settings),
+    ).toBeNull();
+  });
+});
+
+describe('how hungry a company already is', () => {
+  it('wants somebody more when the top of its card is thin', () => {
+    const thin = keenness(star(), company('a'), settings, 20);
+    const stacked = keenness(star(), company('a'), settings, 95);
+    expect(thin).toBeGreaterThan(stacked);
+  });
+
+  it('reads a roster by its best few, not by everybody on it', () => {
+    const roster = [
+      person('top', { popularity: 90 }),
+      person('two', { popularity: 80 }),
+      ...Array.from({ length: 20 }, (_, i) => person(`jobber-${i}`, { popularity: 10 })),
+    ];
+    // Two real names carry it well above the mean of the whole list.
+    expect(rosterStrengthOf(roster, settings)).toBeGreaterThan(30);
+  });
+
+  it('does not count the retired or the dead', () => {
+    const roster = [
+      person('gone', { popularity: 95, careerStatus: 'retired' }),
+      person('here', { popularity: 30 }),
+    ];
+    expect(rosterStrengthOf(roster, settings)).toBe(30);
+  });
+});
+
+describe('the big swing', () => {
+  it('sometimes takes a company well past what it usually pays', () => {
+    // The thing that stops a rich booker simply buying every auction. Without
+    // it the field was computable from the settings table.
+    const rich = company('rich', { bankBalance: 6_000_000, ownerPersonality: 'hardcore' });
+    const rates = Array.from({ length: 300 }, (_, i) =>
+      rivalBid(rngFromSeed(`swing-${i}`), star(), rich, { weeklyPayroll: 15_000, minimum: 0 }, settings),
+    )
+      .filter((b): b is Bid => b !== null)
+      .map((b) => b.weeklyRate)
+      .sort((a, b) => a - b);
+
+    const median = rates[Math.floor(rates.length / 2)]!;
+    const top = rates[rates.length - 1]!;
+    // Somebody, somewhere in three hundred auctions, went to the wall.
+    expect(top).toBeGreaterThan(median * 1.3);
+  });
+
+  it('still never bids money the company does not have', () => {
+    const tight = company('tight', { bankBalance: 800_000, ownerPersonality: 'starChaser' });
+    const ceiling = bidCeiling(tight, 12_000, temperamentOf('starChaser'), settings);
+    for (let i = 0; i < 300; i++) {
+      const offer = rivalBid(
+        rngFromSeed(`wall-${i}`),
+        star({ popularity: 99 }),
+        tight,
+        { weeklyPayroll: 12_000, minimum: 0 },
+        settings,
+      );
+      if (offer) expect(offer.weeklyRate).toBeLessThanOrEqual(ceiling + 25);
+    }
   });
 });
 
@@ -561,6 +698,7 @@ describe('saying it out loud', () => {
     reason: 'freeAgentStar' as const,
     openedWeek: 40,
     stage: 'settled' as const,
+    minimum: 1_500,
     round: 1,
     reBidReason: null,
     playerIn: true,

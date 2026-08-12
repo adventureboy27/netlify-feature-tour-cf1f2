@@ -2764,19 +2764,32 @@ export interface WorldSettings {
   /** Score weight of "a friend works there" as the stated reason it was won. */
   biddingWeightStanceHeadline: number;
 
-  // Sending the room away.
-  /** Offers below this share of what they think they are worth are insulting. */
-  biddingWalkAwayShare: number;
+  // The number their people announce before anybody bids.
+  /** Multiple of their own valuation a wrestler with no ego at all would name. */
+  biddingMinimumBase: number;
+  /** ...and how much further a big opinion of themselves pushes it. */
+  biddingMinimumEgoRange: number;
+  /** Wobble on the announced number, so it cannot be computed exactly. */
+  biddingMinimumNerve: number;
   /** How much of their own future a wrestler counts when valuing themselves. */
   biddingSelfRegardFuture: number;
   /** Rounds of offers. Only a wrestler can call for another, and only so often. */
   biddingMaxRounds: number;
 
+  // How hungry a company already is, and how far it will occasionally go.
+  /** Roster strength at which a company stops being desperate for a name. */
+  biddingRosterFullAt: number;
+  /** How many of a roster's best count toward "how good are they". */
+  biddingRosterTopN: number;
+  biddingKeennessHunger: number;
+  /** Chance a company decides this is the signing that defines its year. */
+  biddingBigSwingChance: number;
+  /** How far past their usual ceiling that takes them. */
+  biddingBigSwingMultiple: number;
+
   // What a booker will risk. Nobody bids with money they do not have.
   biddingRunwayWeeksMin: number;
   biddingRunwayWeeksRange: number;
-  /** Share of somebody's value a company must be able to cover to enter at all. */
-  biddingEntryShare: number;
 
   // How somebody reads the length of a deal.
   /** How much having little to lose pulls them toward a long, safe contract. */

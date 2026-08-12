@@ -1088,18 +1088,33 @@ export function defaultWorldSettings(): WorldSettings {
     biddingPremiumMax: 0.35,
     biddingWeightStanceHeadline: 14,
 
-    // Sending the room away. Anything under 85% of their own valuation is an
-    // insult rather than a low offer, and they get one chance to say so.
-    biddingWalkAwayShare: 0.85,
+    // The announced number. Somebody with no opinion of themselves names
+    // roughly what the business thinks they are worth; somebody who knows
+    // they are the draw names half again. Announcing it up front replaced a
+    // hidden "anything under 85% is an insult" rule, which did the same job
+    // without ever telling the booker what the job was.
+    biddingMinimumBase: 0.95,
+    biddingMinimumEgoRange: 0.55,
+    biddingMinimumNerve: 0.07,
     biddingSelfRegardFuture: 0.5,
     biddingMaxRounds: 2,
+
+    // A company with a thin top of the card stretches for a name a stacked
+    // one treats as a luxury. And once in a while somebody decides this is
+    // the signing that defines their year — rare, still capped by the same
+    // runway as everything else, and drawn per company per auction, so a rich
+    // booker can never be sure they have bought it.
+    biddingRosterFullAt: 70,
+    biddingRosterTopN: 5,
+    biddingKeennessHunger: 0.35,
+    biddingBigSwingChance: 0.12,
+    biddingBigSwingMultiple: 1.55,
 
     // Nobody bids with money they do not have. A reckless owner keeps three
     // months of payroll in the bank; a cautious one wants the better part of
     // a year before they will talk about anybody.
     biddingRunwayWeeksMin: 12,
     biddingRunwayWeeksRange: 30,
-    biddingEntryShare: 0.8,
 
     biddingTermSecurityPull: 0.5,
     biddingTermEgoPush: 0.45,
@@ -1124,16 +1139,19 @@ export function defaultWorldSettings(): WorldSettings {
     // it is simply the expensive way to do it.
     //
     // Measured against a full field — one company of each owner personality —
-    // for an ego-70 star. Share of auctions the player wins:
+    // for an ego-70 star. Share of auctions the player wins, as multiples of
+    // the number the wrestler's people announced:
     //
-    //                        1.3x   1.6x   2.0x   2.5x   (of the asking rate)
-    //   money alone            0%     0%    23%    60%
-    //   + a big signing bonus  0%     9%    66%    91%
-    //   + the right clauses   15%    63%    98%   100%
+    //                      1.00x  1.25x  1.50x  2.00x  3.00x
+    //   money alone           0%     1%    21%    34%    34%
+    //   + the right clauses  13%    51%    85%    96%    96%
     //
-    // Reading the person is worth roughly a full turn of the money dial. The
-    // field itself is not uniform: for an established star the star-chaser
-    // takes 88% of what the player does not, and for a phenom out of the
+    // The flat top is the point. Money stops helping at the ceiling, so a rich
+    // booker cannot simply buy an auction — and even a perfect offer loses one
+    // in twenty-five, because somebody in the room occasionally decides this
+    // is the signing that defines their year (biddingBigSwingChance). The
+    // field is not uniform either: for an established star the star-chaser
+    // takes most of what the player does not, and for a phenom out of the
     // school the builder and the showman take it between them — see
     // data/biddingTemperaments.ts.
     biddingWeightMoney: 68,
