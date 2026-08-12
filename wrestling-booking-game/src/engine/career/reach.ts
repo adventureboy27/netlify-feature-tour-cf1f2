@@ -158,7 +158,8 @@ export function reachLabel(reach: Reach): string {
     case 'local':
       return 'A local draw';
     case 'unknown':
-      return 'Nobody has seen him';
+      // Not "nobody has seen him" — a quarter of the business is women.
+      return 'Nobody has seen them';
   }
 }
 

@@ -21,6 +21,8 @@ type TraitKey = keyof typeof APPEARANCE_TRAIT_RANGES;
 
 const SLOT_LABELS: Record<AtlasSlot, string> = {
   head: 'Head',
+  face: 'Facial hair',
+  extra: 'Face gear',
   upper: 'Top',
   lower: 'Bottom',
   feet: 'Feet',
@@ -34,7 +36,26 @@ const CELL_LABELS: Record<string, string> = {
   ponytail: 'Ponytail',
   afro: 'Afro',
   mask: 'Mask',
-  bald_beard: 'Bald',
+  bald_beard: 'Bald + beard',
+  flattop: 'Flat top',
+  dreads: 'Dreads',
+  bald: 'Bald',
+  undercut: 'Undercut',
+  wild: 'Wild',
+  bob: 'Bob',
+  clean: 'Clean shaven',
+  stubble: 'Stubble',
+  moustache: 'Moustache',
+  goatee: 'Goatee',
+  chinstrap: 'Chinstrap',
+  beard: 'Beard',
+  longbeard: 'Long beard',
+  none: 'None',
+  shades: 'Shades',
+  glasses: 'Glasses',
+  eyepatch: 'Eye patch',
+  headband: 'Headband',
+  warpaint: 'Warpaint',
   bare: 'Bare',
   singlet: 'Singlet',
   tank: 'Tank',
@@ -346,7 +367,14 @@ export function WrestlerEditor({ wrestlerId, onDone }: { wrestlerId?: Id; onDone
                         key={cell}
                         label={CELL_LABELS[cell] ?? cell}
                         selected={cells[slot] === cell}
-                        onClick={() => setTrait(SLOT_TRAIT[slot], traitValueForCell(slot, cell))}
+                        onClick={() =>
+                          // `glasses` overrides `accessory` for the extra slot,
+                          // so writing accessory alone would silently do nothing
+                          // to anybody already wearing shades.
+                          slot === 'extra'
+                            ? setTraits({ glasses: 0, accessory: traitValueForCell('extra', cell) })
+                            : setTrait(SLOT_TRAIT[slot], traitValueForCell(slot, cell))
+                        }
                       />
                     ))}
                   </div>

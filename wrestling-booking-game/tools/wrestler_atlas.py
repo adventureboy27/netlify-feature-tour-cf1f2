@@ -180,6 +180,11 @@ def _stretch(F, dy):
     F["nose"] = (nx, ny + dy)
     mx0, my, mx1 = F["mouth"]
     F["mouth"] = (mx0, my + dy, mx1)
+    # The brow is a bare scalar rather than a pair, and it was the one landmark
+    # the first version of this forgot: eyes moved with the skull and eyebrows
+    # stayed at y=11, so every non-average body had its brows floating above
+    # its head. That is what the stray pixels in the first preview were.
+    F["brow"] += dy
     F["hip_y"] += dy
     F["waist_y"] += dy
 
@@ -243,7 +248,8 @@ FRAMES = {
 }
 
 # ---------------------------------------------------------------- HEAD slot
-HEADS = ["short", "buzz", "mohawk", "long", "ponytail", "afro", "mask", "bald_beard"]
+HEADS = ["short", "buzz", "mohawk", "long", "ponytail", "afro", "mask", "bald_beard",
+         "flattop", "dreads", "bald", "undercut", "wild", "bob"]
 
 def head(F, style):
     L = blank()
@@ -274,6 +280,26 @@ def head(F, style):
     elif style == "bald_beard":
         hair = (ell([sx0, sy0+7, sx1, sy1+2]) & ~ell([sx0+1, sy0+5, sx1-1, sy1-2]))
         hair &= F["m_skull"]
+    elif style == "flattop":
+        hair = rect([sx0, sy0-2, sx1, sy0+7]) & ~ell([sx0+1, sy0+4, sx1-1, sy1+6])
+        hair |= mirror(rect([sx0, sy0+2, sx0+2, sy0+10])) & F["m_skull"]
+    elif style == "dreads":
+        hair = ell([sx0-2, sy0-2, sx1+2, sy0+12]) & ~ell([sx0+1, sy0+5, sx1-1, sy1+8])
+        for dx in (-3, 0, 3):
+            hair |= mirror(capsule(sx0+dx, sy0+7, sx0+dx+1, sy0+24))
+    elif style == "bald":
+        hair = np.zeros((H, W), bool)
+    elif style == "undercut":
+        hair = ell([sx0-1, sy0-1, sx1+1, sy0+9]) & ~ell([sx0+1, sy0+4, sx1-1, sy1+6])
+        hair |= rect([CX-4, sy0-2, sx1+1, sy0+8]) & F["m_skull"]
+    elif style == "wild":
+        hair = ell([sx0-3, sy0-3, sx1+3, sy0+13]) & ~ell([sx0+1, sy0+5, sx1-1, sy1+8])
+        for dx, dy_ in ((-5, -2), (-1, -5), (4, -3)):
+            hair |= ell([sx0+dx, sy0+dy_, sx0+dx+5, sy0+dy_+6])
+        hair &= ~ell([sx0+1, sy0+5, sx1-1, sy1+8])
+    elif style == "bob":
+        hair = ell([sx0-2, sy0-1, sx1+2, sy0+13]) & ~ell([sx0+1, sy0+5, sx1-1, sy1+7])
+        hair |= mirror(rect([sx0-2, sy0+5, sx0+2, sy1+3]))
 
     hm = blank(); shade(hm, hair, MAT1, light=0.28, dark=0.26); over(L, hm)
 
@@ -299,6 +325,103 @@ def head(F, style):
         if style != "bald_beard":
             L[rect([mx, my, mx1, my])] = 4
         L[mirror(rect([sx0+2, ey+3, sx0+3, ey+4])) & F["m_skull"]] = 3
+    return L
+
+# ---------------------------------------------------------------- FACE slot
+#
+# Facial hair, on its own layer over the head. `facialHair` is a 0-11 trait
+# that has been generated, edited and saved since the beginning and changed
+# nothing about the sprite — and at portrait size it is the single biggest
+# thing separating one man from another.
+FACES = ["clean", "stubble", "moustache", "goatee", "chinstrap", "beard", "longbeard"]
+
+def _checker():
+    """Every other pixel. Stubble is shadow, not hair — a solid mask reads as a
+    full beard at this size, which is what the first version of this did."""
+    return (np.add.outer(np.arange(H), np.arange(W)) % 2) == 0
+
+def face(F, style):
+    L = blank()
+    if style == "clean":
+        return L
+    jx0, jy0, jx1, jy1 = F["jaw"]
+    mx, my, mx1 = F["mouth"]
+    _, ny = F["nose"]
+    ey = F["eyes"][1]
+    lower = ell([jx0, jy0, jx1, jy1]) & F["m_skull"]
+    # The mouth stays readable through every style except a full beard's lips.
+    tache = rect([mx - 1, my - 2, mx1 + 1, my - 1]) & F["m_skull"]
+
+    if style == "stubble":
+        mask = lower & rect([0, ny + 1, W, H]) & _checker()
+    elif style == "moustache":
+        mask = tache
+    elif style == "goatee":
+        mask = tache | (rect([mx, my + 1, mx1, jy1]) & lower)
+    elif style == "chinstrap":
+        ring = lower & ~ell([jx0 + 2, jy0 + 2, jx1 - 2, jy1 - 2])
+        mask = ring & rect([0, ey + 1, W, H])
+    elif style == "beard":
+        mask = (lower & rect([0, my - 2, W, H])) | tache
+        mask &= ~rect([mx, my, mx1, my])
+    else:  # longbeard
+        mask = (lower & rect([0, my - 2, W, H])) | tache
+        mask |= ell([jx0 + 3, jy1 - 5, jx1 - 3, jy1 + 8])
+        mask &= ~rect([mx, my, mx1, my])
+
+    fm = blank(); shade(fm, mask, MAT1, light=0.26, dark=0.3)
+    over(L, fm)
+    return L
+
+# ---------------------------------------------------------------- EXTRA slot
+#
+# The thing over the face. `glasses` (0-9) and `accessory` (0-15) were in the
+# same position as facialHair: saved, edited, and invisible.
+#
+# Nothing here uses mirror(). The face is not symmetric about the image centre
+# — the eyes sit at ex0 and ex1, which are not each other's mirror — so a
+# mirrored rect over one eye lands one pixel off the other and the two halves
+# fuse into a single band across the whole face. That is exactly what the first
+# version of shades and warpaint did.
+EXTRAS = ["none", "shades", "glasses", "eyepatch", "headband", "warpaint"]
+
+def extra(F, style):
+    L = blank()
+    if style == "none":
+        return L
+    sx0, sy0, sx1, sy1 = F["skull"]
+    ex0, ey, ex1, _ = F["eyes"]
+    brow = F["brow"]
+
+    # Two lenses with a one-pixel gap down the middle, bridged on one row.
+    lens_l = rect([ex0 - 1, ey - 1, ex0 + 2, ey + 2])
+    lens_r = rect([ex1, ey - 1, ex1 + 3, ey + 2])
+    bridge = rect([ex0 + 3, ey, ex1 - 1, ey])
+
+    if style == "shades":
+        gm = blank(); shade(gm, lens_l | lens_r, MAT2, light=0.24, dark=0.34)
+        gm[bridge] = 12
+        over(L, outline(gm))
+    elif style == "glasses":
+        rim = (lens_l & ~rect([ex0, ey, ex0 + 1, ey + 1])) | (lens_r & ~rect([ex1 + 1, ey, ex1 + 2, ey + 1]))
+        gm = blank(); shade(gm, rim | bridge, MAT1, light=0.3, dark=0.3)
+        over(L, gm)
+    elif style == "eyepatch":
+        patch = rect([ex0 - 2, ey - 2, ex0 + 3, ey + 3]) & F["m_skull"]
+        strap = rect([sx0 - 1, ey - 2, sx1 + 1, ey - 2]) & F["m_skull"]
+        gm = blank(); shade(gm, patch, MAT2, light=0.2, dark=0.35)
+        gm[strap & ~patch] = 13
+        over(L, outline(gm))
+    elif style == "headband":
+        band = rect([sx0 - 3, brow - 4, sx1 + 3, brow - 2])
+        band &= ell([sx0 - 3, sy0 - 3, sx1 + 3, sy1 + 2])
+        gm = blank(); shade(gm, band, MAT2, light=0.32, dark=0.26)
+        over(L, outline(gm))
+    elif style == "warpaint":
+        stripe = rect([ex0 - 1, brow - 1, ex0 + 1, ey + 7]) | rect([ex1 + 1, brow - 1, ex1 + 3, ey + 7])
+        stripe &= F["m_skull"]
+        gm = blank(); shade(gm, stripe, MAT2, light=0.34, dark=0.2)
+        over(L, gm)
     return L
 
 # ---------------------------------------------------------------- UPPER slot
@@ -437,7 +560,8 @@ def feet(F, style):
     return L
 
 # ---------------------------------------------------------------- sheets
-SLOTS = [("head", HEADS, head), ("upper", UPPERS, upper),
+SLOTS = [("head", HEADS, head), ("face", FACES, face), ("extra", EXTRAS, extra),
+         ("upper", UPPERS, upper),
          ("lower", LOWERS, lower), ("feet", FEET, feet)]
 
 DEFAULT_PALETTE = {
@@ -452,6 +576,12 @@ DEFAULT_PALETTE = {
 SLOT_PREVIEW = {
     "head": {6:(102,78,102,255), 7:(60,42,60,255), 8:(38,26,40,255), 9:(24,16,26,255),
              10:(226,64,86,255), 11:(190,34,58,255), 12:(132,18,40,255), 13:(92,10,28,255)},
+    # Facial hair reads as mat1, same ramp as the hair above it, so the preview
+    # uses the head's browns — a beard rendered in shirt-red tells you nothing
+    # about whether the shape sits right.
+    "face": {6:(102,78,102,255), 7:(60,42,60,255), 8:(38,26,40,255), 9:(24,16,26,255)},
+    "extra":{6:(210,206,196,255), 7:(160,156,148,255), 8:(104,100,96,255), 9:(64,62,60,255),
+             10:(58,60,72,255), 11:(32,34,44,255), 12:(20,21,30,255), 13:(12,13,20,255)},
     "upper":{6:(240,98,112,255), 7:(206,40,64,255), 8:(138,20,44,255), 9:(96,12,34,255),
              10:(255,253,247,255), 11:(230,222,208,255), 12:(170,160,148,255), 13:(120,112,104,255)},
     "lower":{6:(96,150,236,255), 7:(46,98,196,255), 8:(28,58,134,255), 9:(18,38,92,255),
@@ -481,7 +611,7 @@ def build_all():
     os.makedirs(OUTDIR, exist_ok=True)
     os.makedirs(PREVIEWDIR, exist_ok=True)
     manifest = {"frame": {"w": W, "h": H}, "anchor": "top-left, all cells share origin",
-                "drawOrder": ["head", "upper", "lower", "feet"],
+                "drawOrder": ["head", "face", "extra", "upper", "lower", "feet"],
                 "palette": {str(k): "rgba" for k in DEFAULT_PALETTE},
                 "frames": {}}
     for fk, F in FRAMES.items():

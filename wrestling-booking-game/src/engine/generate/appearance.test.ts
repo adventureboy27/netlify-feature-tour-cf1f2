@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../rng';
-import { generateAppearance, appearanceHammingDistance, generateDistinctAppearance, MIN_DISTINCT_HAMMING_DISTANCE } from './appearance';
+import {
+  generateAppearance,
+  appearanceHammingDistance,
+  visibleHammingDistance,
+  generateDistinctAppearance,
+  MIN_DISTINCT_HAMMING_DISTANCE,
+  RENDERED_APPEARANCE_KEYS,
+  APPEARANCE_TRAIT_RANGES,
+} from './appearance';
 
 describe('generateAppearance', () => {
   it('produces values within the documented ranges', () => {
@@ -32,6 +40,22 @@ describe('appearanceHammingDistance', () => {
   });
 });
 
+describe('visibleHammingDistance', () => {
+  it('ignores the traits the atlas cannot draw', () => {
+    const rng = mulberry32(99);
+    const a = generateAppearance(rng);
+    const hidden = (Object.keys(APPEARANCE_TRAIT_RANGES) as (keyof typeof APPEARANCE_TRAIT_RANGES)[]).filter(
+      (key) => !RENDERED_APPEARANCE_KEYS.includes(key),
+    );
+    expect(hidden.length).toBeGreaterThan(0);
+    const b = { ...a };
+    for (const key of hidden) b[key] = (a[key] + 1) % (APPEARANCE_TRAIT_RANGES[key] + 1);
+
+    expect(appearanceHammingDistance(a, b)).toBe(hidden.length);
+    expect(visibleHammingDistance(a, b)).toBe(0);
+  });
+});
+
 describe('generateDistinctAppearance', () => {
   it('stays at or above the minimum distance from every existing appearance', () => {
     const rng = mulberry32(4);
@@ -40,6 +64,8 @@ describe('generateDistinctAppearance', () => {
       const candidate = generateDistinctAppearance(rng, roster);
       for (const existing of roster) {
         expect(appearanceHammingDistance(candidate, existing)).toBeGreaterThanOrEqual(MIN_DISTINCT_HAMMING_DISTANCE);
+        // And the part that matters: they differ where somebody can see it.
+        expect(visibleHammingDistance(candidate, existing)).toBeGreaterThanOrEqual(MIN_DISTINCT_HAMMING_DISTANCE);
       }
       roster.push(candidate);
     }

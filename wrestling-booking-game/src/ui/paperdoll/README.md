@@ -4,7 +4,7 @@ How a wrestler becomes a sprite (§7 of `booking-game-design.md`).
 
 ```
 Appearance          atlas/traits.ts        atlas/sheets.ts        atlas/compose.ts
-(20 ints)  ──────>  frame + 4 cells   +    index buffers   ──────>  64x96 RGBA
+(20 ints)  ──────>  frame + 6 cells   +    index buffers   ──────>  64x96 RGBA
                     + 3 color ramps        (decoded once)           ──> spriteCache
                                                                     ──> <PaperDoll>
 ```
@@ -25,9 +25,10 @@ Browsers won't hand back a PNG's palette indices, only decoded RGBA, so
 palette *backwards* to recover the indices. From then on the app holds what
 the generator meant.
 
-The PNGs are inlined into the bundle as data URIs (`?inline`, ~11 KB for all
-eight). Nothing fetches anything, so "fully offline, no network calls
-anywhere" holds by construction rather than by service-worker config.
+The PNGs are inlined into the bundle as data URIs (`?inline`, ~150 KB for all
+108 — six slots across eighteen bodies). Nothing fetches anything, so "fully
+offline, no network calls anywhere" holds by construction rather than by
+service-worker config.
 
 ## Regenerating the art
 
@@ -43,14 +44,43 @@ npm run test                     # manifest.test.ts checks the cells still match
 cells fails the suite instead of quietly drawing jeans where tights used to
 be.
 
+## Six slots: head, face, extra, upper, lower, feet
+
+Paint order back to front, all sharing one 64x96 origin. `face` is facial hair
+and `extra` is whatever sits over the eyes — shades, glasses, an eye patch, a
+headband, warpaint.
+
+Those two are late additions and the reason is worth keeping. At the sizes the
+game actually draws a wrestler — a bust on a roster card, a thumb in a picker —
+the head is nearly the whole sprite, and there were eight head cells. A 24-man
+roster could put three men in the same skull. Measured on a 2000-person world
+before the change: **200 silhouettes shared by three or more people, the worst
+of them worn by ten.** After: none shared by three, the worst by two, and every
+one of the 2000 distinct once colour is counted. `atlas/lookalikes.test.ts`
+holds that line.
+
 ## What the atlas does not express yet
 
-`Appearance` carries 20 traits. The sheets cut cells for six of them
-(`skinTone`, `hairStyle`, `mask`, `attireTop`, `attireBottom`, `boots`), the
-three colour slots, and — since the body-frame work below — `build` and
-`height`. The rest (`faceShape`, `eyes`, `facialHair`, `accessory`, `glasses`,
-`shirt`, `tattoos`) are still generated, still edited, still saved, and still
-counted by the §7 visual-distinctness check, but they do not change the sprite.
+`Appearance` carries 20 traits and the sheets now draw 15 of them: `skinTone`,
+`build`, `height`, `hairStyle`, `hairColor`, `facialHair`, `attireTop`,
+`attireBottom`, `boots`, `mask`, `accessory`, `glasses`, and the three colour
+slots. The five that still draw nothing are `faceShape`, `eyes`, `shirt`,
+`tattoos` and `beltStyle`.
+
+That list is not just documentation — it is
+`RENDERED_APPEARANCE_KEYS` in `engine/generate/appearance.ts`, and the §7
+distinctness check measures Hamming distance over *it* rather than over all
+twenty. It has to: the old rule let two wrestlers clear "four traits apart" on
+`faceShape`, `eyes`, `tattoos` and `shirt` alone and then render as the same
+man. `lookalikes.test.ts` asserts the list is exactly the set of traits that
+change a sprite, so cutting cells for tattoos fails the suite until the list
+catches up.
+
+One trait reads the wrestler rather than only itself: `facialHair` is rolled
+only for `m`. It was a flat 50% for everybody, which was harmless while the
+trait drew nothing and put half the women in the business in goatees the
+moment it did. The editor still exposes it for anyone who wants a bearded
+lady on purpose.
 
 ## Body frames: build and height
 
@@ -87,13 +117,21 @@ the pixel and "taller" had nowhere to go.
 Adding a build or a height means extending `BUILDS`/`HEIGHTS` in
 `wrestler_atlas.py`, `FRAMES` in `atlas/manifest.ts`, the URL map in
 `atlas/sheets.ts`, and the two tables in `atlas/traits.ts`. The sheets cost
-about 19 KB per frame, so the axis count is a real budget: eighteen frames is
-~344 KB inlined.
+about 8 KB per frame across all six slots, so the axis count is a real budget:
+eighteen frames is ~150 KB of PNG.
 
 The mapping tables in `atlas/traits.ts` are authored rather than modulo
-arithmetic, so trait ranges wider than the cell list (24 hair styles onto 7
-haired heads) produce a distribution someone chose. Adding cells to the
-generator means extending those tables.
+arithmetic, so trait ranges wider than the cell list produce a distribution
+someone chose — `none` takes nine of the sixteen `accessory` values because an
+accessory on two thirds of a roster stops being a distinguishing mark and
+starts being the house style. Adding cells to the generator means extending
+those tables.
+
+`extra` is the one slot fed by two traits: `glasses` overrides `accessory`
+when set, the same way `mask` overrides `hairStyle`, because you cannot wear a
+headband over your eyes. `traitValueForCell` reads the `accessory` table, so
+every extra cell has to stay reachable from it — the editor writes back
+through that path.
 
 ## Note on §7
 

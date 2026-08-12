@@ -41,14 +41,22 @@ function rollOptionalTrait(rng: Rng, max: number, presentProbability: number): n
   return randInt(rng, 1, max);
 }
 
-export function generateAppearance(rng: Rng): Appearance {
+/**
+ * @param gender Which body the sprite will be drawn on. Only facial hair reads
+ *   it: the trait used to draw nothing at all, so a 50% beard roll on the whole
+ *   population was invisible and harmless. Now that the atlas has a face slot,
+ *   half the women in the business turned up in goatees. The trait is still
+ *   editable, so a booker who wants a bearded lady can still have one — it just
+ *   is not something generation hands out by accident.
+ */
+export function generateAppearance(rng: Rng, gender?: 'm' | 'f'): Appearance {
   return {
     skinTone: randInt(rng, 0, APPEARANCE_TRAIT_RANGES.skinTone),
     build: randInt(rng, 0, APPEARANCE_TRAIT_RANGES.build),
     height: randInt(rng, 0, APPEARANCE_TRAIT_RANGES.height),
     hairStyle: rollOptionalTrait(rng, APPEARANCE_TRAIT_RANGES.hairStyle, 0.92), // ~8% bald
     hairColor: randInt(rng, 0, APPEARANCE_TRAIT_RANGES.hairColor),
-    facialHair: rollOptionalTrait(rng, APPEARANCE_TRAIT_RANGES.facialHair, 0.5),
+    facialHair: rollOptionalTrait(rng, APPEARANCE_TRAIT_RANGES.facialHair, gender === 'f' ? 0 : 0.5),
     faceShape: randInt(rng, 0, APPEARANCE_TRAIT_RANGES.faceShape),
     eyes: randInt(rng, 0, APPEARANCE_TRAIT_RANGES.eyes),
     attireTop: randInt(rng, 0, APPEARANCE_TRAIT_RANGES.attireTop),
@@ -68,10 +76,53 @@ export function generateAppearance(rng: Rng): Appearance {
 
 const APPEARANCE_KEYS = Object.keys(APPEARANCE_TRAIT_RANGES) as (keyof Appearance)[];
 
+/**
+ * The traits that actually reach the sprite.
+ *
+ * Five of the twenty do not: faceShape, eyes, shirt, tattoos and beltStyle are
+ * generated, edited and saved, and the atlas has no cell for any of them. That
+ * mattered, because the distinctness rule below counted all twenty — two
+ * wrestlers could clear "four traits apart" on faceShape, eyes, tattoos and
+ * shirt alone and then render as the same man. On a 2000-strong world that put
+ * two hundred silhouettes on three or more people, and the worst of them on
+ * ten.
+ *
+ * Kept here rather than in the renderer so the engine stays free of ui/
+ * imports; ui/paperdoll/atlas/traits.test.ts asserts this list is exactly the
+ * set of traits that change what gets drawn, so adding a cell for tattoos
+ * fails the test until this list catches up.
+ */
+export const RENDERED_APPEARANCE_KEYS: readonly (keyof Appearance)[] = [
+  'skinTone',
+  'build',
+  'height',
+  'hairStyle',
+  'hairColor',
+  'facialHair',
+  'attireTop',
+  'attireBottom',
+  'boots',
+  'mask',
+  'accessory',
+  'glasses',
+  'primaryColor',
+  'secondaryColor',
+  'accentColor',
+];
+
 /** Number of trait fields that differ between two appearances. */
 export function appearanceHammingDistance(a: Appearance, b: Appearance): number {
   let distance = 0;
   for (const key of APPEARANCE_KEYS) {
+    if (a[key] !== b[key]) distance++;
+  }
+  return distance;
+}
+
+/** The same count, over the traits somebody can actually see. */
+export function visibleHammingDistance(a: Appearance, b: Appearance): number {
+  let distance = 0;
+  for (const key of RENDERED_APPEARANCE_KEYS) {
     if (a[key] !== b[key]) distance++;
   }
   return distance;
@@ -92,14 +143,21 @@ const MAX_DISTINCT_ATTEMPTS = 200;
  * if the trait space is saturated (e.g. a roster far larger than the trait
  * combinatorics support) rather than looping forever.
  */
-export function generateDistinctAppearance(rng: Rng, existing: readonly Appearance[]): Appearance {
-  let candidate = generateAppearance(rng);
+export function generateDistinctAppearance(
+  rng: Rng,
+  existing: readonly Appearance[],
+  gender?: 'm' | 'f',
+): Appearance {
+  let candidate = generateAppearance(rng, gender);
   for (let attempt = 0; attempt < MAX_DISTINCT_ATTEMPTS; attempt++) {
+    // Measured over the visible traits only. Distance across all twenty is
+    // the letter of §7 and it was not enough: it let two men be "distinct"
+    // on four fields nobody can see.
     const isDistinct = existing.every(
-      (other) => appearanceHammingDistance(candidate, other) >= MIN_DISTINCT_HAMMING_DISTANCE,
+      (other) => visibleHammingDistance(candidate, other) >= MIN_DISTINCT_HAMMING_DISTANCE,
     );
     if (isDistinct) return candidate;
-    candidate = generateAppearance(rng);
+    candidate = generateAppearance(rng, gender);
   }
   return candidate;
 }

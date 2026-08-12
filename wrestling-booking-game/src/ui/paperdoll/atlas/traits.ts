@@ -14,17 +14,55 @@
 
 import type { Appearance } from '../../../engine/types';
 import { SKIN_TONE_PALETTE, HAIR_COLOR_PALETTE, ATTIRE_PALETTE } from '../palette';
-import type { AtlasFrame, AtlasSlot, CellSelection, HeadCell, UpperCell, LowerCell, FeetCell } from './manifest';
+import type {
+  AtlasFrame,
+  AtlasSlot,
+  CellSelection,
+  HeadCell,
+  FaceCell,
+  ExtraCell,
+  UpperCell,
+  LowerCell,
+  FeetCell,
+} from './manifest';
 import { DRAW_ORDER } from './manifest';
 import { hexToRgb, type Rgb, type SlotColors } from './indexPalette';
 
-// hairStyle 0-23 (§7: "0-23, includes bald").
-// short 7 · buzz 4 · long 5 · ponytail 3 · mohawk 2 · afro 2 · bald 1.
+// hairStyle 0-23 (§7: "0-23, includes bald"), onto thirteen non-mask cells.
+// Near enough one-to-one now, which is the point: the old table folded 23
+// values onto 7 shapes, so any two men who rolled anywhere in the same bucket
+// wore the same head. Every cell appears at least once; the commonest real
+// haircuts (short, buzz) appear twice because most of a locker room is not
+// wearing a mohawk.
 const HEAD_BY_HAIR_STYLE: readonly HeadCell[] = [
-  'bald_beard', // 0 — the atlas's only hairless skull
-  'short', 'short', 'buzz', 'long', 'ponytail', 'short', 'mohawk', 'long',
-  'short', 'buzz', 'afro', 'long', 'ponytail', 'short', 'buzz', 'long',
-  'mohawk', 'short', 'ponytail', 'afro', 'long', 'short', 'buzz',
+  'bald', // 0 — §7 says the range includes bald, and this is it
+  'short', 'buzz', 'flattop', 'long', 'ponytail', 'undercut', 'mohawk', 'bob',
+  'short', 'buzz', 'afro', 'dreads', 'ponytail', 'bald_beard', 'wild', 'long',
+  'mohawk', 'undercut', 'bob', 'afro', 'dreads', 'flattop', 'wild',
+];
+
+// facialHair 0-11 onto seven cells. Weighted toward clean and stubble because
+// a roster where half the men have full beards looks like a costume shop.
+// clean 4 · stubble 2 · goatee 2 · moustache 1 · chinstrap 1 · beard 1 · longbeard 1.
+const FACE_BY_FACIAL_HAIR: readonly FaceCell[] = [
+  'clean', 'stubble', 'goatee', 'clean', 'moustache', 'beard',
+  'clean', 'chinstrap', 'stubble', 'goatee', 'clean', 'longbeard',
+];
+
+// accessory 0-15 onto six cells. Mostly nothing — an accessory on two thirds
+// of the roster stops being a distinguishing mark and starts being the house
+// style. This table is the one traitValueForCell reads, so every cell has to
+// be reachable from it, eyewear included.
+// none 9 · headband 2 · warpaint 2 · eyepatch 1 · shades 1 · glasses 1.
+const EXTRA_BY_ACCESSORY: readonly ExtraCell[] = [
+  'none', 'none', 'headband', 'none', 'warpaint', 'none', 'shades', 'none',
+  'none', 'eyepatch', 'none', 'headband', 'none', 'glasses', 'warpaint', 'none',
+];
+
+// glasses 0-9, 0 = none. Overrides the accessory above when set, the same way
+// `mask` overrides `hairStyle` — you cannot wear a headband over your eyes.
+const EXTRA_BY_GLASSES: readonly ExtraCell[] = [
+  'none', 'shades', 'glasses', 'shades', 'glasses', 'shades', 'glasses', 'shades', 'glasses', 'shades',
 ];
 
 // attireTop 0-15. bare 2 · singlet 4 · tank 3 · tee 3 · longsleeve 2 · vest 2.
@@ -50,14 +88,21 @@ const FEET_BY_BOOTS: readonly FeetCell[] = [
 
 const CELL_TABLES = {
   head: HEAD_BY_HAIR_STYLE,
+  face: FACE_BY_FACIAL_HAIR,
+  extra: EXTRA_BY_ACCESSORY,
   upper: UPPER_BY_ATTIRE_TOP,
   lower: LOWER_BY_ATTIRE_BOTTOM,
   feet: FEET_BY_BOOTS,
 } as const;
 
 /** Which Appearance field drives each slot's shape. The editor builds its pickers off this. */
-export const SLOT_TRAIT: Record<AtlasSlot, 'hairStyle' | 'attireTop' | 'attireBottom' | 'boots'> = {
+export const SLOT_TRAIT: Record<
+  AtlasSlot,
+  'hairStyle' | 'facialHair' | 'accessory' | 'attireTop' | 'attireBottom' | 'boots'
+> = {
   head: 'hairStyle',
+  face: 'facialHair',
+  extra: 'accessory',
   upper: 'attireTop',
   lower: 'attireBottom',
   feet: 'boots',
@@ -71,7 +116,7 @@ export const SLOT_TRAIT: Record<AtlasSlot, 'hairStyle' | 'attireTop' | 'attireBo
  * Head is the exception — 'mask' has no hairStyle that reaches it, because a
  * mask is chosen with the separate `mask` trait.
  */
-export function traitValueForCell<S extends AtlasSlot>(slot: S, cell: CellSelection[S]): number {
+export function traitValueForCell(slot: AtlasSlot, cell: string): number {
   const index = (CELL_TABLES[slot] as readonly string[]).indexOf(cell);
   if (index < 0) throw new Error(`No ${SLOT_TRAIT[slot]} value renders the ${slot} cell "${cell}"`);
   return index;
@@ -129,10 +174,17 @@ export function frameForGender(gender: 'm' | 'f'): AtlasFrame {
 }
 
 export function selectCells(appearance: Appearance): CellSelection {
+  const masked = appearance.mask > 0;
   return {
     // A mask replaces the hair layer outright (§7 layer 8: "hair suppressed if
     // mask != 0"), so it wins over whatever hairStyle says.
-    head: appearance.mask > 0 ? 'mask' : pick(HEAD_BY_HAIR_STYLE, appearance.hairStyle),
+    head: masked ? 'mask' : pick(HEAD_BY_HAIR_STYLE, appearance.hairStyle),
+    // And a mask covers the jaw, so the beard under it goes with the hair.
+    face: masked ? 'clean' : pick(FACE_BY_FACIAL_HAIR, appearance.facialHair),
+    extra:
+      appearance.glasses > 0
+        ? pick(EXTRA_BY_GLASSES, appearance.glasses)
+        : pick(EXTRA_BY_ACCESSORY, appearance.accessory),
     upper: pick(UPPER_BY_ATTIRE_TOP, appearance.attireTop),
     lower: pick(LOWER_BY_ATTIRE_BOTTOM, appearance.attireBottom),
     feet: pick(FEET_BY_BOOTS, appearance.boots),
@@ -144,6 +196,8 @@ export function selectCells(appearance: Appearance): CellSelection {
  *
  *   head   hair color   (or the primary, when the head is a mask — a mask is
  *                        attire, not hair) + accent piping
+ *   face   hair color   — a beard is hair
+ *   extra  secondary    + accent (lens tint, patch, paint)
  *   upper  primary      + accent trim
  *   lower  secondary    + accent (waistband, knee pads)
  *   feet   primary      + accent (laces, boot trim)
@@ -160,6 +214,13 @@ export function selectSlotColors(appearance: Appearance): Record<AtlasSlot, Slot
 
   return {
     head: { skin, mat1: appearance.mask > 0 ? primary : hair, mat2: accent },
+    // Facial hair is hair. Nothing else about the face slot is coloured, so
+    // mat2 is along for the ride.
+    face: { skin, mat1: hair, mat2: hair },
+    // Shades, patches and warpaint are gear, so they take the accent — the
+    // colour a wrestler's trim already uses — with the secondary behind it for
+    // glasses rims.
+    extra: { skin, mat1: secondary, mat2: accent },
     upper: { skin, mat1: primary, mat2: accent },
     lower: { skin, mat1: secondary, mat2: accent },
     feet: { skin, mat1: primary, mat2: accent },

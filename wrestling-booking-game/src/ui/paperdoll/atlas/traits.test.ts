@@ -83,25 +83,47 @@ describe('selectCells', () => {
     for (let boots = 0; boots <= APPEARANCE_TRAIT_RANGES.boots; boots++) {
       expect(SLOT_CELLS.feet).toContain(selectCells(appearance({ boots })).feet);
     }
+    for (let facialHair = 0; facialHair <= APPEARANCE_TRAIT_RANGES.facialHair; facialHair++) {
+      expect(SLOT_CELLS.face).toContain(selectCells(appearance({ facialHair })).face);
+    }
+    for (let accessory = 0; accessory <= APPEARANCE_TRAIT_RANGES.accessory; accessory++) {
+      expect(SLOT_CELLS.extra).toContain(selectCells(appearance({ accessory })).extra);
+    }
+    for (let glasses = 0; glasses <= APPEARANCE_TRAIT_RANGES.glasses; glasses++) {
+      expect(SLOT_CELLS.extra).toContain(selectCells(appearance({ glasses })).extra);
+    }
   });
 
   it('reaches every cell the atlas ships — no dead art', () => {
-    const reached = { head: new Set<string>(), upper: new Set<string>(), lower: new Set<string>(), feet: new Set<string>() };
+    const reached: Record<string, Set<string>> = {
+      head: new Set(),
+      face: new Set(),
+      extra: new Set(),
+      upper: new Set(),
+      lower: new Set(),
+      feet: new Set(),
+    };
     for (let hairStyle = 0; hairStyle <= APPEARANCE_TRAIT_RANGES.hairStyle; hairStyle++) {
-      reached.head.add(selectCells(appearance({ hairStyle })).head);
+      reached.head!.add(selectCells(appearance({ hairStyle })).head);
     }
-    reached.head.add(selectCells(appearance({ mask: 1 })).head);
+    reached.head!.add(selectCells(appearance({ mask: 1 })).head);
     for (let attireTop = 0; attireTop <= APPEARANCE_TRAIT_RANGES.attireTop; attireTop++) {
-      reached.upper.add(selectCells(appearance({ attireTop })).upper);
+      reached.upper!.add(selectCells(appearance({ attireTop })).upper);
     }
     for (let attireBottom = 0; attireBottom <= APPEARANCE_TRAIT_RANGES.attireBottom; attireBottom++) {
-      reached.lower.add(selectCells(appearance({ attireBottom })).lower);
+      reached.lower!.add(selectCells(appearance({ attireBottom })).lower);
     }
     for (let boots = 0; boots <= APPEARANCE_TRAIT_RANGES.boots; boots++) {
-      reached.feet.add(selectCells(appearance({ boots })).feet);
+      reached.feet!.add(selectCells(appearance({ boots })).feet);
+    }
+    for (let facialHair = 0; facialHair <= APPEARANCE_TRAIT_RANGES.facialHair; facialHair++) {
+      reached.face!.add(selectCells(appearance({ facialHair })).face);
+    }
+    for (let accessory = 0; accessory <= APPEARANCE_TRAIT_RANGES.accessory; accessory++) {
+      reached.extra!.add(selectCells(appearance({ accessory })).extra);
     }
     for (const slot of DRAW_ORDER) {
-      expect([...reached[slot]].sort()).toEqual([...SLOT_CELLS[slot]].sort());
+      expect([...reached[slot]!].sort()).toEqual([...SLOT_CELLS[slot]].sort());
     }
   });
 
@@ -113,7 +135,21 @@ describe('selectCells', () => {
   });
 
   it('draws hairStyle 0 as the bald skull', () => {
-    expect(selectCells(appearance({ hairStyle: 0 })).head).toBe('bald_beard');
+    expect(selectCells(appearance({ hairStyle: 0 })).head).toBe('bald');
+  });
+
+  it('shaves a masked wrestler — the mask covers the jaw', () => {
+    for (let facialHair = 0; facialHair <= APPEARANCE_TRAIT_RANGES.facialHair; facialHair++) {
+      expect(selectCells(appearance({ facialHair, mask: 1 })).face).toBe('clean');
+    }
+  });
+
+  it('lets glasses override an accessory, and nothing else', () => {
+    // Somebody wearing a headband and shades wears the shades: you cannot put
+    // a headband over your eyes.
+    const withBoth = selectCells(appearance({ accessory: 2, glasses: 1 }));
+    expect(withBoth.extra).toBe('shades');
+    expect(selectCells(appearance({ accessory: 2, glasses: 0 })).extra).toBe('headband');
   });
 
   it('keeps barefoot rare — one boots value in ten, not one in five', () => {
@@ -136,7 +172,11 @@ describe('selectSlotColors', () => {
     expect(colors.upper.mat1).toEqual(hexToRgb(ATTIRE_PALETTE[BASE.primaryColor]!));
     expect(colors.lower.mat1).toEqual(hexToRgb(ATTIRE_PALETTE[BASE.secondaryColor]!));
     expect(colors.feet.mat1).toEqual(hexToRgb(ATTIRE_PALETTE[BASE.primaryColor]!));
-    for (const slot of DRAW_ORDER) {
+    // Facial hair is hair, all the way down — it is the one slot that carries
+    // no attire colour at all.
+    expect(colors.face.mat1).toEqual(hexToRgb(HAIR_COLOR_PALETTE[BASE.hairColor]!));
+    expect(colors.face.mat2).toEqual(hexToRgb(HAIR_COLOR_PALETTE[BASE.hairColor]!));
+    for (const slot of DRAW_ORDER.filter((s) => s !== 'face')) {
       expect(colors[slot].mat2).toEqual(hexToRgb(ATTIRE_PALETTE[BASE.accentColor]!));
       expect(colors[slot].skin).toEqual(hexToRgb(SKIN_TONE_PALETTE[BASE.skinTone]!));
     }

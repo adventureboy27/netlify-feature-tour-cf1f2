@@ -258,7 +258,7 @@ export function generateWrestler(
     // of the national profile rather than as zero, so an empty map is the
     // correct starting state rather than a gap to be filled.
     regionalPopularity: {},
-    appearance: generateDistinctAppearance(rng, options.existingAppearances ?? []),
+    appearance: generateDistinctAppearance(rng, options.existingAppearances ?? [], gender),
 
     promotionId: null,
     contract: null,

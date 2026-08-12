@@ -45,21 +45,35 @@ export type AtlasFrame = (typeof FRAMES)[number];
  * pixels" — this is §7's layer order collapsed to the four slots the atlas
  * actually cuts.
  */
-export const DRAW_ORDER = ['head', 'upper', 'lower', 'feet'] as const;
+export const DRAW_ORDER = ['head', 'face', 'extra', 'upper', 'lower', 'feet'] as const;
 export type AtlasSlot = (typeof DRAW_ORDER)[number];
 
-export const HEAD_CELLS = ['short', 'buzz', 'mohawk', 'long', 'ponytail', 'afro', 'mask', 'bald_beard'] as const;
+// Head, then the two layers that sit on top of it. At portrait size the head
+// is nearly the whole sprite, so eight head cells meant a 24-man roster had
+// three men wearing the same skull. `facialHair`, `glasses` and `accessory`
+// were all generated, edited and saved from the beginning and drew nothing;
+// `face` and `extra` are where they finally land.
+export const HEAD_CELLS = [
+  'short', 'buzz', 'mohawk', 'long', 'ponytail', 'afro', 'mask', 'bald_beard',
+  'flattop', 'dreads', 'bald', 'undercut', 'wild', 'bob',
+] as const;
+export const FACE_CELLS = ['clean', 'stubble', 'moustache', 'goatee', 'chinstrap', 'beard', 'longbeard'] as const;
+export const EXTRA_CELLS = ['none', 'shades', 'glasses', 'eyepatch', 'headband', 'warpaint'] as const;
 export const UPPER_CELLS = ['bare', 'singlet', 'tank', 'tee', 'longsleeve', 'vest'] as const;
 export const LOWER_CELLS = ['trunks', 'trunks_pads', 'tights', 'shorts', 'jeans', 'skirt'] as const;
 export const FEET_CELLS = ['boots_mid', 'boots_high', 'boots_low', 'sneakers', 'barefoot'] as const;
 
 export type HeadCell = (typeof HEAD_CELLS)[number];
+export type FaceCell = (typeof FACE_CELLS)[number];
+export type ExtraCell = (typeof EXTRA_CELLS)[number];
 export type UpperCell = (typeof UPPER_CELLS)[number];
 export type LowerCell = (typeof LOWER_CELLS)[number];
 export type FeetCell = (typeof FEET_CELLS)[number];
 
 export const SLOT_CELLS = {
   head: HEAD_CELLS,
+  face: FACE_CELLS,
+  extra: EXTRA_CELLS,
   upper: UPPER_CELLS,
   lower: LOWER_CELLS,
   feet: FEET_CELLS,
@@ -67,6 +81,8 @@ export const SLOT_CELLS = {
 
 export interface CellSelection {
   head: HeadCell;
+  face: FaceCell;
+  extra: ExtraCell;
   upper: UpperCell;
   lower: LowerCell;
   feet: FeetCell;
@@ -90,4 +106,12 @@ export function sheetWidth(slot: AtlasSlot): number {
 
 /** Distinct silhouettes the atlas can currently produce for one frame. */
 export const SHAPE_COMBOS_PER_FRAME =
-  HEAD_CELLS.length * UPPER_CELLS.length * LOWER_CELLS.length * FEET_CELLS.length;
+  HEAD_CELLS.length *
+  FACE_CELLS.length *
+  EXTRA_CELLS.length *
+  UPPER_CELLS.length *
+  LOWER_CELLS.length *
+  FEET_CELLS.length;
+
+/** Distinct silhouettes across every body the atlas ships. */
+export const SHAPE_COMBOS = SHAPE_COMBOS_PER_FRAME * FRAMES.length;

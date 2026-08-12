@@ -6,6 +6,8 @@
   "anchor": "top-left, all cells share origin",
   "drawOrder": [
     "head",
+    "face",
+    "extra",
     "upper",
     "lower",
     "feet"
@@ -40,9 +42,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "masc_slim_short_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "masc_slim_short_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "masc_slim_short_upper.png",
@@ -91,9 +124,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "masc_slim_average_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "masc_slim_average_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "masc_slim_average_upper.png",
@@ -142,9 +206,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "masc_slim_tall_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "masc_slim_tall_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "masc_slim_tall_upper.png",
@@ -193,9 +288,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "masc_average_short_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "masc_average_short_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "masc_average_short_upper.png",
@@ -244,9 +370,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "masc_average_average_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "masc_average_average_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "masc_average_average_upper.png",
@@ -295,9 +452,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "masc_average_tall_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "masc_average_tall_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "masc_average_tall_upper.png",
@@ -346,9 +534,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "masc_heavy_short_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "masc_heavy_short_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "masc_heavy_short_upper.png",
@@ -397,9 +616,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "masc_heavy_average_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "masc_heavy_average_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "masc_heavy_average_upper.png",
@@ -448,9 +698,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "masc_heavy_tall_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "masc_heavy_tall_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "masc_heavy_tall_upper.png",
@@ -499,9 +780,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "fem_slim_short_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "fem_slim_short_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "fem_slim_short_upper.png",
@@ -550,9 +862,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "fem_slim_average_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "fem_slim_average_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "fem_slim_average_upper.png",
@@ -601,9 +944,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "fem_slim_tall_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "fem_slim_tall_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "fem_slim_tall_upper.png",
@@ -652,9 +1026,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "fem_average_short_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "fem_average_short_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "fem_average_short_upper.png",
@@ -703,9 +1108,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "fem_average_average_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "fem_average_average_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "fem_average_average_upper.png",
@@ -754,9 +1190,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "fem_average_tall_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "fem_average_tall_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "fem_average_tall_upper.png",
@@ -805,9 +1272,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "fem_heavy_short_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "fem_heavy_short_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "fem_heavy_short_upper.png",
@@ -856,9 +1354,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "fem_heavy_average_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "fem_heavy_average_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "fem_heavy_average_upper.png",
@@ -907,9 +1436,40 @@
           "ponytail",
           "afro",
           "mask",
-          "bald_beard"
+          "bald_beard",
+          "flattop",
+          "dreads",
+          "bald",
+          "undercut",
+          "wild",
+          "bob"
         ],
-        "count": 8
+        "count": 14
+      },
+      "face": {
+        "file": "fem_heavy_tall_face.png",
+        "cells": [
+          "clean",
+          "stubble",
+          "moustache",
+          "goatee",
+          "chinstrap",
+          "beard",
+          "longbeard"
+        ],
+        "count": 7
+      },
+      "extra": {
+        "file": "fem_heavy_tall_extra.png",
+        "cells": [
+          "none",
+          "shades",
+          "glasses",
+          "eyepatch",
+          "headband",
+          "warpaint"
+        ],
+        "count": 6
       },
       "upper": {
         "file": "fem_heavy_tall_upper.png",
