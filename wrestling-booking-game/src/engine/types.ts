@@ -504,6 +504,14 @@ export interface Wrestler {
   /** Set at generation for a second-generation wrestler, never afterwards. */
   lineage?: Lineage;
   /**
+   * Companies they will not work for again, whatever the offer.
+   *
+   * Written at the moment the wrong is done — see the release request in the
+   * store, which is the one place the game lets a booker keep somebody who
+   * has asked to leave. A grudge is not a mood; it does not decay.
+   */
+  grudges?: Id[];
+  /**
    * Weeks they are barred from signing anywhere, from a negotiated release.
    *
    * The thing the player trades for when somebody asks out: he walks away
@@ -2731,6 +2739,51 @@ export interface WorldSettings {
   /** How far above a company's own rating somebody has to be to interest them. */
   biddingWantsThreshold: number;
 
+  // What the business reckons somebody is worth — the anchor every bid in the
+  // room starts from, so companies differ by strategy rather than by luck.
+  /** Age past which a hidden ceiling is worth nothing: no time left to reach it. */
+  biddingCeilingAge: number;
+  /** Floor and range of the market multiple applied to the asking rate. */
+  biddingValueFloor: number;
+  biddingValueRange: number;
+  /** How much a wrecked body knocks off the price. */
+  biddingDamageDiscount: number;
+  /** How far form moves it, either way. */
+  biddingMomentumSwing: number;
+
+  // Who somebody will and will not work for.
+  /** Bad blood at or above this strength has no price. */
+  biddingRefusalStrength: number;
+  /** How far allies and enemies already on a roster move the price. */
+  biddingWarmthPull: number;
+  biddingChillPush: number;
+  /** Below this, the room is neither warm nor cold and the price is the price. */
+  biddingStanceDeadzone: number;
+  biddingDiscountMax: number;
+  biddingPremiumMax: number;
+  /** Score weight of "a friend works there" as the stated reason it was won. */
+  biddingWeightStanceHeadline: number;
+
+  // Sending the room away.
+  /** Offers below this share of what they think they are worth are insulting. */
+  biddingWalkAwayShare: number;
+  /** How much of their own future a wrestler counts when valuing themselves. */
+  biddingSelfRegardFuture: number;
+  /** Rounds of offers. Only a wrestler can call for another, and only so often. */
+  biddingMaxRounds: number;
+
+  // What a booker will risk. Nobody bids with money they do not have.
+  biddingRunwayWeeksMin: number;
+  biddingRunwayWeeksRange: number;
+  /** Share of somebody's value a company must be able to cover to enter at all. */
+  biddingEntryShare: number;
+
+  // How somebody reads the length of a deal.
+  /** How much having little to lose pulls them toward a long, safe contract. */
+  biddingTermSecurityPull: number;
+  /** ...and how much a big opinion of themselves pushes them the other way. */
+  biddingTermEgoPush: number;
+
   // How keen a rival is, 0-1, and what that keenness buys.
   biddingKeennessBase: number;
   biddingKeennessLift: number;
@@ -2738,11 +2791,6 @@ export interface WorldSettings {
   biddingKeennessYouth: number;
   /** Age either side of which somebody counts as young or old, throughout. */
   biddingYouthPivot: number;
-  /** How far over the asking rate a fully keen rival will stretch. */
-  biddingRivalStretch: number;
-  /** Bid noise, so two identical companies do not bid identically. */
-  biddingRivalNerve: number;
-  biddingRivalBonusChance: number;
   biddingRivalMaxClauses: number;
   /** A signing bonus is quoted as this many weeks of rate. */
   biddingBonusWeeks: number;
@@ -2758,8 +2806,6 @@ export interface WorldSettings {
   biddingWeightClauses: number;
   biddingWeightStanding: number;
   biddingWeightLoyalty: number;
-  biddingWeightAlly: number;
-  biddingWeightEnemy: number;
   biddingWeightHome: number;
   /** Money stops helping past this multiple of the asking rate. */
   biddingMoneyCeiling: number;

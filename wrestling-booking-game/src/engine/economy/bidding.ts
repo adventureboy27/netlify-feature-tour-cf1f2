@@ -43,10 +43,11 @@
 // than they do.
 
 import type { Rng } from '../rng';
-import { chance, clamp, gaussian, randInt } from '../rng';
+import { chance, clamp, gaussian } from '../rng';
 import type { Clause, Id, Promotion, Relationship, Wrestler, WorldSettings } from '../types';
 import { askingRate } from './contracts';
 import { CLAUSE_LADDER, clauseLabel } from '../career/ego';
+import { temperamentOf, type Temperament } from '../../data/biddingTemperaments';
 import { isAlly, isEnemy, otherParty } from '../career/relationships';
 
 // ---------------------------------------------------------------------------
@@ -87,6 +88,10 @@ export interface BiddingWar {
    * told you are not bidding.
    */
   playerIn: boolean | null;
+  /** Which round of offers this is. Only a wrestler can call for another. */
+  round: number;
+  /** Why they sent the room away, when they did. Shown on the second ask. */
+  reBidReason: string | null;
   /** Every rival that is in. Their bids are not visible until it settles. */
   rivalIds: Id[];
   bids: Bid[];
@@ -107,6 +112,11 @@ export interface BiddingResult {
   bid: Bid;
   /** Every bid, revealed. The player only ever sees these afterwards. */
   allBids: Bid[];
+  /**
+   * Offers that were never in it, and why. A refusal is not a low score — it
+   * is an envelope that was never opened, and the result screen says so.
+   */
+  vetoed: { bid: Bid; reason: string }[];
   /** What actually swung it, in words. Never a number and never a percentage. */
   swungIt: string;
 }
@@ -147,7 +157,6 @@ export function interestedIn(
   ctx: { weeklyPayroll: (promotionId: Id) => number; banned: (promotionId: Id) => boolean },
   settings: WorldSettings,
 ): Promotion[] {
-  const rate = askingRate(wrestler, settings);
   return promotions.filter((promotion) => {
     if (!canBid(promotion, ctx.banned(promotion.id))) return false;
     if (promotion.rosterIds.includes(wrestler.id)) {
@@ -155,12 +164,165 @@ export function interestedIn(
       // him, and they get to fight for him like everybody else.
       return true;
     }
-    const headroom = promotion.bankBalance - ctx.weeklyPayroll(promotion.id) * settings.biddingHeadroomWeeks;
-    if (headroom < rate * settings.biddingHeadroomWeeks) return false;
+    // Measured with the same runway maths the bid itself uses, so a company
+    // that turns up cannot then bid the floor. Two different affordability
+    // checks put ghost bidders in the room: broke companies entered on the
+    // looser test and then offered the statutory minimum, which is not an
+    // offer, it is noise on the result screen.
+    const mood = temperamentOf(promotion.ownerPersonality);
+    const ceiling = bidCeiling(promotion, ctx.weeklyPayroll(promotion.id), mood, settings);
+    if (ceiling < marketValue(wrestler, mood.future, settings) * settings.biddingEntryShare) return false;
     // And they have to actually want him: somebody who would not improve the
     // top of their card is not worth an auction to them.
     return wrestler.popularity >= promotion.rating * settings.biddingWantsThreshold;
   });
+}
+
+// ---------------------------------------------------------------------------
+// What somebody is worth
+
+/**
+ * The number the business roughly agrees on.
+ *
+ * `askingRate` is what the *wrestler* wants. This is what a buyer thinks they
+ * are buying, and the two are not the same person's opinion. Every bid in the
+ * room anchors here, which is what stops the auction being a number with a
+ * wobble on it: companies differ by how far over this they will go and by how
+ * much of it they pay for the future rather than the present, not by luck.
+ *
+ * `future` is the buyer's own appetite for potential — a company building for
+ * five years pays for a twenty-two-year-old's ceiling, a win-now company
+ * barely counts it.
+ */
+export function marketValue(wrestler: Wrestler, future: number, settings: WorldSettings): number {
+  const s = settings;
+  const ask = askingRate(wrestler, s);
+
+  // What they are tonight: how over they are, and whether they are trending.
+  const present = clamp(wrestler.popularity / 100, 0, 1);
+  // What they might be: the hidden ceiling, worth less the older they get,
+  // and worth nothing at all once there is no time left to reach it.
+  const runway = clamp((s.biddingCeilingAge - wrestler.age) / (s.biddingCeilingAge - 18), 0, 1);
+  const potential = clamp(wrestler.talent / 100, 0, 1) * runway;
+
+  const blend = present * (1 - future) + potential * future;
+  // Around the asking rate for somebody exactly average on that blend, and up
+  // or down from there. A wreck of a body is worth less than the same career
+  // on a fit one, whatever the record says.
+  const condition = 1 - (1 - wrestler.health / 100) * s.biddingDamageDiscount;
+  const form = 1 + ((wrestler.momentum - 50) / 100) * s.biddingMomentumSwing;
+
+  const value = ask * (s.biddingValueFloor + blend * s.biddingValueRange) * condition * form;
+  return Math.max(s.contractBaseWeeklyRate, Math.round(value / 25) * 25);
+}
+
+// ---------------------------------------------------------------------------
+// Who somebody will and will not work for
+
+export type Stance =
+  /** They will not sign there at any price. */
+  | 'refuses'
+  /** They will, but it costs more. */
+  | 'premium'
+  | 'neutral'
+  /** They will take less to be there. */
+  | 'discount';
+
+export interface StanceRead {
+  stance: Stance;
+  /** What the same money is worth to them there. Below 1 is a discount. */
+  multiplier: number;
+  /** Said plainly, for the offer sheet and the result. Null when neutral. */
+  reason: string | null;
+}
+
+const WARMTH: Partial<Record<Relationship['type'], string>> = {
+  married: 'their husband or wife works there',
+  dating: 'their partner works there',
+  friend: 'a friend works there',
+  sibling: 'their brother or sister works there',
+  parentChild: 'family works there',
+  mentor: 'the person who trained them works there',
+  protege: 'somebody they trained works there',
+};
+
+const COLD: Partial<Record<Relationship['type'], string>> = {
+  enemy: 'they cannot stand',
+  divorced: 'they used to be married to',
+  exPartner: 'they used to be with',
+};
+
+/**
+ * What the people already in that locker room do to the price.
+ *
+ * This replaced a flat score bonus for allies and enemies, which was the wrong
+ * shape: somebody does not think "that company is worth four more points
+ * because my friend is there", they think "I will take less to work with him"
+ * or "I am not going anywhere near her". Money is the language, and at the far
+ * end there is no number at all.
+ */
+export function stanceToward(
+  wrestler: Wrestler,
+  promotionId: Id,
+  roster: readonly Wrestler[],
+  relationships: readonly Relationship[],
+  settings: WorldSettings,
+): StanceRead {
+  const s = settings;
+  // A company that has already done them wrong does not get a second look.
+  if ((wrestler.grudges ?? []).includes(promotionId)) {
+    return {
+      stance: 'refuses',
+      multiplier: Infinity,
+      reason: 'they will not work for that office again',
+    };
+  }
+
+  const inTheRoom = new Map(roster.map((w) => [w.id, w]));
+  let warmth = 0;
+  let chill = 0;
+  let hardNo: string | null = null;
+  let bestWarm: string | null = null;
+  let worstCold: string | null = null;
+
+  for (const bond of relationships) {
+    if (bond.aId !== wrestler.id && bond.bId !== wrestler.id) continue;
+    const other = inTheRoom.get(otherParty(bond, wrestler.id));
+    if (!other) continue;
+
+    if (isEnemy(bond)) {
+      const how = COLD[bond.type] ?? 'they cannot stand';
+      // Past a certain heat there is no price. This is the line the whole
+      // feature turns on: an offer can be dead before it is opened.
+      if (bond.strength >= s.biddingRefusalStrength) {
+        hardNo = `they will not be on the same show as ${other.name}, somebody ${how}`;
+      }
+      chill += bond.strength / 100;
+      if (!worstCold) worstCold = `${other.name} is somebody ${how}`;
+    } else if (isAlly(bond)) {
+      warmth += bond.strength / 100;
+      if (!bestWarm) bestWarm = WARMTH[bond.type] ?? 'a friend works there';
+    }
+  }
+
+  if (hardNo) return { stance: 'refuses', multiplier: Infinity, reason: hardNo };
+
+  const net = warmth * s.biddingWarmthPull - chill * s.biddingChillPush;
+  if (net >= s.biddingStanceDeadzone) {
+    return {
+      stance: 'discount',
+      multiplier: Math.max(1 - s.biddingDiscountMax, 1 - net),
+      reason: bestWarm,
+    };
+  }
+  if (net <= -s.biddingStanceDeadzone) {
+    return {
+      stance: 'premium',
+      multiplier: Math.min(1 + s.biddingPremiumMax, 1 - net),
+      reason: worstCold ? `${worstCold} — it will cost more to get them there` : null,
+    };
+  }
+  return { stance: 'neutral', multiplier: 1, reason: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -169,29 +331,70 @@ export function interestedIn(
 /**
  * How badly a company wants this person, 0-1.
  *
- * Drives everything about their bid: the rate, the bonus, and how many
- * sweeteners they are willing to hand over.
+ * Separate from what they can afford and from how they negotiate — this is
+ * appetite alone. It scales the stretch their temperament allows, so a
+ * penny-pincher who badly wants somebody still bids like a penny-pincher.
  */
 export function keenness(wrestler: Wrestler, promotion: Promotion, settings: WorldSettings): number {
   const s = settings;
+  const mood = temperamentOf(promotion.ownerPersonality);
   // A star is worth more to a company he would headline than to one where he
   // would be fourth from the top.
   const lift = clamp((wrestler.popularity - promotion.rating) / 100, -0.5, 0.5);
   const upside = clamp((wrestler.talent - 50) / 100, -0.5, 0.5);
   const youth = clamp((s.biddingYouthPivot - wrestler.age) / 40, -0.4, 0.4);
+
+  // Appetite is not only a matter of degree — a win-now company and a company
+  // building for five years want *different people*. Valuing a prospect
+  // higher was not enough on its own: the star-chaser's stretch swallowed the
+  // builder's better valuation and won auctions for prospects it did not
+  // even want. So the two halves of the read are weighted by temperament.
+  const nowWeight = (1 - mood.future) * 2;
+  const laterWeight = mood.future * 2;
   return clamp(
-    s.biddingKeennessBase + lift * s.biddingKeennessLift + upside * s.biddingKeennessUpside + youth * s.biddingKeennessYouth,
+    s.biddingKeennessBase +
+      lift * s.biddingKeennessLift * nowWeight +
+      upside * s.biddingKeennessUpside * laterWeight +
+      youth * s.biddingKeennessYouth,
     0.05,
     1,
   );
 }
 
 /**
+ * The most a company can put on the table without the person signing the
+ * cheques losing their nerve — or their job.
+ *
+ * Nobody in this business bids with money they do not have. Whatever the
+ * appetite, a promotion keeps a runway it will not touch, and a cautious one
+ * keeps a longer one. The whole ceiling is expressed as a weekly rate: what
+ * is left after the runway, spread over the term they are committing to.
+ *
+ * This is what stops the auction spiralling. Without it a keen company would
+ * bid whatever its keenness told it to and be bankrupt by spring, which is
+ * neither realistic nor any fun to lose to.
+ */
+export function bidCeiling(
+  promotion: Promotion,
+  weeklyPayroll: number,
+  temperament: Temperament,
+  settings: WorldSettings,
+): number {
+  const s = settings;
+  // Weeks of trading the booker refuses to gamble. A prudent one wants half a
+  // year in the bank before they will talk about anybody.
+  const runwayWeeks = s.biddingRunwayWeeksMin + temperament.prudence * s.biddingRunwayWeeksRange;
+  const committed = weeklyPayroll * runwayWeeks;
+  const spare = promotion.bankBalance - committed;
+  if (spare <= 0) return 0;
+  return spare / runwayWeeks;
+}
+
+/**
  * A rival's one offer.
  *
- * They bid what they want him at, clipped to what they can actually stand.
- * The clauses come off the same ladder the player picks from — a rival that
- * really wants somebody will hand over creative control just as readily.
+ * Anchored on what the business reckons somebody is worth, shaped by the kind
+ * of company it is, and clipped by what the booker can defend to the owner.
  */
 export function rivalBid(
   rng: Rng,
@@ -199,43 +402,64 @@ export function rivalBid(
   promotion: Promotion,
   weeklyPayroll: number,
   settings: WorldSettings,
-): Bid {
+): Bid | null {
   const s = settings;
-  const base = askingRate(wrestler, s);
+  const mood = temperamentOf(promotion.ownerPersonality);
+  // Each company values them their own way: a builder pays for the ceiling, a
+  // win-now company pays for the name on the poster.
+  const value = marketValue(wrestler, mood.future, s);
   const want = keenness(wrestler, promotion, s);
 
-  // A little noise so two companies in identical shape do not bid identically,
-  // and so the player cannot solve the auction by arithmetic.
-  const nerve = 1 + gaussian(rng, 0, s.biddingRivalNerve);
-  const wanted = base * (1 + want * s.biddingRivalStretch) * nerve;
+  // Appetite scales the stretch their temperament allows, so a keen
+  // penny-pincher still bids like a penny-pincher.
+  const nerve = 1 + gaussian(rng, 0, mood.nerve);
+  const wanted = value * (1 + (mood.stretch - 1) * want) * nerve;
 
-  // What they can stand: the payroll headroom, spread over the term.
-  const ceiling = Math.max(base * 0.5, (promotion.bankBalance - weeklyPayroll * s.biddingHeadroomWeeks) / s.biddingHeadroomWeeks);
-  const weeklyRate = Math.max(s.contractBaseWeeklyRate, Math.round(Math.min(wanted, ceiling) / 25) * 25);
+  const ceiling = bidCeiling(promotion, weeklyPayroll, mood, s);
+  // A company that cannot cover the entry price does not put in a token
+  // offer, it stays home. Floored at the statutory minimum instead, a
+  // promotion that had gone broke between the room opening and the offers
+  // being read still turned up on the result screen bidding sixty dollars a
+  // week — which is not an offer, it is noise.
+  if (ceiling < value * s.biddingEntryShare) return null;
 
-  const signingBonus =
-    chance(rng, want * s.biddingRivalBonusChance)
-      ? Math.round((weeklyRate * s.biddingBonusWeeks * want) / 100) * 100
-      : 0;
+  const weeklyRate = Math.max(
+    s.contractBaseWeeklyRate,
+    Math.round(Math.min(wanted, ceiling) / 25) * 25,
+  );
 
-  const weeks = randInt(rng, s.biddingMinWeeks, s.biddingMaxWeeks);
+  // Up-front money is a different appetite from weekly money, and it is the
+  // showman's whole move.
+  const signingBonus = chance(rng, want * mood.bonusAppetite)
+    ? Math.round((weeklyRate * s.biddingBonusWeeks * want * mood.bonusAppetite) / 100) * 100
+    : 0;
 
-  // Sweeteners: the ones this person qualifies for, as many as their keenness
-  // buys. A desperate company empties the drawer.
+  // Term follows the strategy: lock somebody in cheap, or keep it short and
+  // keep the flexibility.
+  const span = s.biddingMaxWeeks - s.biddingMinWeeks;
+  const weeks =
+    s.biddingMinWeeks +
+    Math.round(clamp(mood.termBias + gaussian(rng, 0, 0.12), 0, 1) * span / 13) * 13;
+
+  // Sweeteners: the ones this person qualifies for, as many as appetite and
+  // temperament between them buy. Squared, so generosity is the exception
+  // rather than the default — linear, a typical rival handed over three
+  // clauses on almost every bid, which saturated the sweetener axis for the
+  // whole field and left the player no way to win with money at all.
   const affordable = CLAUSE_LADDER.filter((entry) => wrestler.ego >= entry.egoRequired);
-  // Squared, so generosity is the exception rather than the default. Linear in
-  // keenness, a typical rival handed over three clauses on almost every bid,
-  // which saturated the sweetener axis for the whole field and left the player
-  // no way to win with money — the auction had exactly one correct answer.
-  const count = Math.min(affordable.length, Math.round(want * want * s.biddingRivalMaxClauses));
-  const clauses = affordable.slice(-count).map((entry) => entry.clause);
+  const appetite = want * mood.generosity;
+  const count = Math.min(affordable.length, Math.round(appetite * appetite * s.biddingRivalMaxClauses));
+  // `slice(-0)` is `slice(0)` — the whole array. Left as a bare slice, the one
+  // company that had decided to offer nothing handed over every clause on the
+  // ladder, so the tightest owner in the business was the most generous.
+  const clauses = count <= 0 ? [] : affordable.slice(-count).map((entry) => entry.clause);
 
   return {
     promotionId: promotion.id,
     promotionName: promotion.name,
     weeklyRate,
     signingBonus,
-    weeks,
+    weeks: Math.min(weeks, s.biddingMaxWeeks),
     clauses,
   };
 }
@@ -285,6 +509,8 @@ export interface BidScore {
   score: number;
   /** The single biggest reason this offer scored where it did. */
   headline: string;
+  /** Who is already in that building, and what it does to the price. */
+  stance: StanceRead;
 }
 
 export interface ChoiceContext {
@@ -309,7 +535,12 @@ export function scoreBid(
   settings: WorldSettings,
 ): BidScore {
   const s = settings;
-  const base = Math.max(1, askingRate(wrestler, s));
+  // What they want, adjusted for who is already in that building. A friend
+  // there means the same money goes further; somebody they cannot stand means
+  // it does not go far enough. See stanceToward.
+  const roster = ctx.rosterOf(bid.promotionId);
+  const stance = stanceToward(wrestler, bid.promotionId, roster, ctx.relationships, s);
+  const base = Math.max(1, askingRate(wrestler, s) * (stance.stance === 'refuses' ? 1 : stance.multiplier));
   const reasons: { text: string; weight: number }[] = [];
 
   // --- the money ----------------------------------------------------------
@@ -333,7 +564,20 @@ export function scoreBid(
   // --- the term -----------------------------------------------------------
   // Security or a cage, depending on who is asking. A twenty-four-year-old
   // who believes he will be worth double in a year does not want five years.
-  const wantsLong = clamp(0.5 + (wrestler.age - s.biddingYouthPivot) / 30 - (wrestler.ego / 100) * 0.5, 0, 1);
+  // Security is about how much you have to lose, not about being old. The
+  // first version read age alone, which had a twenty-one-year-old with no
+  // money and no name turning down the long guaranteed deal that would have
+  // changed his life — and made every company that builds slowly lose the
+  // prospects it bid highest on. What actually wants a short deal is a hot
+  // commodity with an opinion of itself.
+  const wantsLong = clamp(
+    0.5 +
+      (wrestler.age - s.biddingYouthPivot) / 25 +
+      (1 - wrestler.popularity / 100) * s.biddingTermSecurityPull -
+      (wrestler.ego / 100) * s.biddingTermEgoPush,
+    0,
+    1,
+  );
   const termRatio = clamp((bid.weeks - s.biddingMinWeeks) / Math.max(1, s.biddingMaxWeeks - s.biddingMinWeeks), 0, 1);
   const term = (wantsLong * termRatio + (1 - wantsLong) * (1 - termRatio)) * s.biddingWeightTerm;
   reasons.push({ text: wantsLong > 0.5 ? 'the security of the term' : 'a short deal', weight: term });
@@ -362,42 +606,60 @@ export function scoreBid(
   if (loyalty > 0) reasons.push({ text: 'not wanting to move', weight: loyalty });
 
   // --- the people ---------------------------------------------------------
-  const roster = ctx.rosterOf(bid.promotionId);
-  let people = 0;
-  for (const bond of ctx.relationships) {
-    if (bond.aId !== wrestler.id && bond.bId !== wrestler.id) continue;
-    const otherId = otherParty(bond, wrestler.id);
-    if (!roster.some((w) => w.id === otherId)) continue;
-    if (isAlly(bond)) people += s.biddingWeightAlly;
-    else if (isEnemy(bond)) people -= s.biddingWeightEnemy;
+  // Priced into `base` above rather than scored here, because that is how it
+  // actually works: somebody does not think "that company is worth four more
+  // points because my friend is there", they think "I will take less to work
+  // with him". The reason still gets to be the headline when it is what made
+  // the difference.
+  if (stance.reason) {
+    reasons.push({
+      text: stance.reason,
+      weight: stance.stance === 'discount' ? s.biddingWeightStanceHeadline : 0,
+    });
   }
-  people = clamp(people, -s.biddingWeightEnemy * 2, s.biddingWeightAlly * 2);
-  if (people > 0) reasons.push({ text: 'the people already there', weight: people });
 
   // --- the map ------------------------------------------------------------
   const home =
     promotion && promotion.ownedTerritoryIds.includes(wrestler.homeTerritoryId) ? s.biddingWeightHome : 0;
   if (home > 0) reasons.push({ text: 'working close to home', weight: home });
 
-  const score = money + bonus + term + clauses + standing + loyalty + people + home;
+  const score = money + bonus + term + clauses + standing + loyalty + home;
   const headline = reasons.sort((a, b) => b.weight - a.weight)[0]?.text ?? 'the money';
-  return { bid, score, headline };
+  return { bid, score, headline, stance };
 }
 
+export type BiddingOutcome =
+  /** Somebody won it. */
+  | { kind: 'signed'; result: BiddingResult }
+  /**
+   * Nothing on the table was worth signing, and they have told the room to go
+   * again. Everybody who is still interested gets one more offer — including
+   * whoever they refused to work for, who is still refused.
+   */
+  | { kind: 'reBid'; reason: string; vetoed: readonly Bid[] };
+
 /**
- * The decision. One shot — every bid is scored once and the best one wins.
+ * The decision.
+ *
+ * Offers from companies they will not work for are thrown out before anything
+ * is scored — no amount of money opens that envelope. What is left is scored
+ * once, and if the best of it is still below what they think they are worth,
+ * they send the room away and ask for better. That is the one thing that can
+ * extend an auction past a single round, and it is the wrestler's call, never
+ * a bidder's: nobody gets to see a rival's number and go again.
  *
  * The gut-feeling term is small and seeded. It exists so that two nearly
  * identical offers do not always resolve the same way, not so that a bad offer
  * can beat a good one.
  */
-export function chooseBid(
+export function decideBids(
   rng: Rng,
   wrestler: Wrestler,
   bids: readonly Bid[],
   ctx: ChoiceContext,
   settings: WorldSettings,
-): BiddingResult | null {
+  round = 1,
+): BiddingOutcome | null {
   if (bids.length === 0) return null;
 
   const scored = bids
@@ -407,21 +669,53 @@ export function chooseBid(
     })
     .sort((a, b) => b.score - a.score);
 
-  const winner = scored[0]!;
-  const runnerUp = scored[1];
-  // "What swung it" is the winning offer's strongest term, unless the two were
-  // close enough that it was really about one specific thing being better.
+  const vetoed = scored.filter((entry) => entry.stance.stance === 'refuses');
+  const live = scored.filter((entry) => entry.stance.stance !== 'refuses');
+
+  if (live.length === 0) {
+    // Everybody in the room is somewhere they will not go. Ask again; if the
+    // rounds run out, the auction produces nobody and they stay unsigned.
+    if (round >= settings.biddingMaxRounds) return null;
+    return {
+      kind: 'reBid',
+      reason: vetoed[0]?.stance.reason
+        ? `${wrestler.name} will not sign any of these — ${vetoed[0]!.stance.reason}.`
+        : `${wrestler.name} turned the room down flat.`,
+      vetoed: vetoed.map((entry) => entry.bid),
+    };
+  }
+
+  const winner = live[0]!;
+
+  // Is the best of it actually worth signing? Measured against the money
+  // rather than the whole sheet, because "I am not being paid what I am
+  // worth" is the thing somebody sends a room away over — not the term.
+  const want = marketValue(wrestler, settings.biddingSelfRegardFuture, settings) * winner.stance.multiplier;
+  const insulting = winner.bid.weeklyRate < want * settings.biddingWalkAwayShare;
+  if (insulting && round < settings.biddingMaxRounds) {
+    return {
+      kind: 'reBid',
+      reason: `${wrestler.name} does not think anybody in that room has taken them seriously. They have asked everyone to go again.`,
+      vetoed: vetoed.map((entry) => entry.bid),
+    };
+  }
+
+  const runnerUp = live[1];
   const swungIt =
     runnerUp && winner.score - runnerUp.score < settings.biddingCloseCall
       ? `It came down to ${winner.headline}.`
       : `${winner.bid.promotionName} won it on ${winner.headline}.`;
 
   return {
-    winningPromotionId: winner.bid.promotionId,
-    winningPromotionName: winner.bid.promotionName,
-    bid: winner.bid,
-    allBids: scored.map((s) => s.bid),
-    swungIt,
+    kind: 'signed',
+    result: {
+      winningPromotionId: winner.bid.promotionId,
+      winningPromotionName: winner.bid.promotionName,
+      bid: winner.bid,
+      allBids: scored.map((entry) => entry.bid),
+      vetoed: vetoed.map((entry) => ({ bid: entry.bid, reason: entry.stance.reason ?? 'they would not go there' })),
+      swungIt,
+    },
   };
 }
 

@@ -4,17 +4,21 @@ import { defaultWorldSettings } from '../world/settings';
 import { generateWrestler } from '../generate/wrestler';
 import type { Bid, ChoiceContext } from './bidding';
 import {
-  chooseBid,
+  bidCeiling,
+  decideBids,
   clauseAppeal,
   guaranteeFor,
   interestedIn,
   invitationLine,
   keenness,
   resultLine,
+  marketValue,
   rivalBid,
   scoreBid,
+  stanceToward,
   worthAnAuction,
 } from './bidding';
+import { temperamentOf } from '../../data/biddingTemperaments';
 import { askingRate } from './contracts';
 import type { Promotion, Relationship, Wrestler } from '../types';
 
@@ -56,6 +60,19 @@ function company(id: string, over: Partial<Promotion> = {}): Promotion {
 }
 
 const NOBODY_BANNED = { weeklyPayroll: () => 20_000, banned: () => false };
+
+/** A rival's offer, asserted to exist. Most tests are about a company that bids. */
+function offerFrom(seed: string, w: Wrestler, c: Promotion, payroll = 20_000): Bid {
+  const offer = rivalBid(rngFromSeed(seed), w, c, payroll, settings);
+  expect(offer, `${c.id} did not bid at all`).not.toBeNull();
+  return offer!;
+}
+
+/** The winner, or null if the room was sent away or refused outright. */
+function settle(seed: string, w: Wrestler, bids: Bid[], c = choiceCtx(), round = 1) {
+  const outcome = decideBids(rngFromSeed(seed), w, bids, c, settings, round);
+  return outcome?.kind === 'signed' ? outcome.result : null;
+}
 
 function choiceCtx(over: Partial<ChoiceContext> = {}): ChoiceContext {
   return {
@@ -148,7 +165,7 @@ describe('what a rival offers', () => {
 
   it('bids above the asking rate for somebody it wants', () => {
     const subject = star();
-    const offer = rivalBid(rngFromSeed('bid'), subject, company('a'), 20_000, settings);
+    const offer = offerFrom('bid', subject, company('a'));
     expect(offer.weeklyRate).toBeGreaterThan(askingRate(subject, settings));
     expect(offer.promotionId).toBe('a');
     expect(offer.weeks).toBeGreaterThanOrEqual(settings.biddingMinWeeks);
@@ -156,25 +173,228 @@ describe('what a rival offers', () => {
   });
 
   it('will not bid money it does not have', () => {
-    const tight = company('tight', { bankBalance: 200_000 });
-    const offer = rivalBid(rngFromSeed('tight'), star(), tight, 6_000, settings);
-    const ceiling = (tight.bankBalance - 6_000 * settings.biddingHeadroomWeeks) / settings.biddingHeadroomWeeks;
-    expect(offer.weeklyRate).toBeLessThanOrEqual(Math.max(ceiling, askingRate(star(), settings) * 0.5) + 25);
+    const tight = company('tight', { bankBalance: 900_000 });
+    const offer = offerFrom('tight', star(), tight, 18_000);
+    const ceiling = bidCeiling(tight, 18_000, temperamentOf(tight.ownerPersonality), settings);
+    expect(offer.weeklyRate).toBeLessThanOrEqual(ceiling + 25);
+  });
+
+  it('stays home rather than putting in a token offer it cannot back', () => {
+    // Floored at the statutory minimum instead, a company that had gone broke
+    // turned up on the result screen bidding sixty dollars a week.
+    const broke = company('broke', { bankBalance: 300_000 });
+    expect(rivalBid(rngFromSeed('broke'), star(), broke, 14_000, settings)).toBeNull();
   });
 
   it('does not all bid the same thing', () => {
     const rates = new Set<number>();
     for (let i = 0; i < 30; i++) {
-      rates.add(rivalBid(rngFromSeed(`n-${i}`), star(), company('a'), 20_000, settings).weeklyRate);
+      rates.add(offerFrom(`n-${i}`, star(), company('a')).weeklyRate);
     }
     expect(rates.size).toBeGreaterThan(5);
   });
 
   it('only offers clauses somebody has the ego to have asked for', () => {
     const humble = star({ ego: 10 });
-    const offer = rivalBid(rngFromSeed('humble'), humble, company('a'), 20_000, settings);
+    const offer = offerFrom('humble', humble, company('a'));
     expect(offer.clauses).not.toContain('creativeControl');
     expect(offer.clauses).not.toContain('ironClad');
+  });
+});
+
+describe('what somebody is worth', () => {
+  it('prices a draw well above a body nobody has heard of', () => {
+    const draw = star({ popularity: 95 });
+    const hand = person('hand', { popularity: 25, talent: 40 });
+    expect(marketValue(draw, 0.4, settings)).toBeGreaterThan(marketValue(hand, 0.4, settings) * 2);
+  });
+
+  it('is a different number to a company buying the future than to one buying tonight', () => {
+    const prospect = person('prospect', { popularity: 35, talent: 95, age: 21 });
+    const winNow = marketValue(prospect, 0.15, settings);
+    const builder = marketValue(prospect, 0.9, settings);
+    expect(builder).toBeGreaterThan(winNow);
+
+    // And the same reading, reversed, on somebody with no future left.
+    const veteran = person('vet', { popularity: 80, talent: 95, age: 39 });
+    expect(marketValue(veteran, 0.9, settings)).toBeLessThan(marketValue(veteran, 0.15, settings));
+  });
+
+  it('knocks money off a body held together with tape', () => {
+    expect(marketValue(star({ health: 25 }), 0.4, settings)).toBeLessThan(
+      marketValue(star({ health: 100 }), 0.4, settings),
+    );
+  });
+});
+
+describe('what a booker will risk', () => {
+  it('never commits money the company does not have', () => {
+    const skint = company('skint', { bankBalance: 50_000 });
+    expect(bidCeiling(skint, 30_000, temperamentOf('starChaser'), settings)).toBe(0);
+  });
+
+  it('lets a cautious owner risk less than a reckless one, out of the same account', () => {
+    const same = company('same', { bankBalance: 2_000_000 });
+    const reckless = bidCeiling(same, 20_000, temperamentOf('starChaser'), settings);
+    const careful = bidCeiling(same, 20_000, temperamentOf('pennyPincher'), settings);
+    expect(reckless).toBeGreaterThan(careful);
+  });
+
+  it('holds every bid inside the ceiling, however badly they want somebody', () => {
+    // The thing that stops an auction spiralling. A company that bid its
+    // keenness rather than its means would be bankrupt by spring.
+    const tight = company('tight', { bankBalance: 700_000, ownerPersonality: 'starChaser' });
+    const ceiling = bidCeiling(tight, 12_000, temperamentOf('starChaser'), settings);
+    for (let i = 0; i < 50; i++) {
+      const offer = rivalBid(rngFromSeed(`cap-${i}`), star({ popularity: 99 }), tight, 12_000, settings);
+      if (offer) expect(offer.weeklyRate).toBeLessThanOrEqual(ceiling + 25);
+    }
+  });
+});
+
+describe('different companies bid differently', () => {
+  function medianRate(personality: Parameters<typeof temperamentOf>[0], w = star()): number {
+    const rates = Array.from({ length: 120 }, (_, i) =>
+      offerFrom(`${personality}-${i}`, w, company('x', { ownerPersonality: personality }), 15_000).weeklyRate,
+    ).sort((a, b) => a - b);
+    return rates[60]!;
+  }
+
+  it('makes a star-chaser pay well over what a penny-pincher will', () => {
+    expect(medianRate('starChaser')).toBeGreaterThan(medianRate('pennyPincher') * 1.4);
+  });
+
+  it('makes the builder pay for a prospect and the win-now company not', () => {
+    const prospect = person('kid', { popularity: 32, talent: 95, age: 21, ego: 20 });
+    expect(medianRate('traditionalist', prospect)).toBeGreaterThan(medianRate('starChaser', prospect));
+  });
+
+  it('makes a penny-pincher lock somebody in long and a star-chaser keep it short', () => {
+    const long = offerFrom('t1', star(), company('a', { ownerPersonality: 'pennyPincher' }), 15_000);
+    const short = offerFrom('t1', star(), company('b', { ownerPersonality: 'starChaser' }), 15_000);
+    expect(long.weeks).toBeGreaterThan(short.weeks);
+  });
+
+  it('makes the showman the one who pays up front', () => {
+    const bonusRate = (p: Parameters<typeof temperamentOf>[0]) =>
+      Array.from({ length: 120 }, (_, i) =>
+        offerFrom(`b-${p}-${i}`, star(), company('x', { ownerPersonality: p }), 15_000),
+      ).filter((b) => b.signingBonus > 0).length;
+    expect(bonusRate('showman')).toBeGreaterThan(bonusRate('pennyPincher') * 2);
+  });
+
+  it('makes the penny-pincher the one who keeps the clauses', () => {
+    const clauses = (p: Parameters<typeof temperamentOf>[0]) =>
+      Array.from({ length: 60 }, (_, i) =>
+        offerFrom(`c-${p}-${i}`, star({ ego: 90 }), company('x', { ownerPersonality: p }), 15_000),
+      ).reduce((n, b) => n + b.clauses.length, 0);
+    expect(clauses('starChaser')).toBeGreaterThan(clauses('pennyPincher'));
+  });
+});
+
+describe('who they will and will not work for', () => {
+  const foe = person('foe', { name: 'Delia Voss' });
+  const wife = person('wife', { name: 'Nell Ashcombe' });
+
+  function withRoster(bond: Relationship, roster: Wrestler[]) {
+    return stanceToward(star(), 'a', roster, [bond], settings);
+  }
+
+  it('refuses outright over bad blood, at any price', () => {
+    const hate: Relationship = { aId: star().id, bId: foe.id, type: 'enemy', strength: 90, history: [] };
+    const read = withRoster(hate, [foe]);
+    expect(read.stance).toBe('refuses');
+    expect(read.reason).toContain('Delia Voss');
+    expect(read.reason).toContain('same show');
+  });
+
+  it('will still go for more money over an ex', () => {
+    const over: Relationship = { aId: star().id, bId: foe.id, type: 'exPartner', strength: 50, history: [] };
+    const read = withRoster(over, [foe]);
+    expect(read.stance).toBe('premium');
+    expect(read.multiplier).toBeGreaterThan(1);
+  });
+
+  it('takes less to work with their wife', () => {
+    const married: Relationship = { aId: star().id, bId: wife.id, type: 'married', strength: 90, history: [] };
+    const read = withRoster(married, [wife]);
+    expect(read.stance).toBe('discount');
+    expect(read.multiplier).toBeLessThan(1);
+    expect(read.reason).toContain('husband or wife');
+  });
+
+  it('does not care about somebody who works somewhere else', () => {
+    const hate: Relationship = { aId: star().id, bId: foe.id, type: 'enemy', strength: 95, history: [] };
+    expect(withRoster(hate, []).stance).toBe('neutral');
+  });
+
+  it('will not work for an office that did them wrong, whoever is on the roster', () => {
+    const wronged = star({ grudges: ['a'] });
+    const read = stanceToward(wronged, 'a', [], [], settings);
+    expect(read.stance).toBe('refuses');
+    expect(read.reason).toContain('will not work for that office');
+    // And it is about that company, not about the business.
+    expect(stanceToward(wronged, 'b', [], [], settings).stance).toBe('neutral');
+  });
+});
+
+describe('sending the room away', () => {
+  it('throws out an offer they would never take, whatever the money', () => {
+    const subject = star();
+    const foe = person('foe', { name: 'Delia Voss' });
+    const hate: Relationship = { aId: subject.id, bId: foe.id, type: 'enemy', strength: 95, history: [] };
+    const ctx = choiceCtx({ relationships: [hate], rosterOf: (id) => (id === 'a' ? [foe] : []) });
+
+    const outcome = decideBids(
+      rngFromSeed('veto'),
+      subject,
+      [bid({ promotionId: 'a', weeklyRate: 50_000 }), bid({ promotionId: 'b', weeklyRate: 4_000 })],
+      ctx,
+      settings,
+    )!;
+    expect(outcome.kind).toBe('signed');
+    if (outcome.kind !== 'signed') return;
+    // The huge offer was never opened.
+    expect(outcome.result.winningPromotionId).toBe('b');
+    expect(outcome.result.vetoed).toHaveLength(1);
+    expect(outcome.result.vetoed[0]!.reason).toContain('Delia Voss');
+  });
+
+  it('asks everybody to go again when nothing on the table is serious', () => {
+    const subject = star();
+    const outcome = decideBids(
+      rngFromSeed('insult'),
+      subject,
+      [bid({ promotionId: 'a', weeklyRate: 200 }), bid({ promotionId: 'b', weeklyRate: 250 })],
+      choiceCtx(),
+      settings,
+      1,
+    )!;
+    expect(outcome.kind).toBe('reBid');
+    if (outcome.kind === 'reBid') expect(outcome.reason).toContain('go again');
+  });
+
+  it('takes the best of a bad lot rather than asking a third time', () => {
+    const subject = star();
+    const lowball = [bid({ promotionId: 'a', weeklyRate: 200 }), bid({ promotionId: 'b', weeklyRate: 250 })];
+    const outcome = decideBids(rngFromSeed('final'), subject, lowball, choiceCtx(), settings, settings.biddingMaxRounds)!;
+    expect(outcome.kind).toBe('signed');
+  });
+
+  it('signs nobody at all when every door is one they will not walk through', () => {
+    const subject = star();
+    const foe = person('foe');
+    const hate: Relationship = { aId: subject.id, bId: foe.id, type: 'enemy', strength: 95, history: [] };
+    const ctx = choiceCtx({ relationships: [hate], rosterOf: () => [foe] });
+    const lastRound = decideBids(
+      rngFromSeed('nowhere'),
+      subject,
+      [bid({ promotionId: 'a', weeklyRate: 50_000 })],
+      ctx,
+      settings,
+      settings.biddingMaxRounds,
+    );
+    expect(lastRound).toBeNull();
   });
 });
 
@@ -265,21 +485,22 @@ describe('how the wrestler chooses', () => {
     );
   });
 
-  it('counts the people already in the building', () => {
+  it('takes less to work with somebody they love', () => {
     const subject = star();
-    const friend = person('friend');
-    const ally: Relationship = { aId: subject.id, bId: friend.id, type: 'friend', strength: 80, history: [] };
-    const ctx = choiceCtx({ relationships: [ally], rosterOf: (id) => (id === 'a' ? [friend] : []) });
-    const withFriend = scoreBid(bid({ promotionId: 'a' }), subject, ctx, settings);
-    const without = scoreBid(bid({ promotionId: 'b' }), subject, ctx, settings);
-    expect(withFriend.score).toBeGreaterThan(without.score);
+    const wife = person('wife');
+    const married: Relationship = { aId: subject.id, bId: wife.id, type: 'married', strength: 85, history: [] };
+    const ctx = choiceCtx({ relationships: [married], rosterOf: (id) => (id === 'a' ? [wife] : []) });
+    // The same money, worth more there.
+    expect(scoreBid(bid({ promotionId: 'a' }), subject, ctx, settings).score).toBeGreaterThan(
+      scoreBid(bid({ promotionId: 'b' }), subject, ctx, settings).score,
+    );
   });
 
-  it('counts somebody they cannot stand, harder', () => {
+  it('charges more to work with an ex', () => {
     const subject = star();
-    const foe = person('foe');
-    const feud: Relationship = { aId: subject.id, bId: foe.id, type: 'enemy', strength: 90, history: [] };
-    const ctx = choiceCtx({ relationships: [feud], rosterOf: (id) => (id === 'a' ? [foe] : []) });
+    const ex = person('ex');
+    const over: Relationship = { aId: subject.id, bId: ex.id, type: 'exPartner', strength: 55, history: [] };
+    const ctx = choiceCtx({ relationships: [over], rosterOf: (id) => (id === 'a' ? [ex] : []) });
     expect(scoreBid(bid({ promotionId: 'a' }), subject, ctx, settings).score).toBeLessThan(
       scoreBid(bid({ promotionId: 'b' }), subject, ctx, settings).score,
     );
@@ -298,12 +519,11 @@ describe('how the wrestler chooses', () => {
   it('picks one, and says what swung it, without a number in sight', () => {
     const subject = star();
     const ctx = choiceCtx({ promotions: [company('a'), company('b')] });
-    const result = chooseBid(
-      rngFromSeed('choose'),
+    const result = settle(
+      'choose',
       subject,
       [bid({ promotionId: 'a', promotionName: 'A Wrestling', weeklyRate: 5000 }), bid({ promotionId: 'b', weeklyRate: 1500 })],
       ctx,
-      settings,
     )!;
     expect(result.winningPromotionId).toBe('a');
     expect(result.allBids).toHaveLength(2);
@@ -313,15 +533,15 @@ describe('how the wrestler chooses', () => {
   });
 
   it('has nothing to decide when nobody bid', () => {
-    expect(chooseBid(rngFromSeed('none'), star(), [], choiceCtx(), settings)).toBeNull();
+    expect(decideBids(rngFromSeed('none'), star(), [], choiceCtx(), settings)).toBeNull();
   });
 
   it('is one shot — the same offers against the same person settle the same way', () => {
     const subject = star();
     const ctx = choiceCtx();
     const offers = [bid({ promotionId: 'a', weeklyRate: 3000 }), bid({ promotionId: 'b', weeklyRate: 3100 })];
-    const first = chooseBid(rngFromSeed('same'), subject, offers, ctx, settings);
-    const second = chooseBid(rngFromSeed('same'), subject, offers, ctx, settings);
+    const first = settle('same', subject, offers, ctx);
+    const second = settle('same', subject, offers, ctx);
     expect(first).toEqual(second);
   });
 });
@@ -341,6 +561,8 @@ describe('saying it out loud', () => {
     reason: 'freeAgentStar' as const,
     openedWeek: 40,
     stage: 'settled' as const,
+    round: 1,
+    reBidReason: null,
     playerIn: true,
     rivalIds: ['a', 'b'],
     bids: [],
@@ -348,13 +570,10 @@ describe('saying it out loud', () => {
   };
 
   it('says who won and how big the field was', () => {
-    const result = chooseBid(
-      rngFromSeed('line'),
-      star(),
-      [bid({ promotionId: 'a', promotionName: 'A Wrestling' }), bid({ promotionId: 'b', promotionName: 'B Wrestling' })],
-      choiceCtx(),
-      settings,
-    )!;
+    const result = settle('line', star(), [
+      bid({ promotionId: 'a', promotionName: 'A Wrestling', weeklyRate: 9000 }),
+      bid({ promotionId: 'b', promotionName: 'B Wrestling', weeklyRate: 9000 }),
+    ])!;
     const line = resultLine(war, result);
     expect(line).toContain('Vance Mercer');
     expect(line).toContain(result.winningPromotionName);
@@ -362,7 +581,7 @@ describe('saying it out loud', () => {
   });
 
   it('tells a phenom story differently from a free-agency story', () => {
-    const result = chooseBid(rngFromSeed('l2'), star(), [bid()], choiceCtx(), settings)!;
+    const result = settle('l2', star(), [bid({ weeklyRate: 9000 })])!;
     expect(resultLine({ ...war, reason: 'phenom' }, result)).toContain('out of the school');
     expect(resultLine(war, result)).toContain('open market');
   });

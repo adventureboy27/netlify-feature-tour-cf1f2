@@ -23,7 +23,7 @@ import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { CLAUSE_LADDER, clauseLabel } from '../../engine/career/ego';
 import { askingRate } from '../../engine/economy/contracts';
-import { clauseAppeal } from '../../engine/economy/bidding';
+import { clauseAppeal, stanceToward } from '../../engine/economy/bidding';
 import { moodLabel, moodBand } from '../../engine/career/morale';
 import type { Clause } from '../../engine/types';
 import { PaperDoll } from '../paperdoll/PaperDoll';
@@ -106,6 +106,17 @@ export function BiddingWarPanel() {
           })}
         </div>
 
+        {result.vetoed.length > 0 && (
+          <div className="mt-2 flex flex-col gap-1">
+            <div className="text-[10px] uppercase tracking-wide text-rose-400">Never in it</div>
+            {result.vetoed.map((entry) => (
+              <div key={entry.bid.promotionId} className="rounded bg-rose-950/40 px-2 py-1 text-[11px] text-rose-200/80">
+                <span className="font-medium">{entry.bid.promotionName}</span> — {entry.reason}
+              </div>
+            ))}
+          </div>
+        )}
+
         <button
           type="button"
           onClick={dismiss}
@@ -121,6 +132,10 @@ export function BiddingWarPanel() {
 
   const bank = world.promotion.bankBalance;
   const weeklyOverAsk = base > 0 ? rate / base : 1;
+  const myRoster = world.promotion.rosterIds
+    .map((id) => world.wrestlers[id])
+    .filter((w): w is NonNullable<typeof w> => Boolean(w));
+  const stance = stanceToward(subject, world.promotion.id, myRoster, world.relationships, world.settings);
 
   // ---- the invitation -----------------------------------------------------
   if (war.stage === 'invited') {
@@ -130,8 +145,15 @@ export function BiddingWarPanel() {
         className="mb-3 rounded border border-amber-700 bg-amber-950/30 p-3"
       >
         <div className="text-[10px] uppercase tracking-wide text-amber-500">
-          {war.reason === 'phenom' ? 'The schools have turned out somebody' : 'A name has hit the open market'}
+          {war.round > 1
+            ? 'They have sent the room away'
+            : war.reason === 'phenom'
+              ? 'The schools have turned out somebody'
+              : 'A name has hit the open market'}
         </div>
+        {war.reBidReason && (
+          <p className="mt-1 rounded bg-rose-950/40 px-2 py-1 text-xs text-rose-200">{war.reBidReason}</p>
+        )}
         <div className="mt-2 flex gap-3">
           <div className="shrink-0">
             <PaperDoll
@@ -204,6 +226,24 @@ export function BiddingWarPanel() {
           <p className="mt-1 text-[11px] text-neutral-500">
             Their people are asking around {money(base)} a week.
           </p>
+          {/* Who is in your building, and what it does to your price. Not a
+              hint about the bid — a fact about the person, the kind any
+              booker would know from a phone call. */}
+          {stance.reason && (
+            <p
+              className={`mt-1 text-[11px] ${
+                stance.stance === 'refuses'
+                  ? 'font-medium text-rose-300'
+                  : stance.stance === 'premium'
+                    ? 'text-amber-300'
+                    : 'text-emerald-300'
+              }`}
+            >
+              {stance.stance === 'refuses' ? '✕ ' : stance.stance === 'discount' ? '✓ ' : '! '}
+              {stance.reason}
+              {stance.stance === 'discount' && ' — they would take less to be here'}
+            </p>
+          )}
         </div>
       </div>
 
@@ -317,6 +357,8 @@ export function BiddingWarPanel() {
         )}
       </div>
 
+      {/* Still submittable. §0 says the game never stops the player making a
+          bad decision — it just does not pretend the decision is a good one. */}
       <button
         type="button"
         data-testid="bid-submit"

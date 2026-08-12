@@ -798,10 +798,13 @@ describe('the owner', () => {
     // given the cash to still be trading when the third strike lands.
     useGameStore.getState().newGame({ ...freshSettings(), startingCash: 2_000_000 });
 
-    // Ignore everything the owner ever says.
-    for (let i = 0; i < 60 && !useGameStore.getState().world!.fired; i++) {
+    // Ignore everything the owner ever says — but not the forecast, which
+    // holds the week open until it is answered. Calling resolveWeek() bare
+    // here stalled the whole loop on the first storm and only passed because
+    // the seed happened not to produce one.
+    for (let i = 0; i < 70 && !useGameStore.getState().world!.fired; i++) {
       useGameStore.getState().autoFillCard();
-      useGameStore.getState().resolveWeek();
+      runWeek();
       useGameStore.getState().dismissMandateOutcome();
     }
     const world = useGameStore.getState().world!;

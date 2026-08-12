@@ -89,7 +89,12 @@ const SLOT_KEY = 'wbg.save.v1';
 // dereferences the pending war without a guard, and every weight the auction
 // scores offers on would read undefined, so the first star to reach the open
 // market would settle on NaN.
-const SCHEMA_VERSION = 18;
+//
+// Version 19 reshapes a BiddingWar (it gains a round counter and the reason a
+// wrestler sent the room away), adds Wrestler.grudges, and replaces the flat
+// ally/enemy bid weights with the market-value and relationship-pricing
+// settings. A version-18 save would price every offer against undefined.
+const SCHEMA_VERSION = 19;
 
 export interface SaveFile {
   schema: number;

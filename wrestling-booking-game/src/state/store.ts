@@ -127,7 +127,7 @@ import {
   biddingSettledLine,
 } from '../engine/world/wire';
 import {
-  chooseBid,
+  decideBids,
   interestedIn,
   invitationLine,
   resultLine,
@@ -1081,6 +1081,8 @@ function openBiddingWar(world: World, wrestler: Wrestler, reason: BiddingReason)
     reason,
     openedWeek: world.week,
     stage: 'invited',
+    round: 1,
+    reBidReason: null,
     // The player is only invited if they are one of the interested parties.
     // Being told about an auction you could never have entered is noise.
     playerIn: interested.some((p) => p.id === world.promotion.id) ? null : false,
@@ -1140,10 +1142,12 @@ function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid | null)
   for (const rivalId of war.rivalIds) {
     const rival = world.rivals.find((r) => r.id === rivalId);
     if (!rival || rival.closedWeek !== null) continue;
-    bids.push(rivalBid(rng, wrestler, rival, payrollOf(world, rival.id), world.settings));
+    // Null when they cannot afford to be in the room at all.
+    const offer = rivalBid(rng, wrestler, rival, payrollOf(world, rival.id), world.settings);
+    if (offer) bids.push(offer);
   }
 
-  const result = chooseBid(
+  const outcome = decideBids(
     rng,
     wrestler,
     bids,
@@ -1158,8 +1162,22 @@ function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid | null)
       currentPromotionId: wrestler.promotionId,
     },
     world.settings,
+    war.round,
   );
 
+  // Nobody in the room was worth signing. They say so, and everybody goes
+  // again — including the player, who gets a fresh invitation rather than an
+  // automatic re-entry, because staying out is still a choice they can make.
+  if (outcome?.kind === 'reBid') {
+    war.round += 1;
+    war.stage = 'invited';
+    war.playerIn = war.playerIn === false ? false : null;
+    war.reBidReason = outcome.reason;
+    world.weeklyNews.push(biddingOpenedLine(outcome.reason, world.week));
+    return;
+  }
+
+  const result = outcome?.kind === 'signed' ? outcome.result : null;
   if (result) {
     awardContract(world, wrestler, result.bid, result.winningPromotionId);
     war.bids = result.allBids;
@@ -1169,6 +1187,12 @@ function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid | null)
         war.playerIn ? resultLine(war, result) : watchedItLine(war, result),
         world.week,
       ),
+    );
+  } else {
+    // Every door in the room was one they would not walk through. They stay
+    // where they are — unsigned, and still in the business.
+    world.weeklyNews.push(
+      biddingSettledLine(`${war.wrestlerName} signed with nobody. Not one of those offers was worth taking.`, world.week),
     );
   }
 
@@ -5742,6 +5766,11 @@ export const useGameStore = create<GameStore>()(
           // He stays, and he is not happy about it. Saying no is often right
           // — he is still your wrestler and he still has to work.
           wrestler.morale = clamp(wrestler.morale - refusalCost(world.settings) * 2, 0, 100);
+          // And he remembers. Morale comes back; this does not. The next time
+          // he is a free man and this company is in the room, they are not in
+          // it — see economy/bidding.ts stanceToward.
+          if (!wrestler.grudges) wrestler.grudges = [];
+          if (!wrestler.grudges.includes(world.promotion.id)) wrestler.grudges.push(world.promotion.id);
           world.weeklyNews.push(
             wire(
               'departure',

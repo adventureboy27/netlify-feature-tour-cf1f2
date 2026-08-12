@@ -1065,15 +1065,53 @@ export function defaultWorldSettings(): WorldSettings {
     biddingHeadroomWeeks: 26,
     biddingWantsThreshold: 0.85,
 
+    // What the business reckons somebody is worth. A wrestler exactly average
+    // on the present/future blend prices at 1.0x their own asking rate; a
+    // genuine draw prices well above it and a body held together with tape
+    // prices below.
+    biddingCeilingAge: 34,
+    biddingValueFloor: 0.62,
+    biddingValueRange: 0.85,
+    biddingDamageDiscount: 0.35,
+    biddingMomentumSwing: 0.2,
+
+    // Who they will and will not work for. At strength 70 bad blood stops
+    // being a price and becomes an answer — which is roughly where the rest
+    // of the game already treats a feud as real (relationshipRefusalThreshold).
+    biddingRefusalStrength: 70,
+    biddingWarmthPull: 0.22,
+    biddingChillPush: 0.3,
+    biddingStanceDeadzone: 0.05,
+    // A friend in the building is worth about a fifth off; somebody they
+    // cannot stand costs about a third on top.
+    biddingDiscountMax: 0.2,
+    biddingPremiumMax: 0.35,
+    biddingWeightStanceHeadline: 14,
+
+    // Sending the room away. Anything under 85% of their own valuation is an
+    // insult rather than a low offer, and they get one chance to say so.
+    biddingWalkAwayShare: 0.85,
+    biddingSelfRegardFuture: 0.5,
+    biddingMaxRounds: 2,
+
+    // Nobody bids with money they do not have. A reckless owner keeps three
+    // months of payroll in the bank; a cautious one wants the better part of
+    // a year before they will talk about anybody.
+    biddingRunwayWeeksMin: 12,
+    biddingRunwayWeeksRange: 30,
+    biddingEntryShare: 0.8,
+
+    biddingTermSecurityPull: 0.5,
+    biddingTermEgoPush: 0.45,
+
     biddingKeennessBase: 0.45,
     biddingKeennessLift: 0.5,
     biddingKeennessUpside: 0.4,
     biddingKeennessYouth: 0.3,
     biddingYouthPivot: 28,
-    // A rival that wants somebody badly goes to about 1.6x the asking rate.
-    biddingRivalStretch: 0.65,
-    biddingRivalNerve: 0.09,
-    biddingRivalBonusChance: 0.7,
+    // How far each kind of company stretches, how generous it is and how much
+    // it will risk now lives in data/biddingTemperaments.ts, keyed on the
+    // owner personality the promotion already had.
     biddingRivalMaxClauses: 4,
     biddingBonusWeeks: 20,
     biddingMinWeeks: 52,
@@ -1085,24 +1123,25 @@ export function defaultWorldSettings(): WorldSettings {
     // sheet adds up to about 64, so a big enough cheque *can* win on its own —
     // it is simply the expensive way to do it.
     //
-    // Measured against three rivals for an ego-85 star, share of auctions won:
+    // Measured against a full field — one company of each owner personality —
+    // for an ego-70 star. Share of auctions the player wins:
     //
     //                        1.3x   1.6x   2.0x   2.5x   (of the asking rate)
-    //   money alone            0%     0%    16%    58%
-    //   + a big signing bonus  0%     4%    66%    92%
-    //   + the wrong clauses    0%     1%    52%    86%
-    //   + the right clauses   19%    77%   100%   100%
+    //   money alone            0%     0%    23%    60%
+    //   + a big signing bonus  0%     9%    66%    91%
+    //   + the right clauses   15%    63%    98%   100%
     //
-    // Rivals bid a median 1.41x with two sweeteners, so reading the person is
-    // worth roughly a full turn of the money dial.
+    // Reading the person is worth roughly a full turn of the money dial. The
+    // field itself is not uniform: for an established star the star-chaser
+    // takes 88% of what the player does not, and for a phenom out of the
+    // school the builder and the showman take it between them — see
+    // data/biddingTemperaments.ts.
     biddingWeightMoney: 68,
     biddingWeightBonus: 12,
     biddingWeightTerm: 10,
     biddingWeightClauses: 22,
     biddingWeightStanding: 10,
     biddingWeightLoyalty: 6,
-    biddingWeightAlly: 4,
-    biddingWeightEnemy: 7,
     biddingWeightHome: 5,
     biddingMoneyCeiling: 2.2,
     biddingClauseSaturation: 2.5,
