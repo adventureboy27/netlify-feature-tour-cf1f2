@@ -61,6 +61,8 @@ export function generateFreeAgentPool(
   freeAgents: FreeAgent[];
 } {
   const wrestlers = generateWrestlers(rng, settings.freeAgentPoolSize, {
+    // Rolls what the business believes about them, as against what is true.
+    settings,
     currentYear: settings.startingYear,
     existingAppearances,
     existingNames: new Set(existingNames),
@@ -140,7 +142,7 @@ export function tickPool(rng: Rng, ctx: PoolTickContext): { updated: FreeAgent[]
     const status = ctx.statusOf(wrestler);
     // Rivals go for the same people you would.
     const desirability =
-      (wrestler.popularity / 100) * 0.6 + (wrestler.talent / 100) * (wrestler.age < 30 ? 0.4 : 0.1);
+      (wrestler.popularity / 100) * 0.6 + (wrestler.hype / 100) * (wrestler.age < 30 ? 0.4 : 0.1);
     const takenChance = desirability * ctx.rivalDemand * ctx.settings.freeAgentRivalSigningChance;
 
     if (status !== 'retired' && chance(rng, takenChance)) {

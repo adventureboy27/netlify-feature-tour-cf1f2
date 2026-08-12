@@ -1085,6 +1085,46 @@ export function defaultWorldSettings(): WorldSettings {
     seed: 'wrestling-booking-game',
     rivalsCanGoBankrupt: true,
 
+    // What the business believes, against what is true. The noise is wide
+    // deliberately: scouting that is 95% accurate has no draft busts in it.
+    hypeNoise: 14,
+    // One certainty in five has nothing behind it. Measured over the phenoms
+    // and gems a long save produces, that is roughly one genuine bust every
+    // decade or so — often enough to be a real risk, rare enough that signing
+    // a phenom is still the right call.
+    hypeBustChance: 0.2,
+    hypeBustTalent: 42,
+    hypeBustGap: 22,
+    hypeSleeperGap: 22,
+    // The market learns by watching. Somebody kept off television keeps their
+    // reputation, which is true to the business and is also a real (bad)
+    // strategy the player can run.
+    // A couple of years of television to close on the truth, so a bad
+    // signing's stock falls the way a real one does — not a revelation, a
+    // gradual stopping of people bringing him up. At 0.02 a badly-rated
+    // signing was exposed inside six months, which reads as the game telling
+    // you rather than you finding out.
+    hypeLearnWorked: 0.008,
+    hypeLearnIdle: 0.0015,
+    hypeRatedAt: 70,
+    hypePhenomAt: 85,
+    //
+    // Measured. Across the whole business 6% are over-rated and 5% under-
+    // rated, which is the background noise. The certainties are where it
+    // bites: 22% of phenoms out of the school and 22% of gems off the street
+    // are bad draft picks, and they are indistinguishable from the real thing
+    // at the moment anybody has to decide —
+    //
+    //   solid phenom   hype 94   talent 96   ceiling(skl) 91
+    //   bust           hype 94   talent 42   ceiling(skl) 70
+    //
+    // A bust is not useless, note. They are a decent hand who cost a fortune
+    // and a main-event spot, which is what a bad draft pick actually is.
+    //
+    // How long before anybody knows, working every week:
+    //   92 -> y1 74 -> y2 63 -> y3 55 -> y4 50 -> y5 46 -> y6 44
+    // ...and kept off television for those same six years: still 73.
+
     // Contract perks. The resentment scale is what makes a private locker
     // room a decision rather than a free morale point: cheap in money, and
     // paid for weekly by twenty-five people who noticed.

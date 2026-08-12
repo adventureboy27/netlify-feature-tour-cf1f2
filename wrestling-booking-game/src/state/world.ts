@@ -443,6 +443,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   const territoryIds = TERRITORIES.map((t) => t.id);
 
   const roster = generateWrestlers(rng, settings.startingRosterSize, {
+    // Rolls what the business believes about them, as against what is true.
+    settings,
     homeTerritoryIds: territoryIds,
     currentYear: settings.startingYear,
     // Built to a division split rather than rolled per head. Left to chance a
@@ -529,6 +531,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   for (const rival of rivals) {
     const size = rivalRosterSize(rival.rating, settings);
     const signed = generateWrestlers(rng, size, {
+      // Rolls what the business believes about them, as against what is true.
+      settings,
       homeTerritoryIds: territoryIds,
       currentYear: settings.startingYear,
       existingAppearances: Object.values(wrestlers).map((w) => w.appearance),

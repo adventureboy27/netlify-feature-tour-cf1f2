@@ -13,6 +13,7 @@
 
 import type { Rng } from '../rng';
 import { chance, clamp, randInt } from '../rng';
+import { rollStandoutTalent } from '../career/hype';
 import type { Appearance, Id, Wrestler, WorldSettings } from '../types';
 import { generateWrestlers, rollDebutAge } from '../generate/wrestler';
 import type { FreeAgent } from './freeAgents';
@@ -65,7 +66,13 @@ export interface AcademyIntake {
 export function asPhenom(rng: Rng, graduate: Wrestler, settings: WorldSettings): Wrestler {
   const s = settings;
   const lift = (current: number, floor: number) => clamp(Math.max(current, floor + randInt(rng, 0, 14)), 5, 96);
-  const talent = clamp(Math.max(graduate.talent, s.biddingPhenomTalentFloor + randInt(rng, 0, 8)), 5, 99);
+  // The room is certain. Whether the room is *right* is a separate roll, and
+  // that is the whole of it: one phenom in five has nothing behind the hype
+  // and turns into a bad draft pick. See career/hype.ts.
+  const talent = rollStandoutTalent(rng, s.biddingPhenomTalentFloor, s);
+  // How much of a phenom's promised ceiling is really there.
+  const ceilingShare = clamp(talent / s.biddingPhenomTalentFloor, 0.55, 1);
+
   return {
     ...graduate,
     strength: lift(graduate.strength, s.biddingPhenomStatFloor),
@@ -74,15 +81,21 @@ export function asPhenom(rng: Rng, graduate: Wrestler, settings: WorldSettings):
     stamina: lift(graduate.stamina, s.biddingPhenomStatFloor),
     charisma: lift(graduate.charisma, s.biddingPhenomStatFloor - 10),
     talent,
+    // ...but everybody says they are the next one, whatever is actually
+    // there. This is the number the auction reads.
+    hype: clamp(Math.max(graduate.hype, s.biddingPhenomTalentFloor + randInt(rng, 0, 8)), 5, 99),
     // Growth follows talent everywhere else in the game (§3.8); a phenom whose
     // ceiling was rolled for an ordinary graduate would stall in three years.
     growthRate: 0.4 + (talent / 100) * 1.2,
+    // The ceiling follows the truth, not the noise. A bust who kept a
+    // phenom's potentials would still become a phenom, which is not a bust —
+    // it is a phenom who arrived late.
     potentials: {
-      strength: clamp(Math.max(graduate.potentials.strength, 88), 5, 99),
-      skill: clamp(Math.max(graduate.potentials.skill, 90), 5, 99),
-      agility: clamp(Math.max(graduate.potentials.agility, 88), 5, 99),
-      stamina: clamp(Math.max(graduate.potentials.stamina, 88), 5, 99),
-      charisma: clamp(Math.max(graduate.potentials.charisma, 82), 5, 99),
+      strength: clamp(Math.max(graduate.potentials.strength, 88 * ceilingShare), 5, 99),
+      skill: clamp(Math.max(graduate.potentials.skill, 90 * ceilingShare), 5, 99),
+      agility: clamp(Math.max(graduate.potentials.agility, 88 * ceilingShare), 5, 99),
+      stamina: clamp(Math.max(graduate.potentials.stamina, 88 * ceilingShare), 5, 99),
+      charisma: clamp(Math.max(graduate.potentials.charisma, 82 * ceilingShare), 5, 99),
     },
     popularity: s.biddingPhenomPopularity,
     careerHighPopularity: s.biddingPhenomPopularity,
@@ -114,6 +127,8 @@ export function graduateClass(
   // Names have to be checked against the whole business, not just this class —
   // otherwise the schools keep turning out a second Blackout every few years.
   const wrestlers = generateWrestlers(rng, count, {
+    // Rolls what the business believes about them, as against what is true.
+    settings,
     currentYear,
     existingAppearances,
     existingNames: new Set(existingNames),

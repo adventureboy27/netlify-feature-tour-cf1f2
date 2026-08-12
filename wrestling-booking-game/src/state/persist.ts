@@ -109,7 +109,12 @@ const SLOT_KEY = 'wbg.save.v1';
 // the 'walkOn' availability reason. A version-21 save has no walkOn* settings,
 // so the yearly intake would generate a batch of people with an undefined age
 // range.
-const SCHEMA_VERSION = 22;
+//
+// Version 23 adds Wrestler.hype and the hype settings. Every scouting read in
+// the game now goes through that field rather than the hidden `talent`, so a
+// version-22 save would have the whole business valuing everybody at
+// undefined.
+const SCHEMA_VERSION = 23;
 
 export interface SaveFile {
   schema: number;

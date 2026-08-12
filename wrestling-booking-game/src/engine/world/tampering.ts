@@ -41,7 +41,10 @@ export function poachingAppeal(wrestler: Wrestler, status: CareerStatus): number
   if (!isPoachingTarget(status)) return 0;
 
   const overness = wrestler.popularity / 100;
-  const upside = (wrestler.talent / 100) * (wrestler.age < 30 ? 1 : 0.4);
+  // What the rival believes, not what is true — see career/hype.ts. Reading
+  // `talent` here made every promotion omniscient about the one number the
+  // player is never shown.
+  const upside = (wrestler.hype / 100) * (wrestler.age < 30 ? 1 : 0.4);
   // Somebody miserable is worth approaching even if they are not a star.
   const unhappiness = 1 - wrestler.morale / 100;
 

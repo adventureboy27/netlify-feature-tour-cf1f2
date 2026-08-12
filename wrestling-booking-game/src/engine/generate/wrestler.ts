@@ -5,7 +5,8 @@
 
 import type { Rng } from '../rng';
 import { clamp, gaussian, randInt, weightedPick, pick, chance, shuffle } from '../rng';
-import type { Appearance, Archetype, CardStatus, Id, Wrestler } from '../types';
+import type { Appearance, Archetype, CardStatus, Id, Wrestler, WorldSettings } from '../types';
+import { rollHype } from '../career/hype';
 import { ARCHETYPES, archetypeById } from '../../data/archetypes';
 import { WRESTLING_STYLES } from '../../data/styles';
 import { GIMMICKS } from '../../data/gimmicks';
@@ -127,6 +128,12 @@ export interface GenerateWrestlerOptions {
   divisionShare?: number;
   /** ...and never fewer than this many, so a small company still has a division. */
   divisionFloor?: number;
+  /**
+   * Needed to roll `hype` — what the business believes about somebody, as
+   * against what is true. Without it their reputation matches their ceiling
+   * exactly, which is only ever correct for a fixture.
+   */
+  settings?: WorldSettings;
 }
 
 export function generateWrestler(
@@ -156,6 +163,11 @@ export function generateWrestler(
   // §3.8 — talent is hidden, fixed at generation, governs ceiling and growth rate.
   const talent = clamp(Math.round(gaussian(rng, 50, 20)), 5, 99);
   const growthRate = 0.4 + (talent / 100) * 1.2;
+  // What the business would say about them, which is not what is true. See
+  // career/hype.ts — this is the number every scouting read uses. Without
+  // settings to roll against nobody has formed an opinion yet, and the honest
+  // default is that the reputation simply matches the man.
+  const hype = options.settings ? rollHype(rng, talent, options.settings) : talent;
 
   const age = rollAge(rng, archetype.id);
   const currentYear = options.currentYear ?? new Date().getFullYear();
@@ -204,6 +216,7 @@ export function generateWrestler(
     attitude,
     charisma,
     talent,
+    hype,
     coachability,
     toughness,
 

@@ -82,7 +82,9 @@ export function deriveCareerStatus(wrestler: Wrestler, ctx: CareerContext): Care
   if (years < settings.rookieYearsPro) {
     // A rookie the office thinks is going somewhere. Talent is hidden from
     // the player (§3.8), so this label is the tell.
-    return wrestler.talent >= settings.prospectTalent ? 'prospect' : 'rookie';
+    // The label is what the office believes, which is the whole point of it
+    // being a label. See career/hype.ts.
+    return wrestler.hype >= settings.prospectTalent ? 'prospect' : 'rookie';
   }
 
   if (pop <= settings.enhancementPopularity && winRate(wrestler) < 0.35) return 'enhancement';

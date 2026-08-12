@@ -35,6 +35,7 @@ import { MiniStats, ReachLine } from '../components/MiniStats';
 import { strongholds } from '../../engine/career/reach';
 import { patienceLeft } from '../../engine/career/lineage';
 import { blockedBecause, perkUpkeep } from '../../engine/economy/perks';
+import { hypeLabel } from '../../engine/career/hype';
 import { PERKS } from '../../data/perks';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { HeatBadge, Money } from '../components/display';
@@ -300,6 +301,14 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                 </div>
                 <div className="truncate text-[10px] text-neutral-500">
                   {w.archetype} · {w.style} · {w.gimmick.name}
+                  {/* What the business believes, which is not the same thing
+                      as what is true — see engine/career/hype.ts. This is the
+                      only window onto the hidden ceiling anybody gets, the
+                      player and the five companies bidding against them
+                      alike, and it is a rumour rather than a reading. */}
+                  {hypeLabel(w, world.settings) && (
+                    <span className="ml-1 text-sky-400">· {hypeLabel(w, world.settings)}</span>
+                  )}
                 </div>
 
                 {/* Whose kid this is, and whether the name is still doing the

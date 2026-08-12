@@ -113,7 +113,7 @@ export function recruitmentTargets(
     .map((w) => {
       const unhappy = (100 - w.morale) / 100;
       const ego = w.ego / 100;
-      const overlooked = Math.max(0, w.talent - w.popularity) / 100;
+      const overlooked = Math.max(0, w.hype - w.popularity) / 100;
 
       const appeal = Math.min(
         1,

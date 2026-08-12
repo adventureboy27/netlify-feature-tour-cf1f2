@@ -143,6 +143,7 @@ import {
   type Bid as ContractBid,
   type BiddingReason,
 } from '../engine/economy/bidding';
+import { crossing, hypeDrift } from '../engine/career/hype';
 import {
   asSecondGeneration,
   debutAge as lineageDebutAge,
@@ -1551,6 +1552,8 @@ export const useGameStore = create<GameStore>()(
         // not put two people with the same name in the world.
         const taken = new Set(Object.values(world.wrestlers).map((w) => w.name.trim().toLowerCase()));
         const generated = generateWrestlers(rng, parsed.entries.length, {
+          // Rolls what the business believes about them, as against what is true.
+          settings: world.settings,
           currentYear: world.settings.startingYear + Math.floor(world.week / 52),
           existingAppearances: Object.values(world.wrestlers).map((w) => w.appearance),
           existingNames: taken,
@@ -4254,6 +4257,27 @@ export const useGameStore = create<GameStore>()(
           if (earned) {
             w.nickname = earned;
             takenNicknames.add(earned);
+          }
+        }
+
+        // What the business believes about somebody, converging on what is
+        // true. It learns by watching, so somebody kept off television keeps
+        // their reputation — and a bad signing's stock falls the way a real
+        // one does: not a revelation, a gradual stopping of people bringing
+        // him up. See career/hype.ts.
+        for (const person of Object.values(world.wrestlers)) {
+          if (person.deceased || person.careerStatus === 'retired') continue;
+          const before = person.hype;
+          person.hype = clamp(
+            person.hype + hypeDrift(person, workedThisWeek.has(person.id), world.settings),
+            5,
+            99,
+          );
+          // Said once, on the week it becomes undeniable, and only about
+          // people the booker could plausibly have heard of.
+          const verdict = crossing(person, before, world.settings);
+          if (verdict.kind !== 'nothing' && person.promotionId === world.promotion.id) {
+            world.weeklyNews.push(wire('signing', verdict.note, world.week, 'minor'));
           }
         }
 

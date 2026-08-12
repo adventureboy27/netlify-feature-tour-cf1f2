@@ -142,7 +142,7 @@ export function worthAnAuction(wrestler: Wrestler, settings: WorldSettings): boo
   // ...or somebody who has not proved it yet but plainly will. This is the
   // door the phenom comes through, and it is why a graduate with nothing on
   // his record can still start a war.
-  return wrestler.talent >= settings.biddingProspectTalent && wrestler.age <= settings.biddingProspectAge;
+  return wrestler.hype >= settings.biddingProspectTalent && wrestler.age <= settings.biddingProspectAge;
 }
 
 /** Can this company sign anybody at all right now? */
@@ -220,7 +220,9 @@ export function marketValue(wrestler: Wrestler, future: number, settings: WorldS
   // What they might be: the hidden ceiling, worth less the older they get,
   // and worth nothing at all once there is no time left to reach it.
   const runway = clamp((s.biddingCeilingAge - wrestler.age) / (s.biddingCeilingAge - 18), 0, 1);
-  const potential = clamp(wrestler.talent / 100, 0, 1) * runway;
+  // Reputation, not truth. A room full of companies bidding on somebody's
+  // real hidden ceiling could never be wrong about anybody.
+  const potential = clamp(wrestler.hype / 100, 0, 1) * runway;
 
   const blend = present * (1 - future) + potential * future;
   // Around the asking rate for somebody exactly average on that blend, and up
@@ -403,7 +405,7 @@ export function keenness(
   // A star is worth more to a company he would headline than to one where he
   // would be fourth from the top.
   const lift = clamp((wrestler.popularity - promotion.rating) / 100, -0.5, 0.5);
-  const upside = clamp((wrestler.talent - 50) / 100, -0.5, 0.5);
+  const upside = clamp((wrestler.hype - 50) / 100, -0.5, 0.5);
   const youth = clamp((s.biddingYouthPivot - wrestler.age) / 40, -0.4, 0.4);
 
   // Appetite is not only a matter of degree — a win-now company and a company

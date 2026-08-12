@@ -58,15 +58,15 @@ describe('conferred statuses stick', () => {
 
 describe('early career', () => {
   it('calls a green wrestler with no upside a rookie', () => {
-    expect(statusOf({ debutYear: YEAR - 1, talent: 40, popularity: 35 })).toBe('rookie');
+    expect(statusOf({ debutYear: YEAR - 1, talent: 40, hype: 40, popularity: 35 })).toBe('rookie');
   });
 
   it('calls a green wrestler the office likes a prospect', () => {
-    expect(statusOf({ debutYear: YEAR - 1, talent: 90, popularity: 35 })).toBe('prospect');
+    expect(statusOf({ debutYear: YEAR - 1, talent: 90, hype: 90, popularity: 35 })).toBe('prospect');
   });
 
   it('stops calling them a rookie once the years pile up', () => {
-    expect(statusOf({ debutYear: YEAR - 6, talent: 90, popularity: 35 })).not.toBe('prospect');
+    expect(statusOf({ debutYear: YEAR - 6, talent: 90, hype: 90, popularity: 35 })).not.toBe('prospect');
   });
 });
 

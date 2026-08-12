@@ -113,7 +113,8 @@ export function fanDemands(ctx: DemandContext): FanDemand[] {
   for (const w of ctx.wrestlers) {
     if (!available(w)) continue;
     if (w.promotionId === null || w.promotionId === ctx.playerPromotionId) continue;
-    const wasted = w.talent - w.popularity;
+    // The fans' view, which is a view rather than the truth.
+    const wasted = w.hype - w.popularity;
     if (wasted < s.demandWastedGap) continue;
     // The crowd complains about a man being misused whether or not he is
     // available; the flag is the separate question of whether anything can be
@@ -125,7 +126,7 @@ export function fanDemands(ctx: DemandContext): FanDemand[] {
       id: `wasted-${w.id}`,
       kind: 'wastedElsewhere',
       wrestlerIds: [w.id],
-      heat: Math.min(100, wasted + w.talent / 3),
+      heat: Math.min(100, wasted + w.hype / 3),
       text: `${w.name} is being wasted where he is. Everybody can see it except the people booking him.`,
       ...(gettable ? { signableFrom: w.promotionId } : {}),
     });
@@ -206,7 +207,7 @@ export function fanDemands(ctx: DemandContext): FanDemand[] {
     if (!available(w) || championIds.has(w.id)) continue;
     if (w.popularity < s.demandPushPopularity) continue;
     if (w.popularity >= w.careerHighPopularity - 1 && w.momentum >= s.demandTitleShotMomentum) continue;
-    if (w.talent - w.popularity < s.demandPushGap) continue;
+    if (w.hype - w.popularity < s.demandPushGap) continue;
     demands.push({
       id: `push-${w.id}`,
       kind: 'pushThem',

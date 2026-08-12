@@ -121,7 +121,7 @@ export function thePitch(wrestler: Wrestler, settings: WorldSettings): string {
   if (strength >= settings.scoutEliteCraft) return `Overpowering. Nobody looks safe with ${p.them}.`;
   if (stamina >= settings.scoutEliteCraft) return `Can go all night without slowing down.`;
   if (craft >= settings.scoutStrongCraft) return `A solid hand. Will not let a match die.`;
-  if (wrestler.age <= settings.scoutProspectAge && wrestler.talent >= settings.prospectTalent) {
+  if (wrestler.age <= settings.scoutProspectAge && wrestler.hype >= settings.prospectTalent) {
     return `Young, and there is something there.`;
   }
   return `Fills a spot on the card.`;

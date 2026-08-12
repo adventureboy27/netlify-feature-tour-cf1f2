@@ -15,7 +15,7 @@ function people(n: number, over: Partial<Wrestler> = {}, seed = 'demand'): Wrest
     id: `${seed}-${i}`,
     promotionId: 'me',
     popularity: 50,
-    talent: 50,
+    talent: 50, hype: 50,
     momentum: 50,
     careerHighPopularity: 60,
     ...over,
@@ -86,7 +86,7 @@ describe('somebody else’s roster', () => {
   it('notices a good hand being wasted, and says where he is', () => {
     // This is the bridge to a secret signing: the audience naming somebody is
     // how the booker finds out who is worth taking.
-    const wasted = people(1, { promotionId: 'rival-1', talent: 92, popularity: 40 }, 'wasted').map((w) => ({
+    const wasted = people(1, { promotionId: 'rival-1', talent: 92, hype: 92, popularity: 40 }, 'wasted').map((w) => ({
       ...w,
       contract: { ...w.contract!, weeksRemaining: 5 },
     }));
@@ -98,7 +98,7 @@ describe('somebody else’s roster', () => {
   });
 
   it('still complains about somebody locked up for a year, but does not pretend he is gettable', () => {
-    const locked = people(1, { promotionId: 'rival-1', talent: 92, popularity: 40 }, 'locked').map((w) => ({
+    const locked = people(1, { promotionId: 'rival-1', talent: 92, hype: 92, popularity: 40 }, 'locked').map((w) => ({
       ...w,
       contract: { ...w.contract!, weeksRemaining: 90 },
     }));
@@ -110,13 +110,13 @@ describe('somebody else’s roster', () => {
   });
 
   it('leaves alone somebody who is being used properly', () => {
-    const fine = people(1, { promotionId: 'rival-1', talent: 60, popularity: 62 }, 'fine');
+    const fine = people(1, { promotionId: 'rival-1', talent: 60, hype: 60, popularity: 62 }, 'fine');
     const demands = fanDemands(ctxFor({ wrestlers: [...people(2), ...fine] }));
     expect(demands.some((d) => d.kind === 'wastedElsewhere')).toBe(false);
   });
 
   it('never points at your own roster — that is not a signing, it is a booking', () => {
-    const ours = people(1, { talent: 95, popularity: 30 }, 'ours');
+    const ours = people(1, { talent: 95, hype: 95, popularity: 30 }, 'ours');
     const demands = fanDemands(ctxFor({ wrestlers: [...ours, ...people(2)], playerRosterIds: [ours[0]!.id] }));
     expect(demands.every((d) => d.kind !== 'wastedElsewhere' || d.wrestlerIds[0] !== ours[0]!.id)).toBe(true);
   });
@@ -190,7 +190,7 @@ describe('the things they want doing with your own people', () => {
 
 describe('the board itself', () => {
   it('is capped, because a wishlist of forty is a wishlist nobody reads', () => {
-    const many = people(14, { popularity: 90, talent: 95, momentum: 95 }, 'lots');
+    const many = people(14, { popularity: 90, talent: 95, hype: 95, momentum: 95 }, 'lots');
     const demands = fanDemands(ctxFor({ wrestlers: many, playerRosterIds: many.map((w) => w.id) }));
     expect(demands.length).toBeLessThanOrEqual(settings.demandBoardSize);
   });
@@ -204,7 +204,7 @@ describe('the board itself', () => {
   });
 
   it('says something readable about every entry', () => {
-    const many = people(8, { popularity: 80, talent: 90, momentum: 88 }, 'read');
+    const many = people(8, { popularity: 80, talent: 90, hype: 90, momentum: 88 }, 'read');
     for (const demand of fanDemands(ctxFor({ wrestlers: many, playerRosterIds: many.map((w) => w.id) }))) {
       expect(demand.text.length, demand.kind).toBeGreaterThan(25);
       expect(demand.text, demand.kind).not.toMatch(/\{|\}/);

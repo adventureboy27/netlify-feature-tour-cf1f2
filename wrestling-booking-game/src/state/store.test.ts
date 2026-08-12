@@ -825,20 +825,25 @@ describe('the owner', () => {
       const world = useGameStore.getState().world!;
       if (world.mandate?.type === 'releaseWrestler') break;
       useGameStore.getState().autoFillCard();
-      useGameStore.getState().resolveWeek();
+      runWeek();
       useGameStore.getState().dismissMandateOutcome();
     }
     const mandate = useGameStore.getState().world!.mandate;
     if (mandate?.type !== 'releaseWrestler') return; // this seed never asked; nothing to assert
 
+    // Whatever the owner asked for during the drive to get here, some of it
+    // may have gone unmet — that is not what this is about. The claim is that
+    // *meeting* one resolves it and costs nothing.
+    const strikesBefore = useGameStore.getState().world!.mandateStrikes;
+
     useGameStore.getState().releaseWrestler(mandate.targetId!);
     useGameStore.getState().autoFillCard();
-    useGameStore.getState().resolveWeek();
+    runWeek();
 
     const world = useGameStore.getState().world!;
     expect(world.lastMandateOutcome?.met).toBe(true);
     expect(world.mandate).toBeNull();
-    expect(world.mandateStrikes).toBe(0);
+    expect(world.mandateStrikes).toBe(strikesBefore);
   });
 
   it('fires you on the third strike, and the save stops there', () => {

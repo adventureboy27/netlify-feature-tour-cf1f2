@@ -31,7 +31,8 @@ export function askingRate(wrestler: Wrestler, settings: WorldSettings): number 
   const draw = wrestler.popularity / 100;
   const craft = (wrestler.skill + wrestler.agility + wrestler.stamina + wrestler.strength) / 400;
   // Young talent with a high ceiling knows what it is worth.
-  const upside = wrestler.age < 28 ? (wrestler.talent / 100) * 0.35 : 0;
+  // What they can ask for follows their reputation, not their ceiling.
+  const upside = wrestler.age < 28 ? (wrestler.hype / 100) * 0.35 : 0;
 
   const value = draw * settings.contractDrawWeight + craft * settings.contractCraftWeight + upside;
 

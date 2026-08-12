@@ -32,7 +32,7 @@ function person(seed: string, over: Partial<Wrestler> = {}): Wrestler {
 }
 
 function star(over: Partial<Wrestler> = {}): Wrestler {
-  return person('star', { name: 'Vance Mercer', popularity: 88, ego: 70, talent: 70, ...over });
+  return person('star', { name: 'Vance Mercer', popularity: 88, ego: 70, talent: 70, hype: 70, ...over });
 }
 
 function company(id: string, over: Partial<Promotion> = {}): Promotion {
@@ -104,16 +104,16 @@ describe('who is worth an auction', () => {
   });
 
   it('leaves the rest of the card alone', () => {
-    expect(worthAnAuction(person('mid', { popularity: 55, talent: 50, age: 30 }), settings)).toBe(false);
+    expect(worthAnAuction(person('mid', { popularity: 55, talent: 50, hype: 50, age: 30 }), settings)).toBe(false);
   });
 
   it('takes a young prospect nobody has seen yet — the phenom door', () => {
-    const phenom = person('kid', { popularity: 38, talent: 92, age: 21 });
+    const phenom = person('kid', { popularity: 38, talent: 92, hype: 92, age: 21 });
     expect(worthAnAuction(phenom, settings)).toBe(true);
   });
 
   it('will not auction the same talent at forty — he would already be somewhere', () => {
-    expect(worthAnAuction(person('late', { popularity: 40, talent: 92, age: 40 }), settings)).toBe(false);
+    expect(worthAnAuction(person('late', { popularity: 40, talent: 92, hype: 92, age: 40 }), settings)).toBe(false);
   });
 
   it('never auctions the retired, the dead, or the office', () => {
@@ -215,18 +215,18 @@ describe('what a rival offers', () => {
 describe('what somebody is worth', () => {
   it('prices a draw well above a body nobody has heard of', () => {
     const draw = star({ popularity: 95 });
-    const hand = person('hand', { popularity: 25, talent: 40 });
+    const hand = person('hand', { popularity: 25, talent: 40, hype: 40 });
     expect(marketValue(draw, 0.4, settings)).toBeGreaterThan(marketValue(hand, 0.4, settings) * 2);
   });
 
   it('is a different number to a company buying the future than to one buying tonight', () => {
-    const prospect = person('prospect', { popularity: 35, talent: 95, age: 21 });
+    const prospect = person('prospect', { popularity: 35, talent: 95, hype: 95, age: 21 });
     const winNow = marketValue(prospect, 0.15, settings);
     const builder = marketValue(prospect, 0.9, settings);
     expect(builder).toBeGreaterThan(winNow);
 
     // And the same reading, reversed, on somebody with no future left.
-    const veteran = person('vet', { popularity: 80, talent: 95, age: 39 });
+    const veteran = person('vet', { popularity: 80, talent: 95, hype: 95, age: 39 });
     expect(marketValue(veteran, 0.9, settings)).toBeLessThan(marketValue(veteran, 0.15, settings));
   });
 
@@ -275,7 +275,7 @@ describe('different companies bid differently', () => {
   });
 
   it('makes the builder pay for a prospect and the win-now company not', () => {
-    const prospect = person('kid', { popularity: 32, talent: 95, age: 21, ego: 20 });
+    const prospect = person('kid', { popularity: 32, talent: 95, hype: 95, age: 21, ego: 20 });
     expect(medianRate('traditionalist', prospect)).toBeGreaterThan(medianRate('starChaser', prospect));
   });
 

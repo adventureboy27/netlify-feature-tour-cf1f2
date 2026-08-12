@@ -27,6 +27,7 @@ import type { Rng } from '../rng';
 import { chance, clamp, gaussian, randInt } from '../rng';
 import type { Appearance, Wrestler, WorldSettings } from '../types';
 import { generateWrestlers } from '../generate/wrestler';
+import { rollStandoutTalent } from '../career/hype';
 import type { FreeAgent } from './freeAgents';
 
 export type WalkOnKind =
@@ -92,13 +93,25 @@ export function asWalkOn(
   // Hidden ceiling. A gem still has one worth chasing; everybody else is
   // roughly what you see, because they came to it too late to become anything
   // very different.
+  // A gem is somebody the whole room can see it in. Whether it is actually
+  // there is the same roll a phenom takes — a body and a voice and nothing
+  // behind them is exactly what a bad draft pick looks like.
   const talent =
     kind === 'gem'
-      ? clamp(Math.round(Math.max(person.talent, s.walkOnGemTalentFloor + randInt(rng, 0, 9))), 5, 99)
+      ? rollStandoutTalent(rng, s.walkOnGemTalentFloor, s)
       : clamp(Math.round(person.talent * s.walkOnTalentScale), 5, 99);
+  const hype =
+    kind === 'gem'
+      ? clamp(Math.round(Math.max(person.hype, s.walkOnGemTalentFloor + randInt(rng, 0, 9))), 5, 99)
+      : clamp(Math.round(person.hype * s.walkOnTalentScale), 5, 99);
 
   const age = randInt(rng, s.academyMaxAge + 1, s.walkOnMaxAge);
-  const ceilingRoom = kind === 'gem' ? s.walkOnGemCeilingRoom : s.walkOnCeilingRoom;
+  // The room above them follows what is really there, so a gem with nothing
+  // behind the hype gets a gem's reputation and an ordinary ceiling.
+  const ceilingRoom =
+    kind === 'gem'
+      ? s.walkOnGemCeilingRoom * clamp(talent / s.walkOnGemTalentFloor, 0.4, 1)
+      : s.walkOnCeilingRoom;
 
   return {
     ...person,
@@ -109,6 +122,7 @@ export function asWalkOn(
     stamina,
     charisma,
     talent,
+    hype,
     growthRate: 0.4 + (talent / 100) * 1.2,
     potentials: {
       strength: clamp(Math.round(person.strength + ceilingRoom), 5, 99),
@@ -151,6 +165,8 @@ export function walkOnIntake(
 
   const kinds: Record<string, WalkOnKind> = {};
   const wrestlers = generateWrestlers(rng, count, {
+    // Rolls what the business believes about them, as against what is true.
+    settings,
     currentYear,
     existingAppearances,
     existingNames: new Set(existingNames),

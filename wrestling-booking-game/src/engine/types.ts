@@ -387,6 +387,15 @@ export interface Wrestler {
   attitude: number;
   charisma: number; // "Mic Work" in the UI, §3.9
   talent: number; // 0-100, mostly hidden, §3.8
+  /**
+   * What the *business* thinks that ceiling is, 0-100.
+   *
+   * Correlated with `talent` and not equal to it. Every scouting read in the
+   * game — market value, a rival's keenness, the prospect label, the sheet —
+   * goes through this rather than the truth, which is what allows a promotion
+   * to be wrong about somebody. See career/hype.ts.
+   */
+  hype: number;
   coachability: number;
   toughness: number;
 
@@ -2755,6 +2764,23 @@ export interface WorldSettings {
   startingYear: number;
   seed: string;
   rivalsCanGoBankrupt: boolean;
+
+  // --- What the business believes, engine/career/hype.ts -------------------
+  /** How far a scouting read can be from the truth. Fat tails on purpose. */
+  hypeNoise: number;
+  /** Share of the certainties — phenoms, gems — with nothing behind them. */
+  hypeBustChance: number;
+  /** What a bust's real ceiling turns out to be. */
+  hypeBustTalent: number;
+  /** Gap at which somebody counts as over-rated, and under-rated. */
+  hypeBustGap: number;
+  hypeSleeperGap: number;
+  /** How fast the market learns, by watching them work and by not. */
+  hypeLearnWorked: number;
+  hypeLearnIdle: number;
+  /** Where "rated" starts, and where "the next one" starts. */
+  hypeRatedAt: number;
+  hypePhenomAt: number;
 
   // --- Contract perks, engine/economy/perks.ts -----------------------------
   perksEnabled: boolean;
