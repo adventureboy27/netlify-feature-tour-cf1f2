@@ -143,3 +143,14 @@ export function debutLine(names: readonly string[], week: number): WireItem {
   const who = names.length === 1 ? names[0]! : `${names.length} graduates`;
   return wire('debut', `${who} came out of the school this week and turned professional.`, week, 'minor');
 }
+
+/**
+ * A familiar surname coming back into the business — a lead, not a filler
+ * line, because it is the only debut anybody outside the school cares about.
+ *
+ * The sentence itself is composed in career/lineage.ts, which is the only
+ * place that knows whether the parent is retired, in the hall, or dead.
+ */
+export function secondGenerationLine(sentence: string, week: number): WireItem {
+  return wire('debut', sentence, week, 'lead');
+}

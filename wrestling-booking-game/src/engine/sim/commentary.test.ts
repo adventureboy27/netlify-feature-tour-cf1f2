@@ -68,6 +68,8 @@ function bare(over: Partial<CommentaryContext> = {}): CommentaryContext {
     slumpingName: null,
     slumpingRun: 0,
     debutantName: null,
+    secondGenName: null,
+    secondGenParentName: null,
     oldHandName: null,
     oldHandYears: 0,
     timesMet: 1,
@@ -132,6 +134,8 @@ const BACKED_BY: Record<string, string[]> = {
   streaking: ['onATear'],
   slumping: ['slumping'],
   debutant: ['debut'],
+  secondGen: ['secondGeneration'],
+  secondGenParent: ['secondGeneration'],
   timesMet: ['metOften'],
   feudWeeks: ['longFeud'],
   feudMatches: ['longFeud'],
@@ -552,6 +556,7 @@ describe('every fact has something to say about it', () => {
     'weatherHurtGate',
     'bigShow',
     'longCareer',
+    'secondGeneration',
   ];
 
   const everyTemplate = [...OPENERS, ...STAKES, ...COLOUR, ...CLOSERS, ...BANTER, ...COMEBACKS];

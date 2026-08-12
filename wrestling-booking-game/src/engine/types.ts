@@ -205,6 +205,29 @@ export interface Passing {
   week: number;
 }
 
+/**
+ * Whose kid somebody is. See engine/career/lineage.ts.
+ *
+ * `parentName` and `familyName` are denormalised on purpose: the parent may
+ * be dead, may have been repackaged twice since, and the announcers and the
+ * paper still have to be able to say the name the crowd remembers.
+ */
+export interface Lineage {
+  parentId: Id;
+  parentName: string;
+  /** The surname the crowd hears. A one-word act hands down the whole act. */
+  familyName: string;
+  /** Week they debuted, which is when the crowd's patience starts running. */
+  inheritedAt: number;
+  /** How much of their opening popularity is borrowed rather than earned. */
+  inheritedStanding: number;
+  /**
+   * Week they stopped being their father's kid and became themselves. Null
+   * while the name is still doing the work.
+   */
+  provenBy: number | null;
+}
+
 // DESIGN: Injury is referenced by Wrestler.injury but never defined. Severity
 // tiers and permanent stat loss come from §12 ("Health, injury, momentum").
 export type InjurySeverity = 'minor' | 'moderate' | 'severe' | 'careerThreatening';
@@ -478,6 +501,8 @@ export interface Wrestler {
   deceased?: Passing;
   /** Set when they are inducted. §19's hall of fame. */
   hallOfFameWeek?: number;
+  /** Set at generation for a second-generation wrestler, never afterwards. */
+  lineage?: Lineage;
   /**
    * Weeks they are barred from signing anywhere, from a negotiated release.
    *
@@ -2358,6 +2383,11 @@ export interface WorldSettings {
   /** Most graduates in one intake. */
   academyMaxGraduates: number;
   /** Age range a graduate debuts at. */
+  /**
+   * Share of a generated popularity a school graduate keeps. They have never
+   * had a match; the roll behind them is for somebody mid-career.
+   */
+  academyGraduatePopularity: number;
   academyDebutAgeMin: number;
   academyDebutAgeMax: number;
 
@@ -2679,7 +2709,43 @@ export interface WorldSettings {
   startingYear: number;
   seed: string;
   rivalsCanGoBankrupt: boolean;
+
+  // --- Second generation, engine/career/lineage.ts -------------------------
   secondGenerationEnabled: boolean;
+  /** Peak popularity a parent needed for the surname to mean anything. */
+  secondGenMinParentPopularity: number;
+  /** How long ago the parent debuted before a child of theirs could be old enough. */
+  secondGenParentDebutedYearsAgo: number;
+  /** Nobody fields a whole dynasty at once. */
+  secondGenMaxChildren: number;
+  /** Chance each graduate turns out to be somebody's kid. */
+  secondGenChancePerGraduate: number;
+  /** How deep into the list of available names the draw reaches. */
+  secondGenParentShortlist: number;
+  /** Share of the parent's peak the name is worth at debut. */
+  secondGenInheritedShare: number;
+  /** ...and the ceiling on it, so a legend's kid is not a made main-eventer. */
+  secondGenInheritedCap: number;
+  /** Share of the parent's standing in each of their towns that carries over. */
+  secondGenTownShare: number;
+  /** How far the child's charisma is pulled toward the parent's. */
+  secondGenCharismaPull: number;
+  /** Chance each heritable appearance trait comes from the parent. */
+  secondGenResemblance: number;
+  /** How long the crowd gives them on the name alone. */
+  secondGenPatienceWeeks: number;
+  /** Matches before the record is worth reading. */
+  secondGenProofMatches: number;
+  /** Win rate that settles it. */
+  secondGenProofWinRate: number;
+  /** ...or this much popularity built on top of what they were handed. */
+  secondGenProofPopularityGain: number;
+  /** Popularity lost per week once the patience is gone and nothing was proven. */
+  secondGenFadePerWeek: number;
+  /** The fade never takes them below what any rookie would have had. */
+  secondGenFadeFloor: number;
+  /** Added to their morale expectation, permanently. The name is a standard. */
+  secondGenExpectationBurden: number;
   relationshipsEnabled: boolean;
   hallOfFameEnabled: boolean;
 }

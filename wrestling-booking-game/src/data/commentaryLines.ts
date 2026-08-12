@@ -45,6 +45,7 @@
 //   {streaking}                  needs 'onATear'
 //   {slumping}                   needs 'slumping'
 //   {debutant}                   needs 'debut'
+//   {secondGen} {secondGenParent} needs 'secondGeneration'
 //   {timesMet}                   needs 'metOften'
 //   {feudWeeks} {feudMatches}    needs 'longFeud'
 //   {weather}                    needs 'weatherHurtGate'
@@ -173,6 +174,10 @@ export const OPENERS: readonly ColourTemplate[] = [
     text: 'Debut night. {debutant} has never worked a match for this company, and he starts against {sideB}.',
     needs: ['debut'],
   },
+  {
+    text: 'That name should sound familiar — {secondGen}, and yes, that is {secondGenParent}\u2019s kid.',
+    needs: ['secondGeneration'],
+  },
   { text: 'Next up: {sideA} taking on {sideB}.', needs: [] },
   { text: 'The bell rings. {sideA} and {sideB} in the middle of the ring.', needs: [] },
 ];
@@ -186,6 +191,16 @@ export const STAKES: readonly ColourTemplate[] = [
   {
     text: '{champion} has held that belt {reign} weeks, {play}. Nobody has come close in all that time.',
     needs: ['longReign'],
+  },
+  {
+    text: 'I called {secondGenParent}\u2019s matches for years, {play}. Now I am calling his kid\u2019s. That is what this business does to you.',
+    needs: ['secondGeneration'],
+    leaning: 'analyst',
+  },
+  {
+    text: 'There is a weight to carrying a name like that. {secondGen} did not ask for it and he cannot put it down either.',
+    needs: ['secondGeneration'],
+    leaning: 'analyst',
   },
   {
     text: 'And a title changes everything. You wrestle differently when you have something to lose.',
@@ -654,6 +669,25 @@ export const COLOUR: readonly ColourTemplate[] = [
     needs: ['debut'],
     after: ['hopeSpot', 'nearFall'],
     leaning: 'face',
+  },
+  {
+    text: 'He has his father\u2019s timing. You cannot teach that — {secondGen} grew up in a locker room.',
+    needs: ['secondGeneration'],
+    after: ['signature', 'hopeSpot'],
+    leaning: 'face',
+  },
+  {
+    text: 'The crowd is behind him because of the surname, {play}. They will stay behind him for what he does with it.',
+    needs: ['secondGeneration'],
+    after: ['nearFall', 'control'],
+    leaning: 'analyst',
+  },
+  {
+    text: '{secondGenParent} never got caught like that. Says everything about the kid.',
+    needs: ['secondGeneration'],
+    after: ['control'],
+    provocative: true,
+    leaning: 'heel',
   },
 
   // --- what has already happened between them -----------------------------

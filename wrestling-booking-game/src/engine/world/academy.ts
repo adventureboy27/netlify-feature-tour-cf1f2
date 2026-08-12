@@ -68,9 +68,18 @@ export function graduateClass(
     // starters too — the thirty-year-old who finally walked in is a real
     // graduating class member.
     const age = rollDebutAge(rng, settings.academyDebutAgeMax * 2);
+    // ...and nobody has heard of them. The generator rolls popularity for a
+    // working wrestler somewhere in the middle of a career, so without this a
+    // school graduate could walk out of the door at 82 — as over as the world
+    // champion, having never had a match. Scaled rather than clamped so the
+    // spread survives (the promising one still comes out ahead of the rest),
+    // and scaled rather than re-rolled so the seeded stream is untouched.
+    const popularity = Math.round(w.popularity * settings.academyGraduatePopularity);
     return {
       ...w,
       age,
+      popularity,
+      careerHighPopularity: popularity,
       debutYear: currentYear,
       careerStatus: 'rookie' as const,
       cardStatus: 'prospect' as const,

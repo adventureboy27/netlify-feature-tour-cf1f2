@@ -33,6 +33,7 @@ import {
 import { MoodLine } from '../components/Mood';
 import { MiniStats, ReachLine } from '../components/MiniStats';
 import { strongholds } from '../../engine/career/reach';
+import { patienceLeft } from '../../engine/career/lineage';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { HeatBadge, Money } from '../components/display';
 import { scout } from '../../engine/career/scouting';
@@ -223,6 +224,29 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                 <div className="truncate text-[10px] text-neutral-500">
                   {w.archetype} · {w.style} · {w.gimmick.name}
                 </div>
+
+                {/* Whose kid this is, and whether the name is still doing the
+                    work. The clock matters to the booker: an unproven second
+                    generation is a draw with an expiry date on it. */}
+                {w.lineage && (
+                  <div
+                    className="mt-0.5 truncate text-[10px] text-violet-400"
+                    title={
+                      w.lineage.provenBy !== null
+                        ? `${w.name} is over on their own now — the name did its job`
+                        : `The crowd gives them their father's ovation for ${patienceLeft(w, world.week, world.settings)} more weeks`
+                    }
+                  >
+                    ⚭ {w.lineage.parentName}'s kid
+                    {w.lineage.provenBy !== null ? (
+                      <span className="ml-1 text-emerald-400">· made his own name</span>
+                    ) : (
+                      <span className="ml-1 text-amber-500/80">
+                        · {patienceLeft(w, world.week, world.settings)}w of goodwill left
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* the read — why you would use him, and why you might not.
                     First, above the bars, because it is the thing a booker

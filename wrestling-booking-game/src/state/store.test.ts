@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { useGameStore } from './store';
 import { defaultWorldSettings } from '../engine/world/settings';
+import type { WorldSettings } from '../engine/types';
 import { eventById } from '../data/events';
 
 // A roster big enough to survive its own injuries. This was 12, which was
@@ -307,6 +308,148 @@ describe('the rest of the business', () => {
     const world = useGameStore.getState().world!;
     const rivalBelts = world.titles.filter((t) => t.promotionId !== world.promotion.id);
     expect(rivalBelts.some((t) => t.history.length > 1)).toBe(true);
+  });
+});
+
+describe('the next generation', () => {
+  /**
+   * Twenty years of simulation to reach the first eligible parent is not a
+   * test, it is a wait. So the world is set up the way twenty years would
+   * have left it — one finished, famous name from a generation back, working
+   * for nobody — and the roll is turned up to certainty. Everything after
+   * that is the real path: the real academy, the real year turn, the real
+   * wire.
+   *
+   * The bank is stuffed because the year has to actually turn. A default new
+   * game is a knife fight with the payroll and folds inside twenty weeks as
+   * often as not, which is the economy working; it is just not what is being
+   * tested here.
+   */
+  function solventWorld(over: Partial<WorldSettings> = {}) {
+    return {
+      ...patientOwner(),
+      startingCash: 5_000_000,
+      secondGenChancePerGraduate: 1,
+      // Inside the normal population band the schools graduate nobody most
+      // years, which is correct and makes for a test that passes on some
+      // seeds. Told the business is short-handed, they run a full class.
+      worldPopulationMin: 400,
+      worldPopulationMax: 500,
+      ...over,
+    };
+  }
+
+  function worldWithALegend(): { parentId: string; parentName: string } {
+    useGameStore.getState().newGame(solventWorld());
+    // Somebody nobody employs. Retiring one of your own main-eventers on week
+    // one is a different test.
+    const parent = Object.values(useGameStore.getState().world!.wrestlers).find((w) => w.promotionId === null)!;
+    useGameStore.setState((state) => {
+      const world = state.world!;
+      const p = world.wrestlers[parent.id]!;
+      p.name = 'Duke Ashcombe';
+      p.careerStatus = 'hallOfFamer';
+      p.careerHighPopularity = 90;
+      p.debutYear = world.settings.startingYear - 30;
+      p.homeTerritoryId = world.territories[0]!.id;
+      p.regionalPopularity = { [world.territories[0]!.id]: 80 };
+    });
+    return { parentId: parent.id, parentName: 'Duke Ashcombe' };
+  }
+
+  function runToTheTurnOfTheYear(): void {
+    for (let i = 0; i < 70; i++) {
+      const pending = useGameStore.getState().world!.pendingEvent;
+      const firstOption = pending ? eventById(pending.eventId)?.options[0] : undefined;
+      if (firstOption) useGameStore.getState().chooseEventOption(firstOption.id);
+      useGameStore.getState().dismissEventOutcome();
+      if (useGameStore.getState().world!.pendingWeatherCall) {
+        useGameStore.getState().answerWeatherCall('runIt');
+      }
+      useGameStore.getState().autoFillCard();
+      useGameStore.getState().resolveWeek();
+      if (useGameStore.getState().world!.yearInReview) return;
+    }
+    throw new Error('the year never turned');
+  }
+
+  it('puts a familiar surname back in the business, and says whose it is', () => {
+    const { parentId, parentName } = worldWithALegend();
+    runToTheTurnOfTheYear();
+
+    const world = useGameStore.getState().world!;
+    const kids = Object.values(world.wrestlers).filter((w) => w.lineage?.parentId === parentId);
+    expect(kids.length).toBeGreaterThan(0);
+
+    const kid = kids[0]!;
+    expect(kid.name.endsWith(' Ashcombe')).toBe(true);
+    expect(kid.lineage!.parentName).toBe(parentName);
+    // Over on arrival, but nowhere near the top of the card — and a long way
+    // above the graduates who came out of the same class.
+    expect(kid.popularity).toBeGreaterThan(30);
+    expect(kid.popularity).toBeLessThanOrEqual(world.settings.secondGenInheritedCap);
+    // And known where his father was known.
+    expect(kid.regionalPopularity[world.territories[0]!.id]).toBeGreaterThan(0);
+
+    // §0: nothing happens to a person off-screen. The paper ran it.
+    const story = world.weeklyNews.find((item) => item.text.includes(kid.name));
+    expect(story, 'no wire item announced the second-generation debut').toBeDefined();
+    expect(story!.text).toContain(parentName);
+  });
+
+  it('takes the name back off somebody nobody was ever shown', () => {
+    const { parentId } = worldWithALegend();
+    runToTheTurnOfTheYear();
+
+    const kid = Object.values(useGameStore.getState().world!.wrestlers).find(
+      (w) => w.lineage?.parentId === parentId,
+    )!;
+    const debutPopularity = kid.popularity;
+
+    // Wind the crowd's patience back past its end without ever booking him.
+    useGameStore.setState((state) => {
+      const world = state.world!;
+      world.wrestlers[kid.id]!.lineage!.inheritedAt =
+        world.week - world.settings.secondGenPatienceWeeks - 1;
+    });
+    for (let i = 0; i < 6; i++) {
+      useGameStore.getState().autoFillCard();
+      runWeek();
+    }
+
+    const after = useGameStore.getState().world!.wrestlers[kid.id]!;
+    expect(after.popularity).toBeLessThan(debutPopularity);
+    expect(after.lineage!.provenBy).toBeNull();
+  });
+
+  it('leaves everybody alone when the setting is off', () => {
+    useGameStore.getState().newGame(solventWorld({ secondGenerationEnabled: false }));
+    useGameStore.setState((state) => {
+      const world = state.world!;
+      const p = Object.values(world.wrestlers).find((w) => w.promotionId === null)!;
+      p.careerStatus = 'hallOfFamer';
+      p.careerHighPopularity = 90;
+      p.debutYear = world.settings.startingYear - 30;
+    });
+    runToTheTurnOfTheYear();
+
+    expect(Object.values(useGameStore.getState().world!.wrestlers).filter((w) => w.lineage)).toHaveLength(0);
+  });
+
+  it('leaves the ordinary school leavers unknown', () => {
+    useGameStore.getState().newGame(solventWorld({ secondGenChancePerGraduate: 0 }));
+    runToTheTurnOfTheYear();
+
+    const world = useGameStore.getState().world!;
+    // The class the year turn actually produced, not everybody the derived
+    // career status happens to call a rookie.
+    const graduates = (world.yearInReview!.graduates ?? []).map((id) => world.wrestlers[id]!);
+    expect(graduates.length).toBeGreaterThan(0);
+    expect(graduates.every((w) => !w.lineage)).toBe(true);
+    // Nobody has seen them. Before the academy scaled this down, a school
+    // leaver could walk out of the door at 82 popularity — as over as the
+    // world champion, having never had a match.
+    for (const rookie of graduates) expect(rookie.popularity).toBeLessThan(20);
   });
 });
 

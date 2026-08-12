@@ -27,6 +27,7 @@
 //   What the player sees is a face, a colour, and a sentence.
 
 import { clamp } from '../rng';
+import { nameBurden } from './lineage';
 import type { Id, Wrestler, WorldSettings } from '../types';
 
 /** Where somebody's head is at, in bands the UI can draw. */
@@ -207,7 +208,13 @@ export function expectation(wrestler: Wrestler, settings: WorldSettings): number
   const standing = wrestler.popularity / 100;
   const opinion = wrestler.ego / 100;
   return clamp(
-    standing * settings.moraleExpectationStanding + opinion * settings.moraleExpectationEgo,
+    standing * settings.moraleExpectationStanding +
+      opinion * settings.moraleExpectationEgo +
+      // Somebody who grew up watching their father main-event does not think
+      // an opener is a fair week. See career/lineage.ts — this does not lift
+      // when the crowd's patience runs out, because it is what they believe
+      // they are owed rather than what the fans think.
+      nameBurden(wrestler, settings),
     0,
     1,
   );

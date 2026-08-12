@@ -77,7 +77,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // carry the literal string 'territory-unassigned' as a hometown, so nobody
 // would ever get a hometown pop, and the whole reach system would read every
 // town as a strange one forever.
-const SCHEMA_VERSION = 16;
+//
+// Version 17 adds the second-generation settings block and Wrestler.lineage.
+// A version-16 save has none of the settings, so `rollParent` would compare
+// a peak popularity against undefined on every graduate and the whole
+// eligibility check would silently answer false forever — the feature would
+// be off in old saves and on in new ones, with nothing to tell them apart.
+const SCHEMA_VERSION = 17;
 
 export interface SaveFile {
   schema: number;

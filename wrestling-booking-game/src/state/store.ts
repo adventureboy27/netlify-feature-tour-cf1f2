@@ -122,7 +122,16 @@ import {
   comebackLine,
   inductionLine,
   debutLine,
+  secondGenerationLine,
 } from '../engine/world/wire';
+import {
+  asSecondGeneration,
+  debutAge as lineageDebutAge,
+  debutLine as lineageDebutLine,
+  inheritedTowns,
+  rollParent,
+  weeklyLineage,
+} from '../engine/career/lineage';
 import {
   exitTerms,
   guaranteedShareFor,
@@ -2184,6 +2193,12 @@ export const useGameStore = create<GameStore>()(
             (w) => w.career.streak <= -world.settings.commentarySlumpRun,
           );
           const debutant = participantWrestlers.find((w) => w.career.matches === 0);
+          // The announcers are only allowed to say a lineage they can see. If
+          // the father has somehow been dropped from the world, the fact does
+          // not exist — no half-known families on commentary.
+          const secondGen = participantWrestlers.find(
+            (w) => w.lineage && world.wrestlers[w.lineage.parentId],
+          );
           const seasonNow = world.settings.startingYear + Math.floor(world.week / 52);
           const oldHand = [...participantWrestlers].sort((a, b) => a.debutYear - b.debutYear)[0];
           const timesMet =
@@ -2242,6 +2257,8 @@ export const useGameStore = create<GameStore>()(
                   // Stored negative — the announcers want the length of it.
                   slumpingRun: Math.abs(slumping?.career.streak ?? 0),
                   debutantName: debutant?.name ?? null,
+                  secondGenName: secondGen?.name ?? null,
+                  secondGenParentName: secondGen?.lineage?.parentName ?? null,
                   oldHandName: oldHand?.name ?? null,
                   oldHandYears: oldHand ? Math.max(0, seasonNow - oldHand.debutYear) : 0,
                   timesMet,
@@ -3981,6 +3998,33 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
+        // The crowd's patience with a borrowed surname. Run across everybody
+        // in the business rather than just your roster: a rival's second-gen
+        // signing burns his father's name on their watch, not yours.
+        for (const w of Object.values(world.wrestlers)) {
+          if (!w.lineage || w.deceased || w.careerStatus === 'retired') continue;
+          const verdict = weeklyLineage(w, world.week, world.settings);
+          if (verdict.kind === 'proven') {
+            w.lineage.provenBy = world.week;
+            // Only the player's own people are worth a line in the paper —
+            // this is a note about somebody's standing, not an event.
+            if (w.promotionId === world.promotion.id) {
+              world.weeklyNews.push(secondGenerationLine(verdict.note, world.week));
+            }
+          } else if (verdict.kind === 'fading') {
+            const before = Math.round(w.popularity);
+            w.popularity = Math.max(0, w.popularity - verdict.loss);
+            // Said once, on the week it becomes visible, rather than every
+            // week for the rest of the fade — §0's "nothing happens to a
+            // person off-screen" wants the news, not a drip.
+            if (before !== Math.round(w.popularity) && before === w.lineage.inheritedStanding) {
+              if (w.promotionId === world.promotion.id) {
+                world.weeklyNews.push(secondGenerationLine(verdict.note, world.week));
+              }
+            }
+          }
+        }
+
         // Ego chases what they have become. Build somebody and they notice.
         const egoCtx = { rosterPeakPopularity: rosterPeak, currentWeek: world.week, settings: world.settings };
         for (const w of roster) {
@@ -4081,19 +4125,44 @@ export const useGameStore = create<GameStore>()(
 
           // And the schools make up some of the difference.
           const everyone = Object.values(world.wrestlers);
+          const takenNamesNow = new Set(everyone.map((w) => w.name.trim().toLowerCase()));
           const intake = graduateClass(
             rng,
             graduateCount(rng, workingPopulation(everyone), world.settings),
             year,
             world.settings,
             everyone.map((w) => w.appearance),
-            new Set(everyone.map((w) => w.name.trim().toLowerCase())),
+            new Set(takenNamesNow),
           );
+
+          // Some of them turn out to be somebody's kid. Rolled per graduate,
+          // so it takes a class *and* a business old enough to have produced
+          // an eligible parent — which in a fresh save is twenty years out.
+          const lineageCtx = { currentYear: year, currentWeek: world.week };
+          const secondGen: { child: Wrestler; parent: Wrestler }[] = [];
+          for (let i = 0; i < intake.wrestlers.length; i++) {
+            const graduate = intake.wrestlers[i]!;
+            const parent = rollParent(rng, [...everyone, ...intake.wrestlers], lineageCtx, world.settings);
+            if (!parent) continue;
+            const child = asSecondGeneration(rng, graduate, parent, lineageCtx, takenNamesNow, world.settings);
+            child.age = lineageDebutAge(rng, world.settings);
+            child.regionalPopularity = inheritedTowns(parent, world.settings);
+            takenNamesNow.delete(graduate.name.trim().toLowerCase());
+            takenNamesNow.add(child.name.trim().toLowerCase());
+            intake.wrestlers[i] = child;
+            secondGen.push({ child, parent });
+          }
+
           for (const graduate of intake.wrestlers) world.wrestlers[graduate.id] = graduate;
           world.freeAgents.push(...intake.freeAgents);
           notices.graduates = intake.wrestlers.map((w) => w.id);
           if (intake.wrestlers.length > 0) {
             world.weeklyNews.push(debutLine(intake.wrestlers.map((w) => w.name), world.week));
+          }
+          // A name coming back is its own story, and §0 says nothing happens
+          // off-screen — the paper has to say whose kid this is.
+          for (const { child, parent } of secondGen) {
+            world.weeklyNews.push(secondGenerationLine(lineageDebutLine(child, parent), world.week));
           }
 
           // Broken partnerships are cleared weekly now — see above.

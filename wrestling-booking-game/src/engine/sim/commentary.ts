@@ -101,6 +101,8 @@ export type CommentaryFact =
   | 'slumping'
   /** First match this company has ever given them. */
   | 'debut'
+  /** Their father worked, and the crowd remembers the name. */
+  | 'secondGeneration'
   // --- what has happened between them ------------------------------------
   | 'firstMeeting'
   | 'metOften'
@@ -187,6 +189,12 @@ export interface CommentaryContext {
   slumpingName: string | null;
   slumpingRun: number;
   debutantName: string | null;
+  /**
+   * Somebody in this match whose father was in the business, and his father's
+   * name. Both or neither — the announcers never half-know a lineage.
+   */
+  secondGenName: string | null;
+  secondGenParentName: string | null;
   /** The most experienced person in the match, and how many years that is. */
   oldHandName: string | null;
   oldHandYears: number;
@@ -251,6 +259,7 @@ export function factsOf(ctx: CommentaryContext): Set<CommentaryFact> {
   if (ctx.onATearName) facts.add('onATear');
   if (ctx.slumpingName) facts.add('slumping');
   if (ctx.debutantName) facts.add('debut');
+  if (ctx.secondGenName && ctx.secondGenParentName) facts.add('secondGeneration');
   if (ctx.oldHandName && ctx.oldHandYears >= s.commentaryLongCareerYears) facts.add('longCareer');
   // "They have never met" is only worth saying about two people the crowd
   // has heard of, which the match having any stature at all stands in for.
@@ -340,6 +349,8 @@ function filler(ctx: CommentaryContext, rng: Rng) {
       .replace(/\{oldHand\}/g, ctx.oldHandName ?? everyone[0]?.name ?? 'him')
       .replace(/\{oldHandYears\}/g, String(Math.max(1, ctx.oldHandYears)))
       .replace(/\{debutant\}/g, ctx.debutantName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{secondGen\}/g, ctx.secondGenName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{secondGenParent\}/g, ctx.secondGenParentName ?? 'his father')
       .replace(/\{timesMet\}/g, String(ctx.timesMet))
       .replace(/\{feudWeeks\}/g, String(Math.max(1, ctx.feudWeeks)))
       .replace(/\{feudMatches\}/g, String(Math.max(1, ctx.feudMatches)))
@@ -589,6 +600,10 @@ export function permittedNames(ctx: CommentaryContext): Set<string> {
   if (ctx.hurtComingIn) names.add(ctx.hurtComingIn);
   for (const t of ctx.titles) names.add(t.name);
   if (ctx.formerChampionName) names.add(ctx.formerChampionName);
+  if (ctx.secondGenName) names.add(ctx.secondGenName);
+  // The father is a name the announcers are allowed to say even though he is
+  // not in the building — he is the reason the fact exists.
+  if (ctx.secondGenParentName) names.add(ctx.secondGenParentName);
   if (ctx.formerChampionTitle) names.add(ctx.formerChampionTitle);
   if (ctx.otherBeltHolderName) names.add(ctx.otherBeltHolderName);
   if (ctx.otherBeltName) names.add(ctx.otherBeltName);

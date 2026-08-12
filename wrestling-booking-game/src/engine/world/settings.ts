@@ -817,6 +817,7 @@ export function defaultWorldSettings(): WorldSettings {
     worldPopulationMin: 150,
     worldPopulationMax: 230,
     academyMaxGraduates: 14,
+    academyGraduatePopularity: 0.12,
     academyDebutAgeMin: 19,
     academyDebutAgeMax: 25,
 
@@ -1045,7 +1046,42 @@ export function defaultWorldSettings(): WorldSettings {
     startingYear: new Date().getFullYear(),
     seed: 'wrestling-booking-game',
     rivalsCanGoBankrupt: true,
+
+    // Second generation. Tuned so a save has to have run a while before the
+    // first one appears: the parent must be finished, must have peaked at 65,
+    // and must have debuted 22 years ago, which in a world starting at year 0
+    // means nobody qualifies until the opening roster's veterans have retired.
+    // That is the intent — a second-generation wrestler in year three would
+    // be a stat bonus, not a payoff.
     secondGenerationEnabled: true,
+    secondGenMinParentPopularity: 65,
+    secondGenParentDebutedYearsAgo: 22,
+    secondGenMaxChildren: 2,
+    // Per graduate, and the schools put out 0-14 a year — most years, inside
+    // the normal population band, they put out none at all. Measured over 45
+    // simulated years in a world engineered to retire people early (so that
+    // eligible parents actually exist): 24 second-generation debuts against
+    // 474 people in the business, about one every other year. A real save is
+    // rarer than that, because a real save spends its first two decades with
+    // nobody eligible.
+    secondGenChancePerGraduate: 0.08,
+    secondGenParentShortlist: 6,
+    // 45% of a 90-popularity legend's peak is 40 — a long way above a
+    // graduate's 5-15, a long way below anybody you would main-event.
+    secondGenInheritedShare: 0.45,
+    secondGenInheritedCap: 55,
+    secondGenTownShare: 0.55,
+    secondGenCharismaPull: 0.35,
+    secondGenResemblance: 0.6,
+    // A year and a half of television. Long enough that squandering it is a
+    // decision rather than an accident.
+    secondGenPatienceWeeks: 78,
+    secondGenProofMatches: 20,
+    secondGenProofWinRate: 0.5,
+    secondGenProofPopularityGain: 12,
+    secondGenFadePerWeek: 0.6,
+    secondGenFadeFloor: 20,
+    secondGenExpectationBurden: 0.14,
     relationshipsEnabled: true,
     hallOfFameEnabled: true,
   };
