@@ -29,7 +29,14 @@
 //   {hurt} {hurtHow}             needs 'injuredInMatch'
 //   {hurtComingIn}               needs 'carryingInjury'
 //   {incident}                   needs 'incident'
-//   {stip}                       needs 'stipulation'
+//   {stip}                       needs 'stipulation'. A bare noun phrase with
+//                                no article and sometimes the word "Match"
+//                                already in it — "Steel Cage", "Tables
+//                                Match", "Hair vs Hair". So never write "a
+//                                {stip}" or "{stip} match": that produced
+//                                "this is Tables Match" and "in a Tables
+//                                Match match". "Under {stip} rules" and a
+//                                bare "{stip}." both work for all of them.
 //   {vet} {rookie}               needs 'veteran' / 'rookie'
 //   {big} {small}                needs 'sizeGap'
 //   {town}                       always known — the building we are in
@@ -220,7 +227,7 @@ export const STAKES: readonly ColourTemplate[] = [
     needs: ['stipulation'],
   },
   {
-    text: 'For anybody just joining us: this is {stip}. There are almost no rules left.',
+    text: 'For anybody just joining us: {stip}. That is what these two asked for.',
     needs: ['stipulation'],
   },
   {
@@ -232,7 +239,7 @@ export const STAKES: readonly ColourTemplate[] = [
     needs: ['stipulation', 'grudge'],
   },
   {
-    text: 'A {oldHandYears}-year man in a {stip} match. At some point the body says no.',
+    text: 'A {oldHandYears}-year man under {stip} rules. At some point the body says no.',
     needs: ['stipulation', 'longCareer'],
   },
   {

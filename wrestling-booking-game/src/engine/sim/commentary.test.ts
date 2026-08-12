@@ -209,6 +209,32 @@ checkPool('the comebacks', COMEBACKS, false);
 checkPool('the closers', CLOSERS, true);
 checkPool('the last word', BANTER, true);
 
+describe('the match type reads as English', () => {
+  // Stipulation names are bare noun phrases with no article, and several
+  // already contain the word "Match" — "Steel Cage", "Tables Match", "Hair vs
+  // Hair". Two templates assumed otherwise and shipped "this is Tables Match"
+  // and "in a Tables Match match".
+  const withStip = [...OPENERS, ...STAKES, ...COLOUR, ...CLOSERS, ...BANTER].filter((t) =>
+    t.text.includes('{stip}'),
+  );
+
+  it('has lines about the match type at all', () => {
+    expect(withStip.length).toBeGreaterThan(3);
+  });
+
+  it('never puts an article in front of it', () => {
+    for (const t of withStip) {
+      expect(t.text, t.text).not.toMatch(/\b(a|an|the)\s+\{stip\}/i);
+    }
+  });
+
+  it('never follows it with the word it may already contain', () => {
+    for (const t of withStip) {
+      expect(t.text, t.text).not.toMatch(/\{stip\}\s+match/i);
+    }
+  });
+});
+
 describe('the play-by-play', () => {
   it('only names the winner in the finish call', () => {
     for (const [kind, lines] of Object.entries(PLAY_BY_PLAY)) {
