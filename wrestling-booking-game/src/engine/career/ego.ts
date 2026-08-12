@@ -75,7 +75,10 @@ export function egoLabel(ego: number): EgoLabel {
  * The clauses a wrestler will ask for, in the order they ask. Higher ego
  * unlocks more of the list, and each one costs the promotion something real.
  */
-const CLAUSE_LADDER: { clause: Clause; egoRequired: number; label: string; cost: string }[] = [
+// Exported because the bidding war picks its sweeteners off the same ladder —
+// there should be exactly one list of what a wrestler can be offered, and one
+// account of what each thing costs the company that offers it.
+export const CLAUSE_LADDER: { clause: Clause; egoRequired: number; label: string; cost: string }[] = [
   {
     clause: 'travelCovered',
     egoRequired: 20,
@@ -131,6 +134,16 @@ const CLAUSE_LADDER: { clause: Clause; egoRequired: number; label: string; cost:
     cost: 'Releasing them costs the full remaining term.',
   },
 ];
+
+/** The player-facing name of a clause. Falls back to the raw key. */
+export function clauseLabel(clause: Clause): string {
+  return CLAUSE_LADDER.find((entry) => entry.clause === clause)?.label ?? clause;
+}
+
+/** What agreeing to it costs you, in words. */
+export function clauseCost(clause: Clause): string {
+  return CLAUSE_LADDER.find((entry) => entry.clause === clause)?.cost ?? '';
+}
 
 export interface ContractDemand {
   /** What they want per week. */

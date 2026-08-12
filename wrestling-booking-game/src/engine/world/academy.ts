@@ -12,8 +12,8 @@
 // short, and shuts them when it is full.
 
 import type { Rng } from '../rng';
-import { randInt } from '../rng';
-import type { Appearance, Wrestler, WorldSettings } from '../types';
+import { chance, clamp, randInt } from '../rng';
+import type { Appearance, Id, Wrestler, WorldSettings } from '../types';
 import { generateWrestlers, rollDebutAge } from '../generate/wrestler';
 import type { FreeAgent } from './freeAgents';
 
@@ -40,6 +40,57 @@ export function graduateCount(rng: Rng, population: number, settings: WorldSetti
 export interface AcademyIntake {
   wrestlers: Wrestler[];
   freeAgents: FreeAgent[];
+  /**
+   * The one in a class who came out ready, if there was one. Set only when a
+   * phenom was rolled — see `asPhenom`. The caller turns this into a bidding
+   * war; the academy's job stops at producing them.
+   */
+  phenomId: Id | null;
+}
+
+/**
+ * The graduate who did not need the ten years.
+ *
+ * Ordinary school leavers are projects: real stats are a decade away and most
+ * of them never get there. Once in a long while somebody walks out at
+ * twenty-one already able to work, and the whole business finds out inside a
+ * week. That is the entire justification for the bidding war existing on the
+ * prospect side — an auction over a rookie only makes sense if the rookie is
+ * genuinely not a rookie.
+ *
+ * Their *popularity* stays modest. Nobody has seen them wrestle. What they
+ * have is buzz, and the reason every promotion wants them is the hidden
+ * talent number, which is exactly the thing the player cannot read directly.
+ */
+export function asPhenom(rng: Rng, graduate: Wrestler, settings: WorldSettings): Wrestler {
+  const s = settings;
+  const lift = (current: number, floor: number) => clamp(Math.max(current, floor + randInt(rng, 0, 14)), 5, 96);
+  const talent = clamp(Math.max(graduate.talent, s.biddingPhenomTalentFloor + randInt(rng, 0, 8)), 5, 99);
+  return {
+    ...graduate,
+    strength: lift(graduate.strength, s.biddingPhenomStatFloor),
+    skill: lift(graduate.skill, s.biddingPhenomStatFloor),
+    agility: lift(graduate.agility, s.biddingPhenomStatFloor),
+    stamina: lift(graduate.stamina, s.biddingPhenomStatFloor),
+    charisma: lift(graduate.charisma, s.biddingPhenomStatFloor - 10),
+    talent,
+    // Growth follows talent everywhere else in the game (§3.8); a phenom whose
+    // ceiling was rolled for an ordinary graduate would stall in three years.
+    growthRate: 0.4 + (talent / 100) * 1.2,
+    potentials: {
+      strength: clamp(Math.max(graduate.potentials.strength, 88), 5, 99),
+      skill: clamp(Math.max(graduate.potentials.skill, 90), 5, 99),
+      agility: clamp(Math.max(graduate.potentials.agility, 88), 5, 99),
+      stamina: clamp(Math.max(graduate.potentials.stamina, 88), 5, 99),
+      charisma: clamp(Math.max(graduate.potentials.charisma, 82), 5, 99),
+    },
+    popularity: s.biddingPhenomPopularity,
+    careerHighPopularity: s.biddingPhenomPopularity,
+    // Young, because that is the whole story. Somebody this good at thirty
+    // would already be working somewhere.
+    age: randInt(rng, s.academyDebutAgeMin, s.academyDebutAgeMin + 2),
+    careerStatus: 'prospect',
+  };
 }
 
 /**
@@ -54,7 +105,7 @@ export function graduateClass(
   existingAppearances: Appearance[] = [],
   existingNames: ReadonlySet<string> = new Set(),
 ): AcademyIntake {
-  if (count <= 0) return { wrestlers: [], freeAgents: [] };
+  if (count <= 0) return { wrestlers: [], freeAgents: [], phenomId: null };
 
   // Names have to be checked against the whole business, not just this class —
   // otherwise the schools keep turning out a second Blackout every few years.
@@ -91,13 +142,28 @@ export function graduateClass(
     };
   });
 
-  const freeAgents: FreeAgent[] = wrestlers.map((w) => ({
+  // Once in a long while, one of them is not a project. Rolled per class
+  // rather than per graduate: two phenoms in one year would not be phenoms,
+  // and a fourteen-strong class should not be fourteen times as likely to
+  // produce one as a class of one.
+  let phenomId: Id | null = null;
+  const class_: Wrestler[] = wrestlers;
+  if (settings.biddingEnabled && class_.length > 0 && chance(rng, settings.biddingPhenomChancePerClass)) {
+    const index = randInt(rng, 0, class_.length - 1);
+    const risen = asPhenom(rng, class_[index]!, settings);
+    class_[index] = risen;
+    phenomId = risen.id;
+  }
+
+  const freeAgents: FreeAgent[] = class_.map((w) => ({
     wrestlerId: w.id,
     reason: 'schoolGraduate' as const,
-    // Cheap, because nobody has any idea whether they are any good.
+    // Cheap, because nobody has any idea whether they are any good. The
+    // phenom is the exception and does not go through this door at all — the
+    // caller pulls them out into an auction.
     askingRate: settings.contractBaseWeeklyRate,
     weeksUnsigned: 0,
   }));
 
-  return { wrestlers, freeAgents };
+  return { wrestlers: class_, freeAgents, phenomId };
 }

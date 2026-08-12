@@ -47,8 +47,11 @@ describe('the intake', () => {
 });
 
 describe('a graduating class', () => {
+  /** No phenom, so the ordinary case is testable on its own. */
+  const ordinary = { ...settings, biddingPhenomChancePerClass: 0 };
+
   it('comes out young, unsigned and with no record', () => {
-    const { wrestlers, freeAgents } = graduateClass(rngFromSeed('class'), 3, 2000, settings);
+    const { wrestlers, freeAgents } = graduateClass(rngFromSeed('class'), 3, 2000, ordinary);
     expect(wrestlers).toHaveLength(3);
     expect(freeAgents).toHaveLength(3);
     for (const w of wrestlers) {
@@ -64,6 +67,63 @@ describe('a graduating class', () => {
   });
 
   it('produces nothing when nobody graduates', () => {
-    expect(graduateClass(rngFromSeed('none'), 0, 2000, settings).wrestlers).toHaveLength(0);
+    const empty = graduateClass(rngFromSeed('none'), 0, 2000, settings);
+    expect(empty.wrestlers).toHaveLength(0);
+    expect(empty.phenomId).toBeNull();
+  });
+
+  it('leaves the schools unknown — a graduate is a project, not a signing', () => {
+    const { wrestlers } = graduateClass(rngFromSeed('unknown'), 8, 2000, ordinary);
+    // The generator rolls popularity for somebody mid-career. Before this was
+    // scaled down a school leaver could come out at 82 — as over as the world
+    // champion, having never had a match.
+    for (const w of wrestlers) expect(w.popularity).toBeLessThan(20);
+  });
+});
+
+describe('the phenom', () => {
+  /** Certainty, so the one-in-a-long-while case is testable at all. */
+  const certain = { ...settings, biddingPhenomChancePerClass: 1 };
+
+  it('never turns up in an ordinary class', () => {
+    const never = { ...settings, biddingPhenomChancePerClass: 0 };
+    for (let i = 0; i < 20; i++) {
+      expect(graduateClass(rngFromSeed(`plain-${i}`), 6, 2000, never).phenomId).toBeNull();
+    }
+  });
+
+  it('comes out able to work, and young enough for that to be the story', () => {
+    const { wrestlers, phenomId } = graduateClass(rngFromSeed('gift'), 6, 2000, certain);
+    const phenom = wrestlers.find((w) => w.id === phenomId)!;
+    expect(phenom).toBeDefined();
+    expect(phenom.skill).toBeGreaterThanOrEqual(settings.biddingPhenomStatFloor);
+    expect(phenom.agility).toBeGreaterThanOrEqual(settings.biddingPhenomStatFloor);
+    expect(phenom.talent).toBeGreaterThanOrEqual(settings.biddingPhenomTalentFloor);
+    expect(phenom.age).toBeLessThanOrEqual(settings.academyDebutAgeMin + 2);
+    // And a ceiling worth chasing — growth follows talent everywhere else in
+    // the game, so a phenom on a graduate's growth rate would stall by 25.
+    expect(phenom.growthRate).toBeGreaterThan(1.4);
+    expect(phenom.potentials.skill).toBeGreaterThanOrEqual(90);
+  });
+
+  it('is famous for nothing yet — the buzz is about what they can do', () => {
+    const { wrestlers, phenomId } = graduateClass(rngFromSeed('buzz'), 6, 2000, certain);
+    const phenom = wrestlers.find((w) => w.id === phenomId)!;
+    // Well above the rest of the class, nowhere near a drawing card. Nobody
+    // has seen them wrestle; they have heard.
+    expect(phenom.popularity).toBe(settings.biddingPhenomPopularity);
+    expect(phenom.record).toEqual({ wins: 0, losses: 0, draws: 0 });
+  });
+
+  it('is only ever one of them', () => {
+    const { wrestlers, phenomId } = graduateClass(rngFromSeed('one'), 10, 2000, certain);
+    const gifted = wrestlers.filter((w) => w.talent >= settings.biddingPhenomTalentFloor && w.age <= 21);
+    expect(gifted.map((w) => w.id)).toContain(phenomId);
+    expect(gifted).toHaveLength(1);
+  });
+
+  it('cannot appear at all when the bidding war is switched off', () => {
+    const off = { ...certain, biddingEnabled: false };
+    expect(graduateClass(rngFromSeed('off'), 6, 2000, off).phenomId).toBeNull();
   });
 });

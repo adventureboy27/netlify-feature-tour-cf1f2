@@ -54,6 +54,7 @@ import type { Manager } from '../engine/sim/ringside';
 import type { WireItem } from '../engine/world/wire';
 import type { MemoriamShow } from '../engine/world/seasons';
 import type { WeatherCall } from '../engine/world/weatherCall';
+import type { BiddingResult, BiddingWar } from '../engine/economy/bidding';
 import type { WeatherCallOptionId } from '../data/weatherCalls';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
 import type { PendingEvent } from '../engine/events/types';
@@ -187,6 +188,15 @@ export interface World {
    * title for you, and says so.
    */
   pendingChampionCall: ChampionCall | null;
+  /**
+   * The one auction the business runs in the open. Rare: it takes a real star
+   * hitting the market, or a phenom out of the school, plus at least two other
+   * companies with the money to enter. Resolves whether or not the booker
+   * answers — the room does not wait.
+   */
+  pendingBiddingWar: BiddingWar | null;
+  /** How the last one went, shown once and then cleared. */
+  lastBiddingWar: { war: BiddingWar; result: BiddingResult } | null;
   /**
    * Deals the world cannot see. Either a handshake with somebody whose rival
    * contract is running out, or a signed contract that started the hour their
@@ -626,6 +636,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     pendingMemoriam: null,
     pendingWeatherCall: null,
     pendingChampionCall: null,
+    pendingBiddingWar: null,
+    lastBiddingWar: null,
     secretSignings: [],
     weatherChoice: null,
     signingBanWeeks: 0,

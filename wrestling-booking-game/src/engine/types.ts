@@ -2710,6 +2710,68 @@ export interface WorldSettings {
   seed: string;
   rivalsCanGoBankrupt: boolean;
 
+  // --- The bidding war, engine/economy/bidding.ts --------------------------
+  biddingEnabled: boolean;
+  /** Popularity that makes somebody worth an auction rather than a phone call. */
+  biddingStarPopularity: number;
+  /** ...or this much hidden talent, this young. The phenom's door. */
+  biddingProspectTalent: number;
+  biddingProspectAge: number;
+  /** Chance a graduating class contains somebody who is obviously going to be a star. */
+  biddingPhenomChancePerClass: number;
+  /** How far above the ordinary tier a phenom's stats are rolled. */
+  biddingPhenomStatFloor: number;
+  biddingPhenomTalentFloor: number;
+  /** Buzz a phenom debuts with. Nobody has seen them work; everybody has heard. */
+  biddingPhenomPopularity: number;
+  /** Fewer interested companies than this and it is a negotiation, not an auction. */
+  biddingMinRivals: number;
+  /** Weeks of payroll a company must keep covered to enter one. */
+  biddingHeadroomWeeks: number;
+  /** How far above a company's own rating somebody has to be to interest them. */
+  biddingWantsThreshold: number;
+
+  // How keen a rival is, 0-1, and what that keenness buys.
+  biddingKeennessBase: number;
+  biddingKeennessLift: number;
+  biddingKeennessUpside: number;
+  biddingKeennessYouth: number;
+  /** Age either side of which somebody counts as young or old, throughout. */
+  biddingYouthPivot: number;
+  /** How far over the asking rate a fully keen rival will stretch. */
+  biddingRivalStretch: number;
+  /** Bid noise, so two identical companies do not bid identically. */
+  biddingRivalNerve: number;
+  biddingRivalBonusChance: number;
+  biddingRivalMaxClauses: number;
+  /** A signing bonus is quoted as this many weeks of rate. */
+  biddingBonusWeeks: number;
+  biddingMinWeeks: number;
+  biddingMaxWeeks: number;
+  /** Guarantee on a contract written from a winning bid without ironClad. */
+  biddingBaseGuarantee: number;
+
+  // What the wrestler weighs. These are the whole design of the feature.
+  biddingWeightMoney: number;
+  biddingWeightBonus: number;
+  biddingWeightTerm: number;
+  biddingWeightClauses: number;
+  biddingWeightStanding: number;
+  biddingWeightLoyalty: number;
+  biddingWeightAlly: number;
+  biddingWeightEnemy: number;
+  biddingWeightHome: number;
+  /** Money stops helping past this multiple of the asking rate. */
+  biddingMoneyCeiling: number;
+  /** How many clauses' worth of appeal counts as a full sweetener package. */
+  biddingClauseSaturation: number;
+  /** Appeal of a clause with no specific reading. */
+  biddingUnlistedClauseAppeal: number;
+  /** Seeded noise on the final decision. Small — it breaks ties, not offers. */
+  biddingGutFeeling: number;
+  /** Score gap under which the result reads as having come down to one thing. */
+  biddingCloseCall: number;
+
   // --- Second generation, engine/career/lineage.ts -------------------------
   secondGenerationEnabled: boolean;
   /** Peak popularity a parent needed for the surname to mean anything. */

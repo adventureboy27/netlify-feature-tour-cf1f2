@@ -83,7 +83,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // a peak popularity against undefined on every graduate and the whole
 // eligibility check would silently answer false forever — the feature would
 // be off in old saves and on in new ones, with nothing to tell them apart.
-const SCHEMA_VERSION = 17;
+//
+// Version 18 adds pendingBiddingWar/lastBiddingWar to the world and the whole
+// bidding settings block. A version-17 save has neither: the weekly tick
+// dereferences the pending war without a guard, and every weight the auction
+// scores offers on would read undefined, so the first star to reach the open
+// market would settle on NaN.
+const SCHEMA_VERSION = 18;
 
 export interface SaveFile {
   schema: number;

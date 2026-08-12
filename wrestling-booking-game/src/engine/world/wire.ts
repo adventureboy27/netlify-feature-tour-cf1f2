@@ -145,6 +145,20 @@ export function debutLine(names: readonly string[], week: number): WireItem {
 }
 
 /**
+ * The auction opening. A lead, because a star reaching the open market is the
+ * biggest story the business has that week and the booker has a decision to
+ * make about it.
+ */
+export function biddingOpenedLine(sentence: string, week: number): WireItem {
+  return wire('signing', sentence, week, 'lead');
+}
+
+/** And where they ended up. */
+export function biddingSettledLine(sentence: string, week: number): WireItem {
+  return wire('signing', sentence, week, 'lead');
+}
+
+/**
  * A familiar surname coming back into the business — a lead, not a filler
  * line, because it is the only debut anybody outside the school cares about.
  *

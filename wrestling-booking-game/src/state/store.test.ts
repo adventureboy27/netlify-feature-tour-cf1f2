@@ -311,6 +311,198 @@ describe('the rest of the business', () => {
   });
 });
 
+describe('the bidding war', () => {
+  /**
+   * A star on somebody else's books whose deal lapses this week. Waiting for
+   * one to happen naturally means waiting years; everything after the setup
+   * is the real path — the real expiry, the real rivals, the real auction.
+   */
+  function starOnTheMarket(over: Partial<WorldSettings> = {}) {
+    useGameStore.getState().newGame({ ...patientOwner(), startingCash: 5_000_000, ...over });
+    const world = useGameStore.getState().world!;
+    const rival = world.rivals[0]!;
+    const target = rival.rosterIds.map((id) => world.wrestlers[id]!)[0]!;
+    useGameStore.setState((state) => {
+      const w = state.world!;
+      const person = w.wrestlers[target.id]!;
+      person.name = 'Vance Mercer';
+      person.popularity = 88;
+      person.ego = 85;
+      person.age = 30;
+      person.contract!.weeksRemaining = 1;
+      // Everybody with money to spend, so the room is not empty.
+      for (const company of [w.promotion, ...w.rivals]) company.bankBalance = 3_000_000;
+    });
+    return target.id;
+  }
+
+  /** Resolve until the auction opens, then stop. */
+  function untilTheAuction(): void {
+    for (let i = 0; i < 8; i++) {
+      useGameStore.getState().autoFillCard();
+      runWeek();
+      if (useGameStore.getState().world!.pendingBiddingWar) return;
+    }
+    throw new Error('no auction opened');
+  }
+
+  it('opens when a real star hits the open market, and invites the booker', () => {
+    const id = starOnTheMarket();
+    untilTheAuction();
+
+    const world = useGameStore.getState().world!;
+    const war = world.pendingBiddingWar!;
+    expect(war.wrestlerId).toBe(id);
+    expect(war.reason).toBe('freeAgentStar');
+    expect(war.stage).toBe('invited');
+    expect(war.playerIn).toBeNull();
+    expect(war.rivalIds.length).toBeGreaterThanOrEqual(world.settings.biddingMinRivals);
+    // And the paper says it is happening.
+    expect(world.weeklyNews.some((n) => n.text.includes('Vance Mercer'))).toBe(true);
+  });
+
+  it('does not auction the rest of the card — an ordinary deal is re-papered quietly', () => {
+    useGameStore.getState().newGame({ ...patientOwner(), startingCash: 5_000_000 });
+    useGameStore.setState((state) => {
+      const w = state.world!;
+      // Every rival contract lapses at once, and nobody on them is a star.
+      for (const rival of w.rivals) {
+        for (const id of rival.rosterIds) {
+          const person = w.wrestlers[id]!;
+          person.contract!.weeksRemaining = 1;
+          person.popularity = 45;
+          person.talent = 50;
+        }
+      }
+    });
+    useGameStore.getState().autoFillCard();
+    runWeek();
+    expect(useGameStore.getState().world!.pendingBiddingWar).toBeNull();
+  });
+
+  it('settles without you the moment you stay out of it', () => {
+    starOnTheMarket();
+    untilTheAuction();
+    useGameStore.getState().answerBiddingInvitation(false);
+
+    const world = useGameStore.getState().world!;
+    expect(world.pendingBiddingWar).toBeNull();
+    const { war, result } = world.lastBiddingWar!;
+    expect(war.playerIn).toBe(false);
+    expect(result).not.toBeNull();
+    // Somebody else got him, and it was not you.
+    expect(result!.winningPromotionId).not.toBe(world.promotion.id);
+    expect(result!.allBids.some((b) => b.promotionId === world.promotion.id)).toBe(false);
+    expect(world.promotion.rosterIds).not.toContain(war.wrestlerId);
+  });
+
+  it('will not take a bid from somebody who already said no', () => {
+    starOnTheMarket();
+    untilTheAuction();
+    useGameStore.getState().answerBiddingInvitation(false);
+    const after = useGameStore.getState().world!.lastBiddingWar!.result!.allBids.length;
+    // The auction is over; there is nothing left to bid into.
+    useGameStore.getState().submitBid({ weeklyRate: 99_999, signingBonus: 0, weeks: 104, clauses: [] });
+    expect(useGameStore.getState().world!.lastBiddingWar!.result!.allBids).toHaveLength(after);
+  });
+
+  it('hands over the contract on the terms that won it', () => {
+    const id = starOnTheMarket();
+    untilTheAuction();
+    useGameStore.getState().answerBiddingInvitation(true);
+    expect(useGameStore.getState().world!.pendingBiddingWar!.stage).toBe('bidding');
+
+    const bankBefore = useGameStore.getState().world!.promotion.bankBalance;
+    // Enough money and the right read that this is not a coin toss.
+    useGameStore.getState().submitBid({
+      weeklyRate: 40_000,
+      signingBonus: 100_000,
+      weeks: 156,
+      clauses: ['creativeControl', 'noJobbing', 'titlePush', 'ironClad'],
+    });
+
+    const world = useGameStore.getState().world!;
+    const result = world.lastBiddingWar!.result!;
+    expect(result.winningPromotionId).toBe(world.promotion.id);
+    expect(world.promotion.rosterIds).toContain(id);
+
+    const signed = world.wrestlers[id]!;
+    expect(signed.promotionId).toBe(world.promotion.id);
+    expect(signed.contract!.weeklyRate).toBe(40_000);
+    expect(signed.contract!.weeksRemaining).toBe(156);
+    expect(signed.contract!.clauses).toContain('creativeControl');
+    // ironClad is the clause that guarantees the whole term.
+    expect(signed.contract!.guaranteedPct).toBe(1);
+    // The bonus is real money and it left the bank.
+    expect(world.promotion.bankBalance).toBe(bankBefore - 100_000);
+    // And nobody is on two rosters.
+    for (const rival of world.rivals) expect(rival.rosterIds).not.toContain(id);
+  });
+
+  it('refuses a bonus the company does not have', () => {
+    starOnTheMarket();
+    untilTheAuction();
+    useGameStore.getState().answerBiddingInvitation(true);
+    const bank = useGameStore.getState().world!.promotion.bankBalance;
+    useGameStore.getState().submitBid({
+      weeklyRate: 5_000,
+      signingBonus: bank + 1,
+      weeks: 104,
+      clauses: [],
+    });
+    // Nothing happened: still waiting on a bid it can actually take.
+    expect(useGameStore.getState().world!.pendingBiddingWar!.stage).toBe('bidding');
+  });
+
+  it('goes ahead without a booker who never answered', () => {
+    starOnTheMarket();
+    untilTheAuction();
+    // Walk away from the dialog entirely and run the next week.
+    useGameStore.getState().autoFillCard();
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    expect(world.pendingBiddingWar).toBeNull();
+    expect(world.lastBiddingWar!.result).not.toBeNull();
+    // A war left open forever would be a way to freeze a star out of the
+    // business by ignoring a panel.
+  });
+
+  it('runs one auction at a time', () => {
+    useGameStore.getState().newGame({ ...patientOwner(), startingCash: 5_000_000 });
+    useGameStore.setState((state) => {
+      const w = state.world!;
+      for (const company of [w.promotion, ...w.rivals]) company.bankBalance = 5_000_000;
+      // Three stars lapse in the same week.
+      let done = 0;
+      for (const rival of w.rivals) {
+        for (const id of rival.rosterIds) {
+          if (done >= 3) break;
+          const person = w.wrestlers[id]!;
+          person.popularity = 90;
+          person.ego = 80;
+          person.contract!.weeksRemaining = 1;
+          done++;
+        }
+      }
+    });
+    useGameStore.getState().autoFillCard();
+    runWeek();
+    // Singular by construction — two open auctions would be two blocking
+    // panels and a choice between them, which is not the decision this is.
+    expect(useGameStore.getState().world!.pendingBiddingWar).not.toBeNull();
+  });
+
+  it('never opens at all when the setting is off', () => {
+    starOnTheMarket({ biddingEnabled: false });
+    for (let i = 0; i < 6; i++) {
+      useGameStore.getState().autoFillCard();
+      runWeek();
+      expect(useGameStore.getState().world!.pendingBiddingWar).toBeNull();
+    }
+  });
+});
+
 describe('the next generation', () => {
   /**
    * Twenty years of simulation to reach the first eligible parent is not a

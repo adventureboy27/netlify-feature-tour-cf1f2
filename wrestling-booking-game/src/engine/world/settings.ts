@@ -1047,6 +1047,69 @@ export function defaultWorldSettings(): WorldSettings {
     seed: 'wrestling-booking-game',
     rivalsCanGoBankrupt: true,
 
+    // The bidding war. Rare by construction rather than by a rarity dial: it
+    // takes a genuine star reaching the open market, or a phenom out of the
+    // school, plus at least two other companies with the headroom to enter.
+    // Most weeks in most saves none of that is true.
+    biddingEnabled: true,
+    biddingStarPopularity: 78,
+    biddingProspectTalent: 88,
+    biddingProspectAge: 26,
+    // Per graduating class, not per graduate — a class with two phenoms in it
+    // would not be a phenom.
+    biddingPhenomChancePerClass: 0.05,
+    biddingPhenomStatFloor: 68,
+    biddingPhenomTalentFloor: 90,
+    biddingPhenomPopularity: 38,
+    biddingMinRivals: 2,
+    biddingHeadroomWeeks: 26,
+    biddingWantsThreshold: 0.85,
+
+    biddingKeennessBase: 0.45,
+    biddingKeennessLift: 0.5,
+    biddingKeennessUpside: 0.4,
+    biddingKeennessYouth: 0.3,
+    biddingYouthPivot: 28,
+    // A rival that wants somebody badly goes to about 1.6x the asking rate.
+    biddingRivalStretch: 0.65,
+    biddingRivalNerve: 0.09,
+    biddingRivalBonusChance: 0.7,
+    biddingRivalMaxClauses: 4,
+    biddingBonusWeeks: 20,
+    biddingMinWeeks: 52,
+    biddingMaxWeeks: 208,
+    biddingBaseGuarantee: 0.35,
+
+    // Money is the biggest single term, and scoreBid normalises it by the
+    // ceiling so this really is the most it can ever be worth. The rest of the
+    // sheet adds up to about 64, so a big enough cheque *can* win on its own —
+    // it is simply the expensive way to do it.
+    //
+    // Measured against three rivals for an ego-85 star, share of auctions won:
+    //
+    //                        1.3x   1.6x   2.0x   2.5x   (of the asking rate)
+    //   money alone            0%     0%    16%    58%
+    //   + a big signing bonus  0%     4%    66%    92%
+    //   + the wrong clauses    0%     1%    52%    86%
+    //   + the right clauses   19%    77%   100%   100%
+    //
+    // Rivals bid a median 1.41x with two sweeteners, so reading the person is
+    // worth roughly a full turn of the money dial.
+    biddingWeightMoney: 68,
+    biddingWeightBonus: 12,
+    biddingWeightTerm: 10,
+    biddingWeightClauses: 22,
+    biddingWeightStanding: 10,
+    biddingWeightLoyalty: 6,
+    biddingWeightAlly: 4,
+    biddingWeightEnemy: 7,
+    biddingWeightHome: 5,
+    biddingMoneyCeiling: 2.2,
+    biddingClauseSaturation: 2.5,
+    biddingUnlistedClauseAppeal: 0.25,
+    biddingGutFeeling: 2.5,
+    biddingCloseCall: 4,
+
     // Second generation. Tuned so a save has to have run a while before the
     // first one appears: the parent must be finished, must have peaked at 65,
     // and must have debuted 22 years ago, which in a world starting at year 0

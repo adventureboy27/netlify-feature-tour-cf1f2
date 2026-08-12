@@ -123,7 +123,23 @@ import {
   inductionLine,
   debutLine,
   secondGenerationLine,
+  biddingOpenedLine,
+  biddingSettledLine,
 } from '../engine/world/wire';
+import {
+  chooseBid,
+  interestedIn,
+  invitationLine,
+  resultLine,
+  rivalBid,
+  watchedItLine,
+  worthAnAuction,
+  guaranteeFor,
+  // Aliased: world/auction.ts already exports a `Bid`, and that one is a
+  // number bid on a lot of assets rather than an offer of employment.
+  type Bid as ContractBid,
+  type BiddingReason,
+} from '../engine/economy/bidding';
 import {
   asSecondGeneration,
   debutAge as lineageDebutAge,
@@ -442,6 +458,16 @@ export interface GameStore {
    */
   answerReleaseRequest: (wrestlerId: Id, grant: boolean) => void;
   answerWeatherCall: (choice: WeatherCallOptionId) => void;
+  /**
+   * Take the invitation to a bidding war, or stay out of it. Staying out is
+   * final: there is no bidding on somebody you have already told the room you
+   * are not bidding on.
+   */
+  answerBiddingInvitation: (join: boolean) => void;
+  /** Your one offer. Submitting it settles the auction. */
+  submitBid: (offer: Omit<ContractBid, 'promotionId' | 'promotionName'>) => void;
+  /** Clear the result once it has been read. */
+  dismissBiddingResult: () => void;
   /**
    * Decide what happens to a hurt champion's belt. `interimHolderId` is only
    * read for the 'interim' choice — who the booker is putting the interim
@@ -1001,6 +1027,156 @@ function resolveAuction(world: World, playerLevel: PlayerBidLevel): void {
  * Apply one event effect to the world. The event library can only express
  * effects this understands, which is what keeps the library pure data.
  */
+// ---------------------------------------------------------------------------
+// The bidding war
+//
+// Opening one and settling one, kept together because the invariant that
+// matters spans both: exactly one auction runs at a time, and every auction
+// that opens settles — whether or not the booker ever looks at it. A pending
+// war that could be left hanging would be a way to freeze a star out of the
+// business forever by ignoring a dialog.
+
+/** Everybody a promotion is paying this week, for the headroom check. */
+function payrollOf(world: World, promotionId: Id): number {
+  const company =
+    world.promotion.id === promotionId ? world.promotion : world.rivals.find((r) => r.id === promotionId);
+  if (!company) return 0;
+  return company.rosterIds.reduce((sum, id) => {
+    const member = world.wrestlers[id];
+    return sum + (member?.contract?.weeklyRate ?? 0);
+  }, 0);
+}
+
+/**
+ * Open an auction, if this person actually warrants one and enough of the
+ * business can afford to turn up. Returns whether one opened.
+ */
+function openBiddingWar(world: World, wrestler: Wrestler, reason: BiddingReason): boolean {
+  if (!world.settings.biddingEnabled) return false;
+  // One at a time. Two open auctions would mean two blocking dialogs and a
+  // player choosing between them, which is not the decision this is about.
+  if (world.pendingBiddingWar) return false;
+  if (!worthAnAuction(wrestler, world.settings)) return false;
+
+  const everyone = [world.promotion, ...world.rivals];
+  const interested = interestedIn(
+    wrestler,
+    everyone,
+    {
+      weeklyPayroll: (id) => payrollOf(world, id),
+      banned: (id) => (id === world.promotion.id ? world.signingBanWeeks > 0 : false),
+    },
+    world.settings,
+  );
+
+  const rivals = interested.filter((p) => p.id !== world.promotion.id);
+  // Fewer than two other companies in the room and this is a negotiation, not
+  // an auction — the ordinary free-agent flow handles that perfectly well.
+  if (rivals.length < world.settings.biddingMinRivals) return false;
+
+  world.pendingBiddingWar = {
+    id: `war-${world.nextId++}`,
+    wrestlerId: wrestler.id,
+    wrestlerName: wrestler.name,
+    reason,
+    openedWeek: world.week,
+    stage: 'invited',
+    // The player is only invited if they are one of the interested parties.
+    // Being told about an auction you could never have entered is noise.
+    playerIn: interested.some((p) => p.id === world.promotion.id) ? null : false,
+    rivalIds: rivals.map((p) => p.id),
+    bids: [],
+    result: null,
+  };
+  world.weeklyNews.push(
+    biddingOpenedLine(invitationLine(world.pendingBiddingWar, wrestler, rivals.length), world.week),
+  );
+  return true;
+}
+
+/** Move somebody onto a roster on the terms that won them. */
+function awardContract(world: World, wrestler: Wrestler, bid: ContractBid, promotionId: Id): void {
+  const winner =
+    world.promotion.id === promotionId ? world.promotion : world.rivals.find((r) => r.id === promotionId);
+  if (!winner) return;
+
+  // Wherever they were, they are not there now.
+  for (const company of [world.promotion, ...world.rivals]) {
+    company.rosterIds = company.rosterIds.filter((id) => id !== wrestler.id);
+  }
+  world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== wrestler.id);
+
+  wrestler.promotionId = winner.id;
+  wrestler.contract = {
+    ...createStandardContract(wrestler, world.settings, world.settings.startingYear + Math.floor(world.week / 52)),
+    weeklyRate: bid.weeklyRate,
+    weeksRemaining: bid.weeks,
+    totalWeeks: bid.weeks,
+    clauses: [...bid.clauses],
+    guaranteedPct: guaranteeFor(bid, world.settings),
+  };
+  winner.rosterIds.push(wrestler.id);
+  // The bonus is real money and it leaves the bank the day they sign.
+  winner.bankBalance -= bid.signingBonus;
+}
+
+/**
+ * Take every bid, let them choose, and hand over the contract.
+ *
+ * Called both when the player answers and when the week rolls over without
+ * them — an auction the booker ignored still happens, they just watch it.
+ */
+function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid | null): void {
+  const war = world.pendingBiddingWar;
+  if (!war) return;
+  const wrestler = world.wrestlers[war.wrestlerId];
+  if (!wrestler) {
+    world.pendingBiddingWar = null;
+    return;
+  }
+
+  const bids: ContractBid[] = [];
+  if (playerBid) bids.push(playerBid);
+  for (const rivalId of war.rivalIds) {
+    const rival = world.rivals.find((r) => r.id === rivalId);
+    if (!rival || rival.closedWeek !== null) continue;
+    bids.push(rivalBid(rng, wrestler, rival, payrollOf(world, rival.id), world.settings));
+  }
+
+  const result = chooseBid(
+    rng,
+    wrestler,
+    bids,
+    {
+      promotions: [world.promotion, ...world.rivals],
+      relationships: world.relationships,
+      rosterOf: (id) => {
+        const company =
+          world.promotion.id === id ? world.promotion : world.rivals.find((r) => r.id === id);
+        return (company?.rosterIds ?? []).map((rid) => world.wrestlers[rid]).filter((w): w is Wrestler => Boolean(w));
+      },
+      currentPromotionId: wrestler.promotionId,
+    },
+    world.settings,
+  );
+
+  if (result) {
+    awardContract(world, wrestler, result.bid, result.winningPromotionId);
+    war.bids = result.allBids;
+    war.result = result;
+    world.weeklyNews.push(
+      biddingSettledLine(
+        war.playerIn ? resultLine(war, result) : watchedItLine(war, result),
+        world.week,
+      ),
+    );
+  }
+
+  war.stage = 'settled';
+  world.lastBiddingWar = { war, result: war.result ?? null } as World['lastBiddingWar'];
+  world.pendingBiddingWar = null;
+}
+
 function applyEffect(world: World, effect: EventEffect): void {
   const at = (id: Id): Wrestler | undefined => world.wrestlers[id];
   const bump = (value: number, delta: number) => clamp(value + delta, 0, 100);
@@ -1451,6 +1627,12 @@ export const useGameStore = create<GameStore>()(
         // An auction you never answered goes ahead without you. The business
         // does not wait for a booker to make up their mind.
         if (world.pendingAuction) resolveAuction(world, 'pass');
+
+        // An auction the booker never answered goes ahead without them. The
+        // room does not hold a star off the market because somebody did not
+        // open a dialog — and leaving one open forever would be a way to
+        // freeze somebody out of the business entirely.
+        if (world.pendingBiddingWar) settleBiddingWar(world, rng, null);
         const wrestlerById = new Map(Object.values(world.wrestlers).map((w) => [w.id, w]));
 
         // Tonight is either television or the show everything has been built
@@ -3734,6 +3916,12 @@ export const useGameStore = create<GameStore>()(
             if (spokenFor.has(id)) continue;
             const person = world.wrestlers[id];
             if (!person?.contract) continue;
+            // A real star does not get quietly re-papered by the office he
+            // already works for. He reaches the open market and the whole
+            // business finds out at once — see economy/bidding.ts. This is
+            // the third door out of a contract, alongside renewals (your own
+            // people) and poaching (somebody else's, mid-deal).
+            if (openBiddingWar(world, person, 'freeAgentStar')) continue;
             person.contract.weeksRemaining = STARTING_CONTRACT_WEEKS;
             person.contract.totalWeeks = STARTING_CONTRACT_WEEKS;
           }
@@ -4156,6 +4344,14 @@ export const useGameStore = create<GameStore>()(
           for (const graduate of intake.wrestlers) world.wrestlers[graduate.id] = graduate;
           world.freeAgents.push(...intake.freeAgents);
           notices.graduates = intake.wrestlers.map((w) => w.id);
+
+          // And once in a long while the class contains somebody who does not
+          // need the ten years. That is not a free-agent listing, that is an
+          // auction — see academy.ts asPhenom.
+          if (intake.phenomId) {
+            const phenom = world.wrestlers[intake.phenomId];
+            if (phenom) openBiddingWar(world, phenom, 'phenom');
+          }
           if (intake.wrestlers.length > 0) {
             world.weeklyNews.push(debutLine(intake.wrestlers.map((w) => w.name), world.week));
           }
@@ -5481,6 +5677,43 @@ export const useGameStore = create<GameStore>()(
         }
 
         world.pendingChampionCall = null;
+      });
+    },
+
+    answerBiddingInvitation: (join) => {
+      set((state) => {
+        const world = state.world;
+        const war = world?.pendingBiddingWar;
+        if (!world || !war || war.stage !== 'invited' || war.playerIn !== null) return;
+        war.playerIn = join;
+        if (join) {
+          war.stage = 'bidding';
+          return;
+        }
+        // Out is out. The auction happens anyway and the booker reads about it.
+        settleBiddingWar(world, rng, null);
+      });
+    },
+
+    submitBid: (offer) => {
+      set((state) => {
+        const world = state.world;
+        const war = world?.pendingBiddingWar;
+        if (!world || !war || war.stage !== 'bidding' || !war.playerIn) return;
+        // You cannot offer a bonus you do not have. Everything else about the
+        // bid is allowed to be a mistake — §0 says the game does not warn.
+        if (offer.signingBonus > world.promotion.bankBalance) return;
+        settleBiddingWar(world, rng, {
+          ...offer,
+          promotionId: world.promotion.id,
+          promotionName: world.promotion.name,
+        });
+      });
+    },
+
+    dismissBiddingResult: () => {
+      set((state) => {
+        if (state.world) state.world.lastBiddingWar = null;
       });
     },
 
