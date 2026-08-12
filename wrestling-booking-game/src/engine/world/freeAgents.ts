@@ -20,7 +20,14 @@ import { askingRate, isAffordable } from '../economy/contracts';
  * month" and "nobody has ever signed them" are different propositions at the
  * same price.
  */
-export type AvailabilityReason = 'neverSigned' | 'contractExpired' | 'released' | 'schoolGraduate' | 'returning';
+export type AvailabilityReason =
+  | 'neverSigned'
+  | 'contractExpired'
+  | 'released'
+  | 'schoolGraduate'
+  /** Never trained. Walked in off the street asking for a look — see walkOns.ts. */
+  | 'walkOn'
+  | 'returning';
 
 export interface FreeAgent {
   wrestlerId: string;
@@ -35,6 +42,7 @@ export const AVAILABILITY_LABELS: Record<AvailabilityReason, string> = {
   contractExpired: 'Contract ran out',
   released: 'Released',
   schoolGraduate: 'Out of the school',
+  walkOn: 'Walked in off the street',
   returning: 'Coming back',
 };
 

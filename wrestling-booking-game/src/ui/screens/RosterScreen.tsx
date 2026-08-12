@@ -34,6 +34,8 @@ import { MoodLine } from '../components/Mood';
 import { MiniStats, ReachLine } from '../components/MiniStats';
 import { strongholds } from '../../engine/career/reach';
 import { patienceLeft } from '../../engine/career/lineage';
+import { blockedBecause, perkUpkeep } from '../../engine/economy/perks';
+import { PERKS } from '../../data/perks';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { HeatBadge, Money } from '../components/display';
 import { scout } from '../../engine/career/scouting';
@@ -64,6 +66,81 @@ function alignmentOf(w: Wrestler): { label: string; className: string } {
   if (w.alignment >= 15) return { label: 'FACE', className: 'bg-emerald-900/70 text-emerald-300' };
   if (w.alignment <= -15) return { label: 'HEEL', className: 'bg-purple-900/70 text-purple-300' };
   return { label: 'TWEENER', className: 'bg-neutral-700 text-neutral-300' };
+}
+
+/**
+ * The perks on somebody's contract, and the ones they have not earned.
+ *
+ * Blocked perks are shown greyed with the reason rather than hidden, because
+ * "not before 30" is the sort of thing a booker plans around — and because a
+ * list that silently grows as somebody ages reads as a bug.
+ */
+function PerkRow({ wrestler }: { wrestler: Wrestler }) {
+  const world = useGameStore((s) => s.world)!;
+  const setPerk = useGameStore((s) => s.setPerk);
+  const [open, setOpen] = useState(false);
+  if (!world.settings.perksEnabled || !wrestler.contract) return null;
+
+  const year = world.settings.startingYear + Math.floor(world.week / 52);
+  const ctx = { currentYear: year, isRenewal: true };
+  const held = new Set(wrestler.contract.perks ?? []);
+  const bill = perkUpkeep(wrestler);
+
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between rounded bg-neutral-950/60 px-2 py-1 text-[10px] text-neutral-400 hover:bg-neutral-900"
+      >
+        <span>
+          {open ? '▾' : '▸'} What is in the deal
+          {held.size > 0 && <span className="ml-1 text-violet-300">· {held.size}</span>}
+        </span>
+        {bill > 0 && (
+          <span className="text-rose-300/80">
+            <Money amount={bill} />
+            /wk
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="mt-1 flex flex-col gap-1">
+          {PERKS.map((perk) => {
+            const on = held.has(perk.id);
+            const blocked = blockedBecause(perk, wrestler, ctx);
+            return (
+              <button
+                key={perk.id}
+                type="button"
+                data-testid={`perk-${wrestler.id}-${perk.id}`}
+                disabled={Boolean(blocked) && !on}
+                onClick={() => setPerk(wrestler.id, perk.id, !on)}
+                className={`rounded border p-1.5 text-left ${
+                  on
+                    ? 'border-violet-500 bg-violet-950/40'
+                    : blocked
+                      ? 'cursor-not-allowed border-neutral-900 bg-neutral-950/40 opacity-50'
+                      : 'border-neutral-800 bg-neutral-900 hover:border-neutral-600'
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-[11px] font-medium text-neutral-200">{perk.name}</span>
+                  <span className="shrink-0 text-[10px] text-neutral-500">
+                    {blocked && !on ? blocked : <Money amount={perk.weeklyCost} />}
+                  </span>
+                </div>
+                <div className="text-[10px] text-neutral-500">{perk.blurb}</div>
+                {perk.lockerRoomCost >= 0.2 && (
+                  <div className="text-[10px] text-amber-400/80">The rest of the room will notice.</div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: string) => void } = {}) {
@@ -427,6 +504,12 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   </button>
                 </div>
                 {releaseResult && <div className="text-[10px] text-rose-400">{releaseResult}</div>}
+
+                {/* What is in the deal that is not money. Only on people you
+                    already have — everything here is renewal-only, which is
+                    the fiction and not a balance dial: you do not hand a jet
+                    to somebody you have never worked with. */}
+                <PerkRow wrestler={w} />
 
                 {/* A character that is not working can be changed. Any of
                     them, any time — that is what a booker does. */}

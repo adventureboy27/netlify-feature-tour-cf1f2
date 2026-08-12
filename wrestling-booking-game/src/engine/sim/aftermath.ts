@@ -19,6 +19,7 @@
 //     violent stipulation costs more.
 
 import { clamp } from '../rng';
+import { perkExposure, perkFatigueRelief, perkRecovery } from '../economy/perks';
 import type { FinishType, Stipulation, Wrestler, WorldSettings } from '../types';
 
 export interface AftermathContext {
@@ -168,6 +169,16 @@ export function restWeek(w: Wrestler, worked: boolean, settings: WorldSettings):
     w.health = clamp(w.health + settings.weeklyHealthRecovery, 0, 100);
     w.energy = clamp(w.energy + settings.weeklyEnergyRecovery, 0, 100);
     w.fatigueDebt = clamp(w.fatigueDebt - settings.weeklyFatigueRecovery, 0, 100);
+  }
+
+  // What the contract bought them. A jet and a trainer are the difference
+  // between a body that lasts and one that does not, and they apply on the
+  // weeks somebody worked as much as the weeks they did not — that is the
+  // whole point of not sleeping on a bus. See economy/perks.ts.
+  if (settings.perksEnabled) {
+    w.fatigueDebt = clamp(w.fatigueDebt - perkFatigueRelief(w), 0, 100);
+    w.health = clamp(w.health + perkRecovery(w), 0, 100);
+    w.popularity = clamp(w.popularity + perkExposure(w), 0, 100);
   }
 
   // Momentum decays toward 50 — the middle of the card is where you end up

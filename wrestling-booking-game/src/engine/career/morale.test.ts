@@ -38,6 +38,7 @@ function week(over: Partial<MoraleContext> = {}): MoraleContext {
     workedWithAllies: 0,
     workedWithEnemies: 0,
     companyRating: 55,
+    roster: [],
     ...over,
   };
 }
@@ -276,6 +277,7 @@ describe('reading a week off a show', () => {
     weeksIdle: 3,
     companyRating: 60,
     deliveredTo: new Set<string>(['c']),
+    roster: [] as Wrestler[],
   };
 
   it('finds the match somebody was in, and which way it went', () => {

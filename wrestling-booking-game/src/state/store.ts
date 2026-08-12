@@ -233,6 +233,7 @@ import {
   venueFitsTerritory,
 } from '../engine/world/territories';
 import { graduateClass, graduateCount, workingPopulation } from '../engine/world/academy';
+import { walkOnIntake, walkOnLine } from '../engine/world/walkOns';
 import { rollForNickname } from '../engine/generate/nickname';
 import {
   checkRename,
@@ -317,6 +318,8 @@ import {
   STARTING_CONTRACT_WEEKS,
 } from '../engine/economy/contracts';
 import { driftEgo, targetEgo, contractDemand, clauseUpkeep } from '../engine/career/ego';
+import { availablePerks, perkUpkeep } from '../engine/economy/perks';
+import type { PerkId } from '../data/perks';
 import { canSign, currentAskingRate } from '../engine/world/freeAgents';
 import {
   computeWeeklyExpenses,
@@ -466,6 +469,12 @@ export interface GameStore {
    * final: there is no bidding on somebody you have already told the room you
    * are not bidding on.
    */
+  /**
+   * Put something in somebody's deal, or take it back out. Only on people you
+   * already employ, and only what they are eligible for — see
+   * engine/economy/perks.ts.
+   */
+  setPerk: (wrestlerId: Id, perkId: PerkId, on: boolean) => { ok: boolean; reason: string | null };
   answerBiddingInvitation: (join: boolean) => void;
   /** Your one offer. Submitting it settles the auction. */
   submitBid: (offer: Omit<ContractBid, 'promotionId' | 'promotionName'>) => void;
@@ -2982,12 +2991,19 @@ export const useGameStore = create<GameStore>()(
           : night.cancelled
             ? { payable: cancellationCost(showCosts.total, world.settings) }
             : computeShowExpenseSplit(showCosts.total, revenue.total, world.settings.expenseCapPctOfRevenue);
-        // Clauses you agreed to have a weekly price of their own.
+        // Clauses you agreed to have a weekly price of their own, and so does
+        // the jet.
         const clauseBill = world.promotion.rosterIds.reduce((sum, id) => {
           const member = world.wrestlers[id];
           return member ? sum + clauseUpkeep(member, world.settings) : sum;
         }, 0);
-        const totalOut = payroll + weeklyExpenses + showPayable + ringsideCost + clauseBill;
+        const perkBill = world.settings.perksEnabled
+          ? world.promotion.rosterIds.reduce((sum, id) => {
+              const member = world.wrestlers[id];
+              return member ? sum + perkUpkeep(member) : sum;
+            }, 0)
+          : 0;
+        const totalOut = payroll + weeklyExpenses + showPayable + ringsideCost + clauseBill + perkBill;
 
         world.promotion.bankBalance += revenue.total - totalOut;
 
@@ -3688,6 +3704,11 @@ export const useGameStore = create<GameStore>()(
         }
         const noneSet: ReadonlySet<Id> = new Set();
         const moraleShow = world.showHistory[world.showHistory.length - 1] ?? null;
+        // The room, once, rather than rebuilt for every person in it — what
+        // the office gave everybody else is the same list whoever is reading.
+        const lockerRoom = world.promotion.rosterIds
+          .map((id) => world.wrestlers[id])
+          .filter((w): w is Wrestler => Boolean(w) && !w!.deceased);
         for (const id of world.promotion.rosterIds) {
           const member = world.wrestlers[id];
           if (!member || member.deceased) continue;
@@ -3695,6 +3716,7 @@ export const useGameStore = create<GameStore>()(
             member,
             moraleContext(member, moraleShow, {
               popularityOf: (other) => world.wrestlers[other]?.popularity ?? 0,
+              roster: lockerRoom,
               alliesOf: (who) => alliesOf.get(who) ?? noneSet,
               enemiesOf: (who) => enemiesOf.get(who) ?? noneSet,
               beltsHeldBy: (who) =>
@@ -4393,6 +4415,27 @@ export const useGameStore = create<GameStore>()(
           for (const graduate of intake.wrestlers) world.wrestlers[graduate.id] = graduate;
           world.freeAgents.push(...intake.freeAgents);
           notices.graduates = intake.wrestlers.map((w) => w.id);
+
+          // ...and the other door. The school takes nobody over 34; everybody
+          // older who still wants a shot turns up at the building instead.
+          const walkOns = walkOnIntake(
+            rng,
+            randInt(rng, world.settings.walkOnsPerYearMin, world.settings.walkOnsPerYearMax),
+            year,
+            world.settings,
+            everyone.map((w) => w.appearance),
+            takenNamesNow,
+          );
+          for (const person of walkOns.wrestlers) {
+            world.wrestlers[person.id] = person;
+            takenNamesNow.add(person.name.trim().toLowerCase());
+          }
+          world.freeAgents.push(...walkOns.freeAgents);
+          if (walkOns.wrestlers.length > 0) {
+            world.weeklyNews.push(
+              wire('debut', walkOnLine(walkOns.wrestlers.map((w) => w.name)), world.week, 'minor'),
+            );
+          }
 
           // And once in a long while the class contains somebody who does not
           // need the ten years. That is not a free-agent listing, that is an
@@ -5727,6 +5770,35 @@ export const useGameStore = create<GameStore>()(
 
         world.pendingChampionCall = null;
       });
+    },
+
+    setPerk: (wrestlerId, perkId, on) => {
+      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'Nobody by that name.' };
+      set((state) => {
+        const world = state.world;
+        if (!world || !world.settings.perksEnabled) return;
+        const wrestler = world.wrestlers[wrestlerId];
+        if (!wrestler?.contract || wrestler.promotionId !== world.promotion.id) return;
+
+        const contract = wrestler.contract;
+        if (!contract.perks) contract.perks = [];
+        if (!on) {
+          contract.perks = contract.perks.filter((id) => id !== perkId);
+          outcome = { ok: true, reason: null };
+          return;
+        }
+        // Everything here is renewal-only, and somebody on your roster is by
+        // definition somebody you already have — so this is a renewal.
+        const year = world.settings.startingYear + Math.floor(world.week / 52);
+        const allowed = availablePerks(wrestler, { currentYear: year, isRenewal: true });
+        if (!allowed.some((perk) => perk.id === perkId)) {
+          outcome = { ok: false, reason: 'They have not earned that yet.' };
+          return;
+        }
+        if (!contract.perks.includes(perkId)) contract.perks.push(perkId);
+        outcome = { ok: true, reason: null };
+      });
+      return outcome;
     },
 
     answerBiddingInvitation: (join) => {

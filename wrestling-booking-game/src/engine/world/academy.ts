@@ -96,6 +96,10 @@ export function asPhenom(rng: Rng, graduate: Wrestler, settings: WorldSettings):
 /**
  * A new class. They come out young, unsigned, and unknown — a graduate is
  * not a free agent bargain, they are a project.
+ *
+ * Young is now enforced rather than assumed: nobody over `academyMaxAge` is
+ * a student. Everybody older who wants a shot is a walk-on, and walk-ons come
+ * through the free agent pool rougher than this — see world/walkOns.ts.
  */
 export function graduateClass(
   rng: Rng,
@@ -118,7 +122,20 @@ export function graduateClass(
     // anything yet. Their age is their debut age, and the schools take late
     // starters too — the thirty-year-old who finally walked in is a real
     // graduating class member.
-    const age = rollDebutAge(rng, settings.academyDebutAgeMax * 2);
+    // The school has a door policy. `rollDebutAge` will happily return a
+    // thirty-nine-year-old late starter, and it is right to — plenty of people
+    // come to this business late. What it is not is a *student*: past the cap
+    // they come through the walk-on door instead, off the street and rough
+    // with it. See world/walkOns.ts.
+    // Clamped at both ends against the school's own policy. `rollDebutAge`
+    // floors at MINIMUM_DEBUT_AGE, which is the age the *business* will let
+    // somebody wrestle at — a year below the age this school will enrol them,
+    // and enough to put an eighteen-year-old in a graduating class.
+    const age = clamp(
+      rollDebutAge(rng, settings.academyMaxAge),
+      settings.academyDebutAgeMin,
+      settings.academyMaxAge,
+    );
     // ...and nobody has heard of them. The generator rolls popularity for a
     // working wrestler somewhere in the middle of a career, so without this a
     // school graduate could walk out of the door at 82 — as over as the world

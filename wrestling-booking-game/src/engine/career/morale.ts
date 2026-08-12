@@ -28,6 +28,7 @@
 
 import { clamp } from '../rng';
 import { nameBurden } from './lineage';
+import { loudestPerk, perkMorale, resentmentToward } from '../economy/perks';
 import type { Id, Wrestler, WorldSettings } from '../types';
 
 /** Where somebody's head is at, in bands the UI can draw. */
@@ -75,6 +76,8 @@ export interface MoraleContext {
   weeksIdle: number;
   /** How many belts they are currently holding. */
   beltsHeld: number;
+  /** Everybody they get changed alongside, for the perks they can all see. */
+  roster: readonly Wrestler[];
   /** What the night got, 0-100. A great show lifts the room. */
   showRating: number;
   /**
@@ -122,6 +125,8 @@ export function moraleContext(
     companyRating: number;
     /** Everybody who was part of something the crowd had asked for. */
     deliveredTo: ReadonlySet<Id>;
+    /** The locker room, for reading what the office gave everybody else. */
+    roster: readonly Wrestler[];
   },
 ): MoraleContext {
   const segment = show?.segments.find((seg) =>
@@ -165,6 +170,7 @@ export function moraleContext(
     workedWithAllies: others.filter((p) => allies.has(p.wrestlerId)).length,
     workedWithEnemies: others.filter((p) => enemies.has(p.wrestlerId)).length,
     companyRating: world.companyRating,
+    roster: world.roster,
   };
 }
 
@@ -321,6 +327,28 @@ export function weeklyMorale(
   // rating meant a mid-table promotion dragged its whole locker room to
   // "restless" no matter how well it booked, which reads as the game
   // punishing you for not already being the biggest company in the world.
+  // What the contract bought them, and what the office bought everybody else.
+  //
+  // The second half is the whole reason perks are a decision. A private
+  // locker room costs a hundred and twenty dollars a week and makes one man
+  // happy; the bill for it is paid weekly by everybody who watched him walk
+  // through that door. See economy/perks.ts.
+  if (s.perksEnabled) {
+    const mine = perkMorale(wrestler);
+    if (mine > 0) add('The company looks after them.', mine);
+
+    const resented = resentmentToward(wrestler, ctx.roster, s);
+    if (resented > 0) {
+      const loudest = loudestPerk(ctx.roster.filter((w) => w.id !== wrestler.id));
+      add(
+        loudest
+          ? `${loudest.holder} has a ${loudest.name.toLowerCase()}. Everybody has noticed.`
+          : 'Some people around here are treated better than others.',
+        -resented,
+      );
+    }
+  }
+
   // A struggling outfit is a fine place to work if the booker uses you; it is
   // the booking above that decides, and this only sets the floor and ceiling.
   const setPoint = s.moraleSetPointBase + (ctx.companyRating / 100) * s.moraleSetPointRange;

@@ -818,6 +818,44 @@ export function defaultWorldSettings(): WorldSettings {
     worldPopulationMax: 230,
     academyMaxGraduates: 14,
     academyGraduatePopularity: 0.12,
+    // Past this the school says no. It is not that nobody starts at
+    // thirty-five — plenty do — it is that they do not start in a class.
+    academyMaxAge: 34,
+
+    // Walk-ons: everybody past the school's door policy who still wants a
+    // shot. Mostly rough and staying that way, because the years to grow into
+    // it are the thing they do not have — but one in eleven is a gem and one
+    // in eight cannot work at all and can talk better than anybody you employ.
+    walkOnsPerYearMin: 2,
+    walkOnsPerYearMax: 6,
+    walkOnMaxAge: 44,
+    walkOnGemChance: 0.09,
+    walkOnTalkerChance: 0.13,
+    // Untrained: about a third of the ring skill a trained version would have
+    // had. A gem keeps two thirds, which is what makes them obvious.
+    walkOnCraftScale: 0.34,
+    walkOnGemCraftScale: 0.66,
+    walkOnTalkerCraftScale: 0.4,
+    walkOnTalentScale: 0.6,
+    walkOnGemTalentFloor: 78,
+    walkOnGemCharismaFloor: 62,
+    walkOnTalkerCharismaFloor: 74,
+    walkOnCeilingRoom: 8,
+    walkOnGemCeilingRoom: 34,
+    walkOnPopularitySpread: 5,
+    //
+    // Measured, 800 of each, against a graduating class:
+    //
+    //                     age  skl  agi  str  mic  tal  ceiling(skl)
+    //   school             22   56   52   59   50   50    63
+    //   walk-on, ordinary  39   22   21   57   51   30    30
+    //   walk-on, gem       39   37   35   55   70   83    70
+    //   walk-on, talker    40   12   11   60   82   30    30
+    //
+    // Strength barely moves, because a frame is not something a school gives
+    // you. Skill halves. 48% of the street could still work a midcard spot
+    // against the school's 81%, and the street produces *more* managers than
+    // the school does (29% against 17%) — which is the point of the door.
     academyDebutAgeMin: 19,
     academyDebutAgeMax: 25,
 
@@ -1046,6 +1084,13 @@ export function defaultWorldSettings(): WorldSettings {
     startingYear: new Date().getFullYear(),
     seed: 'wrestling-booking-game',
     rivalsCanGoBankrupt: true,
+
+    // Contract perks. The resentment scale is what makes a private locker
+    // room a decision rather than a free morale point: cheap in money, and
+    // paid for weekly by twenty-five people who noticed.
+    perksEnabled: true,
+    perkResentmentScale: 1.0,
+    perkInsulation: 1.6,
 
     // The bidding war. Rare by construction rather than by a rarity dial: it
     // takes a genuine star reaching the open market, or a phenom out of the

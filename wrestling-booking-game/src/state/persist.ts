@@ -99,7 +99,17 @@ const SLOT_KEY = 'wbg.save.v1';
 // hidden walk-away share with it, along with the hunger and big-swing
 // settings. A version-19 save has no minimum on a war in flight, so every bid
 // in it would be compared against undefined.
-const SCHEMA_VERSION = 20;
+//
+// Version 21 adds Contract.perks and the perk settings. The field is optional
+// and reads correctly as "none" on an old contract, but the settings are not:
+// a version-20 save would compare against an undefined resentment scale on
+// every wrestler, every week.
+//
+// Version 22 caps the school's intake age and adds the walk-on settings and
+// the 'walkOn' availability reason. A version-21 save has no walkOn* settings,
+// so the yearly intake would generate a batch of people with an undefined age
+// range.
+const SCHEMA_VERSION = 22;
 
 export interface SaveFile {
   schema: number;

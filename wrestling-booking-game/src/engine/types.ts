@@ -644,6 +644,8 @@ export interface Tournament {
 // §3 — Contract
 // ============================================================================
 
+import type { PerkId } from '../data/perks';
+
 export type ContractType = 'fullTime' | 'partTime' | 'perAppearance' | 'developmental' | 'legends';
 
 export type Clause =
@@ -698,6 +700,12 @@ export interface Contract {
   weeksRemaining: number;
   totalWeeks: number;
   clauses: Clause[];
+  /**
+   * What is in the deal that is not money or rights — a jet, an apartment, a
+   * door that shuts. See data/perks.ts. Optional because every contract
+   * written before perks existed has none, and none is the correct reading.
+   */
+  perks?: PerkId[];
   signedYear: number;
 }
 
@@ -2396,6 +2404,36 @@ export interface WorldSettings {
    * had a match; the roll behind them is for somebody mid-career.
    */
   academyGraduatePopularity: number;
+  /**
+   * The school's door policy. Nobody older is taken as a student; they come
+   * through the walk-on door instead — see engine/world/walkOns.ts.
+   */
+  academyMaxAge: number;
+
+  // --- Walk-ons, engine/world/walkOns.ts -----------------------------------
+  /** How many turn up in a year. Smaller than a graduating class. */
+  walkOnsPerYearMin: number;
+  walkOnsPerYearMax: number;
+  /** The oldest somebody can be and still be asking for a look. */
+  walkOnMaxAge: number;
+  /** Chance somebody who walked in can plainly do it anyway. */
+  walkOnGemChance: number;
+  /** ...and chance they cannot go at all but can talk. */
+  walkOnTalkerChance: number;
+  /** How far untrained knocks the ring skills down, 0-1. */
+  walkOnCraftScale: number;
+  walkOnGemCraftScale: number;
+  walkOnTalkerCraftScale: number;
+  /** How much of a hidden ceiling survives coming to it late. */
+  walkOnTalentScale: number;
+  walkOnGemTalentFloor: number;
+  walkOnGemCharismaFloor: number;
+  walkOnTalkerCharismaFloor: number;
+  /** Room above where they start, for the ones who can still grow. */
+  walkOnCeilingRoom: number;
+  walkOnGemCeilingRoom: number;
+  /** Nobody has heard of them. This is the spread of "nobody". */
+  walkOnPopularitySpread: number;
   academyDebutAgeMin: number;
   academyDebutAgeMax: number;
 
@@ -2717,6 +2755,13 @@ export interface WorldSettings {
   startingYear: number;
   seed: string;
   rivalsCanGoBankrupt: boolean;
+
+  // --- Contract perks, engine/economy/perks.ts -----------------------------
+  perksEnabled: boolean;
+  /** How hard the room takes what somebody else was given. */
+  perkResentmentScale: number;
+  /** How much having perks of your own stops you minding anybody else's. */
+  perkInsulation: number;
 
   // --- The bidding war, engine/economy/bidding.ts --------------------------
   biddingEnabled: boolean;
