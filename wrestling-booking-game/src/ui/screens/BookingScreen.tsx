@@ -372,6 +372,11 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                   <SegmentEditor
                     segment={segment}
                     roster={roster}
+                    titles={world.titles}
+                    territoryId={world.showSetup.territoryId}
+                    territoryName={
+                      world.territories.find((t) => t.id === world.showSetup.territoryId)?.name ?? ''
+                    }
                     // Anyone already on the card — including in this very
                     // segment — is off the picker. They're visible in their
                     // side panel, and offering them again only ever means a
@@ -434,6 +439,9 @@ function SegmentEditor({
   staffManagers,
   defaultReferee,
   settings,
+  titles,
+  territoryId,
+  territoryName,
 }: {
   segment: Segment;
   roster: Wrestler[];
@@ -446,6 +454,10 @@ function SegmentEditor({
   onTimeLimit: (minutes: (typeof TIME_LIMITS)[number]) => void;
   onPace: (pace: PaceId) => void;
   isMainEvent: boolean;
+  /** Everything in play, so a picker row can show a belt and a local draw. */
+  titles: readonly Title[];
+  territoryId: Id;
+  territoryName: string;
   isOpener: boolean;
   paceSaturation: number;
   onManager: (managerId: Id | null, forSide: number) => void;
@@ -532,7 +544,14 @@ function SegmentEditor({
         <div data-testid="roster-picker" className="flex max-h-96 flex-col gap-1 overflow-y-auto">
           {available.map((w) => (
             <div key={w.id} data-testid="roster-pick">
-              <WrestlerRow wrestler={w} settings={settings} onClick={() => onAdd(w.id, side)} />
+              <WrestlerRow
+                wrestler={w}
+                settings={settings}
+                titles={titles}
+                territoryId={territoryId}
+                territoryName={territoryName}
+                onClick={() => onAdd(w.id, side)}
+              />
             </div>
           ))}
           {available.length === 0 && (

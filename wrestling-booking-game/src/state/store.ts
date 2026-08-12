@@ -71,6 +71,7 @@ import { resolveConfrontation } from '../engine/sim/confrontation';
 import { factionEgoDrift, factionHeat, factionStanding } from '../engine/world/faction';
 import { demandsDelivered, deliveryBonus, fanDemands } from '../engine/world/fanDemand';
 import { deliveredTo, moraleContext, weeklyMorale } from '../engine/career/morale';
+import { absenceDecay, cardDrawIn, localStanding, setLocal, workingGain } from '../engine/career/reach';
 import {
   advance,
   blowOff,
@@ -2395,8 +2396,23 @@ export const useGameStore = create<GameStore>()(
           }
 
           segmentRatings.push(result.rating);
-          const avgPop = participantWrestlers.reduce((sum, w) => sum + w.popularity, 0) / participantWrestlers.length;
+          // Weighed for the town this card is actually in. Using the national
+          // number meant a card of local heroes drew exactly the same in their
+          // own back yard as it did four hundred miles away — see
+          // engine/career/reach.ts.
+          const avgPop = cardDrawIn(participantWrestlers, territory.id, world.settings);
           segmentPopAvgs.push({ stars: result.stars, avgPopularity: avgPop });
+
+          // And working a town builds you there. A good match builds you
+          // faster, and a hometown night is worth more than a strange one.
+          for (const person of participantWrestlers) {
+            setLocal(
+              person,
+              territory.id,
+              localStanding(person, territory.id, world.settings) +
+                workingGain(person, territory.id, result.rating, world.settings),
+            );
+          }
 
 
         });
@@ -3276,6 +3292,24 @@ export const useGameStore = create<GameStore>()(
           world.weeklyNews.push(wire('death', memoriam.line, world.week, 'lead'));
           world.pendingMemoriam = null;
         }
+        // ---- the towns forget, slowly ------------------------------------
+        // Everywhere somebody has a standing and did not appear this week
+        // fades a little — never below what their national reputation holds
+        // up, because you cannot be forgotten somewhere while you are famous
+        // everywhere. See engine/career/reach.ts.
+        const townTonight = world.showSetup.territoryId;
+        for (const person of Object.values(world.wrestlers)) {
+          if (!person?.regionalPopularity) continue;
+          const workedTonight = worked.has(person.id);
+          for (const territoryId of Object.keys(person.regionalPopularity)) {
+            if (workedTonight && territoryId === townTonight) continue;
+            const fade = absenceDecay(person, territoryId, world.settings);
+            if (fade > 0) {
+              setLocal(person, territoryId, localStanding(person, territoryId, world.settings) - fade);
+            }
+          }
+        }
+
         // ---- the stories -------------------------------------------------
         //
         // Everything booked tonight, folded into whatever arcs it belongs to.

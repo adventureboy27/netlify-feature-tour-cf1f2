@@ -426,7 +426,14 @@ function pseudoRandInt(rng: Rng, max: number): number {
 }
 
 export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
+  // Everybody in the business comes from somewhere. Wrestler.homeTerritoryId
+  // has been on the type since the beginning and was written as the literal
+  // 'territory-unassigned' for every single person ever generated — see
+  // engine/career/reach.ts, which is what finally reads it.
+  const territoryIds = TERRITORIES.map((t) => t.id);
+
   const roster = generateWrestlers(rng, settings.startingRosterSize, {
+    homeTerritoryIds: territoryIds,
     currentYear: settings.startingYear,
     // Built to a division split rather than rolled per head. Left to chance a
     // small roster regularly produced a two-woman division, which is one
@@ -512,6 +519,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   for (const rival of rivals) {
     const size = rivalRosterSize(rival.rating, settings);
     const signed = generateWrestlers(rng, size, {
+      homeTerritoryIds: territoryIds,
       currentYear: settings.startingYear,
       existingAppearances: Object.values(wrestlers).map((w) => w.appearance),
       existingNames: new Set(Object.values(wrestlers).map((w) => w.name.trim().toLowerCase())),

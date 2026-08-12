@@ -426,7 +426,18 @@ export interface Wrestler {
   gimmick: Gimmick;
   moveSet: MoveSet;
   isCreated: boolean;
+  /**
+   * Where they are from. Was on this type from the beginning, written once at
+   * generation and read by absolutely nothing — see career/reach.ts, which is
+   * the module that finally gives it a job.
+   */
   homeTerritoryId: Id;
+  /**
+   * How over they are town by town, 0-100. Sparse: a town they have never
+   * worked has no entry, and career/reach.ts falls back to a fraction of
+   * their national profile rather than to zero, because word travels.
+   */
+  regionalPopularity: Partial<Record<Id, number>>;
   appearance: Appearance;
 
   // Employment
@@ -1819,6 +1830,35 @@ export interface WorldSettings {
   storylinePayoffCompanyRating: number;
   /** What a story fizzling costs the company. Small, and entirely deserved. */
   storylineFizzleRating: number;
+
+  // The mini profile's status pips — see ui/components/MiniStats.tsx.
+  /** Energy at or below which tonight's tank reads as empty. */
+  miniTiredEnergy: number;
+  /** Fatigue debt at or above which somebody is worn rather than merely tired. */
+  miniWornFatigue: number;
+
+  // Where somebody is over — see career/reach.ts.
+  /** Share of a wrestler's draw in a town that is national reputation. */
+  reachNationalShare: number;
+  /** What a town that has never seen them makes of their national profile. */
+  reachUnseenShare: number;
+  /** The head start a hometown gives, before anybody has worked there. */
+  reachHometownHead: number;
+  /** Local standing a night's work moves, at floor and per point of quality. */
+  reachGainBase: number;
+  reachGainPerQuality: number;
+  /** Above this, a town is saturated and further nights add little. */
+  reachLocalCeiling: number;
+  /** Working at home is worth more, because it is home. */
+  reachHometownGainBonus: number;
+  /** What a week without a date in a town costs there. */
+  reachDecayPerWeek: number;
+  /** Popularity at which somebody is a name everywhere regardless of touring. */
+  reachNationalPopularity: number;
+  /** Local standing at which a town genuinely knows who somebody is. */
+  reachKnownHere: number;
+  /** Towns like that before somebody counts as a regional draw. */
+  reachRegionalTowns: number;
 
   // Relationships (engine/career/relationships.ts)
   /** How many relationships to seed, per wrestler on the roster. */

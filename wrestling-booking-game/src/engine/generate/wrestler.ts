@@ -105,6 +105,13 @@ function rollPotential(rng: Rng, currentStat: number, talent: number): number {
 
 export interface GenerateWrestlerOptions {
   homeTerritoryId?: Id;
+  /**
+   * The map to draw a hometown from, one per wrestler. Without this everybody
+   * generated shares the string 'territory-unassigned', which is what the
+   * field held for the whole life of the project before career/reach.ts gave
+   * it a job — see the note on Wrestler.homeTerritoryId.
+   */
+  homeTerritoryIds?: readonly Id[];
   currentYear?: number;
   /** Appearances already in the roster — new wrestlers stay visually distinct from these, §7. */
   existingAppearances?: Appearance[];
@@ -242,7 +249,15 @@ export function generateWrestler(
     gimmick,
     moveSet: generateMoveSet(rng, style),
     isCreated: false,
-    homeTerritoryId: options.homeTerritoryId ?? 'territory-unassigned',
+    homeTerritoryId:
+      options.homeTerritoryId ??
+      (options.homeTerritoryIds && options.homeTerritoryIds.length > 0
+        ? pick(rng, [...options.homeTerritoryIds])
+        : 'territory-unassigned'),
+    // Nowhere has seen them yet. reach.ts reads an absent town as a fraction
+    // of the national profile rather than as zero, so an empty map is the
+    // correct starting state rather than a gap to be filled.
+    regionalPopularity: {},
     appearance: generateDistinctAppearance(rng, options.existingAppearances ?? []),
 
     promotionId: null,

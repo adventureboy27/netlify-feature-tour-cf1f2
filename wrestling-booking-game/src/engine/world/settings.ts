@@ -477,6 +477,29 @@ export function defaultWorldSettings(): WorldSettings {
     storylinePayoffCompanyRating: 2.5,
     storylineFizzleRating: 0.8,
 
+    // Tired is tonight's tank; worn is the debt that does not clear between
+    // shows. The player cares about both and they are different problems.
+    miniTiredEnergy: 45,
+    miniWornFatigue: 55,
+
+    // Where somebody is over. The national share is deliberately the larger
+    // half — television exists and a real star is a real star everywhere —
+    // but the local half is enough that a hometown hero out-draws a bigger
+    // name in his own building, which is the whole point of a territory.
+    reachNationalShare: 0.55,
+    reachUnseenShare: 0.55,
+    reachHometownHead: 15,
+    reachGainBase: 1.4,
+    reachGainPerQuality: 3.2,
+    reachLocalCeiling: 100,
+    reachHometownGainBonus: 1.35,
+    // Slow. A town takes months to forget you, and never forgets a star at
+    // all — absenceDecay floors at what national reputation carries.
+    reachDecayPerWeek: 0.55,
+    reachNationalPopularity: 78,
+    reachKnownHere: 45,
+    reachRegionalTowns: 3,
+
     // Relationships. Most people get along; the ones who do not are the
     // interesting exception, and enemies work stiffer — better to watch,
     // likelier to hurt somebody.

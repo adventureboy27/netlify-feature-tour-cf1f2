@@ -71,7 +71,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // Version 15 adds world.storylines and the storyline settings block. A
 // version-14 save has no array, which the weekly tick iterates without a
 // guard.
-const SCHEMA_VERSION = 15;
+//
+// Version 16 adds regionalPopularity to Wrestler and gives everybody a real
+// homeTerritoryId. A version-15 save has neither: every wrestler in it would
+// carry the literal string 'territory-unassigned' as a hometown, so nobody
+// would ever get a hometown pop, and the whole reach system would read every
+// town as a strange one forever.
+const SCHEMA_VERSION = 16;
 
 export interface SaveFile {
   schema: number;

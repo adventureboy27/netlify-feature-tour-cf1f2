@@ -31,8 +31,10 @@ import {
   RELATIONSHIP_LABELS,
 } from '../../engine/career/relationships';
 import { MoodLine } from '../components/Mood';
+import { MiniStats, ReachLine } from '../components/MiniStats';
+import { strongholds } from '../../engine/career/reach';
 import { PaperDoll } from '../paperdoll/PaperDoll';
-import { StatBar, HeatBadge, Money } from '../components/display';
+import { HeatBadge, Money } from '../components/display';
 import { scout } from '../../engine/career/scouting';
 import type { Wrestler } from '../../engine/types';
 
@@ -153,6 +155,20 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     ✚
                   </span>
                 )}
+                {/* The whole person, under their face. Directly below the
+                    portrait because that is where the eye already is when you
+                    are scanning a roster for somebody to book. */}
+                <div className="mt-1 w-[86px]">
+                  <MiniStats
+                    wrestler={w}
+                    settings={world.settings}
+                    titles={world.titles}
+                    territoryId={world.showSetup.territoryId}
+                    territoryName={
+                      world.territories.find((t) => t.id === world.showSetup.territoryId)?.name
+                    }
+                  />
+                </div>
               </div>
 
               <div className="relative min-w-0 flex-1">
@@ -226,16 +242,33 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     it is a thing the booker can act on this week. */}
                 <MoodLine wrestler={w} settings={world.settings} size="sm" />
 
-                {/* physical stats */}
-                <div className="mt-1 grid grid-cols-2 gap-x-3">
-                  <StatBar label="Popularity" value={w.popularity} />
-                  <StatBar label="Strength" value={w.strength} />
-                  <StatBar label="Skill" value={w.skill} />
-                  <StatBar label="Agility" value={w.agility} />
-                  <StatBar label="Stamina" value={w.stamina} />
-                  <StatBar label="Mic work" value={w.charisma} />
-                  <StatBar label="Momentum" value={w.momentum} />
-                  <StatBar label="Condition" value={w.health} tone="health" />
+                {/* How far the name carries, and the towns that are actually
+                    theirs. The meters themselves now live under the portrait
+                    — repeating them here as a wide word-labelled grid was the
+                    same eight numbers twice. */}
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <ReachLine wrestler={w} settings={world.settings} />
+                  {strongholds(w, world.settings, 2).map((hold) => {
+                    const town = world.territories.find((t) => t.id === hold.territoryId);
+                    if (!town) return null;
+                    return (
+                      <span
+                        key={hold.territoryId}
+                        className="rounded bg-amber-950/60 px-1 py-px text-[9px] text-amber-300"
+                        title={`${w.name} is over in ${town.name}`}
+                      >
+                        {town.name}
+                      </span>
+                    );
+                  })}
+                  {(() => {
+                    const home = world.territories.find((t) => t.id === w.homeTerritoryId);
+                    return home ? (
+                      <span className="text-[9px] text-neutral-600" title="Where they are from">
+                        from {home.name}
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
 
                 {/* allies and enemies */}

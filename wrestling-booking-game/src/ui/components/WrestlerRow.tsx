@@ -11,10 +11,11 @@
 // problem. Every coloured thing on this row also says its meaning in words,
 // so it survives being colourblind or simply new.
 
-import type { Wrestler, WorldSettings } from '../../engine/types';
+import type { Id, Title, Wrestler, WorldSettings } from '../../engine/types';
 import { scout, alignmentLabel, type Availability } from '../../engine/career/scouting';
 import { billedAs } from '../../engine/generate/nickname';
 import { MoodFace } from './Mood';
+import { MiniStats } from './MiniStats';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 
 const AVAILABILITY_STYLE: Record<Availability['tone'], string> = {
@@ -44,6 +45,9 @@ export function WrestlerRow({
   selected = false,
   trailing,
   compact = false,
+  territoryId,
+  territoryName,
+  titles,
 }: {
   wrestler: Wrestler;
   settings: WorldSettings;
@@ -53,6 +57,11 @@ export function WrestlerRow({
   trailing?: React.ReactNode;
   /** Drops the pitch and catch, for lists where space is tighter than choice. */
   compact?: boolean;
+  /** The town this card is in, so the row can show what they draw *here*. */
+  territoryId?: Id;
+  territoryName?: string;
+  /** Belts in play, so the row can say who is carrying one. */
+  titles?: readonly Title[];
 }) {
   const read = scout(wrestler, settings);
   const alignment = alignmentLabel(wrestler.alignment);
@@ -71,6 +80,19 @@ export function WrestlerRow({
         </div>
         {!compact && (
           <div className="mt-0.5 flex flex-col gap-px">
+            {/* The meters go in the row itself, not only on the roster card.
+                Picking somebody for a slot is exactly the moment you want to
+                compare two people without leaving the screen. */}
+            <div className="mb-1 max-w-[190px]">
+              <MiniStats
+                wrestler={wrestler}
+                settings={settings}
+                titles={titles}
+                territoryId={territoryId}
+                territoryName={territoryName}
+                compact
+              />
+            </div>
             <span className="text-[11px] leading-snug text-neutral-300">{read.pitch}</span>
             {read.catch ? (
               <span className="text-[11px] leading-snug text-rose-300/80">{read.catch}</span>
