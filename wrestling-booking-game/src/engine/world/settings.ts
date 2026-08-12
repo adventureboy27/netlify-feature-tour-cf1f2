@@ -19,9 +19,13 @@ export function defaultWorldSettings(): WorldSettings {
     arenaTiersEnabled: true,
 
     // Roster and talent
-    startingRosterSize: 34,
+    // Smaller out of the gate, deliberately. A 34-man roster on a card of six
+    // means most of the company never works, and 198 people in the business
+    // on week one is more names than anybody can hold. The population system
+    // fills the gap over time now rather than front-loading it.
+    startingRosterSize: 26,
     targetRosterSize: 38,
-    freeAgentPoolSize: 40,
+    freeAgentPoolSize: 24,
     talentQualityCurve: 0,
     starDensity: 0.07,
     womensDivision: 'separate',
@@ -817,10 +821,49 @@ export function defaultWorldSettings(): WorldSettings {
     worldPopulationMin: 150,
     worldPopulationMax: 230,
     academyMaxGraduates: 14,
+    // Half the open jobs a year. The rest is filled by walk-ons, comebacks
+    // and people other companies let go — a school that filled every vacancy
+    // on its own would make the free agent pool pointless.
+    academyFillRate: 0.5,
     academyGraduatePopularity: 0.12,
     // Past this the school says no. It is not that nobody starts at
     // thirty-five — plenty do — it is that they do not start in a class.
     academyMaxAge: 34,
+
+    // Companies are born as well as dying. Measured before this existed:
+    // seven alive in year one, four by year three, and nothing ever replaced
+    // the three that went — so a hundred wrestlers ended up in a pool with no
+    // employer left to drain it. A glut of unemployed talent is now the thing
+    // that makes somebody open a promotion, which is self-limiting in exactly
+    // the right way.
+    newPromotionsEnabled: true,
+    promotionCountMax: 9,
+    newPromotionUnemployedTrigger: 45,
+    newPromotionPressureRange: 60,
+    // Folds have to be outpaced, not merely matched — measured at 0.004/0.02
+    // the business still shrank from seven companies to four in four years.
+    newPromotionChanceBase: 0.01,
+    newPromotionChanceRange: 0.06,
+    // Bottom of the ladder, and they have to climb like anybody else.
+    newPromotionRatingMin: 12,
+    newPromotionRatingMax: 28,
+    newPromotionCashMin: 60_000,
+    newPromotionCashMax: 180_000,
+    newPromotionRosterSize: 9,
+    //
+    // Measured over seven simulated years, starting from 137 people:
+    //
+    //         total  active  signed  free agents  companies
+    //   y1     141     129     110       19           7
+    //   y3     151     117      57       58           4    <- three folds
+    //   y5     156     111      64       41           5
+    //   y7     164     103      51       45           5
+    //
+    // The population no longer inflates (198 -> 256 in four years before
+    // this), the glut from a fold spikes and then drains instead of sitting
+    // there forever, and companies come back. It settles a little below where
+    // it started, which is a business slowly consolidating — the right
+    // direction for it to drift if it is going to drift at all.
 
     // Walk-ons: everybody past the school's door policy who still wants a
     // shot. Mostly rough and staying that way, because the years to grow into
@@ -829,7 +872,8 @@ export function defaultWorldSettings(): WorldSettings {
     walkOnsPerYearMin: 2,
     walkOnsPerYearMax: 6,
     walkOnMaxAge: 44,
-    walkOnGemChance: 0.09,
+    // Same reasoning as the phenom: a gem is a gamble now, not a windfall.
+    walkOnGemChance: 0.16,
     walkOnTalkerChance: 0.13,
     // Untrained: about a third of the ring skill a trained version would have
     // had. A gem keeps two thirds, which is what makes them obvious.
@@ -1072,8 +1116,8 @@ export function defaultWorldSettings(): WorldSettings {
     auctionAggressiveFraction: 1.35,
 
     tagTeamsPerPromotion: 3,
-    rivalRosterSizeMin: 10,
-    rivalRosterSizeMax: 26,
+    rivalRosterSizeMin: 8,
+    rivalRosterSizeMax: 20,
     // From one week to two and a half years. The floor matters: at 6 the
     // opening world had nobody inside the safe end of the signing window, so
     // week one could only ever offer a long-odds handshake.
@@ -1142,7 +1186,12 @@ export function defaultWorldSettings(): WorldSettings {
     biddingProspectAge: 26,
     // Per graduating class, not per graduate — a class with two phenoms in it
     // would not be a phenom.
-    biddingPhenomChancePerClass: 0.05,
+    // Raised from 0.05 once busts existed. When a phenom was a guaranteed
+    // star, one every twenty classes was right — a certainty should be rare.
+    // Now that one in five has nothing behind them, a phenom is a gamble
+    // rather than a gift, and a gamble the player only sees once a decade is
+    // not a mechanic they ever learn to play.
+    biddingPhenomChancePerClass: 0.14,
     biddingPhenomStatFloor: 68,
     biddingPhenomTalentFloor: 90,
     biddingPhenomPopularity: 38,

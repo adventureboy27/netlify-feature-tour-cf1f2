@@ -150,3 +150,15 @@ export function isPoachingTarget(status: CareerStatus): boolean {
 export function hasUpside(status: CareerStatus): boolean {
   return status === 'prospect' || status === 'rookie' || status === 'midcarder' || status === 'upperCard';
 }
+
+/**
+ * Somebody whose career is over.
+ *
+ * Two statuses mean this and only one of them is obvious: induction into the
+ * hall overwrites 'retired' with 'hallOfFamer', so a check for 'retired'
+ * alone silently lets a retired hall of famer be signed to a roster, counted
+ * as working population, or drafted into a brand-new promotion.
+ */
+export function isFinished(wrestler: Wrestler): boolean {
+  return Boolean(wrestler.deceased) || wrestler.careerStatus === 'retired' || wrestler.careerStatus === 'hallOfFamer';
+}

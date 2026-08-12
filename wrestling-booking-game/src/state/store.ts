@@ -34,7 +34,6 @@ import {
   createEmptyCard,
   createEmptyPromoSlots,
   pairKey,
-  styleProfileFor,
   rivalRosterSize,
   type World,
   type YearInReview,
@@ -143,7 +142,15 @@ import {
   type Bid as ContractBid,
   type BiddingReason,
 } from '../engine/economy/bidding';
+import { styleProfileFor } from '../data/promotionIdentity';
 import { crossing, hypeDrift } from '../engine/career/hype';
+import { isFinished } from '../engine/career/status';
+import {
+  foundPromotion,
+  foundingRoster,
+  openingLine,
+  rollOpening,
+} from '../engine/world/newPromotions';
 import {
   asSecondGeneration,
   debutAge as lineageDebutAge,
@@ -233,7 +240,7 @@ import {
   strongestTerritory,
   venueFitsTerritory,
 } from '../engine/world/territories';
-import { graduateClass, graduateCount, workingPopulation } from '../engine/world/academy';
+import { businessCapacity, graduateClass, graduateCount, workingPopulation } from '../engine/world/academy';
 import { walkOnIntake, walkOnLine } from '../engine/world/walkOns';
 import { rollForNickname } from '../engine/generate/nickname';
 import {
@@ -4122,6 +4129,45 @@ export const useGameStore = create<GameStore>()(
           if (names.length > 0) world.weeklyNews.push(teamSplitLine(team.name, names, world.week));
         }
 
+        // Companies are born as well as dying. When the business has more
+        // talent than it has places to put it, somebody with money looks at
+        // all those unemployed wrestlers and opens a promotion — see
+        // world/newPromotions.ts, and the measurements in its header for what
+        // the business looked like before anything replaced a fold.
+        {
+          const employable = Object.values(world.wrestlers).filter(
+            (w) => !w.deceased && w.careerStatus !== 'retired' && w.role === 'wrestler',
+          );
+          const spare = employable.filter((w) => w.promotionId === null);
+          const alive = [world.promotion, ...world.rivals].filter((p) => p.closedWeek === null);
+          const openingCtx = {
+            alive,
+            unemployed: spare.length,
+            takenNames: new Set(
+              [world.promotion, ...world.rivals].map((p) => p.name.toLowerCase()),
+            ),
+            currentWeek: world.week,
+          };
+          if (rollOpening(rng, openingCtx, world.settings)) {
+            const company = foundPromotion(rng, openingCtx, world.territories.map((t) => t.id), world.settings);
+            const founding = foundingRoster(spare, world.settings);
+            for (const person of founding) {
+              person.promotionId = company.id;
+              person.contract = createStandardContract(
+                person,
+                world.settings,
+                world.settings.startingYear + Math.floor(world.week / 52),
+              );
+              company.rosterIds.push(person.id);
+              world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== person.id);
+            }
+            world.rivals.push(company);
+            world.weeklyNews.push(
+              wire('signing', openingLine(company, founding.length), world.week, 'lead'),
+            );
+          }
+        }
+
         // Rivals replace the people they lost, the week they lose them. They
         // shop in the same pool the player does, so a promotion that leaves
         // talent sitting there will watch somebody else sign it — and now
@@ -4136,7 +4182,10 @@ export const useGameStore = create<GameStore>()(
           const index = Math.floor(rng.next() * world.freeAgents.length);
           const agent = world.freeAgents[index];
           const signing = agent ? world.wrestlers[agent.wrestlerId] : undefined;
-          if (!signing || signing.deceased || signing.careerStatus === 'retired') continue;
+          // Finished is finished. Checking only 'retired' let a promotion sign
+          // a retired hall of famer off the free agent list, because induction
+          // overwrites that status with 'hallOfFamer'.
+          if (!signing || signing.deceased || isFinished(signing)) continue;
           // Nobody can be signed while they are sitting out a negotiated
           // release. The ninety days binds the whole business, which is the
           // point of trading a payout for it.
@@ -4411,7 +4460,16 @@ export const useGameStore = create<GameStore>()(
           const takenNamesNow = new Set(everyone.map((w) => w.name.trim().toLowerCase()));
           const intake = graduateClass(
             rng,
-            graduateCount(rng, workingPopulation(everyone), world.settings),
+            graduateCount(
+              rng,
+              workingPopulation(everyone),
+              world.settings,
+              // Jobs, not bodies. See academy.ts — a shortage of employers
+              // cannot be fixed by making more wrestlers.
+              businessCapacity([world.promotion, ...world.rivals], (rating) =>
+                rivalRosterSize(rating, world.settings),
+              ),
+            ),
             year,
             world.settings,
             everyone.map((w) => w.appearance),

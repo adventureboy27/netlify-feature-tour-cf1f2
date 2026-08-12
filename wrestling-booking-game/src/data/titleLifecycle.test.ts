@@ -209,7 +209,12 @@ describe('bringing one back', () => {
     useGameStore.getState().retireTitle(belt.id);
     useGameStore.getState().unretireTitle(belt.id);
     const back = world().titles.find((t) => t.id === belt.id)!;
-    const roster = world().promotion.rosterIds.map((id) => world().wrestlers[id]!);
+    // The division is locked at creation, so the two people put in front of it
+    // have to be people it would take. Asking a men's belt to sanction a
+    // mixed match tests the division rule, not whether the belt came back.
+    const roster = world().promotion.rosterIds
+      .map((id) => world().wrestlers[id]!)
+      .filter((w) => back.division === 'open' || w.gender === (back.division === 'womens' ? 'f' : 'm'));
     const singles = eligibleTitles([back], {
       promotionId: world().promotion.id,
       participants: [

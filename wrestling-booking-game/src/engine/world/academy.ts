@@ -18,9 +18,23 @@ import type { Appearance, Id, Wrestler, WorldSettings } from '../types';
 import { generateWrestlers, rollDebutAge } from '../generate/wrestler';
 import type { FreeAgent } from './freeAgents';
 
-/** Everyone still able to work — retired and deceased do not count. */
+/**
+ * Everyone actually *working* — signed to somebody, alive, not retired.
+ *
+ * The unemployed used to count, and that was the bug underneath a decade of
+ * quiet inflation: three promotions folded in year three, a hundred wrestlers
+ * went into a pool with nobody left to hire them, and the school looked at a
+ * headcount of two hundred and concluded the business was healthy. It kept
+ * producing into a market that could not absorb anybody.
+ *
+ * Counting contracts instead makes the schools respond to demand, which is
+ * the only number that means anything: the business is short-handed when
+ * companies cannot fill their cards, not when there are bodies somewhere.
+ */
 export function workingPopulation(wrestlers: readonly Wrestler[]): number {
-  return wrestlers.filter((w) => !w.deceased && w.careerStatus !== 'retired' && w.role === 'wrestler').length;
+  return wrestlers.filter(
+    (w) => !w.deceased && w.careerStatus !== 'retired' && w.role === 'wrestler' && w.promotionId !== null,
+  ).length;
 }
 
 /**
@@ -28,14 +42,51 @@ export function workingPopulation(wrestlers: readonly Wrestler[]): number {
  * full; a rush when it is empty; a trickle in between, so the population
  * wanders inside its range instead of being pinned to a number.
  */
-export function graduateCount(rng: Rng, population: number, settings: WorldSettings): number {
-  if (population >= settings.worldPopulationMax) return 0;
+export function graduateCount(
+  rng: Rng,
+  population: number,
+  settings: WorldSettings,
+  /**
+   * How many jobs the business actually has — every live company's target
+   * roster size, added up. Omit and it falls back to the fixed band, which is
+   * only right for a fixture.
+   */
+  capacity?: number,
+): number {
+  // The schools produce to fill *vacancies*.
+  //
+  // This used to be a fixed headcount band, and the band was measured against
+  // everybody alive. Both halves were wrong and they were wrong in opposite
+  // directions. Counting the unemployed meant a business with a hundred
+  // wrestlers nobody could hire looked fully staffed; counting only the
+  // employed against a fixed floor of 150 meant a business that had lost
+  // three promotions looked desperately short and the school flooded a market
+  // with no jobs in it. Measured: total population 198 -> 256 in four years,
+  // with 147 of them unemployed.
+  //
+  // A shortage of *employers* cannot be fixed by making more wrestlers. So
+  // the question the school asks is how many contracts the business has room
+  // for, against how many it has written.
+  if (capacity !== undefined) {
+    const vacancies = capacity - population;
+    if (vacancies <= 0) return 0;
+    return Math.min(settings.academyMaxGraduates, Math.ceil(vacancies * settings.academyFillRate) + randInt(rng, 0, 1));
+  }
 
+  if (population >= settings.worldPopulationMax) return 0;
   const short = settings.worldPopulationMin - population;
   if (short > 0) return Math.min(settings.academyMaxGraduates, short + randInt(rng, 0, 1));
-
-  // Inside the range: someone breaks in most years, nobody in a lean one.
   return randInt(rng, 0, 1);
+}
+
+/** Every job the business has: each live company's target roster, added up. */
+export function businessCapacity(
+  companies: readonly { rating: number; closedWeek: number | null; rosterIds: readonly string[] }[],
+  targetFor: (rating: number) => number,
+): number {
+  return companies
+    .filter((c) => c.closedWeek === null)
+    .reduce((sum, c) => sum + targetFor(c.rating), 0);
 }
 
 export interface AcademyIntake {

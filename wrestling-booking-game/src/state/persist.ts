@@ -114,7 +114,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // the game now goes through that field rather than the hidden `talent`, so a
 // version-22 save would have the whole business valuing everybody at
 // undefined.
-const SCHEMA_VERSION = 23;
+//
+// Version 24 adds the new-promotion settings and changes what
+// `workingPopulation` counts, plus smaller starting rosters and pools. A
+// version-23 save has none of the newPromotion* settings, so the weekly roll
+// would compare a headcount against undefined and never open anything — the
+// business would go back to folding its way to nothing.
+const SCHEMA_VERSION = 24;
 
 export interface SaveFile {
   schema: number;

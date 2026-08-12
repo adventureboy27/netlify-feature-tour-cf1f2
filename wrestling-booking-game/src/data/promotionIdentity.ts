@@ -11,7 +11,7 @@
 // violence, a technical one with workrate, and a wrestler whose style fits
 // the house style is worth more there than elsewhere.
 
-import type { Id, PromotionArchetype, TitleTier, WrestlingStyle } from '../engine/types';
+import type { Id, PromotionArchetype, TitleTier, WrestlingStyle, StyleProfile } from '../engine/types';
 
 export type { PromotionArchetype };
 
@@ -237,4 +237,22 @@ export function styleFit(identity: PromotionIdentity, style: WrestlingStyle): nu
     athletic: ['giant'],
   };
   return opposed[identity.archetype]?.includes(style) ? -0.6 : 0;
+}
+
+/**
+ * A promotion books what it is known for.
+ *
+ * Lives here rather than in state/world.ts because engine/world/newPromotions.ts
+ * needs it to found a company mid-save, and engine/ is not allowed to reach
+ * into the store. It is pure identity content either way.
+ */
+export function styleProfileFor(archetype: PromotionArchetype): StyleProfile {
+  const identity = identityOf(archetype);
+  return {
+    preferredStyles: [...identity.favouredStyles],
+    violenceTolerance: identity.violenceTolerance,
+    workrateVsStarPower: identity.workrateVsStarPower,
+    divisionFocus: ['mens'],
+    promoHeavy: identity.workrateVsStarPower < 40,
+  };
 }

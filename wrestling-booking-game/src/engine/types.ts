@@ -2407,6 +2407,8 @@ export interface WorldSettings {
   worldPopulationMax: number;
   /** Most graduates in one intake. */
   academyMaxGraduates: number;
+  /** Share of the business's vacancies the schools try to fill in a year. */
+  academyFillRate: number;
   /** Age range a graduate debuts at. */
   /**
    * Share of a generated popularity a school graduate keeps. They have never
@@ -2418,6 +2420,23 @@ export interface WorldSettings {
    * through the walk-on door instead — see engine/world/walkOns.ts.
    */
   academyMaxAge: number;
+
+  // --- New promotions, engine/world/newPromotions.ts -----------------------
+  newPromotionsEnabled: boolean;
+  /** The business never has more companies than this trading at once. */
+  promotionCountMax: number;
+  /** Unemployed wrestlers before anybody thinks there is money in it. */
+  newPromotionUnemployedTrigger: number;
+  /** How much more of a glut takes the chance from base to base+range. */
+  newPromotionPressureRange: number;
+  newPromotionChanceBase: number;
+  newPromotionChanceRange: number;
+  newPromotionRatingMin: number;
+  newPromotionRatingMax: number;
+  newPromotionCashMin: number;
+  newPromotionCashMax: number;
+  /** How many they open the doors with. */
+  newPromotionRosterSize: number;
 
   // --- Walk-ons, engine/world/walkOns.ts -----------------------------------
   /** How many turn up in a year. Smaller than a graduating class. */

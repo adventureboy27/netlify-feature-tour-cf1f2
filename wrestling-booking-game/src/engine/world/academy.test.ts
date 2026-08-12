@@ -14,10 +14,19 @@ function population(count: number, overrides: Partial<Wrestler> = {}): Wrestler[
 describe('who counts as working', () => {
   it('leaves out the retired and the dead', () => {
     const people = [
-      ...population(5),
-      ...population(3, { careerStatus: 'retired' }),
-      ...population(2, { deceased: { wrestlerId: 'x', cause: 'age', age: 80, week: 1 } }),
+      ...population(5, { promotionId: 'p1' }),
+      ...population(3, { promotionId: 'p1', careerStatus: 'retired' }),
+      ...population(2, { promotionId: 'p1', deceased: { wrestlerId: 'x', cause: 'age', age: 80, week: 1 } }),
     ];
+    expect(workingPopulation(people)).toBe(5);
+  });
+
+  it('leaves out the unemployed, which is the whole point of the number', () => {
+    // The schools read this to decide whether the business is short-handed.
+    // Counting people nobody can hire had three promotions fold, a hundred
+    // wrestlers land in a pool with no employer left, and the school conclude
+    // from a headcount of two hundred that it was still needed.
+    const people = [...population(5, { promotionId: 'p1' }), ...population(20, { promotionId: null })];
     expect(workingPopulation(people)).toBe(5);
   });
 });

@@ -69,7 +69,7 @@ import { generateWrestlers } from '../engine/generate/wrestler';
 import { createRivalry } from '../engine/sim/rivalry';
 import { createStandardContract } from '../engine/economy/contracts';
 import { createStartingTitles, awardTitle } from '../data/titles';
-import { identityOf } from '../data/promotionIdentity';
+import { styleProfileFor } from '../data/promotionIdentity';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import { seedRelationships } from '../engine/career/relationships';
 import { formTeams, teamIdFactory, tagTeamCountFor } from '../engine/world/tagTeams';
@@ -723,18 +723,6 @@ export const RIVAL_PROMOTIONS: { name: string; archetype: PromotionArchetype }[]
 export function rivalRosterSize(rating: number, settings: WorldSettings): number {
   const span = settings.rivalRosterSizeMax - settings.rivalRosterSizeMin;
   return Math.round(settings.rivalRosterSizeMin + (rating / 100) * span);
-}
-
-/** A promotion books what it is known for. */
-export function styleProfileFor(archetype: PromotionArchetype): Promotion['styleProfile'] {
-  const identity = identityOf(archetype);
-  return {
-    preferredStyles: [...identity.favouredStyles],
-    violenceTolerance: identity.violenceTolerance,
-    workrateVsStarPower: identity.workrateVsStarPower,
-    divisionFocus: ['mens'],
-    promoHeavy: identity.workrateVsStarPower < 40,
-  };
 }
 
 function createRivalPromotions(rng: Rng, settings: WorldSettings): Promotion[] {
