@@ -227,7 +227,7 @@ export function WrestlerEditor({ wrestlerId, onDone }: { wrestlerId?: Id; onDone
     onDone?.();
   }
 
-  const cells = selectCells(appearance);
+  const cells = selectCells(appearance, gender);
   const masked = appearance.mask > 0;
 
   function setTrait(key: TraitKey, value: number) {
@@ -358,7 +358,9 @@ export function WrestlerEditor({ wrestlerId, onDone }: { wrestlerId?: Id; onDone
                 </div>
               </div>
 
-              {DRAW_ORDER.filter((slot) => slot !== 'head').map((slot) => (
+              {/* No facial hair row on the fem frame — the renderer will not
+                  draw it, so offering the chips would be a lie. */}
+              {DRAW_ORDER.filter((slot) => slot !== 'head' && !(slot === 'face' && gender === 'f')).map((slot) => (
                 <div key={slot} className="flex flex-col gap-1.5">
                   <span className="text-xs text-neutral-300">{SLOT_LABELS[slot]}</span>
                   <div className="flex flex-wrap gap-1">

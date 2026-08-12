@@ -173,14 +173,21 @@ export function frameForGender(gender: 'm' | 'f'): AtlasFrame {
   return gender === 'f' ? 'fem_average_average' : 'masc_average_average';
 }
 
-export function selectCells(appearance: Appearance): CellSelection {
+/**
+ * @param gender The fem frame never draws facial hair, whatever the trait says.
+ *   Generation stopped rolling it, but a save, an imported roster file or a
+ *   slider drag could still carry a value, and the answer to all three is the
+ *   same: no bearded women. Suppressed here rather than only at generation so
+ *   there is exactly one place it can happen and it does not.
+ */
+export function selectCells(appearance: Appearance, gender: 'm' | 'f' = 'm'): CellSelection {
   const masked = appearance.mask > 0;
   return {
     // A mask replaces the hair layer outright (§7 layer 8: "hair suppressed if
     // mask != 0"), so it wins over whatever hairStyle says.
     head: masked ? 'mask' : pick(HEAD_BY_HAIR_STYLE, appearance.hairStyle),
     // And a mask covers the jaw, so the beard under it goes with the hair.
-    face: masked ? 'clean' : pick(FACE_BY_FACIAL_HAIR, appearance.facialHair),
+    face: masked || gender === 'f' ? 'clean' : pick(FACE_BY_FACIAL_HAIR, appearance.facialHair),
     extra:
       appearance.glasses > 0
         ? pick(EXTRA_BY_GLASSES, appearance.glasses)
@@ -236,7 +243,7 @@ export interface SpriteSelection {
 export function selectSprite(appearance: Appearance, gender: 'm' | 'f'): SpriteSelection {
   return {
     frame: frameFor(gender, appearance),
-    cells: selectCells(appearance),
+    cells: selectCells(appearance, gender),
     slotColors: selectSlotColors(appearance),
   };
 }

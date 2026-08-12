@@ -15,7 +15,7 @@ import { rngFromSeed } from '../../../engine/rng';
 import { generateDistinctAppearance, RENDERED_APPEARANCE_KEYS, APPEARANCE_TRAIT_RANGES } from '../../../engine/generate/appearance';
 import type { Appearance } from '../../../engine/types';
 import { SHAPE_COMBOS, SHAPE_COMBOS_PER_FRAME, FRAMES } from './manifest';
-import { selectCells, selectSprite, selectionKey } from './traits';
+import { frameFor, selectCells, selectSprite, selectionKey } from './traits';
 
 /** A roster the way a world builds one: each face vetted against the ones before it. */
 function population(seed: string, size: number): { appearance: Appearance; gender: 'm' | 'f' }[] {
@@ -82,7 +82,7 @@ describe('nobody has a double', () => {
   const SIZE = 2000;
   const people = population('lookalikes', SIZE);
   const shapes = people.map(({ appearance, gender }) => {
-    const cells = selectCells(appearance);
+    const cells = selectCells(appearance, gender);
     return `${selectSprite(appearance, gender).frame}|${Object.values(cells).join()}`;
   });
   const sprites = people.map(({ appearance, gender }) => selectionKey(selectSprite(appearance, gender)));
@@ -101,10 +101,35 @@ describe('nobody has a double', () => {
     expect(distinct).toBe(SIZE);
   });
 
+  it('never draws a bearded woman, whatever the save says', () => {
+    // Generation stopped rolling facial hair for women, but a v16 save, an
+    // imported roster file and the editor's sliders can all still carry a
+    // value. The renderer is the backstop.
+    const { appearance } = population('bearded-lady', 1)[0]!;
+    for (let facialHair = 0; facialHair <= APPEARANCE_TRAIT_RANGES.facialHair; facialHair++) {
+      expect(selectCells({ ...appearance, facialHair }, 'f').face).toBe('clean');
+    }
+    // And the masc frame still uses the whole range, so this is a rule about
+    // the frame rather than a dead slot.
+    const reached = new Set<string>();
+    for (let facialHair = 0; facialHair <= APPEARANCE_TRAIT_RANGES.facialHair; facialHair++) {
+      reached.add(selectCells({ ...appearance, facialHair, mask: 0 }, 'm').face);
+    }
+    expect(reached.size).toBe(7);
+  });
+
+  it('still gives the women plenty to look like', () => {
+    const women = population('women-only', 300).map(({ appearance }) => appearance);
+    const keys = women.map((a) => [frameFor('f', a), ...Object.values(selectCells(a, 'f'))].join('|'));
+    const { worst, sharedByThree } = crowding(keys);
+    expect(sharedByThree).toBe(0);
+    expect(worst).toBeLessThanOrEqual(2);
+  });
+
   it('keeps a starting roster completely distinct', () => {
     const roster = population('one-company', 30);
     const keys = roster.map(({ appearance, gender }) =>
-      [selectSprite(appearance, gender).frame, ...Object.values(selectCells(appearance))].join('|'),
+      [selectSprite(appearance, gender).frame, ...Object.values(selectCells(appearance, gender))].join('|'),
     );
     expect(new Set(keys).size).toBe(roster.length);
   });

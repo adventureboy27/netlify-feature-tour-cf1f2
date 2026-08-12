@@ -76,11 +76,14 @@ man. `lookalikes.test.ts` asserts the list is exactly the set of traits that
 change a sprite, so cutting cells for tattoos fails the suite until the list
 catches up.
 
-One trait reads the wrestler rather than only itself: `facialHair` is rolled
-only for `m`. It was a flat 50% for everybody, which was harmless while the
-trait drew nothing and put half the women in the business in goatees the
-moment it did. The editor still exposes it for anyone who wants a bearded
-lady on purpose.
+One trait reads the wrestler rather than only itself: **`facialHair` never
+draws on the fem frame.** It was a flat 50% roll for everybody, which was
+harmless while the trait drew nothing and put half the women in the business
+in goatees the moment it did. Enforced in two places on purpose —
+`generateAppearance` leaves it at 0, and `selectCells` suppresses the slot
+whatever the value is, because a v16 save, an imported roster file and a
+slider drag can all still carry one. The editor hides the row on that frame
+for the same reason.
 
 ## Body frames: build and height
 

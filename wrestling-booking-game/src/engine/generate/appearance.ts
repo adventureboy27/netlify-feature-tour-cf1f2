@@ -43,11 +43,9 @@ function rollOptionalTrait(rng: Rng, max: number, presentProbability: number): n
 
 /**
  * @param gender Which body the sprite will be drawn on. Only facial hair reads
- *   it: the trait used to draw nothing at all, so a 50% beard roll on the whole
- *   population was invisible and harmless. Now that the atlas has a face slot,
- *   half the women in the business turned up in goatees. The trait is still
- *   editable, so a booker who wants a bearded lady can still have one — it just
- *   is not something generation hands out by accident.
+ *   it: the trait used to draw nothing at all, so a 50% beard roll across the
+ *   whole population was invisible and harmless. Now that the atlas has a face
+ *   slot, half the women in the business turned up in goatees.
  */
 export function generateAppearance(rng: Rng, gender?: 'm' | 'f'): Appearance {
   return {
@@ -56,6 +54,12 @@ export function generateAppearance(rng: Rng, gender?: 'm' | 'f'): Appearance {
     height: randInt(rng, 0, APPEARANCE_TRAIT_RANGES.height),
     hairStyle: rollOptionalTrait(rng, APPEARANCE_TRAIT_RANGES.hairStyle, 0.92), // ~8% bald
     hairColor: randInt(rng, 0, APPEARANCE_TRAIT_RANGES.hairColor),
+    // No bearded women. The fem frame does not draw the face slot at all
+    // (atlas/traits.ts owns that); this just stops the save carrying a value
+    // nobody will ever see. Expressed as a zero probability rather than a
+    // branch around the call so the number of draws taken off the stream does
+    // not depend on gender — skipping the roll shifts every seeded world that
+    // follows, which surfaced as five unrelated store tests drifting.
     facialHair: rollOptionalTrait(rng, APPEARANCE_TRAIT_RANGES.facialHair, gender === 'f' ? 0 : 0.5),
     faceShape: randInt(rng, 0, APPEARANCE_TRAIT_RANGES.faceShape),
     eyes: randInt(rng, 0, APPEARANCE_TRAIT_RANGES.eyes),
