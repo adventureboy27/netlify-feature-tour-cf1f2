@@ -560,9 +560,13 @@ def feet(F, style):
     return L
 
 # ---------------------------------------------------------------- sheets
+# The game is portrait-only: nothing below the shoulders is ever drawn, so the
+# `lower` and `feet` builders below are no longer emitted. They stay in the file
+# because the geometry is expensive to rewrite and cheap to keep, but they are
+# not in SLOTS and no sheet is written for them.
 SLOTS = [("head", HEADS, head), ("face", FACES, face), ("extra", EXTRAS, extra),
          ("upper", UPPERS, upper),
-         ("lower", LOWERS, lower), ("feet", FEET, feet)]
+         ]
 
 DEFAULT_PALETTE = {
     0:(0,0,0,0),
@@ -611,7 +615,7 @@ def build_all():
     os.makedirs(OUTDIR, exist_ok=True)
     os.makedirs(PREVIEWDIR, exist_ok=True)
     manifest = {"frame": {"w": W, "h": H}, "anchor": "top-left, all cells share origin",
-                "drawOrder": ["head", "face", "extra", "upper", "lower", "feet"],
+                "drawOrder": ["head", "face", "extra", "upper"],
                 "palette": {str(k): "rgba" for k in DEFAULT_PALETTE},
                 "frames": {}}
     for fk, F in FRAMES.items():

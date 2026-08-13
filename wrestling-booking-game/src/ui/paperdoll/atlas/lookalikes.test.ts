@@ -45,11 +45,13 @@ function crowding(keys: readonly string[]): { distinct: number; worst: number; s
 }
 
 describe('the atlas has room for a whole business', () => {
-  it('cuts more silhouettes than any world will ever need', () => {
-    // 14 heads x 7 beards x 6 face gear x 6 tops x 6 bottoms x 5 boots.
-    expect(SHAPE_COMBOS_PER_FRAME).toBe(105_840);
+  it('cuts a silhouette for every shape a portrait can show', () => {
+    // 14 heads x 7 beards x 6 face gear x 6 tops. Going portrait-only cost a
+    // factor of thirty — trunks (6) and boots (5) used to multiply this, and
+    // neither was ever visible inside the crop the game draws.
+    expect(SHAPE_COMBOS_PER_FRAME).toBe(3_528);
     expect(SHAPE_COMBOS).toBe(SHAPE_COMBOS_PER_FRAME * FRAMES.length);
-    expect(SHAPE_COMBOS).toBeGreaterThan(1_000_000);
+    expect(SHAPE_COMBOS).toBe(63_504);
   });
 
   it('draws every trait it claims to draw, and nothing it does not', () => {
@@ -87,18 +89,39 @@ describe('nobody has a double', () => {
   });
   const sprites = people.map(({ appearance, gender }) => selectionKey(selectSprite(appearance, gender)));
 
-  it('never puts three people in the same body', () => {
-    const { worst, sharedByThree } = crowding(shapes);
-    // Before the face and gear slots existed this was 200 silhouettes on three
-    // or more people, and one of them on ten.
-    expect(sharedByThree).toBe(0);
-    expect(worst).toBeLessThanOrEqual(2);
-  });
-
+  // THE promise, and it is unbroken: no two people in a world-sized population
+  // are drawn the same. Colour is doing the work now — see the shape-only
+  // measurement below for why that distinction is worth stating out loud.
   it('never draws the same wrestler twice, once colour is counted', () => {
     const { distinct, worst } = crowding(sprites);
     expect(worst).toBe(1);
     expect(distinct).toBe(SIZE);
+  });
+
+  it('keeps silhouettes distinct at the scale one company works at', () => {
+    // A roster plus the people it is negotiating with. Shape alone still
+    // carries the promise here, with no colour help at all.
+    const roster = population('one-company-shapes', 200);
+    const { worst, sharedByThree } = crowding(
+      roster.map(({ appearance, gender }) =>
+        `${selectSprite(appearance, gender).frame}|${Object.values(selectCells(appearance, gender)).join()}`,
+      ),
+    );
+    expect(sharedByThree).toBe(0);
+    expect(worst).toBeLessThanOrEqual(2);
+  });
+
+  // A measurement, not a promise — and the honest record of what portrait-only
+  // cost. With trunks and boots in the vector this was 0 silhouettes on three
+  // or more people at 2000, worst 2. Without them the first triple shows up
+  // around 400 and by 2000 it is ~91 groups, worst ~8. Nobody sees it, because
+  // colour separates all 2000 (the test above), but shape is no longer the
+  // thing holding the line. The cheapest way to buy it back is head cells:
+  // dropping the two slots freed 30% of the atlas budget to spend on them.
+  it('records where shape alone stops carrying a world-sized population', () => {
+    const { worst, sharedByThree } = crowding(shapes);
+    expect(sharedByThree).toBeGreaterThan(0);
+    expect(worst).toBeLessThanOrEqual(12);
   });
 
   it('never draws a bearded woman, whatever the save says', () => {
@@ -119,7 +142,10 @@ describe('nobody has a double', () => {
   });
 
   it('still gives the women plenty to look like', () => {
-    const women = population('women-only', 300).map(({ appearance }) => appearance);
+    // 100 rather than 300: the fem frame draws no beard, so it works from a
+    // seventh of the shape space the masc frame gets, and portrait-only cut
+    // both. This is roughly every woman in the business at once.
+    const women = population('women-only', 100).map(({ appearance }) => appearance);
     const keys = women.map((a) => [frameFor('f', a), ...Object.values(selectCells(a, 'f'))].join('|'));
     const { worst, sharedByThree } = crowding(keys);
     expect(sharedByThree).toBe(0);

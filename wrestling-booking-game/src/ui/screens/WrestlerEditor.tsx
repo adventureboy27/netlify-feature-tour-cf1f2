@@ -24,8 +24,6 @@ const SLOT_LABELS: Record<AtlasSlot, string> = {
   face: 'Facial hair',
   extra: 'Face gear',
   upper: 'Top',
-  lower: 'Bottom',
-  feet: 'Feet',
 };
 
 const CELL_LABELS: Record<string, string> = {
@@ -62,17 +60,6 @@ const CELL_LABELS: Record<string, string> = {
   tee: 'Tee',
   longsleeve: 'Long sleeve',
   vest: 'Vest',
-  trunks: 'Trunks',
-  trunks_pads: 'Trunks + pads',
-  tights: 'Tights',
-  shorts: 'Shorts',
-  jeans: 'Jeans',
-  skirt: 'Skirt',
-  boots_mid: 'Mid boots',
-  boots_high: 'High boots',
-  boots_low: 'Low boots',
-  sneakers: 'Sneakers',
-  barefoot: 'Barefoot',
 };
 
 // Everything the atlas does not currently cut a cell for. Kept editable and
@@ -316,7 +303,7 @@ export function WrestlerEditor({ wrestlerId, onDone }: { wrestlerId?: Id; onDone
 
       <div className="flex flex-col gap-6 md:flex-row">
         <div className="flex flex-col items-center gap-3 md:sticky md:top-4 md:h-fit">
-          <PaperDoll appearance={appearance} gender={gender} alignment={alignment} size="full" />
+          <PaperDoll appearance={appearance} gender={gender} alignment={alignment} size="large" />
           <div className="flex gap-2">
             <Chip label="Masc frame" selected={gender === 'm'} onClick={() => setGender('m')} />
             <Chip label="Fem frame" selected={gender === 'f'} onClick={() => setGender('f')} />
@@ -401,19 +388,19 @@ export function WrestlerEditor({ wrestlerId, onDone }: { wrestlerId?: Id; onDone
                 onChange={(v) => setTrait('hairColor', v)}
               />
               <Swatches
-                label="Primary — top, boots, mask"
+                label="Primary — top, mask"
                 palette={ATTIRE_PALETTE}
                 value={appearance.primaryColor}
                 onChange={(v) => setTrait('primaryColor', v)}
               />
               <Swatches
-                label="Secondary — trunks, tights"
+                label="Secondary — face gear"
                 palette={ATTIRE_PALETTE}
                 value={appearance.secondaryColor}
                 onChange={(v) => setTrait('secondaryColor', v)}
               />
               <Swatches
-                label="Accent — trim, pads, laces, piping"
+                label="Accent — trim and piping"
                 palette={ATTIRE_PALETTE}
                 value={appearance.accentColor}
                 onChange={(v) => setTrait('accentColor', v)}

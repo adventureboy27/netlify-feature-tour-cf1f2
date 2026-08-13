@@ -77,12 +77,6 @@ describe('selectCells', () => {
     for (let attireTop = 0; attireTop <= APPEARANCE_TRAIT_RANGES.attireTop; attireTop++) {
       expect(SLOT_CELLS.upper).toContain(selectCells(appearance({ attireTop })).upper);
     }
-    for (let attireBottom = 0; attireBottom <= APPEARANCE_TRAIT_RANGES.attireBottom; attireBottom++) {
-      expect(SLOT_CELLS.lower).toContain(selectCells(appearance({ attireBottom })).lower);
-    }
-    for (let boots = 0; boots <= APPEARANCE_TRAIT_RANGES.boots; boots++) {
-      expect(SLOT_CELLS.feet).toContain(selectCells(appearance({ boots })).feet);
-    }
     for (let facialHair = 0; facialHair <= APPEARANCE_TRAIT_RANGES.facialHair; facialHair++) {
       expect(SLOT_CELLS.face).toContain(selectCells(appearance({ facialHair })).face);
     }
@@ -109,12 +103,6 @@ describe('selectCells', () => {
     reached.head!.add(selectCells(appearance({ mask: 1 })).head);
     for (let attireTop = 0; attireTop <= APPEARANCE_TRAIT_RANGES.attireTop; attireTop++) {
       reached.upper!.add(selectCells(appearance({ attireTop })).upper);
-    }
-    for (let attireBottom = 0; attireBottom <= APPEARANCE_TRAIT_RANGES.attireBottom; attireBottom++) {
-      reached.lower!.add(selectCells(appearance({ attireBottom })).lower);
-    }
-    for (let boots = 0; boots <= APPEARANCE_TRAIT_RANGES.boots; boots++) {
-      reached.feet!.add(selectCells(appearance({ boots })).feet);
     }
     for (let facialHair = 0; facialHair <= APPEARANCE_TRAIT_RANGES.facialHair; facialHair++) {
       reached.face!.add(selectCells(appearance({ facialHair })).face);
@@ -152,15 +140,8 @@ describe('selectCells', () => {
     expect(selectCells(appearance({ accessory: 2, glasses: 0 })).extra).toBe('headband');
   });
 
-  it('keeps barefoot rare — one boots value in ten, not one in five', () => {
-    const barefoot = Array.from({ length: APPEARANCE_TRAIT_RANGES.boots + 1 }, (_, boots) =>
-      selectCells(appearance({ boots })).feet,
-    ).filter((cell) => cell === 'barefoot');
-    expect(barefoot).toHaveLength(1);
-  });
-
   it('is deterministic', () => {
-    const traits = appearance({ hairStyle: 11, attireTop: 9, attireBottom: 7, boots: 4 });
+    const traits = appearance({ hairStyle: 11, attireTop: 9 });
     expect(selectCells(traits)).toEqual(selectCells({ ...traits }));
   });
 });
@@ -170,8 +151,7 @@ describe('selectSlotColors', () => {
     const colors = selectSlotColors(BASE);
     expect(colors.head.mat1).toEqual(hexToRgb(HAIR_COLOR_PALETTE[BASE.hairColor]!));
     expect(colors.upper.mat1).toEqual(hexToRgb(ATTIRE_PALETTE[BASE.primaryColor]!));
-    expect(colors.lower.mat1).toEqual(hexToRgb(ATTIRE_PALETTE[BASE.secondaryColor]!));
-    expect(colors.feet.mat1).toEqual(hexToRgb(ATTIRE_PALETTE[BASE.primaryColor]!));
+    expect(colors.extra.mat1).toEqual(hexToRgb(ATTIRE_PALETTE[BASE.secondaryColor]!));
     // Facial hair is hair, all the way down — it is the one slot that carries
     // no attire colour at all.
     expect(colors.face.mat1).toEqual(hexToRgb(HAIR_COLOR_PALETTE[BASE.hairColor]!));
@@ -192,7 +172,7 @@ describe('selectSlotColors', () => {
 describe('selectionKey', () => {
   it('separates wrestlers who differ in a rendered trait', () => {
     const key = (traits: Appearance) => selectionKey(selectSprite(traits, 'm'));
-    expect(key(BASE)).not.toBe(key(appearance({ attireBottom: 5 })));
+    expect(key(BASE)).not.toBe(key(appearance({ attireTop: 5 })));
     expect(key(BASE)).not.toBe(key(appearance({ primaryColor: 7 })));
     expect(key(BASE)).not.toBe(key(appearance({ skinTone: 9 })));
     expect(key(BASE)).not.toBe(selectionKey(selectSprite(BASE, 'f')));

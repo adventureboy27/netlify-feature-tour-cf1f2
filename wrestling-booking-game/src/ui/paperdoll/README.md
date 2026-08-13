@@ -4,7 +4,7 @@ How a wrestler becomes a sprite (§7 of `booking-game-design.md`).
 
 ```
 Appearance          atlas/traits.ts        atlas/sheets.ts        atlas/compose.ts
-(20 ints)  ──────>  frame + 6 cells   +    index buffers   ──────>  64x96 RGBA
+(20 ints)  ──────>  frame + 4 cells   +    index buffers   ──────>  64x96 RGBA
                     + 3 color ramps        (decoded once)           ──> spriteCache
                                                                     ──> <PaperDoll>
 ```
@@ -25,8 +25,8 @@ Browsers won't hand back a PNG's palette indices, only decoded RGBA, so
 palette *backwards* to recover the indices. From then on the app holds what
 the generator meant.
 
-The PNGs are inlined into the bundle as data URIs (`?inline`, ~150 KB for all
-108 — six slots across eighteen bodies). Nothing fetches anything, so "fully
+The PNGs are inlined into the bundle as data URIs (`?inline`, ~105 KB for all
+72 — four slots across eighteen bodies). Nothing fetches anything, so "fully
 offline, no network calls anywhere" holds by construction rather than by
 service-worker config.
 
@@ -44,11 +44,28 @@ npm run test                     # manifest.test.ts checks the cells still match
 cells fails the suite instead of quietly drawing jeans where tights used to
 be.
 
-## Six slots: head, face, extra, upper, lower, feet
+## Four slots: head, face, extra, upper
 
 Paint order back to front, all sharing one 64x96 origin. `face` is facial hair
 and `extra` is whatever sits over the eyes — shades, glasses, an eye patch, a
 headband, warpaint.
+
+**The game is portrait-only.** Every screen draws the same head-and-shoulders
+window (`crops.ts`, source x 12-52 y 0-40) at one of three scales; there is no
+full-body view. `lower` and `feet` used to exist and were cut, because they were
+measured to put *zero* pixels inside that window — 198 cells, 46 KB of PNG, 30%
+of the atlas, reachable only from the editor's old `full` preview. `upper` stays:
+shoulders and chest land at y 23-39, well inside the crop.
+
+Cutting them cost real silhouette variety, and the honest numbers are in
+`lookalikes.test.ts`. Shape combinations per frame went 105,840 -> 3,528. Shape
+alone still separates a company-sized population (200 people, worst 2, no
+triples) but stops carrying a world-sized one — the first triple appears around
+400 and by 2000 there are ~91 groups of three or more, worst ~8. **Nobody sees
+it**, because colour separates all 2000 with worst 1, which is the promise the
+suite actually asserts. But shape is no longer what holds the line, and if that
+is ever wanted back, head cells are the cheapest buy — the cut freed 30% of the
+atlas budget to spend on them.
 
 Those two are late additions and the reason is worth keeping. At the sizes the
 game actually draws a wrestler — a bust on a roster card, a thumb in a picker —
@@ -61,11 +78,16 @@ holds that line.
 
 ## What the atlas does not express yet
 
-`Appearance` carries 20 traits and the sheets now draw 15 of them: `skinTone`,
-`build`, `height`, `hairStyle`, `hairColor`, `facialHair`, `attireTop`,
-`attireBottom`, `boots`, `mask`, `accessory`, `glasses`, and the three colour
-slots. The five that still draw nothing are `faceShape`, `eyes`, `shirt`,
-`tattoos` and `beltStyle`.
+`Appearance` carries 20 traits and the sheets now draw 13 of them: `skinTone`,
+`build`, `height`, `hairStyle`, `hairColor`, `facialHair`, `attireTop`, `mask`,
+`accessory`, `glasses`, and the three colour slots. The seven that draw nothing
+are `faceShape`, `eyes`, `shirt`, `tattoos`, `beltStyle` — which never had a
+cell — plus `attireBottom` and `boots`, which lost theirs when the game went
+portrait-only.
+
+Those seven are still generated and saved. Dropping their rng draws would shift
+every seeded world downstream, the same reason `facialHair` rolls at probability
+zero for women rather than skipping the call.
 
 That list is not just documentation — it is
 `RENDERED_APPEARANCE_KEYS` in `engine/generate/appearance.ts`, and the §7
@@ -120,8 +142,8 @@ the pixel and "taller" had nowhere to go.
 Adding a build or a height means extending `BUILDS`/`HEIGHTS` in
 `wrestler_atlas.py`, `FRAMES` in `atlas/manifest.ts`, the URL map in
 `atlas/sheets.ts`, and the two tables in `atlas/traits.ts`. The sheets cost
-about 8 KB per frame across all six slots, so the axis count is a real budget:
-eighteen frames is ~150 KB of PNG.
+about 6 KB per frame across all four slots, so the axis count is a real budget:
+eighteen frames is ~105 KB of PNG.
 
 The mapping tables in `atlas/traits.ts` are authored rather than modulo
 arithmetic, so trait ranges wider than the cell list produce a distribution

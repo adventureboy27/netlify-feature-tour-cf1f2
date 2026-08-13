@@ -8,9 +8,7 @@
     "head",
     "face",
     "extra",
-    "upper",
-    "lower",
-    "feet"
+    "upper"
   ],
   "palette": {
     "0": "rgba",
@@ -88,29 +86,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "masc_slim_short_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "masc_slim_short_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "masc_slim_average": {
@@ -170,29 +145,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "masc_slim_average_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "masc_slim_average_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "masc_slim_tall": {
@@ -252,29 +204,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "masc_slim_tall_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "masc_slim_tall_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "masc_average_short": {
@@ -334,29 +263,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "masc_average_short_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "masc_average_short_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "masc_average_average": {
@@ -416,29 +322,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "masc_average_average_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "masc_average_average_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "masc_average_tall": {
@@ -498,29 +381,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "masc_average_tall_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "masc_average_tall_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "masc_heavy_short": {
@@ -580,29 +440,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "masc_heavy_short_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "masc_heavy_short_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "masc_heavy_average": {
@@ -662,29 +499,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "masc_heavy_average_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "masc_heavy_average_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "masc_heavy_tall": {
@@ -744,29 +558,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "masc_heavy_tall_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "masc_heavy_tall_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "fem_slim_short": {
@@ -826,29 +617,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "fem_slim_short_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "fem_slim_short_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "fem_slim_average": {
@@ -908,29 +676,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "fem_slim_average_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "fem_slim_average_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "fem_slim_tall": {
@@ -990,29 +735,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "fem_slim_tall_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "fem_slim_tall_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "fem_average_short": {
@@ -1072,29 +794,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "fem_average_short_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "fem_average_short_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "fem_average_average": {
@@ -1154,29 +853,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "fem_average_average_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "fem_average_average_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "fem_average_tall": {
@@ -1236,29 +912,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "fem_average_tall_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "fem_average_tall_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "fem_heavy_short": {
@@ -1318,29 +971,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "fem_heavy_short_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "fem_heavy_short_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "fem_heavy_average": {
@@ -1400,29 +1030,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "fem_heavy_average_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "fem_heavy_average_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     },
     "fem_heavy_tall": {
@@ -1482,29 +1089,6 @@
           "vest"
         ],
         "count": 6
-      },
-      "lower": {
-        "file": "fem_heavy_tall_lower.png",
-        "cells": [
-          "trunks",
-          "trunks_pads",
-          "tights",
-          "shorts",
-          "jeans",
-          "skirt"
-        ],
-        "count": 6
-      },
-      "feet": {
-        "file": "fem_heavy_tall_feet.png",
-        "cells": [
-          "boots_mid",
-          "boots_high",
-          "boots_low",
-          "sneakers",
-          "barefoot"
-        ],
-        "count": 5
       }
     }
   }

@@ -64,8 +64,8 @@ describe('atlas manifest', () => {
     expect(cellIndex('head', 'short')).toBe(0);
     expect(cellIndex('head', 'bald_beard')).toBe(7);
     expect(cellOriginX('head', 'mask')).toBe(6 * FRAME_W);
-    expect(cellOriginX('lower', 'trunks')).toBe(0);
-    expect(sheetWidth('feet')).toBe(5 * FRAME_W);
+    expect(cellOriginX('upper', 'bare')).toBe(0);
+    expect(sheetWidth('face')).toBe(7 * FRAME_W);
   });
 
   it('rejects a cell name the sheet does not contain', () => {

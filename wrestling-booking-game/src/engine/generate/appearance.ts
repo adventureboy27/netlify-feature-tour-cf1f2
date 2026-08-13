@@ -83,13 +83,21 @@ const APPEARANCE_KEYS = Object.keys(APPEARANCE_TRAIT_RANGES) as (keyof Appearanc
 /**
  * The traits that actually reach the sprite.
  *
- * Five of the twenty do not: faceShape, eyes, shirt, tattoos and beltStyle are
- * generated, edited and saved, and the atlas has no cell for any of them. That
- * mattered, because the distinctness rule below counted all twenty — two
- * wrestlers could clear "four traits apart" on faceShape, eyes, tattoos and
- * shirt alone and then render as the same man. On a 2000-strong world that put
- * two hundred silhouettes on three or more people, and the worst of them on
- * ten.
+ * Seven of the twenty do not: faceShape, eyes, shirt, tattoos and beltStyle
+ * have never had a cell, and attireBottom and boots lost theirs when the game
+ * went portrait-only — the `lower` and `feet` slots were measured to draw
+ * exactly zero pixels inside the crop every screen uses, so they were cut.
+ *
+ * That distinction matters, because the distinctness rule below used to count
+ * all twenty — two wrestlers could clear "four traits apart" on faceShape,
+ * eyes, tattoos and shirt alone and then render as the same man. On a
+ * 2000-strong world that put two hundred silhouettes on three or more people,
+ * and the worst of them on ten.
+ *
+ * The seven are still generated and saved. Dropping their rng draws would
+ * shift every seeded world downstream — the same reason facialHair rolls at
+ * probability zero for women rather than skipping the call. Cheap to keep,
+ * expensive to remove, and they cost nothing but bytes in the save.
  *
  * Kept here rather than in the renderer so the engine stays free of ui/
  * imports; ui/paperdoll/atlas/traits.test.ts asserts this list is exactly the
@@ -104,8 +112,6 @@ export const RENDERED_APPEARANCE_KEYS: readonly (keyof Appearance)[] = [
   'hairColor',
   'facialHair',
   'attireTop',
-  'attireBottom',
-  'boots',
   'mask',
   'accessory',
   'glasses',

@@ -22,8 +22,6 @@ import type {
   FaceCell,
   ExtraCell,
   UpperCell,
-  LowerCell,
-  FeetCell,
 } from './manifest';
 import { DRAW_ORDER } from './manifest';
 import { hexToRgb, type Rgb, type SlotColors } from './indexPalette';
@@ -71,41 +69,22 @@ const UPPER_BY_ATTIRE_TOP: readonly UpperCell[] = [
   'bare', 'tee', 'singlet', 'tank', 'vest', 'longsleeve', 'singlet', 'tee',
 ];
 
-// attireBottom 0-15. trunks 4 · tights 4 · trunks_pads 3 · shorts 2 · jeans 2 · skirt 1.
-const LOWER_BY_ATTIRE_BOTTOM: readonly LowerCell[] = [
-  'trunks', 'trunks_pads', 'tights', 'shorts', 'trunks', 'jeans', 'tights', 'trunks_pads',
-  'trunks', 'shorts', 'tights', 'skirt', 'trunks', 'trunks_pads', 'tights', 'jeans',
-];
-
-// boots 0-9. boots_mid 3 · boots_high 2 · boots_low 2 · sneakers 2 · barefoot 1.
-// DESIGN: barefoot is deliberately the rarest — a flat modulo would have put
-// a fifth of the roster in bare feet, which reads as unfinished art rather
-// than as a gimmick choice.
-const FEET_BY_BOOTS: readonly FeetCell[] = [
-  'boots_mid', 'boots_high', 'boots_low', 'boots_mid', 'sneakers',
-  'boots_high', 'boots_low', 'boots_mid', 'sneakers', 'barefoot',
-];
-
 const CELL_TABLES = {
   head: HEAD_BY_HAIR_STYLE,
   face: FACE_BY_FACIAL_HAIR,
   extra: EXTRA_BY_ACCESSORY,
   upper: UPPER_BY_ATTIRE_TOP,
-  lower: LOWER_BY_ATTIRE_BOTTOM,
-  feet: FEET_BY_BOOTS,
 } as const;
 
 /** Which Appearance field drives each slot's shape. The editor builds its pickers off this. */
 export const SLOT_TRAIT: Record<
   AtlasSlot,
-  'hairStyle' | 'facialHair' | 'accessory' | 'attireTop' | 'attireBottom' | 'boots'
+  'hairStyle' | 'facialHair' | 'accessory' | 'attireTop'
 > = {
   head: 'hairStyle',
   face: 'facialHair',
   extra: 'accessory',
   upper: 'attireTop',
-  lower: 'attireBottom',
-  feet: 'boots',
 };
 
 /**
@@ -193,8 +172,6 @@ export function selectCells(appearance: Appearance, gender: 'm' | 'f' = 'm'): Ce
         ? pick(EXTRA_BY_GLASSES, appearance.glasses)
         : pick(EXTRA_BY_ACCESSORY, appearance.accessory),
     upper: pick(UPPER_BY_ATTIRE_TOP, appearance.attireTop),
-    lower: pick(LOWER_BY_ATTIRE_BOTTOM, appearance.attireBottom),
-    feet: pick(FEET_BY_BOOTS, appearance.boots),
   };
 }
 
@@ -206,11 +183,6 @@ export function selectCells(appearance: Appearance, gender: 'm' | 'f' = 'm'): Ce
  *   face   hair color   — a beard is hair
  *   extra  secondary    + accent (lens tint, patch, paint)
  *   upper  primary      + accent trim
- *   lower  secondary    + accent (waistband, knee pads)
- *   feet   primary      + accent (laces, boot trim)
- *
- * Boots taking the primary rather than the secondary is the classic wrestling
- * read: boots match the top, trunks are the odd color out.
  */
 export function selectSlotColors(appearance: Appearance): Record<AtlasSlot, SlotColors> {
   const skin = paletteRgb(SKIN_TONE_PALETTE, appearance.skinTone);
@@ -229,8 +201,6 @@ export function selectSlotColors(appearance: Appearance): Record<AtlasSlot, Slot
     // glasses rims.
     extra: { skin, mat1: secondary, mat2: accent },
     upper: { skin, mat1: primary, mat2: accent },
-    lower: { skin, mat1: secondary, mat2: accent },
-    feet: { skin, mat1: primary, mat2: accent },
   };
 }
 

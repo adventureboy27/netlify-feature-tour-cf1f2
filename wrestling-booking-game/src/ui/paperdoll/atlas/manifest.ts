@@ -44,8 +44,14 @@ export type AtlasFrame = (typeof FRAMES)[number];
  * the same 64x96 canvas, so compositing is "later slot wins on non-empty
  * pixels" — this is §7's layer order collapsed to the four slots the atlas
  * actually cuts.
+ *
+ * The game is portrait-only: nothing below the shoulders is ever drawn. The
+ * `lower` and `feet` slots used to exist and were measured to contribute
+ * exactly zero pixels to the portrait window — 198 cells and 46 KB of PNG, 30%
+ * of the atlas, serving one editor screen. They are gone. `upper` stays
+ * because the shoulders and chest land at y 23-39, well inside the crop.
  */
-export const DRAW_ORDER = ['head', 'face', 'extra', 'upper', 'lower', 'feet'] as const;
+export const DRAW_ORDER = ['head', 'face', 'extra', 'upper'] as const;
 export type AtlasSlot = (typeof DRAW_ORDER)[number];
 
 // Head, then the two layers that sit on top of it. At portrait size the head
@@ -60,23 +66,17 @@ export const HEAD_CELLS = [
 export const FACE_CELLS = ['clean', 'stubble', 'moustache', 'goatee', 'chinstrap', 'beard', 'longbeard'] as const;
 export const EXTRA_CELLS = ['none', 'shades', 'glasses', 'eyepatch', 'headband', 'warpaint'] as const;
 export const UPPER_CELLS = ['bare', 'singlet', 'tank', 'tee', 'longsleeve', 'vest'] as const;
-export const LOWER_CELLS = ['trunks', 'trunks_pads', 'tights', 'shorts', 'jeans', 'skirt'] as const;
-export const FEET_CELLS = ['boots_mid', 'boots_high', 'boots_low', 'sneakers', 'barefoot'] as const;
 
 export type HeadCell = (typeof HEAD_CELLS)[number];
 export type FaceCell = (typeof FACE_CELLS)[number];
 export type ExtraCell = (typeof EXTRA_CELLS)[number];
 export type UpperCell = (typeof UPPER_CELLS)[number];
-export type LowerCell = (typeof LOWER_CELLS)[number];
-export type FeetCell = (typeof FEET_CELLS)[number];
 
 export const SLOT_CELLS = {
   head: HEAD_CELLS,
   face: FACE_CELLS,
   extra: EXTRA_CELLS,
   upper: UPPER_CELLS,
-  lower: LOWER_CELLS,
-  feet: FEET_CELLS,
 } as const;
 
 export interface CellSelection {
@@ -84,8 +84,6 @@ export interface CellSelection {
   face: FaceCell;
   extra: ExtraCell;
   upper: UpperCell;
-  lower: LowerCell;
-  feet: FeetCell;
 }
 
 /** Column index of a named cell within its sheet. Sheets are one row, N cells wide. */
@@ -104,14 +102,16 @@ export function sheetWidth(slot: AtlasSlot): number {
   return SLOT_CELLS[slot].length * FRAME_W;
 }
 
-/** Distinct silhouettes the atlas can currently produce for one frame. */
+/**
+ * Distinct silhouettes the atlas can currently produce for one frame.
+ *
+ * Portrait-only cost this a factor of thirty — trunks and boots used to
+ * multiply it by 6 x 5, and neither was ever visible. Shape alone no longer
+ * carries the no-doubles promise on a world-sized population; colour does.
+ * See lookalikes.test.ts, which measures both.
+ */
 export const SHAPE_COMBOS_PER_FRAME =
-  HEAD_CELLS.length *
-  FACE_CELLS.length *
-  EXTRA_CELLS.length *
-  UPPER_CELLS.length *
-  LOWER_CELLS.length *
-  FEET_CELLS.length;
+  HEAD_CELLS.length * FACE_CELLS.length * EXTRA_CELLS.length * UPPER_CELLS.length;
 
 /** Distinct silhouettes across every body the atlas ships. */
 export const SHAPE_COMBOS = SHAPE_COMBOS_PER_FRAME * FRAMES.length;
