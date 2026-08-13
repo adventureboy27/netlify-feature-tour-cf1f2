@@ -654,6 +654,9 @@ export interface Tournament {
 // ============================================================================
 
 import type { PerkId } from '../data/perks';
+// Type-only, so the cycle with world/schedule.ts (which needs Promotion and
+// WorldSettings from here) is erased at compile time.
+import type { PromotionSchedule } from './world/schedule';
 
 export type ContractType = 'fullTime' | 'partTime' | 'perAppearance' | 'developmental' | 'legends';
 
@@ -1272,6 +1275,15 @@ export interface Promotion {
   ownerPersonality: OwnerPersonality;
   /** The signature events this promotion runs, in the order they come round. */
   ppvCalendar: string[];
+  /**
+   * What they run and how often — the named shows, the nights they run on,
+   * and how often the big one comes round. See engine/world/schedule.ts.
+   *
+   * Optional on the type so a promotion built before this existed still reads;
+   * everything that consumes it goes through `scheduleOf`, which supplies the
+   * standard pattern when one is missing.
+   */
+  schedule?: PromotionSchedule;
 }
 
 /** What the sky does in a town. See data/seasons.ts. */
@@ -2546,8 +2558,6 @@ export interface WorldSettings {
   mandatePenaltyCash: number;
   mandateFailureRating: number;
 
-  // The calendar — §8. One show a month is the one everything builds to.
-  weeksBetweenPPVs: number;
   /** How many signature events a promotion cycles through. */
   ppvCalendarSize: number;
   /**
@@ -2800,6 +2810,23 @@ export interface WorldSettings {
   /** Where "rated" starts, and where "the next one" starts. */
   hypeRatedAt: number;
   hypePhenomAt: number;
+
+  // --- The schedule, engine/world/schedule.ts ------------------------------
+  /** Most nights a week anybody can run. */
+  scheduleMaxShows: number;
+  /** The shape the business settled on, and what every curve is centred on. */
+  scheduleIdealShows: number;
+  /** What a house show is worth against the televised one, and how it decays. */
+  scheduleHouseShowRevenueShare: number;
+  scheduleRevenueCurve: number;
+  /** How much of a rest week a heavy pattern eats, and the floor under it. */
+  /** How hard a house show is against a televised one. Shorter, lighter. */
+  scheduleHouseShowIntensity: number;
+  scheduleRecoveryLossPerShow: number;
+  scheduleRecoveryFloor: number;
+  /** Company ratings at which a rival can sustain each pay-per-view cadence. */
+  scheduleMonthlyPPVRating: number;
+  scheduleBiMonthlyPPVRating: number;
 
   // --- Where somebody gets over, engine/career/fit.ts ----------------------
   fitEnabled: boolean;

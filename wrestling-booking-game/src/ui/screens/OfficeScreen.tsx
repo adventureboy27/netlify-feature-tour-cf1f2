@@ -28,6 +28,16 @@ import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Money } from '../components/display';
+import { DAYS, weekLine } from '../../engine/world/calendar';
+import {
+  bigShowName,
+  nightsOff,
+  scheduleLine,
+  scheduleOf,
+  showsPerWeek,
+  weeksUntilBigShow,
+  type PPVCadence,
+} from '../../engine/world/schedule';
 import { identityOf } from '../../data/promotionIdentity';
 import { BID_LEVEL_LABELS, playerBidAmount, type PlayerBidLevel } from '../../engine/world/auction';
 import { foldRisk, FOLD_RISK_LABELS } from '../../engine/world/rivalEconomy';
@@ -45,7 +55,7 @@ import {
   isAvailable,
 } from '../../engine/sim/referees';
 
-type Tab = 'desk' | 'contracts' | 'officials' | 'trades' | 'television';
+type Tab = 'desk' | 'contracts' | 'officials' | 'trades' | 'television' | 'schedule';
 
 export function OfficeScreen() {
   const world = useGameStore((s) => s.world);
@@ -79,23 +89,26 @@ export function OfficeScreen() {
     { id: 'officials', label: 'Officials', badge: officialsNeedYou },
     { id: 'trades', label: 'Trades', badge: 0 },
     { id: 'television', label: 'Television', badge: 0 },
+    { id: 'schedule', label: 'Schedule', badge: 0 },
   ];
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
       {/* The bank is in the app header on every screen; no need to repeat it. */}
-      <h1 className="mb-2 text-base font-semibold">The office — week {world.week}</h1>
+      <h1 className="mb-2 text-base font-semibold">The office — {weekLine(world.week, world.settings)}</h1>
 
       <StatusStrip />
 
-      <div className="mb-3 flex gap-1">
+      {/* Six tabs do not fit a phone. The strip scrolls inside itself —
+          letting it push the body wide instead shifts the header off screen. */}
+      <div className="-mx-3 mb-3 flex gap-1 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((option) => (
           <button
             key={option.id}
             type="button"
             data-testid={`office-tab-${option.id}`}
             onClick={() => setTab(option.id)}
-            className={`flex items-center gap-1.5 rounded px-3 py-1 text-xs ${
+            className={`flex shrink-0 items-center gap-1.5 rounded px-3 py-1 text-xs ${
               tab === option.id
                 ? 'bg-emerald-600 text-white'
                 : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
@@ -120,6 +133,7 @@ export function OfficeScreen() {
       {tab === 'officials' && <OfficialsTab />}
       {tab === 'trades' && <TradesTab />}
       {tab === 'television' && <TelevisionTab />}
+      {tab === 'schedule' && <ScheduleTab />}
     </div>
   );
 }
@@ -1377,5 +1391,134 @@ function ChampionCallPanel() {
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * The pattern — what the company runs, on which nights, and how often the big
+ * one comes round.
+ *
+ * The one screen in the game where the player decides how hard everybody
+ * works. §0 applies with force here: the office describes what the pattern
+ * feels like from the locker room and never says which one is correct, because
+ * the fifth night a week is a real strategy that a deep enough roster can
+ * survive and a mistake for everybody else.
+ */
+function ScheduleTab() {
+  const world = useGameStore((s) => s.world);
+  const setShowsPerWeek = useGameStore((s) => s.setShowsPerWeek);
+  const setPPVCadence = useGameStore((s) => s.setPPVCadence);
+  const renameShow = useGameStore((s) => s.renameShow);
+  const setShowDay = useGameStore((s) => s.setShowDay);
+  if (!world) return null;
+
+  const schedule = scheduleOf(world.promotion, world.settings);
+  const count = showsPerWeek(schedule);
+  const off = nightsOff(schedule);
+  const weeksOut = weeksUntilBigShow(world.week, schedule, world.settings);
+  const nextBig = bigShowName(world.week + weeksOut, schedule, world.settings);
+
+  const cadences: { id: PPVCadence; label: string; blurb: string }[] = [
+    { id: 'monthly', label: 'Every month', blurb: 'Twelve a year. Something to build to, always.' },
+    { id: 'biMonthly', label: 'Every other month', blurb: 'Six a year, and each one is a bigger deal for being rarer.' },
+    { id: 'annual', label: 'Once a year', blurb: 'One night the whole year points at.' },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <section className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+        <h2 className="mb-1 text-sm font-semibold">Nights a week</h2>
+        <p className="mb-2 text-xs text-neutral-500">{scheduleLine(schedule, world.settings)}</p>
+        <div className="flex gap-1">
+          {Array.from({ length: world.settings.scheduleMaxShows }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              type="button"
+              data-testid={`shows-per-week-${n}`}
+              onClick={() => setShowsPerWeek(n)}
+              className={`flex-1 rounded px-2 py-2 text-sm font-semibold ${
+                n === count ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-neutral-600">
+          {off.length > 0
+            ? `Dark on ${off.join(', ')}.`
+            : 'Nobody in this company has a night off.'}
+        </p>
+      </section>
+
+      <section className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+        <h2 className="mb-2 text-sm font-semibold">The shows</h2>
+        <div className="space-y-2">
+          {schedule.shows.map((show) => (
+            <div key={show.id} className="rounded border border-neutral-800 bg-neutral-950 p-2">
+              <div className="mb-1 flex items-center gap-2">
+                <input
+                  value={show.name}
+                  onChange={(e) => renameShow(show.id, e.target.value)}
+                  data-testid={`show-name-${show.id}`}
+                  className="min-w-0 flex-1 rounded bg-neutral-800 px-2 py-1 text-sm text-neutral-100"
+                />
+                {show.televised && (
+                  <span
+                    className="shrink-0 rounded bg-sky-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300"
+                    title="The one the cameras are at, and the only one you book. Everything else is a house show the office runs."
+                  >
+                    TV
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {DAYS.map((day) => (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => setShowDay(show.id, day)}
+                    className={`rounded px-1.5 py-0.5 text-[10px] ${
+                      show.day === day
+                        ? 'bg-neutral-200 text-neutral-900'
+                        : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+                    }`}
+                  >
+                    {day.slice(0, 3)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+        <h2 className="mb-2 text-sm font-semibold">The big one</h2>
+        <div className="space-y-1">
+          {cadences.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              data-testid={`ppv-cadence-${option.id}`}
+              onClick={() => setPPVCadence(option.id)}
+              className={`w-full rounded px-2 py-2 text-left ${
+                schedule.ppvCadence === option.id
+                  ? 'bg-amber-900/40 ring-1 ring-amber-600'
+                  : 'bg-neutral-800 hover:bg-neutral-700'
+              }`}
+            >
+              <div className="text-xs font-semibold text-neutral-100">{option.label}</div>
+              <div className="text-[11px] text-neutral-500">{option.blurb}</div>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-neutral-600">
+          {weeksOut === 0
+            ? `${nextBig ?? 'The big one'} is this week.`
+            : `${nextBig ?? 'The next one'} in ${weeksOut} ${weeksOut === 1 ? 'week' : 'weeks'}. It replaces the television that week rather than being added to it.`}
+        </p>
+      </section>
+    </div>
   );
 }

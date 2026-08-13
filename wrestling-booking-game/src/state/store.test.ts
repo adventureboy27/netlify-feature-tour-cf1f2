@@ -519,12 +519,17 @@ describe('the bidding war', () => {
   it('goes ahead without a booker who never answered', () => {
     starOnTheMarket();
     untilTheAuction();
+    const ignored = useGameStore.getState().world!.pendingBiddingWar!.id;
     // Walk away from the dialog entirely and run the next week.
     useGameStore.getState().autoFillCard();
     runWeek();
 
     const world = useGameStore.getState().world!;
-    expect(world.pendingBiddingWar).toBeNull();
+    // The one the booker ignored is finished and off the table. Asserting
+    // that *no* war is pending would be a different claim — another star can
+    // reach the market the same week, and that is not this rule.
+    expect(world.pendingBiddingWar?.id).not.toBe(ignored);
+    expect(world.lastBiddingWar!.war.id).toBe(ignored);
     expect(world.lastBiddingWar!.result).not.toBeNull();
     // A war left open forever would be a way to freeze a star out of the
     // business by ignoring a panel.
@@ -1360,6 +1365,10 @@ describe('the quiet business', () => {
   });
 
   it('takes him the week the old deal lapses, and tells nobody until he is walked out', () => {
+    // Its own seed. The rule under test needs a target whose old company does
+    // not simply re-sign him inside two weeks, and which world that is depends
+    // on the draw — see the note below.
+    useGameStore.getState().newGame({ ...freshSettings(), seed: 'walked-out' });
     const id = targetWithWeeks(2);
     let ok = false;
     for (let i = 0; i < 40 && !ok; i++) ok = useGameStore.getState().signSecretly(id).ok;

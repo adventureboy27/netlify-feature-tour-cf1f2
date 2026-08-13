@@ -954,10 +954,10 @@ export function defaultWorldSettings(): WorldSettings {
     mandatePenaltyCash: 15_000,
     mandateFailureRating: 4,
 
-    // One pay-per-view a month, four of them on rotation, so the same event
-    // comes round at the same point every year. Buys are worth more than the
-    // gate at any real size, which is what makes the monthly show matter.
-    weeksBetweenPPVs: 4,
+    // Four signature events on rotation, so the same one comes round at the
+    // same point every year. How often they run is the promotion's own call
+    // now — see engine/world/schedule.ts. Buys are worth more than the gate
+    // at any real size, which is what makes the big show matter.
     ppvCalendarSize: 4,
     // Tuned by playing it: a good pay-per-view at mid-size is worth roughly
     // half a month of gates — the biggest single payday in the game without
@@ -1168,6 +1168,37 @@ export function defaultWorldSettings(): WorldSettings {
     // How long before anybody knows, working every week:
     //   92 -> y1 74 -> y2 63 -> y3 55 -> y4 50 -> y5 46 -> y6 44
     // ...and kept off television for those same six years: still 73.
+
+    // The schedule. Money from extra nights is concave — a house show does
+    // not draw what the televised one draws — and the work is linear, because
+    // a house show is a card worked by a card's worth of people. What makes a
+    // heavy pattern ruinous rather than merely expensive is `recoveryLoss`:
+    // the roster that is never home never heals, and a broken roster puts on
+    // bad shows, which is what the extra gates were paying for.
+    //
+    // So the punishment is not a penalty, it is a delay. Measured over three
+    // years, bank balance every six months, on a save nobody manages:
+    //
+    //   1 night    695 1090 1320 1448 1122  444   never folds
+    //   2 nights   907 1481 1333  706  203        folds week 152
+    //   3 nights  1014 1354  595   97             folds week 116
+    //   4 nights   894  333  -31                  folds week  81
+    //   5 nights   489   69                       folds week  63
+    //
+    // Every extra night earns more in the first year and dies sooner. Two is
+    // the best peak and the last sustainable one, which is what "the ideal is
+    // two" has to mean if it is going to mean anything. Nothing in the game
+    // says which column the player is in (§0) — they find out the way the
+    // business found out.
+    scheduleMaxShows: 5,
+    scheduleIdealShows: 2,
+    scheduleHouseShowRevenueShare: 0.24,
+    scheduleRevenueCurve: 0.62,
+    scheduleHouseShowIntensity: 0.36,
+    scheduleRecoveryLossPerShow: 0.12,
+    scheduleRecoveryFloor: 0.2,
+    scheduleMonthlyPPVRating: 45,
+    scheduleBiMonthlyPPVRating: 25,
 
     // Where somebody gets over. Fit multiplies the target a wrestler's
     // popularity chases, so nothing is confiscated when they sign — a name is

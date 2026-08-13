@@ -208,7 +208,19 @@ import {
   type Casualty,
 } from '../engine/sim/casualties';
 import { causesFor } from '../data/casualties';
-import { isPPVWeek, ppvNameForWeek, segmentsForWeek, computeBuys, computeBuyRevenue } from '../engine/world/calendar';
+import { computeBuys, computeBuyRevenue } from '../engine/world/calendar';
+import {
+  bigShowName,
+  houseShowRevenueMultiplier,
+  houseShowsThisWeek,
+  isBigShowWeek,
+  recoveryMultiplier,
+  resizeSchedule,
+  scheduleOf,
+  segmentsForShow,
+  type PPVCadence,
+} from '../engine/world/schedule';
+import type { Day } from '../engine/world/calendar';
 import { resolvePromo, promoIsValid, promoShowContribution, promoEnergyCost } from '../engine/sim/promo';
 import { promoTopicById, type PromoTopicId } from '../data/promoTopics';
 import {
@@ -445,6 +457,16 @@ export interface GameStore {
   setSegmentGuestReferee: (slot: number, wrestlerId: Id | null) => void;
   /** The official who works every match nobody else was named for. */
   setDefaultReferee: (refereeId: Id | null) => void;
+  // The pattern — what the company runs and how often. See
+  // engine/world/schedule.ts.
+  /** How many nights a week. 1 to `scheduleMaxShows`. */
+  setShowsPerWeek: (count: number) => void;
+  /** How often the big one comes round. */
+  setPPVCadence: (cadence: PPVCadence) => void;
+  /** Name a show. A show with a name is a show. */
+  renameShow: (showId: string, name: string) => void;
+  /** Move a show to a different night. */
+  setShowDay: (showId: string, day: Day) => void;
   /** Put an official under contract. Cheap, weekly, and never with creative control. */
   signReferee: (refereeId: Id) => { ok: boolean; reason: string | null };
   /** Let one go. He goes straight back into the pool for anybody to sign. */
@@ -1706,8 +1728,9 @@ export const useGameStore = create<GameStore>()(
 
         // Tonight is either television or the show everything has been built
         // towards. Decided here, once, and read by everything below.
-        const isPPV = isPPVWeek(world.week, world.settings);
-        const ppvName = ppvNameForWeek(world.week, world.promotion.ppvCalendar, world.settings);
+        const schedule = scheduleOf(world.promotion, world.settings);
+        const isPPV = isBigShowWeek(world.week, schedule, world.settings);
+        const ppvName = bigShowName(world.week, schedule, world.settings);
 
         const segmentRatings: (number | null)[] = [];
         // Who actually wrestled tonight — everybody else gets the week off.
@@ -3017,7 +3040,92 @@ export const useGameStore = create<GameStore>()(
           : 0;
         const totalOut = payroll + weeklyExpenses + showPayable + ringsideCost + clauseBill + perkBill;
 
-        world.promotion.bankBalance += revenue.total - totalOut;
+        // The nights the cameras were not at.
+        //
+        // A promotion running four times a week is on the road three of them,
+        // and those buildings take money and take it out of people. The gate
+        // is modelled in the aggregate rather than as three more full cards —
+        // a house show does not draw what the televised one draws and the
+        // fourth night of the week draws worse than the second, which is what
+        // `houseShowRevenueMultiplier` is — and the wear lands on everybody
+        // healthy enough to have been on the bus. See engine/world/schedule.ts.
+        const houseShows = houseShowsThisWeek(world.week, schedule, world.settings);
+        const houseGate = night.cancelled
+          ? 0
+          : Math.round(
+              (revenue.total - showPayable) *
+                (houseShowRevenueMultiplier(schedule, world.settings) - 1),
+            );
+
+        world.promotion.bankBalance += revenue.total - totalOut + houseGate;
+
+        if (houseShows.length > 0 && !night.cancelled) {
+          // What the road costs the people on it.
+          //
+          // A house show is a card, not a summons: it takes about as many
+          // people as a television taping does, and the office sends the ones
+          // who can go. So the wear falls on a card's worth per night, taken
+          // healthiest-first, rather than on everybody with a contract.
+          //
+          // Which makes roster depth the actual counter to a heavy schedule,
+          // and that is the point. Applying it to the whole roster instead
+          // meant a company running four nights wore out its twenty-sixth
+          // wrestler exactly as fast as its main eventer, so signing more
+          // people bought nothing and the only lever on the road was to stop
+          // going on it.
+          const needed = world.settings.segmentsPerTV * 2;
+          const fit = world.promotion.rosterIds
+            .map((id) => world.wrestlers[id])
+            .filter((member): member is Wrestler => Boolean(member) && !member!.deceased && !member!.injury)
+            .sort((a, b) => b.health + b.energy - (a.health + a.energy));
+
+          for (const show of houseShows) {
+            void show;
+            for (let i = 0; i < needed; i++) {
+              // The same names come round again when the roster is thin —
+              // which is exactly what running four nights with fourteen
+              // people does to fourteen people.
+              const member = fit[i % Math.max(fit.length, 1)];
+              if (!member) break;
+              // A house show is a lighter night than the one on television:
+              // shorter matches, no cameras, nobody protecting a body for a
+              // finish anybody will see again. It scales the whole night
+              // rather than only the damage — charging a full televised
+              // night's work for it made a two-show week cost twice what the
+              // same roster used to pay for a one-show week, and folded
+              // companies that were solvent before the schedule existed.
+              const intensity = world.settings.scheduleHouseShowIntensity;
+              member.fatigueDebt = clamp(
+                member.fatigueDebt + world.settings.matchFatiguePerMatch * intensity,
+                0,
+                100,
+              );
+              member.health = clamp(
+                member.health - world.settings.matchHealthCost * intensity,
+                0,
+                100,
+              );
+              member.energy = clamp(
+                member.energy - world.settings.matchEnergyCost * intensity,
+                0,
+                100,
+              );
+            }
+          }
+          // §0: the shows happened, so the paper says they happened and says
+          // what they were worth. A week of money the player never sees the
+          // source of is money that arrived off-screen.
+          world.weeklyNews.push(
+            wire(
+              'houseShow',
+              houseShows.length === 1
+                ? `${houseShows[0]!.name} ran on the road this week. $${houseGate.toLocaleString()} through the door, and a roster that has now worked twice.`
+                : `${houseShows.length} house shows on the road this week — ${houseShows.map((s) => s.name).join(', ')}. $${houseGate.toLocaleString()} through the door, and everybody has the miles to show for it.`,
+              world.week,
+              'minor',
+            ),
+          );
+        }
 
         // Staging feeds back into how the show itself was received: the
         // production, and whether the building looked full on camera.
@@ -4280,9 +4388,31 @@ export const useGameStore = create<GameStore>()(
 
         // Recovery and momentum decay, for everybody in the business — the
         // world does not hold still for the people you did not book.
+        //
+        // How much of a rest week somebody actually gets depends on who they
+        // work for: a night off from a company running one show is a week at
+        // home, and a night off from one running five is a night in a
+        // different hotel. Cached per company rather than recomputed per
+        // person, because this runs across every wrestler alive every week.
+        const recoveryByPromotion = new Map<Id, number>();
+        const recoveryFor = (promotionId: Id | null): number => {
+          if (promotionId === null) return 1; // Nobody's road. Free agents heal.
+          const cached = recoveryByPromotion.get(promotionId);
+          if (cached !== undefined) return cached;
+          const employer =
+            promotionId === world.promotion.id
+              ? world.promotion
+              : world.rivals.find((r) => r.id === promotionId);
+          const scale = employer
+            ? recoveryMultiplier(scheduleOf(employer, world.settings), world.settings)
+            : 1;
+          recoveryByPromotion.set(promotionId, scale);
+          return scale;
+        };
+
         for (const w of Object.values(world.wrestlers)) {
           if (w.deceased || w.careerStatus === 'retired') continue;
-          restWeek(w, worked.has(w.id), world.settings);
+          restWeek(w, worked.has(w.id), world.settings, recoveryFor(w.promotionId));
         }
 
         // Career standing is derived, so it moves on its own as a save runs.
@@ -4786,7 +4916,14 @@ export const useGameStore = create<GameStore>()(
           world.weeksInTheRed = 0;
         }
 
-        world.currentCard = createEmptyCard(segmentsForWeek(world.week, world.settings));
+        world.currentCard = createEmptyCard(
+          segmentsForShow(
+            isBigShowWeek(world.week, scheduleOf(world.promotion, world.settings), world.settings)
+              ? 'ppv'
+              : 'television',
+            world.settings,
+          ),
+        );
         world.currentPromos = createEmptyPromoSlots(world.settings.promoSlotsPerCard);
       });
     },
@@ -5146,6 +5283,65 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         if (!state.world) return;
         state.world.defaultRefereeId = refereeId;
+      });
+    },
+
+    setShowsPerWeek: (count) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        // A named show that survives a trim keeps its name — the pattern is a
+        // fixture list the company has announced, not a queue to be rebuilt.
+        world.promotion.schedule = resizeSchedule(
+          scheduleOf(world.promotion, world.settings),
+          count,
+          world.promotion.name,
+          rngFromSeed(`${world.settings.seed}-schedule-${world.week}-${count}`),
+          world.settings,
+        );
+      });
+    },
+
+    setPPVCadence: (cadence) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        world.promotion.schedule = { ...scheduleOf(world.promotion, world.settings), ppvCadence: cadence };
+      });
+    },
+
+    renameShow: (showId, name) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        const schedule = scheduleOf(world.promotion, world.settings);
+        world.promotion.schedule = {
+          ...schedule,
+          shows: schedule.shows.map((show) => (show.id === showId ? { ...show, name: trimmed } : show)),
+        };
+      });
+    },
+
+    setShowDay: (showId, day) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const schedule = scheduleOf(world.promotion, world.settings);
+        // Two shows on one night is one show. Whoever was already there swaps
+        // onto the night the mover came from, so the pattern stays a week.
+        const mover = schedule.shows.find((show) => show.id === showId);
+        if (!mover) return;
+        const occupant = schedule.shows.find((show) => show.day === day && show.id !== showId);
+        world.promotion.schedule = {
+          ...schedule,
+          shows: schedule.shows.map((show) => {
+            if (show.id === showId) return { ...show, day };
+            if (occupant && show.id === occupant.id) return { ...show, day: mover.day };
+            return show;
+          }),
+        };
       });
     },
 

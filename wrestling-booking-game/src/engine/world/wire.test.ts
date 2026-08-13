@@ -30,6 +30,7 @@ const SAMPLES: Record<WireKind, WireItem> = {
   title: wire('title', 'The belt changed hands.', 12),
   weather: wire('weather', 'Snow came down on Ironbelt City all afternoon.', 12, 'minor'),
   misfortune: wire('misfortune', 'Duke Rawlins blew a tyre on the interstate.', 12, 'minor'),
+  houseShow: wire('houseShow', 'Two house shows on the road this week.', 12, 'minor'),
 };
 
 describe('every kind of news can be said', () => {

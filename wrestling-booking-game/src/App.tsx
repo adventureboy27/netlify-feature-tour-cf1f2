@@ -3,6 +3,7 @@
 // arrives with the milestones that own those systems; this is the spine they
 // hang on.
 import { useEffect, useState } from 'react';
+import { weekLine } from './engine/world/calendar';
 import { useGameStore } from './state/store';
 import { BookingScreen } from './ui/screens/BookingScreen';
 import { OfficeScreen } from './ui/screens/OfficeScreen';
@@ -76,7 +77,10 @@ export default function App() {
           <div className="min-w-0">
             <div className={`truncate text-sm font-bold leading-tight ${theme.ink}`}>{world.promotion.name}</div>
             <div className="text-[11px] leading-tight text-neutral-500">
-              Week {world.week}
+              {/* No dates, ever. A promotion thinks in "the week before the
+                  pay-per-view", not in the fourteenth of March — so the shell
+                  says the month and which week of it. See engine/world/calendar.ts. */}
+              {weekLine(world.week, world.settings)}
               <span className="mx-1 text-neutral-700">·</span>
               company rating {Math.round(world.promotion.rating)}
               {world.promotion.hardcoreSaturation > 25 && (

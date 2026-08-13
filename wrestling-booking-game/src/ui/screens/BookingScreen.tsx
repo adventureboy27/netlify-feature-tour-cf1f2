@@ -15,7 +15,13 @@ import { Odds, HeatBadge } from '../components/display';
 import { WrestlerRow, RowKey } from '../components/WrestlerRow';
 import { eligibleTitles, titleStakesLabel } from '../../engine/sim/titleMatch';
 import { shortTitleName } from '../../data/titles';
-import { isPPVWeek, ppvNameForWeek, weeksUntilPPV } from '../../engine/world/calendar';
+import {
+  bigShowName,
+  houseShowsThisWeek,
+  isBigShowWeek,
+  scheduleOf,
+  weeksUntilBigShow,
+} from '../../engine/world/schedule';
 import { holidayForWeek, seasonForWeek, weeksUntilHoliday, SEASON_LABELS } from '../../engine/world/seasons';
 import { PromoSlots } from '../components/PromoSlots';
 import type { Id, Wrestler, Segment, Title, WorldSettings, Referee, PaceId } from '../../engine/types';
@@ -101,14 +107,13 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
 
   // What tonight is, and what is coming — a weekly grind needs something to
   // build towards or it is just a grind.
-  const tonightIsPPV = isPPVWeek(world.week, world.settings);
-  const tonightsName = ppvNameForWeek(world.week, world.promotion.ppvCalendar, world.settings);
-  const weeksToPPV = weeksUntilPPV(world.week, world.settings);
-  const nextName = ppvNameForWeek(
-    world.week + weeksToPPV,
-    world.promotion.ppvCalendar,
-    world.settings,
-  );
+  const schedule = scheduleOf(world.promotion, world.settings);
+  const tonightIsPPV = isBigShowWeek(world.week, schedule, world.settings);
+  const tonightsName = bigShowName(world.week, schedule, world.settings);
+  const weeksToPPV = weeksUntilBigShow(world.week, schedule, world.settings);
+  const nextName = bigShowName(world.week + weeksToPPV, schedule, world.settings);
+  const televisedShow = schedule.shows.find((show) => show.televised);
+  const roadShows = houseShowsThisWeek(world.week, schedule, world.settings);
   // The year has a shape whether or not the booker uses it: a holiday is a
   // night the town turns out for the date rather than the card, and knowing
   // one is three weeks out is the whole reason to build toward it.
@@ -135,7 +140,15 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
               <h1 className="text-base font-semibold text-amber-400">{tonightsName ?? 'The big one'}</h1>
             </>
           ) : (
-            <h1 className="text-base font-semibold">This week&apos;s card</h1>
+            <>
+              {/* The show has a name and a night. "This week's card" is what a
+                  spreadsheet calls it; a promotion calls it Monday Night
+                  Havoc. See engine/world/schedule.ts. */}
+              <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                {televisedShow?.day ?? 'Tonight'}
+              </div>
+              <h1 className="text-base font-semibold">{televisedShow?.name ?? "This week's card"}</h1>
+            </>
           )}
           {tonightsHoliday && (
             <div className="text-[11px] font-medium text-amber-300">
@@ -159,6 +172,14 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
               </span>
             )}
           </p>
+          {/* The rest of the week. The player does not book these, but they
+              are shows their roster is working, and a night on the road that
+              nobody mentions is a night that happened off-screen. */}
+          {roadShows.length > 0 && (
+            <p className="text-[11px] text-neutral-600">
+              Also on the road: {roadShows.map((show) => `${show.name} (${show.day})`).join(', ')}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 gap-2">
           <button

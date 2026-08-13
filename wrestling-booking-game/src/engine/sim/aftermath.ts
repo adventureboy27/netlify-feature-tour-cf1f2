@@ -184,12 +184,24 @@ function markCareer(w: Wrestler, outcome: AftermathChange['outcome'], matchRatin
  * The week off. Everybody who did not work recovers a little, and momentum
  * bleeds back toward nothing — being over is not a resting state.
  */
-export function restWeek(w: Wrestler, worked: boolean, settings: WorldSettings): void {
+export function restWeek(
+  w: Wrestler,
+  worked: boolean,
+  settings: WorldSettings,
+  /**
+   * How much of a week off this promotion's schedule actually leaves them —
+   * 1 for a company running one night, well under it for one on the road five.
+   * A roster that is never home does not heal, which is what turns a heavy
+   * pattern into an injury list rather than merely a tired locker room.
+   * See engine/world/schedule.ts.
+   */
+  recoveryScale = 1,
+): void {
   if (!worked) {
     w.consecutiveWeeksWorked = 0;
-    w.health = clamp(w.health + settings.weeklyHealthRecovery, 0, 100);
-    w.energy = clamp(w.energy + settings.weeklyEnergyRecovery, 0, 100);
-    w.fatigueDebt = clamp(w.fatigueDebt - settings.weeklyFatigueRecovery, 0, 100);
+    w.health = clamp(w.health + settings.weeklyHealthRecovery * recoveryScale, 0, 100);
+    w.energy = clamp(w.energy + settings.weeklyEnergyRecovery * recoveryScale, 0, 100);
+    w.fatigueDebt = clamp(w.fatigueDebt - settings.weeklyFatigueRecovery * recoveryScale, 0, 100);
   }
 
   // What the contract bought them. A jet and a trainer are the difference

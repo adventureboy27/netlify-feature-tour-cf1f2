@@ -78,6 +78,7 @@ import { computeDemand, fairTicketPrice, potentialAudience } from '../engine/eco
 import { TERRITORIES, createTerritories } from '../data/territories';
 import { OWNER_PROFILES } from '../data/owners';
 import { ppvCalendarFor } from '../data/ppvNames';
+import { defaultSchedule, scheduleForRival } from '../engine/world/schedule';
 import { DEFAULT_PACE } from '../data/pacing';
 import type { AttendanceRecord } from '../engine/world/territories';
 import type { AssetCondition } from '../engine/economy/showBudget';
@@ -479,6 +480,15 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     name: settings.promotionName,
     identity: settings.promotionArchetype,
     ppvCalendar: ppvCalendarFor(settings.promotionArchetype, settings.ppvCalendarSize, 0),
+    // Two nights a week and a monthly big one — the shape the business
+    // settled on, so a player who never opens the schedule screen starts
+    // somewhere deliberate rather than somewhere accidental.
+    schedule: defaultSchedule(
+      rng,
+      settings.promotionName,
+      ppvCalendarFor(settings.promotionArchetype, settings.ppvCalendarSize, 0),
+      settings,
+    ),
     isPlayer: true,
     rating: settings.startingCompanyRating,
     bankBalance: settings.startingCash,
@@ -748,6 +758,15 @@ function createRivalPromotions(rng: Rng, settings: WorldSettings): Promotion[] {
       identity: archetype,
       // Offset so no two promotions run the same event on the same night.
       ppvCalendar: ppvCalendarFor(archetype, settings.ppvCalendarSize, i + 1),
+      // A regional outfit cannot be on the road five nights a week and a
+      // national one cannot afford not to be, so the pattern follows the
+      // company rather than being rolled flat.
+      schedule: scheduleForRival(
+        rng,
+        { name, rating, identity: archetype },
+        ppvCalendarFor(archetype, settings.ppvCalendarSize, i + 1),
+        settings,
+      ),
       isPlayer: false,
       rating,
       bankBalance: Math.round(rating * 4000),

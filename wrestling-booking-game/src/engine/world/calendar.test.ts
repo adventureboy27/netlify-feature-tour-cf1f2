@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  isPPVWeek,
-  weeksUntilPPV,
-  ppvNameForWeek,
-  segmentsForWeek,
   computeBuys,
   computeBuyRevenue,
   type BuysContext,
@@ -12,26 +8,6 @@ import { ppvCalendarFor, PPV_SETS, UNIVERSAL_PPV_NAMES } from '../../data/ppvNam
 import { defaultWorldSettings } from './settings';
 
 const settings = defaultWorldSettings();
-
-describe('the calendar', () => {
-  it('runs one pay-per-view a month and television the rest of the time', () => {
-    const ppvWeeks = [];
-    for (let week = 1; week <= 52; week++) if (isPPVWeek(week, settings)) ppvWeeks.push(week);
-    expect(ppvWeeks).toEqual([4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52]);
-  });
-
-  it('counts down to the next one', () => {
-    expect(weeksUntilPPV(4, settings)).toBe(0);
-    expect(weeksUntilPPV(5, settings)).toBe(3);
-    expect(weeksUntilPPV(7, settings)).toBe(1);
-  });
-
-  it('gives a bigger card on the night', () => {
-    expect(segmentsForWeek(3, settings)).toBe(settings.segmentsPerTV);
-    expect(segmentsForWeek(4, settings)).toBe(settings.segmentsPerPPV);
-    expect(settings.segmentsPerPPV).toBeGreaterThan(settings.segmentsPerTV);
-  });
-});
 
 describe('signature events', () => {
   it('gives a promotion a calendar that sounds like it', () => {
@@ -55,17 +31,12 @@ describe('signature events', () => {
     expect(long.some((name) => UNIVERSAL_PPV_NAMES.includes(name))).toBe(true);
   });
 
-  it('brings the same event round at the same point every year', () => {
+  it('gives a promotion enough names to fill its own year', () => {
+    // Which week each of these lands on is the promotion's own decision now —
+    // engine/world/schedule.ts owns the rotation and tests it there. What is
+    // still this module's business is that the names exist and are distinct.
     const calendar = ppvCalendarFor('territory', settings.ppvCalendarSize, 0);
-    const weeksPerYear = settings.weeksBetweenPPVs * settings.ppvCalendarSize;
-    // Whatever ran in week 4 runs again exactly one cycle later.
-    expect(ppvNameForWeek(4, calendar, settings)).toBe(ppvNameForWeek(4 + weeksPerYear, calendar, settings));
-    expect(ppvNameForWeek(8, calendar, settings)).not.toBe(ppvNameForWeek(4, calendar, settings));
-  });
-
-  it('has no name for a television week', () => {
-    const calendar = ppvCalendarFor('athletic', 4, 0);
-    expect(ppvNameForWeek(5, calendar, settings)).toBeNull();
+    expect(new Set(calendar).size).toBe(calendar.length);
   });
 
   it('gives different promotions different calendars', () => {

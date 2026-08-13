@@ -1,9 +1,10 @@
-// The calendar — §8.
+// The calendar — §8. Telling the time, and what a pay-per-view is worth.
 //
-// Every week is a television taping except one a month, which is the show
-// everything else has been building to. That rhythm is the reason a weekly
-// grind has a shape at all: a feud started in week 33 is not just a feud, it
-// is something with a date on it.
+// This used to own the whole rhythm: every fourth week was the big one, for
+// everybody, forever. It does not any more — which company runs a big show on
+// which week is a decision each promotion makes, and it lives in
+// world/schedule.ts. What is left here is the part that is true for
+// everybody: where in the year a week falls, and what buys are worth.
 //
 // A pay-per-view is not simply a bigger television show. It runs a longer
 // card, it is worth double on the ratings ladder, it pays the wrestlers who
@@ -13,30 +14,80 @@
 
 import type { WorldSettings } from '../types';
 
-/** Is this week's show the monthly one? */
-export function isPPVWeek(week: number, settings: WorldSettings): boolean {
-  return week > 0 && week % settings.weeksBetweenPPVs === 0;
-}
+// ---------------------------------------------------------------------------
+// Telling the time
+//
+// The game has no dates and is never getting any. A promotion does not think
+// in the 14th of March, it thinks in "the go-home show" and "the week before
+// the pay-per-view" — so the calendar is month names, which week of that month
+// it is, and the day of the week a show runs on. Nothing else.
+//
+// Fifty-two weeks over twelve months does not divide, so the year runs on the
+// 4-4-5 pattern: two four-week months and then a five, four times over. That
+// is a real convention (it is how retail books a year) and it lands exactly on
+// week 52 in the last week of December, which is the thing that matters —
+// "December, week five" is a sentence a booker would say, and "week 53" is not.
 
-/** How many weeks until the next one. Zero means it is tonight. */
-export function weeksUntilPPV(week: number, settings: WorldSettings): number {
-  if (isPPVWeek(week, settings)) return 0;
-  return settings.weeksBetweenPPVs - (week % settings.weeksBetweenPPVs);
+export const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+] as const;
+export type Month = (typeof MONTHS)[number];
+
+/** Weeks in each month, 4-4-5 by quarter. Sums to 52. */
+const WEEKS_IN_MONTH = [4, 4, 5, 4, 4, 5, 4, 4, 5, 4, 4, 5];
+
+export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+export type Day = (typeof DAYS)[number];
+
+export const WEEKS_PER_YEAR = 52;
+
+export interface WeekLabel {
+  month: Month;
+  /** Which week of that month, 1-based. */
+  weekOfMonth: number;
+  /** Which week of the year, 1-based — 1 through 52. */
+  weekOfYear: number;
+  year: number;
 }
 
 /**
- * Which signature event this is. Cycles the promotion's calendar in order, so
- * the same name comes round at the same point every year.
+ * Where in the year a week number lands.
+ *
+ * `week` is the absolute counter the world keeps, and that counter is
+ * one-based — a new save opens on week 1, and week 1 is the first week of
+ * January. Getting this wrong is not a rounding error, it is a header that
+ * says the second week of January on opening night.
  */
-export function ppvNameForWeek(week: number, calendar: readonly string[], settings: WorldSettings): string | null {
-  if (!isPPVWeek(week, settings) || calendar.length === 0) return null;
-  const index = Math.floor(week / settings.weeksBetweenPPVs) - 1;
-  return calendar[((index % calendar.length) + calendar.length) % calendar.length] ?? null;
+export function weekLabel(week: number, settings: WorldSettings): WeekLabel {
+  const elapsed = Math.max(0, week - 1);
+  const year = settings.startingYear + Math.floor(elapsed / WEEKS_PER_YEAR);
+  const weekOfYear = elapsed % WEEKS_PER_YEAR;
+
+  let remaining = weekOfYear;
+  for (let m = 0; m < WEEKS_IN_MONTH.length; m++) {
+    const span = WEEKS_IN_MONTH[m]!;
+    if (remaining < span) {
+      return { month: MONTHS[m]!, weekOfMonth: remaining + 1, weekOfYear: weekOfYear + 1, year };
+    }
+    remaining -= span;
+  }
+  // Unreachable while WEEKS_IN_MONTH sums to WEEKS_PER_YEAR, and asserted in
+  // the tests. Falling back to the last week rather than throwing, because a
+  // save should never die on a date label.
+  return { month: 'December', weekOfMonth: 5, weekOfYear: WEEKS_PER_YEAR, year };
 }
 
-/** How many segments tonight's card has room for. */
-export function segmentsForWeek(week: number, settings: WorldSettings): number {
-  return isPPVWeek(week, settings) ? settings.segmentsPerPPV : settings.segmentsPerTV;
+/** How the header says it. */
+export function weekLine(week: number, settings: WorldSettings): string {
+  const label = weekLabel(week, settings);
+  return `${label.month}, week ${label.weekOfMonth}`;
+}
+
+/** Is this the last week of its month? The month's big show goes here. */
+export function isLastWeekOfMonth(week: number, settings: WorldSettings): boolean {
+  const here = weekLabel(week, settings);
+  return weekLabel(week + 1, settings).month !== here.month;
 }
 
 export interface BuysContext {

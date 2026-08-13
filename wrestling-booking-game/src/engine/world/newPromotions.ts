@@ -27,6 +27,7 @@ import { chance, pick, randInt } from '../rng';
 import type { Id, Promotion, PromotionArchetype, Wrestler, WorldSettings } from '../types';
 import { isFinished } from '../career/status';
 import { PROMOTION_ARCHETYPES, styleProfileFor } from '../../data/promotionIdentity';
+import { scheduleForRival } from './schedule';
 
 export interface OpeningContext {
   /** Companies still trading, the player's included. */
@@ -110,9 +111,15 @@ export function foundPromotion(
   const rating = randInt(rng, settings.newPromotionRatingMin, settings.newPromotionRatingMax);
   const home = territoryIds.length > 0 ? pick(rng, [...territoryIds]) : 'territory-unassigned';
 
+  // Hoisted in exactly the order the object literal used to evaluate them —
+  // the id's draw and then the name's — because reordering two rng draws here
+  // would move every seeded world downstream of a company being founded.
+  const id = `rival-new-${ctx.currentWeek}-${randInt(rng, 1000, 9999)}`;
+  const name = newPromotionName(rng, ctx.takenNames);
+
   return {
-    id: `rival-new-${ctx.currentWeek}-${randInt(rng, 1000, 9999)}`,
-    name: newPromotionName(rng, ctx.takenNames),
+    id,
+    name,
     identity: archetype,
     ppvCalendar: [],
     isPlayer: false,
@@ -132,6 +139,10 @@ export function foundPromotion(
     closedWeek: null,
     ownerId: `owner-new-${ctx.currentWeek}`,
     ownerPersonality: 'traditionalist',
+    // One night a week and one big show a year. Somebody's first promotion
+    // does not run a monthly pay-per-view, and the schedule saying so is the
+    // same statement as the bank balance saying so.
+    schedule: scheduleForRival(rng, { name, rating, identity: archetype }, [], settings),
   };
 }
 
