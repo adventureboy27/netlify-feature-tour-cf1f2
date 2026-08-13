@@ -1961,6 +1961,9 @@ export interface WorldSettings {
   managerTalentPresenceShare: number;
   managerTalentRingScale: number;
   managerTalentFeeToWage: number;
+  /** How often a brand new manager turns up, and how good a talker they are. */
+  managerTalentArrivalChance: number;
+  managerTalentMinMic: number;
   /** How often a crooked manager is caught, and how far talking gets him. */
   managerCaughtChanceMax: number;
   managerSlicknessMax: number;

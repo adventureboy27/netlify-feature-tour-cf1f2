@@ -30,7 +30,7 @@
 // could main-event would just be a wrestler.
 
 import type { Rng } from '../rng';
-import { clamp, randInt } from '../rng';
+import { chance, clamp, randInt } from '../rng';
 import type { Wrestler, WorldSettings } from '../types';
 import type { Manager } from '../sim/ringside';
 import type { FreeAgent } from './freeAgents';
@@ -80,6 +80,60 @@ export function asManagerTalent(
     contract: null,
     injury: null,
     momentum: 50,
+  };
+}
+
+/**
+ * Somebody new turns up with a suit and a mouth.
+ *
+ * Twelve names is fine for a decade and thin by year twenty-five, especially
+ * now that managers can die. So the supply has to renew — and it renews from
+ * where it actually would.
+ *
+ * Two doors, both of which already existed and neither of which was wired to
+ * this job:
+ *
+ *   - A wrestler whose body is finished but whose mouth is not. That is
+ *     `career/transition.ts`, and it is the commonest way somebody becomes a
+ *     manager in real life.
+ *   - Somebody who walked in off the street, cannot go, and can talk. That is
+ *     the `naturalTalker` walk-on, which the game has been generating and then
+ *     leaving as a wrestler who is bad at wrestling.
+ *
+ * This is the third: a stranger who was never either, arriving already old and
+ * already good at it. Rare, because most of the pool should come through the
+ * two doors above rather than out of nowhere.
+ */
+export function rollNewManager(
+  rng: Rng,
+  person: Wrestler,
+  currentYear: number,
+  settings: WorldSettings,
+): { wrestler: Wrestler; freeAgent: FreeAgent } | null {
+  if (!chance(rng, settings.managerTalentArrivalChance)) return null;
+
+  const archetype: Manager = {
+    id: person.id,
+    name: person.name,
+    // Whatever else they are, they can talk — that is the only reason
+    // anybody would give them the job.
+    micWork: clamp(randInt(rng, settings.managerTalentMinMic, 99), 5, 99),
+    presence: randInt(rng, 30, 85),
+    deviousness: randInt(rng, 5, 95),
+    feePerShow: 0,
+    blurb: '',
+    age: randInt(rng, settings.managerTalentAgeMin, settings.managerTalentAgeMax),
+  };
+
+  const manager = asManagerTalent(rng, person, archetype, currentYear, settings);
+  return {
+    wrestler: manager,
+    freeAgent: {
+      wrestlerId: manager.id,
+      reason: 'released',
+      askingRate: settings.contractBaseWeeklyRate,
+      weeksUnsigned: 0,
+    },
   };
 }
 

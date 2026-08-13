@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
+import { MANAGERS } from '../data/ringsidePool';
 import { useGameStore } from './store';
 import { defaultWorldSettings } from '../engine/world/settings';
 import type { WorldSettings } from '../engine/types';
@@ -52,7 +53,11 @@ describe('newGame', () => {
     expect(world!.promotion.rosterIds).toHaveLength(TEST_ROSTER_SIZE);
     const rivalRosters = world!.rivals.reduce((sum, r) => sum + r.rosterIds.length, 0);
     expect(rivalRosters).toBeGreaterThan(0);
-    expect(Object.keys(world!.wrestlers)).toHaveLength(TEST_ROSTER_SIZE + freshSettings().freeAgentPoolSize + rivalRosters);
+    // Managers are people now — free agents with role 'manager', signable on
+    // an ordinary contract — so they are in `wrestlers` like anybody else.
+    expect(Object.keys(world!.wrestlers)).toHaveLength(
+      TEST_ROSTER_SIZE + freshSettings().freeAgentPoolSize + rivalRosters + MANAGERS.length,
+    );
     expect(world!.promotion.bankBalance).toBe(freshSettings().startingCash);
     expect(world!.week).toBe(1);
     expect(world!.currentCard).toHaveLength(world!.settings.segmentsPerTV);
@@ -189,7 +194,12 @@ describe('the opening position', () => {
 
   it('has a pool of unsigned talent to sign from', () => {
     const { world } = useGameStore.getState();
-    expect(world!.freeAgents.length).toBe(world!.settings.freeAgentPoolSize);
+    // Unsigned wrestlers, plus the manager pool, which is unsigned talent of
+    // a different kind rather than a rental list.
+    expect(world!.freeAgents.length).toBe(world!.settings.freeAgentPoolSize + MANAGERS.length);
+    expect(
+      world!.freeAgents.filter((a) => world!.wrestlers[a.wrestlerId]!.role === 'manager'),
+    ).toHaveLength(MANAGERS.length);
     for (const agent of world!.freeAgents) {
       const w = world!.wrestlers[agent.wrestlerId]!;
       expect(w.promotionId).toBeNull();
@@ -242,8 +252,19 @@ describe('going under', () => {
     store.setTicketPrice(1);
     const hadContracts = [...useGameStore.getState().world!.promotion.rosterIds];
 
-    for (let i = 0; i < 40 && !useGameStore.getState().world!.folded; i++) {
+    // Run until it goes rather than for a fixed 40 weeks. The old bound was
+    // tuned to an rng stream that has since shifted (seeding the manager pool
+    // consumes draws), and a bound that has to be re-tuned every time the
+    // world gains a system is testing the seed, not the rule.
+    for (let i = 0; i < 200 && !useGameStore.getState().world!.folded; i++) {
       useGameStore.getState().resolveWeek();
+      // A bare resolveWeek() loop stalls forever on an unanswered severe
+      // weather call — the week stays open waiting for the booker. Harmless
+      // until an rng shift makes a call land inside the loop, and then the
+      // company never folds because time stops.
+      if (useGameStore.getState().world!.pendingWeatherCall) {
+        useGameStore.getState().answerWeatherCall('runIt');
+      }
     }
 
     const world = useGameStore.getState().world!;
@@ -271,8 +292,19 @@ describe('going under', () => {
     const store = useGameStore.getState();
     store.setVenue('schoolGym');
     store.setTicketPrice(1);
-    for (let i = 0; i < 40 && !useGameStore.getState().world!.folded; i++) {
+    // Run until it goes rather than for a fixed 40 weeks. The old bound was
+    // tuned to an rng stream that has since shifted (seeding the manager pool
+    // consumes draws), and a bound that has to be re-tuned every time the
+    // world gains a system is testing the seed, not the rule.
+    for (let i = 0; i < 200 && !useGameStore.getState().world!.folded; i++) {
       useGameStore.getState().resolveWeek();
+      // A bare resolveWeek() loop stalls forever on an unanswered severe
+      // weather call — the week stays open waiting for the booker. Harmless
+      // until an rng shift makes a call land inside the loop, and then the
+      // company never folds because time stops.
+      if (useGameStore.getState().world!.pendingWeatherCall) {
+        useGameStore.getState().answerWeatherCall('runIt');
+      }
     }
 
     const weekWhenFolded = useGameStore.getState().world!.week;

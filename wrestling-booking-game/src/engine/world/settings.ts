@@ -537,6 +537,12 @@ export function defaultWorldSettings(): WorldSettings {
     managerTalentPresenceShare: 0.75,
     managerTalentRingScale: 0.35,
     managerTalentFeeToWage: 0.9,
+    // Rolled per graduating class, so roughly one new manager every few
+    // years. Deliberately thin: most of the pool should arrive by a wrestler
+    // moving into a suit or a natural talker walking in off the street, both
+    // of which already happen — this is the stranger who was never either.
+    managerTalentArrivalChance: 0.16,
+    managerTalentMinMic: 62,
     // ...and the price of it. A maximally crooked manager in front of a
     // maximally sharp official is caught roughly one match in six; a good
     // talker cuts that by up to two thirds, and a bent referee never sees a

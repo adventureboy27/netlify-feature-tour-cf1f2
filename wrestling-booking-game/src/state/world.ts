@@ -80,6 +80,8 @@ import { OWNER_PROFILES } from '../data/owners';
 import { ppvCalendarFor } from '../data/ppvNames';
 import { defaultSchedule, scheduleForRival } from '../engine/world/schedule';
 import type { ImpromptuShow } from '../engine/world/impromptu';
+import { seedManagerTalent } from '../engine/world/managerTalent';
+import { MANAGERS } from '../data/ringsidePool';
 import { DEFAULT_PACE } from '../data/pacing';
 import type { AttendanceRecord } from '../engine/world/territories';
 import type { AssetCondition } from '../engine/economy/showBudget';
@@ -480,6 +482,21 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   );
   for (const agent of pool.wrestlers) wrestlers[agent.id] = agent;
 
+  // Managers, as people. Free agents every one of them — a company that wants
+  // a mouthpiece signs one the same as it signs anybody, and a rival can get
+  // there first. Before this they were a static rental list with no contract,
+  // no wage and nothing to poach. See engine/world/managerTalent.ts.
+  const managerBodies = generateWrestlers(rng, MANAGERS.length, {
+    settings,
+    currentYear: settings.startingYear,
+    existingAppearances: [...roster.map((w) => w.appearance), ...pool.wrestlers.map((w) => w.appearance)],
+    existingNames: new Set(
+      [...roster, ...pool.wrestlers].map((w) => w.name.trim().toLowerCase()),
+    ),
+  });
+  const managers = seedManagerTalent(rng, MANAGERS, managerBodies, settings.startingYear, settings);
+  for (const manager of managers.wrestlers) wrestlers[manager.id] = manager;
+
   const startingSetup = defaultShowSetup(settings);
 
   const promotion: Promotion = {
@@ -664,7 +681,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     signingBanWeeks: 0,
     suspensionWeeks: 0,
     tamperingOffenses: 0,
-    freeAgents: pool.freeAgents,
+    freeAgents: [...pool.freeAgents, ...managers.freeAgents],
     referees,
     // You open with one official on the books, and a six-match card runs him
     // into the ground by the main event. That is deliberate: the first thing

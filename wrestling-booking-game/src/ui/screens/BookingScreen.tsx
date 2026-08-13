@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { STIPULATIONS, stipulationById, stipulationRequirementsMet, effectiveRules } from '../../data/stipulations';
-import { livingManagers } from '../../data/ringsidePool';
+
 import { managerFit, type Manager } from '../../engine/sim/ringside';
 import { signedReferees, officialFor, sharpnessLabel, refereeGrade, isAvailable } from '../../engine/sim/referees';
 import { findRivalry } from '../../engine/sim/rivalry';
@@ -428,7 +428,6 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                     onGuestReferee={(id) => setGuestReferee(index, id)}
                     crew={crew}
                     staffManagers={world.staffManagers}
-                bookableManagers={livingManagers(world.memoriam)}
                     defaultReferee={
                       world.defaultRefereeId
                         ? (crew.find((r) => r.id === world.defaultRefereeId) ?? null)
@@ -469,7 +468,6 @@ function SegmentEditor({
   onGuestReferee,
   crew,
   staffManagers,
-  bookableManagers,
   defaultReferee,
   settings,
   titles,
@@ -500,8 +498,6 @@ function SegmentEditor({
   crew: Referee[];
   /** Your own wrestlers working as managers. They cost nothing per night. */
   staffManagers: Manager[];
-  /** The open pool, minus anybody who has died. */
-  bookableManagers: Manager[];
   /** Who takes this match if it names nobody. */
   defaultReferee: Referee | null;
   settings: WorldSettings;
@@ -690,7 +686,7 @@ function SegmentEditor({
                 </button>
                 {/* Your own people first: a wrestler you moved into a suit
                     costs nothing per night, because he is already paid. */}
-                {[...staffManagers, ...bookableManagers].map((manager) => (
+                {staffManagers.map((manager) => (
                   <button
                     key={manager.id}
                     type="button"
@@ -715,7 +711,7 @@ function SegmentEditor({
               {current && clientWrestler && (
                 <span className="text-[10px] text-sky-400">
                   {managerFit(
-                    [...staffManagers, ...bookableManagers].find((m) => m.id === current.managerId)!,
+                    staffManagers.find((m) => m.id === current.managerId)!,
                     clientWrestler,
                     settings,
                   )}

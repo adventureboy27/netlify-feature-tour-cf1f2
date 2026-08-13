@@ -54,7 +54,6 @@ import {
   refereeAgenda,
   guestRefereeHealthCost,
 } from '../engine/sim/ringside';
-import { managerById as hiredManagerById } from '../data/ringsidePool';
 import { refereeMissById } from '../data/refereeMisses';
 import {
   canChangeRole,
@@ -158,7 +157,6 @@ import {
 } from '../engine/career/ledger';
 import { ledgerOf } from '../engine/career/ledgerAccess';
 import { totalsFor } from '../engine/career/ledger';
-import { MANAGERS } from '../data/ringsidePool';
 import {
   afterLine,
   memorialShow,
@@ -196,7 +194,13 @@ import {
  * zero, because he is already on the payroll.
  */
 function findManager(world: World, id: Id): Manager | undefined {
-  return hiredManagerById(id) ?? world.staffManagers.find((m) => m.id === id);
+  // No rental list any more: a manager is somebody under contract. Resolved
+  // from the roster so a signed manager is bookable the week they arrive,
+  // whether they were signed as one or moved into a suit.
+  const signed = world.staffManagers.find((m) => m.id === id);
+  if (signed) return signed;
+  const person = world.wrestlers[id];
+  return person && person.role === 'manager' ? managerFromWrestler(person) : undefined;
 }
 import {
   officialFor,
@@ -217,7 +221,7 @@ import { NETWORK_SHOWS } from '../data/networkShows';
 import { rollTamperingAttempts } from '../engine/world/tampering';
 import { deriveCareerStatus } from '../engine/career/status';
 import { rollRetirement, rollComeback, retire, unretire, RETIREMENT_REASON_TEXT } from '../engine/career/retirement';
-import { rollDeath, rollMortalDeath, DEATH_CAUSE_TEXT } from '../engine/career/mortality';
+import { rollDeath, DEATH_CAUSE_TEXT } from '../engine/career/mortality';
 import { annualInductions } from '../engine/career/hallOfFame';
 import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult } from '../engine/career/awards';
 import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
@@ -4304,49 +4308,6 @@ export const useGameStore = create<GameStore>()(
           ),
           settings: world.settings,
         };
-
-        // Managers die too, and until now they could not: they live in their
-        // own collection, which mortality never walked. A career manager
-        // could work forty years and never get old.
-        //
-        // Reported exactly like anybody else. The rule is that every death in
-        // the business gets a sentence — any promotion, any role, and whether
-        // or not they were still working when it happened.
-        for (const manager of [...MANAGERS, ...world.staffManagers]) {
-          if (manager.wrestlerId) continue; // One of your own doing the job dies as himself.
-          if (world.memoriam.some((p) => p.wrestlerId === manager.id)) continue;
-          if (!chance(rng, perWeek)) continue;
-          const passing = rollMortalDeath(
-            rng,
-            // No health stat on a manager, and they are not taking bumps —
-            // so the curve reads their age and nothing else.
-            { id: manager.id, name: manager.name, age: manager.age ?? 55, health: 80 },
-            world.week,
-            world.settings,
-          );
-          if (!passing) continue;
-          world.memoriam.push(passing);
-          world.thisYear.passings.push(passing);
-          world.weeklyNews.push(
-            deathLine(manager.name, passing.age, `${DEATH_CAUSE_TEXT[passing.cause]}.`, world.week),
-          );
-          // And a company buries a manager it employed like anybody else.
-          // Nobody owns the open pool — those are booked a night at a time —
-          // so "ours" means somebody actually on staff.
-          const ours = world.staffManagers.some((m) => m.id === manager.id);
-          if (ours) {
-            const show = memorialShow(
-              rng,
-              manager.id,
-              manager.name,
-              world.week + 1,
-              scheduleOf(world.promotion, world.settings).shows.map((sh) => sh.day),
-              world.promotion.name,
-            );
-            world.impromptuShows.push(show);
-            world.weeklyNews.push(wire('houseShow', show.announcement, world.week, 'normal'));
-          }
-        }
 
         for (const person of Object.values(world.wrestlers)) {
           if (person.deceased) continue;
