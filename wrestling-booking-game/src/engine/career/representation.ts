@@ -155,6 +155,72 @@ export function wouldStretchTooThin(
   return attention(now + 1, settings) < settings.repStretchedAt;
 }
 
+/**
+ * What a book costs the man carrying it, in fatigue, every week.
+ *
+ * `attention` is the instantaneous half — a man in six corners is not really
+ * in any of them. This is the half that accumulates: he is on the road for all
+ * six of them, every week, and nobody does that indefinitely.
+ *
+ * The two compound in a way neither does alone. A manager with a fat book is
+ * immediately worse at each job *and* getting worse at all of them over
+ * months, until either he is rested or somebody is let go. Which is the honest
+ * shape of the thing: a percentage man's problem is not that he cannot count,
+ * it is that there are seven nights in a week.
+ *
+ * Super-linear, because the travel is what kills — two clients in two towns is
+ * not twice one client, it is two towns and the driving between them.
+ */
+export function roadCost(clientCount: number, settings: WorldSettings): number {
+  if (clientCount <= 0) return 0;
+  return settings.repRoadCostPerClient * clientCount ** settings.repRoadCostCurve;
+}
+
+/**
+ * How much of himself a worn-out manager has left, 0-1.
+ *
+ * Reads the same fatigue every wrestler carries — managers are people now, so
+ * there is one exhaustion model in the game rather than a second one for men
+ * in suits.
+ */
+export function condition(
+  manager: Pick<Wrestler, 'fatigueDebt' | 'energy'>,
+  settings: WorldSettings,
+): number {
+  const worn = clamp(manager.fatigueDebt / 100, 0, 1);
+  const spent = clamp(1 - manager.energy / 100, 0, 1);
+  return clamp(1 - (worn * 0.6 + spent * 0.4) * settings.repWearPenalty, settings.repWearFloor, 1);
+}
+
+/**
+ * Everything the man actually brings to a corner tonight: how thin he is
+ * spread, times how much of him is left.
+ *
+ * The one number the sim should ask for. Asking for attention alone was the
+ * version where a manager could carry six clients forever as long as he
+ * accepted being 36% of himself in each — and never got tired doing it.
+ */
+export function presenceAt(
+  reps: readonly Representation[],
+  managerId: Id,
+  manager: Pick<Wrestler, 'fatigueDebt' | 'energy'> | null,
+  settings: WorldSettings,
+): number {
+  const spread = attentionOf(reps, managerId, settings);
+  return manager ? spread * condition(manager, settings) : spread;
+}
+
+/** How the sheet says he is holding up, in words rather than a number (§0). */
+export function wearLabel(
+  manager: Pick<Wrestler, 'fatigueDebt' | 'energy'>,
+  settings: WorldSettings,
+): string | null {
+  const left = condition(manager, settings);
+  if (left >= 0.85) return null;
+  if (left >= 0.6) return 'Looking tired';
+  return 'Running on fumes';
+}
+
 // ---------------------------------------------------------------------------
 // Saying it
 
@@ -196,11 +262,19 @@ export function wouldCourt(
   client: Wrestler,
   reps: readonly Representation[],
   settings: WorldSettings,
+  /**
+   * The man himself, when there is one to read. A manager already worn down
+   * by the book he has does not go looking for more of it — without this the
+   * courting loop walked every manager to a book he could not carry, which is
+   * a self-regulating system regulating itself into the ground.
+   */
+  self?: Pick<Wrestler, 'fatigueDebt' | 'energy'> | null,
 ): boolean {
   const s = settings;
   if (representativeOf(reps, client.id)) return false;
   if (client.role !== 'wrestler' || client.deceased) return false;
   if (wouldStretchTooThin(reps, manager.id, s)) return false;
+  if (self && condition(self, s) < s.repTooTiredToCourt) return false;
   // Worth his time. A percentage of nothing is nothing, so a manager chases
   // people who are already earning or plainly about to.
   return client.popularity >= s.repWorthCourting;

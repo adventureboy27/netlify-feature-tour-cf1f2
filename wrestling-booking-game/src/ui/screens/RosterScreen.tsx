@@ -37,7 +37,7 @@ import { patienceLeft } from '../../engine/career/lineage';
 import { blockedBecause, perkUpkeep } from '../../engine/economy/perks';
 import { hypeLabel } from '../../engine/career/hype';
 import { fitLabel } from '../../engine/career/fit';
-import { bookLine, clientCutLine, representativeOf } from '../../engine/career/representation';
+import { bookLine, clientCutLine, representativeOf, wearLabel } from '../../engine/career/representation';
 import { recordLabel } from '../../engine/career/discipline';
 import { PERKS } from '../../data/perks';
 import { PaperDoll } from '../paperdoll/PaperDoll';
@@ -338,6 +338,11 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                 })()}
 
                 {/* His own book, if he is the one taking a percentage. */}
+                {w.role === 'manager' && wearLabel(w, world.settings) && (
+                  <div className="mt-0.5 truncate text-[10px] text-orange-400">
+                    {wearLabel(w, world.settings)} — too many people to be everywhere for
+                  </div>
+                )}
                 {w.role === 'manager' && (
                   <div className="mt-0.5 truncate text-[10px] text-sky-400/80">
                     {bookLine(

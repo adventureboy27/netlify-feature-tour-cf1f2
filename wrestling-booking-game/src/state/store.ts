@@ -156,7 +156,15 @@ import {
   type LedgerRole,
 } from '../engine/career/ledger';
 import { ledgerOf } from '../engine/career/ledgerAccess';
-import { askingCut, attentionOf, cutOf, representativeOf, wouldCourt } from '../engine/career/representation';
+import {
+  askingCut,
+  bookOf,
+  cutOf,
+  presenceAt,
+  representativeOf,
+  roadCost,
+  wouldCourt,
+} from '../engine/career/representation';
 import {
   applySanction,
   disciplineOf,
@@ -2113,7 +2121,12 @@ export const useGameStore = create<GameStore>()(
                 side: m.forSide,
                 // How thin his book has him spread. A percentage man with six
                 // clients is not really in anybody's corner.
-                attention: attentionOf(world.representations, m.managerId, world.settings),
+                attention: presenceAt(
+                  world.representations,
+                  m.managerId,
+                  world.wrestlers[m.managerId] ?? null,
+                  world.settings,
+                ),
               }))
               .filter((m): m is { manager: NonNullable<typeof m.manager>; client: Wrestler; side: number; attention: number } =>
                 Boolean(m.manager && m.client),
@@ -4697,6 +4710,18 @@ export const useGameStore = create<GameStore>()(
         for (const w of Object.values(world.wrestlers)) {
           if (w.deceased || w.careerStatus === 'retired') continue;
           restWeek(w, worked.has(w.id), world.settings, recoveryFor(w.promotionId));
+          // What a book costs the man carrying it. He is on the road for all
+          // of them every week — attention says he cannot focus on any one,
+          // and this is the half that accumulates until he is no use to
+          // anybody. See career/representation.ts.
+          if (w.role === 'manager') {
+            const carrying = bookOf(world.representations, w.id).length;
+            if (carrying > 0) {
+              w.fatigueDebt = clamp(w.fatigueDebt + roadCost(carrying, world.settings), 0, 100);
+              w.energy = clamp(w.energy - roadCost(carrying, world.settings), 0, 100);
+            }
+          }
+
           // A served suspension is served. §0: the player is told he is back,
           // rather than finding out by noticing he is bookable again.
           if (w.discipline && tickSuspension(w.discipline, world.week)) {
@@ -4765,7 +4790,7 @@ export const useGameStore = create<GameStore>()(
               .map((id) => world.wrestlers[id])
               .find(
                 (w): w is Wrestler =>
-                  Boolean(w) && wouldCourt(shape, w!, world.representations, world.settings),
+                  Boolean(w) && wouldCourt(shape, w!, world.representations, world.settings, agent),
               );
             if (!target) continue;
 

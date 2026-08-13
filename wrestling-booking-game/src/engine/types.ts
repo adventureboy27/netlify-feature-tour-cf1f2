@@ -1973,6 +1973,14 @@ export interface WorldSettings {
   /** Whether managers go looking for clients, and how often. */
   repCourtingEnabled: boolean;
   repCourtChancePerWeek: number;
+  /** What a week of carrying a book costs the man carrying it. */
+  repRoadCostPerClient: number;
+  repRoadCostCurve: number;
+  /** How much being worn out takes off what he brings, and the floor. */
+  repWearPenalty: number;
+  repWearFloor: number;
+  /** Condition below which a manager stops taking on anybody new. */
+  repTooTiredToCourt: number;
 
   // --- Discipline, engine/career/discipline.ts -----------------------------
   /** How many go on file before a fine, and before a suspension. */

@@ -11,6 +11,10 @@ import {
   askingCut,
   attention,
   attentionOf,
+  condition,
+  presenceAt,
+  roadCost,
+  wearLabel,
   bookLine,
   bookOf,
   clientCutLine,
@@ -182,5 +186,51 @@ describe('what the profiles show', () => {
 
   it('says so plainly when he represents nobody', () => {
     expect(bookLine([], 'm', () => 1000, settings)).toBe('Represents nobody.');
+  });
+});
+
+describe('the road itself wears him out', () => {
+  it('costs nothing to represent nobody', () => {
+    expect(roadCost(0, settings)).toBe(0);
+  });
+
+  it('costs more than proportionally as the book grows', () => {
+    // Two clients in two towns is not twice one client. It is two towns and
+    // the driving between them.
+    expect(roadCost(2, settings)).toBeGreaterThan(roadCost(1, settings) * 2 * 0.9);
+    expect(roadCost(6, settings) / 6).toBeGreaterThan(roadCost(1, settings));
+  });
+
+  it('leaves a fresh man with everything he has', () => {
+    expect(condition({ fatigueDebt: 0, energy: 100 }, settings)).toBe(1);
+  });
+
+  it('takes a real bite out of somebody who is running on empty', () => {
+    const spent = condition({ fatigueDebt: 95, energy: 10 }, settings);
+    expect(spent).toBeLessThan(0.6);
+    expect(spent).toBeGreaterThanOrEqual(settings.repWearFloor);
+  });
+
+  it('compounds with being spread thin, which neither does alone', () => {
+    // A fat book makes him immediately worse at each job *and* worse at all
+    // of them over months. That is the whole point of having both.
+    const reps = ['a', 'b', 'c', 'd'].map((c) => rep('m', c));
+    const fresh = presenceAt(reps, 'm', { fatigueDebt: 0, energy: 100 }, settings);
+    const shot = presenceAt(reps, 'm', { fatigueDebt: 90, energy: 15 }, settings);
+    expect(shot).toBeLessThan(fresh);
+    expect(fresh).toBeLessThan(1);
+  });
+
+  it('falls back to spread alone when there is nobody to read', () => {
+    const reps = [rep('m', 'a'), rep('m', 'b')];
+    expect(presenceAt(reps, 'm', null, settings)).toBe(attention(2, settings));
+  });
+
+  it('says how he is holding up in words, and nothing at all when he is fine', () => {
+    expect(wearLabel({ fatigueDebt: 0, energy: 100 }, settings)).toBeNull();
+    expect(wearLabel({ fatigueDebt: 95, energy: 5 }, settings)).toBe('Running on fumes');
+    for (const w of [{ fatigueDebt: 50, energy: 50 }, { fatigueDebt: 95, energy: 5 }]) {
+      expect(wearLabel(w, settings)).not.toMatch(/\d/);
+    }
   });
 });

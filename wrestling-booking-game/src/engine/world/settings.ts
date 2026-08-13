@@ -548,6 +548,18 @@ export function defaultWorldSettings(): WorldSettings {
     // enough that he does not sweep the roster in a fortnight.
     repCourtingEnabled: true,
     repCourtChancePerWeek: 0.12,
+    // And what the book costs him. Super-linear because the travel is what
+    // kills — two clients in two towns is not twice one client, it is two
+    // towns and the driving between them.
+    //
+    // At one client he is fine indefinitely. At three he wears down slowly
+    // enough to manage; at six he is running on fumes inside a few months and
+    // the only fixes are rest or letting somebody go.
+    repRoadCostPerClient: 1.6,
+    repRoadCostCurve: 1.4,
+    repWearPenalty: 0.55,
+    repWearFloor: 0.35,
+    repTooTiredToCourt: 0.8,
 
     // Discipline. Two on file before it costs money, four before it costs
     // you a spot on the card — slow enough that one bad night is not a
