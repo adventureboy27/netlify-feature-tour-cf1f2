@@ -2015,6 +2015,8 @@ export interface WorldSettings {
   managerTalentPresenceShare: number;
   managerTalentRingScale: number;
   managerTalentFeeToWage: number;
+  /** How much ring ability a bodyguard keeps that a mouthpiece does not. */
+  managerTalentMuscleBonus: number;
   /** How often a brand new manager turns up, and how good a talker they are. */
   managerTalentArrivalChance: number;
   managerTalentMinMic: number;
@@ -2032,6 +2034,9 @@ export interface WorldSettings {
   promoJabHeat: number;
   /** How much of an injury roll a bodyguard can take off his client. */
   managerInjuryShieldMax: number;
+  /** How often muscle gets somebody in the corridor, and what it costs them. */
+  bodyguardBackstageChance: number;
+  bodyguardBackstageDamage: number;
   managerPopularityBoostMax: number;
   managerInterferenceWeight: number;
   /** How much leaning on a mouthpiece stunts what the client builds alone. */

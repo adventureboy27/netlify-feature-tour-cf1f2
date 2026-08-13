@@ -182,6 +182,33 @@ export function managedPopularityMultiplier(
   return Math.max(0, effect.clientPopularityMultiplier - effect.selfMadePenalty / 100);
 }
 
+/**
+ * Somebody gets got in the corridor.
+ *
+ * The other half of carrying muscle, and the half that never touches a match:
+ * a bodyguard can find the man his client is wrestling *before* the bell. It
+ * costs the victim real condition, it is the sort of thing the office
+ * suspends people for, and it is entirely deniable until it is not.
+ *
+ * Driven by protection and deviousness together — you need somebody willing
+ * to do it and capable of it, and most of the pool is neither.
+ */
+export function backstageAttackChance(manager: Manager, settings: WorldSettings): number {
+  const muscle = (manager.protection ?? 0) / 100;
+  const willing = manager.deviousness / 100;
+  if (muscle <= 0) return 0;
+  return clamp(muscle * willing * settings.bodyguardBackstageChance, 0, 1);
+}
+
+/** What it costs the man who got jumped. */
+export function backstageDamage(manager: Manager, settings: WorldSettings): number {
+  return ((manager.protection ?? 0) / 100) * settings.bodyguardBackstageDamage;
+}
+
+export function backstageLine(managerName: string, victimName: string): string {
+  return `${victimName} was jumped in the corridor before the bell. Nobody saw who, but ${managerName} was not where he was supposed to be.`;
+}
+
 /** Is this pairing actually worth the fee? Shown as words, never a number. */
 export type ManagerFit = 'Wasted on them' | 'Marginal' | 'Good fit' | 'Exactly what they need';
 

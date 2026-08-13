@@ -598,6 +598,10 @@ export function defaultWorldSettings(): WorldSettings {
     managerTalentPresenceShare: 0.75,
     managerTalentRingScale: 0.35,
     managerTalentFeeToWage: 0.9,
+    // A bodyguard can be put in a match and will not be embarrassed. Still
+    // short of an actual wrestler — standing behind somebody is not the same
+    // job as working a card — but a long way clear of a mouthpiece.
+    managerTalentMuscleBonus: 0.45,
     // Rolled per graduating class, so roughly one new manager every few
     // years. Deliberately thin: most of the pool should arrive by a wrestler
     // moving into a suit or a natural talker walking in off the street, both
@@ -624,6 +628,12 @@ export function defaultWorldSettings(): WorldSettings {
     // worth nothing on the microphone and a great deal to somebody who keeps
     // getting hurt. The two jobs are deliberately separate.
     managerInjuryShieldMax: 0.35,
+    // ...and what he does with the other half of the job. Needs somebody both
+    // willing and capable, which most of the pool is not: at the very worst
+    // pairing it is about one match in nine, and it costs the victim a real
+    // slice of the condition he was going to wrestle on.
+    bodyguardBackstageChance: 0.14,
+    bodyguardBackstageDamage: 18,
     managerPopularityBoostMax: 0.35,
     managerInterferenceWeight: 1.6,
     managerSelfMadePenalty: 0.15,

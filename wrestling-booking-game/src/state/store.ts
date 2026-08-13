@@ -243,6 +243,7 @@ import { rollTamperingAttempts } from '../engine/world/tampering';
 import { deriveCareerStatus } from '../engine/career/status';
 import { rollRetirement, rollComeback, retire, unretire, RETIREMENT_REASON_TEXT } from '../engine/career/retirement';
 import { rollDeath, DEATH_CAUSE_TEXT } from '../engine/career/mortality';
+import { backstageAttackChance, backstageDamage, backstageLine } from '../engine/sim/ringside';
 import { annualInductions } from '../engine/career/hallOfFame';
 import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult } from '../engine/career/awards';
 import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
@@ -2843,6 +2844,47 @@ export const useGameStore = create<GameStore>()(
             couldNotContinueIds: [...stoppedTonight],
             settings: world.settings,
           });
+          // ...and whoever was got in the corridor before it started.
+          //
+          // Muscle at ringside is not only a shield. A bodyguard who is
+          // willing and capable finds the man his client is wrestling before
+          // the bell, and the victim works the match on what he has left.
+          // §0: it is in the write-up, because a wrestler quietly starting a
+          // match twenty points down is exactly the silent change that is not
+          // allowed. See sim/ringside.ts.
+          for (const assignment of segment.managerIds ?? []) {
+            const heavy = findManager(world, assignment.managerId);
+            if (!heavy) continue;
+            const odds = backstageAttackChance(heavy, world.settings);
+            if (odds <= 0 || !chance(rng, odds)) continue;
+            const victim = participantWrestlers.find((w) =>
+              segment.participants.some((p) => p.wrestlerId === w.id && p.side !== assignment.forSide),
+            );
+            if (!victim) continue;
+            victim.health = clamp(victim.health - backstageDamage(heavy, world.settings), 0, 100);
+            victim.energy = clamp(victim.energy - backstageDamage(heavy, world.settings), 0, 100);
+            tonightsBeats.push({
+              participantIds: [victim.id],
+              kind: 'interference',
+              text: backstageLine(heavy.name, victim.name),
+            });
+            // The office does not need to catch him to have an opinion about
+            // a pattern of this. Written against the person, not the ringside
+            // record — a manager is a wrestler with role 'manager' now, and
+            // that is where his file lives.
+            const asPerson = world.wrestlers[heavy.wrestlerId ?? heavy.id];
+            if (asPerson) {
+              const file = disciplineOf(asPerson);
+              const sanction = sanctionFor(
+                file,
+                'conduct',
+                asPerson.contract?.weeklyRate ?? world.settings.contractBaseWeeklyRate,
+                world.settings,
+              );
+              applySanction(file, 'conduct', sanction, world.week);
+            }
+          }
+
           // Whoever the official caught answers for it. Until now getting
           // caught cost his client the match and cost the manager nothing at
           // all, so a repeat offender was indistinguishable from somebody who

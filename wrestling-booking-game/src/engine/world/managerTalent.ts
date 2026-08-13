@@ -57,22 +57,27 @@ export function asManagerTalent(
   const s = settings;
   const age = archetype.age ?? randInt(rng, s.managerTalentAgeMin, s.managerTalentAgeMax);
 
-  return {
+  // Whatever they were as a wrestler, it is not why anybody hires them —
+    // unless hitting people *is* why. A bodyguard keeps most of what he had:
+    // he can be put in a match and will not be embarrassed, which a
+    // mouthpiece will. Still short of an actual wrestler, because standing
+    // behind somebody is not the same job as working a card.
+    const ringScale =
+      s.managerTalentRingScale +
+      ((archetype.protection ?? 0) / 100) * s.managerTalentMuscleBonus;
+
+    return {
     ...person,
     name: archetype.name,
     age,
-    // They have been in the business a long time — that is how you get this
-    // job — so their debut is decades back, not this year.
     debutYear: currentYear - Math.max(1, age - s.managerTalentDebutAge),
     charisma: archetype.micWork,
     popularity: clamp(Math.round(archetype.presence * s.managerTalentPresenceShare), 0, 100),
-    // A crook is a heel. Inverted, because deviousness runs the other way.
     alignment: clamp(Math.round(50 - archetype.deviousness / 2) * 2 - 50, -100, 100),
-    // Whatever they were as a wrestler, it is not why anybody hires them.
-    skill: clamp(Math.round(person.skill * s.managerTalentRingScale), 5, 99),
-    agility: clamp(Math.round(person.agility * s.managerTalentRingScale), 5, 99),
-    stamina: clamp(Math.round(person.stamina * s.managerTalentRingScale), 5, 99),
-    strength: clamp(Math.round(person.strength * s.managerTalentRingScale), 5, 99),
+    skill: clamp(Math.round(person.skill * ringScale), 5, 99),
+    agility: clamp(Math.round(person.agility * ringScale), 5, 99),
+    stamina: clamp(Math.round(person.stamina * ringScale), 5, 99),
+    strength: clamp(Math.round(person.strength * ringScale), 5, 99),
     role: 'manager',
     careerStatus: 'journeyman',
     cardStatus: 'midcard',

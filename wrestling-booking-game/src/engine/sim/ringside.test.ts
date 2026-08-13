@@ -4,6 +4,9 @@ import { mulberry32 } from '../rng';
 import {
   managerEffect,
   caughtCheatingChance,
+  backstageAttackChance,
+  backstageDamage,
+  backstageLine,
   managedPopularityMultiplier,
   type Manager,
   type Referee,
@@ -518,5 +521,40 @@ describe('what a promo goes after', () => {
 
   it('has nothing to say when nobody is being addressed', () => {
     expect(jabAt({ speaker: monster, target: null }, true, mulberry32(4))).toBeNull();
+  });
+});
+
+describe('the corridor', () => {
+  const willing: Manager = {
+    id: 'm-heavy', name: 'The Heavy', micWork: 20, presence: 70, deviousness: 90,
+    negotiation: 30, protection: 90, feePerShow: 2000, blurb: '', age: 44,
+  };
+
+  it('takes somebody both willing and capable', () => {
+    const capableButStraight = { ...willing, deviousness: 5 };
+    const willingButSmall = { ...willing, protection: 0 };
+    expect(backstageAttackChance(willing, settings)).toBeGreaterThan(
+      backstageAttackChance(capableButStraight, settings),
+    );
+    expect(backstageAttackChance(willingButSmall, settings)).toBe(0);
+  });
+
+  it('is rare even at its worst pairing', () => {
+    // A thing that happened, not a thing that happens.
+    expect(backstageAttackChance(willing, settings)).toBeLessThan(0.2);
+  });
+
+  it('costs the victim real condition, scaled by how big he is', () => {
+    expect(backstageDamage(willing, settings)).toBeGreaterThan(
+      backstageDamage({ ...willing, protection: 20 }, settings),
+    );
+  });
+
+  it('says it happened, and names who was not where he should have been', () => {
+    // §0: a wrestler starting a match twenty points down without a sentence
+    // explaining it is exactly the silent change that is not allowed.
+    const line = backstageLine('The Heavy', 'Duke Rawlins');
+    expect(line).toContain('The Heavy');
+    expect(line).toContain('Duke Rawlins');
   });
 });
