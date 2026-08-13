@@ -2024,6 +2024,10 @@ export interface WorldSettings {
   managerOpponentPenaltyMax: number;
   /** How often a manager actually pulls somebody's attention. */
   managerDistractionChance: number;
+  /** How much better a mouthpiece has to be before the office hands over. */
+  autoFillMouthpieceGap: number;
+  /** How much of a match slot a promo is worth on a rival's card. */
+  promoAsMatchShare: number;
   managerPopularityBoostMax: number;
   managerInterferenceWeight: number;
   /** How much leaning on a mouthpiece stunts what the client builds alone. */

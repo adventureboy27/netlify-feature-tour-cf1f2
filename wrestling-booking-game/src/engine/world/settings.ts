@@ -616,6 +616,9 @@ export function defaultWorldSettings(): WorldSettings {
     // notices, and the write-up says so when it happens.
     managerOpponentPenaltyMax: 0.12,
     managerDistractionChance: 0.18,
+    // A manager only takes the microphone off somebody clearly worse at it.
+    autoFillMouthpieceGap: 15,
+    promoAsMatchShare: 6,
     managerPopularityBoostMax: 0.35,
     managerInterferenceWeight: 1.6,
     managerSelfMadePenalty: 0.15,

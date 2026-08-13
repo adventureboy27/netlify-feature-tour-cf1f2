@@ -1705,6 +1705,64 @@ export const useGameStore = create<GameStore>()(
           .map((id) => world.wrestlers[id])
           .filter((w): w is Wrestler => Boolean(w) && !alreadyBooked.has(w!.id) && canWork(w!, world.settings, world.week));
 
+        // The microphone, first.
+        //
+        // Fill the card only ever filled *matches*, so an auto-played save
+        // never cut a promo — which meant a whole system with a UI, a topic
+        // list and a show-rating contribution ran zero times unless the player
+        // built every card by hand. It also meant no manager was ever booked
+        // as a mouthpiece, so the one thing a manager is best at never
+        // happened either.
+        //
+        // The office books the obvious thing: the best talker on the roster,
+        // aimed at somebody they already have a feud with when there is one.
+        const talkers = [...available].sort((a, b) => b.charisma - a.charisma);
+        const speaking = new Set<Id>();
+        for (const slot of world.currentPromos) {
+          if (slot.kind === 'confrontation' || slot.promoSpeakerId) continue;
+          const speaker = talkers.find((w) => !speaking.has(w.id));
+          if (!speaker) break;
+
+          // Somebody they are already in with, if anybody. A promo aimed at a
+          // live feud is worth more than one aimed at nobody — see promo.ts.
+          const feud = world.rivalries.find(
+            (r) => r.resolvedWeek === null && r.participantIds.includes(speaker.id),
+          );
+          const targetId = feud?.participantIds.find((id) => id !== speaker.id) ?? null;
+          const target = targetId ? world.wrestlers[targetId] : undefined;
+          const holdsTitle = world.titles.some(
+            (t) => t.promotionId === world.promotion.id && t.currentHolderIds.includes(speaker.id),
+          );
+
+          const topicId: PromoTopicId = target
+            ? 'continueFeud'
+            : holdsTitle
+              ? 'championshipAddress'
+              : 'callOutLockerRoom';
+          if (!promoIsValid(topicId, speaker, target ?? null, holdsTitle)) continue;
+
+          slot.promoSpeakerId = speaker.id;
+          slot.promoTopicId = topicId;
+          slot.promoTargetId = target?.id ?? null;
+          // And a mouthpiece for somebody who cannot talk, which is the whole
+          // reason to carry one — see sim/ringside.ts.
+          // Off the roster rather than off `staffManagers`, which only fills
+          // when somebody *changes role* — a manager signed as a manager was
+          // never in it, so the lookup found nobody however many you had.
+          const ownMouth = speaker.charisma;
+          const mouthpiece = world.promotion.rosterIds
+            .map((id) => world.wrestlers[id])
+            .find(
+              (m): m is Wrestler =>
+                Boolean(m) &&
+                m!.role === 'manager' &&
+                !m!.deceased &&
+                m!.charisma > ownMouth + world.settings.autoFillMouthpieceGap,
+            );
+          slot.promoMouthpieceId = mouthpiece?.id ?? null;
+          speaking.add(speaker.id);
+        }
+
         const emptySlots = world.currentCard
           .map((segment, index) => ({ segment, index }))
           .filter(({ segment }) => new Set(segment.participants.map((p) => p.side)).size < 2);

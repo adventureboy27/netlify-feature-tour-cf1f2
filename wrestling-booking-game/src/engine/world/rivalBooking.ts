@@ -44,6 +44,7 @@ function asSegment(match: BookedMatch): Segment {
   } as Segment;
 }
 import { houseStyleRatingBonus } from '../sim/houseStyle';
+import { resolvePromo, promoShowContribution } from '../sim/promo';
 import { resolveTitleOutcomes, eligibleTitles, matchTitlePrestige, type TitleOutcome } from '../sim/titleMatch';
 import { identityOf } from '../../data/promotionIdentity';
 import { stipulationById } from '../../data/stipulations';
@@ -122,10 +123,25 @@ export interface RivalMatch {
   winnerSide: number | null;
 }
 
+/** A talking segment on a rival's show. */
+export interface RivalPromo {
+  speakerId: Id;
+  targetId: Id | null;
+  quality: number;
+  text: string;
+}
+
 export interface RivalShow {
   promotionId: Id;
   week: number;
   matches: RivalMatch[];
+  /**
+   * What they said. Rival cards were matches and nothing else, which made
+   * talking a thing only the player's company could do — and the whole point
+   * of this module is that the AI books the way the player does and does not
+   * get a different rulebook.
+   */
+  promos: RivalPromo[];
   showRating: number;
   showStars: number;
 }
@@ -387,12 +403,48 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
   });
 
   const slotWeights = TV_SLOT_WEIGHTS.slice(0, matches.length);
+  // ...and somebody talks.
+  //
+  // The office's best mouth, aimed at a live feud when there is one — the
+  // same obvious call the player's Fill the card makes, because the AI is
+  // supposed to book the way the player books rather than to a private set
+  // of rules. Without this, a talking segment was something only the player's
+  // company had, which is a permanent advantage nobody earned.
+  const promos: RivalPromo[] = [];
+  const spoken = new Set<Id>();
+  const mouths = [...ctx.available].sort((a, b) => b.charisma - a.charisma);
+  for (let i = 0; i < ctx.settings.promoSlotsPerCard; i++) {
+    const speaker = mouths.find((w) => !spoken.has(w.id));
+    if (!speaker) break;
+    spoken.add(speaker.id);
+
+    const opponent = mouths.find((w) => w.id !== speaker.id) ?? null;
+    const promo = resolvePromo(rng, {
+      speaker,
+      target: opponent,
+      mouthpieceCharisma: null,
+      topicId: opponent ? 'continueFeud' : 'callOutLockerRoom',
+      existingHeat: 0,
+      settings: ctx.settings,
+    });
+    promos.push({
+      speakerId: speaker.id,
+      targetId: opponent?.id ?? null,
+      quality: promo.quality,
+      text: promo.text,
+    });
+    // Talking counts toward the night, at the same weight it does on the
+    // player's card — a card of ten promos is not a wrestling show anywhere.
+    ratings.push(promoShowContribution(promo.quality, ctx.settings) * ctx.settings.promoAsMatchShare);
+  }
+
   const showRating = clamp(computeShowRating(ratings, slotWeights), 0, 100);
 
   return {
     promotionId: ctx.promotion.id,
     week: ctx.week,
     matches,
+    promos,
     showRating,
     showStars: ratingToStars(showRating),
   };
