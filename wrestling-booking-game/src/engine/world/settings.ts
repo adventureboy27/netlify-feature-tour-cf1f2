@@ -529,6 +529,14 @@ export function defaultWorldSettings(): WorldSettings {
     // Six points of win probability to his own man and four off the other is
     // enough to matter across a feud and never enough to be a guarantee.
     managerWinBonusMax: 0.06,
+    // Managers are people now, not a rental list. Old for the job, poor in
+    // the ring, and priced off what they used to charge a night.
+    managerTalentAgeMin: 46,
+    managerTalentAgeMax: 72,
+    managerTalentDebutAge: 24,
+    managerTalentPresenceShare: 0.75,
+    managerTalentRingScale: 0.35,
+    managerTalentFeeToWage: 0.9,
     // ...and the price of it. A maximally crooked manager in front of a
     // maximally sharp official is caught roughly one match in six; a good
     // talker cuts that by up to two thirds, and a bent referee never sees a

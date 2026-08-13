@@ -1954,6 +1954,13 @@ export interface WorldSettings {
   managerRatingBonusMax: number;
   /** How much a manager can tilt his man's chances, and cost the other man's. */
   managerWinBonusMax: number;
+  /** Seeding managers as signable people. See engine/world/managerTalent.ts. */
+  managerTalentAgeMin: number;
+  managerTalentAgeMax: number;
+  managerTalentDebutAge: number;
+  managerTalentPresenceShare: number;
+  managerTalentRingScale: number;
+  managerTalentFeeToWage: number;
   /** How often a crooked manager is caught, and how far talking gets him. */
   managerCaughtChanceMax: number;
   managerSlicknessMax: number;
