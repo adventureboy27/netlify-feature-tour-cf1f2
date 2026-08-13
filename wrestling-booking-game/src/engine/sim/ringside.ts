@@ -21,6 +21,7 @@
 
 import { clamp } from '../rng';
 import type { Ledger } from '../career/ledger';
+import type { DisciplineRecord } from '../career/discipline';
 import type { Id, Referee, Wrestler, WorldSettings } from '../types';
 import { effectiveCompetence } from './referees';
 
@@ -37,6 +38,12 @@ export interface Manager {
   presence: number; // 0-100
   /** Willingness to cheat for their client. Feeds interference finishes. */
   deviousness: number; // 0-100
+  /**
+   * How hard they argue for their client's money. The fourth skill, and the
+   * one that costs the promotion rather than the wrestler — see
+   * career/representation.ts.
+   */
+  negotiation?: number; // 0-100
   /** Fee per appearance. Zero for one of your own — already on the payroll. */
   feePerShow: number;
   /**
@@ -50,6 +57,8 @@ export interface Manager {
   wrestlerId?: Id;
   /** What their people did, lifetime and per company. See career/ledger.ts. */
   ledger?: Ledger;
+  /** Managers answer to the office like anybody else. */
+  discipline?: DisciplineRecord;
 }
 
 export interface ManagerEffect {
@@ -332,7 +341,18 @@ export interface RingsideContext {
    * turns a manager into a thumb on the scale — without it the sim knows
    * somebody is out there and not who it helps.
    */
-  managers: { manager: Manager; client: Wrestler; side?: number }[];
+  managers: {
+    manager: Manager;
+    client: Wrestler;
+    side?: number;
+    /**
+     * How much of himself he brings to this corner, 0-1. A man with six
+     * clients is not really in any of them — see career/representation.ts.
+     * Defaults to all of it, which is what a hired-for-the-night manager
+     * gives you.
+     */
+    attention?: number;
+  }[];
   referee: Referee | null;
   guestReferee: Wrestler | null;
   /**
@@ -368,6 +388,8 @@ export interface RingsideTotals {
   /** Per side: the odds their own corner gets them thrown out, and whose. */
   caughtRisk: Record<number, number>;
   caughtBy: Record<number, string>;
+  /** The same, by id, because the office fines a person rather than a name. */
+  caughtById: Record<number, string>;
   /** Per client id: the multiplier on what tonight does for their standing. */
   popularityMultipliers: Record<string, number>;
 }
@@ -383,11 +405,24 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   /** Odds the corner gets its own man disqualified, per side. */
   const caughtRisk: Record<number, number> = {};
   const caughtBy: Record<number, string> = {};
+  const caughtById: Record<number, string> = {};
   /** Per client: what tonight is worth to them for having a mouthpiece. */
   const popularityMultipliers: Record<string, number> = {};
 
-  for (const { manager, client } of ctx.managers) {
-    const effect = managerEffect(manager, client, ctx.settings);
+  for (const { manager, client, attention: focus } of ctx.managers) {
+    const raw = managerEffect(manager, client, ctx.settings);
+    // Everything he does, scaled by how much of him is actually here. This is
+    // the counterweight to a percentage man wanting more names: a fat book
+    // makes him worse in every corner he stands in.
+    const here = focus ?? 1;
+    const effect: ManagerEffect = {
+      ratingBonus: raw.ratingBonus * here,
+      clientPopularityMultiplier: 1 + (raw.clientPopularityMultiplier - 1) * here,
+      interferenceWeight: 1 + (raw.interferenceWeight - 1) * here,
+      selfMadePenalty: raw.selfMadePenalty * here,
+      clientWinBonus: raw.clientWinBonus * here,
+      opponentPenalty: raw.opponentPenalty * here,
+    };
     ratingBonus += effect.ratingBonus;
     interferenceWeight *= effect.interferenceWeight;
     cost += manager.feePerShow;
@@ -401,11 +436,15 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
       // ...and the chance the official sees him do it, which costs his man
       // the match rather than costing the manager anything. Kept per side so
       // the sim knows who eats the disqualification.
-      popularityMultipliers[client.id] = managedPopularityMultiplier(manager, client, ctx.settings);
-      const caught = caughtCheatingChance(manager, ctx.referee, ctx.settings);
+      popularityMultipliers[client.id] = Math.max(
+        0,
+        effect.clientPopularityMultiplier - effect.selfMadePenalty / 100,
+      );
+      const caught = caughtCheatingChance(manager, ctx.referee, ctx.settings) * here;
       if (caught > 0) {
         caughtRisk[side] = Math.max(caughtRisk[side] ?? 0, caught);
         caughtBy[side] = manager.name;
+        caughtById[side] = manager.wrestlerId ?? manager.id;
       }
     }
   }
@@ -432,6 +471,7 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
     winShift,
     caughtRisk,
     caughtBy,
+    caughtById,
     popularityMultipliers,
     ratingBonus: clamp(ratingBonus, -20, 20),
     screwyFinishWeight,

@@ -81,6 +81,7 @@ import { ppvCalendarFor } from '../data/ppvNames';
 import { defaultSchedule, scheduleForRival } from '../engine/world/schedule';
 import type { ImpromptuShow } from '../engine/world/impromptu';
 import { seedManagerTalent } from '../engine/world/managerTalent';
+import type { Representation } from '../engine/career/representation';
 import { MANAGERS } from '../data/ringsidePool';
 import { DEFAULT_PACE } from '../data/pacing';
 import type { AttendanceRecord } from '../engine/world/territories';
@@ -287,6 +288,11 @@ export interface World {
    * rather than to the pattern. See engine/world/impromptu.ts.
    */
   impromptuShows: ImpromptuShow[];
+  /**
+   * Who represents whom, and for what percentage. A manager earns from his
+   * book rather than from a nightly fee — see engine/career/representation.ts.
+   */
+  representations: Representation[];
   /** Everyone who has died, oldest first. §19's memorial wall. */
   memoriam: Passing[];
   /** The hall of fame, in induction order. */
@@ -706,6 +712,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     attendanceRecords: {},
     memoriam: [],
     impromptuShows: [],
+    representations: [],
     hallOfFame: [],
     broadcastDealId: null,
     sponsorIds: [],

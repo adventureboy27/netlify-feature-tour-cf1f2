@@ -156,6 +156,14 @@ import {
   type LedgerRole,
 } from '../engine/career/ledger';
 import { ledgerOf } from '../engine/career/ledgerAccess';
+import { attentionOf, cutOf, representativeOf } from '../engine/career/representation';
+import {
+  applySanction,
+  disciplineOf,
+  sanctionFor,
+  suspensionLine,
+  tickSuspension,
+} from '../engine/career/discipline';
 import { totalsFor } from '../engine/career/ledger';
 import {
   afterLine,
@@ -1681,7 +1689,7 @@ export const useGameStore = create<GameStore>()(
         const alreadyBooked = new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
         const available = world.promotion.rosterIds
           .map((id) => world.wrestlers[id])
-          .filter((w): w is Wrestler => Boolean(w) && !alreadyBooked.has(w!.id) && canWork(w!, world.settings));
+          .filter((w): w is Wrestler => Boolean(w) && !alreadyBooked.has(w!.id) && canWork(w!, world.settings, world.week));
 
         const emptySlots = world.currentCard
           .map((segment, index) => ({ segment, index }))
@@ -1928,7 +1936,7 @@ export const useGameStore = create<GameStore>()(
                 .map((id) => world.wrestlers[id])
                 .filter(
                   (w): w is Wrestler =>
-                    Boolean(w) && !bookedNow.has(w!.id) && !missingTonight.has(w!.id) && canWork(w!, world.settings),
+                    Boolean(w) && !bookedNow.has(w!.id) && !missingTonight.has(w!.id) && canWork(w!, world.settings, world.week),
                 );
               const standIn = pickReplacement(rng, absent, available, world.settings);
               if (!standIn) {
@@ -2103,8 +2111,11 @@ export const useGameStore = create<GameStore>()(
                 // Which corner. Without it the sim knows somebody is out there
                 // and not who it helps — see sim/ringside.ts.
                 side: m.forSide,
+                // How thin his book has him spread. A percentage man with six
+                // clients is not really in anybody's corner.
+                attention: attentionOf(world.representations, m.managerId, world.settings),
               }))
-              .filter((m): m is { manager: NonNullable<typeof m.manager>; client: Wrestler; side: number } =>
+              .filter((m): m is { manager: NonNullable<typeof m.manager>; client: Wrestler; side: number; attention: number } =>
                 Boolean(m.manager && m.client),
               ),
             referee: assignedReferee,
@@ -2327,6 +2338,37 @@ export const useGameStore = create<GameStore>()(
             });
             if (casualty) {
               putOut(casualty);
+              // Somebody got hurt in a match two men genuinely hate each
+              // other in. That is not a wrestling accident, and the office
+              // treats it as what it is — the one violation that skips every
+              // rung of the ladder. See career/discipline.ts.
+              //
+              // The blame goes on the opponent rather than on the victim,
+              // which is the whole point: shoot heat is mutual, and the man
+              // who is still standing is the one who has to answer for it.
+              const badBlood = rivalry?.shootHeat ?? 0;
+              if (badBlood >= world.settings.disciplineShootHeatBar && casualty.weeks >= world.settings.ledgerStoppageWeeks) {
+                const blamed = participantWrestlers.find((other) => other.id !== person.id);
+                if (blamed) {
+                  const file = disciplineOf(blamed);
+                  const sanction = sanctionFor(
+                    file,
+                    'deliberateInjury',
+                    blamed.contract?.weeklyRate ?? world.settings.contractBaseWeeklyRate,
+                    world.settings,
+                  );
+                  applySanction(file, 'deliberateInjury', sanction, world.week);
+                  if (sanction.kind === 'suspended') world.promotion.bankBalance += sanction.amount;
+                  world.weeklyNews.push(
+                    wire(
+                      'misfortune',
+                      `${suspensionLine(blamed.name, sanction) ?? sanction.note} ${person.name} is the one in hospital.`,
+                      world.week,
+                      'normal',
+                    ),
+                  );
+                }
+              }
               // A bad one stops the match. That is a DNF on his record and a
               // win on the other man's — never a loss, because a man carried
               // out did not lose. Minor knocks do not stop anything; people
@@ -2718,6 +2760,31 @@ export const useGameStore = create<GameStore>()(
             couldNotContinueIds: [...stoppedTonight],
             settings: world.settings,
           });
+          // Whoever the official caught answers for it. Until now getting
+          // caught cost his client the match and cost the manager nothing at
+          // all, so a repeat offender was indistinguishable from somebody who
+          // did it once. See career/discipline.ts.
+          if (result.caughtManagerId) {
+            const culprit = world.wrestlers[result.caughtManagerId];
+            if (culprit) {
+              const file = disciplineOf(culprit);
+              const sanction = sanctionFor(
+                file,
+                'cheating',
+                culprit.contract?.weeklyRate ?? world.settings.contractBaseWeeklyRate,
+                world.settings,
+              );
+              applySanction(file, 'cheating', sanction, world.week);
+              if (sanction.kind === 'fined' || sanction.kind === 'suspended') {
+                world.promotion.bankBalance += sanction.amount;
+              }
+              const announced = suspensionLine(culprit.name, sanction);
+              world.weeklyNews.push(
+                wire('signing', announced ?? `${culprit.name}. ${sanction.note}`, world.week, announced ? 'normal' : 'minor'),
+              );
+            }
+          }
+
           for (const change of changes) {
             const w = world.wrestlers[change.wrestlerId];
             if (w) applyAftermath(w, change, world.settings, result.rating);
@@ -3095,9 +3162,19 @@ export const useGameStore = create<GameStore>()(
                 isPPV,
               })
             : computeDownsideGuarantee(member.contract);
-          // Onto their own books as well as off yours. Lifetime earnings and
-          // what each company ever paid them — see career/ledger.ts.
-          creditPay(ledgerOf(member), paid + (member.contract.weeklyRate ?? 0));
+          // A manager takes his percentage out of the client's purse rather
+          // than off the promotion's bill — see career/representation.ts. The
+          // wrestler's books show what he kept; the manager's show what he
+          // took. The promotion pays the same either way, which is the point:
+          // you are billed for the agent being good, not for the agent.
+          const gross = paid + (member.contract.weeklyRate ?? 0);
+          const rep = representativeOf(world.representations, member.id);
+          const takenByAgent = rep ? cutOf(gross, rep) : 0;
+          creditPay(ledgerOf(member), gross - takenByAgent);
+          if (rep && takenByAgent > 0) {
+            const agent = world.wrestlers[rep.managerId];
+            if (agent) creditPay(ledgerOf(agent), takenByAgent);
+          }
           return sum + paid;
         }, 0);
         payroll =
@@ -3510,7 +3587,7 @@ export const useGameStore = create<GameStore>()(
           if (rival.closedWeek !== null) continue;
           const available = rival.rosterIds
             .map((id) => world.wrestlers[id])
-            .filter((w): w is Wrestler => Boolean(w) && canWork(w!, world.settings));
+            .filter((w): w is Wrestler => Boolean(w) && canWork(w!, world.settings, world.week));
 
           const show = runRivalShow(rng, {
             promotion: rival,
@@ -4620,6 +4697,15 @@ export const useGameStore = create<GameStore>()(
         for (const w of Object.values(world.wrestlers)) {
           if (w.deceased || w.careerStatus === 'retired') continue;
           restWeek(w, worked.has(w.id), world.settings, recoveryFor(w.promotionId));
+          // A served suspension is served. §0: the player is told he is back,
+          // rather than finding out by noticing he is bookable again.
+          if (w.discipline && tickSuspension(w.discipline, world.week)) {
+            if (w.promotionId === world.promotion.id) {
+              world.weeklyNews.push(
+                wire('signing', `${w.name} has served his suspension and is available again.`, world.week, 'minor'),
+              );
+            }
+          }
         }
 
         // Who was in a match with whom tonight. A bond is built by working,

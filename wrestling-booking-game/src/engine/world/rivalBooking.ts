@@ -17,6 +17,7 @@
 // talent away and their shows get worse.
 
 import type { Rng } from '../rng';
+import { isSuspended } from '../career/discipline';
 import { chance, clamp, randInt } from '../rng';
 import type { FinishType, Id, MatchRules, Promotion, Segment, Stable, Title, Wrestler, WorldSettings } from '../types';
 import { availableTeams } from './tagTeams';
@@ -151,7 +152,7 @@ export interface RivalBookingContext {
  * Can this person work tonight? Injured and exhausted wrestlers sit, the same
  * as they would on the player's card.
  */
-export function canWork(w: Wrestler, settings: WorldSettings): boolean {
+export function canWork(w: Wrestler, settings: WorldSettings, week?: number): boolean {
   // An injured wrestler sits, unless the booker has explicitly signed off on
   // them working hurt — which today only happens when a champion is sent out
   // to defend rather than vacate. See world/titleDefence.ts.
@@ -161,6 +162,10 @@ export function canWork(w: Wrestler, settings: WorldSettings): boolean {
   // roster. Gating it here covers the office's card and every rival's, so
   // there is one answer to "can this person have a match" in the codebase.
   if (w.role !== 'wrestler') return false;
+  // A suspended man is off every card, yours and everybody else's. Gated
+  // here with the rest of it so there is still one answer in the codebase to
+  // "can this person have a match" — see career/discipline.ts.
+  if (week !== undefined && isSuspended(w.discipline, week)) return false;
   return w.health >= settings.rivalMinHealthToBook;
 }
 

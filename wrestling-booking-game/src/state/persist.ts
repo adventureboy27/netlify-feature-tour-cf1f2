@@ -120,7 +120,7 @@ const SLOT_KEY = 'wbg.save.v1';
 // version-23 save has none of the newPromotion* settings, so the weekly roll
 // would compare a headcount against undefined and never open anything — the
 // business would go back to folding its way to nothing.
-const SCHEMA_VERSION = 30;
+const SCHEMA_VERSION = 31;
 
 export interface SaveFile {
   schema: number;

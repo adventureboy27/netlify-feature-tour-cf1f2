@@ -433,6 +433,8 @@ export interface Wrestler {
    * everything that writes to it goes through `ledgerOf`, which fills one in.
    */
   ledger?: Ledger;
+  /** Violations, fines and suspensions. See engine/career/discipline.ts. */
+  discipline?: DisciplineRecord;
   careerStatus: CareerStatus;
   /** Week at which careerHighPopularity was set — used to date a decline. */
   careerHighWeek: number;
@@ -666,6 +668,7 @@ import type { PerkId } from '../data/perks';
 // WorldSettings from here) is erased at compile time.
 import type { PromotionSchedule } from './world/schedule';
 import type { Ledger } from './career/ledger';
+import type { DisciplineRecord } from './career/discipline';
 
 export type ContractType = 'fullTime' | 'partTime' | 'perAppearance' | 'developmental' | 'legends';
 
@@ -1954,6 +1957,36 @@ export interface WorldSettings {
   managerRatingBonusMax: number;
   /** How much a manager can tilt his man's chances, and cost the other man's. */
   managerWinBonusMax: number;
+  // --- A manager's cut, engine/career/representation.ts --------------------
+  /** The range a manager asks for, driven by how hard he argues. */
+  repCutMin: number;
+  repCutMax: number;
+  /** How much a good agent adds to what his client demands from you. */
+  repRateLiftMax: number;
+  /** How fast a growing book thins a manager out, and the floor under it. */
+  repAttentionFalloff: number;
+  repAttentionFloor: number;
+  /** Attention below which he is doing nobody much good. */
+  repStretchedAt: number;
+  /** Popularity below which a percentage man will not bother. */
+  repWorthCourting: number;
+
+  // --- Discipline, engine/career/discipline.ts -----------------------------
+  /** How many go on file before a fine, and before a suspension. */
+  disciplineWarnUntil: number;
+  disciplineFineUntil: number;
+  /** A fine, in weeks of pay. */
+  disciplineFineWeeks: number;
+  /** How long a suspension runs, and how much each prior adds. */
+  disciplineSuspensionWeeks: number;
+  disciplineRepeatWeeks: number;
+  /** Hurting somebody on purpose skips the ladder. */
+  disciplineInjurySuspensionWeeks: number;
+  disciplineInjuryFineWeeks: number;
+  /** How much a file makes it likelier somebody does it again. */
+  /** Shoot heat above which an injury reads as deliberate. */
+  disciplineShootHeatBar: number;
+  disciplineReoffendWeight: number;
   /** Seeding managers as signable people. See engine/world/managerTalent.ts. */
   managerTalentAgeMin: number;
   managerTalentAgeMax: number;

@@ -73,6 +73,8 @@ export interface MatchSimResult {
   stars: number;
   ratingBreakdown: RatingBreakdownEntry[];
   beats: MatchBeat[];
+  /** Whoever the official caught in the act, so the office can act on it. */
+  caughtManagerId?: string | null;
   winProbabilitiesBySide: Record<number, number>;
   /**
    * Combined injury multiplier for this match — the stipulation's, escalated
@@ -163,9 +165,11 @@ export function simulateMatch(
   // The client eats the disqualification and the manager walks away having
   // cost somebody else a match, which is exactly the shape of the job.
   let caughtManager: string | null = null;
+  let caughtManagerId: string | null = null;
   const cornerRisk = ctx.ringside?.caughtRisk?.[winnerSide] ?? 0;
   if (cornerRisk > 0 && sides.length === 2 && rng.next() < cornerRisk) {
     caughtManager = ctx.ringside?.caughtBy?.[winnerSide] ?? null;
+    caughtManagerId = ctx.ringside?.caughtById?.[winnerSide] ?? null;
     winnerSide = sides.find((sd) => sd !== winnerSide) ?? winnerSide;
   }
 
@@ -285,6 +289,7 @@ export function simulateMatch(
     stars,
     ratingBreakdown: breakdown,
     beats: [...cornerBeat, ...beats],
+    caughtManagerId,
     winProbabilitiesBySide,
     injuryMultiplier:
       (ctx.stipulation?.injuryMult ?? 1) *

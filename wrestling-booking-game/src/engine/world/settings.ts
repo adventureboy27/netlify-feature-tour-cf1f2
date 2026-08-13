@@ -529,6 +529,38 @@ export function defaultWorldSettings(): WorldSettings {
     // Six points of win probability to his own man and four off the other is
     // enough to matter across a feud and never enough to be a guarantee.
     managerWinBonusMax: 0.06,
+    // A manager's cut. The percentage is the earner — the base wage is a
+    // retainer — which is what gives him a reason to want more names.
+    //
+    // The counterweight is attention: at two clients he is at 74% of himself,
+    // at four 48%, at six 36%. So the sweet spot is two or three, a book of
+    // six is a man collecting cheques and doing nobody any good, and the
+    // player can watch it happen without being told a number.
+    repCutMin: 0.08,
+    repCutMax: 0.3,
+    repRateLiftMax: 0.35,
+    repAttentionFalloff: 0.35,
+    repAttentionFloor: 0.25,
+    repStretchedAt: 0.5,
+    repWorthCourting: 35,
+
+    // Discipline. Two on file before it costs money, four before it costs
+    // you a spot on the card — slow enough that one bad night is not a
+    // crisis, fast enough that a repeat offender becomes the booker's
+    // problem rather than only the victim's.
+    disciplineWarnUntil: 2,
+    disciplineFineUntil: 4,
+    disciplineFineWeeks: 2,
+    disciplineSuspensionWeeks: 3,
+    disciplineRepeatWeeks: 2,
+    // Hurting somebody on purpose is not a worse version of working stiff.
+    // Six weeks minimum and a month's pay, first time, no ladder.
+    disciplineInjurySuspensionWeeks: 6,
+    disciplineInjuryFineWeeks: 4,
+    // Real animosity, not a worked feud. Below this an injury is what it
+    // looks like — an accident in a violent job.
+    disciplineShootHeatBar: 55,
+    disciplineReoffendWeight: 0.25,
     // Managers are people now, not a rental list. Old for the job, poor in
     // the ring, and priced off what they used to charge a night.
     managerTalentAgeMin: 46,
