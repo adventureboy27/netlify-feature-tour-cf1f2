@@ -560,6 +560,18 @@ export function defaultWorldSettings(): WorldSettings {
     repWearPenalty: 0.55,
     repWearFloor: 0.35,
     repTooTiredToCourt: 0.8,
+    // Getting out. A deal nobody can end is a trap rather than a deal, and
+    // both sides can see a different half of the problem: the client sees the
+    // bill, the manager sees his diary.
+    repClientPatience: 0.45,
+    repOutgrowsAt: 82,
+    repDropsWhenWornTo: 0.55,
+    repMinWorthKeeping: 40,
+    // What everybody pays to get to work, unless their deal covers it. Set
+    // against a base weekly rate so a two-night week is a noticeable slice of
+    // a hand's purse and pocket change to a main eventer — which is exactly
+    // who ends up with the clause.
+    travelOwnCostPerNight: 85,
 
     // Discipline. Two on file before it costs money, four before it costs
     // you a spot on the card — slow enough that one bad night is not a

@@ -222,6 +222,155 @@ export function wearLabel(
 }
 
 // ---------------------------------------------------------------------------
+// Getting there
+//
+// Travel was a cost the *promotion* paid — per head, per show — and there was
+// a `travelCovered` clause that charged the company extra for it. Which meant
+// the clause bought a wrestler nothing: he was never paying for petrol in the
+// first place, so having somebody else not pay it either was worth precisely
+// zero to him.
+//
+// This is the other side of that. Everybody working pays their own way unless
+// their deal says otherwise, out of the purse they just earned. It makes the
+// clause a real perk with a real price, it makes a heavy schedule cost the
+// *talent* money rather than only fatigue, and for a manager it scales with
+// his book — the same reason a fat book tires him out is the reason it costs
+// him.
+
+/**
+ * What getting to work cost somebody this week.
+ *
+ * `nights` is how many times they had to be somewhere: a card for a wrestler,
+ * a client's corner for a manager. Nobody who sat at home pays anything.
+ */
+export function travelBill(nights: number, covered: boolean, settings: WorldSettings): number {
+  if (covered || nights <= 0) return 0;
+  return Math.round(settings.travelOwnCostPerNight * nights);
+}
+
+/**
+ * What a night on the road is worth avoiding, for pricing the clause.
+ *
+ * A wrestler with a full schedule and no travel clause is giving back a real
+ * slice of his purse, which is what makes "the company pays my travel" worth
+ * arguing for — and worth an agent.
+ */
+export function travelBurden(
+  weeklyRate: number,
+  nights: number,
+  settings: WorldSettings,
+): number {
+  if (weeklyRate <= 0) return 0;
+  return travelBill(nights, false, settings) / weeklyRate;
+}
+
+// ---------------------------------------------------------------------------
+// Ending it
+//
+// A deal nobody can get out of is not a deal, it is a trap. Both sides can
+// walk, for opposite reasons, and neither goes through the promotion — this
+// is between the wrestler and his man. The booker does not get a vote, which
+// is right: you did not sign it.
+
+export type SplitReason =
+  /** The client is paying for a man who is never really there. */
+  | 'notWorthTheCut'
+  /** ...or has simply stopped needing one. */
+  | 'outgrewHim'
+  /** The manager is carrying more than he can, and this one earns least. */
+  | 'droppedForTheBook'
+  /** ...or the client stopped being worth a percentage of. */
+  | 'notEarningEnough';
+
+export interface Split {
+  rep: Representation;
+  by: 'client' | 'manager';
+  reason: SplitReason;
+  note: string;
+}
+
+/**
+ * Would the wrestler sack him?
+ *
+ * The client is the one who can see the bill. He walks when he is paying a
+ * real percentage for somebody who is barely present — which is exactly what
+ * an over-committed manager looks like from underneath — or when he has got
+ * over enough that he no longer needs anybody talking for him.
+ */
+export function clientWouldWalk(
+  rep: Representation,
+  client: Pick<Wrestler, 'charisma' | 'popularity'>,
+  presence: number,
+  settings: WorldSettings,
+): SplitReason | null {
+  const s = settings;
+  // Paying well over the odds for a man who is never there.
+  if (presence < s.repClientPatience && rep.cut >= s.repCutMin) return 'notWorthTheCut';
+  // He can do it himself now. A mouthpiece is for somebody who needs one.
+  if (client.charisma >= s.repOutgrowsAt) return 'outgrewHim';
+  return null;
+}
+
+/**
+ * ...and would the manager drop him?
+ *
+ * The manager can see his own diary. He lets somebody go when he is carrying
+ * more than he can — and it is the client earning him least who goes, not the
+ * newest, because this is a business.
+ */
+export function managerWouldDrop(
+  reps: readonly Representation[],
+  managerId: Id,
+  self: Pick<Wrestler, 'fatigueDebt' | 'energy'> | null,
+  rateOf: (clientId: Id) => number,
+  settings: WorldSettings,
+): { rep: Representation; reason: SplitReason } | null {
+  const s = settings;
+  const book = bookOf(reps, managerId);
+  if (book.length === 0) return null;
+
+  const worst = book.reduce((least, r) =>
+    cutOf(rateOf(r.clientId), r) < cutOf(rateOf(least.clientId), least) ? r : least,
+  );
+
+  // Worn past the point of doing any of them good. Something has to give, and
+  // it is whoever pays him least.
+  if (self && condition(self, s) < s.repDropsWhenWornTo && book.length > 1) {
+    return { rep: worst, reason: 'droppedForTheBook' };
+  }
+  // A percentage of nothing is nothing.
+  if (cutOf(rateOf(worst.clientId), worst) < s.repMinWorthKeeping) {
+    return { rep: worst, reason: 'notEarningEnough' };
+  }
+  return null;
+}
+
+export function splitNote(
+  reason: SplitReason,
+  clientName: string,
+  managerName: string,
+): string {
+  switch (reason) {
+    case 'notWorthTheCut':
+      return `${clientName} has stopped paying ${managerName} to be somewhere else. That is over.`;
+    case 'outgrewHim':
+      return `${clientName} does his own talking now. ${managerName} is out of a client.`;
+    case 'droppedForTheBook':
+      return `${managerName} has let ${clientName} go. He has too many names and not enough nights.`;
+    case 'notEarningEnough':
+      return `${managerName} has stopped representing ${clientName}. A percentage of nothing is nothing.`;
+  }
+}
+
+/** Remove a deal. Returns the list without it. */
+export function endRepresentation(
+  reps: readonly Representation[],
+  clientId: Id,
+): Representation[] {
+  return reps.filter((r) => r.clientId !== clientId);
+}
+
+// ---------------------------------------------------------------------------
 // Saying it
 
 /** What the wrestler's profile shows: the money going out of his purse. */

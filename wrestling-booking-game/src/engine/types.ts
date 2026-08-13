@@ -1981,6 +1981,16 @@ export interface WorldSettings {
   repWearFloor: number;
   /** Condition below which a manager stops taking on anybody new. */
   repTooTiredToCourt: number;
+  /** Presence below which a client stops paying for an absentee. */
+  repClientPatience: number;
+  /** Charisma at which somebody no longer needs anybody talking for them. */
+  repOutgrowsAt: number;
+  /** Condition at which a manager starts letting people go. */
+  repDropsWhenWornTo: number;
+  /** Weekly cut below which a client is not worth the diary space. */
+  repMinWorthKeeping: number;
+  /** What a night on the road costs the person travelling to it. */
+  travelOwnCostPerNight: number;
 
   // --- Discipline, engine/career/discipline.ts -----------------------------
   /** How many go on file before a fine, and before a suspension. */

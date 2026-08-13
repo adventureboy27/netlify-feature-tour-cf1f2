@@ -160,9 +160,14 @@ import {
   askingCut,
   bookOf,
   cutOf,
+  clientWouldWalk,
+  endRepresentation,
+  managerWouldDrop,
   presenceAt,
   representativeOf,
   roadCost,
+  splitNote,
+  travelBill,
   wouldCourt,
 } from '../engine/career/representation';
 import {
@@ -259,6 +264,7 @@ import {
   resizeSchedule,
   scheduleOf,
   segmentsForShow,
+  showsThisWeek,
   type PPVCadence,
 } from '../engine/world/schedule';
 import type { Day } from '../engine/world/calendar';
@@ -3183,7 +3189,17 @@ export const useGameStore = create<GameStore>()(
           const gross = paid + (member.contract.weeklyRate ?? 0);
           const rep = representativeOf(world.representations, member.id);
           const takenByAgent = rep ? cutOf(gross, rep) : 0;
-          creditPay(ledgerOf(member), gross - takenByAgent);
+          // ...and what it cost him to get there. The promotion's travel line
+          // is the trucks and the crew; this is the man's own petrol, and
+          // `travelCovered` is what buys him out of it. Without this the
+          // clause charged the company extra to spare a wrestler a cost he
+          // never had. See career/representation.ts.
+          const ownTravel = travelBill(
+            worked.has(member.id) ? showsThisWeek(world.week, schedule, world.settings).length : 0,
+            member.contract.clauses.includes('travelCovered'),
+            world.settings,
+          );
+          creditPay(ledgerOf(member), gross - takenByAgent - ownTravel);
           if (rep && takenByAgent > 0) {
             const agent = world.wrestlers[rep.managerId];
             if (agent) creditPay(ledgerOf(agent), takenByAgent);
@@ -4810,6 +4826,39 @@ export const useGameStore = create<GameStore>()(
                 world.week,
                 'minor',
               ),
+            );
+          }
+        }
+
+        // ...and deals ending. Both directions, neither through the office:
+        // the client can see the bill, the manager can see his diary, and the
+        // booker does not get a vote because he did not sign it.
+        if (world.settings.repCourtingEnabled) {
+          const rateOf = (id: Id) => world.wrestlers[id]?.contract?.weeklyRate ?? 0;
+
+          for (const deal of [...world.representations]) {
+            const client = world.wrestlers[deal.clientId];
+            const agent = world.wrestlers[deal.managerId];
+            if (!client || !agent) continue;
+
+            const presence = presenceAt(world.representations, agent.id, agent, world.settings);
+            const walked = clientWouldWalk(deal, client, presence, world.settings);
+            const dropped = walked
+              ? null
+              : managerWouldDrop(world.representations, agent.id, agent, rateOf, world.settings);
+
+            const ending = walked
+              ? { reason: walked, by: 'client' as const, rep: deal }
+              : dropped && dropped.rep.clientId === deal.clientId
+                ? { reason: dropped.reason, by: 'manager' as const, rep: dropped.rep }
+                : null;
+            if (!ending) continue;
+
+            world.representations = endRepresentation(world.representations, ending.rep.clientId);
+            // §0: money stops leaving somebody's purse, so the week it stops
+            // is the week it is reported.
+            world.weeklyNews.push(
+              wire('signing', splitNote(ending.reason, client.name, agent.name), world.week, 'minor'),
             );
           }
         }

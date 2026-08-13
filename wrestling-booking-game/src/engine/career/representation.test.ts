@@ -11,8 +11,14 @@ import {
   askingCut,
   attention,
   attentionOf,
+  clientWouldWalk,
   condition,
+  endRepresentation,
+  managerWouldDrop,
   presenceAt,
+  splitNote,
+  travelBill,
+  travelBurden,
   roadCost,
   wearLabel,
   bookLine,
@@ -232,5 +238,83 @@ describe('the road itself wears him out', () => {
     for (const w of [{ fatigueDebt: 50, energy: 50 }, { fatigueDebt: 95, energy: 5 }]) {
       expect(wearLabel(w, settings)).not.toMatch(/\d/);
     }
+  });
+});
+
+describe('getting out of it', () => {
+  const client = { charisma: 30, popularity: 60 };
+
+  it('lets the client sack a man who is never there', () => {
+    // The client is the one who can see the bill, and an over-committed
+    // manager is exactly what an absentee looks like from underneath.
+    expect(clientWouldWalk(rep('m', 'c', 0.25), client, 0.2, settings)).toBe('notWorthTheCut');
+  });
+
+  it('keeps a man who is actually turning up', () => {
+    expect(clientWouldWalk(rep('m', 'c', 0.25), client, 0.95, settings)).toBeNull();
+  });
+
+  it('lets somebody who has learned to talk do their own talking', () => {
+    const grown = { charisma: 95, popularity: 80 };
+    expect(clientWouldWalk(rep('m', 'c', 0.1), grown, 1, settings)).toBe('outgrewHim');
+  });
+
+  it('lets a worn-out manager drop somebody, and drops the one paying least', () => {
+    // Not the newest — the one earning him least. This is a business.
+    const reps = [rep('m', 'rich', 0.3), rep('m', 'poor', 0.3), rep('m', 'mid', 0.3)];
+    const rates: Record<string, number> = { rich: 5000, poor: 200, mid: 1500 };
+    const shot = { fatigueDebt: 95, energy: 10 };
+    const dropped = managerWouldDrop(reps, 'm', shot, (id) => rates[id] ?? 0, settings);
+    expect(dropped!.rep.clientId).toBe('poor');
+    expect(dropped!.reason).toBe('droppedForTheBook');
+  });
+
+  it('will not leave a fresh manager with nobody over one bad client', () => {
+    const fresh = { fatigueDebt: 0, energy: 100 };
+    const reps = [rep('m', 'only', 0.3)];
+    expect(managerWouldDrop(reps, 'm', fresh, () => 5000, settings)).toBeNull();
+  });
+
+  it('drops somebody who is not worth the diary space at all', () => {
+    const reps = [rep('m', 'nobody', 0.1)];
+    const fresh = { fatigueDebt: 0, energy: 100 };
+    expect(managerWouldDrop(reps, 'm', fresh, () => 50, settings)!.reason).toBe('notEarningEnough');
+  });
+
+  it('actually removes the deal, and only that one', () => {
+    const reps = [rep('m', 'a'), rep('m', 'b')];
+    const after = endRepresentation(reps, 'a');
+    expect(after.map((r) => r.clientId)).toEqual(['b']);
+  });
+
+  it('says who ended it and why, by name', () => {
+    for (const reason of ['notWorthTheCut', 'outgrewHim', 'droppedForTheBook', 'notEarningEnough'] as const) {
+      const note = splitNote(reason, 'Duke Rawlins', 'Cornelius Vance III');
+      expect(note).toContain('Duke Rawlins');
+      expect(note).toContain('Cornelius Vance III');
+      expect(note).not.toMatch(/\d/);
+    }
+  });
+});
+
+describe('getting to work', () => {
+  it('costs the person travelling, unless their deal covers it', () => {
+    expect(travelBill(3, false, settings)).toBeGreaterThan(0);
+    expect(travelBill(3, true, settings)).toBe(0);
+  });
+
+  it('costs nothing to somebody who did not have to be anywhere', () => {
+    expect(travelBill(0, false, settings)).toBe(0);
+  });
+
+  it('scales with how many nights they had to turn up', () => {
+    expect(travelBill(5, false, settings)).toBeGreaterThan(travelBill(2, false, settings));
+  });
+
+  it('is a real slice of a hand’s purse and pocket change to a star', () => {
+    // Which is exactly who ends up with the clause, and what makes it worth
+    // arguing for — it bought a wrestler nothing at all before this existed.
+    expect(travelBurden(400, 3, settings)).toBeGreaterThan(0.3);
+    expect(travelBurden(20_000, 3, settings)).toBeLessThan(0.05);
   });
 });
