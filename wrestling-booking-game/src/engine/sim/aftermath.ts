@@ -22,6 +22,8 @@ import { clamp } from '../rng';
 import { perkExposure, perkFatigueRelief, perkRecovery } from '../economy/perks';
 import { promotionFit } from '../career/fit';
 import type { FinishType, Promotion, Stipulation, Wrestler, WorldSettings } from '../types';
+import { creditMatch, type Outcome } from '../career/ledger';
+import { ledgerOf } from '../career/ledgerAccess';
 
 export interface AftermathContext {
   participants: Wrestler[];
@@ -32,6 +34,14 @@ export interface AftermathContext {
   stipulation: Stipulation | null;
   /** True for a main event — the spot amplifies everything. */
   isMainEvent: boolean;
+  /**
+   * Anybody who could not continue. Their night is a DNF rather than a loss:
+   * a man carried out on a stretcher did not lose, and scoring it as one has
+   * been quietly lying about every injury in the game. Per person rather than
+   * per match — the man standing still takes the win, which is how every
+   * combat sport on earth records it. See career/ledger.ts.
+   */
+  couldNotContinueIds?: readonly string[];
   /**
    * The company whose show this is. Optional only so the older tests can call
    * this without one; every real caller has it, and without it nobody's fit
@@ -53,7 +63,7 @@ export interface AftermathChange {
   popularity: number;
   health: number;
   energy: number;
-  outcome: 'win' | 'loss' | 'draw';
+  outcome: Outcome;
 }
 
 /**
@@ -97,15 +107,24 @@ export function computeAftermath(ctx: AftermathContext): AftermathChange[] {
   const cost = (s.matchHealthCost + violence * s.matchHealthCostPerViolence) * (ctx.healthCostMultiplier ?? 1);
   const energyCost = s.matchEnergyCost * (ctx.energyCostMultiplier ?? 1);
 
+  const stopped = new Set(ctx.couldNotContinueIds ?? []);
+
   return ctx.participants.map((w) => {
-    const outcome: AftermathChange['outcome'] = !decisive ? 'draw' : winners.has(w.id) ? 'win' : 'loss';
+    const outcome: Outcome = stopped.has(w.id)
+      ? 'dnf'
+      : !decisive
+        ? 'draw'
+        : winners.has(w.id)
+          ? 'win'
+          : 'loss';
 
     const momentum =
       outcome === 'win'
         ? s.momentumPerWin * spot
         : outcome === 'loss'
           ? -s.momentumPerLoss * spot
-          : // A draw is not a loss, but nobody's stock rose either.
+          : // A draw is not a loss, but nobody's stock rose either — and
+            // neither is a night that got stopped, however it looked.
             -s.momentumPerDraw;
 
     // Popularity moves with the quality of the match for everyone, then the
@@ -148,9 +167,12 @@ export function applyAftermath(
   w.consecutiveWeeksWorked += 1;
   w.fatigueDebt = clamp(w.fatigueDebt + settings.matchFatiguePerMatch, 0, 100);
 
+  // The old three-number record, kept because a great deal reads it, and the
+  // ledger, which is the one that knows *where* it happened.
   if (change.outcome === 'win') w.record.wins += 1;
   else if (change.outcome === 'loss') w.record.losses += 1;
-  else w.record.draws += 1;
+  else if (change.outcome === 'draw') w.record.draws += 1;
+  creditMatch(ledgerOf(w), change.outcome);
 
   if (w.popularity > w.careerHighPopularity) w.careerHighPopularity = w.popularity;
 

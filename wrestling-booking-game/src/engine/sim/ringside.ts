@@ -20,6 +20,7 @@
 // count straight, and is not wrestling on your card that night.
 
 import { clamp } from '../rng';
+import type { Ledger } from '../career/ledger';
 import type { Id, Referee, Wrestler, WorldSettings } from '../types';
 import { effectiveCompetence } from './referees';
 
@@ -41,6 +42,8 @@ export interface Manager {
   blurb: string;
   /** Set when this is one of your wrestlers doing the job. */
   wrestlerId?: Id;
+  /** What their people did, lifetime and per company. See career/ledger.ts. */
+  ledger?: Ledger;
 }
 
 export interface ManagerEffect {

@@ -1169,6 +1169,14 @@ export function defaultWorldSettings(): WorldSettings {
     //   92 -> y1 74 -> y2 63 -> y3 55 -> y4 50 -> y5 46 -> y6 44
     // ...and kept off television for those same six years: still 73.
 
+    // A manager is somebody's manager if they have worked their corner in the
+    // last half year. There is no client list to maintain — being at ringside
+    // is the relationship, which is also the one the player can see.
+    ledgerClientWindowWeeks: 26,
+    // People finish matches hurt all the time. Four weeks out is the point
+    // where it stopped being a match somebody finished.
+    ledgerStoppageWeeks: 4,
+
     // Where somebody sits on the card. Bands are wide so nobody flickers
     // between two of them on a good week, and the fall cushion means a main
     // eventer who cools off is still booked like one for a while — the

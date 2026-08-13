@@ -148,6 +148,16 @@ import { isFinished } from '../engine/career/status';
 import { bereavements, hasLapsed, mourningLine, tieDrift, applyDrift } from '../engine/career/circle';
 import { statusOf, statusMove } from '../engine/career/cardStatus';
 import {
+  creditMatch,
+  openStint,
+  tickWeek,
+  creditPay,
+  join as joinLedger,
+  leave as leaveLedger,
+  type LedgerRole,
+} from '../engine/career/ledger';
+import { ledgerOf } from '../engine/career/ledgerAccess';
+import {
   foundPromotion,
   foundingRoster,
   openingLine,
@@ -1727,6 +1737,39 @@ export const useGameStore = create<GameStore>()(
         if (world.pendingBiddingWar) settleBiddingWar(world, rng, null);
         const wrestlerById = new Map(Object.values(world.wrestlers).map((w) => [w.id, w]));
 
+        // Books. Where everybody is, what they have been paid, and how long
+        // they have been there.
+        //
+        // Reconciled once a week against `promotionId` rather than hooked into
+        // each of the ten places a roster can change — signings, releases,
+        // auctions, a company folding, tampering, a secret signing. Patching
+        // those individually would have left holes, and a career page with
+        // holes in it is worse than no career page.
+        for (const person of Object.values(world.wrestlers)) {
+          if (person.deceased) continue;
+          const ledger = ledgerOf(person);
+          const open = openStint(ledger);
+          const employer =
+            person.promotionId === null
+              ? null
+              : person.promotionId === world.promotion.id
+                ? world.promotion
+                : (world.rivals.find((r) => r.id === person.promotionId) ?? null);
+          const role: LedgerRole = person.role === 'manager' ? 'manager' : 'wrestler';
+
+          if (!employer) {
+            // Out of work. The spell is over; the record of it is not.
+            if (open) leaveLedger(ledger, world.week);
+          } else if (!open || open.promotionId !== employer.id || open.role !== role) {
+            // Somewhere new, or the same place in a different job. A wrestler
+            // who turns manager starts a new spell so the years already
+            // banked in the ring stay banked as ring years.
+            joinLedger(ledger, employer.id, employer.name, role, world.week);
+          }
+          tickWeek(ledger);
+        }
+
+
 
         // Tonight is either television or the show everything has been built
         // towards. Decided here, once, and read by everything below.
@@ -2207,6 +2250,8 @@ export const useGameStore = create<GameStore>()(
           const hurtTonight: Casualty[] = [];
           const violence = stipulation?.violenceLevel ?? 0;
 
+          /** Anybody this match had to be stopped for. See career/ledger.ts. */
+          const stoppedTonight = new Set<Id>();
           const putOut = (casualty: Casualty) => {
             const person = world.wrestlers[casualty.personId];
             if (person) {
@@ -2261,7 +2306,16 @@ export const useGameStore = create<GameStore>()(
               toughness: person.toughness,
               settings: world.settings,
             });
-            if (casualty) putOut(casualty);
+            if (casualty) {
+              putOut(casualty);
+              // A bad one stops the match. That is a DNF on his record and a
+              // win on the other man's — never a loss, because a man carried
+              // out did not lose. Minor knocks do not stop anything; people
+              // finish matches hurt all the time.
+              if (casualty.weeks >= world.settings.ledgerStoppageWeeks) {
+                stoppedTonight.add(person.id);
+              }
+            }
           }
 
           if (officiatingWrestler && !officiatingWrestler.injury) {
@@ -2641,12 +2695,31 @@ export const useGameStore = create<GameStore>()(
             healthCostMultiplier: result.healthCostMultiplier,
             energyCostMultiplier: result.energyCostMultiplier,
             promotion: world.promotion,
+            couldNotContinueIds: [...stoppedTonight],
             settings: world.settings,
           });
           for (const change of changes) {
             const w = world.wrestlers[change.wrestlerId];
             if (w) applyAftermath(w, change, world.settings, result.rating);
             worked.add(change.wrestlerId);
+          }
+
+          // A manager takes the result of the side they worked. Their record
+          // needs no client list to maintain — being at ringside *is* the
+          // relationship, which is why it stops the moment a wrestler stops
+          // being booked with them, and why moving companies starts a fresh
+          // set of books. See career/ledger.ts.
+          for (const assignment of segment.managerIds ?? []) {
+            const manager = findManager(world, assignment.managerId);
+            if (!manager) continue;
+            const theirSide = segment.participants
+              .filter((p) => p.side === assignment.forSide)
+              .map((p) => p.wrestlerId);
+            if (theirSide.length === 0) continue;
+            // Whatever happened to the people he was out there for. A corner
+            // whose man was carried out did not lose either.
+            const forThem = changes.find((c) => theirSide.includes(c.wrestlerId));
+            if (forThem) creditMatch(ledgerOf(manager), forThem.outcome, 'manager');
           }
 
           // If both sides were intact teams, the result goes on their records.
@@ -2994,16 +3067,18 @@ export const useGameStore = create<GameStore>()(
           if (!member.contract) return sum;
           // Somebody who sat at home collects nothing extra, unless their deal
           // says otherwise — which is the whole point of a downside guarantee.
-          if (!worked.has(member.id)) return sum + computeDownsideGuarantee(member.contract);
-          return (
-            sum +
-            computeAppearanceFee({
-              contract: member.contract,
-              role: 'competitor',
-              isMainEvent: mainEventIds.has(member.id),
-              isPPV,
-            })
-          );
+          const paid = worked.has(member.id)
+            ? computeAppearanceFee({
+                contract: member.contract,
+                role: 'competitor',
+                isMainEvent: mainEventIds.has(member.id),
+                isPPV,
+              })
+            : computeDownsideGuarantee(member.contract);
+          // Onto their own books as well as off yours. Lifetime earnings and
+          // what each company ever paid them — see career/ledger.ts.
+          creditPay(ledgerOf(member), paid + (member.contract.weeklyRate ?? 0));
+          return sum + paid;
         }, 0);
         payroll =
           weeklyWageBill(signed) +

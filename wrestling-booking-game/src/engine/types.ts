@@ -425,6 +425,14 @@ export interface Wrestler {
   moraleLastDelta: number;
   momentum: number; // 0-100
   cardStatus: CardStatus;
+  /**
+   * What they did and where — lifetime and per company, plus money and time
+   * served split by role. See engine/career/ledger.ts.
+   *
+   * Optional on the type so a wrestler built before this existed still reads;
+   * everything that writes to it goes through `ledgerOf`, which fills one in.
+   */
+  ledger?: Ledger;
   careerStatus: CareerStatus;
   /** Week at which careerHighPopularity was set — used to date a decline. */
   careerHighWeek: number;
@@ -657,6 +665,7 @@ import type { PerkId } from '../data/perks';
 // Type-only, so the cycle with world/schedule.ts (which needs Promotion and
 // WorldSettings from here) is erased at compile time.
 import type { PromotionSchedule } from './world/schedule';
+import type { Ledger } from './career/ledger';
 
 export type ContractType = 'fullTime' | 'partTime' | 'perAppearance' | 'developmental' | 'legends';
 
@@ -2810,6 +2819,12 @@ export interface WorldSettings {
   /** Where "rated" starts, and where "the next one" starts. */
   hypeRatedAt: number;
   hypePhenomAt: number;
+
+  // --- Records, engine/career/ledger.ts ------------------------------------
+  /** How recently a manager must have worked somebody's corner to count them. */
+  ledgerClientWindowWeeks: number;
+  /** Weeks out that means the match had to be stopped rather than finished. */
+  ledgerStoppageWeeks: number;
 
   // --- Where somebody sits on the card, engine/career/cardStatus.ts --------
   /** Standing (in this company) at which each band starts. */
