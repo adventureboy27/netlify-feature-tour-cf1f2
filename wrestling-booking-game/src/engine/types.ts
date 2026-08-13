@@ -2028,6 +2028,10 @@ export interface WorldSettings {
   autoFillMouthpieceGap: number;
   /** How much of a match slot a promo is worth on a rival's card. */
   promoAsMatchShare: number;
+  /** Extra heat for going after somebody who does not speak for himself. */
+  promoJabHeat: number;
+  /** How much of an injury roll a bodyguard can take off his client. */
+  managerInjuryShieldMax: number;
   managerPopularityBoostMax: number;
   managerInterferenceWeight: number;
   /** How much leaning on a mouthpiece stunts what the client builds alone. */

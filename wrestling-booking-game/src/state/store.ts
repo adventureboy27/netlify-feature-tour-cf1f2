@@ -2409,7 +2409,13 @@ export const useGameStore = create<GameStore>()(
               name: person.name,
               role: 'competitor',
               violenceLevel: violence,
-              injuryMultiplier: result.injuryMultiplier * workingHurtRisk(person, world.settings),
+              // A bodyguard takes some of what the ring throws at his man.
+              // A different job from the mouthpiece and a different reason to
+              // carry one — see sim/ringside.ts.
+              injuryMultiplier:
+                result.injuryMultiplier *
+                workingHurtRisk(person, world.settings) *
+                (1 - (ringside.injuryShield?.[person.id] ?? 0)),
               toughness: person.toughness,
               settings: world.settings,
             });
@@ -2980,6 +2986,11 @@ export const useGameStore = create<GameStore>()(
             speaker: speaker!,
             target: target ?? null,
             mouthpieceCharisma: mouthpiece?.micWork ?? null,
+            // Material for the man on the microphone: does the other fellow
+            // do his own talking? See jabAt in sim/promo.ts.
+            targetHasMouthpiece: Boolean(
+              target && representativeOf(world.representations, target.id),
+            ),
             topicId,
             existingHeat: rivalry?.heat ?? 0,
             settings: world.settings,
@@ -3684,6 +3695,7 @@ export const useGameStore = create<GameStore>()(
             week: world.week,
             settings: world.settings,
             memory: memoryFromRoster(available),
+            representedIds: new Set(world.representations.map((r) => r.clientId)),
           });
           if (!show) continue;
           rivalShows.set(rival.id, show);

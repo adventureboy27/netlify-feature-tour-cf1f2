@@ -619,6 +619,11 @@ export function defaultWorldSettings(): WorldSettings {
     // A manager only takes the microphone off somebody clearly worse at it.
     autoFillMouthpieceGap: 15,
     promoAsMatchShare: 6,
+    promoJabHeat: 5,
+    // A bodyguard takes a real slice of what the ring throws at his man —
+    // worth nothing on the microphone and a great deal to somebody who keeps
+    // getting hurt. The two jobs are deliberately separate.
+    managerInjuryShieldMax: 0.35,
     managerPopularityBoostMax: 0.35,
     managerInterferenceWeight: 1.6,
     managerSelfMadePenalty: 0.15,

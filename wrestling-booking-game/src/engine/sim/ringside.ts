@@ -47,6 +47,15 @@ export interface Manager {
   /** Fee per appearance. Zero for one of your own — already on the payroll. */
   feePerShow: number;
   /**
+   * Standing between his man and trouble rather than talking for him, 0-100.
+   *
+   * A different job from the mouthpiece and a different reason to carry one:
+   * he does nothing at all for a promo and he is why nobody jumps your
+   * champion after the bell. Most managers are one or the other; a few are
+   * both and cost accordingly.
+   */
+  protection?: number;
+  /**
    * Managers get old and die like anybody else. Optional only because one of
    * your own wrestlers doing the job carries their own age; `ageOfManager`
    * resolves it either way.
@@ -77,6 +86,12 @@ export interface ManagerEffect {
   clientWinBonus: number;
   /** Taken off the other man on the nights it actually happens. */
   opponentPenalty: number;
+  /**
+   * How much of what the ring throws at his client he takes instead. A
+   * bodyguard is worth nothing on the microphone and worth a great deal to
+   * somebody who keeps getting hurt.
+   */
+  injuryShield: number;
   /** How often that is. Rolled by the sim, which is where the rng lives. */
   distractionChance: number;
 }
@@ -114,6 +129,9 @@ export function managerEffect(manager: Manager, client: Wrestler, settings: Worl
     // at ringside distracts nobody.
     opponentPenalty: settings.managerOpponentPenaltyMax,
     distractionChance: (manager.presence / 100) * settings.managerDistractionChance,
+    // Standing between his man and it. Nothing to do with talking, which is
+    // the point of having the two be different jobs.
+    injuryShield: ((manager.protection ?? 0) / 100) * settings.managerInjuryShieldMax,
   };
 }
 
@@ -406,6 +424,8 @@ export interface RingsideTotals {
   distractionBy: Record<number, string>;
   /** Per client id: the multiplier on what tonight does for their standing. */
   popularityMultipliers: Record<string, number>;
+  /** Per client id: how much of the damage somebody else takes for them. */
+  injuryShield: Record<string, number>;
 }
 
 /** Everything at ringside, rolled into what the sim needs. */
@@ -426,6 +446,8 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   const distractionBy: Record<number, string> = {};
   /** Per client: what tonight is worth to them for having a mouthpiece. */
   const popularityMultipliers: Record<string, number> = {};
+  /** Per client: how much of the night's damage his second takes for him. */
+  const injuryShield: Record<string, number> = {};
 
   for (const { manager, client, attention: focus } of ctx.managers) {
     const raw = managerEffect(manager, client, ctx.settings);
@@ -441,10 +463,12 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
       clientWinBonus: raw.clientWinBonus * here,
       opponentPenalty: raw.opponentPenalty,
       distractionChance: raw.distractionChance * here,
+      injuryShield: raw.injuryShield * here,
     };
     ratingBonus += effect.ratingBonus;
     interferenceWeight *= effect.interferenceWeight;
     cost += manager.feePerShow;
+    injuryShield[client.id] = Math.max(injuryShield[client.id] ?? 0, effect.injuryShield);
     // Whose corner he is in decides who it helps and who it costs. Both sides
     // having a manager largely cancels out, which is correct: two men at
     // ringside watching each other is a wash.
@@ -501,6 +525,7 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
     distractionPenalty,
     distractionBy,
     popularityMultipliers,
+    injuryShield,
     ratingBonus: clamp(ratingBonus, -20, 20),
     screwyFinishWeight,
     interferenceWeight,

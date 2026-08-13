@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { jabAt } from './promo';
+import { mulberry32 } from '../rng';
 import {
   managerEffect,
   caughtCheatingChance,
@@ -472,5 +474,49 @@ describe('what a manager is actually for', () => {
         expect(managedPopularityMultiplier(m, { ...monster, charisma }, settings)).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+describe('the other kind of second', () => {
+  const mouth: Manager = {
+    id: 'm-mouth', name: 'The Mouth', micWork: 95, presence: 80, deviousness: 40,
+    negotiation: 60, protection: 0, feePerShow: 1200, blurb: '', age: 58,
+  };
+  const muscle: Manager = { ...mouth, id: 'm-muscle', name: 'The Muscle', micWork: 20, protection: 90 };
+
+  it('protects instead of talking, and the two are separate jobs', () => {
+    expect(managerEffect(muscle, monster, settings).injuryShield).toBeGreaterThan(
+      managerEffect(mouth, monster, settings).injuryShield,
+    );
+    expect(managerEffect(mouth, monster, settings).clientPopularityMultiplier).toBeGreaterThan(
+      managerEffect(muscle, monster, settings).clientPopularityMultiplier,
+    );
+  });
+
+  it('is worth nothing at all to somebody who never gets hurt talking', () => {
+    expect(managerEffect(mouth, monster, settings).injuryShield).toBe(0);
+  });
+
+  it('never makes anybody bulletproof', () => {
+    const best: Manager = { ...muscle, protection: 100 };
+    expect(managerEffect(best, monster, settings).injuryShield).toBeLessThan(0.5);
+  });
+});
+
+describe('what a promo goes after', () => {
+  it('picks at a man who does not do his own talking', () => {
+    const speaker = { ...monster, name: 'Duke Rawlins', charisma: 90 };
+    const target = { ...talker, name: 'Silent Sam' };
+    const jab = jabAt({ speaker, target }, true, mulberry32(4));
+    expect(jab).toContain('Duke Rawlins');
+    expect(jab).toContain('Silent Sam');
+  });
+
+  it('has nothing to say about somebody who speaks for himself', () => {
+    expect(jabAt({ speaker: monster, target: talker }, false, mulberry32(4))).toBeNull();
+  });
+
+  it('has nothing to say when nobody is being addressed', () => {
+    expect(jabAt({ speaker: monster, target: null }, true, mulberry32(4))).toBeNull();
   });
 });

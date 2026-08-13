@@ -162,6 +162,12 @@ export interface RivalBookingContext {
    * without it the office books the same card every week — see below.
    */
   memory?: BookingMemory;
+  /**
+   * Who in the world has somebody talking for them. Material for a rival's
+   * promo — see sim/promo.ts. Optional, because a caller that does not track
+   * representation simply has nothing to go after.
+   */
+  representedIds?: ReadonlySet<Id>;
 }
 
 /**
@@ -423,6 +429,8 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
       speaker,
       target: opponent,
       mouthpieceCharisma: null,
+      // Rivals go after the same thing the player's people do.
+      targetHasMouthpiece: Boolean(opponent && ctx.representedIds?.has(opponent.id)),
       topicId: opponent ? 'continueFeud' : 'callOutLockerRoom',
       existingHeat: 0,
       settings: ctx.settings,
