@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   managerEffect,
   caughtCheatingChance,
+  managedPopularityMultiplier,
   type Manager,
   type Referee,
   managerFit,
@@ -414,5 +415,49 @@ describe('a manager who cheats, and a manager who is caught', () => {
   it('never makes getting caught the likely outcome', () => {
     // Booking a crook is a decision with a cost, not a coin flip.
     expect(caughtCheatingChance(crook, sharp, settings)).toBeLessThan(0.25);
+  });
+});
+
+describe('what a manager is actually for', () => {
+  it('is worth most to somebody who cannot talk', () => {
+    // The whole design, and it was computed and applied to nothing: a manager
+    // does not add to a good talker, he stands in for a bad one.
+    const mouth = managerById('mgr-cornelius')!;
+    const silent = { ...monster, charisma: 15 };
+    const loud = { ...monster, charisma: 95 };
+    expect(managedPopularityMultiplier(mouth, silent, settings)).toBeGreaterThan(
+      managedPopularityMultiplier(mouth, loud, settings),
+    );
+  });
+
+  it('actually lifts what a night is worth, rather than sitting in a field', () => {
+    const mouth = managerById('mgr-cornelius')!;
+    const silent = { ...monster, charisma: 15 };
+    expect(managedPopularityMultiplier(mouth, silent, settings)).toBeGreaterThan(1);
+  });
+
+  it('nets what they fail to build on their own against what they gain', () => {
+    // Leaning on a mouthpiece stunts what the wrestler builds themselves, and
+    // that half existed as a separate number nothing subtracted.
+    const mouth = managerById('mgr-cornelius')!;
+    const silent = { ...monster, charisma: 15 };
+    const raw = managerEffect(mouth, silent, settings);
+    expect(managedPopularityMultiplier(mouth, silent, settings)).toBeLessThan(
+      raw.clientPopularityMultiplier,
+    );
+  });
+
+  it('is close to worthless on somebody who does not need one', () => {
+    const mouth = managerById('mgr-cornelius')!;
+    const loud = { ...monster, charisma: 98 };
+    expect(managedPopularityMultiplier(mouth, loud, settings)).toBeLessThan(1.02);
+  });
+
+  it('never turns into a penalty for having hired somebody', () => {
+    for (const m of MANAGERS) {
+      for (const charisma of [5, 50, 99]) {
+        expect(managedPopularityMultiplier(m, { ...monster, charisma }, settings)).toBeGreaterThan(0);
+      }
+    }
   });
 });

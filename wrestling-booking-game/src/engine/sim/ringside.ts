@@ -130,6 +130,22 @@ export function caughtCheatingChance(
   return clamp(cheating * sharp * willingToLook * slick * s.managerCaughtChanceMax, 0, 1);
 }
 
+/**
+ * What a night is worth to a managed wrestler, all in.
+ *
+ * The lift for having somebody talk for them, less what they fail to build on
+ * their own by not doing it. Both halves existed and neither was applied to
+ * anything, so a manager was pure entertainment with a fee attached.
+ */
+export function managedPopularityMultiplier(
+  manager: Manager,
+  client: Wrestler,
+  settings: WorldSettings,
+): number {
+  const effect = managerEffect(manager, client, settings);
+  return Math.max(0, effect.clientPopularityMultiplier - effect.selfMadePenalty / 100);
+}
+
 /** Is this pairing actually worth the fee? Shown as words, never a number. */
 export type ManagerFit = 'Wasted on them' | 'Marginal' | 'Good fit' | 'Exactly what they need';
 
@@ -352,6 +368,8 @@ export interface RingsideTotals {
   /** Per side: the odds their own corner gets them thrown out, and whose. */
   caughtRisk: Record<number, number>;
   caughtBy: Record<number, string>;
+  /** Per client id: the multiplier on what tonight does for their standing. */
+  popularityMultipliers: Record<string, number>;
 }
 
 /** Everything at ringside, rolled into what the sim needs. */
@@ -365,6 +383,8 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   /** Odds the corner gets its own man disqualified, per side. */
   const caughtRisk: Record<number, number> = {};
   const caughtBy: Record<number, string> = {};
+  /** Per client: what tonight is worth to them for having a mouthpiece. */
+  const popularityMultipliers: Record<string, number> = {};
 
   for (const { manager, client } of ctx.managers) {
     const effect = managerEffect(manager, client, ctx.settings);
@@ -381,6 +401,7 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
       // ...and the chance the official sees him do it, which costs his man
       // the match rather than costing the manager anything. Kept per side so
       // the sim knows who eats the disqualification.
+      popularityMultipliers[client.id] = managedPopularityMultiplier(manager, client, ctx.settings);
       const caught = caughtCheatingChance(manager, ctx.referee, ctx.settings);
       if (caught > 0) {
         caughtRisk[side] = Math.max(caughtRisk[side] ?? 0, caught);
@@ -411,6 +432,7 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
     winShift,
     caughtRisk,
     caughtBy,
+    popularityMultipliers,
     ratingBonus: clamp(ratingBonus, -20, 20),
     screwyFinishWeight,
     interferenceWeight,

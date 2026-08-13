@@ -2714,6 +2714,7 @@ export const useGameStore = create<GameStore>()(
             healthCostMultiplier: result.healthCostMultiplier,
             energyCostMultiplier: result.energyCostMultiplier,
             promotion: world.promotion,
+            popularityMultipliers: ringside.popularityMultipliers,
             couldNotContinueIds: [...stoppedTonight],
             settings: world.settings,
           });

@@ -49,6 +49,13 @@ export interface AftermathContext {
    */
   promotion?: Pick<Promotion, 'id' | 'identity'>;
   /**
+   * Per wrestler id: what having a mouthpiece at ringside is worth to them
+   * tonight. The whole reason to pay a manager — somebody who cannot talk has
+   * it done for them and gets over on it. Computed by sim/ringside.ts, which
+   * had been working it out and handing it to nobody.
+   */
+  popularityMultipliers?: Record<string, number>;
+  /**
    * What the pace they were asked to work costs their bodies. An all-out
    * match takes nearly twice what a sprint does — see sim/pacing.ts.
    */
@@ -133,8 +140,9 @@ export function computeAftermath(ctx: AftermathContext): AftermathChange[] {
     // out of the midcard and not how you get from 95 to 100.
     const headroom = (100 - w.popularity) / 100;
     const popularity =
-      popularityChase(ratingHere(ctx, w), w.popularity, s) * spot +
-      (outcome === 'win' ? s.popularityPerWin * headroom : 0);
+      (popularityChase(ratingHere(ctx, w), w.popularity, s) * spot +
+        (outcome === 'win' ? s.popularityPerWin * headroom : 0)) *
+      (ctx.popularityMultipliers?.[w.id] ?? 1);
 
     return {
       wrestlerId: w.id,
