@@ -79,6 +79,7 @@ import { TERRITORIES, createTerritories } from '../data/territories';
 import { OWNER_PROFILES } from '../data/owners';
 import { ppvCalendarFor } from '../data/ppvNames';
 import { defaultSchedule, scheduleForRival } from '../engine/world/schedule';
+import type { ImpromptuShow } from '../engine/world/impromptu';
 import { DEFAULT_PACE } from '../data/pacing';
 import type { AttendanceRecord } from '../engine/world/territories';
 import type { AssetCondition } from '../engine/economy/showBudget';
@@ -278,6 +279,12 @@ export interface World {
   territories: Territory[];
   /** The biggest house each town has ever drawn, keyed by territory id. */
   attendanceRecords: Record<Id, AttendanceRecord>;
+  /**
+   * Shows that were not on the calendar — a memorial, a benefit night. Kept
+   * on the world rather than on the promotion because they belong to a *week*
+   * rather than to the pattern. See engine/world/impromptu.ts.
+   */
+  impromptuShows: ImpromptuShow[];
   /** Everyone who has died, oldest first. §19's memorial wall. */
   memoriam: Passing[];
   /** The hall of fame, in induction order. */
@@ -681,6 +688,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     ),
     attendanceRecords: {},
     memoriam: [],
+    impromptuShows: [],
     hallOfFame: [],
     broadcastDealId: null,
     sponsorIds: [],

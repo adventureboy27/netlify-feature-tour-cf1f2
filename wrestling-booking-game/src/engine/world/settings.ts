@@ -1169,6 +1169,23 @@ export function defaultWorldSettings(): WorldSettings {
     //   92 -> y1 74 -> y2 63 -> y3 55 -> y4 50 -> y5 46 -> y6 44
     // ...and kept off television for those same six years: still 73.
 
+    // Shows nobody planned. A memorial is not a decision — you run the
+    // building — and a benefit is a small one. Neither pays: what they buy is
+    // a locker room that thinks better of the company and a town that
+    // remembers you turned up.
+    memorialTenureWeeks: 104,
+    memorialReputation: 4,
+    memorialMorale: 6,
+    memorialFollowing: 5,
+    charityShowsEnabled: true,
+    // Roughly one a year and a half. Often enough to be a thing that happens,
+    // rare enough that it never reads as part of the pattern.
+    charityShowChance: 0.013,
+    charityReputation: 2,
+    charityMorale: 3,
+    charityFollowing: 4,
+    impromptuShowCost: 6_000,
+
     // A manager is somebody's manager if they have worked their corner in the
     // last half year. There is no client list to maintain — being at ringside
     // is the relationship, which is also the one the player can see.

@@ -2820,6 +2820,20 @@ export interface WorldSettings {
   hypeRatedAt: number;
   hypePhenomAt: number;
 
+  // --- Shows nobody planned, engine/world/impromptu.ts ---------------------
+  /** Weeks somebody has to have given a company for it to bury him. */
+  memorialTenureWeeks: number;
+  memorialReputation: number;
+  memorialMorale: number;
+  memorialFollowing: number;
+  charityShowsEnabled: boolean;
+  charityShowChance: number;
+  charityReputation: number;
+  charityMorale: number;
+  charityFollowing: number;
+  /** Staging a night that was not on the calendar. The building is real. */
+  impromptuShowCost: number;
+
   // --- Records, engine/career/ledger.ts ------------------------------------
   /** How recently a manager must have worked somebody's corner to count them. */
   ledgerClientWindowWeeks: number;

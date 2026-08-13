@@ -157,6 +157,14 @@ import {
   type LedgerRole,
 } from '../engine/career/ledger';
 import { ledgerOf } from '../engine/career/ledgerAccess';
+import { totalsFor } from '../engine/career/ledger';
+import {
+  afterLine,
+  memorialShow,
+  returnsFor,
+  rollCharityNight,
+  worthAMemorial,
+} from '../engine/world/impromptu';
 import {
   foundPromotion,
   foundingRoster,
@@ -3126,6 +3134,10 @@ export const useGameStore = create<GameStore>()(
         // fourth night of the week draws worse than the second, which is what
         // `houseShowRevenueMultiplier` is — and the wear lands on everybody
         // healthy enough to have been on the bus. See engine/world/schedule.ts.
+        // Nights that were not on the calendar: a memorial announced last
+        // week, or a benefit somebody asked for. They run alongside the
+        // pattern, cost the building, and pay in something other than money.
+        const tonightsImpromptu = world.impromptuShows.filter((sh) => sh.week === world.week);
         const houseShows = houseShowsThisWeek(world.week, schedule, world.settings);
         const houseGate = night.cancelled
           ? 0
@@ -3135,6 +3147,60 @@ export const useGameStore = create<GameStore>()(
             );
 
         world.promotion.bankBalance += revenue.total - totalOut + houseGate;
+
+        for (const extra of tonightsImpromptu) {
+          const takings = returnsFor(extra, world.settings);
+          world.promotion.bankBalance -= takings.cost;
+          world.promotion.reputation = clamp(
+            world.promotion.reputation + takings.reputation,
+            0,
+            100,
+          );
+          for (const id of world.promotion.rosterIds) {
+            const member = world.wrestlers[id];
+            if (!member || member.deceased) continue;
+            member.morale = clamp(member.morale + takings.morale, 0, 100);
+            // It is still a night's work. A company that buries somebody
+            // properly still put its roster in a building to do it.
+            member.fatigueDebt = clamp(
+              member.fatigueDebt +
+                world.settings.matchFatiguePerMatch * world.settings.scheduleHouseShowIntensity,
+              0,
+              100,
+            );
+          }
+          // A town remembers who turned up for something that was not about
+          // selling them a ticket.
+          const town = world.territories.find((t) => t.id === territory.id);
+          if (town) {
+            town.following[world.promotion.id] = clamp(
+              (town.following[world.promotion.id] ?? 0) + takings.following,
+              0,
+              100,
+            );
+          }
+          world.weeklyNews.push(wire('houseShow', afterLine(extra), world.week, 'normal'));
+        }
+        world.impromptuShows = world.impromptuShows.filter((sh) => sh.week !== world.week);
+
+        // Somebody asks. Never in a week that already has something unplanned
+        // in it — a company does not run a benefit the same week it buries
+        // one of its own.
+        const benefit = rollCharityNight(
+          rng,
+          {
+            week: world.week + 1,
+            takenNights: schedule.shows.map((sh) => sh.day),
+            promotionName: world.promotion.name,
+            townName: territory.name,
+            alreadyBusy: world.impromptuShows.some((sh) => sh.week === world.week + 1),
+          },
+          world.settings,
+        );
+        if (benefit) {
+          world.impromptuShows.push(benefit);
+          world.weeklyNews.push(wire('houseShow', benefit.announcement, world.week, 'minor'));
+        }
 
         if (houseShows.length > 0 && !night.cancelled) {
           // What the road costs the people on it.
@@ -4256,6 +4322,41 @@ export const useGameStore = create<GameStore>()(
                   world.promotion.name,
                   world.settings,
                 );
+              }
+
+              // ...and a night that would not otherwise have existed. The
+              // tribute above is a modifier on the show that was happening
+              // anyway; this is the company closing the doors for him, on a
+              // spare night, named after him. Run for anybody who gave this
+              // company real time, not only for whoever was under contract
+              // the day they died. See world/impromptu.ts.
+              const tenure = totalsFor(ledgerOf(person), world.promotion.id);
+              const heldOneHere = world.titles.some(
+                (t) =>
+                  t.promotionId === world.promotion.id &&
+                  t.history.some((reign) => reign.holderIds.includes(person.id)),
+              );
+              if (
+                worthAMemorial(
+                  {
+                    onOurRoster: world.promotion.rosterIds.includes(person.id),
+                    weeksWithUs: tenure.weeks,
+                    wasAChampionHere: heldOneHere,
+                    hallOfFamer: person.careerStatus === 'hallOfFamer',
+                  },
+                  world.settings,
+                )
+              ) {
+                const show = memorialShow(
+                  rng,
+                  person.id,
+                  person.name,
+                  world.week + 1,
+                  scheduleOf(world.promotion, world.settings).shows.map((sh) => sh.day),
+                  world.promotion.name,
+                );
+                world.impromptuShows.push(show);
+                world.weeklyNews.push(wire('houseShow', show.announcement, world.week, 'normal'));
               }
               // §0: a death happens to the people left as well. Until now the
               // memorial wall recorded it and the locker room did not notice.

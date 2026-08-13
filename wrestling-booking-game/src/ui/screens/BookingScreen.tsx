@@ -114,6 +114,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   const nextName = bigShowName(world.week + weeksToPPV, schedule, world.settings);
   const televisedShow = schedule.shows.find((show) => show.televised);
   const roadShows = houseShowsThisWeek(world.week, schedule, world.settings);
+  const tonightsImpromptu = (world.impromptuShows ?? []).filter((sh) => sh.week === world.week);
   // The year has a shape whether or not the booker uses it: a holiday is a
   // night the town turns out for the date rather than the card, and knowing
   // one is three weeks out is the whole reason to build toward it.
@@ -175,6 +176,13 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
           {/* The rest of the week. The player does not book these, but they
               are shows their roster is working, and a night on the road that
               nobody mentions is a night that happened off-screen. */}
+          {/* A night nobody planned — a memorial, a benefit. Not part of the
+              pattern, and it says why it exists. See engine/world/impromptu.ts. */}
+          {tonightsImpromptu.map((extra) => (
+            <p key={extra.id} className="text-[11px] font-medium text-violet-300">
+              {extra.name} ({extra.day}) — {extra.kind === 'memorial' ? 'the gate goes to the family' : 'nobody is being paid'}
+            </p>
+          ))}
           {roadShows.length > 0 && (
             <p className="text-[11px] text-neutral-600">
               Also on the road: {roadShows.map((show) => `${show.name} (${show.day})`).join(', ')}
