@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   managerEffect,
+  caughtCheatingChance,
+  type Manager,
+  type Referee,
   managerFit,
   refereeEffect,
   guestRefereeEffect,
@@ -353,5 +356,63 @@ describe('booked in the shirt versus handed the shirt', () => {
     });
     expect(drafted.screwyFinishWeight).toBeGreaterThan(1);
     expect(drafted.interferenceWeight).toBeGreaterThan(1);
+  });
+});
+
+describe('a manager who cheats, and a manager who is caught', () => {
+  const crook: Manager = {
+    id: 'm-crook', name: 'Crooked Cornelius', micWork: 40, presence: 70,
+    deviousness: 95, feePerShow: 1000, blurb: '', age: 60,
+  };
+  const straight: Manager = { ...crook, id: 'm-straight', deviousness: 5 };
+  const slick: Manager = { ...crook, id: 'm-slick', micWork: 95 };
+
+  // Real officials from the pool — a hand-built one was missing the fields
+  // `effectiveCompetence` reads and produced NaN rather than a number.
+  const sharp: Referee = { ...refereeById('ref-dawkins')!, bendable: 5 };
+  const bent: Referee = { ...sharp, id: 'r-bent', bendable: 95 };
+
+  it('helps his man win, and costs the other man', () => {
+    const effect = managerEffect(crook, monster, settings);
+    expect(effect.clientWinBonus).toBeGreaterThan(0);
+    expect(effect.opponentPenalty).toBeGreaterThan(0);
+  });
+
+  it('tilts a match and never decides one', () => {
+    // §0: the sim picks the winner. A corner is a thumb on the scale.
+    const effect = managerEffect(crook, monster, settings);
+    expect(effect.clientWinBonus).toBeLessThan(0.12);
+    expect(effect.opponentPenalty).toBeLessThan(0.12);
+  });
+
+  it('risks getting caught in proportion to how much he cheats', () => {
+    expect(caughtCheatingChance(crook, sharp, settings)).toBeGreaterThan(
+      caughtCheatingChance(straight, sharp, settings),
+    );
+  });
+
+  it('is never caught by a referee who has decided not to look', () => {
+    expect(caughtCheatingChance(crook, bent, settings)).toBeLessThan(
+      caughtCheatingChance(crook, sharp, settings),
+    );
+  });
+
+  it('is never caught when nobody is counting', () => {
+    expect(caughtCheatingChance(crook, null, settings)).toBe(0);
+  });
+
+  it('lets a good talker get away with more of it', () => {
+    // Slickness is not cheating less. It is cheating as much and standing
+    // innocently in the aisle when the referee turns round.
+    expect(caughtCheatingChance(slick, sharp, settings)).toBeLessThan(
+      caughtCheatingChance(crook, sharp, settings),
+    );
+    // ...but never all the way to nothing, or he would be free value.
+    expect(caughtCheatingChance(slick, sharp, settings)).toBeGreaterThan(0);
+  });
+
+  it('never makes getting caught the likely outcome', () => {
+    // Booking a crook is a decision with a cost, not a coin flip.
+    expect(caughtCheatingChance(crook, sharp, settings)).toBeLessThan(0.25);
   });
 });

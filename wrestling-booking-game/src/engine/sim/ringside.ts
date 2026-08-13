@@ -61,6 +61,13 @@ export interface ManagerEffect {
   interferenceWeight: number;
   /** The cost that is not money: the client gets over slower on their own. */
   selfMadePenalty: number;
+  /**
+   * Added to the client's win probability. Small by construction — the sim
+   * picks the winner (§0), so a manager tilts a match and never decides one.
+   */
+  clientWinBonus: number;
+  /** Taken off whoever has to wrestle with him out there. */
+  opponentPenalty: number;
 }
 
 /**
@@ -80,7 +87,47 @@ export function managerEffect(manager: Manager, client: Wrestler, settings: Worl
     interferenceWeight: 1 + (manager.deviousness / 100) * settings.managerInterferenceWeight,
     // Leaning on a mouthpiece stunts what the wrestler builds themselves.
     selfMadePenalty: (manager.micWork / 100) * settings.managerSelfMadePenalty,
+    // What a manager is actually *for*, and what was missing: he helps his man
+    // win. A grab of the boot on the blind side, a distraction at the count.
+    // Driven by deviousness rather than presence — this is the cheating half
+    // of the job, not the talking half.
+    clientWinBonus: (manager.deviousness / 100) * settings.managerWinBonusMax,
+    // ...and the other half of the same act: the opponent spends the match
+    // watching somebody who is not in it. Presence, because a man nobody
+    // notices at ringside distracts nobody.
+    opponentPenalty: (manager.presence / 100) * settings.managerOpponentPenaltyMax,
   };
+}
+
+/**
+ * The odds of a manager being caught in the act.
+ *
+ * The same deviousness that buys the edge is what puts his man at risk, which
+ * is what makes booking a crooked manager a decision rather than free value.
+ * A slick operator is not somebody who cheats less — he is somebody who cheats
+ * as much and is standing innocently in the aisle when the referee turns
+ * round, and that is what `micWork` buys here: a man who can talk his way out
+ * of it. What actually decides it is who is counting. A sharp official sees
+ * it; a bendable one has already decided not to.
+ */
+export function caughtCheatingChance(
+  manager: Manager,
+  referee: Referee | null,
+  settings: WorldSettings,
+): number {
+  const s = settings;
+  const cheating = manager.deviousness / 100;
+  if (cheating <= 0) return 0;
+
+  // Nobody in the shirt means nobody sees anything.
+  if (!referee) return 0;
+  const sharp = effectiveCompetence(referee, s) / 100;
+  const willingToLook = 1 - referee.bendable / 100;
+  // Talking your way out of it. Never all the way to zero — a manager who
+  // could never be caught would be a permanent win bonus with no downside.
+  const slick = 1 - (manager.micWork / 100) * s.managerSlicknessMax;
+
+  return clamp(cheating * sharp * willingToLook * slick * s.managerCaughtChanceMax, 0, 1);
 }
 
 /** Is this pairing actually worth the fee? Shown as words, never a number. */
@@ -264,7 +311,12 @@ export function guestRefereeIsLegal(guestId: Id, participantIds: readonly Id[]):
 // ----------------------------------------------------------- combined view
 
 export interface RingsideContext {
-  managers: { manager: Manager; client: Wrestler }[];
+  /**
+   * Who is in whose corner, and which side that corner is. The side is what
+   * turns a manager into a thumb on the scale — without it the sim knows
+   * somebody is out there and not who it helps.
+   */
+  managers: { manager: Manager; client: Wrestler; side?: number }[];
   referee: Referee | null;
   guestReferee: Wrestler | null;
   /**
@@ -291,6 +343,15 @@ export interface RingsideTotals {
   hasOfficial: boolean;
   /** Manager fees for this match. Referees are billed per show, not per match. */
   cost: number;
+  /**
+   * What the corners are worth, per side, as a win-probability shift. Applied
+   * by the sim rather than here — this module says what ringside is worth, it
+   * does not decide matches.
+   */
+  winShift: Record<number, number>;
+  /** Per side: the odds their own corner gets them thrown out, and whose. */
+  caughtRisk: Record<number, number>;
+  caughtBy: Record<number, string>;
 }
 
 /** Everything at ringside, rolled into what the sim needs. */
@@ -299,12 +360,33 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   let screwyFinishWeight = 1;
   let interferenceWeight = 1;
   let cost = 0;
+  /** Win-probability nudge per side, from whoever is in each corner. */
+  const winShift: Record<number, number> = { 0: 0, 1: 0 };
+  /** Odds the corner gets its own man disqualified, per side. */
+  const caughtRisk: Record<number, number> = {};
+  const caughtBy: Record<number, string> = {};
 
   for (const { manager, client } of ctx.managers) {
     const effect = managerEffect(manager, client, ctx.settings);
     ratingBonus += effect.ratingBonus;
     interferenceWeight *= effect.interferenceWeight;
     cost += manager.feePerShow;
+    // Whose corner he is in decides who it helps and who it costs. Both sides
+    // having a manager largely cancels out, which is correct: two men at
+    // ringside watching each other is a wash.
+    const side = ctx.managers.find((m) => m.client.id === client.id)?.side ?? null;
+    if (side !== undefined && side !== null) {
+      winShift[side] = (winShift[side] ?? 0) + effect.clientWinBonus;
+      winShift[1 - side] = (winShift[1 - side] ?? 0) - effect.opponentPenalty;
+      // ...and the chance the official sees him do it, which costs his man
+      // the match rather than costing the manager anything. Kept per side so
+      // the sim knows who eats the disqualification.
+      const caught = caughtCheatingChance(manager, ctx.referee, ctx.settings);
+      if (caught > 0) {
+        caughtRisk[side] = Math.max(caughtRisk[side] ?? 0, caught);
+        caughtBy[side] = manager.name;
+      }
+    }
   }
 
   // A guest referee replaces the assigned official rather than joining them.
@@ -326,6 +408,9 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   // real difference between the two jobs.
 
   return {
+    winShift,
+    caughtRisk,
+    caughtBy,
     ratingBonus: clamp(ratingBonus, -20, 20),
     screwyFinishWeight,
     interferenceWeight,

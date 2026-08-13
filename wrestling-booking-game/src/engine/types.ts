@@ -1952,6 +1952,12 @@ export interface WorldSettings {
 
   // Ringside personnel (engine/sim/ringside.ts)
   managerRatingBonusMax: number;
+  /** How much a manager can tilt his man's chances, and cost the other man's. */
+  managerWinBonusMax: number;
+  /** How often a crooked manager is caught, and how far talking gets him. */
+  managerCaughtChanceMax: number;
+  managerSlicknessMax: number;
+  managerOpponentPenaltyMax: number;
   managerPopularityBoostMax: number;
   managerInterferenceWeight: number;
   /** How much leaning on a mouthpiece stunts what the client builds alone. */

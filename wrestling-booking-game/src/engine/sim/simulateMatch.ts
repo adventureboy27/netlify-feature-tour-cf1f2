@@ -120,7 +120,16 @@ export function simulateMatch(
     sideKayfabe.set(side, mean(members.map((w) => kayfabeScore(w, weights))));
   }
 
-  const stackingShifts = ctx.deckStackingShiftsBySide ?? {};
+  // What the booker stacked, plus what is standing at ringside. A manager
+  // helps his man and costs the other — see sim/ringside.ts. Folded in here
+  // rather than applied separately so both go through the same clamp: the sim
+  // picks the winner (§0) and nothing is allowed to make a match a formality.
+  const ringsideShifts = ctx.ringside?.winShift ?? {};
+  const booked = ctx.deckStackingShiftsBySide ?? {};
+  const stackingShifts: Record<number, number> = {};
+  for (const side of new Set([...Object.keys(booked), ...Object.keys(ringsideShifts)].map(Number))) {
+    stackingShifts[side] = (booked[side] ?? 0) + (ringsideShifts[side] ?? 0);
+  }
   const winProbabilitiesBySide: Record<number, number> = {};
   let winnerSide: number;
 
@@ -144,6 +153,22 @@ export function simulateMatch(
     winnerSide = weightedPick(rng, sides.map((s, i) => [s, probs[i]!] as const));
   }
 
+  // The manager gets caught.
+  //
+  // Rolled here, before anything derives from who won, so the members, the
+  // rating and the write-up all agree about it. Only against the side that
+  // was going to win: a corner that cheated its man to a loss has already
+  // been punished by the scoreboard.
+  //
+  // The client eats the disqualification and the manager walks away having
+  // cost somebody else a match, which is exactly the shape of the job.
+  let caughtManager: string | null = null;
+  const cornerRisk = ctx.ringside?.caughtRisk?.[winnerSide] ?? 0;
+  if (cornerRisk > 0 && sides.length === 2 && rng.next() < cornerRisk) {
+    caughtManager = ctx.ringside?.caughtBy?.[winnerSide] ?? null;
+    winnerSide = sides.find((sd) => sd !== winnerSide) ?? winnerSide;
+  }
+
   const winnerProbability = winProbabilitiesBySide[winnerSide]!;
   const isUpset = winnerProbability < 0.5;
   const winnerMembers = sideMembers.get(winnerSide)!;
@@ -162,7 +187,10 @@ export function simulateMatch(
     settings: ctx.settings,
   });
 
-  const finish = rollFinish(rng, {
+  const finish: FinishType = caughtManager
+    ? // Nothing else it can be. The official saw it.
+      'disqualification'
+    : rollFinish(rng, {
     rules,
     violenceLevel: ctx.stipulation?.violenceLevel ?? 0,
     winnerIsTechnician,
@@ -186,7 +214,7 @@ export function simulateMatch(
           hasOfficial: ctx.ringside.hasOfficial,
         }
       : undefined,
-  });
+      });
   const draw = isDrawFinish(finish);
 
   const allParticipants = sides.flatMap((s) => sideMembers.get(s)!);
@@ -214,6 +242,18 @@ export function simulateMatch(
     staleGimmickPenalty: ctx.staleGimmickPenalty ?? 0,
     signatureStipulationFit: ctx.signatureStipulationFit ?? 0,
   });
+
+  // §0: a result that flipped with no sentence explaining it reads as the sim
+  // glitching. Whoever got caught is named, at the top of the highlights.
+  const cornerBeat: MatchBeat[] = caughtManager
+    ? [
+        {
+          kind: 'finish' as const,
+          significant: true,
+          text: `${caughtManager} was caught in the act at ringside, and the referee called for the bell.`,
+        },
+      ]
+    : [];
 
   const beats = generateBeats(rng, {
     winnerMembers,
@@ -244,7 +284,7 @@ export function simulateMatch(
     rating,
     stars,
     ratingBreakdown: breakdown,
-    beats,
+    beats: [...cornerBeat, ...beats],
     winProbabilitiesBySide,
     injuryMultiplier:
       (ctx.stipulation?.injuryMult ?? 1) *

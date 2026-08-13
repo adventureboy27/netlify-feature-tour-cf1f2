@@ -524,6 +524,18 @@ export function defaultWorldSettings(): WorldSettings {
     // bump for somebody who cannot talk; a guest referee is star power at the
     // cost of a clean finish.
     managerRatingBonusMax: 4,
+    // What a manager is actually for. Small on purpose: the sim picks the
+    // winner (§0), so a man at ringside tilts a match and never decides one.
+    // Six points of win probability to his own man and four off the other is
+    // enough to matter across a feud and never enough to be a guarantee.
+    managerWinBonusMax: 0.06,
+    // ...and the price of it. A maximally crooked manager in front of a
+    // maximally sharp official is caught roughly one match in six; a good
+    // talker cuts that by up to two thirds, and a bent referee never sees a
+    // thing. The client eats the disqualification, not the manager.
+    managerCaughtChanceMax: 0.18,
+    managerSlicknessMax: 0.65,
+    managerOpponentPenaltyMax: 0.04,
     managerPopularityBoostMax: 0.35,
     managerInterferenceWeight: 1.6,
     managerSelfMadePenalty: 0.15,

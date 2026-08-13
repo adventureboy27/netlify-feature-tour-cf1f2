@@ -2093,8 +2093,14 @@ export const useGameStore = create<GameStore>()(
             : draftedReferee;
           const ringside = ringsideTotals({
             managers: (segment.managerIds ?? [])
-              .map((m) => ({ manager: findManager(world, m.managerId), client: participantWrestlers[m.forSide] }))
-              .filter((m): m is { manager: NonNullable<typeof m.manager>; client: Wrestler } =>
+              .map((m) => ({
+                manager: findManager(world, m.managerId),
+                client: participantWrestlers[m.forSide],
+                // Which corner. Without it the sim knows somebody is out there
+                // and not who it helps — see sim/ringside.ts.
+                side: m.forSide,
+              }))
+              .filter((m): m is { manager: NonNullable<typeof m.manager>; client: Wrestler; side: number } =>
                 Boolean(m.manager && m.client),
               ),
             referee: assignedReferee,
