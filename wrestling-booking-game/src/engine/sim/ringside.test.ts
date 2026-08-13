@@ -383,7 +383,20 @@ describe('a manager who cheats, and a manager who is caught', () => {
     // §0: the sim picks the winner. A corner is a thumb on the scale.
     const effect = managerEffect(crook, monster, settings);
     expect(effect.clientWinBonus).toBeLessThan(0.12);
-    expect(effect.opponentPenalty).toBeLessThan(0.12);
+    // A distraction is bigger than the old constant *when it lands*, and it
+    // rarely lands — so what it is worth on an average night is far smaller
+    // than the flat penalty it replaced. That is the whole change: a moment
+    // rather than a permanent tax nobody could see.
+    expect(effect.opponentPenalty).toBeLessThanOrEqual(0.15);
+    expect(effect.distractionChance).toBeLessThan(0.25);
+    expect(effect.opponentPenalty * effect.distractionChance).toBeLessThan(0.03);
+  });
+
+  it('only pulls attention for a manager the crowd actually notices', () => {
+    const wallpaper = { ...crook, presence: 5 };
+    expect(managerEffect(wallpaper, monster, settings).distractionChance).toBeLessThan(
+      managerEffect(crook, monster, settings).distractionChance,
+    );
   });
 
   it('risks getting caught in proportion to how much he cheats', () => {

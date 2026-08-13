@@ -75,8 +75,10 @@ export interface ManagerEffect {
    * picks the winner (§0), so a manager tilts a match and never decides one.
    */
   clientWinBonus: number;
-  /** Taken off whoever has to wrestle with him out there. */
+  /** Taken off the other man on the nights it actually happens. */
   opponentPenalty: number;
+  /** How often that is. Rolled by the sim, which is where the rng lives. */
+  distractionChance: number;
 }
 
 /**
@@ -101,10 +103,17 @@ export function managerEffect(manager: Manager, client: Wrestler, settings: Worl
     // Driven by deviousness rather than presence — this is the cheating half
     // of the job, not the talking half.
     clientWinBonus: (manager.deviousness / 100) * settings.managerWinBonusMax,
-    // ...and the other half of the same act: the opponent spends the match
-    // watching somebody who is not in it. Presence, because a man nobody
-    // notices at ringside distracts nobody.
-    opponentPenalty: (manager.presence / 100) * settings.managerOpponentPenaltyMax,
+    // ...and the other half of the same act: the opponent spends a moment
+    // watching somebody who is not in the match.
+    //
+    // A *moment*, not the whole night. As a permanent few points off the
+    // other man this was overplayed by construction — it fired in every
+    // match a manager ever stood in, invisibly, forever. It is an occasional
+    // thing that actually happens instead: rarer, bigger when it lands, and
+    // said out loud. Presence drives how often, because a man nobody notices
+    // at ringside distracts nobody.
+    opponentPenalty: settings.managerOpponentPenaltyMax,
+    distractionChance: (manager.presence / 100) * settings.managerDistractionChance,
   };
 }
 
@@ -390,6 +399,11 @@ export interface RingsideTotals {
   caughtBy: Record<number, string>;
   /** The same, by id, because the office fines a person rather than a name. */
   caughtById: Record<number, string>;
+  /** Per side: how likely a corner is to pull their attention, how much it
+   *  costs them when it happens, and who did it. Rolled by the sim. */
+  distractionChance: Record<number, number>;
+  distractionPenalty: Record<number, number>;
+  distractionBy: Record<number, string>;
   /** Per client id: the multiplier on what tonight does for their standing. */
   popularityMultipliers: Record<string, number>;
 }
@@ -406,6 +420,10 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   const caughtRisk: Record<number, number> = {};
   const caughtBy: Record<number, string> = {};
   const caughtById: Record<number, string> = {};
+  /** Per side: the odds somebody's corner pulls their attention, and whose. */
+  const distractionChance: Record<number, number> = {};
+  const distractionPenalty: Record<number, number> = {};
+  const distractionBy: Record<number, string> = {};
   /** Per client: what tonight is worth to them for having a mouthpiece. */
   const popularityMultipliers: Record<string, number> = {};
 
@@ -421,7 +439,8 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
       interferenceWeight: 1 + (raw.interferenceWeight - 1) * here,
       selfMadePenalty: raw.selfMadePenalty * here,
       clientWinBonus: raw.clientWinBonus * here,
-      opponentPenalty: raw.opponentPenalty * here,
+      opponentPenalty: raw.opponentPenalty,
+      distractionChance: raw.distractionChance * here,
     };
     ratingBonus += effect.ratingBonus;
     interferenceWeight *= effect.interferenceWeight;
@@ -432,7 +451,13 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
     const side = ctx.managers.find((m) => m.client.id === client.id)?.side ?? null;
     if (side !== undefined && side !== null) {
       winShift[side] = (winShift[side] ?? 0) + effect.clientWinBonus;
-      winShift[1 - side] = (winShift[1 - side] ?? 0) - effect.opponentPenalty;
+      // Whether he actually pulls somebody's attention is a roll, not a
+      // constant — see above. The sim owns the dice.
+      if (effect.distractionChance > 0) {
+        distractionChance[1 - side] = Math.max(distractionChance[1 - side] ?? 0, effect.distractionChance);
+        distractionPenalty[1 - side] = Math.max(distractionPenalty[1 - side] ?? 0, effect.opponentPenalty);
+        distractionBy[1 - side] = manager.name;
+      }
       // ...and the chance the official sees him do it, which costs his man
       // the match rather than costing the manager anything. Kept per side so
       // the sim knows who eats the disqualification.
@@ -472,6 +497,9 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
     caughtRisk,
     caughtBy,
     caughtById,
+    distractionChance,
+    distractionPenalty,
+    distractionBy,
     popularityMultipliers,
     ratingBonus: clamp(ratingBonus, -20, 20),
     screwyFinishWeight,

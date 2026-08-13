@@ -126,11 +126,28 @@ export function simulateMatch(
   // helps his man and costs the other — see sim/ringside.ts. Folded in here
   // rather than applied separately so both go through the same clamp: the sim
   // picks the winner (§0) and nothing is allowed to make a match a formality.
+  // Did anybody's corner actually pull their attention tonight?
+  //
+  // Rolled rather than applied flat, so a manager at ringside is a threat
+  // that occasionally lands rather than a permanent tax nobody can see. See
+  // sim/ringside.ts.
+  const distracted: Record<number, number> = {};
+  let distractedName: string | null = null;
+  for (const key of Object.keys(ctx.ringside?.distractionChance ?? {})) {
+    const side = Number(key);
+    const odds = ctx.ringside?.distractionChance?.[side] ?? 0;
+    if (odds <= 0 || !chance(rng, odds)) continue;
+    distracted[side] = -(ctx.ringside?.distractionPenalty?.[side] ?? 0);
+    distractedName = ctx.ringside?.distractionBy?.[side] ?? distractedName;
+  }
+
   const ringsideShifts = ctx.ringside?.winShift ?? {};
   const booked = ctx.deckStackingShiftsBySide ?? {};
   const stackingShifts: Record<number, number> = {};
-  for (const side of new Set([...Object.keys(booked), ...Object.keys(ringsideShifts)].map(Number))) {
-    stackingShifts[side] = (booked[side] ?? 0) + (ringsideShifts[side] ?? 0);
+  for (const side of new Set(
+    [...Object.keys(booked), ...Object.keys(ringsideShifts), ...Object.keys(distracted)].map(Number),
+  )) {
+    stackingShifts[side] = (booked[side] ?? 0) + (ringsideShifts[side] ?? 0) + (distracted[side] ?? 0);
   }
   const winProbabilitiesBySide: Record<number, number> = {};
   let winnerSide: number;
@@ -249,6 +266,18 @@ export function simulateMatch(
 
   // §0: a result that flipped with no sentence explaining it reads as the sim
   // glitching. Whoever got caught is named, at the top of the highlights.
+  // A distraction that swung a match and said nothing would be the same
+  // invisible tax in a different shape. When it lands, it is in the write-up.
+  const distractionBeat: MatchBeat[] = distractedName
+    ? [
+        {
+          kind: 'interference' as const,
+          significant: true,
+          text: `${distractedName} pulled the attention at ringside at exactly the wrong moment.`,
+        },
+      ]
+    : [];
+
   const cornerBeat: MatchBeat[] = caughtManager
     ? [
         {
@@ -288,7 +317,7 @@ export function simulateMatch(
     rating,
     stars,
     ratingBreakdown: breakdown,
-    beats: [...cornerBeat, ...beats],
+    beats: [...cornerBeat, ...distractionBeat, ...beats],
     caughtManagerId,
     winProbabilitiesBySide,
     injuryMultiplier:

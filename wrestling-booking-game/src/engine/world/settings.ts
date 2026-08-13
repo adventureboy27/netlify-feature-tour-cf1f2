@@ -610,7 +610,12 @@ export function defaultWorldSettings(): WorldSettings {
     // thing. The client eats the disqualification, not the manager.
     managerCaughtChanceMax: 0.18,
     managerSlicknessMax: 0.65,
-    managerOpponentPenaltyMax: 0.04,
+    // Bigger when it lands, and it rarely lands. A permanent few points off
+    // the other man was overplayed by construction — every match, forever,
+    // invisibly. Roughly one match in six for a manager the crowd actually
+    // notices, and the write-up says so when it happens.
+    managerOpponentPenaltyMax: 0.12,
+    managerDistractionChance: 0.18,
     managerPopularityBoostMax: 0.35,
     managerInterferenceWeight: 1.6,
     managerSelfMadePenalty: 0.15,

@@ -2022,6 +2022,8 @@ export interface WorldSettings {
   managerCaughtChanceMax: number;
   managerSlicknessMax: number;
   managerOpponentPenaltyMax: number;
+  /** How often a manager actually pulls somebody's attention. */
+  managerDistractionChance: number;
   managerPopularityBoostMax: number;
   managerInterferenceWeight: number;
   /** How much leaning on a mouthpiece stunts what the client builds alone. */
