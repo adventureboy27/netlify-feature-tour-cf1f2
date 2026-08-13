@@ -1970,6 +1970,9 @@ export interface WorldSettings {
   repStretchedAt: number;
   /** Popularity below which a percentage man will not bother. */
   repWorthCourting: number;
+  /** Whether managers go looking for clients, and how often. */
+  repCourtingEnabled: boolean;
+  repCourtChancePerWeek: number;
 
   // --- Discipline, engine/career/discipline.ts -----------------------------
   /** How many go on file before a fine, and before a suspension. */

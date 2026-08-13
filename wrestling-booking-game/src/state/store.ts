@@ -156,7 +156,7 @@ import {
   type LedgerRole,
 } from '../engine/career/ledger';
 import { ledgerOf } from '../engine/career/ledgerAccess';
-import { attentionOf, cutOf, representativeOf } from '../engine/career/representation';
+import { askingCut, attentionOf, cutOf, representativeOf, wouldCourt } from '../engine/career/representation';
 import {
   applySanction,
   disciplineOf,
@@ -4745,6 +4745,49 @@ export const useGameStore = create<GameStore>()(
           // Two people who lost touch are not lifelong friends at strength 2.
           return !hasLapsed(tie, world.settings);
         });
+
+        // A manager goes looking for a name.
+        //
+        // Nothing signed a representation deal before this, so `representations`
+        // stayed empty forever and the whole percentage system was a thing that
+        // could happen rather than one that did. A percentage man on your books
+        // with room in his diary courts somebody who is already earning — and
+        // the cut he asks for is the one his nerve says he can get.
+        if (world.settings.repCourtingEnabled) {
+          const agents = world.promotion.rosterIds
+            .map((id) => world.wrestlers[id])
+            .filter((w): w is Wrestler => Boolean(w) && w!.role === 'manager' && !w!.deceased);
+
+          for (const agent of agents) {
+            if (!chance(rng, world.settings.repCourtChancePerWeek)) continue;
+            const shape = managerFromWrestler(agent);
+            const target = world.promotion.rosterIds
+              .map((id) => world.wrestlers[id])
+              .find(
+                (w): w is Wrestler =>
+                  Boolean(w) && wouldCourt(shape, w!, world.representations, world.settings),
+              );
+            if (!target) continue;
+
+            const cut = askingCut(shape, world.settings);
+            world.representations.push({
+              managerId: agent.id,
+              clientId: target.id,
+              cut,
+              signedWeek: world.week,
+            });
+            // §0: money starts leaving somebody's purse this week, so the
+            // week it starts is the week it is reported.
+            world.weeklyNews.push(
+              wire(
+                'signing',
+                `${agent.name} is speaking for ${target.name} now, for ${Math.round(cut * 100)}% of his purse.`,
+                world.week,
+                'minor',
+              ),
+            );
+          }
+        }
 
         // Where everybody sits on the card, re-read rather than remembered.
         // A main eventer who stops drawing comes down; somebody the crowd has

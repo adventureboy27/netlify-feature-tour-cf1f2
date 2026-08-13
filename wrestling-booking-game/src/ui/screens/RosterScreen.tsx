@@ -37,6 +37,8 @@ import { patienceLeft } from '../../engine/career/lineage';
 import { blockedBecause, perkUpkeep } from '../../engine/economy/perks';
 import { hypeLabel } from '../../engine/career/hype';
 import { fitLabel } from '../../engine/career/fit';
+import { bookLine, clientCutLine, representativeOf } from '../../engine/career/representation';
+import { recordLabel } from '../../engine/career/discipline';
 import { PERKS } from '../../data/perks';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { HeatBadge, Money } from '../components/display';
@@ -322,6 +324,39 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     week would bury the one that matters. Half of what it
                     reports is chemistry nobody can explain, which is why it is
                     a read and not a reason. */}
+                {/* What is leaving his purse every week, and to whom. A cut
+                    the player cannot see is a cut they cannot make a decision
+                    about — see engine/career/representation.ts. */}
+                {(() => {
+                  const rep = representativeOf(world.representations ?? [], w.id);
+                  const line = clientCutLine(rep, rep ? world.wrestlers[rep.managerId]?.name : undefined);
+                  return line ? (
+                    <div className="mt-0.5 truncate text-[10px] text-amber-400/80" title="His manager's percentage. It comes out of what he earns, not out of your budget — but he remembers it at renewal.">
+                      {line}
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* His own book, if he is the one taking a percentage. */}
+                {w.role === 'manager' && (
+                  <div className="mt-0.5 truncate text-[10px] text-sky-400/80">
+                    {bookLine(
+                      world.representations ?? [],
+                      w.id,
+                      (clientId) => world.wrestlers[clientId]?.contract?.weeklyRate ?? 0,
+                      world.settings,
+                    )}
+                  </div>
+                )}
+
+                {/* A file at the office, and a suspension in particular —
+                    §0 says a man off every card is never a silent change. */}
+                {recordLabel(w.discipline, world.week, world.settings) && (
+                  <div className="mt-0.5 truncate text-[10px] text-rose-400">
+                    {recordLabel(w.discipline, world.week, world.settings)}
+                  </div>
+                )}
+
                 {fitLabel(w, world.promotion, world.settings) && (
                   <div
                     className={`mt-0.5 truncate text-[10px] ${

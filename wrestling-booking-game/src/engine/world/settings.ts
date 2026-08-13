@@ -543,6 +543,11 @@ export function defaultWorldSettings(): WorldSettings {
     repAttentionFloor: 0.25,
     repStretchedAt: 0.5,
     repWorthCourting: 35,
+    // A manager on your books goes looking roughly every couple of months.
+    // Often enough that a signed manager fills a book over a year, rare
+    // enough that he does not sweep the roster in a fortnight.
+    repCourtingEnabled: true,
+    repCourtChancePerWeek: 0.12,
 
     // Discipline. Two on file before it costs money, four before it costs
     // you a spot on the card — slow enough that one bad night is not a
