@@ -145,6 +145,8 @@ import {
 import { styleProfileFor } from '../data/promotionIdentity';
 import { crossing, hypeDrift } from '../engine/career/hype';
 import { isFinished } from '../engine/career/status';
+import { bereavements, hasLapsed, mourningLine, tieDrift, applyDrift } from '../engine/career/circle';
+import { statusOf, statusMove } from '../engine/career/cardStatus';
 import {
   foundPromotion,
   foundingRoster,
@@ -4180,6 +4182,23 @@ export const useGameStore = create<GameStore>()(
                   world.settings,
                 );
               }
+              // §0: a death happens to the people left as well. Until now the
+              // memorial wall recorded it and the locker room did not notice.
+              const felt = bereavements(
+                person,
+                Object.values(world.wrestlers),
+                world.relationships,
+                world.settings,
+              );
+              for (const grief of felt) {
+                const mourner = world.wrestlers[grief.wrestlerId];
+                if (!mourner) continue;
+                mourner.morale = clamp(mourner.morale + grief.moraleDelta, 0, 100);
+                mourner.moraleNote = grief.note;
+              }
+              const said = mourningLine(felt);
+              if (said) world.weeklyNews.push(wire('death', said, world.week, 'normal'));
+
               leaveTheBusiness(world, person.id, 'died');
               continue;
             }
@@ -4413,6 +4432,64 @@ export const useGameStore = create<GameStore>()(
         for (const w of Object.values(world.wrestlers)) {
           if (w.deceased || w.careerStatus === 'retired') continue;
           restWeek(w, worked.has(w.id), world.settings, recoveryFor(w.promotionId));
+        }
+
+        // Who was in a match with whom tonight. A bond is built by working,
+        // and until now relationships were seeded at world creation and frozen
+        // for thirty years — two men who wrestled two hundred times were
+        // exactly as close in year eight as on day one. See career/circle.ts.
+        const inTheSameMatch = new Set<string>();
+        for (const segment of world.currentCard) {
+          const ids = segment.participants.map((p) => p.wrestlerId);
+          for (let i = 0; i < ids.length; i++) {
+            for (let j = i + 1; j < ids.length; j++) {
+              inTheSameMatch.add([ids[i]!, ids[j]!].sort().join('~'));
+            }
+          }
+        }
+        const onTheSameCard = new Set(bookedTonight);
+
+        world.relationships = world.relationships.filter((tie) => {
+          const a = world.wrestlers[tie.aId];
+          const b = world.wrestlers[tie.bId];
+          // A tie to somebody who has died stays exactly as it was. It is a
+          // fact about a life, and the memorial page reads it.
+          if (!a || !b || a.deceased || b.deceased) return true;
+
+          const key = [tie.aId, tie.bId].sort().join('~');
+          tie.strength = applyDrift(
+            tie,
+            tieDrift(
+              {
+                workedTogether: inTheSameMatch.has(key),
+                sharedACard: onTheSameCard.has(tie.aId) && onTheSameCard.has(tie.bId),
+                bothWorking: a.promotionId !== null || b.promotionId !== null,
+              },
+              world.settings,
+            ),
+          );
+          // Two people who lost touch are not lifelong friends at strength 2.
+          return !hasLapsed(tie, world.settings);
+        });
+
+        // Where everybody sits on the card, re-read rather than remembered.
+        // A main eventer who stops drawing comes down; somebody the crowd has
+        // decided about goes up, occasionally two bands at once. Only the
+        // player's own roster gets a line in the paper — a rival reshuffling
+        // its midcard is not news. See career/cardStatus.ts.
+        for (const id of world.promotion.rosterIds) {
+          const person = world.wrestlers[id];
+          if (!person || person.deceased || isFinished(person)) continue;
+          const before = person.cardStatus;
+          const after = statusOf(person, world.promotion, world.settings);
+          if (after === before) continue;
+          person.cardStatus = after;
+          const move = statusMove(person, before, after, person.momentum >= world.settings.cardBreakoutMomentum);
+          if (move.kind !== 'none') {
+            world.weeklyNews.push(
+              wire('signing', move.note, world.week, move.kind === 'caughtFire' ? 'lead' : 'minor'),
+            );
+          }
         }
 
         // Career standing is derived, so it moves on its own as a save runs.

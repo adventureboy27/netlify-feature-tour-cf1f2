@@ -2811,6 +2811,40 @@ export interface WorldSettings {
   hypeRatedAt: number;
   hypePhenomAt: number;
 
+  // --- Where somebody sits on the card, engine/career/cardStatus.ts --------
+  /** Standing (in this company) at which each band starts. */
+  cardMainEventAt: number;
+  cardUpperMidcardAt: number;
+  cardMidcardAt: number;
+  cardLowerCardAt: number;
+  /** How far somebody has to fall before the office admits it. */
+  cardFallCushion: number;
+  /** Matches before anybody is anything but a prospect. */
+  cardMinMatches: number;
+  /** What catching fire takes — the Austin case. */
+  cardBreakoutMomentum: number;
+  cardBreakoutStanding: number;
+  /** Momentum at which somebody reads as climbing, or as going backwards. */
+  cardHotMomentum: number;
+  cardColdMomentum: number;
+
+  // --- Somebody's people, engine/career/circle.ts --------------------------
+  /** Most friends, and most enemies, anybody keeps a place for. */
+  circleMax: number;
+  /** How strong a tie has to be to count as one at all. */
+  circleFloor: number;
+  /** Where "inseparable" and "real bad blood" start. */
+  circleThickAt: number;
+  /** What a week does to a tie: in the same match, on the same card, apart. */
+  circleGainWorked: number;
+  circleGainSharedCard: number;
+  circleFadePerWeek: number;
+  /** Below this a tie has lapsed and is dropped rather than kept at nothing. */
+  circleLapseAt: number;
+  /** Morale a death costs the person who had them first on their list. */
+  circleGriefFriend: number;
+  circleGriefEnemy: number;
+
   // --- The schedule, engine/world/schedule.ts ------------------------------
   /** Most nights a week anybody can run. */
   scheduleMaxShows: number;

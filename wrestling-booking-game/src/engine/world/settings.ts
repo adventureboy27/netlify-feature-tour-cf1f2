@@ -1169,6 +1169,46 @@ export function defaultWorldSettings(): WorldSettings {
     //   92 -> y1 74 -> y2 63 -> y3 55 -> y4 50 -> y5 46 -> y6 44
     // ...and kept off television for those same six years: still 73.
 
+    // Where somebody sits on the card. Bands are wide so nobody flickers
+    // between two of them on a good week, and the fall cushion means a main
+    // eventer who cools off is still booked like one for a while — the
+    // audience remembers who you were.
+    //
+    // Thresholds are read against `overnessIn`, not raw popularity, so the
+    // same man is a main eventer in the company that suits him and an upper
+    // midcarder in the one that does not. See career/fit.ts.
+    cardMainEventAt: 72,
+    cardUpperMidcardAt: 56,
+    cardMidcardAt: 38,
+    cardLowerCardAt: 20,
+    cardFallCushion: 8,
+    cardMinMatches: 6,
+    // Catching fire: momentum through the roof *and* the crowd already moving.
+    // Momentum on its own is a hot streak somebody has been protected through.
+    cardBreakoutMomentum: 82,
+    cardBreakoutStanding: 44,
+    cardHotMomentum: 68,
+    cardColdMomentum: 30,
+
+    // Somebody's people. Five is a place for five, not a quota — most
+    // wrestlers have one or two of each and plenty have none.
+    //
+    // The gain and fade rates are a decade apart on purpose: you make a friend
+    // over about a year of being in each other's matches, and you lose one
+    // over about five years of not seeing them. Measured in circle.test.ts.
+    circleMax: 5,
+    circleFloor: 30,
+    circleThickAt: 70,
+    circleGainWorked: 0.9,
+    circleGainSharedCard: 0.25,
+    circleFadePerWeek: 0.12,
+    circleLapseAt: 8,
+    // A death costs the man who travelled with him a real week of morale, and
+    // everybody further down the list proportionally less. An enemy dying is
+    // not a good week either — nobody celebrates it.
+    circleGriefFriend: 22,
+    circleGriefEnemy: 6,
+
     // The schedule. Money from extra nights is concave — a house show does
     // not draw what the televised one draws — and the work is linear, because
     // a house show is a card worked by a card's worth of people. What makes a
