@@ -13,6 +13,11 @@
 
 import type { Manager } from '../engine/sim/ringside';
 
+// Managers are older than the people they manage, and deliberately so: this
+// is a job you get to by having been a wrestler already or by having talked
+// for a living long enough to be good at it. The youngest here is 46 against a
+// roster averaging around thirty, which is what makes a manager dying a
+// different kind of event from a wrestler dying.
 export const MANAGERS: Manager[] = [
   {
     id: 'mgr-cornelius',
@@ -21,6 +26,7 @@ export const MANAGERS: Manager[] = [
     presence: 78,
     deviousness: 70,
     feePerShow: 1400,
+    age: 71,
     blurb: 'Old money, silk handkerchief, and a client list going back decades.',
   },
   {
@@ -30,6 +36,7 @@ export const MANAGERS: Manager[] = [
     presence: 85,
     deviousness: 55,
     feePerShow: 1300,
+    age: 58,
     blurb: 'Nobody in the building will boo her. Everybody will boo whoever she brought.',
   },
   {
@@ -39,6 +46,7 @@ export const MANAGERS: Manager[] = [
     presence: 62,
     deviousness: 95,
     feePerShow: 1100,
+    age: 64,
     blurb: 'Has never seen a rulebook he could not misplace.',
   },
   {
@@ -48,6 +56,7 @@ export const MANAGERS: Manager[] = [
     presence: 72,
     deviousness: 80,
     feePerShow: 1250,
+    age: 49,
     blurb: 'Speaks entirely in threats delivered very calmly.',
   },
   {
@@ -57,6 +66,7 @@ export const MANAGERS: Manager[] = [
     presence: 80,
     deviousness: 40,
     feePerShow: 850,
+    age: 52,
     blurb: 'Shouts. Salutes. Has a folding chair and strong opinions.',
   },
   {
@@ -66,6 +76,7 @@ export const MANAGERS: Manager[] = [
     presence: 88,
     deviousness: 68,
     feePerShow: 1150,
+    age: 55,
     blurb: 'Says almost nothing and takes up the entire frame.',
   },
   {
@@ -75,6 +86,7 @@ export const MANAGERS: Manager[] = [
     presence: 55,
     deviousness: 62,
     feePerShow: 950,
+    age: 67,
     blurb: 'Insufferable, well-spoken, and generates heat by existing.',
   },
   {
@@ -84,6 +96,7 @@ export const MANAGERS: Manager[] = [
     presence: 84,
     deviousness: 75,
     feePerShow: 700,
+    age: 47,
     blurb: 'A former wrestler the size of a door. Not a talker.',
   },
   {
@@ -93,6 +106,7 @@ export const MANAGERS: Manager[] = [
     presence: 76,
     deviousness: 50,
     feePerShow: 1000,
+    age: 61,
     blurb: 'Speaks in prophecy. Half the crowd is genuinely unsettled.',
   },
   {
@@ -102,6 +116,7 @@ export const MANAGERS: Manager[] = [
     presence: 45,
     deviousness: 88,
     feePerShow: 600,
+    age: 63,
     blurb: 'Waves contracts. Files complaints. Always at ringside for the finish.',
   },
   {
@@ -111,6 +126,7 @@ export const MANAGERS: Manager[] = [
     presence: 82,
     deviousness: 72,
     feePerShow: 1350,
+    age: 46,
     blurb: 'Runs her clients like a stable and everyone else like an obstacle.',
   },
   {
@@ -120,6 +136,7 @@ export const MANAGERS: Manager[] = [
     presence: 40,
     deviousness: 45,
     feePerShow: 300,
+    age: 74,
     blurb: 'Cheap, keen, and has not managed anybody who mattered yet.',
   },
 ];
@@ -128,3 +145,16 @@ export function managerById(id: string): Manager | undefined {
   return MANAGERS.find((m) => m.id === id);
 }
 
+
+/**
+ * The pool, minus anybody who has died.
+ *
+ * `MANAGERS` is a static list shared by every save, so death cannot be a flag
+ * on it — a manager who died in one world would be dead in all of them. The
+ * memorial wall is per-world and is therefore the authority: if their name is
+ * on it, they are not available to book.
+ */
+export function livingManagers(memoriam: readonly { wrestlerId: string }[]): Manager[] {
+  const gone = new Set(memoriam.map((p) => p.wrestlerId));
+  return MANAGERS.filter((m) => !gone.has(m.id));
+}

@@ -12,7 +12,7 @@ import { useGameStore } from '../../state/store';
 import { PROMO_TOPICS, promoTopicById } from '../../data/promoTopics';
 import { CONFRONTATIONS, confrontationById } from '../../data/confrontations';
 import { confrontationAvailable } from '../../engine/sim/confrontation';
-import { MANAGERS } from '../../data/ringsidePool';
+import { livingManagers } from '../../data/ringsidePool';
 import { billedAs } from '../../engine/generate/nickname';
 import type { Wrestler } from '../../engine/types';
 
@@ -129,7 +129,7 @@ export function PromoSlots() {
                   className="w-full rounded bg-neutral-950 px-2 py-1 text-xs outline-none ring-1 ring-neutral-800"
                 >
                   <option value="">They speak for themselves</option>
-                  {MANAGERS.map((m) => (
+                  {livingManagers(world.memoriam).map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name} speaks for them
                     </option>

@@ -39,6 +39,12 @@ export interface Manager {
   deviousness: number; // 0-100
   /** Fee per appearance. Zero for one of your own — already on the payroll. */
   feePerShow: number;
+  /**
+   * Managers get old and die like anybody else. Optional only because one of
+   * your own wrestlers doing the job carries their own age; `ageOfManager`
+   * resolves it either way.
+   */
+  age?: number;
   blurb: string;
   /** Set when this is one of your wrestlers doing the job. */
   wrestlerId?: Id;
