@@ -514,6 +514,15 @@ export function defaultWorldSettings(): WorldSettings {
     relationshipEnemyRatingBonus: 5,
     relationshipEnemyInjuryIncrease: 0.35,
     relationshipRefusalThreshold: 85,
+    // Ties that form in play, because the seeded ones were the only ones that
+    // ever existed. Deliberately slow: three shared matches before it can
+    // happen at all, then a one-in-eight roll, starting weak enough that the
+    // ordinary drift decides whether it becomes anything.
+    tieFormMinMeetings: 3,
+    tieFormChancePerMeeting: 0.12,
+    tieFormStartMin: 22,
+    tieFormStartMax: 40,
+    tieFormMentorAgeGap: 12,
 
     // Free agents
     freeAgentRateDecayPerWeek: 0.008,

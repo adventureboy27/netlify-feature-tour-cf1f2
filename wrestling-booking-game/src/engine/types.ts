@@ -1944,6 +1944,14 @@ export interface WorldSettings {
   relationshipEnemyInjuryIncrease: number;
   /** Enmity at or above this and they will not work together at all. */
   relationshipRefusalThreshold: number;
+  /** Shared matches before two people can form a backstage tie at all. */
+  tieFormMinMeetings: number;
+  /** Chance per qualifying match that a tie actually forms. */
+  tieFormChancePerMeeting: number;
+  tieFormStartMin: number;
+  tieFormStartMax: number;
+  /** Age gap at which a new same-side tie is a mentorship rather than a friendship. */
+  tieFormMentorAgeGap: number;
 
   // Free agents (engine/world/freeAgents.ts)
   /** Asking rate shed per week unsigned. */

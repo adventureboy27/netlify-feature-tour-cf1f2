@@ -88,6 +88,7 @@ import {
   findRelationship,
   relationshipMatchEffect,
   refusesToWorkWith,
+  rollNewTie,
 } from '../engine/career/relationships';
 import {
   canSignSecretly,
@@ -2554,6 +2555,41 @@ export const useGameStore = create<GameStore>()(
             if (casualty) hurtTonight.push(casualty);
           }
 
+          // Who has now shared a ring with whom, and what they make of each
+          // other. Counted for every pair in the segment — partners included —
+          // rather than only for singles, which is why a tag team that had been
+          // together a year still read as having met zero times.
+          //
+          // The tie is a different thing from the rivalry below: a rivalry is
+          // the feud the crowd is watching, this is what the two of them
+          // actually think. Keep feeding two people to each other and they end
+          // up friends or enemies whether the angle says so or not.
+          {
+            const inRing = segment.participants.filter((p) => p.role === 'competitor');
+            for (let x = 0; x < inRing.length; x++) {
+              for (let y = x + 1; y < inRing.length; y++) {
+                const pa = inRing[x]!;
+                const pb = inRing[y]!;
+                const wa = world.wrestlers[pa.wrestlerId];
+                const wb = world.wrestlers[pb.wrestlerId];
+                if (!wa || !wb) continue;
+                const key = pairKey(wa.id, wb.id);
+                const met = (world.meetings[key] ?? 0) + 1;
+                world.meetings[key] = met;
+                const tie = rollNewTie(
+                  rng,
+                  wa,
+                  wb,
+                  pa.side === pb.side,
+                  met,
+                  world.relationships,
+                  world.settings,
+                );
+                if (tie) world.relationships.push(tie);
+              }
+            }
+          }
+
           // Commit how the feud moved, and let a new one form organically.
           if (rivalry && result.heatChange) {
             const index = world.rivalries.findIndex((r) => r.id === rivalry.id);
@@ -2572,9 +2608,11 @@ export const useGameStore = create<GameStore>()(
             // §12.5 route 3: repeat matches make a rivalry on their own, "at
             // heat proportional to how good those matches were" — so three
             // dull meetings still make nothing.
+            // Counted once, below, for every pair in the segment rather than
+            // only for singles — a tag team that has been together fifty weeks
+            // had met zero times as far as this map was concerned.
             const key = pairKey(participantIds[0]!, participantIds[1]!);
-            const meetings = (world.meetings[key] ?? 0) + 1;
-            world.meetings[key] = meetings;
+            const meetings = world.meetings[key] ?? 0;
 
             if (meetings >= MEETINGS_TO_FORM_RIVALRY) {
               const startingHeat = result.rating * heatMultiplier(result.rating) * ORGANIC_RIVALRY_HEAT_SCALE;
@@ -3779,6 +3817,34 @@ export const useGameStore = create<GameStore>()(
           });
           if (!show) continue;
           rivalShows.set(rival.id, show);
+
+          // Rivals' locker rooms are locker rooms too. Without this the only
+          // people in the business who ever made a friend or an enemy were the
+          // twenty-odd on the player's roster — measured at 25 of 163 people
+          // carrying any tie at all, because a tie could only form on the
+          // player's card. Same rule, same counter, their show.
+          for (const match of show.matches) {
+            for (let x = 0; x < match.participantIds.length; x++) {
+              for (let y = x + 1; y < match.participantIds.length; y++) {
+                const wa = world.wrestlers[match.participantIds[x]!];
+                const wb = world.wrestlers[match.participantIds[y]!];
+                if (!wa || !wb) continue;
+                const key = pairKey(wa.id, wb.id);
+                const met = (world.meetings[key] ?? 0) + 1;
+                world.meetings[key] = met;
+                const tie = rollNewTie(
+                  rng,
+                  wa,
+                  wb,
+                  match.sides[x] === match.sides[y],
+                  met,
+                  world.relationships,
+                  world.settings,
+                );
+                if (tie) world.relationships.push(tie);
+              }
+            }
+          }
 
           // Rivals tour too. They run where they are most over, and a company
           // that is over nowhere yet takes whatever is unclaimed — which is
