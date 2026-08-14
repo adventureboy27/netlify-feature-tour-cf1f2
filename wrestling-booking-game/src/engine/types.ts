@@ -1944,6 +1944,37 @@ export interface WorldSettings {
   relationshipEnemyInjuryIncrease: number;
   /** Enmity at or above this and they will not work together at all. */
   relationshipRefusalThreshold: number;
+
+  // §16 cross-promotional supershows.
+  supershowAppetiteBase: number;
+  supershowAppetiteStandingWeight: number;
+  supershowAppetiteReputationWeight: number;
+  supershowAppetiteResentmentWeight: number;
+  supershowHostileResentment: number;
+  supershowEagerAt: number;
+  supershowCautiousAt: number;
+  supershowPublicRefusalChance: number;
+  supershowGatePerRatingPoint: number;
+  supershowNoveltyMultiplier: number;
+  supershowHostGateBonus: number;
+  supershowAppearanceShare: number;
+  supershowWinBonusMultiple: number;
+  supershowLoserBonusShare: number;
+  supershowPopularityMultiplier: number;
+  supershowMoraleSwing: number;
+  supershowTitlePrestigeSwing: number;
+  supershowCompanyRatingSwing: number;
+  supershowTerritorySwing: number;
+  supershowRoutMargin: number;
+  supershowMinPartnerShare: number;
+  supershowMaxPartnerShare: number;
+  supershowCautiousPremium: number;
+  supershowSplitTolerance: number;
+  supershowGuaranteeMin: number;
+  supershowGuaranteeMax: number;
+  supershowMinCard: number;
+  supershowMaxCard: number;
+  supershowRatingPerSegment: number;
   /** Shared matches before two people can form a backstage tie at all. */
   tieFormMinMeetings: number;
   /** Chance per qualifying match that a tie actually forms. */

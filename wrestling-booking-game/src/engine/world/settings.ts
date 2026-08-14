@@ -514,6 +514,44 @@ export function defaultWorldSettings(): WorldSettings {
     relationshipEnemyRatingBonus: 5,
     relationshipEnemyInjuryIncrease: 0.35,
     relationshipRefusalThreshold: 85,
+
+    // §16 cross-promotional supershows. The biggest night in the game and the
+    // only one neither booker controls.
+    supershowAppetiteBase: 50,
+    supershowAppetiteStandingWeight: 60,
+    supershowAppetiteReputationWeight: 20,
+    supershowAppetiteResentmentWeight: 0.8,
+    supershowHostileResentment: 70,
+    supershowEagerAt: 65,
+    supershowCautiousAt: 38,
+    supershowPublicRefusalChance: 0.35,
+    // Two audiences buy one show, and the novelty draws people neither company
+    // reaches alone. This is why a joint PPV beats running two separate ones.
+    supershowGatePerRatingPoint: 1900,
+    supershowNoveltyMultiplier: 1.45,
+    supershowHostGateBonus: 0.08,
+    // Everybody on the card gets paid well above a normal night, and the
+    // winners take a multiple of that again. The incentive to win is money.
+    supershowAppearanceShare: 0.011,
+    supershowWinBonusMultiple: 1.4,
+    supershowLoserBonusShare: 0,
+    // §16's amplification table, both directions.
+    supershowPopularityMultiplier: 2.2,
+    supershowMoraleSwing: 14,
+    supershowTitlePrestigeSwing: 6,
+    supershowCompanyRatingSwing: 7,
+    supershowTerritorySwing: 9,
+    supershowRoutMargin: 0.5,
+    // Negotiation.
+    supershowMinPartnerShare: 0.2,
+    supershowMaxPartnerShare: 0.8,
+    supershowCautiousPremium: 0.08,
+    supershowSplitTolerance: 0.03,
+    supershowGuaranteeMin: 15000,
+    supershowGuaranteeMax: 60000,
+    supershowMinCard: 8,
+    supershowMaxCard: 14,
+    supershowRatingPerSegment: 11,
     // Ties that form in play, because the seeded ones were the only ones that
     // ever existed. Deliberately slow: three shared matches before it can
     // happen at all, then a one-in-eight roll, starting weak enough that the
