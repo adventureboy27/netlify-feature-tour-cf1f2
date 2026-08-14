@@ -607,6 +607,10 @@ export function defaultWorldSettings(): WorldSettings {
     // moving into a suit or a natural talker walking in off the street, both
     // of which already happen — this is the stranger who was never either.
     managerTalentArrivalChance: 0.16,
+    // How many strangers get looked at each year. The arrival chance above
+    // decides how many of them actually turn up, so this is the width of the
+    // funnel rather than the number of managers.
+    managerArrivalsConsideredPerYear: 2,
     managerTalentMinMic: 62,
     // ...and the price of it. A maximally crooked manager in front of a
     // maximally sharp official is caught roughly one match in six; a good

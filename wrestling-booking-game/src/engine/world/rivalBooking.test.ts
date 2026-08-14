@@ -96,6 +96,52 @@ describe('the card an AI booker builds', () => {
     expect(mainEvent.sides.flat().map((w) => w.id).sort()).toEqual(top.sort());
   });
 
+  it('keeps two people who refuse to work together off the same match', () => {
+    // The refusal path exists because relationships used to be read for morale
+    // and nothing else. It is tested here rather than measured in a played
+    // save because a tie only reaches the refusal threshold after years of bad
+    // blood — 114 weeks of simulation produced none, which makes a play
+    // measurement a test of the clock rather than of the booking.
+    const available = roster(12);
+    const enemies = new Set([`${available[0]!.id}|${available[1]!.id}`]);
+    const refuses = (aId: string, bId: string) =>
+      enemies.has(`${aId}|${bId}`) || enemies.has(`${bId}|${aId}`);
+
+    const { matches } = bookRivalCard(rngFromSeed('refusal'), {
+      promotion: promotion(),
+      available,
+      titles: [],
+      week: 1,
+      settings,
+      refuses,
+    });
+
+    for (const match of matches) {
+      for (const x of match.sides[0]!) {
+        for (const y of match.sides[1]!) {
+          expect(refuses(x.id, y.id), `${x.name} was booked against ${y.name}`).toBe(false);
+        }
+      }
+    }
+    // And the card is still a card — refusing a pairing must not cost a match.
+    expect(matches.length).toBeGreaterThan(0);
+  });
+
+  it('still books a full card when the refusal cannot be swapped away', () => {
+    // Everybody hates everybody. There is no legal card, and the office books
+    // one anyway — a grudge match is better than a hole in the running order.
+    const available = roster(6);
+    const { matches } = bookRivalCard(rngFromSeed('all-enemies'), {
+      promotion: promotion(),
+      available,
+      titles: [],
+      week: 1,
+      settings,
+      refuses: () => true,
+    });
+    expect(matches.length).toBeGreaterThan(0);
+  });
+
   it('never books the same person twice on one card', () => {
     const { matches } = bookRivalCard(rngFromSeed('dupes'), {
       promotion: promotion(),

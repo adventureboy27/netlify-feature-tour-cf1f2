@@ -82,7 +82,13 @@ import {
 import type { StorylineBeatKind } from '../data/storylineBeats';
 import { MATCH_BEAT_LINES, STORYLINE_NAME_PATTERNS } from '../data/storylineBeats';
 import { callTheMatch } from '../engine/sim/commentary';
-import { isAlly, isEnemy } from '../engine/career/relationships';
+import {
+  isAlly,
+  isEnemy,
+  findRelationship,
+  relationshipMatchEffect,
+  refusesToWorkWith,
+} from '../engine/career/relationships';
 import {
   canSignSecretly,
   canWalkOut,
@@ -302,6 +308,7 @@ import {
 } from '../engine/world/territories';
 import { businessCapacity, graduateClass, graduateCount, workingPopulation } from '../engine/world/academy';
 import { walkOnIntake, walkOnLine } from '../engine/world/walkOns';
+import { managerIntake } from '../engine/world/managerTalent';
 import { rollForNickname } from '../engine/generate/nickname';
 import {
   checkRename,
@@ -1781,6 +1788,8 @@ export const useGameStore = create<GameStore>()(
           // Without this the office books the same six matches every week and
           // walks the company into the ground on repetition alone.
           memory: recallBookings(world.showHistory, world.week, world.settings),
+          refuses: (aId, bId) =>
+            refusesToWorkWith(findRelationship(world.relationships, aId, bId), world.settings),
         });
 
         card.matches.forEach((match, i) => {
@@ -2235,7 +2244,31 @@ export const useGameStore = create<GameStore>()(
               })
             : null;
 
+          // Friends and enemies across the ring. Relationships used to be read
+          // for morale and the locker room and nothing else — two men who
+          // genuinely hated each other worked an ordinary match. The strongest
+          // tie in the segment carries it: allies work smoother and safer,
+          // enemies work stiffer and more dangerous, and both rate higher
+          // because the crowd can tell.
+          const competitorIds = segment.participants
+            .filter((p) => p.role === 'competitor')
+            .map((p) => p.wrestlerId);
+          let relHeat = 0;
+          let relInjury = 1;
+          for (let a = 0; a < competitorIds.length; a++) {
+            for (let b = a + 1; b < competitorIds.length; b++) {
+              const tie = findRelationship(world.relationships, competitorIds[a]!, competitorIds[b]!);
+              if (!tie) continue;
+              const effect = relationshipMatchEffect(tie, world.settings);
+              if (Math.abs(effect.ratingBonus) > Math.abs(relHeat)) relHeat = effect.ratingBonus;
+              if (Math.abs(effect.injuryMultiplier - 1) > Math.abs(relInjury - 1)) {
+                relInjury = effect.injuryMultiplier;
+              }
+            }
+          }
+
           const result = simulateMatch(rng, simParticipants, wrestlerById, {
+            relationshipHeat: relHeat,
             rules: segment.rules,
             stipulation,
             requirementsMet,
@@ -2415,6 +2448,7 @@ export const useGameStore = create<GameStore>()(
               // carry one — see sim/ringside.ts.
               injuryMultiplier:
                 result.injuryMultiplier *
+                relInjury *
                 workingHurtRisk(person, world.settings) *
                 (1 - (ringside.injuryShield?.[person.id] ?? 0)),
               toughness: person.toughness,
@@ -3738,6 +3772,10 @@ export const useGameStore = create<GameStore>()(
             settings: world.settings,
             memory: memoryFromRoster(available),
             representedIds: new Set(world.representations.map((r) => r.clientId)),
+            // Rivals are not stupid either — a grudge that stops a match
+            // stopping it on their card too.
+            refuses: (aId, bId) =>
+              refusesToWorkWith(findRelationship(world.relationships, aId, bId), world.settings),
           });
           if (!show) continue;
           rivalShows.set(rival.id, show);
@@ -5228,6 +5266,39 @@ export const useGameStore = create<GameStore>()(
           if (walkOns.wrestlers.length > 0) {
             world.weeklyNews.push(
               wire('debut', walkOnLine(walkOns.wrestlers.map((w) => w.name)), world.week, 'minor'),
+            );
+          }
+
+          // And the third door: somebody who was never a wrestler and never
+          // will be, who can talk and knows it. Without this the mouthpiece
+          // pool was the twelve seeded at world creation — they aged out, they
+          // died, and nothing replaced them.
+          const managerCandidates = generateWrestlers(
+            rng,
+            world.settings.managerArrivalsConsideredPerYear,
+            {
+              settings: world.settings,
+              currentYear: year,
+              existingAppearances: everyone.map((w) => w.appearance),
+              existingNames: new Set(takenNamesNow),
+            },
+          );
+          const newManagers = managerIntake(rng, managerCandidates, year, world.settings);
+          for (const person of newManagers.wrestlers) {
+            world.wrestlers[person.id] = person;
+            takenNamesNow.add(person.name.trim().toLowerCase());
+          }
+          world.freeAgents.push(...newManagers.freeAgents);
+          if (newManagers.wrestlers.length > 0) {
+            world.weeklyNews.push(
+              wire(
+                'debut',
+                newManagers.wrestlers.length === 1
+                  ? `${newManagers.wrestlers[0]!.name} is looking for somebody to speak for.`
+                  : `${newManagers.wrestlers.map((w) => w.name).join(' and ')} are looking for somebody to speak for.`,
+                world.week,
+                'minor',
+              ),
             );
           }
 

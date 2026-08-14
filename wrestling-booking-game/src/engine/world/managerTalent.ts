@@ -177,3 +177,31 @@ export function seedManagerTalent(
 
   return { wrestlers, freeAgents };
 }
+
+/**
+ * The year's crop of strangers who turn up already able to do the job.
+ *
+ * Mirrors `walkOnIntake`: generate candidates, run each past `rollNewManager`,
+ * keep the ones who arrive. Without this the pool was the twelve seeded at
+ * world creation and nothing else, forever — they aged, they died, and the
+ * business slowly ran out of mouthpieces with no door for a new one to come
+ * through. Rare on purpose: most managers should still arrive via a wrestler
+ * whose body gave out (`career/transition.ts`) or a walk-on who can talk and
+ * cannot go, because those are the two ways it happens in life.
+ */
+export function managerIntake(
+  rng: Rng,
+  candidates: readonly Wrestler[],
+  currentYear: number,
+  settings: WorldSettings,
+): ManagerIntake {
+  const wrestlers: Wrestler[] = [];
+  const freeAgents: FreeAgent[] = [];
+  for (const person of candidates) {
+    const arrival = rollNewManager(rng, person, currentYear, settings);
+    if (!arrival) continue;
+    wrestlers.push(arrival.wrestler);
+    freeAgents.push(arrival.freeAgent);
+  }
+  return { wrestlers, freeAgents };
+}

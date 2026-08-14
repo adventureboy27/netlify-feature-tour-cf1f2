@@ -2019,6 +2019,8 @@ export interface WorldSettings {
   managerTalentMuscleBonus: number;
   /** How often a brand new manager turns up, and how good a talker they are. */
   managerTalentArrivalChance: number;
+  /** Strangers considered for the manager's job each year, before the arrival roll. */
+  managerArrivalsConsideredPerYear: number;
   managerTalentMinMic: number;
   /** How often a crooked manager is caught, and how far talking gets him. */
   managerCaughtChanceMax: number;

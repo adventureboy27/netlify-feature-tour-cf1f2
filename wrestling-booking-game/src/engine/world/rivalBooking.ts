@@ -168,6 +168,14 @@ export interface RivalBookingContext {
    * representation simply has nothing to go after.
    */
   representedIds?: ReadonlySet<Id>;
+  /**
+   * Would these two flatly refuse to work? Supplied by the caller so the
+   * engine stays free of the relationship store. The office does not book a
+   * match it knows will not happen — this is the assistant being sensible,
+   * not a warning to the player, who can still put them in a match by hand
+   * and find out on the night (§0).
+   */
+  refuses?: (aId: Id, bId: Id) => boolean;
 }
 
 /**
@@ -284,6 +292,33 @@ export function bookRivalCard(rng: Rng, ctx: RivalBookingContext): RivalCard {
       ];
       const after = staleness(swapped[0]!) + staleness(swapped[1]!);
       if (after < before) {
+        matches[a] = swapped[0]!;
+        matches[b] = swapped[1]!;
+        break;
+      }
+    }
+  }
+
+  // Nobody who has flatly refused to work with the other man. Same shape as
+  // the staleness pass above: swap one single for another and leave the
+  // running order alone. If no swap fixes it the match stands — a card with a
+  // grudge on it is better than a card with a hole in it.
+  if (ctx.refuses) {
+    const refusesIn = (m: BookedMatch) =>
+      m.sides[0]!.some((x) => m.sides[1]!.some((y) => ctx.refuses!(x.id, y.id)));
+    for (let a = 0; a < matches.length; a++) {
+      if (!refusesIn(matches[a]!)) continue;
+      for (let b = 0; b < matches.length; b++) {
+        if (a === b) continue;
+        const left = matches[a]!;
+        const right = matches[b]!;
+        if (left.teamIds || right.teamIds) continue;
+        if (left.sides[1]?.length !== 1 || right.sides[1]?.length !== 1) continue;
+        const swapped: BookedMatch[] = [
+          { ...left, sides: [left.sides[0]!, right.sides[1]!] },
+          { ...right, sides: [right.sides[0]!, left.sides[1]!] },
+        ];
+        if (refusesIn(swapped[0]!) || refusesIn(swapped[1]!)) continue;
         matches[a] = swapped[0]!;
         matches[b] = swapped[1]!;
         break;
