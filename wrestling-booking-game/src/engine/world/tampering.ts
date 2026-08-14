@@ -144,14 +144,6 @@ export function rollTamperingAttempts(rng: Rng, ctx: TamperingContext): Tamperin
   return attempts.filter((a) => (seen.has(a.wrestlerId) ? false : (seen.add(a.wrestlerId), true)));
 }
 
-/**
- * Does the wrestler walk? Rolled at the moment the offer resolves, so the
- * player's response (a raise, a push, a title run) has had its chance to
- * move the number first.
- */
-export function willLeave(rng: Rng, attempt: TamperingAttempt): boolean {
-  return chance(rng, attempt.temptation);
-}
 
 /** Words, not a percentage — same rule as the odds (§13). */
 export type TemptationLabel = 'Not interested' | 'Flattered' | 'Listening' | 'Seriously considering' | 'As good as gone';

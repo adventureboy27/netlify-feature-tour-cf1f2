@@ -147,10 +147,6 @@ export function frameFor(gender: 'm' | 'f', appearance: Appearance): AtlasFrame 
   return `${body}_${build}_${height}` as AtlasFrame;
 }
 
-/** @deprecated Kept only so nothing calls the old gender-only shape by accident. */
-export function frameForGender(gender: 'm' | 'f'): AtlasFrame {
-  return gender === 'f' ? 'fem_average_average' : 'masc_average_average';
-}
 
 /**
  * @param gender The fem frame never draws facial hair, whatever the trait says.

@@ -142,8 +142,3 @@ export function stableColorsFrom(founder: Wrestler): NonNullable<Stable['colors'
   };
 }
 
-/** Everyone whose look the group is currently overriding. */
-export function membersWearingColors(stable: Stable): readonly string[] {
-  if (stable.disbandedWeek !== null || !stable.unifiedLook || !stable.colors) return [];
-  return stable.memberIds;
-}

@@ -170,15 +170,3 @@ export function managerById(id: string): Manager | undefined {
 }
 
 
-/**
- * The pool, minus anybody who has died.
- *
- * `MANAGERS` is a static list shared by every save, so death cannot be a flag
- * on it — a manager who died in one world would be dead in all of them. The
- * memorial wall is per-world and is therefore the authority: if their name is
- * on it, they are not available to book.
- */
-export function livingManagers(memoriam: readonly { wrestlerId: string }[]): Manager[] {
-  const gone = new Set(memoriam.map((p) => p.wrestlerId));
-  return MANAGERS.filter((m) => !gone.has(m.id));
-}

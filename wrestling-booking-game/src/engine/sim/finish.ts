@@ -114,10 +114,6 @@ export function isNonDecisiveFinish(finish: FinishType): boolean {
   return finish === 'disqualification' || finish === 'countOut' || isDrawFinish(finish);
 }
 
-/** A match stopped because somebody got hurt. Not a finish anybody booked. */
-export function isInjuryFinish(finish: FinishType): boolean {
-  return finish === 'injuryStoppage';
-}
 
 /** A draw finish has no winner at all — distinct from a non-decisive-but-still-a-winner DQ/count-out. */
 export function isDrawFinish(finish: FinishType): boolean {

@@ -15,7 +15,7 @@
 // happiness with a slice of everybody else's.
 
 import type { CareerStatus, Wrestler, WorldSettings } from '../types';
-import type { Perk, PerkId } from '../../data/perks';
+import type { Perk } from '../../data/perks';
 import { PERKS, STANDING, perkById } from '../../data/perks';
 
 export interface PerkContext {
@@ -64,9 +64,6 @@ export function perksOf(wrestler: Wrestler): Perk[] {
     .filter((perk): perk is Perk => Boolean(perk));
 }
 
-export function hasPerk(wrestler: Wrestler, id: PerkId): boolean {
-  return (wrestler.contract?.perks ?? []).includes(id);
-}
 
 // ---------------------------------------------------------------------------
 // What they cost and what they do

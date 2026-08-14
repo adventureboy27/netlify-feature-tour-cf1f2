@@ -22,39 +22,10 @@ export const ATTIRE_PALETTE: string[] = [
   '#f8f9fa', '#adb5bd',
 ];
 
-export function skinToneColor(index: number): string {
-  return SKIN_TONE_PALETTE[index] ?? SKIN_TONE_PALETTE[0]!;
-}
 
-export function hairColorValue(index: number): string {
-  return HAIR_COLOR_PALETTE[index] ?? HAIR_COLOR_PALETTE[0]!;
-}
 
-export function attireColor(index: number): string {
-  return ATTIRE_PALETTE[index] ?? ATTIRE_PALETTE[0]!;
-}
 
-// Near-black rather than pure #000 — reads as ink on a dark UI without
-// crushing to a single value when the alignment filter's contrast/brightness
-// gets applied on top.
-export const OUTLINE_COLOR = '#160f12';
 
-/**
- * Lighten (positive percent) or darken (negative percent) a hex color by
- * blending it toward white or black. Used for the two-tone "cel shading"
- * split that reads as Genesis/16-bit-era sprite shading — hard color bands,
- * not soft alpha gradients.
- */
-export function shadeColor(hex: string, percent: number): string {
-  const clean = hex.replace('#', '');
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  const t = percent < 0 ? 0 : 255;
-  const p = Math.abs(percent) / 100;
-  const mix = (channel: number) => Math.round((t - channel) * p + channel);
-  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
-}
 
 // §7 "Requirements" — heel/face palette shift applied at the container
 // level, not baked into the trait vector. Multiplies rendered RGB.

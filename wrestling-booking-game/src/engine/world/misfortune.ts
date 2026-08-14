@@ -150,8 +150,3 @@ export function pickReplacement(
   return weighted[weighted.length - 1]!.w;
 }
 
-/** How the results page announces it. */
-export function mysteryOpponentLine(replacement: Replacement, misfortune: Misfortune | null): string {
-  const why = misfortune ? ` ${misfortune.text}` : '';
-  return `${replacement.absentName} never made the building, so ${replacement.replacementName} went out there instead.${why}`;
-}

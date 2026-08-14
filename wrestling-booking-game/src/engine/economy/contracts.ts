@@ -12,7 +12,6 @@
 // because that is what draws, with a smaller weight on the in-ring stats and
 // a premium for the ones who are still going to get better.
 
-import type { Rng } from '../rng';
 import { clamp } from '../rng';
 import type { Contract, Wrestler, WorldSettings } from '../types';
 
@@ -166,8 +165,3 @@ export function isAffordable(wrestler: Wrestler, bankBalance: number, settings: 
   return askingRate(wrestler, settings) * settings.contractAffordabilityWeeks <= bankBalance;
 }
 
-export function rollSigningBonus(rng: Rng, wrestler: Wrestler, settings: WorldSettings): number {
-  // Only the genuinely over ask for anything up front.
-  if (wrestler.popularity < settings.mainEventPopularity) return 0;
-  return Math.round((askingRate(wrestler, settings) * (2 + rng.next() * 4)) / 100) * 100;
-}

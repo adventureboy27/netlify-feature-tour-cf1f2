@@ -6,7 +6,6 @@ import { clamp } from '../rng';
 import type { WorldSettings } from '../types';
 
 export const TV_SLOT_WEIGHTS = [1.0, 1.1, 1.25, 1.4, 1.7, 2.4];
-export const PPV_SLOT_WEIGHTS = [0.8, 0.9, 1.0, 1.1, 1.25, 1.4, 1.6, 1.9, 2.3, 3.0];
 
 /**
  * showRating = sum(segmentRating * slotWeight) / sum(allSlotWeights).

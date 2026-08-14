@@ -72,15 +72,6 @@ export function HeatBadge({ heat, shootHeat }: { heat: number; shootHeat: number
   );
 }
 
-export function AlignmentDot({ alignment }: { alignment: number }) {
-  const [color, label] =
-    alignment >= 15
-      ? ['bg-emerald-400', 'Face']
-      : alignment <= -15
-        ? ['bg-purple-400', 'Heel']
-        : ['bg-neutral-500', 'Tweener'];
-  return <span className={`inline-block h-2 w-2 rounded-full ${color}`} title={label} />;
-}
 
 /**
  * §11.5: "each segment produces a rating breakdown panel listing every

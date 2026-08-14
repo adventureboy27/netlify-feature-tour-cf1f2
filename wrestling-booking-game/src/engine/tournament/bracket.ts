@@ -194,9 +194,6 @@ export function totalRounds(tournament: Tournament): number {
   return tournament.rounds.length;
 }
 
-export function isFinal(tournament: Tournament, match: TournamentMatch): boolean {
-  return match.round === tournament.rounds.length - 1;
-}
 
 // ---------------------------------------------------------------- fatigue
 

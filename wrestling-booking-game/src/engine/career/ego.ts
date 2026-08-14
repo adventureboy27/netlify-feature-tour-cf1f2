@@ -140,10 +140,6 @@ export function clauseLabel(clause: Clause): string {
   return CLAUSE_LADDER.find((entry) => entry.clause === clause)?.label ?? clause;
 }
 
-/** What agreeing to it costs you, in words. */
-export function clauseCost(clause: Clause): string {
-  return CLAUSE_LADDER.find((entry) => entry.clause === clause)?.cost ?? '';
-}
 
 export interface ContractDemand {
   /** What they want per week. */

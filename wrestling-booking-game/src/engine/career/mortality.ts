@@ -50,23 +50,6 @@ export interface Mortal {
   health: number;
 }
 
-/**
- * A death for somebody who is not a wrestler.
- *
- * Managers lived in a separate collection that mortality never walked, so a
- * career manager could not die — which broke the rule that every death in the
- * business is reported, whoever it was and whoever they worked for.
- */
-export function rollMortalDeath(
-  rng: Rng,
-  person: Mortal,
-  week: number,
-  settings: WorldSettings,
-): Passing | null {
-  const asIf = { id: person.id, age: person.age, health: person.health } as Wrestler;
-  if (rng.next() >= annualDeathChance(asIf, settings)) return null;
-  return { wrestlerId: person.id, cause: causeFor(rng, asIf, settings), age: person.age, week };
-}
 
 /** Rolled once a year, alongside retirement. */
 export function rollDeath(rng: Rng, w: Wrestler, week: number, settings: WorldSettings): Passing | null {

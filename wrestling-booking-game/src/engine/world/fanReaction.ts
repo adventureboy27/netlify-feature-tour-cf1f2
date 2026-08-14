@@ -16,7 +16,7 @@
 
 import type { Rng } from '../rng';
 import { pick, chance } from '../rng';
-import type { Id, WorldSettings } from '../types';
+import type { WorldSettings } from '../types';
 import {
   FAN_HANDLES,
   SHOW_TWEETS,
@@ -150,15 +150,4 @@ export function generateFanReaction(rng: Rng, ctx: FanReactionContext): Tweet[] 
   return tweets;
 }
 
-/** Who the feed decided to blame, if anybody. Feeds into next week's morale. */
-export function feedTargets(tweets: readonly Tweet[]): { praised: number; criticised: number } {
-  return {
-    praised: tweets.filter((t) => t.tone === 'praise').length,
-    criticised: tweets.filter((t) => t.tone === 'criticism').length,
-  };
-}
 
-/** A stable id for a show's feed, so the UI can key it. */
-export function feedId(week: number, promotionId: Id): string {
-  return `${promotionId}-w${week}`;
-}

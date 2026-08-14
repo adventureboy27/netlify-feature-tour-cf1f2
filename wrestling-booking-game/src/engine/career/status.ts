@@ -146,10 +146,6 @@ export function isPoachingTarget(status: CareerStatus): boolean {
   return status === 'draw' || status === 'mainEventer' || status === 'upperCard' || status === 'prospect';
 }
 
-/** Statuses that can still be built into something. */
-export function hasUpside(status: CareerStatus): boolean {
-  return status === 'prospect' || status === 'rookie' || status === 'midcarder' || status === 'upperCard';
-}
 
 /**
  * Somebody whose career is over.

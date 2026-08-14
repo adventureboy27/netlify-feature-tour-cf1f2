@@ -14,7 +14,7 @@
 import type { Rng } from '../rng';
 import { clamp } from '../rng';
 import type { WorldSettings } from '../types';
-import { pick, randInt } from '../rng';
+import { pick } from '../rng';
 import type { Id, Stable, Wrestler } from '../types';
 import { TEAM_NAMES, WOMENS_TEAM_NAMES, surnamePair } from '../../data/teamNames';
 import { stableColorsFrom } from '../generate/gimmickLook';
@@ -249,11 +249,6 @@ export function teamIdFactory(prefix: string): () => string {
   return () => `${prefix}-team-${n++}`;
 }
 
-/** A pairing the RNG can draw when a promotion needs one more team. */
-export function randomPartner(rng: Rng, candidates: readonly Wrestler[]): Wrestler | undefined {
-  if (candidates.length === 0) return undefined;
-  return candidates[randInt(rng, 0, candidates.length - 1)];
-}
 
 
 /**

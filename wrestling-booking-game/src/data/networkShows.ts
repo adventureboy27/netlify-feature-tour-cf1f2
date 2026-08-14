@@ -45,6 +45,3 @@ export const NETWORK_SHOWS: NetworkShow[] = [
   { id: 'ns-publicaffairs', name: 'Nation This Week', network: 'NBS', genre: 'news', baseRating: 3.4, volatility: 0.7 },
 ];
 
-export function networkShowById(id: string): NetworkShow | undefined {
-  return NETWORK_SHOWS.find((s) => s.id === id);
-}

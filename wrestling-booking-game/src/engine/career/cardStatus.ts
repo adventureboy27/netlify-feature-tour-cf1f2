@@ -44,7 +44,6 @@
 // un-main-event somebody the first bad month, and the audience remembers who
 // you were for a while after you stop being it.
 
-import { clamp } from '../rng';
 import type { CardStatus, Promotion, Wrestler, WorldSettings } from '../types';
 import { overnessIn } from './fit';
 
@@ -297,7 +296,3 @@ export function trajectoryLabel(
   return null;
 }
 
-/** Clamp a standing into the range the bands are defined on. */
-export function standingIn(wrestler: Wrestler, promotion: Pick<Promotion, 'id' | 'identity'>, settings: WorldSettings): number {
-  return clamp(overnessIn(wrestler, promotion, settings), 0, 100);
-}

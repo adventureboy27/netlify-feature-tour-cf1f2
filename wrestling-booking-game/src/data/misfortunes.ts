@@ -252,6 +252,3 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
   },
 ];
 
-export function misfortuneById(id: string): MisfortuneDefinition | undefined {
-  return MISFORTUNES.find((m) => m.id === id);
-}

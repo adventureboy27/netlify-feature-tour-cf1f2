@@ -27,11 +27,6 @@ export const FEMININE_FIRST_NAMES: string[] = [
   'Sable', 'Tamsin', 'Ursa', 'Valentina', 'Winnie', 'Xiomara', 'Yolanda', 'Zelda', 'Agatha', 'Birdie',
 ];
 
-/**
- * Both pools together, for anything that does not care — the ring-name
- * blocklist check, the editor's random button, and so on.
- */
-export const FIRST_NAMES: string[] = [...MASCULINE_FIRST_NAMES, ...FEMININE_FIRST_NAMES];
 
 export const SURNAMES: string[] = [
   'Buchanan', 'McCready', 'Vance', 'Holloway', 'Sutter', 'Kincaid', 'Dressler', 'Malone', 'Ferris', 'Odom',

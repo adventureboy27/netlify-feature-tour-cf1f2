@@ -31,6 +31,3 @@ export function getSourceCanvas(sheets: AtlasSheets, appearance: Appearance, gen
   return canvas;
 }
 
-export function clearSpriteCache(): void {
-  cache.clear();
-}

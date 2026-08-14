@@ -17,7 +17,7 @@
 import type { Rng } from '../rng';
 import { clamp, pick } from '../rng';
 import type { EventEffect } from '../events/types';
-import type { Id, WorldSettings, Wrestler } from '../types';
+import type { WorldSettings, Wrestler } from '../types';
 import { PROMO_LINES, promoTopicById, type PromoTopicId } from '../../data/promoTopics';
 
 export interface PromoContext {
@@ -216,6 +216,3 @@ export function promoEnergyCost(alsoWrestling: boolean, settings: WorldSettings)
   return alsoWrestling ? settings.promoEnergyCostDoubleBooked : settings.promoEnergyCost;
 }
 
-export function speakerIds(ctx: PromoContext): Id[] {
-  return [ctx.speaker.id, ...(ctx.target ? [ctx.target.id] : [])];
-}

@@ -10,7 +10,7 @@
 // everything here normalises the pair before storing or looking up.
 
 import type { Rng } from '../rng';
-import { chance, pick, randInt, clamp } from '../rng';
+import { chance, pick, randInt } from '../rng';
 import type { Id, Wrestler, Relationship, RelationshipType, WorldSettings } from '../types';
 
 /** Order-independent key for a pair. */
@@ -150,18 +150,4 @@ export function relationshipMatchEffect(
 /** Would these two refuse to work together at all? */
 export function refusesToWorkWith(relationship: Relationship | undefined, settings: WorldSettings): boolean {
   return Boolean(relationship && isEnemy(relationship) && relationship.strength >= settings.relationshipRefusalThreshold);
-}
-
-/** Morale drag on a wrestler whose enemies are all over the card. */
-export function lockerRoomComfort(
-  relationships: readonly Relationship[],
-  wrestlerId: Id,
-  rosterIds: readonly Id[],
-): number {
-  const roster = new Set(rosterIds);
-  const mine = relationshipsFor(relationships, wrestlerId).filter((r) => roster.has(otherParty(r, wrestlerId)));
-  if (mine.length === 0) return 0;
-  const allies = mine.filter(isAlly).length;
-  const enemies = mine.filter(isEnemy).length;
-  return clamp((allies - enemies * 1.5) * 2, -10, 10);
 }

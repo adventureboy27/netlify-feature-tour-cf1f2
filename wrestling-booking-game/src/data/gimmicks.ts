@@ -37,6 +37,3 @@ export const GIMMICKS: Gimmick[] = [
   { id: 'iceCold', name: 'Ice Cold Professional', alignmentLean: 'either', popularityCeiling: 78, growthRateMultiplier: 0.9, territoryFit: {}, merchMultiplier: 0.9, look: { attire: 'athletic', palette: 'monochrome', hair: 'bald' } },
 ];
 
-export function randomGimmickPool(): readonly Gimmick[] {
-  return GIMMICKS;
-}

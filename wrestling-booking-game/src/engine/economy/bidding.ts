@@ -847,10 +847,6 @@ export function guaranteeFor(bid: Bid, settings: WorldSettings): number {
   return bid.clauses.includes('ironClad') ? 1 : settings.biddingBaseGuarantee;
 }
 
-/** What signing this actually costs the winner on the day. */
-export function signingCost(bid: Bid): number {
-  return bid.signingBonus;
-}
 
 // ---------------------------------------------------------------------------
 // Saying it out loud

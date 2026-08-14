@@ -180,15 +180,3 @@ export function MoodLine({
   );
 }
 
-/** Just the coloured dot, for rows too tight for a face. */
-export function MoodDot({ wrestler, settings }: { wrestler: Wrestler; settings: WorldSettings }) {
-  const band = moodBand(wrestler.morale, settings);
-  const look = LOOKS[band];
-  return (
-    <span
-      className={`inline-block h-2 w-2 shrink-0 rounded-full ${look.dot}`}
-      title={moodLabel(band)}
-      aria-label={moodLabel(band)}
-    />
-  );
-}
