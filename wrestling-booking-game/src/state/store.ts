@@ -250,7 +250,7 @@ import { rollTamperingAttempts } from '../engine/world/tampering';
 import { deriveCareerStatus } from '../engine/career/status';
 import { rollRetirement, rollComeback, retire, unretire, RETIREMENT_REASON_TEXT } from '../engine/career/retirement';
 import { rollDeath, DEATH_CAUSE_TEXT } from '../engine/career/mortality';
-import { backstageAttackChance, backstageDamage, backstageLine } from '../engine/sim/ringside';
+import { backstageAttackChance, backstageDamage, backstageLine, muggingLine } from '../engine/sim/ringside';
 import { annualInductions } from '../engine/career/hallOfFame';
 import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult } from '../engine/career/awards';
 import { rollIncident, type Incident, type IncidentContext } from '../engine/sim/incidents';
@@ -535,7 +535,12 @@ export interface GameStore {
   toggleShowExtra: (extraId: Id) => void;
   buyProductionAsset: (assetId: Id) => void;
   // Ringside
-  setSegmentManager: (slot: number, managerId: Id | null, forSide: number) => void;
+  /**
+   * Put somebody in a corner. `seat` 0 is the mouthpiece, 1 is the muscle —
+   * two is the most a corner holds, and it is the pair that makes the
+   * combination possible (see sim/ringside.ts muggingChance).
+   */
+  setSegmentManager: (slot: number, managerId: Id | null, forSide: number, seat?: number) => void;
   setSegmentReferee: (slot: number, refereeId: Id | null) => void;
   setSegmentGuestReferee: (slot: number, wrestlerId: Id | null) => void;
   /** The official who works every match nobody else was named for. */
@@ -2583,6 +2588,34 @@ export const useGameStore = create<GameStore>()(
               hurtTonight.push(casualty);
             }
           }
+          // The combination. A mouthpiece pulls the official, and the muscle in
+          // the same corner puts the other man into the barricade while his
+          // back is turned. Two people in one corner is the whole trick —
+          // neither half does anything like it alone (sim/ringside.ts).
+          for (const side of [0, 1]) {
+            const odds = ringside.muggingChance?.[side] ?? 0;
+            if (odds <= 0 || !chance(rng, odds)) continue;
+            const victim = participantWrestlers[1 - side];
+            if (!victim) continue;
+
+            const hurt = ringside.muggingDamage?.[side] ?? 0;
+            const live = world.wrestlers[victim.id];
+            if (live) live.health = clamp(live.health - hurt, 0, 100);
+
+            // §0: nothing happens to anybody off-screen. It is in the write-up
+            // with both names on it, because a match that swung on something
+            // the player never saw reads as the sim cheating.
+            tonightsBeats.push({
+              participantIds: [victim.id],
+              kind: 'interference',
+              text: muggingLine(
+                ringside.muggingBy?.[side] ?? 'The muscle',
+                ringside.muggingDistractor?.[side] ?? 'His mouthpiece',
+                victim.name,
+              ),
+            });
+          }
+
           for (const assignment of segment.managerIds ?? []) {
             const manager = findManager(world, assignment.managerId);
             if (!manager) continue;
@@ -6153,12 +6186,35 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
-    setSegmentManager: (slot, managerId, forSide) => {
+    setSegmentManager: (slot, managerId, forSide, seat = 0) => {
       set((state) => {
         const segment = state.world?.currentCard[slot];
         if (!segment) return;
-        const others = (segment.managerIds ?? []).filter((m) => m.forSide !== forSide);
-        segment.managerIds = managerId ? [...others, { managerId, forSide }] : others;
+        const all = segment.managerIds ?? [];
+        const inCorner = all.filter((m) => m.forSide === forSide);
+        const elsewhere = all.filter((m) => m.forSide !== forSide);
+
+        // A corner is a short list rather than a single slot: seat 0 is the
+        // mouthpiece, seat 1 the muscle. Two men in one corner is the whole
+        // point — one pulls the official and the other uses the seconds.
+        const kept = inCorner.filter((_, i) => i !== seat);
+        const rebuilt = managerId
+          ? [...inCorner.slice(0, seat).filter(Boolean), { managerId, forSide }, ...inCorner.slice(seat + 1)]
+          : kept;
+
+        // Nobody stands in two corners at once, and nobody stands in the same
+        // corner twice.
+        const seen = new Set<Id>();
+        const deduped = rebuilt.filter((m) => {
+          if (seen.has(m.managerId)) return false;
+          seen.add(m.managerId);
+          return true;
+        });
+
+        segment.managerIds = [
+          ...elsewhere.filter((m) => !deduped.some((d) => d.managerId === m.managerId)),
+          ...deduped.slice(0, state.world!.settings.cornerSeats),
+        ];
       });
     },
 

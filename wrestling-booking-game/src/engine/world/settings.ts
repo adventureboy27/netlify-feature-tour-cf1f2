@@ -732,6 +732,13 @@ export function defaultWorldSettings(): WorldSettings {
     // slice of the condition he was going to wrestle on.
     bodyguardBackstageChance: 0.14,
     bodyguardBackstageDamage: 18,
+    // The combination: a mouthpiece pulls the official, the muscle in the same
+    // corner uses the seconds. Rarer than either half on its own, because it
+    // needs both of them bought and both of them standing behind one client.
+    bodyguardMuggingChance: 0.22,
+    bodyguardMuggingDamage: 22,
+    // A mouthpiece and a heavy. More than two at ringside is a stable run-in.
+    cornerSeats: 2,
     managerPopularityBoostMax: 0.35,
     managerInterferenceWeight: 1.6,
     managerSelfMadePenalty: 0.15,

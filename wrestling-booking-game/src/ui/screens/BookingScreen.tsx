@@ -427,7 +427,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                     isMainEvent={index === world.currentCard.length - 1}
                     isOpener={index === 0}
                     paceSaturation={world.paceSaturation[segment.rules.pace] ?? 0}
-                    onManager={(managerId, forSide) => setManager(index, managerId, forSide)}
+                    onManager={(managerId, forSide, seat) => setManager(index, managerId, forSide, seat)}
                     onReferee={(refereeId) => setReferee(index, refereeId)}
                     onGuestReferee={(id) => setGuestReferee(index, id)}
                     crew={crew}
@@ -495,7 +495,7 @@ function SegmentEditor({
   territoryName: string;
   isOpener: boolean;
   paceSaturation: number;
-  onManager: (managerId: Id | null, forSide: number) => void;
+  onManager: (managerId: Id | null, forSide: number, seat: number) => void;
   onReferee: (refereeId: Id | null) => void;
   onGuestReferee: (wrestlerId: Id | null) => void;
   /** The officials under contract, best first. */
@@ -670,20 +670,26 @@ function SegmentEditor({
       <div className="flex flex-col gap-3 rounded border border-neutral-800 p-2">
         <div className="text-[11px] uppercase tracking-wide text-neutral-500">Ringside</div>
 
-        {[0, 1].map((side) => {
+        {[0, 1].flatMap((side) =>
+          // Two seats a corner: the mouthpiece, then the muscle. Put both
+          // behind the same man and they can run something between them that
+          // neither could alone — see sim/ringside.ts.
+          [0, 1].map((seat) => {
           const client = segment.participants.find((p) => p.side === side);
           const clientWrestler = client ? roster.find((w) => w.id === client.wrestlerId) : undefined;
-          const current = (segment.managerIds ?? []).find((m) => m.forSide === side);
+          const inCorner = (segment.managerIds ?? []).filter((m) => m.forSide === side);
+          const current = inCorner[seat];
+          const partner = inCorner[1 - seat];
           return (
-            <div key={side} className="flex flex-col gap-1">
+            <div key={`${side}-${seat}`} className="flex flex-col gap-1">
               <span className="text-[11px] text-neutral-400">
-                Manager for side {side + 1}
+                {seat === 0 ? 'Mouthpiece' : 'Muscle'} for side {side + 1}
                 {clientWrestler && <span className="ml-1 text-neutral-600">({clientWrestler.name})</span>}
               </span>
               <div className="flex flex-wrap gap-1">
                 <button
                   type="button"
-                  onClick={() => onManager(null, side)}
+                  onClick={() => onManager(null, side, seat)}
                   className={`rounded px-2 py-1 text-[11px] ${!current ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
                 >
                   None
@@ -694,8 +700,8 @@ function SegmentEditor({
                   <button
                     key={manager.id}
                     type="button"
-                    data-testid={`manager-${side}-${manager.id}`}
-                    onClick={() => onManager(manager.id, side)}
+                    data-testid={`manager-${side}-${seat}-${manager.id}`}
+                    onClick={() => onManager(manager.id, side, seat)}
                     title={`${manager.blurb}${manager.feePerShow > 0 ? ` — $${manager.feePerShow}/show` : ' — already on the payroll'}${
                       clientWrestler ? ` · ${managerFit(manager, clientWrestler, settings)}` : ''
                     }`}
@@ -712,7 +718,7 @@ function SegmentEditor({
                   </button>
                 ))}
               </div>
-              {current && clientWrestler && (
+              {current && clientWrestler && staffManagers.some((m) => m.id === current.managerId) && (
                 <span className="text-[10px] text-sky-400">
                   {managerFit(
                     staffManagers.find((m) => m.id === current.managerId)!,
@@ -721,9 +727,16 @@ function SegmentEditor({
                   )}
                 </span>
               )}
+              {/* Stating what is stood there, not whether it will work. §0. */}
+              {current && partner && seat === 1 && (
+                <span className="text-[10px] text-fuchsia-400">
+                  Two men in this corner, behind the same wrestler.
+                </span>
+              )}
             </div>
           );
-        })}
+          }),
+        )}
 
         <div className="flex flex-col gap-1">
           <span className="text-[11px] text-neutral-400">

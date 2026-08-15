@@ -211,6 +211,12 @@ export function managerFromWrestler(wrestler: Wrestler): Manager {
     // stranger in a suit, whatever either of them can say.
     presence: clamp(Math.round(wrestler.popularity * 0.6 + wrestler.charisma * 0.4), 0, 100),
     deviousness: clamp(Math.round(50 - wrestler.alignment / 2), 0, 100),
+    // How much use he is as muscle, which is simply how big and how hard he
+    // was when he wrestled. Without this every manager read off the roster
+    // came back with no protection at all, and both halves of the bodyguard —
+    // the injury shield, the backstage attack, and the combination with a
+    // distraction — could never fire for anybody the player actually signed.
+    protection: clamp(Math.round(wrestler.strength * 0.6 + wrestler.toughness * 0.4), 0, 100),
     feePerShow: 0,
     blurb: 'One of your own, out there in a suit.',
     wrestlerId: wrestler.id,

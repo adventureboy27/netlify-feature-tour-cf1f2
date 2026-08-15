@@ -7,6 +7,9 @@ import {
   backstageAttackChance,
   backstageDamage,
   backstageLine,
+  muggingChance,
+  muggingDamage,
+  muggingLine,
   managedPopularityMultiplier,
   type Manager,
   type Referee,
@@ -217,6 +220,146 @@ describe('everything at ringside together', () => {
   });
 });
 
+
+describe('the combination: a mouthpiece and a heavy in one corner', () => {
+  // The whole reason to pay two people to stand in the same place. Neither
+  // half is worth much alone — a distraction is a few seconds of the official
+  // looking away, and a bodyguard on his own is somebody being watched.
+  const distractor: Manager = {
+    id: 'm-mouth',
+    name: 'Silver Tongue',
+    micWork: 90,
+    presence: 70,
+    deviousness: 95,
+    protection: 0,
+    feePerShow: 400,
+    blurb: '',
+  };
+  const heavy: Manager = {
+    id: 'm-muscle',
+    name: 'The Wall',
+    micWork: 10,
+    presence: 60,
+    deviousness: 80,
+    protection: 95,
+    feePerShow: 900,
+    blurb: '',
+  };
+  // Explicit ids: the `w()` helper seeds every wrestler from the same string,
+  // so two calls produce the same id and "two different clients" would silently
+  // be one man.
+  const client = w({ id: 'cl-1', popularity: 60 });
+  const opponent = w({ id: 'cl-2', popularity: 60 });
+
+  it('needs both halves — neither does it alone', () => {
+    expect(muggingChance(distractor, null, settings)).toBe(0);
+    expect(muggingChance(null, heavy, settings)).toBe(0);
+    expect(muggingChance(distractor, heavy, settings)).toBeGreaterThan(0);
+  });
+
+  it('is nothing without muscle, whoever is talking', () => {
+    const allMouth = { ...heavy, id: 'm-2', protection: 0 };
+    expect(muggingChance(distractor, allMouth, settings)).toBe(0);
+  });
+
+  it('is nothing without somebody to pull the official', () => {
+    const mute = { ...distractor, id: 'm-3', deviousness: 0 };
+    expect(muggingChance(mute, heavy, settings)).toBe(0);
+  });
+
+  it('will not let one man be both halves of it', () => {
+    expect(muggingChance(heavy, heavy, settings)).toBe(0);
+  });
+
+  it('fires when both stand behind the same wrestler', () => {
+    const totals = ringsideTotals({
+      managers: [
+        { manager: distractor, client, side: 0 },
+        { manager: heavy, client, side: 0 },
+      ],
+      referee: null,
+      guestReferee: null,
+      settings,
+    });
+    expect(totals.muggingChance[0]).toBeGreaterThan(0);
+    expect(totals.muggingBy[0]).toBe(heavy.name);
+    expect(totals.muggingDistractor[0]).toBe(distractor.name);
+    expect(totals.muggingDamage[0]).toBeGreaterThan(0);
+  });
+
+  it('does not fire when they are working for different people', () => {
+    // Two men on the same side of a tag match, each in his own client's
+    // corner, are not running anything between them.
+    const totals = ringsideTotals({
+      managers: [
+        { manager: distractor, client, side: 0 },
+        { manager: heavy, client: opponent, side: 0 },
+      ],
+      referee: null,
+      guestReferee: null,
+      settings,
+    });
+    expect(totals.muggingChance[0] ?? 0).toBe(0);
+  });
+
+  it('does not fire across opposite corners', () => {
+    const totals = ringsideTotals({
+      managers: [
+        { manager: distractor, client, side: 0 },
+        { manager: heavy, client: opponent, side: 1 },
+      ],
+      referee: null,
+      guestReferee: null,
+      settings,
+    });
+    expect(totals.muggingChance[0] ?? 0).toBe(0);
+    expect(totals.muggingChance[1] ?? 0).toBe(0);
+  });
+
+  it('does nothing for one man on his own', () => {
+    const totals = ringsideTotals({
+      managers: [{ manager: heavy, client, side: 0 }],
+      referee: null,
+      guestReferee: null,
+      settings,
+    });
+    expect(totals.muggingChance[0] ?? 0).toBe(0);
+  });
+
+  it('is thinner when either of them is spread across a full book', () => {
+    const focused = ringsideTotals({
+      managers: [
+        { manager: distractor, client, side: 0, attention: 1 },
+        { manager: heavy, client, side: 0, attention: 1 },
+      ],
+      referee: null,
+      guestReferee: null,
+      settings,
+    });
+    const stretched = ringsideTotals({
+      managers: [
+        { manager: distractor, client, side: 0, attention: 0.4 },
+        { manager: heavy, client, side: 0, attention: 0.5 },
+      ],
+      referee: null,
+      guestReferee: null,
+      settings,
+    });
+    expect(stretched.muggingChance[0]!).toBeLessThan(focused.muggingChance[0]!);
+  });
+
+  it('hurts in proportion to how big the big man is', () => {
+    const smaller = { ...heavy, id: 'm-4', protection: 40 };
+    expect(muggingDamage(heavy, settings)).toBeGreaterThan(muggingDamage(smaller, settings));
+  });
+
+  it('names everybody involved, because §0 says nothing happens off-screen', () => {
+    const line = muggingLine(heavy.name, distractor.name, client.name);
+    expect(line).toContain(heavy.name);
+    expect(line).toContain(distractor.name);
+    expect(line).toContain(client.name);
+  });
+});
 
 describe('what a referee costs', () => {
   const settings = defaultWorldSettings();

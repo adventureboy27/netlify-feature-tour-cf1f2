@@ -2103,6 +2103,11 @@ export interface WorldSettings {
   /** How often muscle gets somebody in the corridor, and what it costs them. */
   bodyguardBackstageChance: number;
   bodyguardBackstageDamage: number;
+  /** Odds the corner's muscle uses its own mouthpiece's distraction. */
+  bodyguardMuggingChance: number;
+  bodyguardMuggingDamage: number;
+  /** How many seconds one corner holds. */
+  cornerSeats: number;
   managerPopularityBoostMax: number;
   managerInterferenceWeight: number;
   /** How much leaning on a mouthpiece stunts what the client builds alone. */

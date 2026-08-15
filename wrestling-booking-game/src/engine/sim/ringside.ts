@@ -453,9 +453,51 @@ export interface RingsideTotals {
   popularityMultipliers: Record<string, number>;
   /** Per client id: how much of the damage somebody else takes for them. */
   injuryShield: Record<string, number>;
+  /**
+   * The combination, per side: a mouthpiece pulling the official while the
+   * muscle in the same corner does something about the other man.
+   */
+  muggingChance: Record<number, number>;
+  muggingDamage: Record<number, number>;
+  muggingBy: Record<number, string>;
+  muggingDistractor: Record<number, string>;
 }
 
 /** Everything at ringside, rolled into what the sim needs. */
+/**
+ * The combination: a mouthpiece pulls the referee, and the muscle uses it.
+ *
+ * This is the reason to pay two people to stand in one corner. Neither half
+ * does it alone — a manager's distraction on its own is a few seconds of the
+ * official looking the wrong way, and a bodyguard on his own is somebody the
+ * referee is watching. Put them in the same corner behind the same client and
+ * the seconds the official is not looking are the seconds the big man has.
+ *
+ * Deliberately narrow: same side, same client, and it needs a real distractor
+ * *and* real muscle. Two mouthpieces do nothing, and neither do two heavies.
+ */
+export function muggingChance(
+  distractor: Manager | null,
+  muscle: Manager | null,
+  settings: WorldSettings,
+): number {
+  if (!distractor || !muscle || distractor.id === muscle.id) return 0;
+  const pull = distractor.deviousness / 100;
+  const heft = (muscle.protection ?? 0) / 100;
+  const willing = muscle.deviousness / 100;
+  if (pull <= 0 || heft <= 0) return 0;
+  return clamp(pull * heft * willing * settings.bodyguardMuggingChance, 0, 1);
+}
+
+/** What the man on the wrong end of it takes. */
+export function muggingDamage(muscle: Manager, settings: WorldSettings): number {
+  return ((muscle.protection ?? 0) / 100) * settings.bodyguardMuggingDamage;
+}
+
+export function muggingLine(muscleName: string, distractorName: string, victimName: string): string {
+  return `${distractorName} had the referee by the ropes, and ${muscleName} put ${victimName} into the barricade while his back was turned.`;
+}
+
 export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   let ratingBonus = 0;
   let screwyFinishWeight = 1;
@@ -475,6 +517,11 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   const popularityMultipliers: Record<string, number> = {};
   /** Per client: how much of the night's damage his second takes for him. */
   const injuryShield: Record<string, number> = {};
+  /** Per side: the odds that corner's muscle uses its own mouthpiece's distraction. */
+  const muggingChanceBySide: Record<number, number> = {};
+  const muggingDamageBySide: Record<number, number> = {};
+  const muggingBy: Record<number, string> = {};
+  const muggingDistractor: Record<number, string> = {};
 
   for (const { manager, client, attention: focus } of ctx.managers) {
     const raw = managerEffect(manager, client, ctx.settings);
@@ -525,6 +572,53 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
     }
   }
 
+  // The combination, worked out after everybody is placed: within one corner,
+  // the best distractor and the best muscle behind the SAME client. Two people
+  // in a corner is not the trick — a mouthpiece who pulls the official and a
+  // heavy who uses the seconds is.
+  {
+    const bySide = new Map<number, typeof ctx.managers[number][]>();
+    for (const entry of ctx.managers) {
+      // A corner-man with no side is somebody stood at ringside for nobody in
+      // particular, and cannot be half of a combination.
+      if (!entry.manager || !entry.client || entry.side === undefined) continue;
+      const list = bySide.get(entry.side) ?? [];
+      list.push(entry);
+      bySide.set(entry.side, list);
+    }
+
+    for (const [side, corner] of bySide) {
+      if (corner.length < 2) continue;
+      // Same client, or it is two men working for two different people who
+      // happen to be on the same side, and they are not running anything.
+      for (const clientId of new Set(corner.map((c) => c.client!.id))) {
+        const forThisClient = corner.filter((c) => c.client!.id === clientId);
+        if (forThisClient.length < 2) continue;
+
+        const distractor = [...forThisClient].sort(
+          (a, b) => b.manager!.deviousness - a.manager!.deviousness,
+        )[0]!;
+        const muscle = [...forThisClient]
+          .filter((c) => c.manager!.id !== distractor.manager!.id)
+          .sort((a, b) => (b.manager!.protection ?? 0) - (a.manager!.protection ?? 0))[0];
+        if (!muscle) continue;
+
+        const chance =
+          muggingChance(distractor.manager, muscle.manager, ctx.settings) *
+          (distractor.attention ?? 1) *
+          (muscle.attention ?? 1);
+        if (chance <= 0) continue;
+
+        if (chance > (muggingChanceBySide[side] ?? 0)) {
+          muggingChanceBySide[side] = chance;
+          muggingDamageBySide[side] = muggingDamage(muscle.manager!, ctx.settings);
+          muggingBy[side] = muscle.manager!.name;
+          muggingDistractor[side] = distractor.manager!.name;
+        }
+      }
+    }
+  }
+
   // A guest referee replaces the assigned official rather than joining them.
   // By the time a match reaches the bell somebody is always counting: the
   // store drafts a wrestler when the player named nobody.
@@ -553,6 +647,10 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
     distractionBy,
     popularityMultipliers,
     injuryShield,
+    muggingChance: muggingChanceBySide,
+    muggingDamage: muggingDamageBySide,
+    muggingBy,
+    muggingDistractor,
     ratingBonus: clamp(ratingBonus, -20, 20),
     screwyFinishWeight,
     interferenceWeight,
