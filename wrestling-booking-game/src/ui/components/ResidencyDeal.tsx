@@ -1,24 +1,26 @@
 // Signing for a room, and living in it.
 //
-// Two states, and they are different screens really. Before you sign, this is
-// an offer: pick a room and a term and see what the rent drops to. Once
-// signed it is a status — how long is left, and how tired the town has got —
-// plus the one button that gets you out, at a price.
+// Two states, and they are different pages really. Before you sign this is an
+// offer: eight small buildings in eight small towns, each with a rent, a
+// number of seats, and — the figure that actually matters — how many people in
+// that town will ever come. After you sign it is a status: how long is left,
+// how tired the town has got, and the one button that buys you out.
 //
-// It sits directly under the venue list because it is the same decision seen
-// from the other end: the list is what you rent this week, this is what you
-// rent for the year.
+// The downsides are stated as plainly as the rent, because they are the deal.
+// Nothing here warns anybody off; it says what the arrangement is and lets a
+// booker with a month of rent in the bank decide whether that is worse than
+// closing (§0).
 
 import { useState } from 'react';
 import { useGameStore } from '../../state/store';
-import { VENUES } from '../../data/venues';
 import {
+  homesOnOffer,
   residencyTerms,
   residencyRent,
   residencyDeposit,
   residencyStatus,
-  residencyAvailable,
-  residencyBlockedNote,
+  exposureLine,
+  localCeiling,
   breakLeaseCost,
 } from '../../engine/economy/residency';
 import { Money } from './display';
@@ -32,16 +34,20 @@ export function ResidencyDeal() {
 
   if (world.residency) {
     const owed = breakLeaseCost(world.residency, world.settings);
+    const ceiling = localCeiling(world.residency, world.settings);
     return (
       <section className="mb-4 rounded-lg border border-amber-800 bg-amber-950/20 p-3">
         <div className="text-[10px] uppercase tracking-wide text-amber-400/80">In residence</div>
-        <p className="text-sm font-semibold text-amber-200">{world.residency.venueName}</p>
+        <p className="text-sm font-semibold text-amber-200">
+          {world.residency.homeName}, {world.residency.town}
+        </p>
         <p className="mt-1 text-[11px] leading-snug text-neutral-300">
           {residencyStatus(world.residency, world.settings)}
         </p>
+        <p className="mt-1 text-[11px] leading-snug text-neutral-400">{exposureLine(world.residency)}</p>
         <p className="mt-1 text-[11px] text-neutral-500">
-          <Money amount={world.residency.rentPerWeek} /> a week. No travel, no lorry, and the room is not yours to
-          change while the term runs.
+          <Money amount={world.residency.rentPerWeek} /> a week, flat. No travel and no lorry. About{' '}
+          {ceiling.toLocaleString()} people will turn up, however good the card is.
         </p>
         <button
           type="button"
@@ -55,13 +61,6 @@ export function ResidencyDeal() {
   }
 
   const terms = residencyTerms(world.settings);
-  const rooms = VENUES.filter(
-    (v) => world.promotion.rating >= v.minCompanyRating && residencyAvailable(v, world.settings),
-  ).sort((a, b) => a.capacity - b.capacity);
-
-  const shut = VENUES.filter(
-    (v) => world.promotion.rating >= v.minCompanyRating && !residencyAvailable(v, world.settings),
-  );
 
   return (
     <section className="mb-4 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
@@ -70,38 +69,46 @@ export function ResidencyDeal() {
         <span className="shrink-0 text-neutral-600">{open ? '−' : '+'}</span>
       </button>
       <p className="mt-0.5 text-[11px] leading-snug text-neutral-500">
-        Cheaper rent, nothing spent on travel, and no lorry to keep — the gear lives in the building. The town gets
-        tired of you.
+        One small building in one small town, every week. Cheap flat rent, nothing spent on travel, and no lorry to
+        keep. You will not sell it out, you cannot charge much, merch barely moves, and nobody outside that town will
+        have heard of anybody on your roster.
       </p>
 
       {open && (
         <div className="mt-3 flex flex-col gap-2">
-          {rooms.map((venue) => (
-            <div key={venue.id} className="rounded border border-neutral-800 bg-neutral-950 p-2">
+          {homesOnOffer().map((home) => (
+            <div key={home.id} className="rounded border border-neutral-800 bg-neutral-950 p-2">
               <div className="flex items-baseline gap-2">
-                <span className="min-w-0 flex-1 truncate text-xs font-medium text-neutral-100">{venue.name}</span>
-                <span className="shrink-0 text-[11px] text-neutral-500">
-                  {venue.capacity.toLocaleString()} seats · <Money amount={venue.rentalCost} /> a night
+                <span className="min-w-0 flex-1 truncate text-xs font-medium text-neutral-100">
+                  {home.name}
+                  <span className="ml-1 font-normal text-neutral-500">{home.town}</span>
                 </span>
+                <span className="shrink-0 text-[11px] text-neutral-500">{home.capacity.toLocaleString()} seats</span>
               </div>
+              <p className="mt-0.5 text-[10px] leading-snug text-neutral-500">{home.blurb}</p>
+              <p className="mt-0.5 text-[10px] leading-snug text-amber-500/80">
+                About {home.localCrowd.toLocaleString()} will ever come · they will pay up to ${home.topTicket} a
+                ticket
+              </p>
+
               <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                 {terms.map((term) => {
-                  const deposit = residencyDeposit(venue, term, world.settings);
+                  const deposit = residencyDeposit(home, term, world.settings);
                   const afford = world.promotion.bankBalance >= deposit;
                   return (
                     <button
                       key={term.weeks}
                       type="button"
-                      data-testid={`residency-${venue.id}-${term.weeks}`}
+                      data-testid={`residency-${home.id}-${term.weeks}`}
                       disabled={!afford}
-                      onClick={() => sign(venue.id, term.weeks)}
+                      onClick={() => sign(home.id, term.weeks)}
                       className={`rounded px-2 py-1.5 text-left text-[11px] ${
                         afford ? 'bg-amber-700 text-amber-50' : 'bg-neutral-900 text-neutral-600'
                       }`}
                     >
                       <span className="block font-semibold">{term.label}</span>
                       <span className="block">
-                        <Money amount={residencyRent(venue, term)} /> a week
+                        <Money amount={residencyRent(home, term)} /> a week
                       </span>
                       <span className="block opacity-80">
                         <Money amount={deposit} /> down
@@ -112,17 +119,6 @@ export function ResidencyDeal() {
               </div>
             </div>
           ))}
-
-          {rooms.length === 0 && (
-            <p className="text-[11px] text-neutral-500">
-              Nothing you can rent does season deals. {shut[0] ? residencyBlockedNote(shut[0], world.settings) : ''}
-            </p>
-          )}
-          {rooms.length > 0 && shut.length > 0 && (
-            <p className="text-[10px] leading-snug text-neutral-600">
-              The bigger rooms will not: {residencyBlockedNote(shut[shut.length - 1]!, world.settings)}
-            </p>
-          )}
         </div>
       )}
     </section>

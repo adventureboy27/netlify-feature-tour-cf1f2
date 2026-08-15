@@ -381,8 +381,19 @@ export function defaultWorldSettings(): WorldSettings {
     residencyWorstDraw: 0.35,
     // Walking away early costs most of what is left, but not all of it.
     residencyBreakShare: 0.7,
-    // Small rooms only. An arena has a hockey team and a concert calendar.
-    residencyMaxCapacity: 2_800,
+    // The real price of a residency, and the one not denominated in money:
+    // a night in front of the same three hundred people is worth a third of a
+    // night on the road towards getting anybody over.
+    residencyExposure: 0.33,
+    // A converted cinema in a mill town is not a prestigious address.
+    residencyPrestige: 8,
+    // One room and a calendar instead of a booking operation. Measured: this
+    // is the saving that decides whether a residency is survivable, because
+    // overhead scales with what a company is worth rather than what it draws.
+    residencyOverheadShare: 0.45,
+    // The bar is yours in every one of these rooms — it is a large part of why
+    // a company with nothing survives one.
+    residencyConcessionsPerHead: 2.4,
 
     // Answering a rival's offer
     poachResponseMoneyEffect: 0.45,

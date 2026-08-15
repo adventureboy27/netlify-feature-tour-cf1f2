@@ -1,9 +1,9 @@
 // Taking a room for the season.
 //
 // The trade this has to keep honest: a residency is cheaper in every line of
-// the budget and worse at the door, and the longer it runs the worse the door
-// gets. If either half stops being true it becomes either a free win or a
-// thing nobody would ever sign.
+// the budget and worse at almost everything else. If any of the downsides
+// stops biting it becomes a free win, and the whole point of it is that it is
+// a place to survive rather than a place to grow.
 
 import { describe, expect, it } from 'vitest';
 import {
@@ -12,25 +12,33 @@ import {
   residencyDeposit,
   saturationDraw,
   saturationLine,
+  localCeiling,
+  localTopTicket,
+  residencyMerchMultiplier,
+  residencyExposure,
+  exposureLine,
   residencyTravelCost,
   residencyHaulageCost,
   breakLeaseCost,
   tickResidency,
   signResidency,
-  residencyAvailable,
-  residencyBlockedNote,
+  homesOnOffer,
   residencyStatus,
+  expectedHouseLine,
+  RESIDENCY_HOMES,
+  residencyHomeById,
   type Residency,
 } from './residency';
 import { defaultWorldSettings } from '../world/settings';
-import { VENUES, venueById } from '../../data/venues';
+import { VENUES } from '../../data/venues';
+import { fairTicketPrice } from './showBudget';
 
 const settings = defaultWorldSettings();
-const hall = venueById('vfwHall')!;
+const home = residencyHomeById('millTownArmory')!;
 const [short, long] = residencyTerms(settings);
 
 const run = (showsRun: number, weeksLeft = 20): Residency => ({
-  ...signResidency(hall, short!, 1),
+  ...signResidency(home, short!, 1),
   showsRun,
   weeksLeft,
 });
@@ -41,29 +49,131 @@ describe('the deal', () => {
     expect(short!.weeks).toBeLessThan(long!.weeks);
   });
 
-  it('charges less a night for the longer commitment', () => {
-    expect(residencyRent(hall, long!)).toBeLessThan(residencyRent(hall, short!));
+  it('charges less a week for the longer commitment', () => {
+    expect(residencyRent(home, long!)).toBeLessThan(residencyRent(home, short!));
   });
 
-  it('is cheaper than renting the same room week to week', () => {
-    for (const venue of VENUES) {
-      expect(residencyRent(venue, short!)).toBeLessThan(venue.rentalCost);
-      expect(residencyRent(venue, long!)).toBeLessThan(venue.rentalCost);
+  it('is cheaper than the room lists for', () => {
+    for (const h of RESIDENCY_HOMES) {
+      expect(residencyRent(h, short!)).toBeLessThan(h.rentPerWeek);
+      expect(residencyRent(h, long!)).toBeLessThan(h.rentPerWeek);
     }
   });
 
   it('wants money before the first bell', () => {
-    expect(residencyDeposit(hall, short!, settings)).toBe(
-      residencyRent(hall, short!) * settings.residencyDepositWeeks,
+    expect(residencyDeposit(home, short!, settings)).toBe(
+      residencyRent(home, short!) * settings.residencyDepositWeeks,
     );
   });
 
-  it('holds the rent it was signed at', () => {
-    const deal = signResidency(hall, long!, 12);
-    expect(deal.rentPerWeek).toBe(residencyRent(hall, long!));
+  it('holds the rent it was signed at, and remembers the town', () => {
+    const deal = signResidency(home, long!, 12);
+    expect(deal.rentPerWeek).toBe(residencyRent(home, long!));
+    expect(deal.town).toBe(home.town);
     expect(deal.weeksLeft).toBe(long!.weeks);
     expect(deal.showsRun).toBe(0);
-    expect(deal.signedWeek).toBe(12);
+  });
+
+  it('takes anybody, because the door is not the gate — the idea is', () => {
+    // No rating check anywhere. A legion hall will take a big company's money;
+    // it being a mistake is the point, and the game never warns (§0).
+    expect(homesOnOffer()).toHaveLength(RESIDENCY_HOMES.length);
+  });
+});
+
+describe('these are not the touring rooms', () => {
+  it('is its own list of buildings entirely', () => {
+    const venueIds = new Set(VENUES.map((v) => v.id));
+    for (const h of RESIDENCY_HOMES) expect(venueIds.has(h.id)).toBe(false);
+  });
+
+  it('is a smaller room than most of what you could tour', () => {
+    // Expressed against the touring list rather than a hardcoded seat count,
+    // because the homes were rescaled once already: what matters is that these
+    // are small rooms *relative to the business*, not that they are under some
+    // particular number.
+    const median = [...VENUES].sort((a, b) => a.capacity - b.capacity)[Math.floor(VENUES.length / 2)]!;
+    for (const h of RESIDENCY_HOMES) expect(h.capacity).toBeLessThanOrEqual(median.capacity);
+  });
+
+  it('rents for less a week than the cheapest room you could tour', () => {
+    const cheapest = Math.min(...VENUES.map((v) => v.rentalCost));
+    for (const h of RESIDENCY_HOMES) expect(h.rentPerWeek).toBeLessThanOrEqual(cheapest * 2.5);
+  });
+
+  it('puts every one of them in a town of its own', () => {
+    const towns = new Set(RESIDENCY_HOMES.map((h) => h.town));
+    expect(towns.size).toBe(RESIDENCY_HOMES.length);
+  });
+});
+
+describe('you will never sell out', () => {
+  it('holds fewer people in the town than the room has seats, everywhere', () => {
+    // The defining fact of the arrangement. If this ever stops being true a
+    // residency becomes a small touring room with cheaper rent.
+    for (const h of RESIDENCY_HOMES) expect(h.localCrowd).toBeLessThan(h.capacity);
+  });
+
+  it('caps the house at the town rather than the building', () => {
+    const ceiling = localCeiling(run(0), settings);
+    expect(ceiling).toBe(home.localCrowd);
+    expect(ceiling).toBeLessThan(home.capacity);
+  });
+
+  it('caps nothing at all for a company on the road', () => {
+    expect(localCeiling(null, settings)).toBe(Infinity);
+  });
+
+  it('shrinks the town further as it tires', () => {
+    expect(localCeiling(run(20), settings)).toBeLessThan(localCeiling(run(0), settings));
+  });
+
+  it('says what a room can really expect, seats and people both', () => {
+    const line = expectedHouseLine(home);
+    expect(line).toMatch(new RegExp(home.town));
+    expect(line).toMatch(/will ever come/);
+  });
+});
+
+describe('you cannot charge much', () => {
+  it('will not pay what a decent card fetches on the road', () => {
+    // The property, rather than a magic number: every town's ceiling sits
+    // under what an ordinary touring show could ask, so a residency can never
+    // price its way out of a small house.
+    const onTheRoad = fairTicketPrice(60, settings);
+    for (const h of RESIDENCY_HOMES) {
+      expect(h.topTicket).toBeGreaterThan(0);
+      expect(h.topTicket, `${h.town} asks more than the road`).toBeLessThan(onTheRoad);
+    }
+  });
+
+  it('reports the ceiling of the town you are in and none at all on the road', () => {
+    expect(localTopTicket(run(0))).toBe(home.topTicket);
+    expect(localTopTicket(null)).toBeNull();
+  });
+});
+
+describe('merch barely moves', () => {
+  it('sells worse in every one of these rooms than on the road', () => {
+    for (const h of RESIDENCY_HOMES) expect(h.merchMultiplier).toBeLessThan(1);
+    expect(residencyMerchMultiplier(run(0))).toBeLessThan(1);
+    expect(residencyMerchMultiplier(null)).toBe(1);
+  });
+});
+
+describe('nobody gets over', () => {
+  it('is worth a fraction of a night on the road', () => {
+    expect(residencyExposure(run(0), settings)).toBeLessThan(0.5);
+    expect(residencyExposure(null, settings)).toBe(1);
+  });
+
+  it('still counts for something — this is a slower road, not a dead end', () => {
+    expect(residencyExposure(run(0), settings)).toBeGreaterThan(0);
+  });
+
+  it('says so plainly, naming the town', () => {
+    expect(exposureLine(run(0))).toMatch(new RegExp(home.town));
+    expect(exposureLine(null)).toBeNull();
   });
 });
 
@@ -87,7 +197,6 @@ describe('wearing the town out', () => {
   });
 
   it('costs a real slice of the house by the end of a half-year run', () => {
-    // Not ruinous, and not nothing: the whole bargain in one number.
     const atTheEnd = saturationDraw(run(settings.residencyShortWeeks), settings);
     expect(atTheEnd).toBeLessThan(0.8);
     expect(atTheEnd).toBeGreaterThan(0.6);
@@ -100,8 +209,7 @@ describe('wearing the town out', () => {
 
   it('says how tired the town is, in words and without a figure', () => {
     for (const shows of [0, 5, 20, 40, 100]) {
-      const line = saturationLine(run(shows), settings);
-      expect(line).not.toMatch(/\d/);
+      expect(saturationLine(run(shows), settings)).not.toMatch(/\d/);
     }
     expect(saturationLine(run(0), settings)).toMatch(/not tired/i);
     expect(saturationLine(run(200), settings)).toMatch(/worn this town out/i);
@@ -129,32 +237,6 @@ describe('the term running out', () => {
 
   it('costs nothing to walk away from a deal that is already over', () => {
     expect(breakLeaseCost(run(4, 0), settings)).toBe(0);
-  });
-});
-
-describe('which rooms do this at all', () => {
-  it('is a small-room arrangement', () => {
-    expect(residencyAvailable(venueById('vfwHall')!, settings)).toBe(true);
-    expect(residencyAvailable(venueById('bingoHall')!, settings)).toBe(true);
-    expect(residencyAvailable(venueById('coliseum')!, settings)).toBe(false);
-  });
-
-  it('will not sign a year of Saturdays in a field', () => {
-    expect(residencyAvailable(venueById('countyFairground')!, settings)).toBe(false);
-    expect(residencyBlockedNote(venueById('countyFairground')!, settings)).toMatch(/field/i);
-  });
-
-  it('says why a big building will not, in words', () => {
-    const note = residencyBlockedNote(venueById('majorArena')!, settings)!;
-    expect(note).toMatch(/calendar/i);
-    expect(note).not.toMatch(/\d/);
-  });
-
-  it('leaves a startup a real choice of rooms', () => {
-    // If only one building did this it would be a scripted opening rather
-    // than a decision.
-    const open = VENUES.filter((v) => residencyAvailable(v, settings) && v.minCompanyRating === 0);
-    expect(open.length).toBeGreaterThanOrEqual(3);
   });
 });
 

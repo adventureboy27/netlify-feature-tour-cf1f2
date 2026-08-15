@@ -1809,8 +1809,17 @@ export interface WorldSettings {
   residencyWorstDraw: number;
   /** Share of the remaining term owed for walking away early. */
   residencyBreakShare: number;
-  /** Rooms above this do not do season deals. */
-  residencyMaxCapacity: number;
+  /**
+   * How much a night in a residency counts towards getting anybody over.
+   * Under one: the same crowd every week, and nobody else watching.
+   */
+  residencyExposure: number;
+  /** What a small-town room is worth as an address. */
+  residencyPrestige: number;
+  /** Share of the touring office a resident company still pays for. */
+  residencyOverheadShare: number;
+  /** The bar is yours in these rooms. */
+  residencyConcessionsPerHead: number;
 
   // Answering a rival's offer (engine/world/poaching.ts)
   poachResponseMoneyEffect: number;

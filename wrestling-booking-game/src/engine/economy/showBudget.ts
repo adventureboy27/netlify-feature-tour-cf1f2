@@ -74,7 +74,23 @@ export interface AttendanceContext {
   attendanceMultiplier: number;
   /** How over the promotion is in this town, 0-100. Sets the loyal-core floor. */
   territoryFollowing?: number;
+  /**
+   * The most this particular town will pay, if it has an opinion.
+   *
+   * A residency is one small city and there is no executive box in a converted
+   * cinema in a mill town: whatever the card is worth in the abstract, the
+   * people who live there have a ceiling. Charging over it does not raise the
+   * gate, it empties the room — which is the ordinary overpricing penalty,
+   * simply measured against the town rather than against the show.
+   */
+  fairPriceCeiling?: number;
   settings: WorldSettings;
+}
+
+/** What the audience thinks a ticket is worth, after the town has its say. */
+function priceTheyExpect(ctx: AttendanceContext): number {
+  const fair = fairTicketPrice(ctx.demand, ctx.settings);
+  return ctx.fairPriceCeiling === undefined ? fair : Math.min(fair, ctx.fairPriceCeiling);
 }
 
 /**
@@ -186,7 +202,7 @@ export function priceReactionLine(reaction: PriceReaction, townName: string): st
 export function computeAttendanceForShow(ctx: AttendanceContext): number {
   const { settings } = ctx;
 
-  const fairPrice = fairTicketPrice(ctx.demand, settings);
+  const fairPrice = priceTheyExpect(ctx);
   const priceRatio = ctx.ticketPrice / Math.max(fairPrice, 1);
 
   // Under the fair price people still only turn up so fast; over it they stop
@@ -208,7 +224,7 @@ export function computeAttendanceForShow(ctx: AttendanceContext): number {
 /** People who wanted in and could not get a seat — the case for a bigger room. */
 export function turnedAway(ctx: AttendanceContext): number {
   const { settings } = ctx;
-  const fairPrice = fairTicketPrice(ctx.demand, settings);
+  const fairPrice = priceTheyExpect(ctx);
   const priceRatio = ctx.ticketPrice / Math.max(fairPrice, 1);
   const priceFactor =
     priceRatio <= 1
