@@ -743,6 +743,11 @@ export function defaultWorldSettings(): WorldSettings {
     // Where the production ladder's plain-language labels change over.
     productionShoestringRungs: 2,
     productionTouringRungs: 5,
+    // Two years of books is plenty to read a trend off.
+    statementsKept: 104,
+    // A quarter's burn. Shorter and one bad supershow week reads as a crisis;
+    // longer and a company that started bleeding a month ago still looks fine.
+    runwaySampleWeeks: 13,
     managerPopularityBoostMax: 0.35,
     managerInterferenceWeight: 1.6,
     managerSelfMadePenalty: 0.15,

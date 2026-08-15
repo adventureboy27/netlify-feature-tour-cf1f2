@@ -2110,6 +2110,10 @@ export interface WorldSettings {
   cornerSeats: number;
   productionShoestringRungs: number;
   productionTouringRungs: number;
+  /** How many weekly statements the save keeps. */
+  statementsKept: number;
+  /** How many recent weeks the runway figure averages the burn over. */
+  runwaySampleWeeks: number;
   managerPopularityBoostMax: number;
   managerInterferenceWeight: number;
   /** How much leaning on a mouthpiece stunts what the client builds alone. */

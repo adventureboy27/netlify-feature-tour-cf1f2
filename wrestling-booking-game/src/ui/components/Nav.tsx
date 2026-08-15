@@ -20,6 +20,7 @@ export type Screen =
   | 'promotion'
   | 'roster'
   | 'territories'
+  | 'finance'
   | 'freeAgents'
   | 'results'
   | 'rankings'
@@ -178,6 +179,11 @@ export function BottomNav({
 const MORE: { id: Screen; label: string; blurb: string }[] = [
   { id: 'freeAgents', label: 'Free agents', blurb: 'Who is out of contract, what they want, and what they would bring.' },
   { id: 'promotion', label: 'Promotion', blurb: 'Your belts, your teams, your house style, and what the owner expects.' },
+  {
+    id: 'finance',
+    label: 'Finance',
+    blurb: 'Where last week went, and the ring, rig and truck you are working towards.',
+  },
   { id: 'territories', label: 'Territories', blurb: 'The towns you can run, the venues in them, and what a ticket costs.' },
   { id: 'rankings', label: 'Rankings', blurb: 'Where your company sits against every other one in the business.' },
   { id: 'sheet', label: 'The Sheet', blurb: "The dirtsheet's weekly lists — who is hot, who is buried, who is leaving." },

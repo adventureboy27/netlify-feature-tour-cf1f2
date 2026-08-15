@@ -12,7 +12,14 @@
 // useful reading is "the payroll is the problem" or "the truck is the problem",
 // and a pie chart hides exactly that.
 
-export type RevenueKind = 'gate' | 'merch' | 'television' | 'sponsor' | 'houseShows' | 'other';
+export type RevenueKind =
+  | 'gate'
+  | 'merch'
+  | 'concessions'
+  | 'television'
+  | 'sponsor'
+  | 'houseShows'
+  | 'other';
 export type ExpenseKind =
   | 'payroll'
   | 'production'
@@ -23,6 +30,8 @@ export type ExpenseKind =
   | 'medical'
   | 'fines'
   | 'entries'
+  | 'overhead'
+  | 'perks'
   | 'other';
 
 export interface StatementLine<K extends string> {
@@ -47,6 +56,7 @@ export interface WeeklyStatement {
 const REVENUE_LABELS: Record<RevenueKind, string> = {
   gate: 'Gate',
   merch: 'Merchandise',
+  concessions: 'Concessions',
   television: 'Television',
   sponsor: 'Sponsors',
   houseShows: 'House shows',
@@ -63,6 +73,8 @@ const EXPENSE_LABELS: Record<ExpenseKind, string> = {
   medical: 'Medical',
   fines: 'Fines and settlements',
   entries: 'Entry fees',
+  overhead: 'Running the office',
+  perks: 'Contract extras',
   other: 'Other',
 };
 
@@ -94,32 +106,70 @@ export class StatementBuilder {
   }
 
   build(closingBalance: number): WeeklyStatement {
+    const opening = Math.round(this.openingBalance);
+    const closing = Math.round(closingBalance);
+
+    const revenue = round(this.revenue, REVENUE_LABELS);
+    const expenses = round(this.expenses, EXPENSE_LABELS);
+
+    // Reconcile against the bank before totalling.
+    //
+    // The statement's job is to explain the balance, and the balance is the
+    // fact — so whatever the bank actually did this week is what the sheet has
+    // to add up to. A week runs money through a long list of paths, and one of
+    // them forgetting to declare itself must never produce a statement whose
+    // own closing figure contradicts its own lines. Anything left over lands
+    // on Other, which is honestly what it is.
+    //
+    // Both Other lines come out first, so what remains is only the money that
+    // named itself; whatever the bank did beyond that is Other by definition.
+    // Netting the two also keeps Other off both sides of one week, which tells
+    // a reader nothing.
+    take(revenue, 'other');
+    take(expenses, 'other');
+    const other = closing - opening - (total(revenue) - total(expenses));
+    if (other > 0) revenue.push({ kind: 'other', label: REVENUE_LABELS.other, amount: other });
+    else if (other < 0) expenses.push({ kind: 'other', label: EXPENSE_LABELS.other, amount: -other });
+
     // Biggest first inside each block: the useful reading is which line is the
     // problem, and sorting by size answers that at a glance.
-    const revenue = [...this.revenue.entries()]
-      .map(([kind, amount]) => ({ kind, label: REVENUE_LABELS[kind], amount: Math.round(amount) }))
-      .filter((l) => l.amount !== 0)
-      .sort((a, b) => b.amount - a.amount);
+    revenue.sort((a, b) => b.amount - a.amount);
+    expenses.sort((a, b) => b.amount - a.amount);
 
-    const expenses = [...this.expenses.entries()]
-      .map(([kind, amount]) => ({ kind, label: EXPENSE_LABELS[kind], amount: Math.round(amount) }))
-      .filter((l) => l.amount !== 0)
-      .sort((a, b) => b.amount - a.amount);
-
-    const totalRevenue = revenue.reduce((s, l) => s + l.amount, 0);
-    const totalExpenses = expenses.reduce((s, l) => s + l.amount, 0);
+    const totalRevenue = total(revenue);
+    const totalExpenses = total(expenses);
 
     return {
       week: this.week,
-      openingBalance: Math.round(this.openingBalance),
+      openingBalance: opening,
       revenue,
       expenses,
       totalRevenue,
       totalExpenses,
       net: totalRevenue - totalExpenses,
-      closingBalance: Math.round(closingBalance),
+      closingBalance: closing,
     };
   }
+}
+
+function round<K extends string>(
+  amounts: ReadonlyMap<K, number>,
+  labels: Record<K, string>,
+): StatementLine<K>[] {
+  return [...amounts.entries()]
+    .map(([kind, amount]) => ({ kind, label: labels[kind], amount: Math.round(amount) }))
+    .filter((l) => l.amount !== 0);
+}
+
+function total(lines: readonly StatementLine<string>[]): number {
+  return lines.reduce((s, l) => s + l.amount, 0);
+}
+
+/** Pull a line out of the list and hand back its amount. Zero if it was absent. */
+function take<K extends string>(lines: StatementLine<K>[], kind: K): number {
+  const at = lines.findIndex((l) => l.kind === kind);
+  if (at < 0) return 0;
+  return lines.splice(at, 1)[0]!.amount;
 }
 
 /** The single biggest thing bleeding money this week, for the summary line. */

@@ -5,6 +5,8 @@ import {
   broadcastOffer,
   availableSponsors,
   weeklyBroadcastIncome,
+  weeklyNetworkFee,
+  weeklySponsorIncome,
   shouldWalk,
   type BusinessSnapshot,
   broadcastVerdict,
@@ -212,6 +214,18 @@ describe('what it all pays', () => {
 
   it('is nothing at all with no deals', () => {
     expect(weeklyBroadcastIncome(null, [], 0, settings)).toBe(0);
+  });
+
+  it('splits into a network half and a banner half that add back up', () => {
+    // The statement lists television and sponsorship separately, so the split
+    // has to be exact — a dollar lost between the two would land on Other.
+    const deal = broadcasterById('regionalCable')!;
+    const signed = [sponsorById('localBusiness')!, sponsorById('apparelBrand')!];
+    expect(weeklyNetworkFee(deal, deal.expectedRating, settings) + weeklySponsorIncome(signed)).toBe(
+      weeklyBroadcastIncome(deal, signed, deal.expectedRating, settings),
+    );
+    expect(weeklyNetworkFee(null, 12, settings)).toBe(0);
+    expect(weeklySponsorIncome([])).toBe(0);
   });
 
   it('dwarfs the gate at every tier, which is why losing one hurts', () => {

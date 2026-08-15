@@ -177,8 +177,22 @@ export function weeklyBroadcastIncome(
   tvRating: number,
   settings: WorldSettings,
 ): number {
-  const sponsorMoney = sponsors.reduce((sum, s) => sum + s.weeklyFee, 0);
-  if (!deal) return sponsorMoney;
+  return weeklyNetworkFee(deal, tvRating, settings) + weeklySponsorIncome(sponsors);
+}
+
+/**
+ * The network's half on its own.
+ *
+ * Split out from the total because the weekly statement lists television and
+ * sponsorship as separate lines — a booker who has lost the banners wants to
+ * see that, not a single number that quietly moved.
+ */
+export function weeklyNetworkFee(
+  deal: Broadcaster | null,
+  tvRating: number,
+  settings: WorldSettings,
+): number {
+  if (!deal) return 0;
 
   const delivered = tvRating / Math.max(deal.expectedRating, 0.01);
   const swing = clamp(
@@ -187,7 +201,12 @@ export function weeklyBroadcastIncome(
     settings.broadcastRatingUpside,
   );
 
-  return Math.round(deal.weeklyFee * (1 + swing)) + sponsorMoney;
+  return Math.round(deal.weeklyFee * (1 + swing));
+}
+
+/** The banners. Flat — they are buying a spot in a building, not a slot. */
+export function weeklySponsorIncome(sponsors: readonly Sponsor[]): number {
+  return sponsors.reduce((sum, s) => sum + s.weeklyFee, 0);
 }
 
 /** What the network is paying against what they hoped, in words. */

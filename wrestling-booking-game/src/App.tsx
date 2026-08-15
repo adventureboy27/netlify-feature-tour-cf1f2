@@ -17,6 +17,7 @@ import { WrestlerEditor } from './ui/screens/WrestlerEditor';
 import { NewGameScreen } from './ui/screens/NewGameScreen';
 import { LegacyScreen } from './ui/screens/LegacyScreen';
 import { CrucibleScreen } from './ui/screens/CrucibleScreen';
+import { FinanceScreen } from './ui/screens/FinanceScreen';
 import { RecordsScreen } from './ui/screens/RecordsScreen';
 import { RankingsScreen } from './ui/screens/RankingsScreen';
 import { SheetScreen } from './ui/screens/SheetScreen';
@@ -116,6 +117,7 @@ export default function App() {
           />
         )}
         {screen === 'territories' && <TerritoriesScreen />}
+        {screen === 'finance' && <FinanceScreen />}
         {screen === 'freeAgents' && <FreeAgentsScreen />}
         {screen === 'results' &&
           (lastShow ? (

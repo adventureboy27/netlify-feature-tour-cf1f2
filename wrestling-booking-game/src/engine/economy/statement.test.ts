@@ -69,6 +69,38 @@ describe('the books balance', () => {
     expect(s.net).toBe(0);
   });
 
+  it('explains the whole of the balance, even the part nobody declared', () => {
+    // Somewhere in a week the size of this one, money moves without saying so.
+    // The sheet has to add up to the bank regardless — the bank is the fact.
+    const b = new StatementBuilder(1, 10_000);
+    b.earn('gate', 5_000);
+    const s = b.build(11_000); // Down 4,000 more than the lines admit.
+
+    expect(s.net).toBe(1_000);
+    expect(s.closingBalance - s.openingBalance).toBe(s.net);
+    expect(s.expenses.find((l) => l.kind === 'other')!.amount).toBe(4_000);
+  });
+
+  it('nets Other rather than printing it on both sides of one week', () => {
+    const b = new StatementBuilder(1, 0);
+    b.earn('other', 3_000);
+    b.spend('other', 500);
+    const s = b.build(2_500);
+
+    expect(s.revenue.filter((l) => l.kind === 'other')).toHaveLength(1);
+    expect(s.expenses.filter((l) => l.kind === 'other')).toHaveLength(0);
+    expect(s.revenue.find((l) => l.kind === 'other')!.amount).toBe(2_500);
+  });
+
+  it('leaves a fully-declared week alone', () => {
+    const b = new StatementBuilder(1, 1_000);
+    b.earn('gate', 400);
+    b.spend('payroll', 150);
+    const s = b.build(1_250);
+    expect(s.revenue.some((l) => l.kind === 'other')).toBe(false);
+    expect(s.expenses.some((l) => l.kind === 'other')).toBe(false);
+  });
+
   it('records where the week started and finished', () => {
     const b = new StatementBuilder(9, 12_345);
     b.earn('television', 5_000);

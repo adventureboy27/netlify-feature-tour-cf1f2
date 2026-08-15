@@ -23,7 +23,7 @@ export function CrucibleScreen() {
     .sort((a, b) => b.reigns.length - a.reigns.length);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 p-3 pb-24">
       <section className="rounded-lg border border-emerald-800 bg-emerald-950/20 p-3">
         <h2 className="text-sm font-semibold text-emerald-300">{CUP_NAME}</h2>
         <p className="mt-1 text-xs text-neutral-400">

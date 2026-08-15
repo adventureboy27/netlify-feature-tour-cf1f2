@@ -284,7 +284,8 @@ import {
   sponsorBreaches,
   broadcastOffer,
   availableSponsors,
-  weeklyBroadcastIncome,
+  weeklyNetworkFee,
+  weeklySponsorIncome,
   shouldWalk,
 } from '../engine/economy/broadcast';
 import { broadcasterById, bestBroadcasterFor } from '../data/broadcasters';
@@ -358,6 +359,15 @@ import {
   CUP_TROPHY,
 } from '../engine/world/cup';
 import { runCup, cupStandingFor } from '../engine/world/cupRun';
+import {
+  HAULAGE,
+  haulageById,
+  nextHaulage,
+  ladderStatus,
+  productionEffects,
+  productionUpkeepPerShow,
+} from '../engine/economy/production';
+import { StatementBuilder } from '../engine/economy/statement';
 import { SUPERSHOW_SEASONS } from '../engine/world/supershow';
 import { rivalWeek, shouldFold } from '../engine/world/rivalEconomy';
 import { publishPositions } from '../engine/world/publication';
@@ -531,6 +541,10 @@ export interface GameStore {
   setVenue: (venueId: Id) => void;
   /** Where you are running this week. */
   setTerritory: (territoryId: Id) => void;
+  /** Climb one rung of the production ladder. The ladder decides if you can. */
+  buyRung: (rungId: Id) => void;
+  /** Trade up to the next truck. One at a time, upwards only. */
+  buyHaulage: (haulageId: Id) => void;
   setTicketPrice: (price: number) => void;
   toggleShowExtra: (extraId: Id) => void;
   buyProductionAsset: (assetId: Id) => void;
@@ -1090,7 +1104,7 @@ function closePromotion(world: World, promotion: Promotion): void {
  * open bids for themselves. Whoever wins absorbs the roster and the belts —
  * lineage and all — and pays for the privilege.
  */
-function resolveAuction(world: World, playerLevel: PlayerBidLevel): void {
+function resolveAuction(world: World, playerLevel: PlayerBidLevel, books?: StatementBuilder): void {
   const pending = world.pendingAuction;
   if (!pending) return;
   const { lot } = pending;
@@ -1124,6 +1138,10 @@ function resolveAuction(world: World, playerLevel: PlayerBidLevel): void {
     winner.bankBalance -= result.winningBid;
     // The cash in the dead company's account comes with the lot.
     winner.bankBalance += lot.cash;
+    if (winner.id === world.promotion.id) {
+      books?.spend('other', result.winningBid);
+      books?.earn('other', lot.cash);
+    }
 
     for (const w of incoming) {
       w.promotionId = winner.id;
@@ -1251,7 +1269,7 @@ function openBiddingWar(world: World, wrestler: Wrestler, reason: BiddingReason)
 }
 
 /** Move somebody onto a roster on the terms that won them. */
-function awardContract(world: World, wrestler: Wrestler, bid: ContractBid, promotionId: Id): void {
+function awardContract(world: World, wrestler: Wrestler, bid: ContractBid, promotionId: Id, books?: StatementBuilder): void {
   const winner =
     world.promotion.id === promotionId ? world.promotion : world.rivals.find((r) => r.id === promotionId);
   if (!winner) return;
@@ -1274,6 +1292,7 @@ function awardContract(world: World, wrestler: Wrestler, bid: ContractBid, promo
   winner.rosterIds.push(wrestler.id);
   // The bonus is real money and it leaves the bank the day they sign.
   winner.bankBalance -= bid.signingBonus;
+  if (winner.id === world.promotion.id) books?.spend('payroll', bid.signingBonus);
 }
 
 /**
@@ -1282,7 +1301,7 @@ function awardContract(world: World, wrestler: Wrestler, bid: ContractBid, promo
  * Called both when the player answers and when the week rolls over without
  * them — an auction the booker ignored still happens, they just watch it.
  */
-function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid | null): void {
+function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid | null, books?: StatementBuilder): void {
   const war = world.pendingBiddingWar;
   if (!war) return;
   const wrestler = world.wrestlers[war.wrestlerId];
@@ -1347,7 +1366,7 @@ function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid | null)
 
   const result = outcome?.kind === 'signed' ? outcome.result : null;
   if (result) {
-    awardContract(world, wrestler, result.bid, result.winningPromotionId);
+    awardContract(world, wrestler, result.bid, result.winningPromotionId, books);
     war.bids = result.allBids;
     war.result = result;
     world.weeklyNews.push(
@@ -1369,7 +1388,15 @@ function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid | null)
   world.pendingBiddingWar = null;
 }
 
-function applyEffect(world: World, effect: EventEffect): void {
+/**
+ * Apply one event effect, and report the money it moved.
+ *
+ * The return exists so the weekly statement can account for incidents. An
+ * effect that pays a fine or costs a settlement moves the bank balance like
+ * anything else, and a statement that cannot see it would close out of
+ * balance with its own closing figure.
+ */
+function applyEffect(world: World, effect: EventEffect): number {
   const at = (id: Id): Wrestler | undefined => world.wrestlers[id];
   const bump = (value: number, delta: number) => clamp(value + delta, 0, 100);
 
@@ -1408,7 +1435,7 @@ function applyEffect(world: World, effect: EventEffect): void {
     }
     case 'money':
       world.promotion.bankBalance += effect.delta;
-      break;
+      return effect.delta;
     case 'companyRating':
       world.promotion.rating = bump(world.promotion.rating, effect.delta);
       break;
@@ -1522,6 +1549,23 @@ function applyEffect(world: World, effect: EventEffect): void {
       if (team && team.disbandedWeek === null) team.disbandedWeek = world.week;
       break;
     }
+  }
+
+  // Everything that is not a `money` effect moved no money.
+  return 0;
+}
+
+/**
+ * Run a list of effects and book whatever they cost or paid.
+ *
+ * Incidents and promos can hand out a bonus or a bill. Routing them through
+ * one place keeps the statement honest without every call site remembering.
+ */
+function applyEffects(world: World, effects: readonly EventEffect[], books: StatementBuilder): void {
+  for (const effect of effects) {
+    const money = applyEffect(world, effect);
+    if (money >= 0) books.earn('other', money);
+    else books.spend('other', money);
   }
 }
 
@@ -1878,15 +1922,20 @@ export const useGameStore = create<GameStore>()(
         // Two ways a save ends: the bank, and the owner.
         if (!world || world.folded || world.fired) return;
 
+        // The books for the week, opened before a penny moves. Every place
+        // money changes hands below reports into this, so the statement is a
+        // record of what happened rather than a second guess at it.
+        const books = new StatementBuilder(world.week, world.promotion.bankBalance);
+
         // An auction you never answered goes ahead without you. The business
         // does not wait for a booker to make up their mind.
-        if (world.pendingAuction) resolveAuction(world, 'pass');
+        if (world.pendingAuction) resolveAuction(world, 'pass', books);
 
         // An auction the booker never answered goes ahead without them. The
         // room does not hold a star off the market because somebody did not
         // open a dialog — and leaving one open forever would be a way to
         // freeze somebody out of the business entirely.
-        if (world.pendingBiddingWar) settleBiddingWar(world, rng, null);
+        if (world.pendingBiddingWar) settleBiddingWar(world, rng, null, books);
         const wrestlerById = new Map(Object.values(world.wrestlers).map((w) => [w.id, w]));
 
         // Books. Where everybody is, what they have been paid, and how long
@@ -2525,7 +2574,10 @@ export const useGameStore = create<GameStore>()(
                     world.settings,
                   );
                   applySanction(file, 'deliberateInjury', sanction, world.week);
-                  if (sanction.kind === 'suspended') world.promotion.bankBalance += sanction.amount;
+                  if (sanction.kind === 'suspended') {
+                    world.promotion.bankBalance += sanction.amount;
+                    books.earn('other', sanction.amount);
+                  }
                   world.weeklyNews.push(
                     wire(
                       'misfortune',
@@ -2760,7 +2812,7 @@ export const useGameStore = create<GameStore>()(
             }),
           );
           if (incident) {
-            for (const effect of incident.effects) applyEffect(world, effect);
+            applyEffects(world, incident.effects, books);
             weeklyIncidents.push({
               promotionId: world.promotion.id,
               promotionName: world.promotion.name,
@@ -3050,6 +3102,7 @@ export const useGameStore = create<GameStore>()(
               applySanction(file, 'cheating', sanction, world.week);
               if (sanction.kind === 'fined' || sanction.kind === 'suspended') {
                 world.promotion.bankBalance += sanction.amount;
+                books.earn('other', sanction.amount);
               }
               const announced = suspensionLine(culprit.name, sanction);
               world.weeklyNews.push(
@@ -3186,7 +3239,7 @@ export const useGameStore = create<GameStore>()(
             settings: world.settings,
           });
 
-          for (const effect of promo.effects) applyEffect(world, effect);
+          applyEffects(world, promo.effects, books);
           promoRating += promoShowContribution(promo.quality, world.settings);
 
           // Talking is work. Doing it on a night you also wrestle costs more.
@@ -3329,6 +3382,26 @@ export const useGameStore = create<GameStore>()(
           .filter((e) => !e.requiresAsset || world.ownedAssetIds.includes(e.requiresAsset));
 
         const production = [...ownedAssets, ...extras];
+
+        // The ladder, folded in alongside the older asset list. Represented as
+        // one synthetic entry rather than by rewriting every consumer, because
+        // `sumEffect` already knows how to add these up and the two systems
+        // want to coexist while the old assets are still around.
+        const climbed = productionEffects(world.productionRungs);
+        production.push({
+          id: 'productionLadder',
+          name: 'Production',
+          cost: 0,
+          upkeepPerShow: 0,
+          blurb: '',
+          effects: {
+            showRating: climbed.showRating,
+            tvRating: climbed.tvRating,
+            attendanceMultiplier: climbed.attendanceMultiplier,
+            merchMultiplier: climbed.merchMultiplier,
+            injuryReduction: climbed.injuryReduction,
+          },
+        } as (typeof production)[number]);
         const ticketPrice = world.showSetup.ticketPrice;
 
         // Demand is what the promotion has earned: its standing, plus how
@@ -3523,11 +3596,41 @@ export const useGameStore = create<GameStore>()(
                 (houseShowRevenueMultiplier(schedule, world.settings) - 1),
             );
 
+        // The night, line by line rather than as one net figure. This is the
+        // whole point of the statement: "up nine thousand" tells a booker
+        // nothing, and "gate 21,000, payroll 13,000, venue 4,200" tells him
+        // what to do next.
+        books.earn('gate', gate);
+        books.earn('merch', revenue.merch);
+        // Programmes, parking and the beer stand. Small per head and large by
+        // the end of the night, which is exactly why it wants naming.
+        books.earn('concessions', revenue.total - gate - revenue.merch);
+        books.earn('houseShows', houseGate);
+        books.spend('payroll', payroll);
+        books.spend('venue', venue.rentalCost);
+        books.spend('production', showPayable - venue.rentalCost);
+        // Named rather than swept into Other. The office overhead is the
+        // largest single thing most companies pay and it scales with what they
+        // are worth, so a booker reading his own sheet has to be able to see it
+        // sitting there above the payroll.
+        books.spend('overhead', weeklyExpenses);
+        books.spend('agents', ringsideCost);
+        books.spend('perks', clauseBill + perkBill);
+
         world.promotion.bankBalance += revenue.total - totalOut + houseGate;
+
+        // The kit and the truck, whether or not a wheel turned. A company that
+        // owns a video wall pays for a video wall in a week it runs nothing.
+        const rig = productionUpkeepPerShow(world.productionRungs) * Math.max(1, houseShows.length + 1);
+        const truck = haulageById(world.haulageId)?.upkeepPerWeek ?? 0;
+        world.promotion.bankBalance -= rig + truck;
+        books.spend('production', rig);
+        books.spend('haulage', truck);
 
         for (const extra of tonightsImpromptu) {
           const takings = returnsFor(extra, world.settings);
           world.promotion.bankBalance -= takings.cost;
+          books.spend('venue', takings.cost);
           world.promotion.reputation = clamp(
             world.promotion.reputation + takings.reputation,
             0,
@@ -3755,6 +3858,7 @@ export const useGameStore = create<GameStore>()(
           : 0;
         const buyRevenue = computeBuyRevenue(buys, world.settings);
         world.promotion.bankBalance += buyRevenue;
+        books.earn('television', buyRevenue);
 
                 // Tonight goes into the running average, which is what decides how
         // many people turn up next week. A night of draws and count-outs
@@ -4014,7 +4118,7 @@ export const useGameStore = create<GameStore>()(
                 }),
               );
               if (incident) {
-                for (const effect of incident.effects) applyEffect(world, effect);
+                applyEffects(world, incident.effects, books);
                 weeklyIncidents.push({ promotionId: rival.id, promotionName: rival.name, incident });
               }
             }
@@ -4048,8 +4152,10 @@ export const useGameStore = create<GameStore>()(
         for (const rival of world.rivals) {
           if (rival.closedWeek !== null) continue;
           const theirRoster = rival.rosterIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
-          const books = rivalWeek(rival, theirRoster, world.settings);
-          const net = rivalShows.has(rival.id) ? books.net : -books.costs;
+          // Not `books` — that name belongs to the player's statement, which
+          // is open for the whole of resolveWeek.
+          const theirBooks = rivalWeek(rival, theirRoster, world.settings);
+          const net = rivalShows.has(rival.id) ? theirBooks.net : -theirBooks.costs;
           rival.bankBalance = Math.round(rival.bankBalance + net);
 
           if (rival.bankBalance < 0) rival.weeksInTheRed += 1;
@@ -4630,6 +4736,9 @@ export const useGameStore = create<GameStore>()(
           // Signed, paid, and still not on television. This is the expensive
           // part, and it is meant to be.
           world.promotion.bankBalance -= signing.weeklyRate;
+          // On the payroll line, because that is what it is — even though the
+          // man it pays is not on the roster and cannot be booked.
+          books.spend('payroll', signing.weeklyRate);
           if (rollExposure(rng, signing, world.week, world.settings)) {
             signing.blownWeek = world.week;
             world.weeklyNews.push(
@@ -5679,12 +5788,11 @@ export const useGameStore = create<GameStore>()(
           .map((id) => sponsorById(id))
           .filter((s): s is NonNullable<typeof s> => Boolean(s));
 
-        world.promotion.bankBalance += weeklyBroadcastIncome(
-          currentDeal ?? null,
-          signedSponsors,
-          tvRatingThisWeek,
-          world.settings,
-        );
+        const networkFee = weeklyNetworkFee(currentDeal ?? null, tvRatingThisWeek, world.settings);
+        const sponsorFee = weeklySponsorIncome(signedSponsors);
+        world.promotion.bankBalance += networkFee + sponsorFee;
+        books.earn('television', networkFee);
+        books.earn('sponsor', sponsorFee);
 
         // A rating held is what a network believes, so the counter resets the
         // moment it slips below the bar for the next tier up.
@@ -5775,6 +5883,10 @@ export const useGameStore = create<GameStore>()(
             if (met || mandateExpired(world.mandate.deadlineWeek, world.week)) {
               const outcome = resolveMandate(met, world.settings);
               world.promotion.bankBalance += outcome.money;
+              // A met mandate pays a bonus; a missed one costs. Same field,
+              // opposite sides of the sheet.
+              if (outcome.money >= 0) books.earn('other', outcome.money);
+              else books.spend('fines', outcome.money);
               world.promotion.rating = clamp(world.promotion.rating + outcome.ratingDelta, 0, 100);
               if (outcome.strike) world.mandateStrikes += 1;
               world.lastMandateOutcome = {
@@ -5860,6 +5972,15 @@ export const useGameStore = create<GameStore>()(
           ),
         );
         world.currentPromos = createEmptyPromoSlots(world.settings.promoSlotsPerCard);
+
+        // The books close last, once every last thing that moves money this
+        // week has moved it — the gate, the network, the fines, the truck.
+        // Close them any earlier and the closing balance disagrees with the
+        // lines above it, which is the one thing a statement may never do.
+        // It is still stamped with the week it describes: the builder took
+        // that number at the top of the turn, before world.week advanced.
+        world.statements.push(books.build(world.promotion.bankBalance));
+        world.statements = world.statements.slice(-world.settings.statementsKept);
       });
     },
 
@@ -6169,6 +6290,49 @@ export const useGameStore = create<GameStore>()(
         setup.extraIds = setup.extraIds.includes(extraId)
           ? setup.extraIds.filter((id) => id !== extraId)
           : [...setup.extraIds, extraId];
+      });
+    },
+
+    buyRung: (rungId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const truck = haulageById(world.haulageId) ?? HAULAGE[0]!;
+        const status = ladderStatus(world.productionRungs, truck, world.promotion.bankBalance);
+        const here = status.find((r) => r.rung.id === rungId);
+        // The ladder decides. Rung order, truck space and money are all checked
+        // in one place (economy/production.ts) so the UI and the store can
+        // never disagree about what is buyable.
+        if (!here || here.blocked !== null) return;
+
+        world.promotion.bankBalance -= here.rung.cost;
+        world.productionRungs.push(here.rung.id);
+        world.weeklyNews.push(
+          wire(
+            'story',
+            `${world.promotion.name} bought a ${here.rung.name.toLowerCase()}. ${here.rung.blurb}`,
+            world.week,
+            'minor',
+          ),
+        );
+      });
+    },
+
+    buyHaulage: (haulageId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const next = nextHaulage(world.haulageId);
+        // One rung at a time, and only upwards — you cannot skip from a pickup
+        // to a fleet, and you cannot sell the semi back for a pickup.
+        if (!next || next.id !== haulageId) return;
+        if (world.promotion.bankBalance < next.cost) return;
+
+        world.promotion.bankBalance -= next.cost;
+        world.haulageId = next.id;
+        world.weeklyNews.push(
+          wire('story', `${world.promotion.name} are hauling on a ${next.name.toLowerCase()} now. ${next.blurb}`, world.week, 'minor'),
+        );
       });
     },
 

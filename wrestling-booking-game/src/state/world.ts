@@ -74,6 +74,7 @@ import type { PromotionArchetype } from '../data/promotionIdentity';
 import { seedRelationships } from '../engine/career/relationships';
 import type { SupershowOffer, SupershowResult } from '../engine/world/supershowRun';
 import type { CupResult } from '../engine/world/cupRun';
+import type { WeeklyStatement } from '../engine/economy/statement';
 import type { CrownReign } from '../engine/world/cup';
 
 /** What the promoters put in front of the booker each August. */
@@ -175,6 +176,12 @@ export interface World {
   poachingOffers: PoachingOffer[];
   /** One-time production purchases. They travel to every show. */
   ownedAssetIds: Id[];
+  /** Rungs of the production ladder owned, in the order they were bought. */
+  productionRungs: Id[];
+  /** Which truck the operation runs on. Everything owned has to fit in it. */
+  haulageId: Id;
+  /** The books, newest last. One per week the company traded. */
+  statements: WeeklyStatement[];
   /** How worn each owned asset is. Gear does not last forever. */
   assetConditions: AssetCondition[];
   /** Contract renewals waiting on an answer, opened when a deal runs down. */
@@ -703,6 +710,11 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     tamperingOffers: [],
     poachingOffers: [],
     ownedAssetIds: [],
+    // You start on a wooden mat, on a pickup and a rented trailer. Everything
+    // on the ladder is somewhere above you — see economy/production.ts.
+    productionRungs: [],
+    haulageId: 'pickup',
+    statements: [],
     assetConditions: [],
     pendingRenewals: [],
     showSetup: startingSetup,
