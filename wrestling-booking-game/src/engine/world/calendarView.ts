@@ -12,7 +12,7 @@
 // the day the show runs on.
 
 import type { WorldSettings } from '../types';
-import { MONTHS, WEEKS_PER_YEAR, weekLabel, type Month, type Day } from './calendar';
+import { MONTHS, DAYS, WEEKS_PER_YEAR, weekLabel, type Month, type Day } from './calendar';
 import { showsThisWeek, type PromotionSchedule } from './schedule';
 import { SUPERSHOW_SEASONS } from './supershow';
 
@@ -31,6 +31,25 @@ export interface CalendarWeek {
   day: Day | null;
   isNow: boolean;
   isPast: boolean;
+  /**
+   * All seven nights, dark ones included.
+   *
+   * The dark nights are the point: an empty Tuesday is a Tuesday you could put
+   * a show on, and a calendar that only draws the nights already booked cannot
+   * be used to plan. There are no dates on them — a night is a month, a week,
+   * and a day name, which is as specific as this game gets.
+   */
+  nights: CalendarNight[];
+}
+
+/** One night. Every day of the week gets one, whether anything runs or not. */
+export interface CalendarNight {
+  day: Day;
+  mark: WeekMark;
+  /** The show's name, or null on a dark night. */
+  label: string | null;
+  /** The show in the pattern that runs here, if any — what a click acts on. */
+  showId: string | null;
 }
 
 export interface CalendarMonth {
@@ -81,6 +100,38 @@ export function markFor(week: number, ctx: CalendarViewContext): { mark: WeekMar
 }
 
 /**
+ * Every night of one week, dark ones included.
+ *
+ * The dark nights are the whole point of drawing it this way. A calendar that
+ * only shows the two nights already booked tells the booker what he already
+ * knows; one that shows all seven tells him where the room is.
+ */
+export function nightsFor(week: number, ctx: CalendarViewContext): CalendarNight[] {
+  const shows = showsThisWeek(week, ctx.schedule, ctx.settings);
+  const weekMark = markFor(week, ctx);
+
+  return DAYS.map((day) => {
+    const here = shows.find((s) => s.day === day);
+    if (!here) return { day, mark: 'none' as WeekMark, label: null, showId: null };
+
+    // A cup night or a joint show replaces the company's own televised night,
+    // because those are the nights the whole business stops for.
+    const isTheBigOne =
+      (weekMark.mark === 'cup' || weekMark.mark === 'supershow') && here.day === weekMark.day;
+
+    const mark: WeekMark = isTheBigOne
+      ? weekMark.mark
+      : here.kind === 'ppv'
+        ? 'ppv'
+        : here.kind === 'television'
+          ? 'television'
+          : 'houseShow';
+
+    return { day, mark, label: isTheBigOne ? weekMark.label : here.name, showId: here.id };
+  });
+}
+
+/**
  * `count` months of calendar starting from the month `from` falls in.
  *
  * Months are 4 or 5 weeks (the calendar is 4-4-5 by quarter), so the rows are
@@ -109,6 +160,7 @@ export function calendarMonths(from: number, count: number, ctx: CalendarViewCon
         day,
         isNow: w === ctx.now,
         isPast: w < ctx.now,
+        nights: nightsFor(w, ctx),
       });
       w += 1;
     }

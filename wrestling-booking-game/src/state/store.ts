@@ -265,6 +265,7 @@ import { causesFor } from '../data/casualties';
 import { computeBuys, computeBuyRevenue, isInMonth, weekLabel } from '../engine/world/calendar';
 import {
   bigShowName,
+  defaultShowName,
   houseShowRevenueMultiplier,
   houseShowsThisWeek,
   isBigShowWeek,
@@ -534,6 +535,12 @@ export interface GameStore {
   renameShow: (showId: string, name: string) => void;
   /** Move a show to a different night. */
   setShowDay: (showId: string, day: Day) => void;
+  /**
+   * Click a night on the calendar: run a show on that weekday, or stop
+   * running one. The schedule is a weekly pattern, so this sets every
+   * Tuesday rather than one particular Tuesday.
+   */
+  toggleShowOnDay: (day: Day) => void;
   /** Put an official under contract. Cheap, weekly, and never with creative control. */
   signReferee: (refereeId: Id) => { ok: boolean; reason: string | null };
   /** Let one go. He goes straight back into the pool for anybody to sign. */
@@ -6153,6 +6160,52 @@ export const useGameStore = create<GameStore>()(
         world.promotion.schedule = {
           ...schedule,
           shows: schedule.shows.map((show) => (show.id === showId ? { ...show, name: trimmed } : show)),
+        };
+      });
+    },
+
+    toggleShowOnDay: (day) => {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const schedule = scheduleOf(world.promotion, world.settings);
+        const existing = schedule.shows.find((show) => show.day === day);
+
+        if (existing) {
+          // The televised night is the one the booker builds a card for. Losing
+          // it by tapping a square would quietly take the company off the air,
+          // so that one has to be moved rather than deleted.
+          if (existing.televised) return;
+          world.promotion.schedule = {
+            ...schedule,
+            shows: schedule.shows.filter((show) => show.id !== existing.id),
+          };
+          return;
+        }
+
+        if (schedule.shows.length >= world.settings.scheduleMaxShows) return;
+
+        world.promotion.schedule = {
+          ...schedule,
+          shows: [
+            ...schedule.shows,
+            {
+              // NOT `show-N`: the seeded pattern numbers its shows by position
+              // (`show-0`, `show-1`, ...) and `nextId` collided with those, so
+              // a night added by hand could share an id with an existing show
+              // — and removing either one then removed both.
+              id: `night-${world.nextId++}`,
+              name: defaultShowName(
+                world.promotion.name,
+                day,
+                schedule.shows.length,
+                rngFromSeed(`${world.settings.seed}-night-${day}-${world.week}`),
+                new Set(schedule.shows.map((s) => s.name)),
+              ),
+              day,
+              televised: false,
+            },
+          ],
         };
       });
     },

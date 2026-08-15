@@ -1433,9 +1433,9 @@ function ScheduleTab() {
       <section className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
         <h2 className="mb-1 text-sm font-semibold">The months ahead</h2>
         <p className="mb-2 text-xs text-neutral-500">
-          Where the big nights fall. The two joint shows are May and November.
+          Every night of every week. The two joint shows land in May and November.
         </p>
-        <CalendarStrip months={4} />
+        <CalendarStrip months={2} />
       </section>
 
       <section className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
