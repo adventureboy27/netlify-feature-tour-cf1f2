@@ -567,7 +567,13 @@ export function defaultWorldSettings(): WorldSettings {
     // The fee is deliberately punishing — a company that cannot cover it and
     // still make payroll does not get to be there, so the field is a statement
     // about who is doing well.
-    cupEntryFee: 120_000,
+    // Swept against a played save rather than guessed. At $120,000 exactly one
+    // rival could cover it at the first August, so with the three-company floor
+    // the tournament never ran at all; at $80,000 three qualify and the first
+    // Crucible lands in the very first August with a full sixteen-man bracket,
+    // four names apiece. Cheaper than that only dilutes the field to three
+    // names each and stops the fee meaning anything.
+    cupEntryFee: 80_000,
     cupAffordabilityCushion: 2.5,
     cupMinimumStanding: 25,
     // The bracket is a fixed size, so the field decides how many names each
