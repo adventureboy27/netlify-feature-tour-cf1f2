@@ -1982,6 +1982,16 @@ export interface WorldSettings {
   supershowOfferWeeks: number;
   /** Weeks the player must wait between putting joint shows to people. */
   supershowProposalCooldownWeeks: number;
+
+  // The Crucible — annual interpromotional tournament.
+  cupEntryFee: number;
+  cupAffordabilityCushion: number;
+  cupMinimumStanding: number;
+  cupBracketTarget: number;
+  cupGatePerRatingPoint: number;
+  cupCrownPopularityBonus: number;
+  cupNeutralRoundShare: number;
+  cupStandingSwing: number;
   /** Shared matches before two people can form a backstage tie at all. */
   tieFormMinMeetings: number;
   /** Chance per qualifying match that a tie actually forms. */

@@ -343,6 +343,17 @@ import {
   crossPromoStakes,
 } from '../engine/world/supershow';
 import { runSupershow } from '../engine/world/supershowRun';
+import {
+  willEnter,
+  slotsPerPromotion,
+  cupEntrantsFrom,
+  cupPurse,
+  crownAura,
+  fieldLine,
+  CUP_MONTH,
+  CUP_TROPHY,
+} from '../engine/world/cup';
+import { runCup, cupStandingFor } from '../engine/world/cupRun';
 import { SUPERSHOW_SEASONS } from '../engine/world/supershow';
 import { rivalWeek, shouldFold } from '../engine/world/rivalEconomy';
 import { publishPositions } from '../engine/world/publication';
@@ -580,6 +591,10 @@ export interface GameStore {
    */
   setPerk: (wrestlerId: Id, perkId: PerkId, on: boolean) => { ok: boolean; reason: string | null };
   answerBiddingInvitation: (join: boolean) => void;
+  /** Pay the entry fee for the Crucible, or sit the year out. */
+  answerCupEntry: (enter: boolean) => void;
+  /** Clear the tournament write-up once it has been read. */
+  dismissCupResult: () => void;
   /** Put a joint PPV to a rival yourself, rather than waiting to be asked (§16). */
   proposeSupershow: (partnerId: Id) => void;
   /** Sign the joint PPV a rival has offered, or turn them down (§16). */
@@ -4832,6 +4847,47 @@ export const useGameStore = create<GameStore>()(
         }
 
         // Rivals replace the people they lost, the week they lose them. They
+        // ---- the Crucible sends its invitation ---------------------------
+        // Once a year, first week of August. The fee is steep and it leaves the
+        // bank whether the night goes well or badly, which is what makes
+        // entering a decision rather than a formality.
+        {
+          const label = weekLabel(world.week, world.settings);
+          const cupYear = label.year;
+          if (
+            label.month === CUP_MONTH &&
+            label.weekOfMonth === 1 &&
+            world.lastCupYear !== cupYear &&
+            !world.pendingCupEntry &&
+            !world.lastCup
+          ) {
+            const likely = world.rivals.filter(
+              (r) => r.closedWeek === null && willEnter(r, world.settings),
+            );
+            if (likely.length >= 1) {
+              const slots = slotsPerPromotion(likely.length + 1, world.settings);
+              world.pendingCupEntry = {
+                year: cupYear,
+                fee: world.settings.cupEntryFee,
+                likelyField: likely.length,
+                slotsEach: slots,
+                estimatedPot: cupPurse([world.promotion, ...likely], world.settings).pot,
+                expiresWeek: world.week,
+              };
+              world.weeklyNews.push(
+                wire(
+                  'story',
+                  `The Crucible is taking entries. ${likely.length} ${likely.length === 1 ? 'company has' : 'companies have'} already paid.`,
+                  world.week,
+                  'lead',
+                ),
+              );
+            } else {
+              world.lastCupYear = cupYear;
+            }
+          }
+        }
+
         // ---- somebody proposes a joint show ------------------------------
         // §16. A rival with an appetite for it puts a package in front of the
         // booker: their terms, their read on the split, take it or leave it.
@@ -6965,6 +7021,118 @@ export const useGameStore = create<GameStore>()(
         outcome = { ok: true, reason: null };
       });
       return outcome;
+    },
+
+    answerCupEntry: (enter) => {
+      set((state) => {
+        const world = state.world;
+        const invite = world?.pendingCupEntry;
+        if (!world || !invite) return;
+        world.pendingCupEntry = null;
+        world.lastCupYear = invite.year;
+
+        // Everybody who can afford it and is worth a look buys in. The player
+        // is just one more entry — a company that sits out simply is not there,
+        // and the tournament happens without them.
+        const others = world.rivals.filter(
+          (r) => r.closedWeek === null && willEnter(r, world.settings),
+        );
+        const paying = enter ? [world.promotion, ...others] : others;
+        if (paying.length < 2) {
+          world.weeklyNews.push(
+            wire('story', fieldLine(paying.length, 0), world.week, 'minor'),
+          );
+          return;
+        }
+
+        const slots = slotsPerPromotion(paying.length, world.settings);
+        const rosterOf = (ids: readonly Id[]) =>
+          ids.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
+
+        const field = paying.map((promotion) => ({
+          promotion,
+          entrants: cupEntrantsFrom(
+            rosterOf(promotion.rosterIds),
+            slots,
+            (w) => canWork(w, world.settings, world.week),
+          ),
+        }));
+
+        // The fee leaves the bank whether the night goes well or badly. That
+        // is what makes it a gamble rather than a free roll.
+        if (enter) world.promotion.bankBalance -= invite.fee;
+
+        const year = world.settings.startingYear + Math.floor(world.week / 52);
+        const result = runCup(rng, {
+          field,
+          slotsEach: slots,
+          week: world.week,
+          year,
+          settings: world.settings,
+        });
+        if (!result) return;
+
+        world.lastCup = result;
+
+        // Half the pot to the winner's company, half to the winner. Exactly as
+        // split, and both halves are real money in real hands.
+        const winnerCompany =
+          result.winnerPromotionId === world.promotion.id
+            ? world.promotion
+            : world.rivals.find((r) => r.id === result.winnerPromotionId);
+        if (winnerCompany) winnerCompany.bankBalance += result.purse.companyShare;
+
+        const champion = world.wrestlers[result.winnerId];
+        if (champion) {
+          creditPay(ledgerOf(champion), result.purse.wrestlerShare);
+          champion.popularity = clamp(
+            champion.popularity + crownAura(world.settings),
+            0,
+            100,
+          );
+        }
+
+        // How far everybody got, in standing.
+        for (const person of field.flatMap((f) => f.entrants)) {
+          const swing = cupStandingFor(result, person.id, world.settings);
+          const live = world.wrestlers[person.id];
+          if (live) live.popularity = clamp(live.popularity + swing, 0, 100);
+        }
+
+        // The crown changes hands, and the old holder loses the aura with it.
+        const previous = world.crown;
+        if (previous && previous.wrestlerId !== result.winnerId) {
+          const dethroned = world.wrestlers[previous.wrestlerId];
+          if (dethroned) {
+            dethroned.popularity = clamp(
+              dethroned.popularity - crownAura(world.settings),
+              0,
+              100,
+            );
+          }
+        }
+        world.crown = result.reign;
+
+        world.weeklyNews.push(
+          wire('story', fieldLine(paying.length, slots), world.week, 'minor'),
+        );
+        world.weeklyNews.push(wire('story', result.line, world.week, 'lead'));
+        world.weeklyNews.push(
+          wire(
+            'story',
+            `${result.winnerName} takes $${result.purse.wrestlerShare.toLocaleString()} and ${CUP_TROPHY} for the year. ` +
+              `${result.winnerPromotionName} take the other $${result.purse.companyShare.toLocaleString()}.`,
+            world.week,
+            'lead',
+          ),
+        );
+      });
+    },
+
+    dismissCupResult: () => {
+      set((state) => {
+        if (state.world) state.world.lastCup = null;
+      });
     },
 
     proposeSupershow: (partnerId) => {

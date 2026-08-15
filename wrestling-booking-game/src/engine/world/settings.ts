@@ -562,6 +562,25 @@ export function defaultWorldSettings(): WorldSettings {
     supershowOfferWeeks: 4,
     // A booker who rings round every week is a booker nobody takes seriously.
     supershowProposalCooldownWeeks: 12,
+
+    // The Crucible: the annual interpromotional tournament, every August.
+    // The fee is deliberately punishing — a company that cannot cover it and
+    // still make payroll does not get to be there, so the field is a statement
+    // about who is doing well.
+    cupEntryFee: 120_000,
+    cupAffordabilityCushion: 2.5,
+    cupMinimumStanding: 25,
+    // The bracket is a fixed size, so the field decides how many names each
+    // company brings: two companies bring eight apiece, eight bring two.
+    cupBracketTarget: 16,
+    cupGatePerRatingPoint: 2600,
+    // Carrying the Iron Crown is standing, not stats. It expires when somebody
+    // else wins the thing.
+    cupCrownPopularityBonus: 9,
+    // Winning it is the biggest night an individual can have; going out in the
+    // first round in front of the whole business costs something too.
+    cupNeutralRoundShare: 0.34,
+    cupStandingSwing: 12,
     // Ties that form in play, because the seeded ones were the only ones that
     // ever existed. Deliberately slow: three shared matches before it can
     // happen at all, then a one-in-eight roll, starting weak enough that the

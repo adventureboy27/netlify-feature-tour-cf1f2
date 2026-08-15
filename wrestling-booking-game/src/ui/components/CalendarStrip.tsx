@@ -14,6 +14,7 @@
 import { useGameStore } from '../../state/store';
 import { calendarMonths, type WeekMark } from '../../engine/world/calendarView';
 import { DAYS } from '../../engine/world/calendar';
+import { CUP_MONTH } from '../../engine/world/cup';
 
 const NIGHT: Record<WeekMark, string> = {
   none: 'border-neutral-800 bg-neutral-950 text-neutral-700',
@@ -43,10 +44,10 @@ export function CalendarStrip({ months = 2 }: { months?: number }) {
     now: world.week,
     schedule: world.promotion.schedule,
     settings: world.settings,
-    // The Crucible's month goes here once the tournament exists. Deliberately
-    // not passed yet: a tile promising an event the game cannot run is the
-    // exact dead-end wire the last audit was about.
-    cupMonth: null,
+    // The tournament exists now, so the tile is honest. It was deliberately
+    // withheld while it was not built — a square promising an event the game
+    // cannot run is the dead-end wire the audit was about.
+    cupMonth: CUP_MONTH,
   });
 
   return (

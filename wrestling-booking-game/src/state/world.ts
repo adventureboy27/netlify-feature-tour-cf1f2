@@ -73,6 +73,19 @@ import { styleProfileFor } from '../data/promotionIdentity';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import { seedRelationships } from '../engine/career/relationships';
 import type { SupershowOffer, SupershowResult } from '../engine/world/supershowRun';
+import type { CupResult } from '../engine/world/cupRun';
+import type { CrownReign } from '../engine/world/cup';
+
+/** What the promoters put in front of the booker each August. */
+export interface CupInvitation {
+  year: number;
+  fee: number;
+  /** Companies expected in, the player aside. */
+  likelyField: number;
+  slotsEach: number;
+  estimatedPot: number;
+  expiresWeek: number;
+}
 import { formTeams, teamIdFactory, tagTeamCountFor } from '../engine/world/tagTeams';
 import { bestFittingVenue } from '../data/venues';
 import { computeDemand, fairTicketPrice, potentialAudience } from '../engine/economy/showBudget';
@@ -209,6 +222,13 @@ export interface World {
   lastSupershowApproachWeek: number | null;
   /** Which calendar season last produced an offer, e.g. "2031-May". */
   lastSupershowSeason: string | null;
+  /** The Crucible's invitation, waiting on the fee (§16-adjacent, see cup.ts). */
+  pendingCupEntry: CupInvitation | null;
+  lastCup: CupResult | null;
+  /** Who carries the Iron Crown, until somebody takes it off them. */
+  crown: CrownReign | null;
+  /** Year of the last Crucible, so one year cannot run two. */
+  lastCupYear: number | null;
   /** How the last one went, shown once and then cleared. */
   lastBiddingWar: { war: BiddingWar; result: BiddingResult } | null;
   /**
@@ -694,6 +714,10 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     lastSupershow: null,
     lastSupershowApproachWeek: null,
     lastSupershowSeason: null,
+    pendingCupEntry: null,
+    lastCup: null,
+    crown: null,
+    lastCupYear: null,
     lastBiddingWar: null,
     secretSignings: [],
     weatherChoice: null,
