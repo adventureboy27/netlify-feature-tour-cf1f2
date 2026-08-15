@@ -33,12 +33,17 @@ const costCtx = (over = {}) => ({
 });
 
 describe('venues', () => {
-  it('gets bigger and dearer together', () => {
-    for (let i = 1; i < VENUES.length; i++) {
-      expect(VENUES[i]!.capacity).toBeGreaterThan(VENUES[i - 1]!.capacity);
-      expect(VENUES[i]!.rentalCost).toBeGreaterThan(VENUES[i - 1]!.rentalCost);
-      expect(VENUES[i]!.prestige).toBeGreaterThan(VENUES[i - 1]!.prestige);
-    }
+  it('gets dearer as it gets bigger, as a rule rather than a law', () => {
+    // This used to assert a strict ladder — every venue bigger, dearer and
+    // grander than the one before it. That is no longer true and should not
+    // be: a fairground holds four times the armory for less rent, because the
+    // gamble is the point. What still has to hold is the trend.
+    const bySize = [...VENUES].sort((a, b) => a.capacity - b.capacity);
+    const half = Math.floor(bySize.length / 2);
+    const meanRent = (vs: typeof VENUES) => vs.reduce((s, v) => s + v.rentalCost, 0) / vs.length;
+
+    expect(meanRent(bySize.slice(half))).toBeGreaterThan(meanRent(bySize.slice(0, half)) * 10);
+    expect(bySize[bySize.length - 1]!.prestige).toBeGreaterThan(bySize[0]!.prestige);
   });
 
   it('will not rent a real building to a promotion nobody has heard of', () => {

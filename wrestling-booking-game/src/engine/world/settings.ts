@@ -337,6 +337,24 @@ export function defaultWorldSettings(): WorldSettings {
     venueFullBonus: 6,
     venueEmptyPenalty: 14,
 
+    // The room's own character, scaled into show-rating points. A venue's
+    // atmosphere runs roughly -4 to +10, so at 0.55 the best room in the game
+    // is worth about five and a half points and the worst costs two — real,
+    // and smaller than the card.
+    venueAtmosphereWeight: 0.55,
+    // Where the facilities list changes its wording. Words, never figures.
+    venueHeavyCut: 0.12,
+    venueGoodBar: 2.2,
+    venuePoorBar: 1.0,
+    venueGreatRoom: 7,
+    venuePoorRoom: -2,
+    venueHardLoadIn: 800,
+    // With no roof, the weather's bite is multiplied. A night that would have
+    // cost an indoor show a fifth of its house costs an outdoor one half.
+    openAirWeatherMultiplier: 2.4,
+    // However bad it gets, somebody always turns up.
+    openAirWorstDraw: 0.2,
+
     // Answering a rival's offer
     poachResponseMoneyEffect: 0.45,
     poachResponseMoneyRaise: 1.35,

@@ -35,6 +35,7 @@ import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
 import { weeklyBroadcastIncome, broadcastVerdict } from '../../engine/economy/broadcast';
 import { FileTransfer } from '../components/FileTransfer';
+import { VenuePicker } from '../components/VenuePicker';
 import { TitleBuilder } from '../components/TitleBuilder';
 import { factionHeat, factionStanding } from '../../engine/world/faction';
 import { retiredTitlesOf } from '../../data/titles';
@@ -174,43 +175,13 @@ export function PromotionScreen() {
       {/* ---- getting things in and out --------------------------------- */}
       <FileTransfer />
 
-      {/* ---- venue ----------------------------------------------------- */}
-      <section className="mb-4">
-        <h2 className="mb-2 text-sm font-medium text-neutral-300">Venue — rented every show</h2>
-        <div className="flex flex-col gap-1">
-          {VENUES.map((v) => {
-            const locked = world.promotion.rating < v.minCompanyRating;
-            const selected = world.showSetup.venueId === v.id;
-            return (
-              <button
-                key={v.id}
-                type="button"
-                data-testid={`venue-${v.id}`}
-                disabled={locked}
-                onClick={() => setVenue(v.id)}
-                className={`flex items-center gap-2 rounded border p-2 text-left text-xs ${
-                  selected
-                    ? 'border-emerald-500 bg-emerald-950/40'
-                    : locked
-                      ? 'border-neutral-900 bg-neutral-950 opacity-40'
-                      : 'border-neutral-800 bg-neutral-900 hover:border-neutral-600'
-                }`}
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium">{v.name}</div>
-                  <div className="text-[10px] text-neutral-500">{locked ? 'Will not rent to you yet' : v.blurb}</div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <div>{v.capacity.toLocaleString()} seats</div>
-                  <div className="text-neutral-500">
-                    <Money amount={v.rentalCost} />
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <VenuePicker
+        selectedId={world.showSetup.venueId}
+        companyRating={world.promotion.rating}
+        productionRungs={world.productionRungs}
+        settings={world.settings}
+        onSelect={setVenue}
+      />
 
       {/* ---- ticket price ---------------------------------------------- */}
       <section className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">

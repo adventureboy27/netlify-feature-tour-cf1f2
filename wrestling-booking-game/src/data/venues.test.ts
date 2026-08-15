@@ -13,12 +13,66 @@ import { TERRITORIES } from './territories';
 
 const settings = defaultWorldSettings();
 
-describe('the venue ladder', () => {
-  it('goes up in both capacity and the rating it takes to rent it', () => {
-    for (let i = 1; i < VENUES.length; i += 1) {
-      expect(VENUES[i]!.capacity).toBeGreaterThan(VENUES[i - 1]!.capacity);
-      expect(VENUES[i]!.minCompanyRating).toBeGreaterThanOrEqual(VENUES[i - 1]!.minCompanyRating);
-      expect(VENUES[i]!.rentalCost).toBeGreaterThan(VENUES[i - 1]!.rentalCost);
+describe('the venue list', () => {
+  // The old assertion here was that the list is a strict ladder: each room
+  // bigger, dearer and higher-rated than the last. That made every venue
+  // strictly better than the one below it the moment you could fill it, which
+  // is a queue rather than a decision. These are the properties that replace
+  // it — weaker, and the ones that actually matter.
+
+  it('has no room that another room simply beats', () => {
+    // The property that makes this a list of choices: for every venue there is
+    // something it is the best answer to. A room that is worse on every axis
+    // and no cheaper is dead content nobody would ever pick.
+    for (const a of VENUES) {
+      const dominators = VENUES.filter(
+        (b) =>
+          b.id !== a.id &&
+          b.rentalCost <= a.rentalCost &&
+          b.loadIn <= a.loadIn &&
+          b.minCompanyRating <= a.minCompanyRating &&
+          b.capacity >= a.capacity &&
+          b.houseCut <= a.houseCut &&
+          b.merchCut <= a.merchCut &&
+          b.concessionsPerHead >= a.concessionsPerHead &&
+          b.productionCapacity >= a.productionCapacity &&
+          b.atmosphere >= a.atmosphere &&
+          Number(b.outdoor) <= Number(a.outdoor),
+      );
+      expect(dominators.map((v) => v.name), `${a.name} is beaten outright`).toEqual([]);
+    }
+  });
+
+  it('charges more for a bigger room, taken as a whole', () => {
+    const bySize = [...VENUES].sort((a, b) => a.capacity - b.capacity);
+    for (let i = 1; i < bySize.length; i += 1) {
+      // Not every step up costs more, but no room costs less than one an
+      // order of magnitude smaller than it.
+      const tenTimesSmaller = bySize.filter((v) => v.capacity * 10 <= bySize[i]!.capacity);
+      for (const small of tenTimesSmaller) {
+        expect(bySize[i]!.rentalCost).toBeGreaterThan(small.rentalCost);
+      }
+    }
+  });
+
+  it('sells the cheap seats outdoors, which is the whole bargain', () => {
+    // An outdoor room has to be better value per seat than anything indoors
+    // it competes with, or nobody would ever take the weather risk.
+    for (const open of VENUES.filter((v) => v.outdoor)) {
+      const perSeat = open.rentalCost / open.capacity;
+      const indoorRivals = VENUES.filter(
+        (v) => !v.outdoor && v.minCompanyRating <= open.minCompanyRating + 10 && v.capacity >= open.capacity * 0.5,
+      );
+      for (const rival of indoorRivals) {
+        expect(perSeat, `${open.name} vs ${rival.name}`).toBeLessThan(rival.rentalCost / rival.capacity);
+      }
+    }
+  });
+
+  it('gives a promotion something to choose between at every stage', () => {
+    // A tier with one room in it is not a decision either.
+    for (const rating of [0, 20, 30, 40, 50, 60, 70, 80, 90]) {
+      expect(availableVenues(rating).length, `rating ${rating}`).toBeGreaterThanOrEqual(3);
     }
   });
 });

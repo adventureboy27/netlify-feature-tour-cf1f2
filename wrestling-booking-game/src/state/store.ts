@@ -421,6 +421,13 @@ import {
   repairCost,
 } from '../engine/economy/showBudget';
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
+import {
+  concessionsPerHead,
+  houseTakeOfGate,
+  openAirWeather,
+  productionInRoom,
+  venueAtmosphereModifier,
+} from '../engine/economy/venue';
 import { productionAssetById, showExtraById } from '../data/production';
 import {
   expireContracts,
@@ -2022,9 +2029,23 @@ export const useGameStore = create<GameStore>()(
         // the player answers — their choice must not be able to change
         // whether the storm was ever going to arrive.
         const carried = world.pendingWeatherCall?.week === world.week ? world.pendingWeatherCall : null;
-        const night = carried
+        const rolled = carried
           ? carriedNight(world.week, carried)
           : nightModifiers(rng, world.week, territory, world.settings);
+
+        // The building is picked here rather than down at settlement because
+        // with nothing over the crowd the weather is not a modifier on the
+        // night, it *is* the night — and that has to be known before anything
+        // else reads the draw.
+        const venue = venueById(world.showSetup.venueId) ?? fallbackVenue();
+        const open = openAirWeather(
+          rolled.draw,
+          rolled.cancelled,
+          rolled.weather?.severity ?? null,
+          venue,
+          world.settings,
+        );
+        const night = { ...rolled, draw: open.draw, cancelled: open.cancelled };
 
         if (!carried && night.weather?.severity === 'severe' && hasCallLines(night.weather.event.id)) {
           const call = weatherCallFrom(
@@ -3352,7 +3373,6 @@ export const useGameStore = create<GameStore>()(
         );
 
         // ---- staging the show -------------------------------------------
-        const venue = venueById(world.showSetup.venueId) ?? fallbackVenue();
         const ownedAssets = world.ownedAssetIds
           .map((id) => productionAssetById(id))
           .filter((a): a is NonNullable<typeof a> => Boolean(a))
@@ -3387,7 +3407,11 @@ export const useGameStore = create<GameStore>()(
         // one synthetic entry rather than by rewriting every consumer, because
         // `sumEffect` already knows how to add these up and the two systems
         // want to coexist while the old assets are still around.
-        const climbed = productionEffects(world.productionRungs);
+        // Only what will actually go through the door of this building. Gear
+        // that does not fit is neither a benefit nor a cost tonight — it never
+        // came off the trailer. See economy/venue.ts.
+        const rigInRoom = productionInRoom(world.productionRungs, venue);
+        const climbed = productionEffects(rigInRoom);
         production.push({
           id: 'productionLadder',
           name: 'Production',
@@ -3452,12 +3476,17 @@ export const useGameStore = create<GameStore>()(
             : onTheCard.reduce((sum, w) => sum + (w.gimmick.merchMultiplier ?? 1), 0) /
               onTheCard.length;
 
-        const merchCutShare = onTheCard.reduce(
-          (share, w) =>
-            share +
-            (w.contract?.clauses.includes('merchandiseCut') ? world.settings.clauseMerchandiseCut : 0),
-          0,
-        );
+        // The building takes its slice of the merch table before anybody on
+        // the card takes theirs — a wrestler's cut and a landlord's cut are
+        // both just money off the same stack of shirts.
+        const merchCutShare =
+          venue.merchCut +
+          onTheCard.reduce(
+            (share, w) =>
+              share +
+              (w.contract?.clauses.includes('merchandiseCut') ? world.settings.clauseMerchandiseCut : 0),
+            0,
+          );
 
         const revenue = computeShowRevenue({
           attendance,
@@ -3465,7 +3494,9 @@ export const useGameStore = create<GameStore>()(
           merchMultiplier: sumEffect(production, 'merchMultiplier', 'multiply'),
           gimmickMerchMultiplier: gimmickMerch * night.merch,
           merchCutShare,
-          revenuePerHead: sumEffect(production, 'revenuePerHead'),
+          // The rig's own concessions, plus whatever this building lets you
+          // keep of the bar and the tuck shop.
+          revenuePerHead: sumEffect(production, 'revenuePerHead') + concessionsPerHead(venue),
           averagePopularity: cardStrength,
           settings: world.settings,
         });
@@ -3480,7 +3511,12 @@ export const useGameStore = create<GameStore>()(
 
         // What a ticket is worth here. A sell-out in the small town is not the
         // same money as a sell-out in the metro.
-        const gate = Math.round(revenue.gate * territory.revenueMult);
+        const grossGate = Math.round(revenue.gate * territory.revenueMult);
+        // What the building keeps, on top of the rent. The better the night,
+        // the bigger this is — which is why an arena never quite becomes free
+        // money, however well you draw in it.
+        const houseGateCut = houseTakeOfGate(grossGate, venue);
+        const gate = grossGate - houseGateCut;
 
         const weeklyExpenses = computeWeeklyExpenses(
           world.promotion.bankBalance,
@@ -3607,7 +3643,8 @@ export const useGameStore = create<GameStore>()(
         books.earn('concessions', revenue.total - gate - revenue.merch);
         books.earn('houseShows', houseGate);
         books.spend('payroll', payroll);
-        books.spend('venue', venue.rentalCost);
+        // The rent, the load-in, and the building's share of what you sold.
+        books.spend('venue', venue.rentalCost + venue.loadIn + houseGateCut);
         books.spend('production', showPayable - venue.rentalCost);
         // Named rather than swept into Other. The office overhead is the
         // largest single thing most companies pay and it scales with what they
@@ -3621,7 +3658,9 @@ export const useGameStore = create<GameStore>()(
 
         // The kit and the truck, whether or not a wheel turned. A company that
         // owns a video wall pays for a video wall in a week it runs nothing.
-        const rig = productionUpkeepPerShow(world.productionRungs) * Math.max(1, houseShows.length + 1);
+        // Only what was hauled in and switched on. A video wall that stayed on
+        // the trailer costs nothing to run.
+        const rig = productionUpkeepPerShow(rigInRoom) * Math.max(1, houseShows.length + 1);
         const truck = haulageById(world.haulageId)?.upkeepPerWeek ?? 0;
         world.promotion.bankBalance -= rig + truck;
         books.spend('production', rig);
@@ -3755,6 +3794,9 @@ export const useGameStore = create<GameStore>()(
         const productionRating =
           sumEffect(production, 'showRating') +
           (venue.prestige / 100) * world.settings.venuePrestigeRatingWeight +
+          // The room's own character, which is not the same question as how
+          // full it looked: a bingo hall is hot at four hundred.
+          venueAtmosphereModifier(venue, world.settings) +
           attendanceRatingModifier(attendance, venue.capacity, world.settings) +
           // Run past what this room will take and they do not come back for
           // it — the deathmatch crowd's ceiling is not the old-school one's.

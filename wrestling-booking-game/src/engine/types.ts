@@ -563,9 +563,13 @@ export interface CareerMarks {
 // §14 — Venues and production
 // ============================================================================
 
+/** Roughly what kind of room it is, for grouping the list. */
+export type VenueKind = 'hall' | 'club' | 'theatre' | 'arena' | 'stadium' | 'openAir';
+
 export interface Venue {
   id: Id;
   name: string;
+  kind: VenueKind;
   capacity: number;
   /** Rented per show. Never owned. */
   rentalCost: number;
@@ -573,6 +577,44 @@ export interface Venue {
   /** A real building will not rent to a promotion nobody has heard of. */
   minCompanyRating: number;
   blurb: string;
+
+  /**
+   * The building's share of the gate, on top of the rent. 0-1.
+   *
+   * The reason a big room does not simply become free money once you can fill
+   * it: the better the house does, the more the house takes. A hall charges
+   * rent and walks away; an arena is a partner you did not want.
+   */
+  houseCut: number;
+  /**
+   * What the promotion keeps at the bar and the tuck shop, per head.
+   *
+   * Wildly uneven, and deliberately so. A VFW hall hands you the bar takings
+   * because the bar is why they rent to you; a casino keeps every cent of it
+   * and a school keeps the tuck shop for the PTA.
+   */
+  concessionsPerHead: number;
+  /** The house's cut of the merch table. 0-1. */
+  merchCut: number;
+  /**
+   * How much of the production rig the room will physically take, in the same
+   * haul units as the production ladder.
+   *
+   * A gym with a nine-foot ceiling cannot hang a lighting rig and has nowhere
+   * to put a video wall, however much you paid for one. Gear that does not fit
+   * stays on the truck — you neither get its benefit nor pay to run it.
+   */
+  productionCapacity: number;
+  /**
+   * The room's own character, added to the show rating whether it is full or
+   * not. A bingo hall is hot at four hundred; a convention centre is a
+   * carpeted box at eight thousand.
+   */
+  atmosphere: number;
+  /** Flat cost of getting into an awkward building. Stairs, no dock, a pier. */
+  loadIn: number;
+  /** Open to the sky. Weather stops being a flavour note. */
+  outdoor: boolean;
 }
 
 /** What a production purchase or a per-show extra actually does. */
@@ -1731,6 +1773,19 @@ export interface WorldSettings {
   venueFullThreshold: number;
   venueFullBonus: number;
   venueEmptyPenalty: number;
+  /** The room's own character, scaled into show-rating points. */
+  venueAtmosphereWeight: number;
+  /** Thresholds where the venue's facilities list changes its wording. */
+  venueHeavyCut: number;
+  venueGoodBar: number;
+  venuePoorBar: number;
+  venueGreatRoom: number;
+  venuePoorRoom: number;
+  venueHardLoadIn: number;
+  /** How much harder weather bites with no roof over the crowd. */
+  openAirWeatherMultiplier: number;
+  /** The floor on an outdoor draw. Somebody always turns up. */
+  openAirWorstDraw: number;
 
   // Answering a rival's offer (engine/world/poaching.ts)
   poachResponseMoneyEffect: number;

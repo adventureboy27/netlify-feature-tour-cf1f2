@@ -32,7 +32,9 @@ export interface ShowCostBreakdown {
 
 /** Everything that has to be paid to open the doors, before a single wage. */
 export function computeShowCosts(ctx: ShowCostContext): ShowCostBreakdown {
-  const venueRent = ctx.venue.rentalCost;
+  // Rent plus whatever it costs to get through the door of an awkward
+  // building. A theatre with no loading dock is dearer than its rent says.
+  const venueRent = ctx.venue.rentalCost + ctx.venue.loadIn;
   const assetUpkeep = ctx.ownedAssets.reduce((sum, a) => sum + a.upkeepPerShow, 0);
   const extras = ctx.extras.reduce((sum, e) => sum + e.cost, 0);
 
