@@ -16,6 +16,7 @@ import { ContactSheet } from './ui/screens/ContactSheet';
 import { WrestlerEditor } from './ui/screens/WrestlerEditor';
 import { NewGameScreen } from './ui/screens/NewGameScreen';
 import { LegacyScreen } from './ui/screens/LegacyScreen';
+import { CrucibleScreen } from './ui/screens/CrucibleScreen';
 import { RecordsScreen } from './ui/screens/RecordsScreen';
 import { RankingsScreen } from './ui/screens/RankingsScreen';
 import { SheetScreen } from './ui/screens/SheetScreen';
@@ -127,6 +128,7 @@ export default function App() {
         {screen === 'secrets' && <SecretsScreen />}
         {screen === 'records' && <RecordsScreen />}
         {screen === 'legacy' && <LegacyScreen />}
+        {screen === 'crucible' && <CrucibleScreen />}
         {screen === 'contactSheet' && <ContactSheet />}
         {screen === 'editor' && (
           <WrestlerEditor

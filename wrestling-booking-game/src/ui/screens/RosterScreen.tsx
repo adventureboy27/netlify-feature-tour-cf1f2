@@ -11,6 +11,7 @@
 // not impressions.
 
 import { useMemo, useState } from 'react';
+import { crownBadge, crownsFor, CUP_NAME } from '../../engine/world/cup';
 import { useGameStore } from '../../state/store';
 import { activeRivalriesFor } from '../../engine/sim/rivalry';
 import { effectiveAppearance } from '../../engine/generate/gimmickLook';
@@ -255,6 +256,19 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
 
               <div className="relative min-w-0 flex-1">
                 {/* name, alignment, age */}
+                {/* The Crucible, above the name and impossible to miss. Winning
+                    it is the biggest single thing an individual can do in this
+                    game, and a repeat winner says so on the plate. */}
+                {crownBadge(crownsFor(world.cupHistory, w.id).length) && (
+                  <div
+                    className="truncate text-[11px] font-black tracking-wide text-amber-300"
+                    title={crownsFor(world.cupHistory, w.id)
+                      .map((r) => `${CUP_NAME} ${r.year}, for ${r.promotionName}`)
+                      .join(' · ')}
+                  >
+                    🏆 {crownBadge(crownsFor(world.cupHistory, w.id).length)}
+                  </div>
+                )}
                 {w.nickname && (
                   <div className="truncate text-[10px] italic text-amber-400/90">“{w.nickname}”</div>
                 )}

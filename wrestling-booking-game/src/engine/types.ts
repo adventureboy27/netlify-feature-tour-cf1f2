@@ -1992,6 +1992,14 @@ export interface WorldSettings {
   cupCrownPopularityBonus: number;
   cupNeutralRoundShare: number;
   cupStandingSwing: number;
+  /** Companies needed before the Crucible runs at all. */
+  cupMinimumField: number;
+  cupWinnerPopularitySurge: number;
+  cupWinnerSkillSurge: number;
+  cupWinnerCharismaSurge: number;
+  cupWinnerStaminaSurge: number;
+  cupWinnerAttitudeSurge: number;
+  cupWinnerMomentumSurge: number;
   /** Shared matches before two people can form a backstage tie at all. */
   tieFormMinMeetings: number;
   /** Chance per qualifying match that a tie actually forms. */

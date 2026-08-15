@@ -229,6 +229,8 @@ export interface World {
   crown: CrownReign | null;
   /** Year of the last Crucible, so one year cannot run two. */
   lastCupYear: number | null;
+  /** Every Crucible ever run, newest last. The permanent record. */
+  cupHistory: CrownReign[];
   /** How the last one went, shown once and then cleared. */
   lastBiddingWar: { war: BiddingWar; result: BiddingResult } | null;
   /**
@@ -718,6 +720,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     lastCup: null,
     crown: null,
     lastCupYear: null,
+    cupHistory: [],
     lastBiddingWar: null,
     secretSignings: [],
     weatherChoice: null,

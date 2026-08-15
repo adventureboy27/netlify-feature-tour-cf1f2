@@ -158,10 +158,74 @@ export function cupEntrantsFrom(
     .slice(0, slots);
 }
 
+/**
+ * Is the field big enough to be worth running?
+ *
+ * Two companies is not a tournament, it is a supershow with brackets drawn on
+ * it — and the game already has two of those in May and November. Three is the
+ * point where the winner has beaten somebody they had no other reason to meet,
+ * which is the whole appeal.
+ */
+export function fieldIsBigEnough(entrantCount: number, settings: WorldSettings): boolean {
+  return entrantCount >= settings.cupMinimumField;
+}
+
+/**
+ * How many times this person has won the thing.
+ *
+ * Read off the permanent history rather than a counter on the wrestler, so it
+ * stays true across repackages, promotion moves and retirement — the record
+ * belongs to the business, not to a roster row.
+ */
+export function crownsFor(history: readonly CrownReign[], wrestlerId: Id): CrownReign[] {
+  return history.filter((r) => r.wrestlerId === wrestlerId);
+}
+
+/** "Iron Champion", or "Iron Champion x3". Big and bold on the profile. */
+export function crownBadge(count: number): string | null {
+  if (count <= 0) return null;
+  return count === 1 ? 'IRON CHAMPION' : `IRON CHAMPION \u00d7${count}`;
+}
+
+/**
+ * The road to superstardom.
+ *
+ * Winning the Crucible is supposed to change a career, not nudge it. The crown
+ * aura is standing the crowd hands over; this is the wrestler themselves coming
+ * back different — sharper, fitter, better on the microphone, and carrying
+ * themselves like somebody who has beaten the best in the business, because
+ * they have.
+ *
+ * Applied once, permanently, at the moment they win. It stacks for a repeat
+ * winner, which is the whole reason to want it twice.
+ */
+export interface CrownSurge {
+  popularity: number;
+  skill: number;
+  charisma: number;
+  stamina: number;
+  attitude: number;
+  momentum: number;
+}
+
+export function crownSurge(settings: WorldSettings): CrownSurge {
+  return {
+    popularity: settings.cupWinnerPopularitySurge,
+    skill: settings.cupWinnerSkillSurge,
+    charisma: settings.cupWinnerCharismaSurge,
+    stamina: settings.cupWinnerStaminaSurge,
+    attitude: settings.cupWinnerAttitudeSurge,
+    momentum: settings.cupWinnerMomentumSurge,
+  };
+}
+
 /** How the field reads in the paper before a match has happened. */
-export function fieldLine(entrantCount: number, slots: number): string {
+export function fieldLine(entrantCount: number, slots: number, settings?: WorldSettings): string {
+  const floor = settings?.cupMinimumField ?? 3;
   if (entrantCount <= 0) return `Nobody could afford ${CUP_NAME} this year.`;
-  if (entrantCount === 1) return `Only one company bought in. ${CUP_NAME} is off.`;
+  if (entrantCount < floor) {
+    return `Only ${entrantCount === 1 ? 'one company' : `${entrantCount} companies`} bought in. ${CUP_NAME} needs ${floor}, so it is off this year.`;
+  }
   return `${entrantCount} companies bought in, ${slots} ${slots === 1 ? 'name' : 'names'} apiece.`;
 }
 

@@ -349,8 +349,12 @@ import {
   cupEntrantsFrom,
   cupPurse,
   crownAura,
+  crownSurge,
+  crownsFor,
+  fieldIsBigEnough,
   fieldLine,
   CUP_MONTH,
+  CUP_NAME,
   CUP_TROPHY,
 } from '../engine/world/cup';
 import { runCup, cupStandingFor } from '../engine/world/cupRun';
@@ -4864,7 +4868,9 @@ export const useGameStore = create<GameStore>()(
             const likely = world.rivals.filter(
               (r) => r.closedWeek === null && willEnter(r, world.settings),
             );
-            if (likely.length >= 1) {
+            // The player counts toward the field, so the floor is one fewer
+            // rivals than the minimum. Below that the thing simply does not run.
+            if (fieldIsBigEnough(likely.length + 1, world.settings)) {
               const slots = slotsPerPromotion(likely.length + 1, world.settings);
               world.pendingCupEntry = {
                 year: cupYear,
@@ -7038,9 +7044,10 @@ export const useGameStore = create<GameStore>()(
           (r) => r.closedWeek === null && willEnter(r, world.settings),
         );
         const paying = enter ? [world.promotion, ...others] : others;
-        if (paying.length < 2) {
+        if (!fieldIsBigEnough(paying.length, world.settings)) {
+          // Refunded rather than pocketed: they never ran the thing.
           world.weeklyNews.push(
-            wire('story', fieldLine(paying.length, 0), world.week, 'minor'),
+            wire('story', fieldLine(paying.length, 0, world.settings), world.week, 'minor'),
           );
           return;
         }
@@ -7085,11 +7092,22 @@ export const useGameStore = create<GameStore>()(
         const champion = world.wrestlers[result.winnerId];
         if (champion) {
           creditPay(ledgerOf(champion), result.purse.wrestlerShare);
+
+          // The road to superstardom. The crown aura is standing the crowd
+          // hands over and it leaves when the crown does; this is the wrestler
+          // themselves coming back different, and it is permanent. It stacks
+          // for a repeat winner, which is the whole reason to want it twice.
+          const surge = crownSurge(world.settings);
           champion.popularity = clamp(
-            champion.popularity + crownAura(world.settings),
+            champion.popularity + surge.popularity + crownAura(world.settings),
             0,
             100,
           );
+          champion.skill = clamp(champion.skill + surge.skill, 0, 100);
+          champion.charisma = clamp(champion.charisma + surge.charisma, 0, 100);
+          champion.stamina = clamp(champion.stamina + surge.stamina, 0, 100);
+          champion.attitude = clamp(champion.attitude + surge.attitude, 0, 100);
+          champion.momentum = clamp(champion.momentum + surge.momentum, 0, 100);
         }
 
         // How far everybody got, in standing.
@@ -7112,9 +7130,24 @@ export const useGameStore = create<GameStore>()(
           }
         }
         world.crown = result.reign;
+        world.cupHistory.push(result.reign);
+
+        // Say it out loud when somebody does it more than once — that is the
+        // difference between a good year and a career.
+        const crowns = crownsFor(world.cupHistory, result.winnerId).length;
+        if (crowns > 1) {
+          world.weeklyNews.push(
+            wire(
+              'story',
+              `${result.winnerName} has now won ${CUP_NAME} ${crowns} times.`,
+              world.week,
+              'lead',
+            ),
+          );
+        }
 
         world.weeklyNews.push(
-          wire('story', fieldLine(paying.length, slots), world.week, 'minor'),
+          wire('story', fieldLine(paying.length, slots, world.settings), world.week, 'minor'),
         );
         world.weeklyNews.push(wire('story', result.line, world.week, 'lead'));
         world.weeklyNews.push(

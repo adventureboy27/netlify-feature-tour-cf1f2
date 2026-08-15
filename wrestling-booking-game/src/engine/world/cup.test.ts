@@ -9,8 +9,13 @@ import { describe, expect, it } from 'vitest';
 import { defaultWorldSettings } from './settings';
 import { rngFromSeed } from '../rng';
 import { generateWrestler } from '../generate/wrestler';
+import type { CrownReign } from './cup';
 import type { Promotion, Wrestler } from '../types';
 import {
+  fieldIsBigEnough,
+  crownsFor,
+  crownBadge,
+  crownSurge,
   slotsPerPromotion,
   cupBracketSize,
   willEnter,
@@ -226,6 +231,72 @@ describe('running the thing', () => {
     expect(result.reign.promotionId).toBe(result.winnerPromotionId);
     expect(crownLine(result.reign)).toContain(CUP_TROPHY);
     expect(result.line).toContain(CUP_NAME);
+  });
+});
+
+describe('it takes a field to make a tournament', () => {
+  it('will not run for two companies', () => {
+    // Two is a supershow with brackets drawn on it, and the year already has
+    // two of those in May and November.
+    expect(fieldIsBigEnough(2, settings)).toBe(false);
+    expect(fieldIsBigEnough(1, settings)).toBe(false);
+    expect(fieldIsBigEnough(0, settings)).toBe(false);
+  });
+
+  it('runs from three up', () => {
+    expect(fieldIsBigEnough(3, settings)).toBe(true);
+    expect(fieldIsBigEnough(8, settings)).toBe(true);
+  });
+
+  it('says why it is off rather than going quiet', () => {
+    const line = fieldLine(2, 8, settings);
+    expect(line).toMatch(/off this year/);
+    expect(line).toContain(String(settings.cupMinimumField));
+  });
+});
+
+describe('the roll of honour', () => {
+  const reign = (wrestlerId: string, year: number): CrownReign => ({
+    wrestlerId,
+    wrestlerName: 'Somebody',
+    promotionId: 'p1',
+    promotionName: 'A Company',
+    wonWeek: 31,
+    year,
+  });
+
+  it('counts a person s wins across the whole history', () => {
+    const history = [reign('a', 2030), reign('b', 2031), reign('a', 2032)];
+    expect(crownsFor(history, 'a')).toHaveLength(2);
+    expect(crownsFor(history, 'b')).toHaveLength(1);
+    expect(crownsFor(history, 'nobody')).toHaveLength(0);
+  });
+
+  it('says nothing at all for somebody who has never won it', () => {
+    expect(crownBadge(0)).toBeNull();
+  });
+
+  it('marks a repeat winner, and does not count once', () => {
+    expect(crownBadge(1)).toBe('IRON CHAMPION');
+    expect(crownBadge(3)).toBe('IRON CHAMPION \u00d73');
+  });
+});
+
+describe('the road to superstardom', () => {
+  it('moves a career rather than nudging it', () => {
+    const surge = crownSurge(settings);
+    // Popularity is the headline, but the person genuinely comes back better.
+    expect(surge.popularity).toBeGreaterThan(0);
+    expect(surge.skill).toBeGreaterThan(0);
+    expect(surge.charisma).toBeGreaterThan(0);
+    expect(surge.stamina).toBeGreaterThan(0);
+    expect(surge.attitude).toBeGreaterThan(0);
+    expect(surge.momentum).toBeGreaterThan(0);
+  });
+
+  it('is worth more than the crown they carry for the year', () => {
+    // The aura leaves when the crown does. This does not.
+    expect(crownSurge(settings).popularity).toBeGreaterThan(settings.cupCrownPopularityBonus);
   });
 });
 

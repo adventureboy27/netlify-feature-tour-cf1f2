@@ -26,6 +26,7 @@ export type Screen =
   | 'sheet'
   | 'records'
   | 'legacy'
+  | 'crucible'
   | 'contactSheet'
   | 'editor'
   | 'secrets'
@@ -182,6 +183,11 @@ const MORE: { id: Screen; label: string; blurb: string }[] = [
   { id: 'sheet', label: 'The Sheet', blurb: "The dirtsheet's weekly lists — who is hot, who is buried, who is leaving." },
   { id: 'records', label: 'Records', blurb: 'Win-loss records, title histories, and the longest reigns.' },
   { id: 'legacy', label: 'Legacy', blurb: 'The Hall of Fame, the retired, and the ones who are gone.' },
+  {
+    id: 'crucible',
+    label: 'The Crucible',
+    blurb: 'Every winner of the Iron Crown, the year they took it, and who they took it for.',
+  },
   { id: 'contactSheet', label: 'Contact sheet', blurb: 'Every face in the game on one screen.' },
   {
     id: 'secrets',

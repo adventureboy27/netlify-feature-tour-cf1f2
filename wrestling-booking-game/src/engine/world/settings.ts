@@ -581,6 +581,18 @@ export function defaultWorldSettings(): WorldSettings {
     // first round in front of the whole business costs something too.
     cupNeutralRoundShare: 0.34,
     cupStandingSwing: 12,
+    // Two companies is not a tournament, it is a supershow with brackets drawn
+    // on it — and the year already has two of those.
+    cupMinimumField: 3,
+    // The road to superstardom. Winning it is supposed to change a career, not
+    // nudge it, so this is the wrestler coming back different — permanent, and
+    // it stacks for a repeat winner.
+    cupWinnerPopularitySurge: 14,
+    cupWinnerSkillSurge: 5,
+    cupWinnerCharismaSurge: 6,
+    cupWinnerStaminaSurge: 4,
+    cupWinnerAttitudeSurge: 4,
+    cupWinnerMomentumSurge: 25,
     // Ties that form in play, because the seeded ones were the only ones that
     // ever existed. Deliberately slow: three shared matches before it can
     // happen at all, then a one-in-eight roll, starting weak enough that the
