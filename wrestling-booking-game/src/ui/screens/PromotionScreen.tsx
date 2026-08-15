@@ -36,6 +36,8 @@ import { sponsorById } from '../../data/sponsors';
 import { weeklyBroadcastIncome, broadcastVerdict } from '../../engine/economy/broadcast';
 import { FileTransfer } from '../components/FileTransfer';
 import { VenuePicker } from '../components/VenuePicker';
+import { ResidencyDeal } from '../components/ResidencyDeal';
+import { Stands } from '../components/Stands';
 import { TitleBuilder } from '../components/TitleBuilder';
 import { factionHeat, factionStanding } from '../../engine/world/faction';
 import { retiredTitlesOf } from '../../data/titles';
@@ -175,13 +177,21 @@ export function PromotionScreen() {
       {/* ---- getting things in and out --------------------------------- */}
       <FileTransfer />
 
-      <VenuePicker
-        selectedId={world.showSetup.venueId}
-        companyRating={world.promotion.rating}
-        productionRungs={world.productionRungs}
-        settings={world.settings}
-        onSelect={setVenue}
-      />
+      <ResidencyDeal />
+
+      {/* While a term is running the room is not a weekly choice, so the list
+          is simply not offered — the deal above says why. */}
+      {!world.residency && (
+        <VenuePicker
+          selectedId={world.showSetup.venueId}
+          companyRating={world.promotion.rating}
+          productionRungs={world.productionRungs}
+          settings={world.settings}
+          onSelect={setVenue}
+        />
+      )}
+
+      <Stands />
 
       {/* ---- ticket price ---------------------------------------------- */}
       <section className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">

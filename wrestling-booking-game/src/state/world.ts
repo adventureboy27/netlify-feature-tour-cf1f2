@@ -75,6 +75,7 @@ import { seedRelationships } from '../engine/career/relationships';
 import type { SupershowOffer, SupershowResult } from '../engine/world/supershowRun';
 import type { CupResult } from '../engine/world/cupRun';
 import type { WeeklyStatement } from '../engine/economy/statement';
+import type { Residency } from '../engine/economy/residency';
 import type { CrownReign } from '../engine/world/cup';
 
 /** What the promoters put in front of the booker each August. */
@@ -182,6 +183,11 @@ export interface World {
   haulageId: Id;
   /** The books, newest last. One per week the company traded. */
   statements: WeeklyStatement[];
+  /**
+   * A season signed for one room, or null while the company tours. Cheaper
+   * rent, no travel and no lorry, and a town that tires of you.
+   */
+  residency: Residency | null;
   /** How worn each owned asset is. Gear does not last forever. */
   assetConditions: AssetCondition[];
   /** Contract renewals waiting on an answer, opened when a deal runs down. */
@@ -715,6 +721,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     productionRungs: [],
     haulageId: 'pickup',
     statements: [],
+    // Touring, until somebody signs for a room. See economy/residency.ts.
+    residency: null,
     assetConditions: [],
     pendingRenewals: [],
     showSetup: startingSetup,
@@ -935,6 +943,9 @@ export function defaultShowSetup(settings: WorldSettings): ShowSetup {
     // anyway, nothing in the game ever told the player.
     ticketPrice: Math.round(fairTicketPrice(openingDemand, settings)),
     extraIds: [],
+    // The two lines that pay for themselves in the room a startup begins in.
+    // Anything dearer than this is a decision the booker gets to make.
+    standIds: ['programmes', 'shirts'],
   };
 }
 

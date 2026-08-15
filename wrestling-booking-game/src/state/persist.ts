@@ -120,7 +120,15 @@ const SLOT_KEY = 'wbg.save.v1';
 // version-23 save has none of the newPromotion* settings, so the weekly roll
 // would compare a headcount against undefined and never open anything — the
 // business would go back to folding its way to nothing.
-const SCHEMA_VERSION = 33;
+// Version 34 covers two rounds of work at once, because the first of them
+// forgot to bump and that is exactly the failure this counter exists to stop.
+// The financials added World.statements, productionRungs and haulageId, all
+// three dereferenced without a guard — a version-32 save would have loaded
+// cleanly and then thrown on the first `world.statements.push` of the first
+// week it resolved. This round adds ShowSetup.standIds, read the same way when
+// the night's tables are added up, and World.residency (guarded, but it
+// travels with the rest).
+const SCHEMA_VERSION = 34;
 
 export interface SaveFile {
   schema: number;

@@ -32,6 +32,7 @@ export type ExpenseKind =
   | 'entries'
   | 'overhead'
   | 'perks'
+  | 'stock'
   | 'other';
 
 export interface StatementLine<K extends string> {
@@ -75,6 +76,7 @@ const EXPENSE_LABELS: Record<ExpenseKind, string> = {
   entries: 'Entry fees',
   overhead: 'Running the office',
   perks: 'Contract extras',
+  stock: 'Stock and stands',
   other: 'Other',
 };
 

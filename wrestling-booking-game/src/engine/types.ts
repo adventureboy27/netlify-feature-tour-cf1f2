@@ -663,6 +663,8 @@ export interface ShowSetup {
   territoryId: Id;
   ticketPrice: number;
   extraIds: Id[];
+  /** Merch lines and concession stands being run tonight. See data/stands.ts. */
+  standIds: Id[];
 }
 
 // ============================================================================
@@ -1786,6 +1788,29 @@ export interface WorldSettings {
   openAirWeatherMultiplier: number;
   /** The floor on an outdoor draw. Somebody always turns up. */
   openAirWorstDraw: number;
+
+  /** How far a gimmick's merch pull swings a stall keyed to it. */
+  standGimmickWeight: number;
+  standWorstFit: number;
+  standBestFit: number;
+  standPrestigeSwing: number;
+  /** Where a stand's break-even verdict changes wording, as a share of the room. */
+  standEasySell: number;
+  standFairSell: number;
+
+  residencyShortWeeks: number;
+  residencyLongWeeks: number;
+  residencyShortDiscount: number;
+  residencyLongDiscount: number;
+  /** Weeks of rent the landlord wants before the first bell. */
+  residencyDepositWeeks: number;
+  /** How much of the town's appetite each show in the same room uses up. */
+  residencySaturationPerShow: number;
+  residencyWorstDraw: number;
+  /** Share of the remaining term owed for walking away early. */
+  residencyBreakShare: number;
+  /** Rooms above this do not do season deals. */
+  residencyMaxCapacity: number;
 
   // Answering a rival's offer (engine/world/poaching.ts)
   poachResponseMoneyEffect: number;

@@ -355,6 +355,35 @@ export function defaultWorldSettings(): WorldSettings {
     // However bad it gets, somebody always turns up.
     openAirWorstDraw: 0.2,
 
+    // ---- the tables ------------------------------------------------------
+    // How far a gimmick's merch pull swings a stall keyed to it. At 2.5 a
+    // lucha card roughly doubles a mask stand against an average one.
+    standGimmickWeight: 2.5,
+    standWorstFit: 0.35,
+    standBestFit: 2.0,
+    standPrestigeSwing: 1.7,
+    // Where the break-even verdict changes wording, as a share of the room.
+    standEasySell: 0.15,
+    standFairSell: 0.5,
+
+    // ---- residency -------------------------------------------------------
+    residencyShortWeeks: 26,
+    residencyLongWeeks: 52,
+    // A landlord with a year of guaranteed dates negotiates; one with half a
+    // year negotiates less.
+    residencyShortDiscount: 0.3,
+    residencyLongDiscount: 0.45,
+    residencyDepositWeeks: 4,
+    // Every show in the same room wears the town a little further out. At
+    // 0.012 a half-year run ends around three-quarters of the draw it started
+    // with, which is a real cost without being ruinous.
+    residencySaturationPerShow: 0.012,
+    residencyWorstDraw: 0.35,
+    // Walking away early costs most of what is left, but not all of it.
+    residencyBreakShare: 0.7,
+    // Small rooms only. An arena has a hockey team and a concert calendar.
+    residencyMaxCapacity: 2_800,
+
     // Answering a rival's offer
     poachResponseMoneyEffect: 0.45,
     poachResponseMoneyRaise: 1.35,

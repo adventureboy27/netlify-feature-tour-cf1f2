@@ -424,10 +424,22 @@ import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import {
   concessionsPerHead,
   houseTakeOfGate,
+  houseTakeOfMerch,
   openAirWeather,
   productionInRoom,
   venueAtmosphereModifier,
 } from '../engine/economy/venue';
+import { nightAtTheTables, prunedStands, standById } from '../engine/economy/stands';
+import {
+  breakLeaseCost,
+  residencyAvailable,
+  residencyDeposit,
+  residencyHaulageCost,
+  residencyTerms,
+  saturationDraw,
+  signResidency,
+  tickResidency,
+} from '../engine/economy/residency';
 import { productionAssetById, showExtraById } from '../data/production';
 import {
   expireContracts,
@@ -546,6 +558,15 @@ export interface GameStore {
   dropSponsor: (sponsorId: string) => void;
   // Staging the show
   setVenue: (venueId: Id) => void;
+  /** Stock a merch line or open a concession stand for the show. */
+  toggleStand: (standId: Id) => void;
+  /**
+   * Take a room for a season. Cheaper rent, no travel, no lorry, and a town
+   * that tires of you. See engine/economy/residency.ts.
+   */
+  signResidency: (venueId: Id, weeks: number) => void;
+  /** Buy your way out of the term early. It is not cheap. */
+  breakResidency: () => void;
   /** Where you are running this week. */
   setTerritory: (territoryId: Id) => void;
   /** Climb one rung of the production ladder. The ladder decides if you can. */
@@ -2037,7 +2058,10 @@ export const useGameStore = create<GameStore>()(
         // with nothing over the crowd the weather is not a modifier on the
         // night, it *is* the night — and that has to be known before anything
         // else reads the draw.
-        const venue = venueById(world.showSetup.venueId) ?? fallbackVenue();
+        // A residency fixes the room for the term. You signed for this one.
+        const venue =
+          (world.residency ? venueById(world.residency.venueId) : venueById(world.showSetup.venueId)) ??
+          fallbackVenue();
         const open = openAirWeather(
           rolled.draw,
           rolled.cancelled,
@@ -2075,7 +2099,11 @@ export const useGameStore = create<GameStore>()(
             : null;
         const memoriam = world.pendingMemoriam;
         const nightDraw =
-          (callOutcome ? callOutcome.draw : night.draw) * (memoriam ? memoriam.draw : 1);
+          (callOutcome ? callOutcome.draw : night.draw) *
+          (memoriam ? memoriam.draw : 1) *
+          // The same room, the same night, every week. This is the whole price
+          // of a residency and it arrives slowly enough to be underestimated.
+          saturationDraw(world.residency, world.settings);
         const showIsOff = callOutcome ? !callOutcome.ran : night.cancelled;
 
         // ---- the week everybody else had ---------------------------------
@@ -3488,6 +3516,18 @@ export const useGameStore = create<GameStore>()(
             0,
           );
 
+        // The merch table and the bar. Stock is bought before the doors open,
+        // so every line is a bet on the crowd — see economy/stands.ts.
+        const standCtx = {
+          gimmickMerchMultiplier: gimmickMerch,
+          prestige: world.promotion.rating,
+          identity: world.promotion.identity,
+          venue,
+          rigInRoom,
+          settings: world.settings,
+        };
+        const tables = nightAtTheTables(world.showSetup.standIds, attendance, standCtx);
+
         const revenue = computeShowRevenue({
           attendance,
           ticketPrice,
@@ -3502,10 +3542,14 @@ export const useGameStore = create<GameStore>()(
         });
 
         const showCosts = computeShowCosts({
-          venue,
+          // The rent held for the term, not this week's list price — that is
+          // what signing for a season buys.
+          venue: world.residency ? { ...venue, rentalCost: world.residency.rentPerWeek, loadIn: 0 } : venue,
           ownedAssets,
           extras,
-          rosterSize: world.promotion.rosterIds.length,
+          // Nobody is travelling, so nobody is being paid to travel. For a
+          // company carrying a real roster this is the larger half of the deal.
+          rosterSize: world.residency ? 0 : world.promotion.rosterIds.length,
           settings: world.settings,
         });
 
@@ -3637,15 +3681,25 @@ export const useGameStore = create<GameStore>()(
         // nothing, and "gate 21,000, payroll 13,000, venue 4,200" tells him
         // what to do next.
         books.earn('gate', gate);
-        books.earn('merch', revenue.merch);
-        // Programmes, parking and the beer stand. Small per head and large by
-        // the end of the night, which is exactly why it wants naming.
-        books.earn('concessions', revenue.total - gate - revenue.merch);
+        // Merch is the built-in per-head trickle plus whatever the tables you
+        // chose to stock actually sold, less the building's slice of both.
+        const standMerchNet = tables.merchGross - houseTakeOfMerch(tables.merchGross, venue);
+        books.earn('merch', revenue.merch + standMerchNet);
+        // The building's own per-head concessions, plus the stands you ran
+        // yourself. Small per head and large by the end of the night, which is
+        // exactly why it wants naming.
+        books.earn('concessions', revenue.other + tables.concessionsGross);
         books.earn('houseShows', houseGate);
+        // Stock and staffing, owed whether anybody turned up or not. This is
+        // the line that makes the merch table a decision rather than free money.
+        books.spend('stock', tables.cost);
         books.spend('payroll', payroll);
         // The rent, the load-in, and the building's share of what you sold.
-        books.spend('venue', venue.rentalCost + venue.loadIn + houseGateCut);
-        books.spend('production', showPayable - venue.rentalCost);
+        books.spend(
+          'venue',
+          (world.residency ? world.residency.rentPerWeek : venue.rentalCost + venue.loadIn) + houseGateCut,
+        );
+        books.spend('production', showPayable - (world.residency ? world.residency.rentPerWeek : venue.rentalCost));
         // Named rather than swept into Other. The office overhead is the
         // largest single thing most companies pay and it scales with what they
         // are worth, so a booker reading his own sheet has to be able to see it
@@ -3654,14 +3708,16 @@ export const useGameStore = create<GameStore>()(
         books.spend('agents', ringsideCost);
         books.spend('perks', clauseBill + perkBill);
 
-        world.promotion.bankBalance += revenue.total - totalOut + houseGate;
+        world.promotion.bankBalance +=
+          revenue.total - totalOut + houseGate + standMerchNet + tables.concessionsGross - tables.cost;
 
         // The kit and the truck, whether or not a wheel turned. A company that
         // owns a video wall pays for a video wall in a week it runs nothing.
         // Only what was hauled in and switched on. A video wall that stayed on
         // the trailer costs nothing to run.
         const rig = productionUpkeepPerShow(rigInRoom) * Math.max(1, houseShows.length + 1);
-        const truck = haulageById(world.haulageId)?.upkeepPerWeek ?? 0;
+        // A resident promotion has no lorry: the gear lives in the building.
+        const truck = residencyHaulageCost(world.residency, haulageById(world.haulageId)?.upkeepPerWeek ?? 0);
         world.promotion.bankBalance -= rig + truck;
         books.spend('production', rig);
         books.spend('haulage', truck);
@@ -6015,6 +6071,23 @@ export const useGameStore = create<GameStore>()(
         );
         world.currentPromos = createEmptyPromoSlots(world.settings.promoSlotsPerCard);
 
+        // A week off the term, and a show against the town's patience if one
+        // happened. When the last week runs out the company is touring again,
+        // and it is told so rather than discovering it on a rent line.
+        if (world.residency) {
+          const deal = world.residency;
+          world.residency = tickResidency(deal, !night.cancelled);
+          if (!world.residency) {
+            world.weeklyNews.push(
+              wire(
+                'signing',
+                `The run at the ${deal.venueName} is over. ${deal.showsRun} shows in the same room, and from next week the trucks go back out.`,
+                world.week,
+              ),
+            );
+          }
+        }
+
         // The books close last, once every last thing that moves money this
         // week has moved it — the gate, the network, the fines, the truck.
         // Close them any earlier and the closing balance disagrees with the
@@ -6251,7 +6324,81 @@ export const useGameStore = create<GameStore>()(
 
     setVenue: (venueId) => {
       set((state) => {
-        if (state.world) state.world.showSetup.venueId = venueId;
+        const world = state.world;
+        if (!world) return;
+        // A signed term is a signed term. Changing rooms means breaking it.
+        if (world.residency) return;
+        world.showSetup.venueId = venueId;
+
+        // A room that will not take a stand must not go on charging for it.
+        // The bug this prevents: booking a bar in the VFW hall, moving to the
+        // casino, and paying nine hundred a week for a bar that never opened.
+        const venue = venueById(venueId) ?? fallbackVenue();
+        world.showSetup.standIds = prunedStands(world.showSetup.standIds, {
+          gimmickMerchMultiplier: 1,
+          prestige: world.promotion.rating,
+          identity: world.promotion.identity,
+          venue,
+          rigInRoom: productionInRoom(world.productionRungs, venue),
+          settings: world.settings,
+        });
+      });
+    },
+
+    toggleStand: (standId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world || !standById(standId)) return;
+        world.showSetup.standIds = world.showSetup.standIds.includes(standId)
+          ? world.showSetup.standIds.filter((id) => id !== standId)
+          : [...world.showSetup.standIds, standId];
+      });
+    },
+
+    signResidency: (venueId, weeks) => {
+      set((state) => {
+        const world = state.world;
+        if (!world || world.residency) return;
+
+        const venue = venueById(venueId);
+        if (!venue || !residencyAvailable(venue, world.settings)) return;
+        if (world.promotion.rating < venue.minCompanyRating) return;
+
+        const term = residencyTerms(world.settings).find((t) => t.weeks === weeks);
+        if (!term) return;
+
+        const deposit = residencyDeposit(venue, term, world.settings);
+        if (world.promotion.bankBalance < deposit) return;
+
+        world.promotion.bankBalance -= deposit;
+        world.residency = signResidency(venue, term, world.week);
+        world.showSetup.venueId = venue.id;
+        world.weeklyNews.push(
+          wire(
+            'signing',
+            `${world.promotion.name} has taken the ${venue.name} for ${term.label.toLowerCase()}. Same room, same night, every week — and the trucks stay in the yard.`,
+            world.week,
+          ),
+        );
+      });
+    },
+
+    breakResidency: () => {
+      set((state) => {
+        const world = state.world;
+        if (!world?.residency) return;
+
+        const owed = breakLeaseCost(world.residency, world.settings);
+        const { venueName } = world.residency;
+        world.promotion.bankBalance -= owed;
+        world.residency = null;
+        world.weeklyNews.push(
+          wire(
+            'signing',
+            `${world.promotion.name} has bought its way out of the ${venueName}. It cost $${owed.toLocaleString()} to be allowed to leave.`,
+            world.week,
+          ),
+        );
       });
     },
 
