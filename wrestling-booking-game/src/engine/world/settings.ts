@@ -560,6 +560,8 @@ export function defaultWorldSettings(): WorldSettings {
     // never see one, which is no use for the biggest night on the calendar.
     supershowOfferChancePerWeek: 0.05,
     supershowOfferWeeks: 4,
+    // A booker who rings round every week is a booker nobody takes seriously.
+    supershowProposalCooldownWeeks: 12,
     // Ties that form in play, because the seeded ones were the only ones that
     // ever existed. Deliberately slow: three shared matches before it can
     // happen at all, then a one-in-eight roll, starting weak enough that the

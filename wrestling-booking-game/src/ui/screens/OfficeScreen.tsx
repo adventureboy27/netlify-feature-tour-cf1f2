@@ -16,6 +16,7 @@
 // tabs where they cannot be missed at all.
 
 import { useState } from 'react';
+import { coopAppetite, moodFor, moodLine } from '../../engine/world/supershow';
 import { useGameStore } from '../../state/store';
 import { tvVerdict, wonTheNight, playerChartPosition } from '../../engine/world/tvRatings';
 import { temptationLabel } from '../../engine/world/tampering';
@@ -55,7 +56,7 @@ import {
   isAvailable,
 } from '../../engine/sim/referees';
 
-type Tab = 'desk' | 'contracts' | 'officials' | 'trades' | 'television' | 'schedule';
+type Tab = 'desk' | 'contracts' | 'officials' | 'trades' | 'television' | 'schedule' | 'joint';
 
 export function OfficeScreen() {
   const world = useGameStore((s) => s.world);
@@ -90,6 +91,7 @@ export function OfficeScreen() {
     { id: 'trades', label: 'Trades', badge: 0 },
     { id: 'television', label: 'Television', badge: 0 },
     { id: 'schedule', label: 'Schedule', badge: 0 },
+    { id: 'joint', label: 'Joint shows', badge: 0 },
   ];
 
   return (
@@ -134,6 +136,7 @@ export function OfficeScreen() {
       {tab === 'trades' && <TradesTab />}
       {tab === 'television' && <TelevisionTab />}
       {tab === 'schedule' && <ScheduleTab />}
+      {tab === 'joint' && <JointShowsTab />}
     </div>
   );
 }
@@ -1519,6 +1522,78 @@ function ScheduleTab() {
             : `${nextBig ?? 'The next one'} in ${weeksOut} ${weeksOut === 1 ? 'week' : 'weeks'}. It replaces the television that week rather than being added to it.`}
         </p>
       </section>
+    </div>
+  );
+}
+
+/**
+ * Putting a joint pay-per-view to somebody yourself (§16).
+ *
+ * The moods are shown because a booker would know the lay of the land — who is
+ * above him, who resents him, who would jump at it. That is information about
+ * the business, not a warning about the decision: what the game still will not
+ * tell you is how the night goes, and that is the part that can ruin you.
+ */
+function JointShowsTab() {
+  const world = useGameStore((s) => s.world)!;
+  const propose = useGameStore((s) => s.proposeSupershow);
+
+  const cooldown = world.settings.supershowProposalCooldownWeeks;
+  const since =
+    world.lastSupershowApproachWeek === null
+      ? Infinity
+      : world.week - world.lastSupershowApproachWeek;
+  const waiting = Math.max(0, cooldown - since);
+  const busy = Boolean(world.pendingSupershow || world.lastSupershow);
+
+  const open = world.rivals.filter((r) => r.closedWeek === null && r.rosterIds.length >= 4);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[11px] text-neutral-400">
+        One card, both rosters, and the belts stay where they are. It is the most money anybody
+        makes all year — and the sim picks the winners, on their half of the card as much as yours.
+      </p>
+
+      {busy && (
+        <p className="rounded border border-neutral-700 bg-neutral-900 p-2 text-[11px] text-neutral-400">
+          There is already a joint show on the table. Deal with that one first.
+        </p>
+      )}
+      {!busy && waiting > 0 && (
+        <p className="rounded border border-neutral-700 bg-neutral-900 p-2 text-[11px] text-neutral-400">
+          You have been round the houses recently. {waiting} {waiting === 1 ? 'week' : 'weeks'}{' '}
+          before anybody will take another call.
+        </p>
+      )}
+
+      {open.map((rival) => {
+        const resentment = Math.max(0, Math.min(100, (rival.rating - world.promotion.rating) / 2));
+        const mood = moodFor(coopAppetite(world.promotion, rival, resentment, world.settings), resentment, world.settings);
+        return (
+          <div key={rival.id} className="rounded border border-neutral-700 bg-neutral-900 p-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-medium text-neutral-200">{rival.name}</span>
+              <span className="text-[10px] uppercase tracking-wide text-neutral-500">
+                rating {Math.round(rival.rating)}
+              </span>
+            </div>
+            <p className="mt-0.5 text-[11px] text-neutral-400">{moodLine(mood, rival.name)}</p>
+            <button
+              type="button"
+              disabled={busy || waiting > 0}
+              onClick={() => propose(rival.id)}
+              className={`mt-2 w-full rounded px-3 py-1.5 text-xs font-medium ${
+                busy || waiting > 0
+                  ? 'bg-neutral-800 text-neutral-600'
+                  : 'bg-amber-600 text-black'
+              }`}
+            >
+              Put a show to them
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

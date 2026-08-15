@@ -1980,6 +1980,8 @@ export interface WorldSettings {
   supershowOfferChancePerWeek: number;
   /** How long an offer stands before the partner moves on. */
   supershowOfferWeeks: number;
+  /** Weeks the player must wait between putting joint shows to people. */
+  supershowProposalCooldownWeeks: number;
   /** Shared matches before two people can form a backstage tie at all. */
   tieFormMinMeetings: number;
   /** Chance per qualifying match that a tie actually forms. */

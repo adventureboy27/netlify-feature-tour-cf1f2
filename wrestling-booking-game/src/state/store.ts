@@ -572,6 +572,8 @@ export interface GameStore {
    */
   setPerk: (wrestlerId: Id, perkId: PerkId, on: boolean) => { ok: boolean; reason: string | null };
   answerBiddingInvitation: (join: boolean) => void;
+  /** Put a joint PPV to a rival yourself, rather than waiting to be asked (§16). */
+  proposeSupershow: (partnerId: Id) => void;
   /** Sign the joint PPV a rival has offered, or turn them down (§16). */
   answerSupershow: (accept: boolean) => void;
   /** Clear the joint-show write-up once it has been read. */
@@ -6894,6 +6896,80 @@ export const useGameStore = create<GameStore>()(
         outcome = { ok: true, reason: null };
       });
       return outcome;
+    },
+
+    proposeSupershow: (partnerId) => {
+      set((state) => {
+        const world = state.world;
+        if (!world || world.pendingSupershow || world.lastSupershow) return;
+        const cooldown = world.settings.supershowProposalCooldownWeeks;
+        if (
+          world.lastSupershowApproachWeek !== null &&
+          world.week - world.lastSupershowApproachWeek < cooldown
+        ) {
+          return;
+        }
+        const partner = world.rivals.find((r) => r.id === partnerId);
+        if (!partner || partner.closedWeek !== null || partner.rosterIds.length < 4) return;
+
+        world.lastSupershowApproachWeek = world.week;
+
+        const resentment = clamp((partner.rating - world.promotion.rating) / 2, 0, 100);
+        const draft = openingOffer(
+          world.promotion,
+          partner,
+          world.promotion.homeTerritoryId,
+          world.week,
+          world.settings,
+        );
+        const reply = respondToOffer(rng, draft, world.promotion, partner, resentment, world.settings);
+
+        if (reply.kind === 'refused') {
+          // Asking and being turned down is itself a story, and being turned
+          // down in the trades is worse than being turned down on the phone.
+          world.weeklyNews.push(
+            wire(
+              'story',
+              reply.publicly
+                ? `${partner.name} turned down a joint show with ${world.promotion.name}, and made sure it was heard. ${reply.because}`
+                : `${partner.name} passed on a joint show. ${reply.because}`,
+              world.week,
+              reply.publicly ? 'lead' : 'minor',
+            ),
+          );
+          return;
+        }
+
+        const deal = reply.deal;
+        const estimate = supershowPurse(
+          world.promotion,
+          partner,
+          deal,
+          Math.round(deal.cardSize / 2),
+          Math.round(deal.cardSize / 4),
+          world.settings,
+        );
+        world.pendingSupershow = {
+          deal,
+          partnerName: partner.name,
+          pitch:
+            reply.kind === 'countered'
+              ? reply.because
+              : `${partner.name} are in. Their terms are your terms.`,
+          estimatedNet: estimate.playerNet,
+          expiresWeek: world.week + world.settings.supershowOfferWeeks,
+        };
+        world.weeklyNews.push(
+          wire(
+            'story',
+            reply.kind === 'countered'
+              ? `${partner.name} will run with you, on their own terms. ${reply.because}`
+              : `${partner.name} have agreed to a joint pay-per-view.`,
+            world.week,
+            'lead',
+          ),
+        );
+      });
     },
 
     answerSupershow: (accept) => {

@@ -205,6 +205,8 @@ export interface World {
   pendingSupershow: SupershowOffer | null;
   /** The last joint show, kept so the results screen can report the night. */
   lastSupershow: SupershowResult | null;
+  /** Week the booker last put a joint show to somebody. Stops him touting daily. */
+  lastSupershowApproachWeek: number | null;
   /** How the last one went, shown once and then cleared. */
   lastBiddingWar: { war: BiddingWar; result: BiddingResult } | null;
   /**
@@ -688,6 +690,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     pendingBiddingWar: null,
     pendingSupershow: null,
     lastSupershow: null,
+    lastSupershowApproachWeek: null,
     lastBiddingWar: null,
     secretSignings: [],
     weatherChoice: null,
