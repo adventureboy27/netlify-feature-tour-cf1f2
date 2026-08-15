@@ -2108,6 +2108,8 @@ export interface WorldSettings {
   bodyguardMuggingDamage: number;
   /** How many seconds one corner holds. */
   cornerSeats: number;
+  productionShoestringRungs: number;
+  productionTouringRungs: number;
   managerPopularityBoostMax: number;
   managerInterferenceWeight: number;
   /** How much leaning on a mouthpiece stunts what the client builds alone. */

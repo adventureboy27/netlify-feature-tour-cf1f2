@@ -739,6 +739,10 @@ export function defaultWorldSettings(): WorldSettings {
     bodyguardMuggingDamage: 22,
     // A mouthpiece and a heavy. More than two at ringside is a stable run-in.
     cornerSeats: 2,
+
+    // Where the production ladder's plain-language labels change over.
+    productionShoestringRungs: 2,
+    productionTouringRungs: 5,
     managerPopularityBoostMax: 0.35,
     managerInterferenceWeight: 1.6,
     managerSelfMadePenalty: 0.15,
