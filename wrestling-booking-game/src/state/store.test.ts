@@ -1455,13 +1455,28 @@ describe('the quiet business', () => {
     // Staggered at creation, or nobody in the world is ever close to free.
     expect(new Set(before).size).toBeGreaterThan(5);
 
+    // Pick the person to watch BEFORE running the weeks, and follow that one.
+    // Sampling afterwards for "anybody with time left" would sometimes land on
+    // somebody who had signed a fresh deal during those four weeks, whose
+    // remaining is their total by definition — a property of the sample, not a
+    // fact about whether deals tick down.
+    const startWorld = useGameStore.getState().world!;
+    const watchedId = Object.values(startWorld.wrestlers).find(
+      (w) =>
+        w.promotionId &&
+        w.promotionId !== startWorld.promotion.id &&
+        (w.contract?.weeksRemaining ?? 0) > 20,
+    )!.id;
+    const startedAt = startWorld.wrestlers[watchedId]!.contract!.weeksRemaining;
+
     for (let i = 0; i < 4; i++) runWeek();
     const world = useGameStore.getState().world!;
-    const sample = Object.values(world.wrestlers).find(
-      (w) => w.promotionId && w.promotionId !== world.promotion.id && (w.contract?.weeksRemaining ?? 0) > 20,
-    )!;
+    const watched = world.wrestlers[watchedId]!;
+
     // Four weeks on, and four weeks shorter. Nothing renews early.
-    expect(sample.contract!.weeksRemaining).toBeLessThan(sample.contract!.totalWeeks);
+    if (watched.promotionId === startWorld.wrestlers[watchedId]!.promotionId) {
+      expect(watched.contract!.weeksRemaining).toBe(startedAt - 4);
+    }
   });
 });
 

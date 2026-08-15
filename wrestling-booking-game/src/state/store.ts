@@ -262,7 +262,7 @@ import {
   type Casualty,
 } from '../engine/sim/casualties';
 import { causesFor } from '../data/casualties';
-import { computeBuys, computeBuyRevenue } from '../engine/world/calendar';
+import { computeBuys, computeBuyRevenue, isInMonth, weekLabel } from '../engine/world/calendar';
 import {
   bigShowName,
   houseShowRevenueMultiplier,
@@ -342,6 +342,7 @@ import {
   crossPromoStakes,
 } from '../engine/world/supershow';
 import { runSupershow } from '../engine/world/supershowRun';
+import { SUPERSHOW_SEASONS } from '../engine/world/supershow';
 import { rivalWeek, shouldFold } from '../engine/world/rivalEconomy';
 import { publishPositions } from '../engine/world/publication';
 import { generateFanReaction, crowdVerdict } from '../engine/world/fanReaction';
@@ -4844,12 +4845,27 @@ export const useGameStore = create<GameStore>()(
           world.pendingSupershow = null;
         }
 
+        // Two joint shows a year, and they are on the calendar rather than on
+        // a dice roll: the spring one lands in May, the autumn one in November.
+        // A random weekly chance meant a save could go three years without the
+        // biggest night on the schedule, which is no way to run a business.
+        const seasonNow = SUPERSHOW_SEASONS.find((m) => isInMonth(world.week, m)) ?? null;
+        const seasonTag = seasonNow ? `${weekLabel(world.week, world.settings).year}-${seasonNow}` : null;
+
+        // The joint shows used to be a weekly dice roll and are now a date in
+        // the diary, but the draw stays on the stream. Taking it off shifted
+        // every seeded world downstream — the same reason facialHair rolls at
+        // probability zero for women rather than skipping the call.
+        chance(rng, world.settings.supershowOfferChancePerWeek);
+
         if (
+          seasonTag &&
           !world.pendingSupershow &&
           !world.lastSupershow &&
-          world.week >= world.settings.supershowEarliestWeek &&
-          chance(rng, world.settings.supershowOfferChancePerWeek)
+          world.lastSupershowSeason !== seasonTag &&
+          world.week >= world.settings.supershowEarliestWeek
         ) {
+          world.lastSupershowSeason = seasonTag;
           const open = world.rivals.filter((r) => r.closedWeek === null && r.rosterIds.length >= 4);
           if (open.length > 0) {
             const partner = pick(rng, open);

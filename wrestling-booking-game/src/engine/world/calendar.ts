@@ -84,6 +84,39 @@ export function weekLine(week: number, settings: WorldSettings): string {
   return `${label.month}, week ${label.weekOfMonth}`;
 }
 
+/**
+ * Zero-based week within the year, so callers can talk about "May" without
+ * caring which year the save is in.
+ */
+export function weekOfYear(week: number): number {
+  return Math.max(0, week - 1) % WEEKS_PER_YEAR;
+}
+
+/**
+ * The zero-based week-of-year that a named month opens on.
+ *
+ * The calendar is 4-4-5, so the months do not start on multiples of four and
+ * working the offsets out by hand is how you end up scheduling the year's
+ * biggest show in the wrong month.
+ */
+export function monthStartWeek(month: Month): number {
+  let start = 0;
+  for (let m = 0; m < WEEKS_IN_MONTH.length; m++) {
+    if (MONTHS[m] === month) return start;
+    start += WEEKS_IN_MONTH[m]!;
+  }
+  return 0;
+}
+
+/** Is `week` inside the given month? */
+export function isInMonth(week: number, month: Month): boolean {
+  const start = monthStartWeek(month);
+  const index = MONTHS.indexOf(month);
+  const span = index >= 0 ? WEEKS_IN_MONTH[index]! : 0;
+  const woy = weekOfYear(week);
+  return woy >= start && woy < start + span;
+}
+
 /** Is this the last week of its month? The month's big show goes here. */
 export function isLastWeekOfMonth(week: number, settings: WorldSettings): boolean {
   const here = weekLabel(week, settings);

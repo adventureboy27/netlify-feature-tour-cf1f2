@@ -53,6 +53,17 @@ export type DealResponse =
   | { kind: 'countered'; deal: SupershowDeal; because: string }
   | { kind: 'refused'; because: string; publicly: boolean };
 
+/**
+ * When the joint shows happen.
+ *
+ * Two a year, on the calendar rather than on a dice roll — spring and autumn,
+ * far enough apart that neither cannibalises the other and neither collides
+ * with the year's own big shows. A weekly random chance was the first attempt
+ * and it measured badly: a save could run three years without ever seeing the
+ * biggest night in the game.
+ */
+export const SUPERSHOW_SEASONS = ['May', 'November'] as const;
+
 // ---------------------------------------------------------------- appetite
 
 export type CoopMood = 'eager' | 'cautious' | 'dismissive' | 'hostile';
