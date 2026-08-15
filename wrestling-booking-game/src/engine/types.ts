@@ -1975,6 +1975,11 @@ export interface WorldSettings {
   supershowMinCard: number;
   supershowMaxCard: number;
   supershowRatingPerSegment: number;
+  /** No joint show before the company has a shape worth partnering with. */
+  supershowEarliestWeek: number;
+  supershowOfferChancePerWeek: number;
+  /** How long an offer stands before the partner moves on. */
+  supershowOfferWeeks: number;
   /** Shared matches before two people can form a backstage tie at all. */
   tieFormMinMeetings: number;
   /** Chance per qualifying match that a tie actually forms. */

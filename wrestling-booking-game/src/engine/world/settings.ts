@@ -552,6 +552,14 @@ export function defaultWorldSettings(): WorldSettings {
     supershowMinCard: 8,
     supershowMaxCard: 14,
     supershowRatingPerSegment: 11,
+    supershowEarliestWeek: 20,
+    // Roughly one offer a year in practice. The raw rate looks generous
+    // because only about half of it survives contact: measured on a fresh
+    // world, three of six rivals are dismissive enough to refuse outright, so
+    // half the rolls produce nothing. At 0.025 a save could run two years and
+    // never see one, which is no use for the biggest night on the calendar.
+    supershowOfferChancePerWeek: 0.05,
+    supershowOfferWeeks: 4,
     // Ties that form in play, because the seeded ones were the only ones that
     // ever existed. Deliberately slow: three shared matches before it can
     // happen at all, then a one-in-eight roll, starting weak enough that the

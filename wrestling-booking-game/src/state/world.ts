@@ -72,6 +72,7 @@ import { createStartingTitles, awardTitle } from '../data/titles';
 import { styleProfileFor } from '../data/promotionIdentity';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import { seedRelationships } from '../engine/career/relationships';
+import type { SupershowOffer, SupershowResult } from '../engine/world/supershowRun';
 import { formTeams, teamIdFactory, tagTeamCountFor } from '../engine/world/tagTeams';
 import { bestFittingVenue } from '../data/venues';
 import { computeDemand, fairTicketPrice, potentialAudience } from '../engine/economy/showBudget';
@@ -200,6 +201,10 @@ export interface World {
    * answers — the room does not wait.
    */
   pendingBiddingWar: BiddingWar | null;
+  /** A rival's standing offer to run a joint PPV (§16), waiting on an answer. */
+  pendingSupershow: SupershowOffer | null;
+  /** The last joint show, kept so the results screen can report the night. */
+  lastSupershow: SupershowResult | null;
   /** How the last one went, shown once and then cleared. */
   lastBiddingWar: { war: BiddingWar; result: BiddingResult } | null;
   /**
@@ -681,6 +686,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     pendingWeatherCall: null,
     pendingChampionCall: null,
     pendingBiddingWar: null,
+    pendingSupershow: null,
+    lastSupershow: null,
     lastBiddingWar: null,
     secretSignings: [],
     weatherChoice: null,

@@ -34,6 +34,7 @@ import { recallBookings } from '../../engine/sim/freshness';
 import { promotionTheme } from '../components/chrome';
 import { Stories } from '../components/Stories';
 import { BiddingWarPanel } from '../components/BiddingWar';
+import { SupershowPanel } from '../components/Supershow';
 
 /**
  * How worn an official is, as a colour. The player is managing a crew across
@@ -128,6 +129,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
+      <SupershowPanel />
       <BiddingWarPanel />
       <Stories />
       <WhatTheyWant />
