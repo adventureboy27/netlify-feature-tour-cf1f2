@@ -34,6 +34,11 @@ export type WireKind =
   | 'title'
   /** Something that happened to somebody away from a ring. */
   | 'misfortune'
+  /**
+   * What a body did after the booker sent it out there hurt. Separate from
+   * 'misfortune' because the company chose this one.
+   */
+  | 'injury'
   /** An arc the booker is running started, boiled over, ended or died. */
   | 'story'
   /** The nights on the road the cameras were not at. */
@@ -64,6 +69,7 @@ export const WIRE_KIND_LABELS: Record<WireKind, string> = {
   title: 'Title',
   weather: 'The road',
   misfortune: 'The road',
+  injury: 'The injury',
   story: 'The story',
   houseShow: 'On the road',
 };
@@ -78,6 +84,9 @@ const WEIGHT_ORDER: Record<WireWeight, number> = { lead: 0, normal: 1, minor: 2 
 const KIND_ORDER: WireKind[] = [
   'death',
   'retirement',
+  // Above the belt and the story: a man who is not getting up is the night's
+  // headline whatever else happened on the card.
+  'injury',
   'comeback',
   'title',
   'story',

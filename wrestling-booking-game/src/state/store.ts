@@ -326,7 +326,7 @@ import { CREATIVE_EVENTS, eventById } from '../data/events';
 import { applyGimmickLook, stableColorsFrom } from '../engine/generate/gimmickLook';
 import { GIMMICKS } from '../data/gimmicks';
 import type { EventEffect, EventSubjects } from '../engine/events/types';
-import type { Wrestler } from '../engine/types';
+import type { Passing, Wrestler } from '../engine/types';
 import { clamp, pick, chance, randInt } from '../engine/rng';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { stipulationById, stipulationRequirementsMet } from '../data/stipulations';
@@ -423,7 +423,13 @@ import {
 } from '../engine/economy/showBudget';
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import { decayGrudges, grudgeAgainst, grudgeLine, rememberNight } from '../engine/world/grudges';
-import { handsInNotice, noticeLine, recordInjury } from '../engine/career/theBody';
+import {
+  handsInNotice,
+  noticeLine,
+  recordInjury,
+  resolveInjuryCall,
+  stanceOn,
+} from '../engine/career/theBody';
 import {
   concessionsPerHead,
   houseTakeOfGate,
@@ -2265,6 +2271,83 @@ export const useGameStore = create<GameStore>()(
         // are reactions to results the simulation already produced — nothing
         // here decides anything.
         const tonightsBeats: { participantIds: Id[]; kind: StorylineBeatKind; text: string }[] = [];
+
+        /**
+         * Everybody who went out there already hurt, with the booker's
+         * blessing. Collected during the card and settled once after it —
+         * a man in two matches on the same night took one gamble, not two.
+         */
+        const workedHurtTonight = new Set<Id>();
+
+        /**
+         * Somebody has died. One path for it, wherever it came from.
+         *
+         * This used to live inline in the annual mortality roll, which meant
+         * the ring could not kill anybody without either duplicating seventy
+         * lines or quietly skipping the memorial, the tribute and the grief.
+         * `howItHappened` is the sentence the wire prints — §0's rule that a
+         * death says how it happened is enforced by making it an argument.
+         */
+        const passAway = (person: Wrestler, passing: Passing, howItHappened: string) => {
+          person.deceased = passing;
+          world.memoriam.push(passing);
+          world.thisYear.passings.push(passing);
+          world.weeklyNews.push(deathLine(person.name, person.age, howItHappened, world.week));
+          // The business runs a tribute for its own. Applied rather than
+          // offered — a promotion does not decide whether to ring ten
+          // bells for somebody who was on the card last week.
+          if (world.promotion.rosterIds.includes(person.id)) {
+            world.pendingMemoriam = memoriamFor(person.id, person.name, world.promotion.name, world.settings);
+          }
+
+          // ...and a night that would not otherwise have existed. The
+          // tribute above is a modifier on the show that was happening
+          // anyway; this is the company closing the doors for him, on a
+          // spare night, named after him. Run for anybody who gave this
+          // company real time, not only for whoever was under contract
+          // the day they died. See world/impromptu.ts.
+          const tenure = totalsFor(ledgerOf(person), world.promotion.id);
+          const heldOneHere = world.titles.some(
+            (t) =>
+              t.promotionId === world.promotion.id &&
+              t.history.some((reign) => reign.holderIds.includes(person.id)),
+          );
+          if (
+            worthAMemorial(
+              {
+                onOurRoster: world.promotion.rosterIds.includes(person.id),
+                weeksWithUs: tenure.weeks,
+                wasAChampionHere: heldOneHere,
+                hallOfFamer: person.careerStatus === 'hallOfFamer',
+              },
+              world.settings,
+            )
+          ) {
+            const show = memorialShow(
+              rng,
+              person.id,
+              person.name,
+              world.week + 1,
+              scheduleOf(world.promotion, world.settings).shows.map((sh) => sh.day),
+              world.promotion.name,
+            );
+            world.impromptuShows.push(show);
+            world.weeklyNews.push(wire('houseShow', show.announcement, world.week, 'normal'));
+          }
+          // §0: a death happens to the people left as well. Until now the
+          // memorial wall recorded it and the locker room did not notice.
+          const felt = bereavements(person, Object.values(world.wrestlers), world.relationships, world.settings);
+          for (const grief of felt) {
+            const mourner = world.wrestlers[grief.wrestlerId];
+            if (!mourner) continue;
+            mourner.morale = clamp(mourner.morale + grief.moraleDelta, 0, 100);
+            mourner.moraleNote = grief.note;
+          }
+          const said = mourningLine(felt);
+          if (said) world.weeklyNews.push(wire('death', said, world.week, 'normal'));
+
+          leaveTheBusiness(world, person.id, 'died');
+        };
         /** Stories the booker actually settled in the ring tonight. */
         const blowoffsTonight: {
           storylineId: Id;
@@ -2643,6 +2726,10 @@ export const useGameStore = create<GameStore>()(
             // sent out anyway, and the whole point of that decision is that
             // it can go badly — so they roll, at much worse odds.
             if (person.injury && !person.clearedToWorkHurt) continue;
+            // He is out there on a bad knee because the booker sent him. What
+            // that costs is settled after the show, once — see the injury
+            // calls below the card loop.
+            if (person.injury) workedHurtTonight.add(person.id);
 
             const casualty = rollCasualty(rng, {
               personId: person.id,
@@ -4421,6 +4508,86 @@ export const useGameStore = create<GameStore>()(
 
         world.week += 1;
 
+        // ---- what it cost the men who worked hurt -------------------------
+        // The booker cleared them and then booked them. Their own stated
+        // intention decides the gamble: a man who said he would take the full
+        // time is simply having a bad night at work, but a man who said he was
+        // fine has now proved it or not. See career/theBody.ts.
+        //
+        // Settled once per night rather than per match, and only for the men
+        // who were still carrying the same injury at the final bell — anybody
+        // hurt fresh tonight had his clearance torn up by `putOut`, and the
+        // new injury is the story instead.
+        //
+        // Filed *after* the week ticks over, with the rest of the weekly news,
+        // and that placement is the whole reason this took two goes to land.
+        // Written inside the card loop it ran correctly and reported nothing:
+        // the wire drops anything stamped earlier than the current week, so
+        // every line it produced was discarded as last week's news and the
+        // system looked dead from the outside. A path that can retire or bury
+        // somebody must not be able to do it quietly — see §0.
+        for (const id of workedHurtTonight) {
+          const person = world.wrestlers[id];
+          if (!person?.injury || !person.clearedToWorkHurt) continue;
+          const stance = stanceOn(person, world.settings);
+          // He is doing what the doctor told him and happened to be booked. No
+          // gamble was taken, so there is nothing to settle.
+          if (!stance || stance.man.intent === 'restProperly') continue;
+
+          // Seeded from the man and the night, never drawn from the world's
+          // stream — an extra draw here shifts every seeded roll downstream
+          // and silently rebases unrelated content. Third time this session.
+          const outcome = resolveInjuryCall(
+            stance.man.intent,
+            stance.doctor,
+            person,
+            rngFromSeed(`workedhurt:${person.id}:${world.week}`),
+            world.settings,
+          );
+
+          person.health = clamp(person.health - outcome.healthCost, 0, 100);
+          // Remembered as one he ignored the doctor over, whichever way it
+          // went — `recklessHistory` is about the decision, not the luck.
+          const record = person.injuryHistory ?? [];
+          if (record.length > 0) record[record.length - 1]!.workedThroughIt = true;
+
+          if (outcome.outcome === 'died') {
+            const passing: Passing = {
+              wrestlerId: person.id,
+              cause: 'accident',
+              age: person.age,
+              week: world.week,
+            };
+            passAway(person, passing, outcome.line);
+            continue;
+          }
+
+          if (outcome.outcome === 'gotAwayWithIt') {
+            // He is back sooner. `totalWeeks` is left alone deliberately: the
+            // doctor's number is what it always was, so a man who keeps going
+            // out there keeps rolling against the same odds rather than
+            // grinding his own injury down to nothing.
+            person.injury.weeksRemaining = Math.min(person.injury.weeksRemaining, outcome.weeksOut);
+            world.weeklyNews.push(wire('injury', outcome.line, world.week, 'normal'));
+            continue;
+          }
+
+          // It went wrong. Whatever the arrangement was, it is over.
+          person.injury.weeksRemaining = outcome.weeksOut;
+          person.injury.totalWeeks = Math.max(person.injury.totalWeeks, outcome.weeksOut);
+          person.clearedToWorkHurt = false;
+          person.career.longestInjuryWeeks = Math.max(person.career.longestInjuryWeeks, outcome.weeksOut);
+          world.weeklyNews.push(wire('injury', outcome.line, world.week, 'lead'));
+
+          if (outcome.outcome === 'careerEnding') {
+            retire(person);
+            const reason = RETIREMENT_REASON_TEXT.body;
+            world.thisYear.retirements.push({ wrestlerId: person.id, reason });
+            world.weeklyNews.push(retirementLine(person.name, reason, world.week));
+            leaveTheBusiness(world, person.id, 'retired');
+          }
+        }
+
         // Feuds nobody advanced this week go cold; the bad blood behind them
         // barely moves (§12.5).
         world.rivalries = world.rivalries.map((r) => decayRivalry(r, world.week, world.settings));
@@ -5018,78 +5185,7 @@ export const useGameStore = create<GameStore>()(
           if (chance(rng, perWeek)) {
             const passing = rollDeath(rng, person, world.week, world.settings);
             if (passing) {
-              person.deceased = passing;
-              world.memoriam.push(passing);
-              world.thisYear.passings.push(passing);
-              // The prose, not the enum. "died at 25. accident" was the bug
-              // this audit found — the rule is that it says how it happened.
-              world.weeklyNews.push(
-                deathLine(person.name, person.age, `${DEATH_CAUSE_TEXT[passing.cause]}.`, world.week),
-              );
-              // The business runs a tribute for its own. Applied rather than
-              // offered — a promotion does not decide whether to ring ten
-              // bells for somebody who was on the card last week.
-              if (world.promotion.rosterIds.includes(person.id)) {
-                world.pendingMemoriam = memoriamFor(
-                  person.id,
-                  person.name,
-                  world.promotion.name,
-                  world.settings,
-                );
-              }
-
-              // ...and a night that would not otherwise have existed. The
-              // tribute above is a modifier on the show that was happening
-              // anyway; this is the company closing the doors for him, on a
-              // spare night, named after him. Run for anybody who gave this
-              // company real time, not only for whoever was under contract
-              // the day they died. See world/impromptu.ts.
-              const tenure = totalsFor(ledgerOf(person), world.promotion.id);
-              const heldOneHere = world.titles.some(
-                (t) =>
-                  t.promotionId === world.promotion.id &&
-                  t.history.some((reign) => reign.holderIds.includes(person.id)),
-              );
-              if (
-                worthAMemorial(
-                  {
-                    onOurRoster: world.promotion.rosterIds.includes(person.id),
-                    weeksWithUs: tenure.weeks,
-                    wasAChampionHere: heldOneHere,
-                    hallOfFamer: person.careerStatus === 'hallOfFamer',
-                  },
-                  world.settings,
-                )
-              ) {
-                const show = memorialShow(
-                  rng,
-                  person.id,
-                  person.name,
-                  world.week + 1,
-                  scheduleOf(world.promotion, world.settings).shows.map((sh) => sh.day),
-                  world.promotion.name,
-                );
-                world.impromptuShows.push(show);
-                world.weeklyNews.push(wire('houseShow', show.announcement, world.week, 'normal'));
-              }
-              // §0: a death happens to the people left as well. Until now the
-              // memorial wall recorded it and the locker room did not notice.
-              const felt = bereavements(
-                person,
-                Object.values(world.wrestlers),
-                world.relationships,
-                world.settings,
-              );
-              for (const grief of felt) {
-                const mourner = world.wrestlers[grief.wrestlerId];
-                if (!mourner) continue;
-                mourner.morale = clamp(mourner.morale + grief.moraleDelta, 0, 100);
-                mourner.moraleNote = grief.note;
-              }
-              const said = mourningLine(felt);
-              if (said) world.weeklyNews.push(wire('death', said, world.week, 'normal'));
-
-              leaveTheBusiness(world, person.id, 'died');
+              passAway(person, passing, `${DEATH_CAUSE_TEXT[passing.cause]}.`);
               continue;
             }
           }
