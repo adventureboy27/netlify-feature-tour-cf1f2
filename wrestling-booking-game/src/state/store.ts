@@ -351,6 +351,7 @@ import {
   cupPurse,
   crownAura,
   crownSurge,
+  crownWinsBefore,
   crownsFor,
   fieldIsBigEnough,
   fieldLine,
@@ -421,6 +422,7 @@ import {
   repairCost,
 } from '../engine/economy/showBudget';
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
+import { decayGrudges, grudgeAgainst, grudgeLine, rememberNight } from '../engine/world/grudges';
 import {
   concessionsPerHead,
   houseTakeOfGate,
@@ -456,7 +458,13 @@ import {
   renewalRate,
   STARTING_CONTRACT_WEEKS,
 } from '../engine/economy/contracts';
-import { driftEgo, targetEgo, contractDemand, clauseUpkeep } from '../engine/career/ego';
+import {
+  driftEgo,
+  targetEgo,
+  contractDemand,
+  clauseUpkeep,
+  blocksDeckStacking,
+} from '../engine/career/ego';
 import { availablePerks, perkUpkeep } from '../engine/economy/perks';
 import type { PerkId } from '../data/perks';
 import { canSign, currentAskingRate } from '../engine/world/freeAgents';
@@ -2338,11 +2346,22 @@ export const useGameStore = create<GameStore>()(
               );
             if (spare.length > 0) draftedReferee = pick(rng, spare);
           }
-          const guestReferee = segment.guestRefereeId
-            ? wrestlerById.get(segment.guestRefereeId)
-            : draftedReferee;
+          // §13's escape hatch, honestly implemented. Creative control does not
+          // let anybody script a win — the sim still picks it — but somebody
+          // who has it will not work a match with a planted second or a
+          // hand-picked official, so both levers come off this segment. The
+          // helper for this has existed in career/ego.ts since the clause was
+          // written and was called by nothing, so the player had been paying
+          // for it at the negotiating table and getting nothing.
+          const controlled = participantWrestlers.some(blocksDeckStacking);
+
+          const guestReferee = controlled
+            ? draftedReferee
+            : segment.guestRefereeId
+              ? wrestlerById.get(segment.guestRefereeId)
+              : draftedReferee;
           const ringside = ringsideTotals({
-            managers: (segment.managerIds ?? [])
+            managers: (controlled ? [] : segment.managerIds ?? [])
               .map((m) => ({
                 manager: findManager(world, m.managerId),
                 client: participantWrestlers[m.forSide],
@@ -4375,6 +4394,9 @@ export const useGameStore = create<GameStore>()(
         // barely moves (§12.5).
         world.rivalries = world.rivalries.map((r) => decayRivalry(r, world.week, world.settings));
 
+        // And rival bookers slowly forget what you did to them on a joint card.
+        world.grudges = decayGrudges(world.grudges, world.settings);
+
         // A show's worth of wear on everything that was hauled out tonight.
         world.assetConditions = world.assetConditions.map((state) =>
           wearAsset(state, {
@@ -5216,7 +5238,16 @@ export const useGameStore = create<GameStore>()(
             // A booker who is above you and has nothing to gain resents being
             // asked; there is no separate grudge ledger to read from yet, so
             // standing carries it on its own.
-            const resentment = clamp((partner.rating - world.promotion.rating) / 2, 0, 100);
+            // The standing gap, plus whatever they are still carrying from the
+        // last time you worked together. Until now only the first half
+        // existed, so a company you buried nine-nil last November sat down
+        // with you in May as though nothing had happened.
+        const resentment = clamp(
+          (partner.rating - world.promotion.rating) / 2 +
+            (grudgeAgainst(world.grudges, partner.id)?.resentment ?? 0),
+          0,
+          100,
+        );
             const appetite = coopAppetite(world.promotion, partner, resentment, world.settings);
             const mood = moodFor(appetite, resentment, world.settings);
             const draft = openingOffer(
@@ -5635,6 +5666,7 @@ export const useGameStore = create<GameStore>()(
         const egoCtx = { rosterPeakPopularity: rosterPeak, currentWeek: world.week, settings: world.settings };
         for (const w of roster) {
           w.ego = driftEgo(w.ego, targetEgo(w, w.careerStatus, egoCtx), world.settings);
+
         }
 
         // A deal that ran down comes back as a demand, not as a departure.
@@ -7541,7 +7573,10 @@ export const useGameStore = create<GameStore>()(
           // hands over and it leaves when the crown does; this is the wrestler
           // themselves coming back different, and it is permanent. It stacks
           // for a repeat winner, which is the whole reason to want it twice.
-          const surge = crownSurge(world.settings);
+          // Scaled by how many times they have taken it before. It still
+          // stacks — that is the reason to want it twice — but each one moves
+          // them less, so a three-time winner is confirmed rather than capped.
+          const surge = crownSurge(world.settings, crownWinsBefore(world.cupHistory, champion.id));
           champion.popularity = clamp(
             champion.popularity + surge.popularity + crownAura(world.settings),
             0,
@@ -7628,7 +7663,16 @@ export const useGameStore = create<GameStore>()(
 
         world.lastSupershowApproachWeek = world.week;
 
-        const resentment = clamp((partner.rating - world.promotion.rating) / 2, 0, 100);
+        // The standing gap, plus whatever they are still carrying from the
+        // last time you worked together. Until now only the first half
+        // existed, so a company you buried nine-nil last November sat down
+        // with you in May as though nothing had happened.
+        const resentment = clamp(
+          (partner.rating - world.promotion.rating) / 2 +
+            (grudgeAgainst(world.grudges, partner.id)?.resentment ?? 0),
+          0,
+          100,
+        );
         const draft = openingOffer(
           world.promotion,
           partner,
@@ -7722,6 +7766,31 @@ export const useGameStore = create<GameStore>()(
         if (!result) return;
 
         world.lastSupershow = result;
+
+        // What they will remember about it. The split of the joint card is the
+        // thing a rival booker actually carries, so taking everything costs
+        // you the next approach and possibly the one after that.
+        const remembered = rememberNight(
+          grudgeAgainst(world.grudges, partner.id),
+          partner.id,
+          {
+            playerWins: result.playerWinnerIds.length,
+            partnerWins: result.partnerWinnerIds.length,
+            showStars: result.show.showStars,
+          },
+          world.week,
+          world.settings,
+        );
+        world.grudges = world.grudges.filter((g) => g.promotionId !== partner.id);
+        if (remembered) {
+          world.grudges.push(remembered);
+          // Nothing happens off-screen: if the night has cost you a
+          // relationship, the wire says so on the night rather than leaving
+          // the player to work it out from a refusal six months later.
+          world.weeklyNews.push(
+            wire('story', `${grudgeLine(remembered, partner.name)}`, world.week, 'minor'),
+          );
+        }
 
         // The money. The company banks its share of a gate neither of them
         // could have drawn alone, and pays its own people out of it.

@@ -57,7 +57,7 @@ export interface Temperament {
   nerve: number;
 }
 
-export const TEMPERAMENTS: Record<OwnerPersonality, Temperament> = {
+const TEMPERAMENTS: Record<OwnerPersonality, Temperament> = {
   // Spends whatever it takes for a name, today, and worries about it later.
   // The one that will genuinely overpay — and the one that gets into trouble.
   starChaser: {

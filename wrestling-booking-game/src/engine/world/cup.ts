@@ -208,15 +208,33 @@ export interface CrownSurge {
   momentum: number;
 }
 
-export function crownSurge(settings: WorldSettings): CrownSurge {
+/**
+ * @param priorWins How many Crucibles this person has already won.
+ *
+ * The surge still stacks — winning it twice is meant to be worth more than
+ * winning it once — but each win moves them less than the last. Flat and
+ * unbounded, a three-time winner finished pinned at 100 across the board and
+ * the trophy stopped being a story about somebody arriving and became a
+ * button that produced a perfect wrestler. The first Crucible makes a star;
+ * the third confirms one.
+ */
+export function crownSurge(settings: WorldSettings, priorWins = 0): CrownSurge {
+  const falloff = settings.cupRepeatWinFalloff ** Math.max(0, priorWins);
+  const scaled = (value: number) => value * falloff;
+
   return {
-    popularity: settings.cupWinnerPopularitySurge,
-    skill: settings.cupWinnerSkillSurge,
-    charisma: settings.cupWinnerCharismaSurge,
-    stamina: settings.cupWinnerStaminaSurge,
-    attitude: settings.cupWinnerAttitudeSurge,
-    momentum: settings.cupWinnerMomentumSurge,
+    popularity: scaled(settings.cupWinnerPopularitySurge),
+    skill: scaled(settings.cupWinnerSkillSurge),
+    charisma: scaled(settings.cupWinnerCharismaSurge),
+    stamina: scaled(settings.cupWinnerStaminaSurge),
+    attitude: scaled(settings.cupWinnerAttitudeSurge),
+    momentum: scaled(settings.cupWinnerMomentumSurge),
   };
+}
+
+/** How many times this person has taken the crown before. */
+export function crownWinsBefore(history: readonly CrownReign[], wrestlerId: Id): number {
+  return history.filter((r) => r.wrestlerId === wrestlerId).length;
 }
 
 /** How the field reads in the paper before a match has happened. */

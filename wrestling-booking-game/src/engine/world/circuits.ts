@@ -112,7 +112,7 @@ export function tasteFit(wrestler: Wrestler, taste: CircuitTaste, settings: Worl
  * Kept on the same 0-100-ish scale as worldScore so the two numbers can sit
  * beside each other on a screen without one of them lying.
  */
-export function circuitScore(
+function circuitScore(
   wrestler: Wrestler,
   taste: CircuitTaste,
   ctx: RankingContext,

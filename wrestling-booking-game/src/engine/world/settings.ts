@@ -96,29 +96,6 @@ export function defaultWorldSettings(): WorldSettings {
     contractLengthMin: 12,
     contractLengthMax: 104,
     contractLengthDefault: 52,
-    allowedClauses: [
-      'ironClad',
-      'noCompete',
-      'titlePush',
-      'creativeControl',
-      'nepotism',
-      'immediateStart',
-      'incentive',
-      'downside',
-      'creativeFreedom',
-      'payPerView',
-      'healthInsurance',
-      'guaranteedDates',
-      'travelCovered',
-      'merchandiseCut',
-      'noHardcore',
-      'noJobbing',
-      'releaseClause',
-      'partTime',
-      'exclusivity',
-      'trainerRole',
-      'rematchClause',
-    ],
     clauseAvailability: 'all',
     buyoutsEnabled: true,
     poachingAggression: 1,
@@ -432,6 +409,15 @@ export function defaultWorldSettings(): WorldSettings {
     egoRosterFrictionMax: 6,
 
     // What agreed clauses cost every week.
+    // Half a year to make good on a promised title run before they start
+    // souring. Long enough to book it properly, short enough to remember.
+    clauseTitlePushWeeks: 26,
+    // What a broken promise, or a loss for somebody who was told they would
+    // not lose, costs in morale every week.
+    clauseTitlePushMoraleDrain: 1.6,
+    // How long the wire keeps mentioning a promise that has come due.
+    clauseTitlePushNoticeWeeks: 2,
+    clauseNoJobbingMoraleHit: 9,
     clauseInsuranceRate: 0.18,
     clauseTravelCost: 120,
     clauseGuaranteedDatesRate: 0.25,
@@ -580,6 +566,27 @@ export function defaultWorldSettings(): WorldSettings {
     supershowAppetiteReputationWeight: 20,
     supershowAppetiteResentmentWeight: 0.8,
     supershowHostileResentment: 70,
+
+    // ---- what a partner remembers -----------------------------------------
+    // An even split of a joint card. Slightly under half because the host
+    // carries the show and the business expects the visitors to be looked
+    // after a little.
+    grudgeFairShare: 0.45,
+    // Squared above the fair share, so taking three quarters of a card is much
+    // worse than taking three fifths — which is what makes the split a
+    // decision rather than a formality.
+    grudgeBurialMax: 55,
+    // Putting the other company over earns goodwill back, but slowly. The
+    // asymmetry with grudgeBurialMax is the whole design.
+    grudgeGenerosityMax: 14,
+    // A night at or under this many stars annoys everybody a little, whoever
+    // won. Deliberately the smaller term.
+    grudgeFlopStars: 2.5,
+    grudgeFlopWeight: 6,
+    grudgeMassacreShare: 0.75,
+    // About nine months to forget a full burial: it costs you the next season
+    // and most of the one after.
+    grudgeDecayPerWeek: 1.4,
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,
@@ -651,6 +658,10 @@ export function defaultWorldSettings(): WorldSettings {
     // The road to superstardom. Winning it is supposed to change a career, not
     // nudge it, so this is the wrestler coming back different — permanent, and
     // it stacks for a repeat winner.
+    // Each Crucible win moves a person less than the last. At 0.5 a second
+    // win is worth half the first and a third a quarter — still worth having,
+    // and no longer a route to a wrestler who is 100 at everything.
+    cupRepeatWinFalloff: 0.5,
     cupWinnerPopularitySurge: 14,
     cupWinnerSkillSurge: 5,
     cupWinnerCharismaSurge: 6,

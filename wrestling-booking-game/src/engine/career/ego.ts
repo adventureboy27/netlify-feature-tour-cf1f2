@@ -110,18 +110,6 @@ export const CLAUSE_LADDER: { clause: Clause; egoRequired: number; label: string
     cost: 'You cannot move them on. Whatever they become, they are yours.',
   },
   {
-    clause: 'noJobbing',
-    egoRequired: 65,
-    label: 'No jobbing',
-    cost: 'You cannot book them to lose. At all.',
-  },
-  {
-    clause: 'titlePush',
-    egoRequired: 72,
-    label: 'A promised title run',
-    cost: 'An obligation with a clock on it. Miss it and they sour weekly.',
-  },
-  {
     clause: 'creativeControl',
     egoRequired: 80,
     label: 'Creative control',
@@ -196,10 +184,7 @@ export function clauseUpkeep(wrestler: Wrestler, settings: WorldSettings): numbe
   return upkeep;
 }
 
-/** Can this wrestler be booked to lose? `noJobbing` is a real booking constraint. */
-export function canBeBookedToLose(wrestler: Wrestler): boolean {
-  return !(wrestler.contract?.clauses ?? []).includes('noJobbing');
-}
+
 
 /**
  * §13's escape hatch, honestly implemented: creative control does NOT let the

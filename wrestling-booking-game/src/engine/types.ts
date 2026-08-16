@@ -716,29 +716,30 @@ import type { DisciplineRecord } from './career/discipline';
 
 export type ContractType = 'fullTime' | 'partTime' | 'perAppearance' | 'developmental' | 'legends';
 
+/**
+ * What is in a deal beyond the money.
+ *
+ * Every entry here is negotiated for, paid for, and enforced somewhere. Nine
+ * more used to sit in this union — nepotism, immediateStart, creativeFreedom,
+ * noHardcore, releaseClause, partTime, exclusivity, trainerRole and
+ * rematchClause — which no ladder offered, no bid could include and no rule
+ * ever read. noJobbing and titlePush went with them: both were offered and
+ * paid for, and neither was ever enforced anywhere. They were removed rather than implemented: a clause list is a
+ * promise about what the game models, and nine tenths of a promise is worse
+ * than a shorter one.
+ */
 export type Clause =
   | 'ironClad'
   | 'noCompete'
-  | 'titlePush'
   | 'creativeControl'
-  | 'nepotism'
-  | 'immediateStart'
   | 'incentive'
   | 'downside'
-  | 'creativeFreedom'
   | 'payPerView'
   | 'healthInsurance'
   | 'guaranteedDates'
   | 'travelCovered'
   | 'merchandiseCut'
-  | 'noHardcore'
-  | 'noJobbing'
-  | 'releaseClause'
-  | 'noTrade'
-  | 'partTime'
-  | 'exclusivity'
-  | 'trainerRole'
-  | 'rematchClause';
+  | 'noTrade';
 
 export interface Contract {
   /**
@@ -1543,7 +1544,6 @@ export interface WorldSettings {
   contractLengthMin: number;
   contractLengthMax: number;
   contractLengthDefault: number;
-  allowedClauses: Clause[];
   clauseAvailability: ClauseAvailability;
   buyoutsEnabled: boolean;
   poachingAggression: number; // 0-2
@@ -1864,6 +1864,13 @@ export interface WorldSettings {
   egoRosterFrictionMax: number;
 
   // Ongoing cost of agreed clauses
+  /** Weeks to make good on a promised title run before they start souring. */
+  clauseTitlePushWeeks: number;
+  clauseTitlePushMoraleDrain: number;
+  /** Weeks the wire keeps mentioning a title promise that has come due. */
+  clauseTitlePushNoticeWeeks: number;
+  /** What a loss costs somebody who was promised they would not take one. */
+  clauseNoJobbingMoraleHit: number;
   clauseInsuranceRate: number;
   clauseTravelCost: number;
   clauseGuaranteedDatesRate: number;
@@ -2040,6 +2047,18 @@ export interface WorldSettings {
   supershowAppetiteReputationWeight: number;
   supershowAppetiteResentmentWeight: number;
   supershowHostileResentment: number;
+  /** An even split of a joint card, from the visiting company's side. */
+  grudgeFairShare: number;
+  /** Most resentment a single one-sided night can earn. */
+  grudgeBurialMax: number;
+  /** Most goodwill a single generous night can earn back. */
+  grudgeGenerosityMax: number;
+  /** At or under this many stars, the night annoys everybody a little. */
+  grudgeFlopStars: number;
+  grudgeFlopWeight: number;
+  /** The share above which the write-up calls it a burial. */
+  grudgeMassacreShare: number;
+  grudgeDecayPerWeek: number;
   supershowEagerAt: number;
   supershowCautiousAt: number;
   supershowPublicRefusalChance: number;
@@ -2083,6 +2102,8 @@ export interface WorldSettings {
   cupStandingSwing: number;
   /** Companies needed before the Crucible runs at all. */
   cupMinimumField: number;
+  /** How much each repeat Crucible win is worth against the one before it. */
+  cupRepeatWinFalloff: number;
   cupWinnerPopularitySurge: number;
   cupWinnerSkillSurge: number;
   cupWinnerCharismaSurge: number;

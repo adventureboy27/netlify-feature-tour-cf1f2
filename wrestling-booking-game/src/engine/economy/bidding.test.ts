@@ -585,7 +585,7 @@ describe('how the wrestler chooses', () => {
       bid({
         promotionId: 'clever',
         weeklyRate: 3500,
-        clauses: ['creativeControl', 'noJobbing', 'titlePush'],
+        clauses: ['creativeControl', 'creativeControl', 'ironClad'],
       }),
       proud,
       ctx,
@@ -600,7 +600,7 @@ describe('how the wrestler chooses', () => {
     const ctx = choiceCtx();
     const cash = scoreBid(bid({ promotionId: 'rich', weeklyRate: 6000 }), humble, ctx, settings);
     const misread = scoreBid(
-      bid({ promotionId: 'wrong', weeklyRate: 3500, clauses: ['creativeControl', 'noJobbing'] }),
+      bid({ promotionId: 'wrong', weeklyRate: 3500, clauses: ['creativeControl', 'creativeControl'] }),
       humble,
       ctx,
       settings,
@@ -686,7 +686,7 @@ describe('how the wrestler chooses', () => {
 describe('turning a win into a contract', () => {
   it('guarantees the whole term only when iron-clad was on the table', () => {
     expect(guaranteeFor(bid({ clauses: ['ironClad'] }), settings)).toBe(1);
-    expect(guaranteeFor(bid({ clauses: ['titlePush'] }), settings)).toBe(settings.biddingBaseGuarantee);
+    expect(guaranteeFor(bid({ clauses: ['noTrade'] }), settings)).toBe(settings.biddingBaseGuarantee);
   });
 });
 

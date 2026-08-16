@@ -29,7 +29,7 @@ export function mulberry32(seed: number): Rng {
 }
 
 /** Derive a numeric seed from an arbitrary string (world seed -> RNG seed). */
-export function seedFromString(seed: string): number {
+function seedFromString(seed: string): number {
   let h = 1779033703 ^ seed.length;
   for (let i = 0; i < seed.length; i++) {
     h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);

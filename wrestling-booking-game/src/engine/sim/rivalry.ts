@@ -101,7 +101,7 @@ export function rivalryRatingBonus(rivalry: Rivalry | undefined, settings: World
  * and only pass shootRatingBonus() separately — this exists for previews and
  * for reasoning about a rivalry's total worth in one place.
  */
-export function crowdHeatRatingBonus(rivalry: Rivalry | undefined, settings: WorldSettings): number {
+function crowdHeatRatingBonus(rivalry: Rivalry | undefined, settings: WorldSettings): number {
   if (!rivalry || rivalry.resolvedWeek !== null) return 0;
   return (rivalry.heat / 100) * settings.rivalryHeatRatingBonus;
 }

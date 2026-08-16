@@ -26,7 +26,7 @@ export function computeShowRating(segmentRatings: (number | null)[], slotWeights
  * meaningfully different bookings, and half-stars flattened that distinction
  * away. 20 rating points to the star, rounded to the nearest quarter.
  */
-export const STAR_INCREMENT = 0.25;
+const STAR_INCREMENT = 0.25;
 
 export function ratingToStars(rating: number): number {
   const steps = 1 / STAR_INCREMENT;

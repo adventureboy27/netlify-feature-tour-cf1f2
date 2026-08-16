@@ -47,7 +47,7 @@ export interface OpeningContext {
  * is already under contract — and there has to be room on the map, because a
  * business with fifteen promotions in it is not a business, it is a list.
  */
-export function roomForAnother(ctx: OpeningContext, settings: WorldSettings): boolean {
+function roomForAnother(ctx: OpeningContext, settings: WorldSettings): boolean {
   if (!settings.newPromotionsEnabled) return false;
   if (ctx.alive.length >= settings.promotionCountMax) return false;
   return ctx.unemployed >= settings.newPromotionUnemployedTrigger;
@@ -58,7 +58,7 @@ export function roomForAnother(ctx: OpeningContext, settings: WorldSettings): bo
  * drowning in unemployed wrestlers gets a new company quickly and one with a
  * mild surplus gets one eventually.
  */
-export function openingChance(ctx: OpeningContext, settings: WorldSettings): number {
+function openingChance(ctx: OpeningContext, settings: WorldSettings): number {
   if (!roomForAnother(ctx, settings)) return 0;
   const surplus = ctx.unemployed - settings.newPromotionUnemployedTrigger;
   const pressure = Math.min(1, surplus / settings.newPromotionPressureRange);
@@ -85,7 +85,7 @@ const SECOND = [
   'Grappling Company', 'Wrestling Union', 'Athletic Commission', 'Wrestling Club',
 ];
 
-export function newPromotionName(rng: Rng, taken: ReadonlySet<string>): string {
+function newPromotionName(rng: Rng, taken: ReadonlySet<string>): string {
   for (let attempt = 0; attempt < 80; attempt++) {
     const name = `${pick(rng, FIRST)} ${pick(rng, SECOND)}`;
     if (!taken.has(name.toLowerCase())) return name;

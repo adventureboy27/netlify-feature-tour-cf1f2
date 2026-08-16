@@ -48,7 +48,7 @@ import type { CardStatus, Promotion, Wrestler, WorldSettings } from '../types';
 import { overnessIn } from './fit';
 
 /** Top of the card first. The order is the ladder. */
-export const CARD_STATUS_LADDER: CardStatus[] = [
+const CARD_STATUS_LADDER: CardStatus[] = [
   'mainEventer',
   'upperMidcard',
   'midcard',
@@ -56,7 +56,7 @@ export const CARD_STATUS_LADDER: CardStatus[] = [
   'enhancement',
 ];
 
-export const CARD_STATUS_LABELS: Record<CardStatus, string> = {
+const CARD_STATUS_LABELS: Record<CardStatus, string> = {
   mainEventer: 'Main eventer',
   upperMidcard: 'Upper midcard',
   midcard: 'Midcard',
@@ -66,7 +66,7 @@ export const CARD_STATUS_LABELS: Record<CardStatus, string> = {
 };
 
 /** How high somebody is on the ladder, 0 being the top. `prospect` sits out. */
-export function ladderIndex(status: CardStatus): number {
+function ladderIndex(status: CardStatus): number {
   const i = CARD_STATUS_LADDER.indexOf(status);
   return i === -1 ? CARD_STATUS_LADDER.length : i;
 }

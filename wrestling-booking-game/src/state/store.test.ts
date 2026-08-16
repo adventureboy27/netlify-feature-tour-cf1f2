@@ -512,7 +512,7 @@ describe('the bidding war', () => {
       weeklyRate: 40_000,
       signingBonus: 100_000,
       weeks: 156,
-      clauses: ['creativeControl', 'noJobbing', 'titlePush', 'ironClad'],
+      clauses: ['creativeControl', 'noTrade', 'ironClad'],
     });
 
     const world = useGameStore.getState().world!;

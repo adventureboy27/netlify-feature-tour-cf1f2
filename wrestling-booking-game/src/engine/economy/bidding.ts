@@ -147,7 +147,7 @@ export function worthAnAuction(wrestler: Wrestler, settings: WorldSettings): boo
 }
 
 /** Can this company sign anybody at all right now? */
-export function canBid(promotion: Promotion, banned: boolean): boolean {
+function canBid(promotion: Promotion, banned: boolean): boolean {
   return promotion.closedWeek === null && !banned;
 }
 
@@ -599,10 +599,6 @@ export function clauseAppeal(clause: Clause, wrestler: Wrestler, settings: World
     // actually wants, and they are worth almost nothing to anybody else.
     case 'creativeControl':
       return clamp(ego * 1.1, 0, 1);
-    case 'noJobbing':
-      return clamp(ego * 0.95, 0, 1);
-    case 'titlePush':
-      return clamp(0.15 + ego * 0.8, 0, 1);
     case 'ironClad':
       return clamp(0.2 + ego * 0.6 + old * 0.3, 0, 1);
     case 'noTrade':

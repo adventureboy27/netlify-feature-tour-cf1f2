@@ -185,7 +185,7 @@ export function canBeDefended(title: Title, participantIds: readonly Id[]): bool
  * a champion defending hurt is only possible because the booker signed off on
  * it, and that permission lives on the wrestler as `clearedToWorkHurt`.
  */
-export function isClearedToDefendHurt(wrestler: Wrestler): boolean {
+function isClearedToDefendHurt(wrestler: Wrestler): boolean {
   return Boolean(wrestler.injury) && wrestler.clearedToWorkHurt;
 }
 

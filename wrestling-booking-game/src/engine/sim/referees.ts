@@ -43,7 +43,7 @@ import { missesFor } from '../../data/refereeMisses';
 // ------------------------------------------------------------------ making
 
 /** A seed from `data/` as a live, unsigned official. */
-export function refereeFromSeed(seed: RefereeSeed): Referee {
+function refereeFromSeed(seed: RefereeSeed): Referee {
   return {
     id: seed.id,
     name: seed.name,

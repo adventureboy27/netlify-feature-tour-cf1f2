@@ -76,6 +76,7 @@ import type { SupershowOffer, SupershowResult } from '../engine/world/supershowR
 import type { CupResult } from '../engine/world/cupRun';
 import type { WeeklyStatement } from '../engine/economy/statement';
 import type { Residency } from '../engine/economy/residency';
+import type { Grudge } from '../engine/world/grudges';
 import type { CrownReign } from '../engine/world/cup';
 
 /** What the promoters put in front of the booker each August. */
@@ -188,6 +189,11 @@ export interface World {
    * rent, no travel and no lorry, and a town that tires of you.
    */
   residency: Residency | null;
+  /**
+   * What rival companies remember about working with you. Earned on joint
+   * cards and faded week by week — see engine/world/grudges.ts.
+   */
+  grudges: Grudge[];
   /** How worn each owned asset is. Gear does not last forever. */
   assetConditions: AssetCondition[];
   /** Contract renewals waiting on an answer, opened when a deal runs down. */
@@ -723,6 +729,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     statements: [],
     // Touring, until somebody signs for a room. See economy/residency.ts.
     residency: null,
+    // Nobody has worked with you yet, so nobody has an opinion.
+    grudges: [],
     assetConditions: [],
     pendingRenewals: [],
     showSetup: startingSetup,

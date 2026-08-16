@@ -14,7 +14,7 @@ import { chance, pick, randInt } from '../rng';
 import type { Id, Wrestler, Relationship, RelationshipType, WorldSettings } from '../types';
 
 /** Order-independent key for a pair. */
-export function relationshipKey(a: Id, b: Id): string {
+function relationshipKey(a: Id, b: Id): string {
   return [a, b].sort().join('~');
 }
 

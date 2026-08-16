@@ -90,7 +90,7 @@ export function showsPerWeek(schedule: PromotionSchedule): number {
 }
 
 /** How many weeks between the big ones. */
-export function weeksBetweenBigShows(cadence: PPVCadence): number {
+function weeksBetweenBigShows(cadence: PPVCadence): number {
   return cadence === 'monthly' ? 1 : cadence === 'biMonthly' ? 2 : 12;
 }
 

@@ -47,7 +47,7 @@ export interface ManagerIntake {
  * The archetype supplies who they are; the generated record supplies
  * everything a person needs and a rented mouthpiece never had.
  */
-export function asManagerTalent(
+function asManagerTalent(
   rng: Rng,
   person: Wrestler,
   archetype: Manager,
@@ -109,7 +109,7 @@ export function asManagerTalent(
  * already good at it. Rare, because most of the pool should come through the
  * two doors above rather than out of nowhere.
  */
-export function rollNewManager(
+function rollNewManager(
   rng: Rng,
   person: Wrestler,
   currentYear: number,

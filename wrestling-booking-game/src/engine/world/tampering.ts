@@ -37,7 +37,7 @@ export interface TamperingAttempt {
  * over, people who are young and about to be, and people who are unhappy —
  * in that order.
  */
-export function poachingAppeal(wrestler: Wrestler, status: CareerStatus): number {
+function poachingAppeal(wrestler: Wrestler, status: CareerStatus): number {
   if (!isPoachingTarget(status)) return 0;
 
   const overness = wrestler.popularity / 100;

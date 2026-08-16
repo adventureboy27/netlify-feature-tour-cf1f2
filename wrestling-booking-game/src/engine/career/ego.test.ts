@@ -7,7 +7,6 @@ import {
   egoLabel,
   contractDemand,
   clauseUpkeep,
-  canBeBookedToLose,
   blocksDeckStacking,
   egoFriction,
 } from './ego';
@@ -173,11 +172,7 @@ describe('what agreed clauses actually cost', () => {
     expect(clauseUpkeep(w({ contract: { ...createStandardContract(w(), settings, 2000), clauses: [] } }), settings)).toBe(0);
   });
 
-  it('takes booking options away, which is the real price', () => {
-    const protectedGuy = w({ contract: { ...createStandardContract(w(), settings, 2000), clauses: ['noJobbing'] } });
-    expect(canBeBookedToLose(protectedGuy)).toBe(false);
-    expect(canBeBookedToLose(w())).toBe(true);
-  });
+
 
   it('makes creative control cost the deck-stacking levers, not the result', () => {
     // §0 is locked: the sim always picks the winner. Creative control does

@@ -1,7 +1,7 @@
 // Real-world wrestler names/ring names to reject during generation, §6.
 // Starter set — grow this as playtesting turns up more collisions.
 
-export const NAME_BLOCKLIST: Set<string> = new Set(
+const NAME_BLOCKLIST: Set<string> = new Set(
   [
     'Hulk Hogan',
     'The Rock',

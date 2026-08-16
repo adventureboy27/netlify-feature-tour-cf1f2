@@ -18,6 +18,7 @@
 import { useState } from 'react';
 import { CalendarStrip } from '../components/CalendarStrip';
 import { coopAppetite, moodFor, moodLine } from '../../engine/world/supershow';
+import { grudgeAgainst, grudgeLine } from '../../engine/world/grudges';
 import { useGameStore } from '../../state/store';
 import { tvVerdict, wonTheNight, playerChartPosition } from '../../engine/world/tvRatings';
 import { temptationLabel } from '../../engine/world/tampering';
@@ -1577,7 +1578,14 @@ function JointShowsTab() {
       )}
 
       {open.map((rival) => {
-        const resentment = Math.max(0, Math.min(100, (rival.rating - world.promotion.rating) / 2));
+        // The standing gap plus whatever they are carrying from the last joint
+        // card. Computed the same way the store does it, or the page would
+        // promise a mood the phone call does not deliver.
+        const grudge = grudgeAgainst(world.grudges, rival.id);
+        const resentment = Math.max(
+          0,
+          Math.min(100, (rival.rating - world.promotion.rating) / 2 + (grudge?.resentment ?? 0)),
+        );
         const mood = moodFor(coopAppetite(world.promotion, rival, resentment, world.settings), resentment, world.settings);
         return (
           <div key={rival.id} className="rounded border border-neutral-700 bg-neutral-900 p-2">
@@ -1588,6 +1596,9 @@ function JointShowsTab() {
               </span>
             </div>
             <p className="mt-0.5 text-[11px] text-neutral-400">{moodLine(mood, rival.name)}</p>
+            {grudge && (
+              <p className="mt-0.5 text-[11px] text-amber-500/80">{grudgeLine(grudge, rival.name)}</p>
+            )}
             <button
               type="button"
               disabled={busy || waiting > 0}

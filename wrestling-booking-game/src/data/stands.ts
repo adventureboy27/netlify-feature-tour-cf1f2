@@ -176,6 +176,3 @@ export function standById(id: Id): Stand | undefined {
   return ALL_STANDS.find((s) => s.id === id);
 }
 
-export function isMerchLine(id: Id): boolean {
-  return MERCH_LINES.some((s) => s.id === id);
-}

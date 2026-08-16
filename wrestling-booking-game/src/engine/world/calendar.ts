@@ -99,7 +99,7 @@ export function weekOfYear(week: number): number {
  * working the offsets out by hand is how you end up scheduling the year's
  * biggest show in the wrong month.
  */
-export function monthStartWeek(month: Month): number {
+function monthStartWeek(month: Month): number {
   let start = 0;
   for (let m = 0; m < WEEKS_IN_MONTH.length; m++) {
     if (MONTHS[m] === month) return start;

@@ -128,7 +128,10 @@ const SLOT_KEY = 'wbg.save.v1';
 // week it resolved. This round adds ShowSetup.standIds, read the same way when
 // the night's tables are added up, and World.residency (guarded, but it
 // travels with the rest).
-const SCHEMA_VERSION = 34;
+// Version 35 narrows the Clause union from twenty-two entries to thirteen —
+// the nine removed were never offered, granted or read — and adds World.grudges,
+// which resolveWeek dereferences without a guard.
+const SCHEMA_VERSION = 35;
 
 export interface SaveFile {
   schema: number;

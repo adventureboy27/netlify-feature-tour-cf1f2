@@ -45,7 +45,7 @@ export type ViolationKind =
   /** Everything else the office had to hear about. */
   | 'conduct';
 
-export const VIOLATION_LABELS: Record<ViolationKind, string> = {
+const VIOLATION_LABELS: Record<ViolationKind, string> = {
   cheating: 'Caught interfering',
   stiffWork: 'Working unnecessarily stiff',
   deliberateInjury: 'Deliberately injuring an opponent',

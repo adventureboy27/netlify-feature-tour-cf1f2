@@ -16,6 +16,7 @@ import {
   crownsFor,
   crownBadge,
   crownSurge,
+  crownWinsBefore,
   slotsPerPromotion,
   cupBracketSize,
   willEnter,
@@ -312,5 +313,53 @@ describe('the paper', () => {
   it('says how big the field is and what everybody brought', () => {
     expect(fieldLine(4, 4)).toBe('4 companies bought in, 4 names apiece.');
     expect(fieldLine(16, 1)).toBe('16 companies bought in, 1 name apiece.');
+  });
+});
+
+describe('winning it more than once', () => {
+  const reign = (wrestlerId: string, year: number) => ({
+    wrestlerId,
+    wrestlerName: 'x',
+    promotionId: 'p',
+    promotionName: 'P',
+    wonWeek: year * 52,
+    year,
+  });
+
+  it('counts only the Crucibles somebody has already won', () => {
+    const history = [reign('a', 1), reign('b', 2), reign('a', 3)];
+    expect(crownWinsBefore(history, 'a')).toBe(2);
+    expect(crownWinsBefore(history, 'b')).toBe(1);
+    expect(crownWinsBefore(history, 'nobody')).toBe(0);
+    expect(crownWinsBefore([], 'a')).toBe(0);
+  });
+
+  it('still stacks, because that is the reason to want it twice', () => {
+    expect(crownSurge(settings, 1).popularity).toBeGreaterThan(0);
+    expect(crownSurge(settings, 2).popularity).toBeGreaterThan(0);
+  });
+
+  it('moves them less each time', () => {
+    // The bug this locks: a flat, unbounded surge left a three-time winner
+    // pinned at 100 across the board, which turned the trophy into a button
+    // that produced a perfect wrestler.
+    const first = crownSurge(settings, 0);
+    const second = crownSurge(settings, 1);
+    const third = crownSurge(settings, 2);
+    expect(second.popularity).toBeLessThan(first.popularity);
+    expect(third.popularity).toBeLessThan(second.popularity);
+    expect(third.skill).toBeLessThan(first.skill);
+  });
+
+  it('never adds up to a perfect wrestler however many they win', () => {
+    // Every repeat win summed is a geometric series; it has to converge well
+    // short of a hundred points of popularity on its own.
+    let total = 0;
+    for (let wins = 0; wins < 40; wins += 1) total += crownSurge(settings, wins).popularity;
+    expect(total).toBeLessThan(100);
+  });
+
+  it('treats a first win exactly as it always did', () => {
+    expect(crownSurge(settings, 0)).toEqual(crownSurge(settings));
   });
 });

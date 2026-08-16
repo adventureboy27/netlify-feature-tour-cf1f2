@@ -12,7 +12,7 @@
 // the day the show runs on.
 
 import type { WorldSettings } from '../types';
-import { MONTHS, DAYS, WEEKS_PER_YEAR, weekLabel, type Month, type Day } from './calendar';
+import { MONTHS, DAYS, weekLabel, type Month, type Day } from './calendar';
 import { showsThisWeek, type PromotionSchedule } from './schedule';
 import { SUPERSHOW_SEASONS } from './supershow';
 
@@ -73,7 +73,7 @@ export interface CalendarViewContext {
  * the company would otherwise have run, because those are the nights the whole
  * business stops for.
  */
-export function markFor(week: number, ctx: CalendarViewContext): { mark: WeekMark; label: string; day: Day | null } {
+function markFor(week: number, ctx: CalendarViewContext): { mark: WeekMark; label: string; day: Day | null } {
   const label = weekLabel(week, ctx.settings);
   const shows = showsThisWeek(week, ctx.schedule, ctx.settings);
   const televised = shows.find((s) => s.kind === 'television' || s.kind === 'ppv');
@@ -106,7 +106,7 @@ export function markFor(week: number, ctx: CalendarViewContext): { mark: WeekMar
  * only shows the two nights already booked tells the booker what he already
  * knows; one that shows all seven tells him where the room is.
  */
-export function nightsFor(week: number, ctx: CalendarViewContext): CalendarNight[] {
+function nightsFor(week: number, ctx: CalendarViewContext): CalendarNight[] {
   const shows = showsThisWeek(week, ctx.schedule, ctx.settings);
   const weekMark = markFor(week, ctx);
 
@@ -170,29 +170,5 @@ export function calendarMonths(from: number, count: number, ctx: CalendarViewCon
   }
   return months;
 }
-
-/** The next night worth clearing the diary for, and how far off it is. */
-export function nextBigNight(
-  ctx: CalendarViewContext,
-): { week: number; mark: WeekMark; label: string; weeksAway: number } | null {
-  for (let ahead = 0; ahead <= WEEKS_PER_YEAR; ahead++) {
-    const week = ctx.now + ahead;
-    const { mark, label } = markFor(week, ctx);
-    if (mark === 'cup' || mark === 'supershow' || mark === 'ppv') {
-      return { week, mark, label, weeksAway: ahead };
-    }
-  }
-  return null;
-}
-
-/** Short words for the tiles. Never a number — §0 keeps numbers off the face. */
-export const MARK_LABELS: Record<WeekMark, string> = {
-  none: 'Dark',
-  houseShow: 'Road',
-  television: 'TV',
-  ppv: 'PPV',
-  supershow: 'Joint',
-  cup: 'Cup',
-};
 
 export { MONTHS };
