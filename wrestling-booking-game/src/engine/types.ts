@@ -1657,6 +1657,8 @@ export interface WorldSettings {
 
   /** Entries before a body is described as a long history rather than listed. */
   /** What to assume about a wrestler with no self-preservation set. */
+  /** Weeks out below which no injury call is raised. */
+  injuryCallMinWeeks: number;
   selfPreservationDefault: number;
   bodyLongHistoryCount: number;
   /** How much each past injury teaches somebody caution. */
@@ -1944,6 +1946,8 @@ export interface WorldSettings {
   /** Rate multiplier at maximum ego. */
   egoRateMultiplierMax: number;
   /** How many clauses they ask for at once. */
+  /** Asks reserved for the appetite before neutral clauses fill the rest. */
+  egoAppetiteAsks: number;
   egoMaxClauseAsks: number;
   egoWalkRiskMax: number;
   egoRosterFrictionMax: number;

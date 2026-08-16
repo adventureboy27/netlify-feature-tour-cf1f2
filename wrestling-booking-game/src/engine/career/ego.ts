@@ -15,6 +15,7 @@
 
 import { clamp } from '../rng';
 import { afterLeverage, negotiatingLeverage } from './leverage';
+import { dealAppetite, type DealAppetite } from './theBody';
 import type { Wrestler, WorldSettings, CareerStatus, Clause } from '../types';
 
 export interface EgoContext {
@@ -79,45 +80,67 @@ export function egoLabel(ego: number): EgoLabel {
 // Exported because the bidding war picks its sweeteners off the same ladder —
 // there should be exactly one list of what a wrestler can be offered, and one
 // account of what each thing costs the company that offers it.
-export const CLAUSE_LADDER: { clause: Clause; egoRequired: number; label: string; cost: string }[] = [
+export const CLAUSE_LADDER: {
+  clause: Clause;
+  egoRequired: number;
+  label: string;
+  cost: string;
+  /**
+   * Which appetite this clause answers, or 'any' for the ones everybody wants
+   * at the right ego.
+   *
+   * The appetite decides the middle of the ladder — cover against bonus — and
+   * leaves the top of it alone. Creative control and an iron-clad guarantee
+   * are not about a man's body or his bank account, they are about power, and
+   * anybody who has climbed high enough asks for them.
+   */
+  serves: DealAppetite | 'any';
+}[] = [
   {
     clause: 'travelCovered',
+    serves: 'insurance',
     egoRequired: 20,
     label: 'Travel covered',
     cost: 'You pay to get them to every show.',
   },
   {
     clause: 'healthInsurance',
+    serves: 'insurance',
     egoRequired: 35,
     label: 'Injury insurance',
     cost: 'A weekly premium whether they wrestle or not.',
   },
   {
     clause: 'incentive',
+    serves: 'cash',
     egoRequired: 45,
     label: 'Main-event bonus',
     cost: 'They cost a quarter more every time you top the card with them.',
   },
   {
     clause: 'merchandiseCut',
+    serves: 'cash',
     egoRequired: 55,
     label: 'A cut of the merchandise',
     cost: 'A slice off the top of every shirt sold.',
   },
   {
     clause: 'noTrade',
+    serves: 'any',
     egoRequired: 62,
     label: 'No-trade clause',
     cost: 'You cannot move them on. Whatever they become, they are yours.',
   },
   {
     clause: 'creativeControl',
+    serves: 'any',
     egoRequired: 80,
     label: 'Creative control',
     cost: 'They can refuse a finish. The sim still decides — you just lose the lever.',
   },
   {
     clause: 'ironClad',
+    serves: 'any',
     egoRequired: 88,
     label: 'Iron-clad guarantee',
     cost: 'Releasing them costs the full remaining term.',
@@ -162,9 +185,24 @@ export function contractDemand(
   // it can still work, in which case it settles for nothing at all.
   const weeklyRate = afterLeverage(asked, negotiatingLeverage(wrestler, settings));
 
-  const asks = CLAUSE_LADDER.filter((entry) => wrestler.ego >= entry.egoRequired)
-    // They ask for the top few things they qualify for, not the whole list.
-    .slice(-settings.egoMaxClauseAsks);
+  // What he can ask for, and then what he actually wants out of it. A man
+  // frightened by his own body asks for the cover before the bonus even when
+  // his ego entitles him to both — which is what makes signing the same person
+  // at twenty-five and at thirty-three two different conversations.
+  const appetite = dealAppetite(wrestler, wrestler.injuryHistory ?? [], settings);
+  const entitled = CLAUSE_LADDER.filter((entry) => wrestler.ego >= entry.egoRequired);
+  // What he wants comes first; the clauses everybody wants fill what is left.
+  // Preference rather than a filter, because a man can want the cover *and*
+  // the guarantee — he simply asks for the cover first.
+  const specific = entitled.filter((entry) => entry.serves === appetite);
+  const neutral = entitled.filter((entry) => entry.serves === 'any');
+  const asks = [
+    ...specific.slice(-settings.egoAppetiteAsks),
+    ...neutral.slice(-Math.max(0, settings.egoMaxClauseAsks - Math.min(specific.length, settings.egoAppetiteAsks))),
+  ]
+    .slice(0, settings.egoMaxClauseAsks)
+    // Hardest-won last, whichever group they came from.
+    .sort((a, b) => a.egoRequired - b.egoRequired);
 
   // Somebody who knows they are the draw is likelier to walk over a refusal.
   const leverage = status === 'draw' || status === 'mainEventer' ? 1.4 : 1;

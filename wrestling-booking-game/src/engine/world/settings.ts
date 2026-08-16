@@ -195,6 +195,8 @@ export function defaultWorldSettings(): WorldSettings {
 
     // ---- the body -------------------------------------------------------
     // What to assume about somebody the game has no opinion about.
+    // Below this a knock is not worth a conversation.
+    injuryCallMinWeeks: 3,
     selfPreservationDefault: 50,
     bodyLongHistoryCount: 4,
     bodyHistoryTeachesCaution: 0.12,
@@ -479,6 +481,9 @@ export function defaultWorldSettings(): WorldSettings {
     egoRiseRate: 0.08,
     egoFallRate: 0.04,
     egoRateMultiplierMax: 1.4,
+    // How many of the asks are reserved for what he actually wants, before
+    // the clauses everybody wants fill the rest.
+    egoAppetiteAsks: 2,
     egoMaxClauseAsks: 3,
     egoWalkRiskMax: 0.55,
     egoRosterFrictionMax: 6,

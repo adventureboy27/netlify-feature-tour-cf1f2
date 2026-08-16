@@ -124,9 +124,25 @@ describe('what they ask for when the deal runs down', () => {
     expect(contractDemand({ ...base, ego: 40 }, rate, 'upperCard', settings).clauses.length).toBeGreaterThan(0);
   });
 
-  it('asks for creative control only at the very top', () => {
-    expect(contractDemand({ ...base, ego: 50 }, rate, 'upperCard', settings).clauses).not.toContain('creativeControl');
-    expect(contractDemand({ ...base, ego: 95 }, rate, 'draw', settings).clauses).toContain('creativeControl');
+  it('asks for creative control only at the very top, and only if that is what he wants', () => {
+    // Ego is still the gate, but it is no longer the only one: a man whose
+    // body has frightened him asks for the cover instead, whatever his ego
+    // entitles him to. Held at a low self-preservation so this tests the ego
+    // ladder rather than the appetite — the appetite has its own tests.
+    // Shown against a man whose appetite reserves nothing, so the ego ladder
+    // is the only thing deciding — the appetite has its own tests below.
+    const middling = { ...base, selfPreservation: 58 };
+    expect(contractDemand({ ...middling, ego: 50 }, rate, 'upperCard', settings).clauses).not.toContain(
+      'creativeControl',
+    );
+    expect(contractDemand({ ...middling, ego: 95 }, rate, 'draw', settings).clauses).toContain('creativeControl');
+  });
+
+  it('asks a frightened man for cover rather than for control, at the same ego', () => {
+    const frightened = { ...base, ego: 95, selfPreservation: 95 };
+    const clauses = contractDemand(frightened, rate, 'draw', settings).clauses;
+    expect(clauses).toContain('healthInsurance');
+    expect(clauses).not.toContain('creativeControl');
   });
 
   it('asks for injury insurance well before creative control', () => {

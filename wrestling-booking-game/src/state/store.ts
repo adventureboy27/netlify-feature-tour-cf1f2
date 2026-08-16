@@ -423,7 +423,12 @@ import {
 } from '../engine/economy/showBudget';
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import { decayGrudges, grudgeAgainst, grudgeLine, rememberNight } from '../engine/world/grudges';
-import { recordInjury } from '../engine/career/theBody';
+import {
+  doctorsOpinion,
+  recordInjury,
+  resolveInjuryCall,
+  wrestlersOpinion,
+} from '../engine/career/theBody';
 import {
   concessionsPerHead,
   houseTakeOfGate,
@@ -583,6 +588,12 @@ export interface GameStore {
   signResidency: (homeId: Id, weeks: number) => void;
   /** Buy your way out of the term early. It is not cheap. */
   breakResidency: () => void;
+  /**
+   * Settle the argument about a hurt wrestler: follow the doctor, or back the
+   * man. See engine/career/theBody.ts.
+   */
+  answerInjuryCall: (follow: boolean) => void;
+  dismissInjuryCall: () => void;
   /** Where you are running this week. */
   setTerritory: (territoryId: Id) => void;
   /** Climb one rung of the production ladder. The ladder decides if you can. */
@@ -2597,6 +2608,46 @@ export const useGameStore = create<GameStore>()(
               const existing = person.injury;
               const next = injuryFrom(casualty, world.week);
               person.injury = existing && existing.weeksRemaining > next.weeksRemaining ? existing : next;
+              // Into the permanent record as well as the current status.
+              //
+              // This is the path virtually every in-ring injury takes, and it
+              // was the one path not writing history — measured at one written
+              // history in a hundred and eighty-seven people over two and a
+              // half years, which read as an injury-rate problem and was
+              // actually three hooks on the wrong lines.
+              // Two views on it, raised for the booker to settle — but only for
+              // his own people, and only when there is actually a decision in
+              // it. A one-week knock is not a conversation.
+              if (
+                person.promotionId === world.promotion.id &&
+                !world.pendingInjuryCall &&
+                next.totalWeeks >= world.settings.injuryCallMinWeeks
+              ) {
+                const doctor = doctorsOpinion(next, person, world.settings);
+                world.pendingInjuryCall = {
+                  wrestlerId: person.id,
+                  name: person.name,
+                  what: next.description,
+                  doctor,
+                  // Seeded from the man and the week rather than drawn from
+                  // the world's stream: a draw here shifts every seeded roll
+                  // after it, which is the third time this session that has
+                  // quietly broken something downstream.
+                  man: wrestlersOpinion(
+                    person,
+                    person.injuryHistory ?? [],
+                    rngFromSeed(`call:${person.id}:${world.week}`),
+                    world.settings,
+                  ),
+                  week: world.week,
+                };
+              }
+
+              person.injuryHistory = recordInjury(
+                person.injuryHistory ?? [],
+                next,
+                world.settings.startingYear + Math.floor(world.week / 52),
+              );
               // Whatever the arrangement was, it is over — the booker cleared
               // them for the injury they had, not for this one.
               person.clearedToWorkHurt = false;
@@ -6406,6 +6457,12 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
+    dismissInjuryCall: () => {
+      set((state) => {
+        if (state.world) state.world.lastInjuryCall = null;
+      });
+    },
+
     dismissMandateOutcome: () => {
       set((state) => {
         if (state.world) state.world.lastMandateOutcome = null;
@@ -6478,6 +6535,59 @@ export const useGameStore = create<GameStore>()(
             world.week,
           ),
         );
+      });
+    },
+
+    answerInjuryCall: (follow) => {
+      set((state) => {
+        const world = state.world;
+        const call = world?.pendingInjuryCall;
+        if (!world || !call) return;
+
+        const person = world.wrestlers[call.wrestlerId];
+        world.pendingInjuryCall = null;
+        if (!person) return;
+
+        // Following the doctor is following the doctor. Backing the man means
+        // whatever he said he intended to do — which is the whole point of
+        // asking him.
+        const intent = follow ? 'restProperly' : call.man.intent;
+        const outcome = resolveInjuryCall(
+          intent,
+          call.doctor,
+          person,
+          rngFromSeed(`callOutcome:${person.id}:${call.week}:${intent}`),
+          world.settings,
+        );
+
+        if (person.injury) {
+          person.injury.totalWeeks = outcome.weeksOut;
+          person.injury.weeksRemaining = outcome.weeksOut;
+        }
+        person.health = clamp(person.health - outcome.healthCost, 0, 100);
+
+        // The history remembers who ignored a doctor, not only what happened.
+        const last = person.injuryHistory[person.injuryHistory.length - 1];
+        if (last) {
+          last.weeksOut = outcome.weeksOut;
+          last.workedThroughIt = intent === 'workThroughIt';
+        }
+
+        if (outcome.outcome === 'died') {
+          person.careerStatus = 'retired';
+          person.promotionId = null;
+          person.contract = null;
+          world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== person.id);
+        } else if (outcome.outcome === 'careerEnding') {
+          person.careerStatus = 'retired';
+          person.promotionId = null;
+          person.contract = null;
+          world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== person.id);
+        }
+
+        world.lastInjuryCall = { name: person.name, line: outcome.line };
+        // Nothing about a body happens off-screen.
+        world.weeklyNews.push(wire('misfortune', outcome.line, world.week, 'lead'));
       });
     },
 

@@ -77,6 +77,17 @@ import type { CupResult } from '../engine/world/cupRun';
 import type { WeeklyStatement } from '../engine/economy/statement';
 import type { Residency } from '../engine/economy/residency';
 import type { Grudge } from '../engine/world/grudges';
+import type { DoctorsOpinion, WrestlersOpinion } from '../engine/career/theBody';
+
+/** A hurt wrestler, the doctor's view, and his. */
+export interface PendingInjuryCall {
+  wrestlerId: Id;
+  name: string;
+  what: string;
+  doctor: DoctorsOpinion;
+  man: WrestlersOpinion;
+  week: number;
+}
 import type { CrownReign } from '../engine/world/cup';
 
 /** What the promoters put in front of the booker each August. */
@@ -194,6 +205,13 @@ export interface World {
    * cards and faded week by week — see engine/world/grudges.ts.
    */
   grudges: Grudge[];
+  /**
+   * Somebody on the roster is hurt and there are two views on it. Holds until
+   * the booker answers — see engine/career/theBody.ts.
+   */
+  pendingInjuryCall: PendingInjuryCall | null;
+  /** What the last one turned into, for the write-up. */
+  lastInjuryCall: { name: string; line: string } | null;
   /** How worn each owned asset is. Gear does not last forever. */
   assetConditions: AssetCondition[];
   /** Contract renewals waiting on an answer, opened when a deal runs down. */
@@ -731,6 +749,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     residency: null,
     // Nobody has worked with you yet, so nobody has an opinion.
     grudges: [],
+    pendingInjuryCall: null,
+    lastInjuryCall: null,
     assetConditions: [],
     pendingRenewals: [],
     showSetup: startingSetup,
