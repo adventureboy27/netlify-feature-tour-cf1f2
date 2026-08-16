@@ -247,6 +247,10 @@ export function defaultWorldSettings(): WorldSettings {
     // What it costs to keep him. Weekly, for as long as the room is shunning
     // him — the other half of the decision to pay him off instead.
     moraleBlamedInTheRoom: 1.6,
+    // How long a man keeps asking before he gives up on being answered.
+    // Unbounded, this was an absorbing state: ask, get ignored, bleed morale
+    // every week until zero and stay there for the rest of the save.
+    releaseRequestPatienceWeeks: 10,
     doctorAgePerYear: 0.04,
     doctorConditionWeight: 0.5,
     // What moves somebody from wanting cash to wanting cover. A bad injury is
@@ -563,6 +567,11 @@ export function defaultWorldSettings(): WorldSettings {
     // what the audience is asking for and booking it should be the best week
     // anybody on the roster has.
     moraleDemandDelivered: 3.5,
+    // Mood rubs off on the people you are in the ring with. At the extreme —
+    // a delighted man in with a miserable one — this is worth about 3 points
+    // a week to the man at the bottom, which is a real lever without being a
+    // way to launder a whole unhappy roster through one cheerful veteran.
+    moraleContagionWeight: 3.5,
     moraleAllyGain: 0.5,
     moraleEnemyCost: 1.4,
     moraleShowNeutral: 55,
@@ -1395,7 +1404,10 @@ export function defaultWorldSettings(): WorldSettings {
     promoMomentum: 10,
     promoCompanyLift: 1,
     promoCalloutPopularity: 5,
-    promoCalloutMorale: 6,
+    // Across the whole roster, so it is multiplied by however many people
+    // are on the books. At 6 one promo was four times the morale damage of
+    // killing somebody in the ring, which is not the shape anybody intended.
+    promoCalloutMorale: 2.5,
     promoDebutPopularity: 8,
     promoFarewellMorale: 6,
     promoFollowingGain: 3,

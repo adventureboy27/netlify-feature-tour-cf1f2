@@ -77,6 +77,15 @@ export interface MoraleContext {
   weeksIdle: number;
   /** How many belts they are currently holding. */
   beltsHeld: number;
+  /**
+   * The mood of everybody they were actually in the ring with, 0-100.
+   *
+   * A locker room is not N independent counters. Twenty minutes with somebody
+   * who is enjoying himself is a different night from twenty minutes with
+   * somebody who wants out, and it goes both ways — which makes who you put
+   * a miserable man in with a real lever rather than a cosmetic one.
+   */
+  moodOfTheOthers: number[];
   /** Everybody they get changed alongside, for the perks they can all see. */
   roster: readonly Wrestler[];
   /** Which week it is, for anything in the room that is fading. */
@@ -124,6 +133,8 @@ export function moraleContext(
     alliesOf: (id: Id) => ReadonlySet<Id>;
     enemiesOf: (id: Id) => ReadonlySet<Id>;
     beltsHeldBy: (id: Id) => number;
+    /** Current mood of anybody they might have been in there with. */
+    moraleOf: (id: Id) => number;
     weeksIdle: number;
     companyRating: number;
     /** Everybody who was part of something the crowd had asked for. */
@@ -169,6 +180,9 @@ export function moraleContext(
     beatenByPopularity,
     weeksIdle: segment ? 0 : world.weeksIdle,
     beltsHeld: world.beltsHeldBy(wrestler.id),
+    moodOfTheOthers: others
+      .filter((p) => p.role === 'competitor')
+      .map((p) => world.moraleOf(p.wrestlerId)),
     showRating: show?.showRating ?? 0,
     gaveThemWhatTheyWanted: world.deliveredTo.has(wrestler.id),
     workedWithAllies: others.filter((p) => allies.has(p.wrestlerId)).length,
@@ -283,6 +297,24 @@ export function weeklyMorale(
       }
       case 'neither':
         break;
+    }
+
+    // Who they were in there with, and what kind of week that man was having.
+    //
+    // Mood rubs off, and it rubs off both ways: a good hand enjoying himself
+    // pulls a miserable opponent up, and the same twenty minutes drags the
+    // happy one down a little. Proportional to the gap and deliberately
+    // gentle — it is a nudge toward the room's average, not a transfer.
+    //
+    // The point of it is the lever it hands the booker: a man who is sulking
+    // gets better faster in with somebody who is not, and burying him on a
+    // card with the other malcontents makes it worse.
+    if (ctx.moodOfTheOthers.length > 0) {
+      const theirs =
+        ctx.moodOfTheOthers.reduce((sum, m) => sum + m, 0) / ctx.moodOfTheOthers.length;
+      const rubOff = ((theirs - wrestler.morale) / 100) * s.moraleContagionWeight;
+      if (rubOff > 0) add('Spent the night with somebody enjoying himself.', rubOff);
+      else if (rubOff < 0) add('Spent the night with somebody who wants out.', rubOff);
     }
 
     if (ctx.workedWithAllies > 0) {

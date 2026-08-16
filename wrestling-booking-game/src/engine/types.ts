@@ -1734,6 +1734,8 @@ export interface WorldSettings {
   watchShunWeeks: number;
   /** Weekly morale drag on everybody else while he is still on the books. */
   moraleBlamedInTheRoom: number;
+  /** How long an unanswered release request keeps costing before he gives up. */
+  releaseRequestPatienceWeeks: number;
   doctorAgePerYear: number;
   doctorConditionWeight: number;
   /** What moves somebody from wanting cash to wanting cover. */
@@ -2056,6 +2058,8 @@ export interface WorldSettings {
   moraleChampionGain: number;
   /** Being the thing the crowd was asking for. See world/fanDemand.ts. */
   moraleDemandDelivered: number;
+  /** How strongly the mood of the people they worked with rubs off. */
+  moraleContagionWeight: number;
   moraleAllyGain: number;
   moraleEnemyCost: number;
   /** The show rating everybody is neutral about, and how much it swings. */

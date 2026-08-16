@@ -1937,11 +1937,24 @@ export const useGameStore = create<GameStore>()(
             (t) => t.promotionId === world.promotion.id && t.currentHolderIds.includes(speaker.id),
           );
 
+          // What the office books when it is choosing for itself. Selling
+          // the main event is the safe, obvious thing a real office does with
+          // twenty minutes and a good talker.
+          //
+          // This used to fall back to calling out the locker room, which is
+          // the single most damaging thing anybody can say into a microphone
+          // — it takes morale off *every wrestler on the roster*. The office
+          // booked it every week the best talker had no feud and no belt,
+          // which was most weeks, and it was the largest force in the morale
+          // system by a distance: measured at 691 points off a twelve-man
+          // locker room over fourteen weeks, against 285 of everything the
+          // weekly morale pass put back. It is a fine thing for a booker to
+          // choose. It is not a default.
           const topicId: PromoTopicId = target
             ? 'continueFeud'
             : holdsTitle
               ? 'championshipAddress'
-              : 'callOutLockerRoom';
+              : 'hypeMatch';
           if (!promoIsValid(topicId, speaker, target ?? null, holdsTitle)) continue;
 
           slot.promoSpeakerId = speaker.id;
@@ -2093,6 +2106,19 @@ export const useGameStore = create<GameStore>()(
         const heatOnTheCard: number[] = [];
         /** How many matches were officiated by a wrestler. The room keeps count. */
         let guestRefereeUses = 0;
+        /**
+         * Who had a wrestler counting their match because the office had
+         * nobody, and who has already been annoyed about it tonight.
+         *
+         * The room's grievance here is with the office for not having an
+         * official, and that is one grievance however many matches it
+         * spoiled. Charged per match it compounded: measured on a card of six
+         * with the only referee hurt, every wrestler on the show took it in
+         * every match they worked, which was a third of a locker room's
+         * morale a week and none of it said out loud.
+         */
+        const draftedIntoTheShirt = new Set<Id>();
+        const annoyedByTheDraft = new Set<Id>();
         /** Officials who worked tonight, and how many calls each one blew. */
         const refereesUsed = new Set<Id>();
         const refereeMissesTonight = new Map<Id, number>();
@@ -2718,11 +2744,29 @@ export const useGameStore = create<GameStore>()(
             // And the room notices being officiated by one of their own —
             // more so when it happened because nobody would pay for a real
             // official.
-            const annoyance = draftedReferee
-              ? world.settings.draftedRefereeMoraleCost
-              : world.settings.guestRefereeMoraleCost;
-            for (const competitor of participantWrestlers) {
-              competitor.morale = clamp(competitor.morale - annoyance, 0, 100);
+            if (draftedReferee) {
+              // Nobody was available. One grievance with the office, taken
+              // once each however many matches it happened in.
+              draftedIntoTheShirt.add(draftedReferee.id);
+              for (const competitor of participantWrestlers) {
+                if (annoyedByTheDraft.has(competitor.id)) continue;
+                annoyedByTheDraft.add(competitor.id);
+                competitor.morale = clamp(
+                  competitor.morale - world.settings.draftedRefereeMoraleCost,
+                  0,
+                  100,
+                );
+              }
+            } else {
+              // The booker named him on purpose. That is an angle, and it is
+              // a fresh irritation every time he does it.
+              for (const competitor of participantWrestlers) {
+                competitor.morale = clamp(
+                  competitor.morale - world.settings.guestRefereeMoraleCost,
+                  0,
+                  100,
+                );
+              }
             }
             guestRefereeUses += 1;
           }
@@ -3524,7 +3568,6 @@ export const useGameStore = create<GameStore>()(
 
 
         });
-
         // ---- the talking ------------------------------------------------
         // Promo slots sit alongside the card rather than inside it (§9), so
         // they are resolved here, after the matches, and contribute to the
@@ -3609,7 +3652,6 @@ export const useGameStore = create<GameStore>()(
             });
           }
         }
-
         // What the night did to the officials' standing. An official builds a
         // reputation over years of clean matches and loses it in one bad main
         // event, which is why the misses cost far more than the clean nights
@@ -3654,7 +3696,6 @@ export const useGameStore = create<GameStore>()(
             ),
           );
         }
-
         // ---- where we are running ----------------------------------------
         // The town has an opinion about the card, and a memory of how over
         // this promotion is here. Both were read at the top of the week,
@@ -3710,7 +3751,6 @@ export const useGameStore = create<GameStore>()(
           .filter((e) => !e.requiresAsset || world.ownedAssetIds.includes(e.requiresAsset));
 
         const production = [...ownedAssets, ...extras];
-
         // The ladder, folded in alongside the older asset list. Represented as
         // one synthetic entry rather than by rewriting every consumer, because
         // `sumEffect` already knows how to add these up and the two systems
@@ -3792,7 +3832,6 @@ export const useGameStore = create<GameStore>()(
             ? 1
             : onTheCard.reduce((sum, w) => sum + (w.gimmick.merchMultiplier ?? 1), 0) /
               onTheCard.length;
-
         // The building takes its slice of the merch table before anybody on
         // the card takes theirs — a wrestler's cut and a landlord's cut are
         // both just money off the same stack of shirts.
@@ -3844,7 +3883,6 @@ export const useGameStore = create<GameStore>()(
           rosterSize: world.residency ? 0 : world.promotion.rosterIds.length,
           settings: world.settings,
         });
-
         // What a ticket is worth here. A sell-out in the small town is not the
         // same money as a sell-out in the metro.
         const grossGate = Math.round(revenue.gate * territory.revenueMult);
@@ -4661,7 +4699,6 @@ export const useGameStore = create<GameStore>()(
         for (const item of misfortuneNews) {
           world.weeklyNews.push(wire('misfortune', item.text, world.week + 1, item.lead ? 'lead' : 'minor'));
         }
-
         world.week += 1;
 
         // Time off that is not an injury counts down here, ahead of tonight's
@@ -4678,6 +4715,29 @@ export const useGameStore = create<GameStore>()(
               wire('injury', `${member.name} is back on the roster and available to book.`, world.week, 'normal'),
             );
           }
+        }
+
+        // ---- the night nobody had a referee -------------------------------
+        // §0: this system takes health off the man in the shirt and morale
+        // off everybody in the match, and it said nothing. A booker whose
+        // only official was hurt watched his locker room sour for weeks with
+        // no line anywhere explaining it. It is one of the few problems in
+        // this game with an obvious fix — go and sign another referee — so
+        // not saying it was the whole of the damage.
+        if (draftedIntoTheShirt.size > 0) {
+          const counted = [...draftedIntoTheShirt]
+            .map((id) => world.wrestlers[id]?.name)
+            .filter((name): name is string => Boolean(name));
+          world.weeklyNews.push(
+            wire(
+              'official',
+              counted.length === 1
+                ? `There was no official fit to work, so ${counted[0]} counted in a shirt he had to borrow. Nobody in those matches was happy about it.`
+                : `There was no official fit to work. ${counted.slice(0, -1).join(', ')} and ${counted[counted.length - 1]} counted their own matches, and the room noticed who was not on the payroll.`,
+              world.week,
+              'lead',
+            ),
+          );
         }
 
         // ---- what it cost the men who worked hurt -------------------------
@@ -4802,7 +4862,6 @@ export const useGameStore = create<GameStore>()(
             leaveTheBusiness(world, person.id, 'retired');
           }
         }
-
         // Feuds nobody advanced this week go cold; the bad blood behind them
         // barely moves (§12.5).
         world.rivalries = world.rivalries.map((r) => decayRivalry(r, world.week, world.settings));
@@ -5061,6 +5120,8 @@ export const useGameStore = create<GameStore>()(
         const lockerRoom = world.promotion.rosterIds
           .map((id) => world.wrestlers[id])
           .filter((w): w is Wrestler => Boolean(w) && !w!.deceased);
+        /** Everybody's mood before tonight is folded in. See `moraleOf`. */
+        const moodBefore = new Map(lockerRoom.map((w) => [w.id, w.morale]));
         for (const id of world.promotion.rosterIds) {
           const member = world.wrestlers[id];
           if (!member || member.deceased) continue;
@@ -5073,6 +5134,12 @@ export const useGameStore = create<GameStore>()(
               enemiesOf: (who) => enemiesOf.get(who) ?? noneSet,
               beltsHeldBy: (who) =>
                 world.titles.filter((t) => !t.vacant && t.currentHolderIds.includes(who)).length,
+              // Read off the *start* of the pass, so everybody's night is
+              // judged against the same room. Reading it live would mean the
+              // first man processed rubbed off on the second and the second
+              // on the third, and the order of `rosterIds` would silently
+              // decide who cheered whom up.
+              moraleOf: (who) => moodBefore.get(who) ?? world.wrestlers[who]?.morale ?? 0,
               weeksIdle: world.week - (lastSeenWeek.get(id) ?? 0),
               companyRating: world.promotion.rating,
               deliveredTo: rewarded,
@@ -5084,12 +5151,32 @@ export const useGameStore = create<GameStore>()(
           member.moraleLastDelta = report.delta;
           member.moraleNote = report.reasons[0]?.text ?? null;
         }
-
         for (const id of world.promotion.rosterIds) {
           const member = world.wrestlers[id];
           if (!member || member.deceased) continue;
-          if (world.releaseRequests.some((r) => r.wrestlerId === id)) {
-            // Still waiting on an answer, and getting unhappier about it.
+          const asking = world.releaseRequests.find((r) => r.wrestlerId === id);
+          if (asking) {
+            // Still waiting on an answer, and getting unhappier about it —
+            // but not forever. Left open, this bled morale every week with no
+            // end and no resolution, which put a man on zero and held him
+            // there for the rest of the save. Measured at a fifth of a
+            // locker room's collapse over twenty weeks.
+            //
+            // A man who has asked and been ignored for a season stops asking.
+            // He does not forgive it: he is sitting on the morale it already
+            // cost him, and `handsInNotice` is where that goes when his paper
+            // runs out. See career/theBody.ts.
+            if (world.week - asking.openedWeek >= world.settings.releaseRequestPatienceWeeks) {
+              world.releaseRequests = world.releaseRequests.filter((r) => r.wrestlerId !== id);
+              world.weeklyNews.push(
+                wire(
+                  'departure',
+                  `${member.name} has stopped asking to be let go. He did not get an answer and he is not going to ask again.`,
+                  world.week,
+                ),
+              );
+              continue;
+            }
             member.morale = clamp(member.morale - refusalCost(world.settings), 0, 100);
             continue;
           }
@@ -5104,7 +5191,6 @@ export const useGameStore = create<GameStore>()(
             );
           }
         }
-
         // Ninety days, counted down for everybody in the business.
         for (const person of Object.values(world.wrestlers)) {
           if ((person.noCompeteWeeks ?? 0) > 0) {
@@ -5376,7 +5462,6 @@ export const useGameStore = create<GameStore>()(
           if (person.deceased || person.careerStatus === 'retired') continue;
           ageGimmick(person, workedThisWeek.has(person.id), world.settings);
         }
-
         // ---- who left the business this week -----------------------------
         // These used to be rolled once a year, which produced fifty-one quiet
         // weeks and one December in which six people retired, three died and
@@ -5444,7 +5529,6 @@ export const useGameStore = create<GameStore>()(
             leaveTheBusiness(world, person.id, 'retired');
           }
         }
-
         // A partnership does not survive one of them retiring, dying or
         // signing somewhere else — and it should be said the week it breaks,
         // not the following December.

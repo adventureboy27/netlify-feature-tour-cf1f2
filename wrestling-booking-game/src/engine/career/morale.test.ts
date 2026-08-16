@@ -30,6 +30,7 @@ function week(over: Partial<MoraleContext> = {}): MoraleContext {
     slot: 3,
     slotCount: 6,
     currentWeek: 40,
+    moodOfTheOthers: [],
     outcome: 'won',
     beatenByPopularity: null,
     weeksIdle: 0,
@@ -275,6 +276,7 @@ describe('reading a week off a show', () => {
     alliesOf: () => new Set<string>(['d']),
     enemiesOf: () => new Set<string>(),
     beltsHeldBy: () => 1,
+    moraleOf: () => 65,
     weeksIdle: 3,
     companyRating: 60,
     deliveredTo: new Set<string>(['c']),
@@ -363,5 +365,87 @@ describe('the man the room blames, still on the books', () => {
     });
     const report = weeklyMorale(person({ id: 'a' }), late, settings);
     expect(report.reasons.some((r) => r.text.includes('still on the books'))).toBe(false);
+  });
+});
+
+describe('mood rubs off on the people you are in there with', () => {
+  it('lifts a miserable man who worked with somebody enjoying himself', () => {
+    const sulking = person({ id: 'a', morale: 10 });
+    const alone = weeklyMorale(sulking, week({ moodOfTheOthers: [] }), settings);
+    const withACheerfulOne = weeklyMorale(sulking, week({ moodOfTheOthers: [90] }), settings);
+
+    expect(withACheerfulOne.delta).toBeGreaterThan(alone.delta);
+    expect(withACheerfulOne.reasons.some((r) => r.text.includes('enjoying himself'))).toBe(true);
+  });
+
+  it('drags a happy man who spent the night with somebody who wants out', () => {
+    // Both ways, or it is not contagion — it is a free repair tool.
+    const content = person({ id: 'a', morale: 90 });
+    const alone = weeklyMorale(content, week({ moodOfTheOthers: [] }), settings);
+    const withAMalcontent = weeklyMorale(content, week({ moodOfTheOthers: [10] }), settings);
+
+    expect(withAMalcontent.delta).toBeLessThan(alone.delta);
+    expect(withAMalcontent.reasons.some((r) => r.text.includes('wants out'))).toBe(true);
+  });
+
+  it('does nothing between two people in the same mood', () => {
+    const even = person({ id: 'a', morale: 50 });
+    expect(weeklyMorale(even, week({ moodOfTheOthers: [50] }), settings).delta).toBeCloseTo(
+      weeklyMorale(even, week({ moodOfTheOthers: [] }), settings).delta,
+      5,
+    );
+  });
+
+  it('averages the room he was in rather than taking the loudest', () => {
+    // A six-man match with one miserable body in it is not the same as being
+    // in there with him alone.
+    const w = person({ id: 'a', morale: 50 });
+    const oneOnOne = weeklyMorale(w, week({ moodOfTheOthers: [0] }), settings).delta;
+    const inACrowd = weeklyMorale(w, week({ moodOfTheOthers: [0, 80, 80] }), settings).delta;
+    expect(inACrowd).toBeGreaterThan(oneOnOne);
+  });
+
+  it('is a nudge, not a transfer', () => {
+    // The widest possible gap, so this is the ceiling on the whole mechanic.
+    const rock = person({ id: 'a', morale: 0 });
+    const lifted = weeklyMorale(rock, week({ moodOfTheOthers: [100] }), settings).delta;
+    const flat = weeklyMorale(rock, week({ moodOfTheOthers: [] }), settings).delta;
+    expect(lifted - flat).toBeLessThanOrEqual(settings.moraleContagionWeight);
+  });
+
+  it('leaves out anybody who was not wrestling', () => {
+    // Managers and officials at ringside are in the segment; they were not in
+    // the match. Asserted through the context builder, which is where the
+    // filtering has to happen.
+    const ctx = moraleContext(
+      person({ id: 'a' }),
+      {
+        showRating: 60,
+        segments: [
+          {
+            slot: 0,
+            participants: [
+              { wrestlerId: 'a', side: 0, role: 'competitor' },
+              { wrestlerId: 'b', side: 1, role: 'competitor' },
+              { wrestlerId: 'mgr', side: 1, role: 'manager' },
+            ],
+            result: { winnerSide: 0 },
+          },
+        ],
+      } as never,
+      {
+        popularityOf: () => 50,
+        alliesOf: () => new Set<string>(),
+        enemiesOf: () => new Set<string>(),
+        beltsHeldBy: () => 0,
+        moraleOf: (id) => (id === 'mgr' ? 0 : 80),
+        weeksIdle: 0,
+        companyRating: 60,
+        deliveredTo: new Set<string>(),
+        roster: [] as Wrestler[],
+        currentWeek: 40,
+      },
+    );
+    expect(ctx.moodOfTheOthers).toEqual([80]);
   });
 });
