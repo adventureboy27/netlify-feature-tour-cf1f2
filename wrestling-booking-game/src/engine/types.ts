@@ -1732,6 +1732,8 @@ export interface WorldSettings {
   watchOfficeShareWhenBlamed: number;
   /** How long nobody will get in the ring with the man they blame. */
   watchShunWeeks: number;
+  /** Weekly morale drag on everybody else while he is still on the books. */
+  moraleBlamedInTheRoom: number;
   doctorAgePerYear: number;
   doctorConditionWeight: number;
   /** What moves somebody from wanting cash to wanting cover. */

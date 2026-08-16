@@ -29,6 +29,7 @@
 import { clamp } from '../rng';
 import { nameBurden } from './lineage';
 import { loudestPerk, perkMorale, resentmentToward } from '../economy/perks';
+import { shunned } from './onOurWatch';
 import type { Id, Wrestler, WorldSettings } from '../types';
 
 /** Where somebody's head is at, in bands the UI can draw. */
@@ -78,6 +79,8 @@ export interface MoraleContext {
   beltsHeld: number;
   /** Everybody they get changed alongside, for the perks they can all see. */
   roster: readonly Wrestler[];
+  /** Which week it is, for anything in the room that is fading. */
+  currentWeek: number;
   /** What the night got, 0-100. A great show lifts the room. */
   showRating: number;
   /**
@@ -127,6 +130,7 @@ export function moraleContext(
     deliveredTo: ReadonlySet<Id>;
     /** The locker room, for reading what the office gave everybody else. */
     roster: readonly Wrestler[];
+    currentWeek: number;
   },
 ): MoraleContext {
   const segment = show?.segments.find((seg) =>
@@ -171,6 +175,7 @@ export function moraleContext(
     workedWithEnemies: others.filter((p) => enemies.has(p.wrestlerId)).length,
     companyRating: world.companyRating,
     roster: world.roster,
+    currentWeek: world.currentWeek,
   };
 }
 
@@ -347,6 +352,24 @@ export function weeklyMorale(
         -resented,
       );
     }
+  }
+
+  // The man they blame is still on the books.
+  //
+  // Nobody has to look at him on a card — the office will not put him on one
+  // — but he is still in the room, getting changed, getting paid. That is the
+  // whole reason releasing him is a decision rather than an obvious yes: he
+  // costs a severance to move and a sour locker room to keep, and the booker
+  // picks which. It fades on the same clock as the shunning, so a booker who
+  // can afford neither can simply wait it out.
+  const stillHere = ctx.roster.find(
+    (other) => other.id !== wrestler.id && shunned(other.blamedFor, ctx.currentWeek, s),
+  );
+  if (stillHere) {
+    add(
+      `${stillHere.name} is still on the books after ${stillHere.blamedFor!.name}.`,
+      -s.moraleBlamedInTheRoom,
+    );
   }
 
   // A struggling outfit is a fine place to work if the booker uses you; it is

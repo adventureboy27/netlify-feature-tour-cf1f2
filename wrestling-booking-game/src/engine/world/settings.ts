@@ -244,6 +244,9 @@ export function defaultWorldSettings(): WorldSettings {
     // Never zero: the company still said a hurt man could work.
     watchOfficeShareWhenBlamed: 0.3,
     watchShunWeeks: 30,
+    // What it costs to keep him. Weekly, for as long as the room is shunning
+    // him — the other half of the decision to pay him off instead.
+    moraleBlamedInTheRoom: 1.6,
     doctorAgePerYear: 0.04,
     doctorConditionWeight: 0.5,
     // What moves somebody from wanting cash to wanting cover. A bad injury is

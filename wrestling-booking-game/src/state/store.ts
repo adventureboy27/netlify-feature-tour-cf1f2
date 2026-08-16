@@ -5076,6 +5076,7 @@ export const useGameStore = create<GameStore>()(
               weeksIdle: world.week - (lastSeenWeek.get(id) ?? 0),
               companyRating: world.promotion.rating,
               deliveredTo: rewarded,
+              currentWeek: world.week,
             }),
             world.settings,
           );

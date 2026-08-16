@@ -29,6 +29,7 @@ function week(over: Partial<MoraleContext> = {}): MoraleContext {
     worked: true,
     slot: 3,
     slotCount: 6,
+    currentWeek: 40,
     outcome: 'won',
     beatenByPopularity: null,
     weeksIdle: 0,
@@ -278,6 +279,7 @@ describe('reading a week off a show', () => {
     companyRating: 60,
     deliveredTo: new Set<string>(['c']),
     roster: [] as Wrestler[],
+    currentWeek: 40,
   };
 
   it('finds the match somebody was in, and which way it went', () => {
@@ -320,5 +322,46 @@ describe('who is a problem', () => {
       person({ id: '4', morale: 55 }),
     ];
     expect(troubleInTheRoom(room, settings).map((w) => w.id)).toEqual(['2', '3']);
+  });
+});
+
+describe('the man the room blames, still on the books', () => {
+  // The other half of the decision to pay him off. Nobody has to look at him
+  // on a card — the office will not book him — but he is still in the room,
+  // and keeping him costs something every week until it fades.
+  const blamed = (week: number) =>
+    person({ id: 'blamed', name: 'Cyclone', blamedFor: { wrestlerId: 'dead', name: 'Earl Mercer', week } });
+
+  it('costs everybody else morale, and says whose fault they think it was', () => {
+    const clean = weeklyMorale(person({ id: 'a' }), week({ roster: [person({ id: 'a' })] }), settings);
+    const soured = weeklyMorale(
+      person({ id: 'a' }),
+      week({ roster: [person({ id: 'a' }), blamed(38)], currentWeek: 40 }),
+      settings,
+    );
+
+    expect(soured.delta).toBeLessThan(clean.delta);
+    expect(soured.delta).toBeCloseTo(clean.delta - settings.moraleBlamedInTheRoom, 5);
+    const said = soured.reasons.find((r) => r.text.includes('Cyclone'));
+    expect(said).toBeDefined();
+    expect(said!.text).toContain('Earl Mercer');
+  });
+
+  it('does not sour the man himself', () => {
+    // He is not unhappy about being in a room with himself.
+    const him = blamed(38);
+    const report = weeklyMorale(him, week({ roster: [him, person({ id: 'a' })], currentWeek: 40 }), settings);
+    expect(report.reasons.some((r) => r.text.includes('still on the books'))).toBe(false);
+  });
+
+  it('stops once the room has let it go, without anybody being released', () => {
+    // A booker who can afford neither the severance nor the sour room can
+    // simply wait it out, and that has to actually work.
+    const late = week({
+      roster: [person({ id: 'a' }), blamed(10)],
+      currentWeek: 10 + settings.watchShunWeeks,
+    });
+    const report = weeklyMorale(person({ id: 'a' }), late, settings);
+    expect(report.reasons.some((r) => r.text.includes('still on the books'))).toBe(false);
   });
 });
