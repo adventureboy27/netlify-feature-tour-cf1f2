@@ -145,8 +145,11 @@ export function rollComeback(rng: Rng, w: Wrestler, ctx: ComebackContext): Comeb
 }
 
 /** Bring them back. They are not what they were, and the game says so. */
-export function unretire(w: Wrestler, settings: WorldSettings): void {
+export function unretire(w: Wrestler, settings: WorldSettings, week?: number): void {
   w.careerStatus = 'veteran';
+  // Marked so the negotiating table knows. Somebody who has walked away once
+  // is in the weakest position in the business — see career/leverage.ts.
+  if (week !== undefined) w.comebackWeek = week;
   w.health = clamp(w.health, settings.comebackStartingHealth, 100);
   // Ring rust. They get it back by working, like everybody else.
   w.momentum = clamp(w.momentum + settings.comebackMomentum, 0, 100);

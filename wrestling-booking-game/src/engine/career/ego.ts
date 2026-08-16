@@ -14,6 +14,7 @@
 // cools off gets cheaper to run at exactly the moment it needs to be.
 
 import { clamp } from '../rng';
+import { afterLeverage, negotiatingLeverage } from './leverage';
 import type { Wrestler, WorldSettings, CareerStatus, Clause } from '../types';
 
 export interface EgoContext {
@@ -153,9 +154,22 @@ export function contractDemand(
   baseRate: number,
   status: CareerStatus,
   settings: WorldSettings,
+  /**
+   * The best in-ring ability on the roster. Optional so older callers keep
+   * their behaviour; supplied, it lets a man past his prime be told what his
+   * position actually is. See career/leverage.ts.
+   */
+  rosterPeakCraft?: number,
 ): ContractDemand {
   const egoFactor = 1 + (wrestler.ego / 100) * settings.egoRateMultiplierMax;
-  const weeklyRate = Math.round((baseRate * egoFactor) / 25) * 25;
+  const asked = baseRate * egoFactor;
+  // Ego says what he wants. Leverage says what he is going to settle for, and
+  // a name past its prime settles for a good deal less than it wants — unless
+  // it can still work, in which case it settles for nothing at all.
+  const weeklyRate =
+    rosterPeakCraft === undefined
+      ? Math.round(asked / 25) * 25
+      : afterLeverage(asked, negotiatingLeverage(wrestler, { rosterPeakCraft, settings }));
 
   const asks = CLAUSE_LADDER.filter((entry) => wrestler.ego >= entry.egoRequired)
     // They ask for the top few things they qualify for, not the whole list.

@@ -333,6 +333,7 @@ import { stipulationById, stipulationRequirementsMet } from '../data/stipulation
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
 import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
 import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/aftermath';
+import { craftOf } from '../engine/career/leverage';
 import { runRivalShow, bookRivalCard, canWork, type RivalShow } from '../engine/world/rivalBooking';
 import {
   openingOffer,
@@ -1066,7 +1067,7 @@ function letThemGo(world: World, wrestler: Wrestler, terms: ReturnType<typeof ex
   world.freeAgents.push({
     wrestlerId: wrestler.id,
     reason: 'released',
-    askingRate: askingRate(wrestler, world.settings),
+    askingRate: askingRate(wrestler, world.settings, rosterPeakCraft(world)),
     weeksUnsigned: 0,
   });
   world.weeklyNews.push(wire('departure', terms.text, world.week));
@@ -1209,7 +1210,7 @@ function resolveAuction(world: World, playerLevel: PlayerBidLevel, books?: State
       world.freeAgents.push({
         wrestlerId: w.id,
         reason: 'released',
-        askingRate: askingRate(w, world.settings),
+        askingRate: askingRate(w, world.settings, rosterPeakCraft(world)),
         weeksUnsigned: 0,
       });
     }
@@ -1258,6 +1259,22 @@ function payrollOf(world: World, promotionId: Id): number {
  * Open an auction, if this person actually warrants one and enough of the
  * business can afford to turn up. Returns whether one opened.
  */
+/**
+ * The best in-ring ability on the player's roster.
+ *
+ * The yardstick a veteran's position is measured against: somebody who can
+ * still go relative to the company he is negotiating with keeps his price,
+ * whatever his age says. See career/leverage.ts.
+ */
+function rosterPeakCraft(world: World): number {
+  let peak = 0;
+  for (const id of world.promotion.rosterIds) {
+    const person = world.wrestlers[id];
+    if (person) peak = Math.max(peak, craftOf(person));
+  }
+  return peak;
+}
+
 function openBiddingWar(world: World, wrestler: Wrestler, reason: BiddingReason): boolean {
   if (!world.settings.biddingEnabled) return false;
   // One at a time. Two open auctions would mean two blocking dialogs and a
@@ -1792,7 +1809,7 @@ export const useGameStore = create<GameStore>()(
           world.freeAgents.push({
             wrestlerId: wrestler.id,
             reason: 'released',
-            askingRate: askingRate(wrestler, world.settings),
+            askingRate: askingRate(wrestler, world.settings, rosterPeakCraft(world)),
             weeksUnsigned: 0,
           });
           added += 1;
@@ -5062,7 +5079,7 @@ export const useGameStore = create<GameStore>()(
               settings: world.settings,
             });
             if (back.returning) {
-              unretire(person, world.settings);
+              unretire(person, world.settings, world.week);
               world.thisYear.comebacks.push({
                 wrestlerId: person.id,
                 overId: back.over?.participantIds.find((id) => id !== person.id) ?? null,
@@ -5072,7 +5089,7 @@ export const useGameStore = create<GameStore>()(
               world.freeAgents.push({
                 wrestlerId: person.id,
                 reason: 'returning',
-                askingRate: askingRate(person, world.settings),
+                askingRate: askingRate(person, world.settings, rosterPeakCraft(world)),
                 weeksUnsigned: 0,
               });
             }
@@ -5675,7 +5692,7 @@ export const useGameStore = create<GameStore>()(
           if (!member || world.pendingRenewals.some((r) => r.wrestlerId === id)) continue;
           world.pendingRenewals.push({
             wrestlerId: id,
-            demand: contractDemand(member, renewalRate(member, world.settings), member.careerStatus, world.settings),
+            demand: contractDemand(member, renewalRate(member, world.settings), member.careerStatus, world.settings, rosterPeakCraft(world)),
             openedWeek: world.week,
           });
         }
@@ -6116,7 +6133,7 @@ export const useGameStore = create<GameStore>()(
               world.freeAgents.push({
                 wrestlerId: id,
                 reason: 'released',
-                askingRate: askingRate(w, world.settings),
+                askingRate: askingRate(w, world.settings, rosterPeakCraft(world)),
                 weeksUnsigned: 0,
               });
             }

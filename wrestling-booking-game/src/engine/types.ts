@@ -516,6 +516,11 @@ export interface Wrestler {
    */
   clearedToWorkHurt: boolean;
   careerHighPopularity: number;
+  /**
+   * Set when somebody comes out of retirement. They negotiate from a long way
+   * back afterwards — see career/leverage.ts.
+   */
+  comebackWeek?: number | null;
   /** Set when they die. A wrestler with this set is never booked again. */
   deceased?: Passing;
   /** Set when they are inducted. §19's hall of fame. */
@@ -1612,6 +1617,17 @@ export interface WorldSettings {
   journeymanYearsPro: number;
   veteranYearsPro: number;
   veteranAge: number;
+  /** Share of asking price lost for each year past prime. */
+  leverageLostPerYearPastPrime: number;
+  /** What coming out of retirement does to a negotiating position. */
+  comebackLeverage: number;
+  /** How steeply still being able to work buys leverage back. */
+  leverageCraftCurve: number;
+  /** Nobody ever works for nothing. */
+  leverageFloor: number;
+  leverageStrongAt: number;
+  leverageFairAt: number;
+  leverageWeakAt: number;
   legendYearsPro: number;
   legendPeakPopularity: number;
   prospectTalent: number;

@@ -161,6 +161,19 @@ export function defaultWorldSettings(): WorldSettings {
     journeymanYearsPro: 8,
     veteranYearsPro: 12,
     veteranAge: 38,
+    // Six points of asking price a year past thirty-eight, so a forty-five
+    // year old name with nothing left is on roughly half what he was.
+    leverageLostPerYearPastPrime: 0.06,
+    // A comeback is the weakest position in the business.
+    comebackLeverage: 0.55,
+    // Below one, so a veteran who is merely good keeps a fair slice rather
+    // than falling off a cliff — and one who is genuinely the best worker in
+    // the company keeps effectively all of it.
+    leverageCraftCurve: 0.8,
+    leverageFloor: 0.25,
+    leverageStrongAt: 0.95,
+    leverageFairAt: 0.75,
+    leverageWeakAt: 0.5,
     legendYearsPro: 10,
     legendPeakPopularity: 88,
     prospectTalent: 72,

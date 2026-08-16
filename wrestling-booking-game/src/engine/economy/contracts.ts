@@ -13,6 +13,7 @@
 // a premium for the ones who are still going to get better.
 
 import { clamp } from '../rng';
+import { afterLeverage, negotiatingLeverage } from '../career/leverage';
 import type { Contract, Wrestler, WorldSettings } from '../types';
 
 /** Two years. The default for the roster the player opens with. */
@@ -26,7 +27,16 @@ export const STARTING_CONTRACT_WEEKS = 104;
  * nobody has heard of, which is both true to the business and the source of
  * a lot of good decisions.
  */
-export function askingRate(wrestler: Wrestler, settings: WorldSettings): number {
+export function askingRate(
+  wrestler: Wrestler,
+  settings: WorldSettings,
+  /**
+   * The best in-ring ability on the roster. Optional so the older callers and
+   * tests keep working; without it nobody's position is taken into account and
+   * the number is what it always was.
+   */
+  rosterPeakCraft?: number,
+): number {
   const draw = wrestler.popularity / 100;
   const craft = (wrestler.skill + wrestler.agility + wrestler.stamina + wrestler.strength) / 400;
   // Young talent with a high ceiling knows what it is worth.
@@ -38,7 +48,12 @@ export function askingRate(wrestler: Wrestler, settings: WorldSettings): number 
   // Curved, so a genuine draw costs several times what a midcarder does
   // rather than a little more. A flat scale made every signing feel the same.
   const rate = settings.contractBaseWeeklyRate + value ** settings.contractRateCurve * settings.contractRateRange;
-  return Math.round(rate / 25) * 25;
+
+  // What they are worth, and then what they are in a position to ask for. A
+  // name past its prime, or one coming back from retirement, does not get to
+  // charge what it charged — unless it can still work, in which case it does.
+  if (rosterPeakCraft === undefined) return Math.round(rate / 25) * 25;
+  return afterLeverage(rate, negotiatingLeverage(wrestler, { rosterPeakCraft, settings }));
 }
 
 /**
