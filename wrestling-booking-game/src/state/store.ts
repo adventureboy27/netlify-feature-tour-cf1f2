@@ -187,7 +187,10 @@ import {
 import { totalsFor } from '../engine/career/ledger';
 import {
   afterLine,
+  familyLine,
   memorialShow,
+  scaleForGenerosity,
+  settleMemorial,
   returnsFor,
   rollCharityNight,
   worthAMemorial,
@@ -2840,11 +2843,14 @@ export const useGameStore = create<GameStore>()(
                     world.promotion.bankBalance += sanction.amount;
                     books.earn('other', sanction.amount);
                   }
+                  // Dated to the week the player reads, not the week that is
+                  // ending — this runs before the increment, and the wire
+                  // drops anything stamped older than the current week.
                   world.weeklyNews.push(
                     wire(
                       'misfortune',
                       `${suspensionLine(blamed.name, sanction) ?? sanction.note} ${person.name} is the one in hospital.`,
-                      world.week,
+                      world.week + 1,
                       'normal',
                     ),
                   );
@@ -3374,8 +3380,9 @@ export const useGameStore = create<GameStore>()(
                 books.earn('other', sanction.amount);
               }
               const announced = suspensionLine(culprit.name, sanction);
+              // Dated to the week the player reads. See above.
               world.weeklyNews.push(
-                wire('signing', announced ?? `${culprit.name}. ${sanction.note}`, world.week, announced ? 'normal' : 'minor'),
+                wire('signing', announced ?? `${culprit.name}. ${sanction.note}`, world.week + 1, announced ? 'normal' : 'minor'),
               );
             }
           }
@@ -3583,6 +3590,7 @@ export const useGameStore = create<GameStore>()(
         );
         const demandBonus = deliveryBonus(delivered, world.settings);
         for (const demand of delivered) {
+          // Dated to the week the player reads. See above.
           world.weeklyNews.push(
             wire(
               'misfortune',
@@ -3961,17 +3969,35 @@ export const useGameStore = create<GameStore>()(
 
         for (const extra of tonightsImpromptu) {
           const takings = returnsFor(extra, world.settings);
-          world.promotion.bankBalance -= takings.cost;
-          books.spend('venue', takings.cost);
+          // A memorial takes money at the door and none of it is the
+          // company's. The house pays for the house and the rest goes to the
+          // family, which is what the announcement has always promised and
+          // what the night did not previously do — it was a flat cost with no
+          // gate, so burying somebody properly was a fixed fine rather than a
+          // gesture. See world/impromptu.ts.
+          const settled = extra.kind === 'memorial' ? settleMemorial(gate, world.settings) : null;
+          if (settled) {
+            books.earn('gate', settled.gate);
+            books.spend('venue', takings.cost);
+            books.spend('charity', settled.toTheFamily);
+            world.promotion.bankBalance -= settled.costToUs;
+          } else {
+            world.promotion.bankBalance -= takings.cost;
+            books.spend('venue', takings.cost);
+          }
+          // A packed building and a cheque is not the same gesture as an
+          // empty one, so what the night buys is scaled by what reached them.
+          const earned = (base: number) =>
+            settled ? scaleForGenerosity(base, settled.generosity, world.settings) : base;
           world.promotion.reputation = clamp(
-            world.promotion.reputation + takings.reputation,
+            world.promotion.reputation + earned(takings.reputation),
             0,
             100,
           );
           for (const id of world.promotion.rosterIds) {
             const member = world.wrestlers[id];
             if (!member || member.deceased) continue;
-            member.morale = clamp(member.morale + takings.morale, 0, 100);
+            member.morale = clamp(member.morale + earned(takings.morale), 0, 100);
             // It is still a night's work. A company that buries somebody
             // properly still put its roster in a building to do it.
             member.fatigueDebt = clamp(
@@ -3986,12 +4012,23 @@ export const useGameStore = create<GameStore>()(
           const town = world.territories.find((t) => t.id === territory.id);
           if (town) {
             town.following[world.promotion.id] = clamp(
-              (town.following[world.promotion.id] ?? 0) + takings.following,
+              (town.following[world.promotion.id] ?? 0) + earned(takings.following),
               0,
               100,
             );
           }
-          world.weeklyNews.push(wire('houseShow', afterLine(extra), world.week, 'normal'));
+          // Filed against the week the player is about to read, like the rest
+          // of the weekly news — this runs before the increment, and the wire
+          // drops anything stamped earlier than the current week. Every one of
+          // these sentences was being thrown away as last week's news.
+          world.weeklyNews.push(wire('houseShow', afterLine(extra), world.week + 1, 'normal'));
+          // What the family got. Money leaving the company is not something
+          // the player should have to find by reading the statement.
+          if (settled && extra.forName) {
+            world.weeklyNews.push(
+              wire('houseShow', familyLine(extra.forName, settled), world.week + 1, 'normal'),
+            );
+          }
         }
         world.impromptuShows = world.impromptuShows.filter((sh) => sh.week !== world.week);
 
@@ -4011,7 +4048,7 @@ export const useGameStore = create<GameStore>()(
         );
         if (benefit) {
           world.impromptuShows.push(benefit);
-          world.weeklyNews.push(wire('houseShow', benefit.announcement, world.week, 'minor'));
+          world.weeklyNews.push(wire('houseShow', benefit.announcement, world.week + 1, 'minor'));
         }
 
         if (houseShows.length > 0 && !night.cancelled) {
@@ -4076,7 +4113,7 @@ export const useGameStore = create<GameStore>()(
               houseShows.length === 1
                 ? `${houseShows[0]!.name} ran on the road this week. $${houseGate.toLocaleString()} through the door, and a roster that has now worked twice.`
                 : `${houseShows.length} house shows on the road this week — ${houseShows.map((s) => s.name).join(', ')}. $${houseGate.toLocaleString()} through the door, and everybody has the miles to show for it.`,
-              world.week,
+              world.week + 1,
               'minor',
             ),
           );
@@ -4630,9 +4667,24 @@ export const useGameStore = create<GameStore>()(
 
           person.health = clamp(person.health - outcome.healthCost, 0, 100);
           // Remembered as one he ignored the doctor over, whichever way it
-          // went — `recklessHistory` is about the decision, not the luck.
-          const record = person.injuryHistory ?? [];
-          if (record.length > 0) record[record.length - 1]!.workedThroughIt = true;
+          // went — `recklessHistory` is about the decision, not the luck, and
+          // the memorial wall reads it back to say he went out there hurt.
+          //
+          // Matched on the week rather than taken as the last entry: the last
+          // entry is only this injury if nothing has been written since, and
+          // an injury that never reached `recordInjury` at all still has to be
+          // written down, or a man can die of something with no record of it.
+          const history = person.injuryHistory ?? [];
+          const mine = history.find((r) => r.week === person.injury!.sufferedWeek);
+          if (mine) mine.workedThroughIt = true;
+          else {
+            person.injuryHistory = recordInjury(
+              history,
+              person.injury,
+              world.settings.startingYear + Math.floor(world.week / 52),
+              true,
+            );
+          }
 
           if (outcome.outcome === 'died') {
             const passing: Passing = {

@@ -181,10 +181,73 @@ export function returnsFor(show: ImpromptuShow, settings: WorldSettings): Improm
   };
 }
 
+// ------------------------------------------------------- the gate, and whose
+
+/**
+ * A memorial draws, and none of it is yours.
+ *
+ * The announcement has always said the gate goes to the family. It did not:
+ * the night was a flat cost with no gate at all, which made burying somebody
+ * properly a fixed fine rather than a gesture. Now the house pays for the
+ * house and everything above that leaves the company.
+ *
+ * The shape that matters: a company that draws well gives more away and is
+ * out nothing, and a company that draws badly gives nothing away and eats the
+ * building. So the cost of doing right by somebody is highest for exactly the
+ * promotion that can least afford it, which is the true and the harder
+ * version.
+ */
+export interface MemorialSettlement {
+  /** What the night took at the door. */
+  gate: number;
+  /** What the promotion is out of pocket, after the gate covered what it could. */
+  costToUs: number;
+  /** What went out of the door to the family. */
+  toTheFamily: number;
+  /**
+   * 0-1 — how well the night did by them. Scales the goodwill, because a
+   * packed building and a cheque is not the same gesture as an empty one.
+   */
+  generosity: number;
+}
+
+export function settleMemorial(drawTonight: number, settings: WorldSettings): MemorialSettlement {
+  // Measured against what the company draws in this town this week, because
+  // that is the honest answer to "how many people would turn out for this" —
+  // an unplanned night late in the week, so less than a card they advertised.
+  const gate = Math.max(0, Math.round(drawTonight * settings.memorialGateShare));
+  const cost = settings.impromptuShowCost;
+  return {
+    gate,
+    costToUs: Math.max(0, cost - gate),
+    toTheFamily: Math.max(0, gate - cost),
+    generosity: Math.min(1, Math.max(0, gate - cost) / settings.memorialGenerousGate),
+  };
+}
+
+/**
+ * The goodwill, scaled by what actually reached them.
+ *
+ * A company that ran the show at all gets some credit — turning up is most of
+ * it — and the rest is earned by the size of the cheque.
+ */
+export function scaleForGenerosity(base: number, generosity: number, settings: WorldSettings): number {
+  const floor = settings.memorialGoodwillFloor;
+  return base * (floor + (1 - floor) * generosity);
+}
+
 /** How the paper reports it afterwards. */
 export function afterLine(show: ImpromptuShow): string {
   if (show.kind === 'memorial') {
-    return `The building was full for ${show.forName ?? 'him'} and nobody left early. Every penny went to the family.`;
+    return `The building was full for ${show.forName ?? 'him'} and nobody left early.`;
   }
   return `${show.name} drew a decent house for a night nobody was paid for.`;
+}
+
+/** And what the family got, which is the point of the night. */
+export function familyLine(forName: string, settled: MemorialSettlement): string {
+  if (settled.toTheFamily <= 0) {
+    return `The house for ${forName} did not cover the building. The company paid for the night and there was nothing left to send on.`;
+  }
+  return `Every penny above the cost of the night — ${Math.round(settled.toTheFamily).toLocaleString()} — went to ${forName}'s family.`;
 }

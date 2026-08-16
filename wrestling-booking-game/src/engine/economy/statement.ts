@@ -33,6 +33,8 @@ export type ExpenseKind =
   | 'overhead'
   | 'perks'
   | 'stock'
+  /** Money the company took at the door and gave away — see world/impromptu.ts. */
+  | 'charity'
   | 'other';
 
 export interface StatementLine<K extends string> {
@@ -77,6 +79,7 @@ const EXPENSE_LABELS: Record<ExpenseKind, string> = {
   overhead: 'Running the office',
   perks: 'Contract extras',
   stock: 'Stock and stands',
+  charity: 'To the family',
   other: 'Other',
 };
 

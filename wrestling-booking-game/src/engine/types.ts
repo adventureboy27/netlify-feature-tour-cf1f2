@@ -3217,6 +3217,12 @@ export interface WorldSettings {
   // --- Shows nobody planned, engine/world/impromptu.ts ---------------------
   /** Weeks somebody has to have given a company for it to bury him. */
   memorialTenureWeeks: number;
+  /** Share of a normal night's gate that an unplanned memorial draws. */
+  memorialGateShare: number;
+  /** What counts as having fully done right by the family, in money. */
+  memorialGenerousGate: number;
+  /** Goodwill a memorial buys for being run at all, before the cheque. */
+  memorialGoodwillFloor: number;
   memorialReputation: number;
   memorialMorale: number;
   memorialFollowing: number;

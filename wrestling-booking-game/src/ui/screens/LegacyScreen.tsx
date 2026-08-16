@@ -2,8 +2,14 @@
 //
 // A management game that runs for decades needs somewhere the decades show
 // up. The hall is the good version of that: names you signed, pushed, and put
-// over, with the case for each one written out. The memorial is the other
-// one, and it is deliberately quiet — a name, an age, a line, nothing else.
+// over, with the case for each one written out.
+//
+// The memorial is the other one. It was a name, an age and a cause — which is
+// a death certificate rather than a life, sitting directly under a hall that
+// gives everybody a portrait and a citation. A man who worked twenty years and
+// held three belts got one grey line reading "a heart attack, aged 61". So it
+// carries what he left now, off the reigns and the record that were already
+// there. Quieter than the hall, but not empty. See career/epitaph.ts.
 
 import { useGameStore } from '../../state/store';
 import { PaperDoll } from '../paperdoll/PaperDoll';
@@ -11,6 +17,7 @@ import { effectiveAppearance } from '../../engine/generate/gimmickLook';
 import { billedAs } from '../../engine/generate/nickname';
 import { DEATH_CAUSE_TEXT } from '../../engine/career/mortality';
 import { yearsPro } from '../../engine/career/status';
+import { howHeWent, whatHeLeaves, whoHeWas } from '../../engine/career/epitaph';
 import { awardById } from '../../engine/career/awards';
 
 export function LegacyScreen() {
@@ -73,19 +80,46 @@ export function LegacyScreen() {
             {[...world.memoriam].reverse().map((passing) => {
               const w = world.wrestlers[passing.wrestlerId];
               if (!w) return null;
+              const left = whatHeLeaves(w, {
+                currentWeek: passing.week,
+                currentYear: yearOf(passing.week),
+                titles: world.titles,
+              });
               return (
                 <li
                   key={passing.wrestlerId}
                   data-testid={`memoriam-${passing.wrestlerId}`}
-                  className="flex items-baseline justify-between gap-2 rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5 text-xs"
+                  className="flex gap-2 rounded border border-neutral-800 bg-neutral-900 p-2 text-xs"
                 >
-                  <span className="min-w-0">
-                    <span className="font-medium">{billedAs(w)}</span>
-                    <span className="block text-[10px] text-neutral-500">
-                      {DEATH_CAUSE_TEXT[passing.cause]}, aged {passing.age}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[10px] text-neutral-600">{yearOf(passing.week)}</span>
+                  <PaperDoll
+                    appearance={effectiveAppearance(w, world.stables)}
+                    gender={w.gender}
+                    alignment={w.alignment}
+                    size="bust"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="truncate font-medium">{billedAs(w)}</span>
+                      <span className="shrink-0 text-[10px] text-neutral-600">{yearOf(passing.week)}</span>
+                    </div>
+                    <div className="text-[10px] text-neutral-400">
+                      {whoHeWas(w, yearOf(passing.week))} · aged {passing.age}
+                    </div>
+                    {/* §0 does not stop applying once he is on the wall: this
+                        says how it happened, including when it was us. */}
+                    <div className="text-[10px] text-neutral-500">
+                      {howHeWent(w, DEATH_CAUSE_TEXT[passing.cause])}
+                    </div>
+                    {left.length > 0 && (
+                      <ul className="mt-1 flex flex-col gap-0.5">
+                        {left.map((line) => (
+                          <li key={line} className="text-[10px] leading-snug text-neutral-500">
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </li>
               );
             })}

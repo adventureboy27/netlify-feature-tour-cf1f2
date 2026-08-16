@@ -1563,6 +1563,13 @@ export function defaultWorldSettings(): WorldSettings {
     // a locker room that thinks better of the company and a town that
     // remembers you turned up.
     memorialTenureWeeks: 104,
+    // A memorial draws well for an unplanned night late in the week, but it
+    // is not a card anybody advertised. The gate covers the building and the
+    // rest goes to the family — see world/impromptu.ts.
+    memorialGateShare: 0.6,
+    memorialGenerousGate: 25_000,
+    // Turning up is most of it. The rest is the size of the cheque.
+    memorialGoodwillFloor: 0.35,
     memorialReputation: 4,
     memorialMorale: 6,
     memorialFollowing: 5,

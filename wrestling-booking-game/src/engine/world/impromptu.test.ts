@@ -7,7 +7,10 @@ import { defaultWorldSettings } from './settings';
 import { DAYS, type Day } from './calendar';
 import {
   afterLine,
+  familyLine,
   memorialName,
+  scaleForGenerosity,
+  settleMemorial,
   memorialShow,
   returnsFor,
   rollCharityNight,
@@ -129,7 +132,7 @@ describe('a benefit night', () => {
 });
 
 describe('what the night is worth', () => {
-  it('is never money, and always costs some', () => {
+  it('costs a building, and pays in everything except money', () => {
     const memorial = memorialShow(rngFromSeed('m'), 'w1', 'Earl', 40, [], 'S');
     const returns = returnsFor(memorial, settings);
     expect(returns.cost).toBeGreaterThan(0);
@@ -164,5 +167,53 @@ describe('picking a night', () => {
 
   it('still returns a night when every one is spoken for', () => {
     expect(DAYS).toContain(spareNight([...DAYS], rngFromSeed('full')));
+  });
+});
+
+describe('whose gate it is', () => {
+  // The announcement always promised the family the gate. The night used to
+  // have no gate at all — a flat cost — which made burying somebody properly
+  // a fixed fine rather than a gesture. These assert the promise.
+
+  it('gives the family everything above what the night cost', () => {
+    const drawing = settings.impromptuShowCost * 10;
+    const settled = settleMemorial(drawing, settings);
+    expect(settled.toTheFamily).toBe(settled.gate - settings.impromptuShowCost);
+    // And the company is out nothing. It kept nothing either.
+    expect(settled.costToUs).toBe(0);
+  });
+
+  it('leaves the company carrying the building when nobody comes', () => {
+    // The harder half, and the true one: doing right by somebody costs most
+    // for exactly the promotion that can least afford it.
+    const settled = settleMemorial(0, settings);
+    expect(settled.gate).toBe(0);
+    expect(settled.toTheFamily).toBe(0);
+    expect(settled.costToUs).toBe(settings.impromptuShowCost);
+  });
+
+  it('never leaves the promotion with a profit, however well it draws', () => {
+    for (const draw of [0, 5_000, 50_000, 500_000]) {
+      const settled = settleMemorial(draw, settings);
+      expect(settled.gate - settings.impromptuShowCost - settled.toTheFamily + settled.costToUs).toBe(0);
+      expect(settled.gate - settled.toTheFamily).toBeLessThanOrEqual(settings.impromptuShowCost);
+    }
+  });
+
+  it('buys more goodwill the bigger the cheque, and some for turning up at all', () => {
+    const empty = settleMemorial(0, settings);
+    const packed = settleMemorial(settings.impromptuShowCost * 20, settings);
+    expect(scaleForGenerosity(10, empty.generosity, settings)).toBeGreaterThan(0);
+    expect(scaleForGenerosity(10, packed.generosity, settings)).toBeGreaterThan(
+      scaleForGenerosity(10, empty.generosity, settings),
+    );
+    expect(scaleForGenerosity(10, packed.generosity, settings)).toBeLessThanOrEqual(10);
+  });
+
+  it('says what the family got, including when it was nothing', () => {
+    expect(familyLine('Earl Mercer', settleMemorial(settings.impromptuShowCost * 10, settings))).toContain(
+      "Earl Mercer's family",
+    );
+    expect(familyLine('Earl Mercer', settleMemorial(0, settings))).toContain('nothing left to send on');
   });
 });
