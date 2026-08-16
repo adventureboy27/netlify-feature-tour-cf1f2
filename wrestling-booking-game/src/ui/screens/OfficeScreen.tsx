@@ -19,7 +19,7 @@ import { useState } from 'react';
 import { CalendarStrip } from '../components/CalendarStrip';
 import { coopAppetite, moodFor, moodLine } from '../../engine/world/supershow';
 import { grudgeAgainst, grudgeLine } from '../../engine/world/grudges';
-import { craftOf, leverageReason } from '../../engine/career/leverage';
+import { leverageReason } from '../../engine/career/leverage';
 import { useGameStore } from '../../state/store';
 import { tvVerdict, wonTheNight, playerChartPosition } from '../../engine/world/tvRatings';
 import { temptationLabel } from '../../engine/world/tampering';
@@ -676,15 +676,7 @@ const YEAR_GROUP_LIMIT = 6;
 /** Deals running out, and rivals sniffing around the ones that are not. */
 function ContractsTab() {
   const world = useGameStore((s) => s.world);
-  // The yardstick a veteran's position is measured against: still being one of
-  // the best workers in the company is what keeps his price up.
-  const peakCraft = Math.max(
-    0,
-    ...(world?.promotion.rosterIds ?? [])
-      .map((id) => world?.wrestlers[id])
-      .filter((w): w is NonNullable<typeof w> => Boolean(w))
-      .map(craftOf),
-  );
+
   const answerRenewal = useGameStore((s) => s.answerRenewal);
   const answerReleaseRequest = useGameStore((s) => s.answerReleaseRequest);
   if (!world) return null;
@@ -803,9 +795,9 @@ function ContractsTab() {
                       {/* Why the number is what it is, when it is not simply
                           what he is worth. Stated, never advised on — a booker
                           reading this can still hand him a main-event deal. */}
-                      {leverageReason(person, { rosterPeakCraft: peakCraft, settings: world.settings }) && (
+                      {leverageReason(person, world.settings) && (
                         <div className="text-[11px] text-amber-500/80">
-                          {leverageReason(person, { rosterPeakCraft: peakCraft, settings: world.settings })}
+                          {leverageReason(person, world.settings)}
                         </div>
                       )}
                     </div>

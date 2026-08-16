@@ -1548,6 +1548,15 @@ export interface WorldSettings {
   // Contracts
   contractLengthMin: number;
   contractLengthMax: number;
+  /** Where an ordinary wrestler sits between the shortest and longest deal. */
+  contractWantBase: number;
+  contractYouthAge: number;
+  contractYouthWant: number;
+  contractWantLostPerVeteranYear: number;
+  contractComebackWant: number;
+  contractLeverageNeutral: number;
+  contractLeverageSwing: number;
+  contractWantSpread: number;
   contractLengthDefault: number;
   clauseAvailability: ClauseAvailability;
   buyoutsEnabled: boolean;
@@ -1625,6 +1634,8 @@ export interface WorldSettings {
   leverageCraftCurve: number;
   /** Nobody ever works for nothing. */
   leverageFloor: number;
+  /** The in-ring level the business calls elite. */
+  leverageEliteCraft: number;
   leverageStrongAt: number;
   leverageFairAt: number;
   leverageWeakAt: number;

@@ -12,6 +12,7 @@
 // short, and shuts them when it is full.
 
 import type { Rng } from '../rng';
+import { desiredContractWeeks } from '../economy/contracts';
 import { chance, clamp, randInt } from '../rng';
 import { rollStandoutTalent } from '../career/hype';
 import type { Appearance, Id, Wrestler, WorldSettings } from '../types';
@@ -245,6 +246,8 @@ export function graduateClass(
     // phenom is the exception and does not go through this door at all — the
     // caller pulls them out into an auction.
     askingRate: settings.contractBaseWeeklyRate,
+    // Out of the school and desperate for a run: they sign for anything long.
+    wantsWeeks: desiredContractWeeks(w, settings),
     weeksUnsigned: 0,
   }));
 

@@ -19,7 +19,8 @@ const man = (over: Partial<Wrestler>): Wrestler =>
     ...over,
   }) as Wrestler;
 
-const ctx = (rosterPeakCraft = 80) => ({ rosterPeakCraft, settings });
+// The benchmark is absolute now, so the helper simply hands over settings.
+const ctx = () => settings;
 
 describe('a wrestler in their prime', () => {
   it('is untouched by any of this', () => {
@@ -57,18 +58,19 @@ describe('a veteran who can still go', () => {
     // Asserted on both sides rather than as a ratio: the claim is that at the
     // same age one of them keeps nearly all of his price and the other loses
     // half, and a ratio hides which half of that stopped being true.
-    expect(negotiatingLeverage(stillLethal(48), ctx(90))).toBeGreaterThan(settings.leverageStrongAt - 0.05);
-    expect(negotiatingLeverage(doneWithIt(48), ctx(90))).toBeLessThan(settings.leverageWeakAt + 0.05);
+    expect(negotiatingLeverage(stillLethal(48), ctx())).toBeGreaterThan(settings.leverageStrongAt - 0.05);
+    expect(negotiatingLeverage(doneWithIt(48), ctx())).toBeLessThan(settings.leverageWeakAt + 0.05);
   });
 
-  it('is worth nearly full price if he is the best worker in the company', () => {
-    const best = stillLethal(50);
-    expect(negotiatingLeverage(best, ctx(craftOf(best)))).toBeGreaterThan(0.9);
+  it('is worth nearly full price if he is still an elite worker', () => {
+    const elite = man({ age: 50, skill: 90, agility: 84, stamina: 86, strength: 88 });
+    expect(craftOf(elite)).toBeGreaterThanOrEqual(settings.leverageEliteCraft);
+    expect(negotiatingLeverage(elite, ctx())).toBeGreaterThan(0.9);
   });
 
   it('measures ability rather than fame, because fame is what a veteran has too much of', () => {
     const famousAndFinished = man({ age: 46, popularity: 99, careerHighPopularity: 99, skill: 35, agility: 25, stamina: 30, strength: 40 });
-    expect(negotiatingLeverage(famousAndFinished, ctx(90))).toBeLessThan(settings.leverageFairAt);
+    expect(negotiatingLeverage(famousAndFinished, ctx())).toBeLessThan(settings.leverageFairAt);
   });
 });
 
@@ -86,14 +88,14 @@ describe('coming back', () => {
     // why a booker takes him back; it is not why he gets his old rate.
     const back = man({ age: 39, comebackWeek: 300, skill: 90, agility: 85, stamina: 88, strength: 86 });
     const never = man({ age: 39, skill: 90, agility: 85, stamina: 88, strength: 86 });
-    expect(negotiatingLeverage(back, ctx(88))).toBeLessThan(negotiatingLeverage(never, ctx(88)));
-    expect(negotiatingLeverage(back, ctx(88))).toBeLessThan(settings.leverageFairAt);
+    expect(negotiatingLeverage(back, ctx())).toBeLessThan(negotiatingLeverage(never, ctx()));
+    expect(negotiatingLeverage(back, ctx())).toBeLessThan(settings.leverageFairAt);
   });
 
   it('is still worth more than a comeback with nothing left', () => {
     const ableBack = man({ age: 44, comebackWeek: 300, skill: 90, agility: 85, stamina: 88, strength: 86 });
     const spentBack = man({ age: 44, comebackWeek: 300, skill: 35, agility: 25, stamina: 30, strength: 40 });
-    expect(negotiatingLeverage(ableBack, ctx(88))).toBeGreaterThan(negotiatingLeverage(spentBack, ctx(88)));
+    expect(negotiatingLeverage(ableBack, ctx())).toBeGreaterThan(negotiatingLeverage(spentBack, ctx()));
   });
 });
 

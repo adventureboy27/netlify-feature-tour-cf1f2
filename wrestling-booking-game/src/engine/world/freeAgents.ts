@@ -13,7 +13,7 @@ import type { Rng } from '../rng';
 import { chance, randInt } from '../rng';
 import type { Wrestler, WorldSettings, CareerStatus, Appearance } from '../types';
 import { generateWrestlers } from '../generate/wrestler';
-import { askingRate, isAffordable } from '../economy/contracts';
+import { askingRate, desiredContractWeeks, isAffordable } from '../economy/contracts';
 
 /**
  * Why this person is available. Shown to the player, because "released last
@@ -33,6 +33,12 @@ export interface FreeAgent {
   wrestlerId: string;
   reason: AvailabilityReason;
   askingRate: number;
+  /**
+   * The length of deal they want, in weeks. Rolled once when they hit the
+   * pool rather than every time the screen renders, so the number a booker
+   * reads on Tuesday is the number he signs on Thursday.
+   */
+  wantsWeeks: number;
   /** Weeks they have been sitting unsigned. Long enough and they get cheaper. */
   weeksUnsigned: number;
 }
@@ -89,6 +95,7 @@ export function generateFreeAgentPool(
       wrestlerId: w.id,
       reason,
       askingRate: askingRate(w, settings),
+      wantsWeeks: desiredContractWeeks(w, settings),
       weeksUnsigned: randInt(rng, 0, 40),
     };
   });

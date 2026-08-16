@@ -24,11 +24,17 @@
 import { clamp } from '../rng';
 import type { Wrestler, WorldSettings } from '../types';
 
-export interface LeverageContext {
-  /** The best in-ring ability on the roster, for comparison. */
-  rosterPeakCraft: number;
-  settings: WorldSettings;
-}
+// Measured against an absolute standard of what elite work looks like rather
+// than against a particular roster.
+//
+// The first version compared a veteran to the best worker on the company doing
+// the signing, which gave the same man a different price to every promotion —
+// odd on its face, and it meant threading a roster scan through the free-agent
+// pool, the bidding war, trades and three internal helpers. Half of them never
+// got it, so half the game still paid old names their old money.
+//
+// An absolute benchmark says the true thing more simply: either he can still
+// work at the level the business calls elite, or he cannot.
 
 /**
  * In-ring ability, on the same four attributes the asking price uses.
@@ -46,8 +52,7 @@ export function craftOf(wrestler: Wrestler): number {
  *
  * A wrestler in their prime is on 1 and nothing here touches them.
  */
-export function negotiatingLeverage(wrestler: Wrestler, ctx: LeverageContext): number {
-  const { settings } = ctx;
+export function negotiatingLeverage(wrestler: Wrestler, settings: WorldSettings): number {
 
   const yearsPastPrime = Math.max(0, wrestler.age - settings.veteranAge);
   const fromAge = 1 - yearsPastPrime * settings.leverageLostPerYearPastPrime;
@@ -55,7 +60,7 @@ export function negotiatingLeverage(wrestler: Wrestler, ctx: LeverageContext): n
   // The floor: if he can still work, he can still ask. A veteran who is
   // genuinely one of the best in the building loses very little to the years,
   // which is the whole reason this is not simply an age penalty.
-  const share = ctx.rosterPeakCraft > 0 ? craftOf(wrestler) / ctx.rosterPeakCraft : 0;
+  const share = craftOf(wrestler) / settings.leverageEliteCraft;
   const earned = clamp(share, 0, 1) ** settings.leverageCraftCurve;
 
   // A comeback is applied last, to the whole thing, rather than to the age
@@ -82,9 +87,8 @@ export function leverageLine(leverage: number, settings: WorldSettings): string 
 }
 
 /** Why the number is what it is, when it is not simply their prime. */
-export function leverageReason(wrestler: Wrestler, ctx: LeverageContext): string | null {
-  const { settings } = ctx;
-  if (negotiatingLeverage(wrestler, ctx) >= settings.leverageFairAt) return null;
+export function leverageReason(wrestler: Wrestler, settings: WorldSettings): string | null {
+  if (negotiatingLeverage(wrestler, settings) >= settings.leverageFairAt) return null;
   if (wrestler.comebackWeek != null) return 'He walked away once. Coming back costs him the rate he left on.';
   if (wrestler.age > settings.veteranAge) return 'The phone does not ring the way it did.';
   return null;

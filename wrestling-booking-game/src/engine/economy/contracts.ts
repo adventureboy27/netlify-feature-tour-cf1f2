@@ -13,6 +13,7 @@
 // a premium for the ones who are still going to get better.
 
 import { clamp } from '../rng';
+import { rngFromSeed } from '../rng';
 import { afterLeverage, negotiatingLeverage } from '../career/leverage';
 import type { Contract, Wrestler, WorldSettings } from '../types';
 
@@ -27,16 +28,7 @@ export const STARTING_CONTRACT_WEEKS = 104;
  * nobody has heard of, which is both true to the business and the source of
  * a lot of good decisions.
  */
-export function askingRate(
-  wrestler: Wrestler,
-  settings: WorldSettings,
-  /**
-   * The best in-ring ability on the roster. Optional so the older callers and
-   * tests keep working; without it nobody's position is taken into account and
-   * the number is what it always was.
-   */
-  rosterPeakCraft?: number,
-): number {
+export function askingRate(wrestler: Wrestler, settings: WorldSettings): number {
   const draw = wrestler.popularity / 100;
   const craft = (wrestler.skill + wrestler.agility + wrestler.stamina + wrestler.strength) / 400;
   // Young talent with a high ceiling knows what it is worth.
@@ -52,8 +44,73 @@ export function askingRate(
   // What they are worth, and then what they are in a position to ask for. A
   // name past its prime, or one coming back from retirement, does not get to
   // charge what it charged — unless it can still work, in which case it does.
-  if (rosterPeakCraft === undefined) return Math.round(rate / 25) * 25;
-  return afterLeverage(rate, negotiatingLeverage(wrestler, { rosterPeakCraft, settings }));
+  return afterLeverage(rate, negotiatingLeverage(wrestler, settings));
+}
+
+/**
+ * How long a deal somebody actually wants, in weeks.
+ *
+ * Every contract in the game used to be exactly one hundred and four weeks —
+ * the opening roster, every signing, every renewal. `contractLengthMin` and
+ * `contractLengthMax` existed in settings and were read by nothing. So the
+ * length of a deal was never a decision anybody made, and every locker room
+ * emptied on the same schedule.
+ *
+ * What people want now, and why:
+ *
+ *   - **The young want years.** Somebody twenty-three with no name yet wants
+ *     the security and believes he will be worth far more by the end of it.
+ *     Varied, but long.
+ *   - **Veterans want months.** A man of forty-four does not know how many
+ *     years he has left in him and will not promise you ones he might not
+ *     have. A comeback wants the shortest deal on the board — he is proving
+ *     something, to you and to himself.
+ *   - **Leverage inverts all of it.** A draw with the whole business chasing
+ *     him wants a *short* deal, because the sooner it runs out the sooner he
+ *     is paid properly again. Somebody with no leverage wants a long one, for
+ *     exactly the same reason in reverse. This is the interesting half: your
+ *     best signing will not tie himself down, and the man nobody else wants
+ *     will happily sign until the end of the decade.
+ *
+ * Then a spread on top, so two twenty-four year olds in the same pool do not
+ * ask for the same thing.
+ */
+export function desiredContractWeeks(wrestler: Wrestler, settings: WorldSettings): number {
+  const span = settings.contractLengthMax - settings.contractLengthMin;
+
+  // Where this person sits between wanting the shortest and the longest deal.
+  let want = settings.contractWantBase;
+
+  if (wrestler.age <= settings.contractYouthAge) want += settings.contractYouthWant;
+  else if (wrestler.age > settings.veteranAge) {
+    want -= (wrestler.age - settings.veteranAge) * settings.contractWantLostPerVeteranYear;
+  }
+  if (wrestler.comebackWeek != null) want -= settings.contractComebackWant;
+
+  // The inversion: the stronger the position, the shorter the deal wanted.
+  want -= (negotiatingLeverage(wrestler, settings) - settings.contractLeverageNeutral) * settings.contractLeverageSwing;
+
+  // And the spread, so a pool of similar people is not a pool of clones.
+  //
+  // Seeded from the person rather than drawn from the world's stream. Taking a
+  // draw here shifted every seeded roll that came after it — the first version
+  // did, and the academy's school leavers started graduating at 38 popularity
+  // instead of under 20 because the generation downstream had moved. It also
+  // means the term a booker reads on the free-agent page cannot change under
+  // him if anything recomputes it.
+  const spread = rngFromSeed(`term:${wrestler.id}`).next();
+  want += (spread * 2 - 1) * settings.contractWantSpread;
+
+  const weeks = settings.contractLengthMin + clamp(want, 0, 1) * span;
+  return Math.round(clamp(weeks, settings.contractLengthMin, settings.contractLengthMax));
+}
+
+/** How the length reads on the page. Weeks, because the game counts in weeks. */
+export function contractLengthLine(weeks: number): string {
+  if (weeks <= 8) return `${weeks} weeks — a look, nothing more`;
+  if (weeks <= 20) return `${weeks} weeks`;
+  if (weeks <= 60) return `${weeks} weeks — most of a year`;
+  return `${weeks} weeks — a long commitment`;
 }
 
 /**
@@ -95,12 +152,22 @@ export function splitRate(
  * A plain two-year deal. No creative control, no bonuses, nothing to read
  * twice.
  */
-export function createStandardContract(wrestler: Wrestler, settings: WorldSettings, signedYear: number): Contract {
+export function createStandardContract(
+  wrestler: Wrestler,
+  settings: WorldSettings,
+  signedYear: number,
+  /**
+   * How long the deal runs. Optional, because the opening roster is written
+   * before anybody has rolled anything and a fixed term is the right answer
+   * there; every deal signed *in* a save passes the length that was agreed.
+   */
+  weeks: number = STARTING_CONTRACT_WEEKS,
+): Contract {
   return {
     type: 'fullTime',
     ...splitRate(wrestler, settings),
-    weeksRemaining: STARTING_CONTRACT_WEEKS,
-    totalWeeks: STARTING_CONTRACT_WEEKS,
+    weeksRemaining: weeks,
+    totalWeeks: weeks,
     clauses: [],
     // Nothing guaranteed. The opening roster is all handshake deals, which
     // is what makes the first star you have to *re-sign* feel different —

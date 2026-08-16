@@ -93,8 +93,26 @@ export function defaultWorldSettings(): WorldSettings {
     regenerateTalent: true,
 
     // Contracts
-    contractLengthMin: 12,
+    // The shortest deal anybody signs and the longest. Two years is the cap:
+    // longer than that and a booker never has to make the decision again,
+    // which is the decision this whole system exists to create.
+    contractLengthMin: 5,
     contractLengthMax: 104,
+    // Where an ordinary wrestler in his prime sits between the two, before
+    // age, a comeback, leverage or the spread move him.
+    contractWantBase: 0.45,
+    contractYouthAge: 26,
+    contractYouthWant: 0.3,
+    // Measured at 0.05 and half of everybody past forty-four piled onto the
+    // five-week floor, which is a clamp rather than a spread. Softened so the
+    // old end of the roster has a range too.
+    contractWantLostPerVeteranYear: 0.032,
+    contractComebackWant: 0.25,
+    // Leverage of this is treated as neutral; above it shortens the deal
+    // wanted, below it lengthens it.
+    contractLeverageNeutral: 0.75,
+    contractLeverageSwing: 0.55,
+    contractWantSpread: 0.22,
     contractLengthDefault: 52,
     clauseAvailability: 'all',
     buyoutsEnabled: true,
@@ -171,6 +189,9 @@ export function defaultWorldSettings(): WorldSettings {
     // the company keeps effectively all of it.
     leverageCraftCurve: 0.8,
     leverageFloor: 0.25,
+    // What the business calls an elite worker. A veteran at or above this can
+    // still ask for his money whatever his birth certificate says.
+    leverageEliteCraft: 85,
     leverageStrongAt: 0.95,
     leverageFairAt: 0.75,
     leverageWeakAt: 0.5,

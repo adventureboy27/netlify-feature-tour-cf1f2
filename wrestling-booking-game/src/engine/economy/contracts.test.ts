@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { askingRate, createStandardContract, STARTING_CONTRACT_WEEKS, weeklyWageBill, expireContracts, contractUrgency, renewalRate, willResign, splitRate, retainerShare, appearanceBill, fullWeeklyCost } from './contracts';
+import { askingRate, createStandardContract, STARTING_CONTRACT_WEEKS, weeklyWageBill, expireContracts, contractUrgency, renewalRate, willResign, splitRate, retainerShare, appearanceBill, fullWeeklyCost , desiredContractWeeks, contractLengthLine } from './contracts';
 import { defaultWorldSettings } from '../world/settings';
 import { generateWrestler, generateWrestlers } from '../generate/wrestler';
 import { rngFromSeed } from '../rng';
@@ -160,5 +160,81 @@ describe('the two halves of a deal', () => {
     const w = makeOne(65);
     const contracted = { ...w, contract: createStandardContract(w, settings, 2026) };
     expect(fullWeeklyCost(contracted)).toBeCloseTo(askingRate(w, settings), -1);
+  });
+});
+
+describe('how long a deal somebody wants', () => {
+  // Every contract in the game used to be exactly 104 weeks — the opening
+  // roster, every signing, every renewal — and contractLengthMin/Max were read
+  // by nothing. These lock the variance rather than the particular numbers.
+  const person = (over: Partial<Wrestler>): Wrestler =>
+    ({
+      id: 'w', name: 'Somebody', age: 30,
+      skill: 55, agility: 55, stamina: 55, strength: 55,
+      popularity: 50, careerHighPopularity: 50,
+      ...over,
+    }) as Wrestler;
+
+  // Seeded from the person, so variety comes from a pool of people rather
+  // than from repeated draws about one of them.
+  const spread = (w: Wrestler, n = 300) =>
+    Array.from({ length: n }, (_, i) => desiredContractWeeks({ ...w, id: `w-${i}` }, settings));
+
+  it('stays inside the cap, in weeks, for everybody', () => {
+    for (const age of [19, 24, 30, 38, 44, 52]) {
+      for (const weeks of spread(person({ age }), 60)) {
+        expect(weeks).toBeGreaterThanOrEqual(settings.contractLengthMin);
+        expect(weeks).toBeLessThanOrEqual(settings.contractLengthMax);
+        expect(Number.isInteger(weeks)).toBe(true);
+      }
+    }
+  });
+
+  it('does not hand the same answer to everybody', () => {
+    const all = spread(person({ age: 24 }));
+    expect(new Set(all).size).toBeGreaterThan(20);
+  });
+
+  it('reaches both ends of the board across a whole pool', () => {
+    // Somebody, somewhere, wants five weeks; somebody else wants a year and
+    // more. If the spread never touches the ends it is not really a spread.
+    const pool = [19, 22, 26, 30, 34, 38, 42, 46, 50].flatMap((age) => spread(person({ age }), 120));
+    expect(Math.min(...pool)).toBeLessThan(15);
+    expect(Math.max(...pool)).toBeGreaterThan(70);
+  });
+
+  it('has the young wanting longer deals than the old, on average', () => {
+    const mean = (xs: number[]) => xs.reduce((a, x) => a + x, 0) / xs.length;
+    const young = mean(spread(person({ age: 23 })));
+    const veteran = mean(spread(person({ age: 46 })));
+    expect(young).toBeGreaterThan(veteran);
+  });
+
+  it('has a comeback asking for the shortest terms of all', () => {
+    const mean = (xs: number[]) => xs.reduce((a, x) => a + x, 0) / xs.length;
+    const back = mean(spread(person({ age: 40, comebackWeek: 200 })));
+    const straight = mean(spread(person({ age: 40 })));
+    expect(back).toBeLessThan(straight);
+  });
+
+  it('has the man everybody wants refusing to tie himself down', () => {
+    // The inversion, and the interesting half: leverage buys a short deal,
+    // because the sooner it runs out the sooner he is paid properly again.
+    //
+    // Held at the same age on purpose. Measured first against a younger elite
+    // and an older journeyman, which proved nothing — age and leverage were
+    // pulling in the same direction and the age term won.
+    const mean = (xs: number[]) => xs.reduce((a, x) => a + x, 0) / xs.length;
+    const elite = mean(spread(person({ age: 44, skill: 95, agility: 92, stamina: 90, strength: 93 })));
+    const journeyman = mean(spread(person({ age: 44, skill: 35, agility: 30, stamina: 32, strength: 38 })));
+    expect(elite).toBeLessThan(journeyman);
+  });
+
+  it('counts in weeks, always, whatever it says afterwards', () => {
+    // The figure is the point: the game counts weeks everywhere else and a
+    // deal quoted in years would be the only thing on any screen that did not.
+    for (const weeks of [5, 12, 40, 104]) {
+      expect(contractLengthLine(weeks)).toMatch(new RegExp(`^${weeks} weeks`));
+    }
   });
 });

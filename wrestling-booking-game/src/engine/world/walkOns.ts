@@ -182,6 +182,8 @@ export function walkOnIntake(
     reason: 'walkOn' as const,
     // They are asking for a look, not for money.
     askingRate: settings.contractBaseWeeklyRate,
+    // A walk-on will sign anything to get in the door.
+    wantsWeeks: settings.contractLengthDefault,
     weeksUnsigned: 0,
   }));
 

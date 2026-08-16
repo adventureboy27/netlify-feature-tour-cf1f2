@@ -10,6 +10,8 @@
 import { useMemo } from 'react';
 import { useGameStore } from '../../state/store';
 import { rankPool, currentAskingRate, canSign, AVAILABILITY_LABELS } from '../../engine/world/freeAgents';
+import { contractLengthLine } from '../../engine/economy/contracts';
+import { leverageReason } from '../../engine/career/leverage';
 import { noCompeteLabel } from '../../engine/economy/termination';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { Money } from '../components/display';
@@ -65,6 +67,14 @@ export function FreeAgentsScreen() {
                   {agent.weeksUnsigned > 20 && <span className="text-neutral-600"> · {agent.weeksUnsigned}w unsigned</span>}
                 </div>
                 {sittingOut && <div className="text-[10px] text-amber-400">{sittingOut}</div>}
+                {/* What he wants, and why the number is what it is. Both stated
+                    before the signing rather than discovered after it. */}
+                <div className="text-[10px] text-neutral-500">
+                  Wants {contractLengthLine(agent.wantsWeeks)}
+                </div>
+                {leverageReason(wrestler, world.settings) && (
+                  <div className="text-[10px] text-neutral-600">{leverageReason(wrestler, world.settings)}</div>
+                )}
 
                 <button
                   type="button"

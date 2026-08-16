@@ -333,7 +333,6 @@ import { stipulationById, stipulationRequirementsMet } from '../data/stipulation
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
 import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
 import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/aftermath';
-import { craftOf } from '../engine/career/leverage';
 import { runRivalShow, bookRivalCard, canWork, type RivalShow } from '../engine/world/rivalBooking';
 import {
   openingOffer,
@@ -457,7 +456,7 @@ import {
   createStandardContract,
   askingRate,
   renewalRate,
-  STARTING_CONTRACT_WEEKS,
+  desiredContractWeeks,
 } from '../engine/economy/contracts';
 import {
   driftEgo,
@@ -1067,7 +1066,8 @@ function letThemGo(world: World, wrestler: Wrestler, terms: ReturnType<typeof ex
   world.freeAgents.push({
     wrestlerId: wrestler.id,
     reason: 'released',
-    askingRate: askingRate(wrestler, world.settings, rosterPeakCraft(world)),
+    askingRate: askingRate(wrestler, world.settings),
+            wantsWeeks: desiredContractWeeks(wrestler, world.settings),
     weeksUnsigned: 0,
   });
   world.weeklyNews.push(wire('departure', terms.text, world.week));
@@ -1210,7 +1210,8 @@ function resolveAuction(world: World, playerLevel: PlayerBidLevel, books?: State
       world.freeAgents.push({
         wrestlerId: w.id,
         reason: 'released',
-        askingRate: askingRate(w, world.settings, rosterPeakCraft(world)),
+        askingRate: askingRate(w, world.settings),
+            wantsWeeks: desiredContractWeeks(w, world.settings),
         weeksUnsigned: 0,
       });
     }
@@ -1259,22 +1260,6 @@ function payrollOf(world: World, promotionId: Id): number {
  * Open an auction, if this person actually warrants one and enough of the
  * business can afford to turn up. Returns whether one opened.
  */
-/**
- * The best in-ring ability on the player's roster.
- *
- * The yardstick a veteran's position is measured against: somebody who can
- * still go relative to the company he is negotiating with keeps his price,
- * whatever his age says. See career/leverage.ts.
- */
-function rosterPeakCraft(world: World): number {
-  let peak = 0;
-  for (const id of world.promotion.rosterIds) {
-    const person = world.wrestlers[id];
-    if (person) peak = Math.max(peak, craftOf(person));
-  }
-  return peak;
-}
-
 function openBiddingWar(world: World, wrestler: Wrestler, reason: BiddingReason): boolean {
   if (!world.settings.biddingEnabled) return false;
   // One at a time. Two open auctions would mean two blocking dialogs and a
@@ -1809,7 +1794,8 @@ export const useGameStore = create<GameStore>()(
           world.freeAgents.push({
             wrestlerId: wrestler.id,
             reason: 'released',
-            askingRate: askingRate(wrestler, world.settings, rosterPeakCraft(world)),
+            askingRate: askingRate(wrestler, world.settings),
+            wantsWeeks: desiredContractWeeks(wrestler, world.settings),
             weeksUnsigned: 0,
           });
           added += 1;
@@ -4866,8 +4852,11 @@ export const useGameStore = create<GameStore>()(
               // ordinary news the player would have seen either way. What
               // they know and nobody else does is what it cost them.
               if (person.contract) {
-                person.contract.weeksRemaining = STARTING_CONTRACT_WEEKS;
-                person.contract.totalWeeks = STARTING_CONTRACT_WEEKS;
+                // The length he asked for, not a flat two years for everybody.
+                // See economy/contracts.ts desiredContractWeeks.
+                const agreedWeeks = desiredContractWeeks(person, world.settings);
+                person.contract.weeksRemaining = agreedWeeks;
+                person.contract.totalWeeks = agreedWeeks;
               }
               world.weeklyNews.push(
                 wire(
@@ -4945,8 +4934,9 @@ export const useGameStore = create<GameStore>()(
             // the third door out of a contract, alongside renewals (your own
             // people) and poaching (somebody else's, mid-deal).
             if (openBiddingWar(world, person, 'freeAgentStar')) continue;
-            person.contract.weeksRemaining = STARTING_CONTRACT_WEEKS;
-            person.contract.totalWeeks = STARTING_CONTRACT_WEEKS;
+            const agreedWeeks = desiredContractWeeks(person, world.settings);
+            person.contract.weeksRemaining = agreedWeeks;
+            person.contract.totalWeeks = agreedWeeks;
           }
         }
 
@@ -5089,7 +5079,8 @@ export const useGameStore = create<GameStore>()(
               world.freeAgents.push({
                 wrestlerId: person.id,
                 reason: 'returning',
-                askingRate: askingRate(person, world.settings, rosterPeakCraft(world)),
+                askingRate: askingRate(person, world.settings),
+            wantsWeeks: desiredContractWeeks(person, world.settings),
                 weeksUnsigned: 0,
               });
             }
@@ -5692,7 +5683,7 @@ export const useGameStore = create<GameStore>()(
           if (!member || world.pendingRenewals.some((r) => r.wrestlerId === id)) continue;
           world.pendingRenewals.push({
             wrestlerId: id,
-            demand: contractDemand(member, renewalRate(member, world.settings), member.careerStatus, world.settings, rosterPeakCraft(world)),
+            demand: contractDemand(member, renewalRate(member, world.settings), member.careerStatus, world.settings),
             openedWeek: world.week,
           });
         }
@@ -6133,7 +6124,8 @@ export const useGameStore = create<GameStore>()(
               world.freeAgents.push({
                 wrestlerId: id,
                 reason: 'released',
-                askingRate: askingRate(w, world.settings, rosterPeakCraft(world)),
+                askingRate: askingRate(w, world.settings),
+            wantsWeeks: desiredContractWeeks(w, world.settings),
                 weeksUnsigned: 0,
               });
             }
@@ -7002,7 +6994,9 @@ export const useGameStore = create<GameStore>()(
 
         wrestler.promotionId = world.promotion.id;
         wrestler.contract = {
-          ...createStandardContract(wrestler, world.settings, world.settings.startingYear),
+          // The term he advertised in the pool, so the length a booker read on
+          // Tuesday is the length he signs on Thursday.
+          ...createStandardContract(wrestler, world.settings, world.settings.startingYear, agent.wantsWeeks),
           weeklyRate: currentAskingRate(agent, world.settings),
           // Somebody with a big opinion of themselves demands guarantees to
           // sign, not only to re-sign. Attaching this at renewal alone meant
@@ -7067,6 +7061,7 @@ export const useGameStore = create<GameStore>()(
             wrestlerId,
             reason: 'contractExpired',
             askingRate: offer.demand.weeklyRate,
+            wantsWeeks: desiredContractWeeks(member, world.settings),
             weeksUnsigned: 0,
           });
         } else {

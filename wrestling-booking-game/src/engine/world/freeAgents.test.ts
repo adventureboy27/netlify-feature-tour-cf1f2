@@ -61,6 +61,7 @@ describe('sitting on the shelf', () => {
     wrestlerId: 'x',
     reason: 'released',
     askingRate: 1000,
+    wantsWeeks: 52,
     weeksUnsigned,
   });
 

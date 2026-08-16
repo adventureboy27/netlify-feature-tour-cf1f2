@@ -137,6 +137,7 @@ function rollNewManager(
       wrestlerId: manager.id,
       reason: 'released',
       askingRate: settings.contractBaseWeeklyRate,
+      wantsWeeks: settings.contractLengthDefault,
       weeksUnsigned: 0,
     },
   };
@@ -171,6 +172,7 @@ export function seedManagerTalent(
       askingRate: Math.round(
         settings.contractBaseWeeklyRate + archetype.feePerShow * settings.managerTalentFeeToWage,
       ),
+      wantsWeeks: settings.contractLengthDefault,
       weeksUnsigned: 0,
     });
   });
