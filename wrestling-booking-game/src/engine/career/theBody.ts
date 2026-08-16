@@ -27,7 +27,7 @@
 // lets the booker decide who to listen to.
 
 import type { Rng } from '../rng';
-import { chance, clamp } from '../rng';
+import { chance, clamp, rngFromSeed } from '../rng';
 import type { Injury, InjurySeverity, Wrestler, WorldSettings } from '../types';
 
 /**
@@ -277,6 +277,38 @@ export function resolveInjuryCall(
     line: ending
       ? `${wrestler.name} should have listened. That is the end of it — he will not wrestle again.`
       : `${wrestler.name} should have listened. Eight weeks has become ${weeks}.`,
+  };
+}
+
+/**
+ * Both views on a hurt man, derived rather than stored.
+ *
+ * Deliberately *not* a decision the game stops to ask about. There is no
+ * prompt and no button: these are two pieces of information that sit on the
+ * man's profile for as long as he is hurt, and the booker takes them into
+ * account when he makes the decisions he was already making — do I put him on
+ * this card, do I sign him at all. §0 all over: the game states the position
+ * and never asks the player to ratify it.
+ *
+ * Seeded from the injury rather than the week, so the stance is the same on
+ * Tuesday as it was on Monday. A man does not change his mind about his own
+ * knee because the calendar moved.
+ */
+export function stanceOn(
+  wrestler: Wrestler,
+  settings: WorldSettings,
+): { doctor: DoctorsOpinion; man: WrestlersOpinion } | null {
+  const injury = wrestler.injury;
+  if (!injury) return null;
+
+  return {
+    doctor: doctorsOpinion(injury, wrestler, settings),
+    man: wrestlersOpinion(
+      wrestler,
+      wrestler.injuryHistory ?? [],
+      rngFromSeed(`stance:${wrestler.id}:${injury.sufferedWeek}`),
+      settings,
+    ),
   };
 }
 

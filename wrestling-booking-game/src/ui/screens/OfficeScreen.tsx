@@ -62,67 +62,6 @@ import {
 type Tab = 'desk' | 'contracts' | 'officials' | 'trades' | 'television' | 'schedule' | 'joint';
 
 
-/**
- * Two opinions on a hurt man, and the booker settles it.
- *
- * States both and recommends neither. Backing the wrestler is frequently the
- * right call — he is back in a quarter of the time — and occasionally it ends
- * a career. The game does not say which this one is (§0).
- */
-function InjuryCall() {
-  const world = useGameStore((s) => s.world);
-  const answer = useGameStore((s) => s.answerInjuryCall);
-  const dismiss = useGameStore((s) => s.dismissInjuryCall);
-  if (!world) return null;
-
-  if (world.lastInjuryCall) {
-    return (
-      <section className="mb-3 rounded-lg border border-neutral-700 bg-neutral-900 p-3">
-        <p className="text-xs text-neutral-200">{world.lastInjuryCall.line}</p>
-        <button
-          type="button"
-          onClick={dismiss}
-          className="mt-2 w-full rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-200"
-        >
-          Right.
-        </button>
-      </section>
-    );
-  }
-
-  const call = world.pendingInjuryCall;
-  if (!call) return null;
-
-  return (
-    <section className="mb-3 rounded-lg border border-red-900 bg-red-950/25 p-3">
-      <div className="text-[10px] uppercase tracking-wide text-red-400/80">In the back</div>
-      <p className="text-sm font-semibold text-red-200">
-        {call.name} — {call.what.toLowerCase()}
-      </p>
-      <p className="mt-1.5 text-[11px] leading-snug text-neutral-300">{call.doctor.verdict}</p>
-      <p className="mt-1 text-[11px] leading-snug text-amber-300/90">{call.man.says}</p>
-      <div className="mt-2 grid grid-cols-2 gap-1.5">
-        <button
-          type="button"
-          data-testid="injury-follow-doctor"
-          onClick={() => answer(true)}
-          className="rounded bg-neutral-800 px-2 py-2 text-xs font-semibold text-neutral-100"
-        >
-          Listen to the doctor
-        </button>
-        <button
-          type="button"
-          data-testid="injury-back-the-man"
-          onClick={() => answer(false)}
-          className="rounded bg-amber-700 px-2 py-2 text-xs font-semibold text-amber-50"
-        >
-          Back him
-        </button>
-      </div>
-    </section>
-  );
-}
-
 export function OfficeScreen() {
   const world = useGameStore((s) => s.world);
   const [tab, setTab] = useState<Tab>('desk');
@@ -163,10 +102,6 @@ export function OfficeScreen() {
     <div className="p-3 pb-24 text-neutral-100">
       {/* The bank is in the app header on every screen; no need to repeat it. */}
       <h1 className="mb-2 text-base font-semibold">The office — {weekLine(world.week, world.settings)}</h1>
-
-      {/* Somebody is hurt and there are two views on it. Above everything
-          else, because it holds until it is answered. */}
-      <InjuryCall />
 
       <StatusStrip />
 

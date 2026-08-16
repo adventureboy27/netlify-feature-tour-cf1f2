@@ -15,6 +15,7 @@ import {
   wrestlersOpinion,
   resolveInjuryCall,
   theTwoOpinions,
+  stanceOn,
   dealAppetite,
   appetiteLine,
   securityWanted,
@@ -252,5 +253,39 @@ describe('security', () => {
   it('is bounded, so nobody ever asks for a lifetime deal on scars alone', () => {
     const wrecked = Array.from({ length: 20 }, () => record({ severity: 'careerThreatening' }));
     expect(securityWanted(man({ selfPreservation: 100 }), wrecked, settings)).toBeLessThanOrEqual(settings.securityMax);
+  });
+});
+
+describe('the stance on a hurt man', () => {
+  // The correction that produced it: this was first built as a prompt the
+  // booker had to answer before the week would move. It is not a decision the
+  // game asks about — it is two pieces of information sitting on a profile,
+  // which the booker weighs when deciding whether to put him on the card or
+  // whether to sign him at all.
+  it('says nothing at all about somebody who is fit', () => {
+    expect(stanceOn(man(), settings)).toBeNull();
+  });
+
+  it('gives both views on somebody who is hurt', () => {
+    const hurtMan = man({ injury: hurt() });
+    const view = stanceOn(hurtMan, settings)!;
+    expect(view.doctor.weeks).toBeGreaterThan(0);
+    expect(view.man.says).toContain(hurtMan.name);
+  });
+
+  it('does not change its mind because the calendar moved', () => {
+    // Seeded from the injury rather than the week: a man does not revise his
+    // opinion of his own knee on a Tuesday.
+    const hurtMan = man({ injury: hurt() });
+    const first = stanceOn(hurtMan, settings)!;
+    const second = stanceOn(hurtMan, settings)!;
+    expect(second.man.intent).toBe(first.man.intent);
+    expect(second.doctor.weeks).toBe(first.doctor.weeks);
+  });
+
+  it('gives two different men two different stances on the same injury', () => {
+    const careful = stanceOn(man({ id: 'a', injury: hurt(), selfPreservation: 98, ego: 5 }), settings)!;
+    const reckless = stanceOn(man({ id: 'b', injury: hurt(), selfPreservation: 2, ego: 95 }), settings)!;
+    expect(careful.man.intent).not.toBe(reckless.man.intent);
   });
 });

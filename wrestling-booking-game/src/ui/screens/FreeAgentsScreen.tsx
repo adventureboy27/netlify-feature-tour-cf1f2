@@ -12,6 +12,7 @@ import { useGameStore } from '../../state/store';
 import { rankPool, currentAskingRate, canSign, AVAILABILITY_LABELS } from '../../engine/world/freeAgents';
 import { contractLengthLine } from '../../engine/economy/contracts';
 import { leverageReason } from '../../engine/career/leverage';
+import { stanceOn, bodyLine } from '../../engine/career/theBody';
 import { noCompeteLabel } from '../../engine/economy/termination';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { Money } from '../components/display';
@@ -74,6 +75,25 @@ export function FreeAgentsScreen() {
                 </div>
                 {leverageReason(wrestler, world.settings) && (
                   <div className="text-[10px] text-neutral-600">{leverageReason(wrestler, world.settings)}</div>
+                )}
+                {/* What has already happened to this body, and — if he is hurt
+                    right now — what the doctor and the man each say about it.
+                    The other decision these two views are for: sign him, or
+                    leave him for somebody else. */}
+                {bodyLine(wrestler.injuryHistory ?? [], world.settings) && (
+                  <div className="text-[10px] leading-snug text-neutral-500">
+                    {bodyLine(wrestler.injuryHistory ?? [], world.settings)}
+                  </div>
+                )}
+                {stanceOn(wrestler, world.settings) && (
+                  <>
+                    <div className="text-[10px] leading-snug text-neutral-400">
+                      {stanceOn(wrestler, world.settings)!.doctor.verdict}
+                    </div>
+                    <div className="text-[10px] leading-snug text-amber-400/90">
+                      {stanceOn(wrestler, world.settings)!.man.says}
+                    </div>
+                  </>
                 )}
 
                 <button

@@ -17,6 +17,7 @@ import { activeRivalriesFor } from '../../engine/sim/rivalry';
 import { effectiveAppearance } from '../../engine/generate/gimmickLook';
 import { CAREER_STATUS_LABELS, CAREER_STATUS_BLURBS, yearsPro } from '../../engine/career/status';
 import { egoLabel } from '../../engine/career/ego';
+import { stanceOn, bodyLine } from '../../engine/career/theBody';
 import { retirementPressure } from '../../engine/career/retirement';
 import { canFormTeam, teamOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
 import { ATTIRE_PALETTE } from '../paperdoll/palette';
@@ -308,6 +309,23 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                 {w.injury && (
                   <div className="mt-0.5 text-[10px] font-medium text-rose-400">
                     ✚ Out {w.injury.weeksRemaining} {w.injury.weeksRemaining === 1 ? 'week' : 'weeks'} · {w.injury.severity}
+                  </div>
+                )}
+
+                {/* The two views on it. Information the booker weighs when he
+                    decides whether to put this man on the card, not a question
+                    the game asks him. See engine/career/theBody.ts. */}
+                {stanceOn(w, world.settings) && (
+                  <>
+                    <div className="mt-0.5 text-[10px] leading-snug text-neutral-400">{stanceOn(w, world.settings)!.doctor.verdict}</div>
+                    <div className="text-[10px] leading-snug text-amber-400/90">{stanceOn(w, world.settings)!.man.says}</div>
+                  </>
+                )}
+
+                {/* And what has already happened to this body. */}
+                {bodyLine(w.injuryHistory ?? [], world.settings) && (
+                  <div className="mt-0.5 text-[10px] leading-snug text-neutral-600">
+                    {bodyLine(w.injuryHistory ?? [], world.settings)}
                   </div>
                 )}
 
