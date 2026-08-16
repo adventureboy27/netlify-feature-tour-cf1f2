@@ -305,6 +305,14 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   </div>
                 )}
 
+                {/* He has told you he is going. Loudest thing on the card,
+                    because a fortnight of warning is the whole value of it. */}
+                {w.noticeGivenWeek != null && (
+                  <div className="mt-0.5 text-[10px] font-semibold text-rose-300">
+                    Not re-signing. Working out the deal and then gone.
+                  </div>
+                )}
+
                 {/* injury */}
                 {w.injury && (
                   <div className="mt-0.5 text-[10px] font-medium text-rose-400">

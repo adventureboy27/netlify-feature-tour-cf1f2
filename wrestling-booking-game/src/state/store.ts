@@ -423,7 +423,7 @@ import {
 } from '../engine/economy/showBudget';
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import { decayGrudges, grudgeAgainst, grudgeLine, rememberNight } from '../engine/world/grudges';
-import { recordInjury } from '../engine/career/theBody';
+import { handsInNotice, noticeLine, recordInjury } from '../engine/career/theBody';
 import {
   concessionsPerHead,
   houseTakeOfGate,
@@ -2643,6 +2643,7 @@ export const useGameStore = create<GameStore>()(
             // sent out anyway, and the whole point of that decision is that
             // it can go badly — so they roll, at much worse odds.
             if (person.injury && !person.clearedToWorkHurt) continue;
+
             const casualty = rollCasualty(rng, {
               personId: person.id,
               name: person.name,
@@ -5711,10 +5712,44 @@ export const useGameStore = create<GameStore>()(
 
         }
 
+        // Who has had enough and is saying so before the paper runs out.
+        // Checked before the expiries below, so the fortnight of warning
+        // actually happens rather than arriving with the departure.
+        for (const id of world.promotion.rosterIds) {
+          const member = world.wrestlers[id];
+          if (!member?.contract || member.noticeGivenWeek != null) continue;
+          if (!handsInNotice(member, member.contract.weeksRemaining, world.settings)) continue;
+
+          member.noticeGivenWeek = world.week;
+          world.weeklyNews.push(
+            wire('signing', noticeLine(member.name, member.contract.weeksRemaining), world.week, 'lead'),
+          );
+        }
+
         // A deal that ran down comes back as a demand, not as a departure.
         for (const id of expired) {
           const member = world.wrestlers[id];
           if (!member || world.pendingRenewals.some((r) => r.wrestlerId === id)) continue;
+
+          // He told you a fortnight ago. There is no negotiation to have.
+          if (member.noticeGivenWeek != null) {
+            world.promotion.rosterIds = world.promotion.rosterIds.filter((x) => x !== id);
+            member.promotionId = null;
+            member.contract = null;
+            member.noticeGivenWeek = null;
+            world.freeAgents.push({
+              wrestlerId: id,
+              reason: 'contractExpired',
+              askingRate: askingRate(member, world.settings),
+              wantsWeeks: desiredContractWeeks(member, world.settings),
+              weeksUnsigned: 0,
+            });
+            world.weeklyNews.push(
+              wire('signing', `${member.name} worked his last date and left, exactly as he said he would.`, world.week),
+            );
+            continue;
+          }
+
           world.pendingRenewals.push({
             wrestlerId: id,
             demand: contractDemand(member, renewalRate(member, world.settings), member.careerStatus, world.settings),

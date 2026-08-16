@@ -531,6 +531,11 @@ export interface Wrestler {
    */
   comebackWeek?: number | null;
   /**
+   * Set the week somebody tells you he is not re-signing. He works out the
+   * deal and then he is gone — see career/theBody.ts handsInNotice.
+   */
+  noticeGivenWeek?: number | null;
+  /**
    * How this person regards his own future, 0-100. High takes the insurance
    * and the weeks off; low wants cash now and thinks he is indestructible.
    * Drives what he asks for in a deal and what he does when he is hurt.
@@ -1659,6 +1664,11 @@ export interface WorldSettings {
   /** What to assume about a wrestler with no self-preservation set. */
   /** Weeks out below which no injury call is raised. */
   injuryCallMinWeeks: number;
+  /** How far out an unhappy wrestler says he is not re-signing. */
+  noticeWeeks: number;
+  noticeMoraleUnder: number;
+  noticeLoyaltyWeight: number;
+  noticeThreshold: number;
   selfPreservationDefault: number;
   bodyLongHistoryCount: number;
   /** How much each past injury teaches somebody caution. */

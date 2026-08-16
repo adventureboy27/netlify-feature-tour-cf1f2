@@ -388,3 +388,43 @@ export function securityWanted(
   const scared = careOf(wrestler, settings) * settings.securityFromCaution;
   return clamp(history.length * settings.securityPerInjury + bad * settings.securityPerBadInjury + scared, 0, settings.securityMax);
 }
+
+
+// ---------------------------------------------------------------- handing it in
+
+/**
+ * Whether somebody has decided he is not re-signing, and says so in advance.
+ *
+ * A contract used to run out and *then* become a negotiation, so the first the
+ * booker heard of a problem was a demand he could not meet or a man already
+ * gone. People do not work like that. Somebody who has had enough tells you a
+ * week or two before the paper runs out, and the fortnight in between is the
+ * whole value of it: a booker who has been warned can move a belt, change a
+ * finish, or start replacing him.
+ *
+ * It is not a negotiating position and there is nothing to answer. He is
+ * telling you, not asking you.
+ */
+export function handsInNotice(
+  wrestler: Wrestler,
+  weeksLeft: number,
+  settings: WorldSettings,
+): boolean {
+  if (weeksLeft > settings.noticeWeeks || weeksLeft <= 0) return false;
+
+  // Unhappiness is the whole of it. Money is a separate argument that happens
+  // at the table; this is the man who has stopped wanting to be here.
+  const unhappy = wrestler.morale <= settings.noticeMoraleUnder;
+  if (!unhappy) return false;
+
+  // Somebody being paid properly will swallow a lot, and somebody who has been
+  // here for years does not walk over one bad month.
+  const loyalty = (wrestler.attitude / 100) * settings.noticeLoyaltyWeight;
+  return wrestler.morale / 100 + loyalty < settings.noticeThreshold;
+}
+
+/** What he says on his way past the office. */
+export function noticeLine(name: string, weeksLeft: number): string {
+  const when = weeksLeft <= 1 ? 'when this one runs out' : `in ${weeksLeft} weeks`;
+  return `${name} has told you he is not re-signing. He is done ${when}, and he was not asking.`;
+}

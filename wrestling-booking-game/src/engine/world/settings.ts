@@ -197,6 +197,12 @@ export function defaultWorldSettings(): WorldSettings {
     // What to assume about somebody the game has no opinion about.
     // Below this a knock is not worth a conversation.
     injuryCallMinWeeks: 3,
+    // How far out an unhappy man tells you he is leaving. A fortnight is
+    // enough to move a belt and not enough to fix him.
+    noticeWeeks: 2,
+    noticeMoraleUnder: 35,
+    noticeLoyaltyWeight: 0.45,
+    noticeThreshold: 0.6,
     selfPreservationDefault: 50,
     bodyLongHistoryCount: 4,
     bodyHistoryTeachesCaution: 0.12,

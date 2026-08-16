@@ -16,6 +16,8 @@ import {
   resolveInjuryCall,
   theTwoOpinions,
   stanceOn,
+  handsInNotice,
+  noticeLine,
   dealAppetite,
   appetiteLine,
   securityWanted,
@@ -287,5 +289,40 @@ describe('the stance on a hurt man', () => {
     const careful = stanceOn(man({ id: 'a', injury: hurt(), selfPreservation: 98, ego: 5 }), settings)!;
     const reckless = stanceOn(man({ id: 'b', injury: hurt(), selfPreservation: 2, ego: 95 }), settings)!;
     expect(careful.man.intent).not.toBe(reckless.man.intent);
+  });
+});
+
+describe('handing in notice', () => {
+  const unhappy = (over: Partial<Wrestler> = {}) =>
+    man({ morale: 20, attitude: 40, ...over });
+
+  it('says nothing while there is still a deal to run', () => {
+    expect(handsInNotice(unhappy(), 30, settings)).toBe(false);
+  });
+
+  it('tells you inside the last fortnight', () => {
+    expect(handsInNotice(unhappy(), settings.noticeWeeks, settings)).toBe(true);
+  });
+
+  it('does not bother a man who is happy where he is', () => {
+    expect(handsInNotice(man({ morale: 85, attitude: 40 }), 1, settings)).toBe(false);
+  });
+
+  it('has the professional swallow it and the malcontent walk', () => {
+    // Same misery, different men. Attitude is what decides whether somebody
+    // sees the year out or tells you where to put it.
+    expect(handsInNotice(unhappy({ attitude: 95 }), 1, settings)).toBe(false);
+    expect(handsInNotice(unhappy({ attitude: 10 }), 1, settings)).toBe(true);
+  });
+
+  it('never fires on a deal that has already run out', () => {
+    expect(handsInNotice(unhappy(), 0, settings)).toBe(false);
+  });
+
+  it('says it plainly, and does not ask anybody anything', () => {
+    const line = noticeLine('Cass Ryland', 2);
+    expect(line).toMatch(/Cass Ryland/);
+    expect(line).toMatch(/not asking/i);
+    expect(line).not.toMatch(/\?/);
   });
 });
