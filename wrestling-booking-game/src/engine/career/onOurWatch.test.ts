@@ -12,6 +12,11 @@ import {
   stillHeldAgainstUs,
   tickLeave,
   wontWorkForUs,
+  blameLine,
+  negligenceOf,
+  officeShare,
+  shunLine,
+  shunned,
   type DeathOnOurWatch,
 } from './onOurWatch';
 import { defaultWorldSettings } from '../world/settings';
@@ -157,5 +162,86 @@ describe('and then it stops', () => {
     const halfway = stillHeldAgainstUs(old, 10 + settings.watchMemoryWeeks / 2, settings);
     expect(nearly).toBeGreaterThan(0);
     expect(nearly).toBeLessThan(halfway);
+  });
+});
+
+describe('whose fault the room decides it was', () => {
+  function worker(over: Partial<Wrestler> = {}): Wrestler {
+    return {
+      id: 'o1',
+      name: 'Cyclone',
+      skill: 70,
+      selfPreservation: 60,
+      discipline: { violations: [], finesPaid: 0, suspendedUntilWeek: null },
+      ...over,
+    } as Wrestler;
+  }
+
+  it('blames nobody much for a safe hand in a match he can work', () => {
+    expect(negligenceOf(worker({ skill: 90 }), 0, settings)).toBeLessThan(0.35);
+  });
+
+  it('blames the man who was out of his depth', () => {
+    const green = negligenceOf(worker({ skill: 20 }), 3, settings);
+    const safe = negligenceOf(worker({ skill: 95 }), 3, settings);
+    expect(green).toBeGreaterThan(safe);
+  });
+
+  it('blames the man with a file, and the man who does not look after himself', () => {
+    const clean = negligenceOf(worker(), 2, settings);
+    const filed = negligenceOf(
+      worker({ discipline: { violations: [{}, {}, {}, {}] as never, finesPaid: 0, suspendedUntilWeek: null } }),
+      2,
+      settings,
+    );
+    const careless = negligenceOf(worker({ selfPreservation: 5 }), 2, settings);
+    expect(filed).toBeGreaterThan(clean);
+    // A man who does not protect himself does not protect you either.
+    expect(careless).toBeGreaterThan(clean);
+  });
+
+  it('never lets the office off entirely', () => {
+    // It still said a hurt man could work. Whoever else had a hand in it, the
+    // company does not get to walk away clean.
+    expect(officeShare(true, settings)).toBeGreaterThan(0);
+    expect(officeShare(true, settings)).toBeLessThan(officeShare(false, settings));
+    expect(officeShare(false, settings)).toBe(1);
+  });
+
+  it('prices a blamed death more gently than one that was all ours', () => {
+    const ours: DeathOnOurWatch = { ...death(100), blame: 1 };
+    const his: DeathOnOurWatch = { ...death(100), blame: officeShare(true, settings) };
+    expect(stillHeldAgainstUs([his], 100, settings)).toBeLessThan(stillHeldAgainstUs([ours], 100, settings));
+    expect(stillHeldAgainstUs([his], 100, settings)).toBeGreaterThan(0);
+  });
+
+  it('reads an old save with no blame recorded as all ours', () => {
+    expect(stillHeldAgainstUs([death(100)], 100, settings)).toBeCloseTo(1);
+  });
+});
+
+describe('the man nobody will work with', () => {
+  const blame = { wrestlerId: 'dead', name: 'Earl Mercer', week: 100 };
+
+  it('is shunned while it is fresh and workable again after', () => {
+    expect(shunned(blame, 100, settings)).toBe(true);
+    expect(shunned(blame, 100 + settings.watchShunWeeks - 1, settings)).toBe(true);
+    expect(shunned(blame, 100 + settings.watchShunWeeks, settings)).toBe(false);
+  });
+
+  it('leaves everybody else alone', () => {
+    expect(shunned(null, 100, settings)).toBe(false);
+    expect(shunned(undefined, 100, settings)).toBe(false);
+  });
+
+  it('says who and how much longer, rather than a bare status', () => {
+    const said = shunLine(blame, 110, settings);
+    expect(said).toContain('Earl Mercer');
+    expect(said).toContain(`${settings.watchShunWeeks - 10} weeks`);
+  });
+
+  it('aims the sentence at the man rather than at the office', () => {
+    expect(blameLine('Cyclone', 'Earl Mercer')).toContain('not blaming the office');
+    expect(blameLine('Cyclone', 'Earl Mercer')).toContain('Cyclone');
   });
 });

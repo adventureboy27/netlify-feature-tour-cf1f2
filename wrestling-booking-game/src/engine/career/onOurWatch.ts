@@ -37,7 +37,8 @@
 // wall: the memorial page says he went out there hurt for as long as the save
 // runs. The money forgets. The record does not.
 
-import { clamp } from '../rng';
+import { chance, clamp } from '../rng';
+import type { Rng } from '../rng';
 import type { Id, Wrestler, WorldSettings } from '../types';
 
 /** A death this company caused. Kept because the business keeps it. */
@@ -45,6 +46,13 @@ export interface DeathOnOurWatch {
   wrestlerId: Id;
   name: string;
   week: number;
+  /**
+   * The office's share of it, 0-1. Full when the company's decision was the
+   * whole story; much less when the room blames the man who was in there. See
+   * `officeShare`. Optional so a save written before blame existed still
+   * reads, and absent means the old behaviour: all of it.
+   */
+  blame?: number;
 }
 
 /**
@@ -63,7 +71,7 @@ export function stillHeldAgainstUs(
   for (const death of deaths) {
     const age = currentWeek - death.week;
     if (age >= settings.watchMemoryWeeks) continue;
-    weight += 1 - age / settings.watchMemoryWeeks;
+    weight += (1 - age / settings.watchMemoryWeeks) * (death.blame ?? 1);
   }
   return clamp(weight, 0, 1);
 }
@@ -192,4 +200,98 @@ export function tickLeave(leave: Leave): Leave | null {
 export function leaveStatusLine(leave: Leave): string {
   const weeks = leave.weeksRemaining;
   return `Away — back in ${weeks} ${weeks === 1 ? 'week' : 'weeks'}.`;
+}
+
+// --------------------------------------------------------- whose fault it was
+
+/**
+ * Not every ring death is the office's.
+ *
+ * Two stories end with the same man on a stretcher and they are not the same
+ * story. His own body gave out under a decision the company made — that is
+ * the office, and everything above applies. Or somebody dropped him on his
+ * head and he would have been fine otherwise, and the locker room knows
+ * exactly whose hands it was.
+ *
+ * The room's anger goes where the immediate cause was. That is not the same
+ * as the office being innocent: it still sent a hurt man out there, so it
+ * keeps a share. But the man who worked the match carries the rest, and what
+ * he carries is worse than money — nobody will get in the ring with him.
+ */
+
+/**
+ * How careless the other man was, 0-1.
+ *
+ * Derived, never rolled from nothing. The suspects are the ones a locker room
+ * would already be watching: somebody who cannot work safe at the speed the
+ * match was going, somebody with a file, and somebody careless with his own
+ * body — a man who does not protect himself does not protect you either.
+ */
+export function negligenceOf(
+  opponent: Wrestler,
+  violenceLevel: number,
+  settings: WorldSettings,
+): number {
+  // What the match was asking of him against what he can actually do.
+  const asked = clamp(violenceLevel / settings.watchViolenceForFullRisk, 0, 1);
+  const canHandleIt = clamp(opponent.skill / 100, 0, 1);
+  const outOfHisDepth = clamp(asked - canHandleIt, 0, 1);
+
+  const priors = clamp((opponent.discipline?.violations.length ?? 0) / settings.watchPriorsForFullBlame, 0, 1);
+  const careless = 1 - clamp(opponent.selfPreservation ?? settings.selfPreservationDefault, 0, 100) / 100;
+
+  return clamp(
+    outOfHisDepth * settings.watchNegligenceFromDepth +
+      priors * settings.watchNegligenceFromPriors +
+      careless * settings.watchNegligenceFromCarelessness,
+    0,
+    1,
+  );
+}
+
+/** Whether the room reads it as his hands rather than the office's decision. */
+export function wasNegligent(
+  opponent: Wrestler,
+  violenceLevel: number,
+  rng: Rng,
+  settings: WorldSettings,
+): boolean {
+  return chance(rng, negligenceOf(opponent, violenceLevel, settings));
+}
+
+/**
+ * The office's share, once the room has decided.
+ *
+ * Never zero. Whoever else had a hand in it, the company is the one that said
+ * a hurt man could work — so the market still prices it, just far less.
+ */
+export function officeShare(negligent: boolean, settings: WorldSettings): number {
+  return negligent ? settings.watchOfficeShareWhenBlamed : 1;
+}
+
+/** A death the room lays at one man's door. */
+export interface BlamedFor {
+  wrestlerId: Id;
+  name: string;
+  week: number;
+}
+
+/**
+ * Nobody will work with him, and it fades on the same clock as everything
+ * else here. A man is not finished forever by one bad night, but he is
+ * finished for a while, and the company is paying him the whole time.
+ */
+export function shunned(blame: BlamedFor | null | undefined, currentWeek: number, settings: WorldSettings): boolean {
+  if (!blame) return false;
+  return currentWeek - blame.week < settings.watchShunWeeks;
+}
+
+export function blameLine(name: string, deadName: string): string {
+  return `The room is not blaming the office for this one. ${name} was the man in there with ${deadName}, and everybody saw it.`;
+}
+
+/** What the roster card says about him, for as long as it is true. */
+export function shunLine(blame: BlamedFor, currentWeek: number, settings: WorldSettings): string {
+  const weeks = Math.max(0, settings.watchShunWeeks - (currentWeek - blame.week));
+  return `Nobody will get in the ring with him after ${blame.name}. ${weeks} ${weeks === 1 ? 'week' : 'weeks'} before that starts to pass.`;
 }

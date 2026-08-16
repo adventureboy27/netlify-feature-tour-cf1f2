@@ -550,6 +550,11 @@ export interface Wrestler {
    * ring with him. See career/onOurWatch.ts.
    */
   leave?: Leave | null;
+  /**
+   * A death the locker room lays at his door rather than the office's. While
+   * it is fresh nobody will work with him. See career/onOurWatch.ts.
+   */
+  blamedFor?: BlamedFor | null;
   /** Set when they die. A wrestler with this set is never booked again. */
   deceased?: Passing;
   /** Set when they are inducted. §19's hall of fame. */
@@ -747,7 +752,7 @@ import type { PerkId } from '../data/perks';
 import type { PromotionSchedule } from './world/schedule';
 import type { Ledger } from './career/ledger';
 import type { DisciplineRecord } from './career/discipline';
-import type { DeathOnOurWatch, Leave } from './career/onOurWatch';
+import type { BlamedFor, DeathOnOurWatch, Leave } from './career/onOurWatch';
 
 export type ContractType = 'fullTime' | 'partTime' | 'perAppearance' | 'developmental' | 'legends';
 
@@ -1716,6 +1721,17 @@ export interface WorldSettings {
   watchRefusalCare: number;
   /** Mandatory paid weeks off for anybody who was in the ring when it happened. */
   watchLeaveWeeks: number;
+  /** Violence level at which a match is asking everything of the man working it. */
+  watchViolenceForFullRisk: number;
+  /** Disciplinary priors at which a man's file is fully against him. */
+  watchPriorsForFullBlame: number;
+  watchNegligenceFromDepth: number;
+  watchNegligenceFromPriors: number;
+  watchNegligenceFromCarelessness: number;
+  /** What the office still carries when the room blames somebody else. */
+  watchOfficeShareWhenBlamed: number;
+  /** How long nobody will get in the ring with the man they blame. */
+  watchShunWeeks: number;
   doctorAgePerYear: number;
   doctorConditionWeight: number;
   /** What moves somebody from wanting cash to wanting cover. */

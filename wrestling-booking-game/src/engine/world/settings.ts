@@ -233,6 +233,17 @@ export function defaultWorldSettings(): WorldSettings {
     // nobody does.
     watchRefusalCare: 0.6,
     watchLeaveWeeks: 4,
+    // Whose fault the room decides it was. A match asking more than the other
+    // man can safely give is most of it; a file and a careless streak are the
+    // rest. See career/onOurWatch.ts.
+    watchViolenceForFullRisk: 3,
+    watchPriorsForFullBlame: 4,
+    watchNegligenceFromDepth: 0.55,
+    watchNegligenceFromPriors: 0.25,
+    watchNegligenceFromCarelessness: 0.2,
+    // Never zero: the company still said a hurt man could work.
+    watchOfficeShareWhenBlamed: 0.3,
+    watchShunWeeks: 30,
     doctorAgePerYear: 0.04,
     doctorConditionWeight: 0.5,
     // What moves somebody from wanting cash to wanting cover. A bad injury is

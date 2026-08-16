@@ -15,7 +15,7 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { useGameStore } from './store';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { stanceOn, type InjuryIntent } from '../engine/career/theBody';
-import { ourPrice, stillHeldAgainstUs, wontWorkForUs } from '../engine/career/onOurWatch';
+import { ourPrice, shunned, stillHeldAgainstUs, wontWorkForUs } from '../engine/career/onOurWatch';
 import { contractDemand } from '../engine/career/ego';
 import { renewalRate } from '../engine/economy/contracts';
 import { canWork } from '../engine/world/rivalBooking';
@@ -287,5 +287,75 @@ describe('the renewal table, and the day it stops mattering', () => {
     // And the wall still says what happened. The money forgets; the record
     // does not.
     expect(world.memoriam.some((p) => p.wrestlerId === man!.id)).toBe(true);
+  });
+});
+
+describe('when the room blames the other man instead', () => {
+  beforeEach(() => {
+    // Death certain, and the opponent certainly at fault. The odds live in
+    // career/onOurWatch.test.ts; this is about where the anger goes.
+    useGameStore.getState().newGame(
+      settings({
+        bodyWorkThroughBackfire: 1,
+        bodyDeathChance: 1,
+        watchNegligenceFromCarelessness: 1,
+      }),
+    );
+  });
+
+  function killHimThroughSomebodyCareless() {
+    const man = findSomeoneWhoIntends('workThroughIt', 'careerThreatening');
+    const foeId = useGameStore.getState().world!.promotion.rosterIds.find((id) => id !== man!.id)!;
+    // A man who does not look after himself does not look after you either.
+    useGameStore.setState((state) => {
+      state.world!.wrestlers[foeId]!.selfPreservation = 0;
+    });
+    bookHurt(man!, 'careerThreatening');
+    runWeek();
+    return { man: man!, foeId };
+  }
+
+  it('lays it at his door, by name, instead of at the office\'s', () => {
+    const { man, foeId } = killHimThroughSomebodyCareless();
+    const world = useGameStore.getState().world!;
+
+    expect(world.wrestlers[foeId]!.blamedFor?.wrestlerId).toBe(man.id);
+    const said = world.weeklyNews.find((n) => n.text.includes('not blaming the office'));
+    expect(said).toBeDefined();
+    expect(said!.text).toContain(world.wrestlers[foeId]!.name);
+    // And the sentence the office would have taken is not also on the wire.
+    expect(world.weeklyNews.some((n) => n.text.includes('said he could'))).toBe(false);
+  });
+
+  it('still leaves the company carrying some of it — it said he could work', () => {
+    killHimThroughSomebodyCareless();
+    const world = useGameStore.getState().world!;
+    const held = stillHeldAgainstUs(world.promotion.deathsOnOurWatch ?? [], world.week, world.settings);
+
+    expect(held).toBeGreaterThan(0);
+    expect(held).toBeLessThan(1);
+    expect(ourPrice(1000, held, world.settings)).toBeGreaterThan(1000);
+  });
+
+  it('stops the office booking him, without stopping the player', () => {
+    const { foeId } = killHimThroughSomebodyCareless();
+    // He is off for the month first; the shunning outlasts it.
+    for (let i = 0; i < 6; i++) runWeek();
+
+    const world = useGameStore.getState().world!;
+    const him = world.wrestlers[foeId]!;
+    expect(him.leave).toBeNull();
+    expect(shunned(him.blamedFor, world.week, world.settings)).toBe(true);
+
+    // Fill the card and he is not on it.
+    useGameStore.getState().autoFillCard();
+    const card = useGameStore.getState().world!.currentCard;
+    expect(card.flatMap((seg) => seg.participants.map((p) => p.wrestlerId))).not.toContain(foeId);
+
+    // The booker can still put him out there. §0: no warning, no block.
+    useGameStore.getState().setSegmentParticipant(0, foeId, 0);
+    expect(
+      useGameStore.getState().world!.currentCard[0]!.participants.some((p) => p.wrestlerId === foeId),
+    ).toBe(true);
   });
 });

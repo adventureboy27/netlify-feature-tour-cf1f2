@@ -429,8 +429,13 @@ import { decayGrudges, grudgeAgainst, grudgeLine, rememberNight } from '../engin
 import {
   compassionateLeave,
   leaveLine,
+  blameLine,
   mostRecentDeath,
+  negligenceOf,
+  officeShare,
   ourPrice,
+  shunned,
+  wasNegligent,
   roomLine,
   roomMoraleCost,
   stillHeldAgainstUs,
@@ -1886,7 +1891,22 @@ export const useGameStore = create<GameStore>()(
         const alreadyBooked = new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
         const available = world.promotion.rosterIds
           .map((id) => world.wrestlers[id])
-          .filter((w): w is Wrestler => Boolean(w) && !alreadyBooked.has(w!.id) && canWork(w!, world.settings, world.week));
+          .filter(
+            (w): w is Wrestler =>
+              Boolean(w) &&
+              !alreadyBooked.has(w!.id) &&
+              canWork(w!, world.settings, world.week) &&
+              // Nobody will get in the ring with the man the room blames for
+              // a death, so the office does not offer him a match. Filtered
+              // here rather than in `canWork` for two reasons: he is
+              // physically able to work, and a company that releases him
+              // should not find him unbookable everywhere in the world —
+              // this is *this* locker room refusing, not a status on the man.
+              //
+              // And it stops the office, not the player. Booking him anyway
+              // is still one tap away, with no warning and no block (§0).
+              !shunned(w!.blamedFor, world.week, world.settings),
+          );
 
         // The microphone, first.
         //
@@ -2296,7 +2316,7 @@ export const useGameStore = create<GameStore>()(
          * The other names are carried because of what happens if he does not
          * get up: everybody who was out there with him goes home for a month.
          */
-        const workedHurtTonight = new Map<Id, Set<Id>>();
+        const workedHurtTonight = new Map<Id, { others: Set<Id>; violence: number }>();
 
         /**
          * Somebody has died. One path for it, wherever it came from.
@@ -2316,7 +2336,7 @@ export const useGameStore = create<GameStore>()(
           person: Wrestler,
           passing: Passing,
           howItHappened: string,
-          ourDoing: { alsoInTheRing: readonly Id[] } | null,
+          ourDoing: { alsoInTheRing: readonly Id[]; blamed: Wrestler | null } | null,
         ) => {
           person.deceased = passing;
           world.memoriam.push(passing);
@@ -2387,19 +2407,46 @@ export const useGameStore = create<GameStore>()(
           // ---- and then the part that is about the company ----------------
           // Everything above happens whoever killed him. What follows only
           // happens when it was us. See career/onOurWatch.ts.
+          // How much of it lands on the company. Full when the office's
+          // decision was the whole story; a fraction when the room saw whose
+          // hands it was. Never nothing — it still said he could work.
+          const ours = officeShare(Boolean(ourDoing.blamed), world.settings);
           world.promotion.deathsOnOurWatch = [
             ...(world.promotion.deathsOnOurWatch ?? []),
-            { wrestlerId: person.id, name: person.name, week: world.week },
+            { wrestlerId: person.id, name: person.name, week: world.week, blame: ours },
           ];
 
           // The whole room, not only the people who knew him. What they are
-          // reacting to is the office, not the man.
+          // reacting to is the office, not the man — and proportionally less
+          // of it when they have somebody else to be angry at.
           for (const id of world.promotion.rosterIds) {
             const member = world.wrestlers[id];
             if (!member || member.deceased) continue;
-            member.morale = clamp(member.morale + roomMoraleCost(world.settings), 0, 100);
+            member.morale = clamp(member.morale + roomMoraleCost(world.settings) * ours, 0, 100);
           }
-          world.weeklyNews.push(wire('death', roomLine(person.name, world.promotion.name), world.week, 'lead'));
+          world.weeklyNews.push(
+            wire(
+              'death',
+              ourDoing.blamed
+                ? blameLine(ourDoing.blamed.name, person.name)
+                : roomLine(person.name, world.promotion.name),
+              world.week,
+              'lead',
+            ),
+          );
+
+          // And the man they blame carries it. Not a fine and not a
+          // suspension — the office is not punishing him, the locker room is,
+          // and what it does is refuse to go out there with him. He is on
+          // full pay the whole time, which is the point: you cannot use him
+          // and you cannot stop paying him.
+          if (ourDoing.blamed) {
+            ourDoing.blamed.blamedFor = {
+              wrestlerId: person.id,
+              name: person.name,
+              week: world.week,
+            };
+          }
 
           // Anybody who was out there with him goes home for a month on full
           // money. Not a decision the booker makes and not one he can undo.
@@ -2798,9 +2845,12 @@ export const useGameStore = create<GameStore>()(
             // that costs is settled after the show, once — see the injury
             // calls below the card loop.
             if (person.injury) {
-              const alsoOut = workedHurtTonight.get(person.id) ?? new Set<Id>();
-              for (const other of participantWrestlers) if (other.id !== person.id) alsoOut.add(other.id);
-              workedHurtTonight.set(person.id, alsoOut);
+              const out = workedHurtTonight.get(person.id) ?? { others: new Set<Id>(), violence: 0 };
+              for (const other of participantWrestlers) if (other.id !== person.id) out.others.add(other.id);
+              // The worst thing he was asked to do tonight, which is what
+              // decides whether the room blames the office or the other man.
+              out.violence = Math.max(out.violence, violence);
+              workedHurtTonight.set(person.id, out);
             }
 
             const casualty = rollCasualty(rng, {
@@ -4648,7 +4698,7 @@ export const useGameStore = create<GameStore>()(
         // every line it produced was discarded as last week's news and the
         // system looked dead from the outside. A path that can retire or bury
         // somebody must not be able to do it quietly — see §0.
-        for (const [id, alsoInTheRing] of workedHurtTonight) {
+        for (const [id, night] of workedHurtTonight) {
           const person = world.wrestlers[id];
           if (!person?.injury || !person.clearedToWorkHurt) continue;
           const stance = stanceOn(person, world.settings);
@@ -4695,7 +4745,35 @@ export const useGameStore = create<GameStore>()(
               age: person.age,
               week: world.week,
             };
-            passAway(person, passing, outcome.line, { alsoInTheRing: [...alsoInTheRing] });
+            // Whose hands it was. The room looks at the man who was least
+            // equipped for what the match was asking, and if it was bad
+            // enough it stops blaming the office and starts blaming him.
+            const inThereWithHim = [...night.others]
+              .map((other) => world.wrestlers[other])
+              .filter((other): other is Wrestler => Boolean(other) && !other!.deceased);
+            const likeliest = inThereWithHim.reduce<Wrestler | null>(
+              (worst, other) =>
+                !worst ||
+                negligenceOf(other, night.violence, world.settings) >
+                  negligenceOf(worst, night.violence, world.settings)
+                  ? other
+                  : worst,
+              null,
+            );
+            const blamed =
+              likeliest &&
+              wasNegligent(
+                likeliest,
+                night.violence,
+                rngFromSeed(`blame:${person.id}:${world.week}`),
+                world.settings,
+              )
+                ? likeliest
+                : null;
+            passAway(person, passing, outcome.line, {
+              alsoInTheRing: [...night.others],
+              blamed,
+            });
             continue;
           }
 
