@@ -424,6 +424,16 @@ import {
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import { decayGrudges, grudgeAgainst, grudgeLine, rememberNight } from '../engine/world/grudges';
 import {
+  compassionateLeave,
+  leaveLine,
+  ourPrice,
+  roomLine,
+  roomMoraleCost,
+  stillHeldAgainstUs,
+  tickLeave,
+  wontWorkForUs,
+} from '../engine/career/onOurWatch';
+import {
   handsInNotice,
   noticeLine,
   recordInjury,
@@ -2274,10 +2284,14 @@ export const useGameStore = create<GameStore>()(
 
         /**
          * Everybody who went out there already hurt, with the booker's
-         * blessing. Collected during the card and settled once after it —
-         * a man in two matches on the same night took one gamble, not two.
+         * blessing, and who was in the ring with them. Collected during the
+         * card and settled once after it — a man in two matches on the same
+         * night took one gamble, not two.
+         *
+         * The other names are carried because of what happens if he does not
+         * get up: everybody who was out there with him goes home for a month.
          */
-        const workedHurtTonight = new Set<Id>();
+        const workedHurtTonight = new Map<Id, Set<Id>>();
 
         /**
          * Somebody has died. One path for it, wherever it came from.
@@ -2287,8 +2301,18 @@ export const useGameStore = create<GameStore>()(
          * lines or quietly skipping the memorial, the tribute and the grief.
          * `howItHappened` is the sentence the wire prints — §0's rule that a
          * death says how it happened is enforced by making it an argument.
+         *
+         * `ourDoing` is set when this company caused it — a man sent out on an
+         * injury the office signed off. Not optional: every caller has to say
+         * which kind of death this was, because the two are not the same event
+         * and the business does not treat them as one. See career/onOurWatch.
          */
-        const passAway = (person: Wrestler, passing: Passing, howItHappened: string) => {
+        const passAway = (
+          person: Wrestler,
+          passing: Passing,
+          howItHappened: string,
+          ourDoing: { alsoInTheRing: readonly Id[] } | null,
+        ) => {
           person.deceased = passing;
           world.memoriam.push(passing);
           world.thisYear.passings.push(passing);
@@ -2312,7 +2336,12 @@ export const useGameStore = create<GameStore>()(
               t.promotionId === world.promotion.id &&
               t.history.some((reign) => reign.holderIds.includes(person.id)),
           );
+          // A man who died in your ring gets the show whoever he was. The
+          // test of whether he earned one is for the deaths the company did
+          // not cause; there is no version of this where the company that
+          // killed him decides he was not worth closing the doors for.
           if (
+            ourDoing ||
             worthAMemorial(
               {
                 onOurRoster: world.promotion.rosterIds.includes(person.id),
@@ -2347,6 +2376,40 @@ export const useGameStore = create<GameStore>()(
           if (said) world.weeklyNews.push(wire('death', said, world.week, 'normal'));
 
           leaveTheBusiness(world, person.id, 'died');
+
+          if (!ourDoing) return;
+
+          // ---- and then the part that is about the company ----------------
+          // Everything above happens whoever killed him. What follows only
+          // happens when it was us. See career/onOurWatch.ts.
+          world.promotion.deathsOnOurWatch = [
+            ...(world.promotion.deathsOnOurWatch ?? []),
+            { wrestlerId: person.id, name: person.name, week: world.week },
+          ];
+
+          // The whole room, not only the people who knew him. What they are
+          // reacting to is the office, not the man.
+          for (const id of world.promotion.rosterIds) {
+            const member = world.wrestlers[id];
+            if (!member || member.deceased) continue;
+            member.morale = clamp(member.morale + roomMoraleCost(world.settings), 0, 100);
+          }
+          world.weeklyNews.push(wire('death', roomLine(person.name, world.promotion.name), world.week, 'lead'));
+
+          // Anybody who was out there with him goes home for a month on full
+          // money. Not a decision the booker makes and not one he can undo.
+          const sentHome: string[] = [];
+          for (const id of ourDoing.alsoInTheRing) {
+            const other = world.wrestlers[id];
+            if (!other || other.deceased) continue;
+            other.leave = compassionateLeave(person.name, world.settings);
+            sentHome.push(other.name);
+          }
+          if (sentHome.length > 0) {
+            world.weeklyNews.push(
+              wire('injury', leaveLine(sentHome, person.name, world.settings), world.week, 'lead'),
+            );
+          }
         };
         /** Stories the booker actually settled in the ring tonight. */
         const blowoffsTonight: {
@@ -2729,7 +2792,11 @@ export const useGameStore = create<GameStore>()(
             // He is out there on a bad knee because the booker sent him. What
             // that costs is settled after the show, once — see the injury
             // calls below the card loop.
-            if (person.injury) workedHurtTonight.add(person.id);
+            if (person.injury) {
+              const alsoOut = workedHurtTonight.get(person.id) ?? new Set<Id>();
+              for (const other of participantWrestlers) if (other.id !== person.id) alsoOut.add(other.id);
+              workedHurtTonight.set(person.id, alsoOut);
+            }
 
             const casualty = rollCasualty(rng, {
               personId: person.id,
@@ -4508,6 +4575,22 @@ export const useGameStore = create<GameStore>()(
 
         world.week += 1;
 
+        // Time off that is not an injury counts down here, ahead of tonight's
+        // aftermath — anybody sent home *this* week starts his four weeks next
+        // week rather than having one of them eaten by the night he was in.
+        // He comes back on the wire rather than simply reappearing in the
+        // pick-list: a man sent home for a month is not returned quietly.
+        for (const id of world.promotion.rosterIds) {
+          const member = world.wrestlers[id];
+          if (!member?.leave) continue;
+          member.leave = tickLeave(member.leave);
+          if (!member.leave) {
+            world.weeklyNews.push(
+              wire('injury', `${member.name} is back on the roster and available to book.`, world.week, 'normal'),
+            );
+          }
+        }
+
         // ---- what it cost the men who worked hurt -------------------------
         // The booker cleared them and then booked them. Their own stated
         // intention decides the gamble: a man who said he would take the full
@@ -4526,7 +4609,7 @@ export const useGameStore = create<GameStore>()(
         // every line it produced was discarded as last week's news and the
         // system looked dead from the outside. A path that can retire or bury
         // somebody must not be able to do it quietly — see §0.
-        for (const id of workedHurtTonight) {
+        for (const [id, alsoInTheRing] of workedHurtTonight) {
           const person = world.wrestlers[id];
           if (!person?.injury || !person.clearedToWorkHurt) continue;
           const stance = stanceOn(person, world.settings);
@@ -4558,7 +4641,7 @@ export const useGameStore = create<GameStore>()(
               age: person.age,
               week: world.week,
             };
-            passAway(person, passing, outcome.line);
+            passAway(person, passing, outcome.line, { alsoInTheRing: [...alsoInTheRing] });
             continue;
           }
 
@@ -5185,7 +5268,7 @@ export const useGameStore = create<GameStore>()(
           if (chance(rng, perWeek)) {
             const passing = rollDeath(rng, person, world.week, world.settings);
             if (passing) {
-              passAway(person, passing, `${DEATH_CAUSE_TEXT[passing.cause]}.`);
+              passAway(person, passing, `${DEATH_CAUSE_TEXT[passing.cause]}.`, null);
               continue;
             }
           }
@@ -7157,12 +7240,19 @@ export const useGameStore = create<GameStore>()(
         // left. This is the thing the player traded a payout for.
         if (!canBeSigned(wrestler)) return;
 
+        // And what this company did. A man who looks after himself does not
+        // sign here while it is fresh, and the ones who will want paying for
+        // it. Enforced in the store as well as greyed out on the page, so the
+        // rule is the rule. See career/onOurWatch.ts.
+        const held = stillHeldAgainstUs(world.promotion.deathsOnOurWatch ?? [], world.week, world.settings);
+        if (wontWorkForUs(wrestler, held, world.settings)) return;
+
         wrestler.promotionId = world.promotion.id;
         wrestler.contract = {
           // The term he advertised in the pool, so the length a booker read on
           // Tuesday is the length he signs on Thursday.
           ...createStandardContract(wrestler, world.settings, world.settings.startingYear, agent.wantsWeeks),
-          weeklyRate: currentAskingRate(agent, world.settings),
+          weeklyRate: ourPrice(currentAskingRate(agent, world.settings), held, world.settings),
           // Somebody with a big opinion of themselves demands guarantees to
           // sign, not only to re-sign. Attaching this at renewal alone meant
           // a star could sit on the roster for years on a deal you could tear

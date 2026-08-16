@@ -544,6 +544,12 @@ export interface Wrestler {
   selfPreservation: number;
   /** Everything that has ever happened to this body, dated. */
   injuryHistory: InjuryRecord[];
+  /**
+   * Time off that is not an injury and must never read as one — today, the
+   * paid month the company sends somebody home for after a man died in the
+   * ring with him. See career/onOurWatch.ts.
+   */
+  leave?: Leave | null;
   /** Set when they die. A wrestler with this set is never booked again. */
   deceased?: Passing;
   /** Set when they are inducted. §19's hall of fame. */
@@ -741,6 +747,7 @@ import type { PerkId } from '../data/perks';
 import type { PromotionSchedule } from './world/schedule';
 import type { Ledger } from './career/ledger';
 import type { DisciplineRecord } from './career/discipline';
+import type { DeathOnOurWatch, Leave } from './career/onOurWatch';
 
 export type ContractType = 'fullTime' | 'partTime' | 'perAppearance' | 'developmental' | 'legends';
 
@@ -1358,6 +1365,12 @@ export interface Promotion {
   ownerId: Id; // a Wrestler record with role 'owner'
   /** What the person signing the cheques is like. Biases what they demand. */
   ownerPersonality: OwnerPersonality;
+  /**
+   * The men this company killed. Kept because the business keeps it: it
+   * prices the roster and the free-agent market for two years afterwards.
+   * See career/onOurWatch.ts.
+   */
+  deathsOnOurWatch?: DeathOnOurWatch[];
   /** The signature events this promotion runs, in the order they come round. */
   ppvCalendar: string[];
   /**
@@ -1693,6 +1706,16 @@ export interface WorldSettings {
   bodyCareerEndingChance: number;
   bodyDeathChance: number;
   /** How much longer the same injury takes past prime, per year. */
+  /** How long the business holds a death on your show against you. */
+  watchMemoryWeeks: number;
+  /** The blanket morale hit across the whole roster when you cause one. */
+  watchRoomMoraleCost: number;
+  /** Most a free agent adds to his price to work for a company that killed somebody. */
+  watchAskingPremiumMax: number;
+  /** How careful a man has to be before he stops taking your calls entirely. */
+  watchRefusalCare: number;
+  /** Mandatory paid weeks off for anybody who was in the ring when it happened. */
+  watchLeaveWeeks: number;
   doctorAgePerYear: number;
   doctorConditionWeight: number;
   /** What moves somebody from wanting cash to wanting cover. */

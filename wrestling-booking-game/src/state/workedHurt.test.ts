@@ -15,6 +15,9 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { useGameStore } from './store';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { stanceOn, type InjuryIntent } from '../engine/career/theBody';
+import { stillHeldAgainstUs, wontWorkForUs } from '../engine/career/onOurWatch';
+import { canWork } from '../engine/world/rivalBooking';
+import { weeklyWageBill } from '../engine/economy/contracts';
 import type { Injury, WorldSettings, Wrestler } from '../engine/types';
 
 function settings(over: Partial<WorldSettings> = {}): WorldSettings {
@@ -127,5 +130,91 @@ describe('when it goes as badly as it can', () => {
     expect(world.memoriam.some((p) => p.wrestlerId === man!.id)).toBe(true);
     expect(world.thisYear.passings.some((p) => p.wrestlerId === man!.id)).toBe(true);
     expect(world.promotion.rosterIds).not.toContain(man!.id);
+  });
+
+  it('runs the memorial show whoever he was', () => {
+    // The test of whether somebody earned one is for the deaths the company
+    // did not cause. There is no version of this where the company that
+    // killed him decides he was not worth closing the doors for — so this is
+    // asserted on a man with no tenure, no belt and no hall of fame.
+    const man = findSomeoneWhoIntends('workThroughIt', 'careerThreatening');
+    bookHurt(man!, 'careerThreatening');
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    expect(world.impromptuShows.some((s) => s.announcement.includes(man!.name))).toBe(true);
+  });
+
+  it('sends everybody who was in there with him home for a month, on full pay', () => {
+    const man = findSomeoneWhoIntends('workThroughIt', 'careerThreatening');
+    bookHurt(man!, 'careerThreatening');
+    const foeId = useGameStore.getState().world!.currentCard[0]!.participants.find(
+      (p) => p.wrestlerId !== man!.id,
+    )!.wrestlerId;
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    const foe = world.wrestlers[foeId]!;
+    expect(foe.leave).toBeTruthy();
+    expect(foe.leave!.weeksRemaining).toBe(world.settings.watchLeaveWeeks);
+
+    // Not bookable, and not because anything is wrong with him.
+    expect(canWork(foe, world.settings, world.week)).toBe(false);
+    expect(foe.injury).toBeNull();
+
+    // With pay means with pay: he is still on the roster, still under
+    // contract, and still in the wage bill the company pays every week.
+    expect(world.promotion.rosterIds).toContain(foeId);
+    expect(weeklyWageBill([foe])).toBeGreaterThan(0);
+
+    // And the results page says it rather than the roster card quietly
+    // greying him out.
+    expect(world.weeklyNews.some((n) => n.text.includes(foe.name) && n.text.includes('full pay'))).toBe(true);
+  });
+
+  it('turns the whole locker room against the office, not just his friends', () => {
+    const before = useGameStore.getState().world!;
+    const man = findSomeoneWhoIntends('workThroughIt', 'careerThreatening');
+    // Somebody with no relationship to him at all — `bereavements` will have
+    // nothing to say about this man, so anything that moves him came from the
+    // company having caused it.
+    const stranger = before.promotion.rosterIds.find(
+      (id) =>
+        id !== man!.id &&
+        !before.relationships.some((r) => r.aId === id && r.bId === man!.id) &&
+        !before.relationships.some((r) => r.bId === id && r.aId === man!.id),
+    )!;
+    const moraleBefore = before.wrestlers[stranger]!.morale;
+
+    bookHurt(man!, 'careerThreatening');
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    expect(world.wrestlers[stranger]!.morale).toBeLessThan(moraleBefore);
+    expect(world.weeklyNews.some((n) => n.text.includes('said he could'))).toBe(true);
+  });
+
+  it('goes on the company\'s record, where the free-agent market can read it', () => {
+    const man = findSomeoneWhoIntends('workThroughIt', 'careerThreatening');
+    bookHurt(man!, 'careerThreatening');
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    const deaths = world.promotion.deathsOnOurWatch ?? [];
+    expect(deaths.map((d) => d.wrestlerId)).toContain(man!.id);
+    expect(stillHeldAgainstUs(deaths, world.week, world.settings)).toBeGreaterThan(0);
+
+    // A careful free agent will not sign here now. Checked through the store
+    // action rather than the predicate, because the rule has to hold at the
+    // place the signing actually happens.
+    const held = stillHeldAgainstUs(deaths, world.week, world.settings);
+    const careful = world.freeAgents.find((a) => {
+      const w = world.wrestlers[a.wrestlerId];
+      return w && wontWorkForUs(w, held, world.settings);
+    });
+    if (careful) {
+      useGameStore.getState().signFreeAgent(careful.wrestlerId);
+      expect(useGameStore.getState().world!.promotion.rosterIds).not.toContain(careful.wrestlerId);
+    }
   });
 });

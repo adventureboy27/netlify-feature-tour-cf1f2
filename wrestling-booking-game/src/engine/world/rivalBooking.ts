@@ -187,6 +187,10 @@ export function canWork(w: Wrestler, settings: WorldSettings, week?: number): bo
   // them working hurt — which today only happens when a champion is sent out
   // to defend rather than vacate. See world/titleDefence.ts.
   if (w.injury && !w.clearedToWorkHurt) return false;
+  // Away, and there is nothing wrong with him. The company sent him home
+  // after somebody died in the ring with him and it is not negotiable —
+  // there is deliberately no clearance flag for this one. See onOurWatch.ts.
+  if (w.leave) return false;
   if (w.deceased || w.careerStatus === 'retired') return false;
   // Somebody working as an official or a mouthpiece is not on the active
   // roster. Gating it here covers the office's card and every rival's, so

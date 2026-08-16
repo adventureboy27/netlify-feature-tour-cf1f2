@@ -263,7 +263,11 @@ export function resolveInjuryCall(
       outcome: 'died',
       weeksOut: 0,
       healthCost: 100,
-      line: `${wrestler.name} went out there against medical advice and did not come back. He was ${wrestler.age}.`,
+      // The only outcome whose line is a cause rather than a whole sentence:
+      // a death is always printed through `deathLine`, which has already said
+      // who he was and how old. Written as the clause that follows it, so the
+      // obituary does not say his name twice.
+      line: `He went out there against medical advice and did not come back.`,
     };
   }
 

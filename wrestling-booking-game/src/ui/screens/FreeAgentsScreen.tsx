@@ -13,6 +13,13 @@ import { rankPool, currentAskingRate, canSign, AVAILABILITY_LABELS } from '../..
 import { contractLengthLine } from '../../engine/economy/contracts';
 import { leverageReason } from '../../engine/career/leverage';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
+import {
+  mostRecentDeath,
+  ourPrice,
+  refusalLine,
+  stillHeldAgainstUs,
+  wontWorkForUs,
+} from '../../engine/career/onOurWatch';
 import { noCompeteLabel } from '../../engine/economy/termination';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { Money } from '../components/display';
@@ -30,6 +37,11 @@ export function FreeAgentsScreen() {
   if (!world) return null;
 
   const banned = world.signingBanWeeks > 0;
+  // What this company did to the last man it sent out hurt, and how much of
+  // it the business is still holding against it.
+  const deaths = world.promotion.deathsOnOurWatch ?? [];
+  const heldAgainstUs = stillHeldAgainstUs(deaths, world.week, world.settings);
+  const buried = mostRecentDeath(deaths);
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
@@ -45,11 +57,25 @@ export function FreeAgentsScreen() {
         )}
       </div>
 
+      {/* What this company did, and what the market thinks of it. Stated at
+          the top of the page rather than discovered one greyed-out button at
+          a time. */}
+      {heldAgainstUs > 0 && buried && (
+        <p className="rounded bg-rose-950/50 p-2 text-xs text-rose-300">
+          {buried.name} died in this company's ring. The people who look after themselves are not taking the
+          call, and the ones who will want paying for it.
+        </p>
+      )}
+
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {ranked.map((agent) => {
           const wrestler = world.wrestlers[agent.wrestlerId];
           if (!wrestler) return null;
-          const rate = currentAskingRate(agent, world.settings);
+          const rate = ourPrice(currentAskingRate(agent, world.settings), heldAgainstUs, world.settings);
+          // He is not sitting out a no-compete; he simply will not work here.
+          const refuses = buried && wontWorkForUs(wrestler, heldAgainstUs, world.settings)
+            ? refusalLine(wrestler.name, buried.name)
+            : null;
           const affordable = canSign(wrestler, world.promotion.bankBalance, world.signingBanWeeks, world.settings);
           // He negotiated his way out of somewhere and gave up the money to
           // do it. Nobody can touch him yet, including the company he left.
@@ -68,6 +94,7 @@ export function FreeAgentsScreen() {
                   {agent.weeksUnsigned > 20 && <span className="text-neutral-600"> · {agent.weeksUnsigned}w unsigned</span>}
                 </div>
                 {sittingOut && <div className="text-[10px] text-amber-400">{sittingOut}</div>}
+                {refuses && <div className="text-[10px] leading-snug text-rose-400">{refuses}</div>}
                 {/* What he wants, and why the number is what it is. Both stated
                     before the signing rather than discovered after it. */}
                 <div className="text-[10px] text-neutral-500">
@@ -99,15 +126,17 @@ export function FreeAgentsScreen() {
                 <button
                   type="button"
                   data-testid={`sign-${agent.wrestlerId}`}
-                  disabled={!affordable || Boolean(sittingOut)}
+                  disabled={!affordable || Boolean(sittingOut) || Boolean(refuses)}
                   onClick={() => sign(agent.wrestlerId)}
                   className={`mt-1.5 w-full rounded px-2 py-1 text-[11px] ${
-                    affordable && !sittingOut
+                    affordable && !sittingOut && !refuses
                       ? 'bg-emerald-600 text-white hover:bg-emerald-500'
                       : 'bg-neutral-800 text-neutral-600'
                   }`}
                 >
-                  {sittingOut ? (
+                  {refuses ? (
+                    'Will not sign here'
+                  ) : sittingOut ? (
                     'Cannot sign yet'
                   ) : (
                     <>

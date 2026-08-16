@@ -18,6 +18,7 @@ import { effectiveAppearance } from '../../engine/generate/gimmickLook';
 import { CAREER_STATUS_LABELS, CAREER_STATUS_BLURBS, yearsPro } from '../../engine/career/status';
 import { egoLabel } from '../../engine/career/ego';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
+import { leaveStatusLine } from '../../engine/career/onOurWatch';
 import { retirementPressure } from '../../engine/career/retirement';
 import { canFormTeam, teamOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
 import { ATTIRE_PALETTE } from '../paperdoll/palette';
@@ -310,6 +311,16 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                 {w.noticeGivenWeek != null && (
                   <div className="mt-0.5 text-[10px] font-semibold text-rose-300">
                     Not re-signing. Working out the deal and then gone.
+                  </div>
+                )}
+
+                {/* Away, and there is nothing wrong with him. Deliberately
+                    not styled as an injury and it says why he is gone — a man
+                    sent home for a month must not read as a torn something.
+                    See engine/career/onOurWatch.ts. */}
+                {w.leave && (
+                  <div className="mt-0.5 text-[10px] leading-snug text-sky-300">
+                    {leaveStatusLine(w.leave)} <span className="text-neutral-500">{w.leave.reason}</span>
                   </div>
                 )}
 

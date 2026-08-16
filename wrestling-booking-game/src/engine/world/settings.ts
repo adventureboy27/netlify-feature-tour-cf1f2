@@ -223,6 +223,16 @@ export function defaultWorldSettings(): WorldSettings {
     // Rare enough to be a story rather than a mechanic, and possible enough
     // that "he says he is fine" is never simply free.
     bodyDeathChance: 0.06,
+    // What a death on your own show costs you afterwards. Two years is long
+    // enough that a company can come back from it and short enough that it is
+    // a real problem now. See career/onOurWatch.ts.
+    watchMemoryWeeks: 104,
+    watchRoomMoraleCost: 18,
+    watchAskingPremiumMax: 0.45,
+    // At full weight only the careful stay away; by the time it has faded
+    // nobody does.
+    watchRefusalCare: 0.6,
+    watchLeaveWeeks: 4,
     doctorAgePerYear: 0.04,
     doctorConditionWeight: 0.5,
     // What moves somebody from wanting cash to wanting cover. A bad injury is
