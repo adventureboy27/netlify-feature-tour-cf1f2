@@ -15,7 +15,9 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { useGameStore } from './store';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { stanceOn, type InjuryIntent } from '../engine/career/theBody';
-import { stillHeldAgainstUs, wontWorkForUs } from '../engine/career/onOurWatch';
+import { ourPrice, stillHeldAgainstUs, wontWorkForUs } from '../engine/career/onOurWatch';
+import { contractDemand } from '../engine/career/ego';
+import { renewalRate } from '../engine/economy/contracts';
 import { canWork } from '../engine/world/rivalBooking';
 import { weeklyWageBill } from '../engine/economy/contracts';
 import type { Injury, WorldSettings, Wrestler } from '../engine/types';
@@ -216,5 +218,74 @@ describe('when it goes as badly as it can', () => {
       useGameStore.getState().signFreeAgent(careful.wrestlerId);
       expect(useGameStore.getState().world!.promotion.rosterIds).not.toContain(careful.wrestlerId);
     }
+  });
+});
+
+describe('the renewal table, and the day it stops mattering', () => {
+  beforeEach(() => {
+    useGameStore.getState().newGame(settings({ bodyWorkThroughBackfire: 1, bodyDeathChance: 1 }));
+  });
+
+  it('charges the man who already works here the same premium as a stranger', () => {
+    const man = findSomeoneWhoIntends('workThroughIt', 'careerThreatening');
+    bookHurt(man!, 'careerThreatening');
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    const held = stillHeldAgainstUs(world.promotion.deathsOnOurWatch ?? [], world.week, world.settings);
+    expect(held).toBeGreaterThan(0);
+
+    // Run every remaining deal down at once, so this is a property of the
+    // table rather than of one man who happened to be up.
+    const clean = new Map(
+      world.promotion.rosterIds.map((id) => {
+        const p = world.wrestlers[id]!;
+        return [id, contractDemand(p, renewalRate(p, world.settings), p.careerStatus, world.settings).weeklyRate];
+      }),
+    );
+    useGameStore.setState((state) => {
+      for (const id of state.world!.promotion.rosterIds) {
+        const c = state.world!.wrestlers[id]!.contract;
+        if (c) c.weeksRemaining = 1;
+      }
+    });
+    runWeek();
+
+    const after = useGameStore.getState().world!;
+    expect(after.pendingRenewals.length).toBeGreaterThan(0);
+    for (const offer of after.pendingRenewals) {
+      expect(offer.demand.weeklyRate).toBeGreaterThan(clean.get(offer.wrestlerId)!);
+    }
+
+    // And the ones who look after themselves did not come to the table at
+    // all. They are gone, and the wire says why rather than leaving a hole in
+    // the roster for the player to notice.
+    const walked = after.weeklyNews.filter((n) => n.text.includes('not signing another one'));
+    expect(walked.length).toBeGreaterThan(0);
+    expect(walked[0]!.text).toContain(man!.name);
+  });
+
+  it('lets it go once the business has, and prices exactly as it did before', () => {
+    // The whole point of the fade. Same promotion, same man, two years on:
+    // the number is the number, with nothing added for what happened.
+    const man = findSomeoneWhoIntends('workThroughIt', 'careerThreatening');
+    bookHurt(man!, 'careerThreatening');
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    const deaths = world.promotion.deathsOnOurWatch ?? [];
+    const wayLater = world.week + world.settings.watchMemoryWeeks;
+    const held = stillHeldAgainstUs(deaths, wayLater, world.settings);
+
+    expect(held).toBe(0);
+    expect(ourPrice(5000, held, world.settings)).toBe(5000);
+    const careful = world.promotion.rosterIds
+      .map((id) => world.wrestlers[id]!)
+      .reduce((worst, w) => ((w.selfPreservation ?? 0) > (worst.selfPreservation ?? 0) ? w : worst));
+    expect(wontWorkForUs(careful, held, world.settings)).toBe(false);
+
+    // And the wall still says what happened. The money forgets; the record
+    // does not.
+    expect(world.memoriam.some((p) => p.wrestlerId === man!.id)).toBe(true);
   });
 });

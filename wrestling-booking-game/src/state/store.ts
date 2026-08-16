@@ -429,11 +429,13 @@ import { decayGrudges, grudgeAgainst, grudgeLine, rememberNight } from '../engin
 import {
   compassionateLeave,
   leaveLine,
+  mostRecentDeath,
   ourPrice,
   roomLine,
   roomMoraleCost,
   stillHeldAgainstUs,
   tickLeave,
+  wontRenewLine,
   wontWorkForUs,
 } from '../engine/career/onOurWatch';
 import {
@@ -5958,9 +5960,41 @@ export const useGameStore = create<GameStore>()(
         }
 
         // A deal that ran down comes back as a demand, not as a departure.
+        //
+        // What the company did is priced here as well as in the free-agent
+        // pool: the man who was in the building the night it happened is not
+        // a softer negotiation than a stranger who only read about it. It
+        // fades on the same clock, and a deal already signed keeps whatever
+        // rate it was signed at — so the money forgets and the wall does not.
+        const heldAtTheTable = stillHeldAgainstUs(
+          world.promotion.deathsOnOurWatch ?? [],
+          world.week,
+          world.settings,
+        );
+        const buriedByUs = mostRecentDeath(world.promotion.deathsOnOurWatch ?? []);
         for (const id of expired) {
           const member = world.wrestlers[id];
           if (!member || world.pendingRenewals.some((r) => r.wrestlerId === id)) continue;
+
+          // If a stranger will not come, the man who watched it happen is not
+          // going to stay. He is gone, and the wire says why.
+          if (buriedByUs && wontWorkForUs(member, heldAtTheTable, world.settings)) {
+            world.promotion.rosterIds = world.promotion.rosterIds.filter((x) => x !== id);
+            member.promotionId = null;
+            member.contract = null;
+            member.noticeGivenWeek = null;
+            world.freeAgents.push({
+              wrestlerId: id,
+              reason: 'contractExpired',
+              askingRate: askingRate(member, world.settings),
+              wantsWeeks: desiredContractWeeks(member, world.settings),
+              weeksUnsigned: 0,
+            });
+            world.weeklyNews.push(
+              wire('signing', wontRenewLine(member.name, buriedByUs.name), world.week, 'lead'),
+            );
+            continue;
+          }
 
           // He told you a fortnight ago. There is no negotiation to have.
           if (member.noticeGivenWeek != null) {
@@ -5981,9 +6015,15 @@ export const useGameStore = create<GameStore>()(
             continue;
           }
 
+          const demand = contractDemand(
+            member,
+            renewalRate(member, world.settings),
+            member.careerStatus,
+            world.settings,
+          );
           world.pendingRenewals.push({
             wrestlerId: id,
-            demand: contractDemand(member, renewalRate(member, world.settings), member.careerStatus, world.settings),
+            demand: { ...demand, weeklyRate: ourPrice(demand.weeklyRate, heldAtTheTable, world.settings) },
             openedWeek: world.week,
           });
         }

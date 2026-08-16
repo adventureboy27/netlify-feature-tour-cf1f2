@@ -15,15 +15,27 @@
 //   - The room. Everybody, not only his friends. Somebody they all worked
 //     with went out there hurt because the office cleared him, and the office
 //     is going to feel that in every negotiation for a year.
-//   - The market. Free agents price you. The ones who look after themselves
-//     stop taking your calls entirely while it is fresh, and the rest want
+//   - The market — both tables. Free agents price you, and so does the man
+//     already on the roster whose paper has just run out; if a stranger who
+//     only read about it will not come, somebody who was in the building that
+//     night is not a softer negotiation. The ones who look after themselves
+//     stop taking the call entirely while it is fresh, and the rest want
 //     paying for the risk.
 //   - The man who was in the ring with him. Four weeks off, on full pay,
 //     not negotiable. He did nothing wrong and he is no use to anybody for a
 //     month. See `Leave` — it is not an injury and must not read as one.
 //
-// It fades. Two years is long enough that a company can come back from it,
-// short enough that it is a real problem now.
+// AND THEN IT STOPS. Two years and the business has filed it as an unfortunate
+// thing that happened, not as a fact about the company: `stillHeldAgainstUs`
+// returns a clean zero, `riskPremium` is 1, and nobody refuses. Nothing about
+// a contract signed after that date is different from one signed before any of
+// it happened.
+//
+// Deals signed while it was hot keep the rate they were signed at, which is
+// what gives the fade its teeth — a booker can pay the premium now or carry
+// the hole in his roster until the business forgets. What does not fade is the
+// wall: the memorial page says he went out there hurt for as long as the save
+// runs. The money forgets. The record does not.
 
 import { clamp } from '../rng';
 import type { Id, Wrestler, WorldSettings } from '../types';
@@ -116,6 +128,17 @@ export function wontWorkForUs(wrestler: Wrestler, weight: number, settings: Worl
 /** Why he will not sign, in his words. Never a silent dead button. */
 export function refusalLine(name: string, deadName: string): string {
   return `${name} will not take the call. He has read what happened to ${deadName}.`;
+}
+
+/**
+ * And the man who already works here, whose paper has just run out.
+ *
+ * The same judgement as the free agent's, made by somebody who was in the
+ * building that night — so if a stranger will not come, the man who watched
+ * it happen certainly will not stay.
+ */
+export function wontRenewLine(name: string, deadName: string): string {
+  return `${name}'s deal is up and he is not signing another one. He was there the night ${deadName} died.`;
 }
 
 // ------------------------------------------------------------ paid leave

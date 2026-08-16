@@ -125,3 +125,37 @@ describe('the room', () => {
     expect(roomLine('Earl Mercer', 'Ironbelt Wrestling')).toContain('Ironbelt Wrestling');
   });
 });
+
+describe('and then it stops', () => {
+  // The point of the whole module. It is an aftershock, not a permanent fact
+  // about the company — once the business has filed it as an unfortunate
+  // thing that happened, nothing about a new contract is different from one
+  // signed before any of it.
+  const old = [death(10)];
+  const later = 10 + settings.watchMemoryWeeks;
+
+  it('holds nothing against you once the memory is out', () => {
+    expect(stillHeldAgainstUs(old, later, settings)).toBe(0);
+  });
+
+  it('charges nothing extra, at either table', () => {
+    const weight = stillHeldAgainstUs(old, later, settings);
+    expect(ourPrice(1234, weight, settings)).toBe(1234);
+    expect(riskPremium(weight, settings)).toBe(1);
+  });
+
+  it('and nobody refuses any more, however careful they are', () => {
+    const weight = stillHeldAgainstUs(old, later, settings);
+    expect(wontWorkForUs(man(100), weight, settings)).toBe(false);
+  });
+
+  it('is still shrinking the week before it goes', () => {
+    // Not a cliff at the end of two years: the price comes down every week,
+    // so a booker who waits sees it getting cheaper rather than nothing at
+    // all followed by everything at once.
+    const nearly = stillHeldAgainstUs(old, later - 1, settings);
+    const halfway = stillHeldAgainstUs(old, 10 + settings.watchMemoryWeeks / 2, settings);
+    expect(nearly).toBeGreaterThan(0);
+    expect(nearly).toBeLessThan(halfway);
+  });
+});

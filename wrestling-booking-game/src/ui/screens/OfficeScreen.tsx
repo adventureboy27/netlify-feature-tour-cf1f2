@@ -24,6 +24,7 @@ import { useGameStore } from '../../state/store';
 import { tvVerdict, wonTheNight, playerChartPosition } from '../../engine/world/tvRatings';
 import { temptationLabel } from '../../engine/world/tampering';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
+import { mostRecentDeath, stillHeldAgainstUs } from '../../engine/career/onOurWatch';
 import { egoLabel } from '../../engine/career/ego';
 import { awardById } from '../../engine/career/awards';
 import { strikeWarning } from '../../engine/world/mandates';
@@ -684,6 +685,13 @@ function ContractsTab() {
 
   const wrestler = (id?: string): Wrestler | undefined => (id ? world.wrestlers[id] : undefined);
 
+  // What this company did, and how much of it the business is still holding
+  // against it at the table. Zero once it has faded, and then this page reads
+  // exactly as it did before any of it happened.
+  const deathsOnUs = world.promotion.deathsOnOurWatch ?? [];
+  const heldAgainstUs = stillHeldAgainstUs(deathsOnUs, world.week, world.settings);
+  const buriedByUs = mostRecentDeath(deathsOnUs);
+
   // Read off the one wire rather than a second list kept alongside it. The
   // results page and this tab now cannot disagree about who left.
   const departures = world.weeklyNews.filter((n) => n.kind === 'departure').map((n) => n.text);
@@ -775,6 +783,14 @@ function ContractsTab() {
       {world.pendingRenewals.length > 0 && (
         <section className="mb-4">
           <h2 className="mb-2 text-sm font-medium text-neutral-300">Contracts up</h2>
+          {/* Why every number on this page is bigger than it should be. Said
+              once at the top rather than repeated on each card, and it stops
+              being said the week the business lets it go. */}
+          {heldAgainstUs > 0 && buriedByUs && (
+            <p className="mb-2 rounded bg-rose-950/50 p-2 text-[11px] text-rose-300">
+              Everybody is asking for more since {buriedByUs.name} died in this company's ring.
+            </p>
+          )}
           <div className="flex flex-col gap-2">
             {world.pendingRenewals.map((renewal) => {
               const person = wrestler(renewal.wrestlerId);
