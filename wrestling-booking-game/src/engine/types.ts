@@ -234,6 +234,15 @@ export type InjurySeverity = 'minor' | 'moderate' | 'severe' | 'careerThreatenin
 
 export type PhysicalStatKey = 'strength' | 'skill' | 'agility' | 'stamina' | 'toughness';
 
+export interface InjuryRecord {
+  what: string;
+  severity: InjurySeverity;
+  year: number;
+  week: number;
+  weeksOut: number;
+  workedThroughIt: boolean;
+}
+
 export interface Injury {
   severity: InjurySeverity;
   description: string;
@@ -521,6 +530,15 @@ export interface Wrestler {
    * back afterwards — see career/leverage.ts.
    */
   comebackWeek?: number | null;
+  /**
+   * How this person regards his own future, 0-100. High takes the insurance
+   * and the weeks off; low wants cash now and thinks he is indestructible.
+   * Drives what he asks for in a deal and what he does when he is hurt.
+   * See career/theBody.ts.
+   */
+  selfPreservation: number;
+  /** Everything that has ever happened to this body, dated. */
+  injuryHistory: InjuryRecord[];
   /** Set when they die. A wrestler with this set is never booked again. */
   deceased?: Passing;
   /** Set when they are inducted. §19's hall of fame. */
@@ -1636,6 +1654,46 @@ export interface WorldSettings {
   leverageFloor: number;
   /** The in-ring level the business calls elite. */
   leverageEliteCraft: number;
+
+  /** Entries before a body is described as a long history rather than listed. */
+  /** What to assume about a wrestler with no self-preservation set. */
+  selfPreservationDefault: number;
+  bodyLongHistoryCount: number;
+  /** How much each past injury teaches somebody caution. */
+  bodyHistoryTeachesCaution: number;
+  /** How much a big opinion of oneself overrides good sense. */
+  bodyEgoRecklessness: number;
+  /** Share of the reckless who go the whole way and work through it. */
+  bodyWorkThroughChance: number;
+  /** Odds it goes wrong, coming back early and working through respectively. */
+  bodyEarlyReturnBackfire: number;
+  bodyWorkThroughBackfire: number;
+  /** Share of the doctor's weeks actually taken on each path. */
+  bodyEarlyWeeks: number;
+  bodyWorkThroughWeeks: number;
+  /** Multiplier on the weeks out when it does go wrong. */
+  bodyBackfireWeeks: number;
+  /** Permanent health cost of each ending. */
+  bodyWorkThroughToll: number;
+  bodyWorseToll: number;
+  bodyCareerEndingToll: number;
+  /** Odds a backfire ends a career, and odds the very worst night kills. */
+  bodyCareerEndingChance: number;
+  bodyDeathChance: number;
+  /** How much longer the same injury takes past prime, per year. */
+  doctorAgePerYear: number;
+  doctorConditionWeight: number;
+  /** What moves somebody from wanting cash to wanting cover. */
+  appetiteHistoryWeight: number;
+  appetiteBadInjuryWeight: number;
+  appetiteInsuranceAt: number;
+  appetiteCashAt: number;
+  appetiteCashEgoAt: number;
+  /** How much longer a deal a frightened body wants. */
+  securityPerInjury: number;
+  securityPerBadInjury: number;
+  securityFromCaution: number;
+  securityMax: number;
   leverageStrongAt: number;
   leverageFairAt: number;
   leverageWeakAt: number;

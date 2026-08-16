@@ -14,6 +14,7 @@
 
 import { clamp } from '../rng';
 import { rngFromSeed } from '../rng';
+import { securityWanted } from '../career/theBody';
 import { afterLeverage, negotiatingLeverage } from '../career/leverage';
 import type { Contract, Wrestler, WorldSettings } from '../types';
 
@@ -86,6 +87,12 @@ export function desiredContractWeeks(wrestler: Wrestler, settings: WorldSettings
     want -= (wrestler.age - settings.veteranAge) * settings.contractWantLostPerVeteranYear;
   }
   if (wrestler.comebackWeek != null) want -= settings.contractComebackWant;
+
+  // A body that has already let him down makes security worth more than the
+  // chance to renegotiate. This is the term that changes over a career: sign
+  // him at twenty-five and he wants cash and a short deal; the same man with a
+  // rebuilt shoulder wants cover and years of it.
+  want += securityWanted(wrestler, wrestler.injuryHistory ?? [], settings);
 
   // The inversion: the stronger the position, the shorter the deal wanted.
   want -= (negotiatingLeverage(wrestler, settings) - settings.contractLeverageNeutral) * settings.contractLeverageSwing;

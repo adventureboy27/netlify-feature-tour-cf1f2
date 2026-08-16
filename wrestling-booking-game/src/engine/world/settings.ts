@@ -192,6 +192,47 @@ export function defaultWorldSettings(): WorldSettings {
     // What the business calls an elite worker. A veteran at or above this can
     // still ask for his money whatever his birth certificate says.
     leverageEliteCraft: 85,
+
+    // ---- the body -------------------------------------------------------
+    // What to assume about somebody the game has no opinion about.
+    selfPreservationDefault: 50,
+    bodyLongHistoryCount: 4,
+    bodyHistoryTeachesCaution: 0.12,
+    bodyEgoRecklessness: 0.35,
+    bodyWorkThroughChance: 0.45,
+    // Coming back early is usually fine. Working through it is a real gamble,
+    // and it has to be usually survivable or nobody would ever do it and the
+    // whole choice would be a decoration.
+    bodyEarlyReturnBackfire: 0.18,
+    bodyWorkThroughBackfire: 0.34,
+    bodyEarlyWeeks: 0.65,
+    bodyWorkThroughWeeks: 0.25,
+    bodyBackfireWeeks: 2.6,
+    bodyWorkThroughToll: 4,
+    bodyWorseToll: 9,
+    bodyCareerEndingToll: 45,
+    bodyCareerEndingChance: 0.12,
+    // Rare enough to be a story rather than a mechanic, and possible enough
+    // that "he says he is fine" is never simply free.
+    bodyDeathChance: 0.06,
+    doctorAgePerYear: 0.04,
+    doctorConditionWeight: 0.5,
+    // What moves somebody from wanting cash to wanting cover. A bad injury is
+    // worth several ordinary ones — the third knee is not an argument.
+    appetiteHistoryWeight: 0.1,
+    appetiteBadInjuryWeight: 0.25,
+    // Measured at 0.85 and nobody in the world ever wanted insurance: the
+    // trait tops out around 0.84 on its own, so the threshold sat above its
+    // practical ceiling and the whole appetite was unreachable without a
+    // serious injury first.
+    appetiteInsuranceAt: 0.68,
+    appetiteCashAt: 0.5,
+    appetiteCashEgoAt: 0.55,
+    // How much longer a deal a frightened body wants, as a share of the span.
+    securityPerInjury: 0.05,
+    securityPerBadInjury: 0.09,
+    securityFromCaution: 0.1,
+    securityMax: 0.35,
     leverageStrongAt: 0.95,
     leverageFairAt: 0.75,
     leverageWeakAt: 0.5,

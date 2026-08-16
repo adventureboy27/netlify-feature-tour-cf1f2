@@ -423,6 +423,7 @@ import {
 } from '../engine/economy/showBudget';
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import { decayGrudges, grudgeAgainst, grudgeLine, rememberNight } from '../engine/world/grudges';
+import { recordInjury } from '../engine/career/theBody';
 import {
   concessionsPerHead,
   houseTakeOfGate,
@@ -933,6 +934,13 @@ function resolveConfrontationSlot(
         permanentStatLoss: {},
         earlyReturnWeeksUsed: 0,
       };
+      // Written into the body's permanent record, not only the current
+      // status. A career is what has already happened to it.
+      hurt.injuryHistory = recordInjury(
+        hurt.injuryHistory ?? [],
+        hurt.injury,
+        world.settings.startingYear + Math.floor(world.week / 52),
+      );
       hurt.health = clamp(hurt.health - world.settings.casualtyHealthCost, 0, 100);
     }
   }
@@ -1567,6 +1575,13 @@ function applyEffect(world: World, effect: EventEffect): number {
           permanentStatLoss: {},
           earlyReturnWeeksUsed: 0,
         };
+        // Written into the body's permanent record, not only the current
+        // status. A career is what has already happened to it.
+        w.injuryHistory = recordInjury(
+          w.injuryHistory ?? [],
+          w.injury,
+          world.settings.startingYear + Math.floor(world.week / 52),
+        );
       }
       break;
     }
@@ -4466,6 +4481,13 @@ export const useGameStore = create<GameStore>()(
                 permanentStatLoss: {},
                 earlyReturnWeeksUsed: 0,
               };
+              // Written into the body's permanent record, not only the current
+              // status. A career is what has already happened to it.
+              unlucky.injuryHistory = recordInjury(
+                unlucky.injuryHistory ?? [],
+                unlucky.injury,
+                world.settings.startingYear + Math.floor(world.week / 52),
+              );
               world.weeklyNews.push(
                 wire(
                   'departure',

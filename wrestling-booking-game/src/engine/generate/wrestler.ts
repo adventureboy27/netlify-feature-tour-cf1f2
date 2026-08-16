@@ -4,7 +4,7 @@
 // status), a reasonable default is used and flagged // DESIGN.
 
 import type { Rng } from '../rng';
-import { clamp, gaussian, randInt, weightedPick, pick, chance, shuffle } from '../rng';
+import { rngFromSeed, clamp, gaussian, randInt, weightedPick, pick, chance, shuffle } from '../rng';
 import type { Appearance, Archetype, CardStatus, Id, Wrestler, WorldSettings } from '../types';
 import { rollHype } from '../career/hype';
 import { ARCHETYPES, archetypeById } from '../../data/archetypes';
@@ -204,9 +204,24 @@ export function generateWrestler(
   const weightLbs = clamp(Math.round(gaussian(rng, gender === 'm' ? 235 : 155, 35)), 105, 380);
   const heightIn = clamp(Math.round(gaussian(rng, gender === 'm' ? 71 : 66, 3.5)), 60, 84);
 
+  const id = randomId(rng, 'w');
+
+  // How he regards his own future. Derived rather than drawn: taking another
+  // number off the stream here would shift every seeded roll after it, and
+  // this is not really independent of who he already is anyway. A professional
+  // keeps his head; a man who thinks he is the business does not. The jitter
+  // is seeded from his own id so two identical temperaments still differ.
+  const selfPreservation = clamp(
+    attitude * 0.6 + (100 - talent) * 0.1 + rngFromSeed(`body:${id}`).next() * 45 - 10,
+    0,
+    100,
+  );
+
   const wrestler: Wrestler = {
-    id: randomId(rng, 'w'),
+    id,
     name,
+    selfPreservation,
+    injuryHistory: [],
 
     popularity,
     strength,
