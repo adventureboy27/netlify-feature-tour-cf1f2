@@ -11,9 +11,10 @@
 //      so the gate is bigger than either company could draw alone, everybody on
 //      the card takes an appearance fee well above a normal night, and the
 //      winners take a bonus on top.
-//   2. Titles never change hands. §16 is unambiguous and `lineageProtected`
-//      enforces it. Champion vs champion is the marquee draw and the belts
-//      still go home where they came from. What is on the table is credibility.
+//   2. Titles never change hands. §16 is unambiguous, and it is enforced in
+//      supershowRun.ts by giving the joint card no belts to put on the line.
+//      Champion vs champion is the marquee draw and the belts still go home
+//      where they came from. What is on the table is credibility.
 //   3. Losing is expensive in the currency that matters. A champion who loses
 //      keeps the belt and looks like a fraud for months, and the company that
 //      loses the night on aggregate hands its rival a rating swing, a morale
@@ -24,7 +25,7 @@
 
 import type { Rng } from '../rng';
 import { chance, clamp, randInt } from '../rng';
-import type { Id, Promotion, Title, Wrestler, WorldSettings } from '../types';
+import type { Id, Promotion, Wrestler, WorldSettings } from '../types';
 
 // ---------------------------------------------------------------- the deal
 
@@ -146,9 +147,15 @@ export function supershowPurse(
   playerOnCard: number,
   playerWinners: number,
   settings: WorldSettings,
+  /**
+   * What the card came out at against what was agreed. Both offices get to
+   * strike pairings they will not do (see supershowCard.ts), and a night that
+   * ran ten matches instead of fourteen is a smaller night.
+   */
+  sizeMultiplier = 1,
 ): SupershowPurse {
   const pull = (p: Promotion) => p.rating * settings.supershowGatePerRatingPoint;
-  const combined = (pull(player) + pull(partner)) * settings.supershowNoveltyMultiplier;
+  const combined = (pull(player) + pull(partner)) * settings.supershowNoveltyMultiplier * sizeMultiplier;
 
   const hostBonus =
     deal.hostPromotionId === player.id ? settings.supershowHostGateBonus : -settings.supershowHostGateBonus;
@@ -163,7 +170,13 @@ export function supershowPurse(
   const appearanceFee = Math.round(totalGate * settings.supershowAppearanceShare);
   const winBonus = Math.round(appearanceFee * settings.supershowWinBonusMultiple);
 
-  const playerAppearanceBill = appearanceFee * playerOnCard + winBonus * playerWinners;
+  // What the office actually writes out, rather than an estimate of it: the
+  // same per-person figure the roster is shown, added up. These two used to
+  // disagree, because the bill assumed a loser took the flat fee and nothing
+  // else, which stopped being true the moment the loser's share was wired up.
+  const playerAppearanceBill =
+    walkAwayWith(appearanceFee, winBonus, true, settings) * playerWinners +
+    walkAwayWith(appearanceFee, winBonus, false, settings) * Math.max(0, playerOnCard - playerWinners);
   const guarantee =
     deal.appearanceGuarantee * (deal.hostPromotionId === player.id ? -1 : 1);
 
@@ -178,13 +191,44 @@ export function supershowPurse(
   };
 }
 
+/**
+ * One person's night, from the two numbers the deal produced.
+ *
+ * The loser's share is deliberately not zero. Losing a cross-promotional match
+ * costs a career something real — §16 hands out the popularity and prestige
+ * hits and they are the punishment — and taking the man's money as well would
+ * be charging him twice for the same loss. He worked the biggest show of the
+ * year in front of both audiences; he goes home paid.
+ */
+function walkAwayWith(
+  appearanceFee: number,
+  winBonus: number,
+  won: boolean,
+  settings: WorldSettings,
+): number {
+  return appearanceFee + winBonus * (won ? 1 : settings.supershowLoserBonusShare);
+}
+
 /** What one person walks away with. Shown on the card, so the roster can see it. */
 export function personalPurse(
   purse: SupershowPurse,
   won: boolean,
   settings: WorldSettings,
 ): number {
-  return purse.appearanceFee + (won ? purse.winBonus : 0) * (won ? 1 : settings.supershowLoserBonusShare);
+  return Math.round(walkAwayWith(purse.appearanceFee, purse.winBonus, won, settings));
+}
+
+/**
+ * What a short card is worth against the card that was agreed.
+ *
+ * Both offices can strike pairings they will not do, and once the standbys are
+ * gone every strike is a segment that does not happen. The gate follows,
+ * because the thing two audiences bought was a fourteen-match show.
+ */
+export function cardSizeMultiplier(ran: number, agreed: number, settings: WorldSettings): number {
+  if (agreed <= 0 || ran >= agreed) return 1;
+  const missing = (agreed - ran) / agreed;
+  return Math.max(settings.supershowShortCardFloor, 1 - missing * settings.supershowShortCardPenalty);
 }
 
 // ---------------------------------------------------------------- the stakes
@@ -211,14 +255,13 @@ export function crossPromoStakes(isChampion: boolean, settings: WorldSettings): 
   };
 }
 
-/**
- * §16 is a hard rule and this is the only place that says so: a belt on a
- * cross-promotional card cannot move, whoever wins and whatever the finish.
- * The sim still picks a winner and the winner still gets everything else.
- */
-export function titleCanTravel(title: Title): boolean {
-  return !title.lineageProtected;
-}
+// §16's hard rule — a belt on a cross-promotional card cannot move — used to
+// live here as `titleCanTravel(title)`, returning `!title.lineageProtected`.
+// It was never called, and it was worse than dead: exactly one belt in the
+// game sets that flag, so anybody who had wired it up would have found every
+// other title in the world cheerfully changing hands on a joint show. The rule
+// is enforced where it cannot be got around, in supershowRun.ts, by giving the
+// card no titles to put on the line in the first place.
 
 export interface NightVerdict {
   playerWins: number;

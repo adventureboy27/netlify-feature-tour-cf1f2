@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultWorldSettings } from './settings';
 import { rngFromSeed } from '../rng';
-import type { Promotion, Title } from '../types';
+import type { Promotion } from '../types';
 import {
   coopAppetite,
   moodFor,
@@ -17,7 +17,7 @@ import {
   supershowPurse,
   personalPurse,
   crossPromoStakes,
-  titleCanTravel,
+  cardSizeMultiplier,
   nightVerdict,
 } from './supershow';
 
@@ -41,21 +41,13 @@ function promo(over: Partial<Promotion> = {}): Promotion {
   } as Promotion;
 }
 
-function belt(over: Partial<Title> = {}): Title {
-  return { id: 'b1', lineageProtected: true, ...over } as Title;
-}
+// §16's belts-do-not-move rule is not tested here any more, and deliberately:
+// it used to be checked through a `titleCanTravel` predicate nobody called,
+// which is a test of an opinion rather than of the game. It now runs against
+// the actual joint card in supershowRun.test.ts, where a title on the sheet
+// would be a real bug rather than a wrong answer from a dead function.
 
 describe('the belts stay where they came from', () => {
-  it('never lets a protected title travel, whoever wins', () => {
-    // §16 is a hard rule, not a tendency. This is the whole reason champion vs
-    // champion can be booked at all.
-    expect(titleCanTravel(belt({ lineageProtected: true }))).toBe(false);
-  });
-
-  it('leaves an unprotected belt alone', () => {
-    expect(titleCanTravel(belt({ lineageProtected: false }))).toBe(true);
-  });
-
   it('still puts a champion\'s credibility on the table', () => {
     const champ = crossPromoStakes(true, settings);
     const nobody = crossPromoStakes(false, settings);
@@ -120,6 +112,49 @@ describe('the money', () => {
   it('splits the whole gate and no more', () => {
     const purse = supershowPurse(player, partner, deal, 6, 3, settings);
     expect(purse.playerShare + purse.partnerShare).toBe(purse.totalGate);
+  });
+
+  it('pays a loser something rather than nothing', () => {
+    // §16 already charges a loss in popularity and prestige. Taking the man's
+    // money on top would be charging him twice for the same night.
+    const purse = supershowPurse(player, partner, deal, 6, 3, settings);
+    expect(personalPurse(purse, false, settings)).toBeGreaterThan(purse.appearanceFee);
+    expect(personalPurse(purse, false, settings)).toBeLessThan(personalPurse(purse, true, settings));
+  });
+
+  it('bills the office exactly what the people on the card are handed', () => {
+    // These two disagreed for as long as the loser's share existed: the bill
+    // assumed everybody who lost took the flat fee, and the roster was shown a
+    // bigger number than the office was paying out.
+    const purse = supershowPurse(player, partner, deal, 6, 3, settings);
+    const handed = personalPurse(purse, true, settings) * 3 + personalPurse(purse, false, settings) * 3;
+    expect(purse.playerAppearanceBill).toBe(handed);
+  });
+});
+
+describe('a card that came up short', () => {
+  const player = promo({ rating: 60 });
+  const partner = promo({ id: 'p2', name: 'Atlas', rating: 50, isPlayer: false });
+  const deal = openingOffer(player, partner, 't1', 10, settings);
+
+  it('costs nothing when the card ran as agreed', () => {
+    expect(cardSizeMultiplier(12, 12, settings)).toBe(1);
+    expect(cardSizeMultiplier(13, 12, settings)).toBe(1);
+  });
+
+  it('draws less the more of it got struck', () => {
+    expect(cardSizeMultiplier(10, 12, settings)).toBeLessThan(1);
+    expect(cardSizeMultiplier(8, 12, settings)).toBeLessThan(cardSizeMultiplier(10, 12, settings));
+  });
+
+  it('has a floor — both audiences already bought the ticket', () => {
+    expect(cardSizeMultiplier(1, 12, settings)).toBe(settings.supershowShortCardFloor);
+  });
+
+  it('shows up in the gate rather than only in the write-up', () => {
+    const full = supershowPurse(player, partner, deal, 6, 3, settings, 1);
+    const short = supershowPurse(player, partner, deal, 6, 3, settings, cardSizeMultiplier(8, 12, settings));
+    expect(short.totalGate).toBeLessThan(full.totalGate);
   });
 });
 

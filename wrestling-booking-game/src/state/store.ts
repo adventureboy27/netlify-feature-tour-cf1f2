@@ -366,7 +366,8 @@ import {
   supershowPurse,
   crossPromoStakes,
 } from '../engine/world/supershow';
-import { runSupershow } from '../engine/world/supershowRun';
+import { draftSupershow, runSupershow } from '../engine/world/supershowRun';
+import { strikeMatch } from '../engine/world/supershowCard';
 import {
   willEnter,
   slotsPerPromotion,
@@ -714,6 +715,14 @@ export interface GameStore {
   proposeSupershow: (partnerId: Id) => void;
   /** Sign the joint PPV a rival has offered, or turn them down (§16). */
   answerSupershow: (accept: boolean) => void;
+  /**
+   * Strike a pairing off the signed joint card (§16). The other office has
+   * already struck what it would not do; this is the player's half of "both
+   * must approve every match".
+   */
+  strikeSupershowMatch: (matchId: string) => void;
+  /** Sign the card off and work the show. */
+  runSupershowNight: () => void;
   /** Clear the joint-show write-up once it has been read. */
   dismissSupershowResult: () => void;
   /** Your one offer. Submitting it settles the auction. */
@@ -1312,6 +1321,140 @@ function resolveAuction(world: World, playerLevel: PlayerBidLevel, books?: State
 // business forever by ignoring a dialog.
 
 /** Everybody a promotion is paying this week, for the headroom check. */
+/**
+ * Work the joint show and apply everything it did (§16).
+ *
+ * Module scope rather than inside the action, because two things set it off:
+ * the player signing the card off, and the week turning while he is still
+ * arguing about it. The building is booked either way — a booker who has not
+ * finished the negotiation by the bell runs the card as it stands.
+ */
+function settleSupershow(world: World, rng: Rng): void {
+  const booking = world.pendingSupershowCard;
+  if (!booking) return;
+  world.pendingSupershowCard = null;
+
+  const partner = world.rivals.find((r) => r.id === booking.partnerId);
+  if (!partner || partner.closedWeek !== null) return;
+
+  const result = runSupershow(
+    rng,
+    {
+      player: world.promotion,
+      partner,
+      deal: booking.deal,
+      playerRoster: supershowRoster(world, world.promotion.rosterIds),
+      partnerRoster: supershowRoster(world, partner.rosterIds),
+      titles: world.titles,
+      stables: world.stables,
+      territories: world.territories,
+      week: world.week,
+      settings: world.settings,
+    },
+    booking,
+  );
+  if (!result) return;
+
+  world.lastSupershow = result;
+
+      // What they will remember about it. The split of the joint card is the
+      // thing a rival booker actually carries, so taking everything costs
+      // you the next approach and possibly the one after that.
+      const remembered = rememberNight(
+        grudgeAgainst(world.grudges, partner.id),
+        partner.id,
+        {
+          playerWins: result.playerWinnerIds.length,
+          partnerWins: result.partnerWinnerIds.length,
+          showStars: result.show.showStars,
+        },
+        world.week,
+        world.settings,
+      );
+      world.grudges = world.grudges.filter((g) => g.promotionId !== partner.id);
+      if (remembered) {
+        world.grudges.push(remembered);
+        // Nothing happens off-screen: if the night has cost you a
+        // relationship, the wire says so on the night rather than leaving
+        // the player to work it out from a refusal six months later.
+        world.weeklyNews.push(
+          wire('story', `${grudgeLine(remembered, partner.name)}`, world.week, 'minor'),
+        );
+      }
+
+      // The money. The company banks its share of a gate neither of them
+      // could have drawn alone, and pays its own people out of it.
+      world.promotion.bankBalance += result.purse.playerNet;
+
+      // And everybody who worked gets paid, which is the whole reason the
+      // roster wants to be on this show. Recorded against their career
+      // earnings, not just handed over and forgotten.
+      for (const [wrestlerId, amount] of Object.entries(result.payouts)) {
+        const person = world.wrestlers[wrestlerId];
+        if (!person) continue;
+        creditPay(ledgerOf(person), amount);
+      }
+
+      // §16 amplification. A win on a night like this is worth more than a
+      // win on a Tuesday, and a loss costs more.
+      const winners = new Set([...result.playerWinnerIds, ...result.partnerWinnerIds]);
+      for (const id of Object.keys(result.sideOf)) {
+        const person = world.wrestlers[id];
+        if (!person) continue;
+        if (!(id in result.payouts)) continue;
+        const holdsTitle = world.titles.some((t) => t.currentHolderIds.includes(id));
+        const stakes = crossPromoStakes(holdsTitle, world.settings);
+        const swing = stakes.popularityMultiplier * world.settings.supershowMoraleSwing / 2;
+        person.popularity = clamp(person.popularity + (winners.has(id) ? swing : -swing), 0, 100);
+        person.morale = clamp(
+          person.morale + (winners.has(id) ? stakes.moraleSwing : -stakes.moraleSwing),
+          0,
+          100,
+        );
+      }
+
+      // Who won the night, and what it did to the two companies.
+      world.promotion.rating = clamp(
+        world.promotion.rating + result.verdict.companyRatingSwing,
+        0,
+        100,
+      );
+      partner.rating = clamp(partner.rating - result.verdict.companyRatingSwing, 0, 100);
+
+      world.weeklyNews.push(wire('story', result.verdict.line, world.week, 'lead'));
+      world.weeklyNews.push(
+        wire(
+          'story',
+          `The joint show with ${result.partnerName} drew $${result.purse.totalGate.toLocaleString()}. ` +
+            `Everybody on the card took $${result.purse.appearanceFee.toLocaleString()}, winners $${result.purse.winBonus.toLocaleString()} on top. ` +
+            `No titles changed hands.`,
+          world.week,
+          'lead',
+        ),
+      );
+
+  // A card that came up short is a smaller night, and the player is told which
+  // it was rather than left to wonder why the gate looked thin.
+  if (result.matchesRun < result.agreedSize) {
+    world.weeklyNews.push(
+      wire(
+        'story',
+        `The joint show ran ${result.matchesRun} matches against the ${result.agreedSize} the two offices agreed. ` +
+          `Neither of them could fill the gaps.`,
+        world.week,
+        'minor',
+      ),
+    );
+  }
+}
+
+/** Who this company can actually put on a joint card tonight. */
+function supershowRoster(world: World, ids: readonly Id[]): Wrestler[] {
+  return ids
+    .map((id) => world.wrestlers[id])
+    .filter((w): w is Wrestler => Boolean(w) && canWork(w!, world.settings, world.week));
+}
+
 function payrollOf(world: World, promotionId: Id): number {
   const company =
     world.promotion.id === promotionId ? world.promotion : world.rivals.find((r) => r.id === promotionId);
@@ -4938,6 +5081,14 @@ export const useGameStore = create<GameStore>()(
         // somebody on a Tuesday has to appear in Monday's write-up, not
         // vanish because the show ran. Only the *previous* report's items go.
         world.weeklyNews = world.weeklyNews.filter((item) => item.week >= world.week);
+
+        // ---- the joint show, if the booker never signed the card off -----
+        // The building was booked the moment both companies shook hands. A
+        // booker still arguing about the running order when the week turns
+        // does not get the show postponed; it runs on whatever survived.
+        // Filed after the increment so its lines are not dropped by the sweep
+        // above, like every other piece of weekly news.
+        settleSupershow(world, rng);
 
         // ---- what the sky did, and who the night was for -----------------
         // Nothing happens off-screen: if the weather moved the gate, or the
@@ -8794,100 +8945,60 @@ export const useGameStore = create<GameStore>()(
         const partner = world.rivals.find((r) => r.id === offer.deal.partnerId);
         if (!partner || partner.closedWeek !== null) return;
 
-        const roster = (ids: readonly Id[]) =>
-          ids.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w) && canWork(w!, world.settings, world.week));
-
-        const result = runSupershow(rng, {
+        // Signing the deal does not run the show. It produces a card, with the
+        // other office's refusals already on it, and then §16's other
+        // negotiation starts. See engine/world/supershowCard.ts.
+        const booking = draftSupershow(rng, {
           player: world.promotion,
           partner,
           deal: offer.deal,
-          playerRoster: roster(world.promotion.rosterIds),
-          partnerRoster: roster(partner.rosterIds),
+          playerRoster: supershowRoster(world, world.promotion.rosterIds),
+          partnerRoster: supershowRoster(world, partner.rosterIds),
           titles: world.titles,
           stables: world.stables,
           territories: world.territories,
           week: world.week,
           settings: world.settings,
+          resentment: grudgeAgainst(world.grudges, partner.id)?.resentment ?? 0,
         });
-        if (!result) return;
+        if (!booking) return;
 
-        world.lastSupershow = result;
+        world.pendingSupershowCard = booking;
 
-        // What they will remember about it. The split of the joint card is the
-        // thing a rival booker actually carries, so taking everything costs
-        // you the next approach and possibly the one after that.
-        const remembered = rememberNight(
-          grudgeAgainst(world.grudges, partner.id),
-          partner.id,
-          {
-            playerWins: result.playerWinnerIds.length,
-            partnerWins: result.partnerWinnerIds.length,
-            showStars: result.show.showStars,
-          },
-          world.week,
-          world.settings,
-        );
-        world.grudges = world.grudges.filter((g) => g.promotionId !== partner.id);
-        if (remembered) {
-          world.grudges.push(remembered);
-          // Nothing happens off-screen: if the night has cost you a
-          // relationship, the wire says so on the night rather than leaving
-          // the player to work it out from a refusal six months later.
-          world.weeklyNews.push(
-            wire('story', `${grudgeLine(remembered, partner.name)}`, world.week, 'minor'),
-          );
-        }
-
-        // The money. The company banks its share of a gate neither of them
-        // could have drawn alone, and pays its own people out of it.
-        world.promotion.bankBalance += result.purse.playerNet;
-
-        // And everybody who worked gets paid, which is the whole reason the
-        // roster wants to be on this show. Recorded against their career
-        // earnings, not just handed over and forgotten.
-        for (const [wrestlerId, amount] of Object.entries(result.payouts)) {
-          const person = world.wrestlers[wrestlerId];
-          if (!person) continue;
-          creditPay(ledgerOf(person), amount);
-        }
-
-        // §16 amplification. A win on a night like this is worth more than a
-        // win on a Tuesday, and a loss costs more.
-        const winners = new Set([...result.playerWinnerIds, ...result.partnerWinnerIds]);
-        for (const id of Object.keys(result.sideOf)) {
-          const person = world.wrestlers[id];
-          if (!person) continue;
-          if (!(id in result.payouts)) continue;
-          const holdsTitle = world.titles.some((t) => t.currentHolderIds.includes(id));
-          const stakes = crossPromoStakes(holdsTitle, world.settings);
-          const swing = stakes.popularityMultiplier * world.settings.supershowMoraleSwing / 2;
-          person.popularity = clamp(person.popularity + (winners.has(id) ? swing : -swing), 0, 100);
-          person.morale = clamp(
-            person.morale + (winners.has(id) ? stakes.moraleSwing : -stakes.moraleSwing),
-            0,
-            100,
-          );
-        }
-
-        // Who won the night, and what it did to the two companies.
-        world.promotion.rating = clamp(
-          world.promotion.rating + result.verdict.companyRatingSwing,
-          0,
-          100,
-        );
-        partner.rating = clamp(partner.rating - result.verdict.companyRatingSwing, 0, 100);
-
-        world.weeklyNews.push(wire('story', result.verdict.line, world.week, 'lead'));
+        const theirs = booking.card.struck.filter((m) => m.struckBy === partner.id).length;
         world.weeklyNews.push(
           wire(
             'story',
-            `The joint show with ${result.partnerName} drew $${result.purse.totalGate.toLocaleString()}. ` +
-              `Everybody on the card took $${result.purse.appearanceFee.toLocaleString()}, winners $${result.purse.winBonus.toLocaleString()} on top. ` +
-              `No titles changed hands.`,
+            theirs > 0
+              ? `${partner.name} signed the joint show and sent a card back with ${theirs} of your matches crossed off.`
+              : `${partner.name} signed the joint show and took the card as it was written.`,
             world.week,
             'lead',
           ),
         );
+      });
+    },
+
+    strikeSupershowMatch: (matchId) => {
+      set((state) => {
+        const world = state.world;
+        const booking = world?.pendingSupershowCard;
+        if (!world || !booking) return;
+        const match = booking.card.matches.find((m) => m.id === matchId);
+        if (!match) return;
+        booking.card = strikeMatch(
+          booking.card,
+          matchId,
+          world.promotion.id,
+          `${world.promotion.name} will not run it.`,
+        );
+      });
+    },
+
+    runSupershowNight: () => {
+      set((state) => {
+        if (!state.world) return;
+        settleSupershow(state.world, rng);
       });
     },
 

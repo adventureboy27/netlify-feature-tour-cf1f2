@@ -176,6 +176,14 @@ export interface RivalBookingContext {
    * and find out on the night (§0).
    */
   refuses?: (aId: Id, bId: Id) => boolean;
+  /**
+   * A card somebody else already built. Only the joint show uses this: a §16
+   * card is drafted a week early so both offices can strike pairings out of
+   * it, so by the time it is worked the running order is settled and booking
+   * it again would throw away the negotiation. Leave it out and the office
+   * books its own, which is what every other caller wants.
+   */
+  card?: RivalCard;
 }
 
 /**
@@ -366,7 +374,7 @@ function houseStipulation(rng: Rng, ctx: RivalBookingContext): Id | null {
  * four-star main event is a four-star main event by the same standard.
  */
 export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | null {
-  const card = bookRivalCard(rng, ctx);
+  const card = ctx.card ?? bookRivalCard(rng, ctx);
   if (card.matches.length === 0) return null;
 
   const byId = new Map(ctx.available.map((w) => [w.id, w]));

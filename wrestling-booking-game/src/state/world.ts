@@ -71,7 +71,7 @@ import { createStartingTitles, awardTitle } from '../data/titles';
 import { styleProfileFor } from '../data/promotionIdentity';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import { seedRelationships } from '../engine/career/relationships';
-import type { SupershowOffer, SupershowResult } from '../engine/world/supershowRun';
+import type { SupershowBooking, SupershowOffer, SupershowResult } from '../engine/world/supershowRun';
 import type { CupResult } from '../engine/world/cupRun';
 import type { WeeklyStatement } from '../engine/economy/statement';
 import type { Residency } from '../engine/economy/residency';
@@ -239,6 +239,12 @@ export interface World {
   pendingBiddingWar: BiddingWar | null;
   /** A rival's standing offer to run a joint PPV (§16), waiting on an answer. */
   pendingSupershow: SupershowOffer | null;
+  /**
+   * A signed joint show with a card on the table (§16). Both offices strike
+   * pairings out of it before the bell; theirs have already been struck by the
+   * time the player sees it. Cleared when the night is worked.
+   */
+  pendingSupershowCard: SupershowBooking | null;
   /** The last joint show, kept so the results screen can report the night. */
   lastSupershow: SupershowResult | null;
   /** Week the booker last put a joint show to somebody. Stops him touting daily. */
@@ -748,6 +754,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     pendingChampionCall: null,
     pendingBiddingWar: null,
     pendingSupershow: null,
+    pendingSupershowCard: null,
     lastSupershow: null,
     lastSupershowApproachWeek: null,
     lastSupershowSeason: null,

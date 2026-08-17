@@ -1731,3 +1731,75 @@ describe('the stories', () => {
     expect(useGameStore.getState().world!.storylines[0]!.stage).toBe('fizzled');
   });
 });
+
+describe('the joint show', () => {
+  /** Get a rival to the table and sign whatever they put up. */
+  function signAJointShow(): boolean {
+    for (let i = 0; i < 30; i++) {
+      const world = useGameStore.getState().world!;
+      if (world.pendingSupershowCard) return true;
+      if (world.pendingSupershow) {
+        useGameStore.getState().answerSupershow(true);
+        continue;
+      }
+      const target = world.rivals.find((r) => r.closedWeek === null);
+      if (target) useGameStore.getState().proposeSupershow(target.id);
+      if (useGameStore.getState().world!.pendingSupershow) continue;
+      runWeek();
+    }
+    return Boolean(useGameStore.getState().world!.pendingSupershowCard);
+  }
+
+  it('signing the deal produces a card rather than a result', () => {
+    // §16 has two negotiations in it. Signing used to run the show in the same
+    // breath, which made the biggest night of the year one button.
+    expect(signAJointShow()).toBe(true);
+    const world = useGameStore.getState().world!;
+    expect(world.lastSupershow).toBeNull();
+    expect(world.pendingSupershowCard!.card.matches.length).toBeGreaterThan(0);
+    expect(world.pendingSupershowCard!.card.standbys.length).toBeGreaterThan(0);
+  });
+
+  it('striking a match backfills it while there is anything to backfill with', () => {
+    expect(signAJointShow()).toBe(true);
+    const before = useGameStore.getState().world!.pendingSupershowCard!.card;
+    const size = before.matches.length;
+    useGameStore.getState().strikeSupershowMatch(before.matches[0]!.id);
+
+    const after = useGameStore.getState().world!.pendingSupershowCard!.card;
+    expect(after.matches).toHaveLength(size);
+    expect(after.standbys).toHaveLength(before.standbys.length - 1);
+    expect(after.struck).toHaveLength(before.struck.length + 1);
+    expect(after.struck.at(-1)!.struckBy).toBe(useGameStore.getState().world!.promotion.id);
+  });
+
+  it('runs the night, banks the gate and pays everybody who worked', () => {
+    expect(signAJointShow()).toBe(true);
+    const bankBefore = useGameStore.getState().world!.promotion.bankBalance;
+    useGameStore.getState().runSupershowNight();
+
+    const world = useGameStore.getState().world!;
+    const result = world.lastSupershow!;
+    expect(result).toBeTruthy();
+    expect(world.pendingSupershowCard).toBeNull();
+    expect(world.promotion.bankBalance).toBe(bankBefore + result.purse.playerNet);
+    // Winners and losers alike. §16 already charges a loss in standing.
+    expect(Object.values(result.payouts).every((paid) => paid > 0)).toBe(true);
+    // And the write-up says the night happened, rather than the player finding
+    // a changed bank balance and working it out.
+    expect(world.weeklyNews.some((n) => n.text.includes('joint show'))).toBe(true);
+  });
+
+  it('runs it anyway when the week turns before the booker signs off', () => {
+    // The building was booked the moment both companies shook hands. §0 does
+    // not let the game hold the week open to ask whether you meant it.
+    expect(signAJointShow()).toBe(true);
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    expect(world.pendingSupershowCard).toBeNull();
+    expect(world.lastSupershow).toBeTruthy();
+    // Filed after the week ticked over, so the sweep does not eat it.
+    expect(world.weeklyNews.some((n) => n.text.includes(world.lastSupershow!.verdict.line))).toBe(true);
+  });
+});

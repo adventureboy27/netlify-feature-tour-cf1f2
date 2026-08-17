@@ -2237,6 +2237,18 @@ export interface WorldSettings {
   supershowOfferWeeks: number;
   /** Weeks the player must wait between putting joint shows to people. */
   supershowProposalCooldownWeeks: number;
+  /**
+   * Standing gap at which the other booker refuses to send his man out. §16:
+   * "it will reject pairings where its champion is badly outmatched."
+   */
+  supershowOutmatchedGap: number;
+  /** An eager partner puts up with a wider gap than a cautious one. */
+  supershowEagerTolerance: number;
+  /** How many spare pairings are drafted to backfill struck matches. */
+  supershowStandbys: number;
+  /** How hard a card short of the agreed size hits the gate. */
+  supershowShortCardPenalty: number;
+  supershowShortCardFloor: number;
 
   // The Crucible — annual interpromotional tournament.
   cupEntryFee: number;

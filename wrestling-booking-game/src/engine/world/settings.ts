@@ -724,7 +724,12 @@ export function defaultWorldSettings(): WorldSettings {
     // winners take a multiple of that again. The incentive to win is money.
     supershowAppearanceShare: 0.011,
     supershowWinBonusMultiple: 1.4,
-    supershowLoserBonusShare: 0,
+    // A quarter of the bonus for losing. Sat at zero and unused for a long
+    // time, which meant a man who worked the biggest night of the year and got
+    // beaten went home on the flat fee — while §16 also took his popularity
+    // and his champion's prestige. One punishment for one loss is enough; the
+    // incentive to win is still four to one.
+    supershowLoserBonusShare: 0.25,
     // §16's amplification table, both directions.
     supershowPopularityMultiplier: 2.2,
     supershowMoraleSwing: 14,
@@ -752,6 +757,20 @@ export function defaultWorldSettings(): WorldSettings {
     supershowOfferWeeks: 4,
     // A booker who rings round every week is a booker nobody takes seriously.
     supershowProposalCooldownWeeks: 12,
+    // The card negotiation. Twenty points of standing is a match that reads as
+    // a squash to both audiences, and no booker sends his champion out into
+    // one; an eager partner will swallow half again as much because he wants
+    // to be on the show more than he wants to look after anybody.
+    supershowOutmatchedGap: 20,
+    supershowEagerTolerance: 1.5,
+    // Three spares. Enough that a booker can protect two of his people and
+    // still run the agreed card, not so many that striking is free.
+    supershowStandbys: 3,
+    // A card that came up short draws less. Not catastrophically — both
+    // audiences already bought the ticket — but the night is smaller and the
+    // money says so.
+    supershowShortCardPenalty: 0.5,
+    supershowShortCardFloor: 0.6,
 
     // The Crucible: the annual interpromotional tournament, every August.
     // The fee is deliberately punishing — a company that cannot cover it and
