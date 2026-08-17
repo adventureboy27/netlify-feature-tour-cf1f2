@@ -93,6 +93,25 @@ export interface Trait {
    * multiplier on the contagion the room already models.
    */
   spreadsMood?: number;
+  /**
+   * Multiplier on the chance a refused renewal demand ends in them walking.
+   * See career/ego.ts — this is what makes a refusal read differently for a
+   * loyal veteran than for somebody who was only ever here for the cheque.
+   */
+  walkRiskWeight?: number;
+  /**
+   * Multiplier on how easy a rival finds them to poach, applied to the whole
+   * temptation score. Reserved for traits whose loyalty (or lack of it) is
+   * not about any one term — a specific number like pay or a bad office gets
+   * its own hook in world/tampering.ts instead of this.
+   */
+  temptationWeight?: number;
+  /**
+   * Shift on the morale threshold below which somebody asks for a release,
+   * additive. Positive means readier to ask; negative means more reluctant.
+   * See economy/termination.ts.
+   */
+  releaseThresholdShift?: number;
 }
 
 /** Everything about a person a trait needs to see. Structural, so no cycles. */
@@ -131,6 +150,12 @@ export const TRAITS: readonly Trait[] = [
     excludes: ['neverSatisfied', 'wantsTheSpotlight'],
     setPointShift: 12,
     weighs: { spotlight: 0.25, gold: 0.3, winning: 0.4 },
+    // Loyal in every direction this session wires up: slow to walk over a
+    // refused demand, hard for a rival to get, reluctant to ask for a release
+    // at all.
+    walkRiskWeight: 0.5,
+    temptationWeight: 0.55,
+    releaseThresholdShift: -14,
   },
   {
     id: 'inItForTheMoney',
@@ -139,6 +164,11 @@ export const TRAITS: readonly Trait[] = [
     weight: 9,
     excludes: ['wantsTheSpotlight'],
     weighs: { winning: 0.15, spotlight: 0.4, gold: 0.4, money: 2.4 },
+    // The `money` lever above is reused directly in career/ego.ts and
+    // world/tampering.ts, so this trait does the same thing at the
+    // negotiating table and to a rival's offer that it already does to
+    // morale: the number is what moves them, nothing else does much.
+    walkRiskWeight: 1.3,
   },
   {
     id: 'neverSatisfied',
@@ -147,6 +177,8 @@ export const TRAITS: readonly Trait[] = [
     weight: 8,
     excludes: ['gratefulForTheWork'],
     setPointShift: -14,
+    walkRiskWeight: 1.3,
+    releaseThresholdShift: 8,
   },
   {
     id: 'wantsTheSpotlight',
@@ -155,6 +187,8 @@ export const TRAITS: readonly Trait[] = [
     weight: 10,
     excludes: ['gratefulForTheWork', 'inItForTheMoney'],
     weighs: { spotlight: 1.9, gold: 1.8, idle: 1.6, winning: 1.3 },
+    walkRiskWeight: 1.3,
+    releaseThresholdShift: 6,
   },
   {
     id: 'noTimeForTheOffice',
@@ -162,6 +196,8 @@ export const TRAITS: readonly Trait[] = [
     blurb: 'Does not like management, will not be talked round, and nothing you book changes it. Everything else about them still works.',
     weight: 7,
     setPointShift: -9,
+    walkRiskWeight: 1.2,
+    releaseThresholdShift: 10,
   },
   {
     id: 'somebodyAtHome',
@@ -191,6 +227,10 @@ export const TRAITS: readonly Trait[] = [
     excludes: ['poison'],
     spreadsMood: 2.2,
     weighs: { theRoom: 1.4 },
+    // Invested in the room they hold together — a reason to stay that has
+    // nothing to do with money or the card.
+    walkRiskWeight: 0.85,
+    releaseThresholdShift: -4,
   },
   {
     id: 'poison',
@@ -259,6 +299,21 @@ export function injuryProneness(wrestler: Pick<Wrestler, 'traits'>): number {
 /** Would they rather be at home than on the card? */
 export function wantsRest(wrestler: Pick<Wrestler, 'traits'>): boolean {
   return traitsOf(wrestler).some((t) => t.wantsRest);
+}
+
+/** How much a refused renewal demand actually costs you. See career/ego.ts. */
+export function walkRiskWeight(wrestler: Pick<Wrestler, 'traits'>): number {
+  return traitsOf(wrestler).reduce((mul, t) => mul * (t.walkRiskWeight ?? 1), 1);
+}
+
+/** How easy a rival finds them to poach, overall. See world/tampering.ts. */
+export function temptationWeight(wrestler: Pick<Wrestler, 'traits'>): number {
+  return traitsOf(wrestler).reduce((mul, t) => mul * (t.temptationWeight ?? 1), 1);
+}
+
+/** Shift on the ask-for-a-release threshold. See economy/termination.ts. */
+export function releaseThresholdShift(wrestler: Pick<Wrestler, 'traits'>): number {
+  return traitsOf(wrestler).reduce((sum, t) => sum + (t.releaseThresholdShift ?? 0), 0);
 }
 
 // ------------------------------------------------------------ their own week

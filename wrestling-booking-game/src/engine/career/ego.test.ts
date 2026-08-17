@@ -172,6 +172,52 @@ describe('what they ask for when the deal runs down', () => {
   });
 });
 
+describe('who they are changes what the same ego actually asks for', () => {
+  // Before this, an In It For The Money draw and a Grateful For The Work draw
+  // with identical ego asked for the identical raise and walked away from a
+  // refusal at the identical rate. Neither of those was true to the trait.
+  const base = w({ popularity: 85, attitude: 40, ego: 70 });
+  const rate = askingRate(base, settings);
+
+  it('pushes the rate ask hardest for the one who is only here for the money', () => {
+    const ordinary = contractDemand({ ...base, traits: [] }, rate, 'draw', settings);
+    const mercenary = contractDemand({ ...base, traits: ['inItForTheMoney'] }, rate, 'draw', settings);
+    expect(mercenary.weeklyRate).toBeGreaterThan(ordinary.weeklyRate);
+  });
+
+  it('leaves a Grateful For The Work draw asking for the plain ego-driven number', () => {
+    // The trait's `money` lever weight is 1, same as anybody who did not draw
+    // In It For The Money — so it is not a discount, just not a markup.
+    const ordinary = contractDemand({ ...base, traits: [] }, rate, 'draw', settings);
+    const grateful = contractDemand({ ...base, traits: ['gratefulForTheWork'] }, rate, 'draw', settings);
+    expect(grateful.weeklyRate).toBe(ordinary.weeklyRate);
+  });
+
+  it('makes a loyal veteran far less likely to walk over the same refusal', () => {
+    const ordinary = contractDemand({ ...base, traits: [] }, rate, 'draw', settings).walkRisk;
+    const grateful = contractDemand({ ...base, traits: ['gratefulForTheWork'] }, rate, 'draw', settings).walkRisk;
+    expect(grateful).toBeLessThan(ordinary);
+  });
+
+  it('makes the restless ones far more likely to walk, at the same ego', () => {
+    const ordinary = contractDemand({ ...base, traits: [] }, rate, 'draw', settings).walkRisk;
+    for (const trait of ['neverSatisfied', 'wantsTheSpotlight', 'noTimeForTheOffice'] as const) {
+      const said = contractDemand({ ...base, traits: [trait] }, rate, 'draw', settings).walkRisk;
+      expect(said, trait).toBeGreaterThan(ordinary);
+    }
+  });
+
+  it('never lets the multiplier push walk risk past a real ceiling', () => {
+    const stacked = contractDemand(
+      { ...base, ego: 100, traits: ['neverSatisfied', 'wantsTheSpotlight'] },
+      rate,
+      'draw',
+      settings,
+    );
+    expect(stacked.walkRisk).toBeLessThanOrEqual(0.95);
+  });
+});
+
 describe('what agreed clauses actually cost', () => {
   it('charges a weekly premium for injury insurance', () => {
     const insured = w({ contract: { ...createStandardContract(w(), settings, 2000), clauses: ['healthInsurance'] } });

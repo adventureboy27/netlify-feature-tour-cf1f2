@@ -16,6 +16,7 @@
 import { clamp } from '../rng';
 import { afterLeverage, negotiatingLeverage } from './leverage';
 import { dealAppetite, type DealAppetite } from './theBody';
+import { leverWeight, walkRiskWeight } from './personality';
 import type { Wrestler, WorldSettings, CareerStatus, Clause } from '../types';
 
 export interface EgoContext {
@@ -178,7 +179,13 @@ export function contractDemand(
   status: CareerStatus,
   settings: WorldSettings,
 ): ContractDemand {
-  const egoFactor = 1 + (wrestler.ego / 100) * settings.egoRateMultiplierMax;
+  // Ego sets the size of the premium; how much of it is actually about the
+  // money is a trait question. In It For The Money already weighs its own
+  // morale term at 2.4x — the same lever means the same thing here: the
+  // number is what moves them, so the number is what they push hardest on.
+  // Everybody else carries the lever's default of 1 and this term does
+  // nothing to them.
+  const egoFactor = 1 + (wrestler.ego / 100) * settings.egoRateMultiplierMax * leverWeight(wrestler, 'money', settings);
   const asked = baseRate * egoFactor;
   // Ego says what he wants. Leverage says what he is going to settle for, and
   // a name past its prime settles for a good deal less than it wants — unless
@@ -205,8 +212,15 @@ export function contractDemand(
     .sort((a, b) => a.egoRequired - b.egoRequired);
 
   // Somebody who knows they are the draw is likelier to walk over a refusal.
+  // And who they are matters as much as what they have won: a loyal veteran
+  // and a Never Satisfied draw at the same ego do not answer a refusal the
+  // same way, and until now the game could not tell them apart.
   const leverage = status === 'draw' || status === 'mainEventer' ? 1.4 : 1;
-  const walkRisk = clamp((wrestler.ego / 100) * settings.egoWalkRiskMax * leverage, 0, 0.9);
+  const walkRisk = clamp(
+    (wrestler.ego / 100) * settings.egoWalkRiskMax * leverage * walkRiskWeight(wrestler),
+    0,
+    0.95,
+  );
 
   return {
     weeklyRate,

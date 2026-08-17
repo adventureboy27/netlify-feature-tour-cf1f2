@@ -29,6 +29,7 @@
 
 import { clamp } from '../rng';
 import type { Contract, Wrestler, WorldSettings } from '../types';
+import { hasTrait, releaseThresholdShift } from '../career/personality';
 
 /** The ways somebody can stop working for you. */
 export type ExitKind = 'expiry' | 'fired' | 'negotiatedRelease';
@@ -162,18 +163,44 @@ export function noCompeteLabel(wrestler: Wrestler): string | null {
   return 'Ninety days, just started';
 }
 
+/** What a caller can tell `wantsOut` that it cannot read off the wrestler alone. */
+export interface WantsOutContext {
+  /** What the market says they are worth. In It For The Money reads it. */
+  worth?: number;
+  /** Is their `somebodyAtHome` partner working somewhere else right now? */
+  apartFromPartner?: boolean;
+}
+
 /**
  * Would this person ask to be let go?
  *
- * Only the unhappy, and never out of nowhere — morale is visible on the
+ * Mostly the unhappy, and never out of nowhere — morale is visible on the
  * roster card long before it gets here, so a request is the consequence of
- * something the player watched happen.
+ * something the player watched happen. Personality moves two things: how
+ * unhappy is unhappy *enough* for this particular person, and one trait that
+ * can ask out for a reason morale does not carry at all.
  */
-export function wantsOut(wrestler: Wrestler, settings: WorldSettings): boolean {
-  if (wrestler.morale > settings.releaseRequestMorale) return false;
+export function wantsOut(wrestler: Wrestler, settings: WorldSettings, context: WantsOutContext = {}): boolean {
   if (!wrestler.contract) return false;
-  // Somebody with a year of guaranteed money is not in a hurry to tear it up.
-  return severanceOwed(wrestler.contract) < wrestler.contract.weeklyRate * 26;
+  const affordableToLeave = severanceOwed(wrestler.contract) < wrestler.contract.weeklyRate * 26;
+
+  // In It For The Money reads its own contract every week the same way it
+  // does for morale — badly underpaid is a reason to ask out on its own,
+  // before the mood has necessarily caught up with the number.
+  if (hasTrait(wrestler, 'inItForTheMoney') && context.worth && context.worth > 0) {
+    const gap = (wrestler.contract.weeklyRate - context.worth) / context.worth;
+    if (gap <= -settings.traitBadlyUnderpaidGap) return affordableToLeave;
+  }
+
+  // Some people need to be pushed a good deal further than others before they
+  // will actually ask to leave, and some barely need pushing at all.
+  let threshold = settings.releaseRequestMorale + releaseThresholdShift(wrestler);
+  if (hasTrait(wrestler, 'somebodyAtHome') && context.apartFromPartner) {
+    threshold += settings.traitApartReleaseThreshold;
+  }
+
+  if (wrestler.morale > threshold) return false;
+  return affordableToLeave;
 }
 
 /**

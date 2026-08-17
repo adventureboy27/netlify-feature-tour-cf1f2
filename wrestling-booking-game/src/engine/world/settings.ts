@@ -632,6 +632,23 @@ export function defaultWorldSettings(): WorldSettings {
     traitGlassNoticesAfter: 3,
     traitGlassCostEach: 0.5,
     traitGlassCostMax: 2.5,
+    // Traits reaching outside morale. Scaled against the formulas they land
+    // in rather than picked in isolation: the tampering pulls are a fraction
+    // of a raw temptation score that usually sits under 1 before the clamp
+    // (tamperingMoneyWeight alone maxes at 0.5), and the release threshold
+    // bump is against a 0-100 morale scale with the base ask-out line at 30.
+    traitOfficeDislikePull: 0.12,
+    traitPartnerPull: 0.22,
+    traitSpotlightPull: 0.15,
+    // Twice the "notices" gap (0.1) — noticing you are underpaid and asking
+    // to leave over it are different thresholds.
+    traitBadlyUnderpaidGap: 0.35,
+    traitApartReleaseThreshold: 12,
+    // Secondary nudges against retirementBodyWeight (0.45) and
+    // retirementDeclineWeight (0.3) — real, but age and the body still do
+    // most of the deciding.
+    retirementLoveOfTheGameRelief: 0.1,
+    retirementRoadWearyPush: 0.08,
     moraleIdleGraceWeeks: 2,
     moraleSpotsPerSegment: 2,
     moraleIdlePerWeek: 1.1,

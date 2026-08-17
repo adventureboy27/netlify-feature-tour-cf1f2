@@ -5447,7 +5447,21 @@ export const useGameStore = create<GameStore>()(
             member.morale = clamp(member.morale - refusalCost(world.settings), 0, 100);
             continue;
           }
-          if (wantsOut(member, world.settings) && chance(rng, world.settings.releaseRequestChance)) {
+          // What personality needs that morale alone does not carry: what the
+          // market says they are worth, for In It For The Money, and whether
+          // their `somebodyAtHome` partner is somewhere else right now.
+          const partner = member.attachedTo ? world.wrestlers[member.attachedTo] : undefined;
+          const wantsOutContext = {
+            worth: askingRate(member, world.settings),
+            apartFromPartner: Boolean(partner) && partner!.promotionId !== member.promotionId,
+          };
+          // Seeded from the wrestler and the week, not the shared stream: a
+          // trait change that flips `wantsOut` for one member must not shift
+          // every seeded roll after it for everybody else. See CLAUDE.md.
+          if (
+            wantsOut(member, world.settings, wantsOutContext) &&
+            chance(rngFromSeed(`releaseRequest:${member.id}:${world.week}`), world.settings.releaseRequestChance)
+          ) {
             world.releaseRequests.push({ wrestlerId: id, openedWeek: world.week });
             world.weeklyNews.push(
               wire(
@@ -7192,6 +7206,7 @@ export const useGameStore = create<GameStore>()(
           rivals: world.rivals,
           currentWeek: world.week,
           settings: world.settings,
+          wrestlerById: (wid) => world.wrestlers[wid],
         })) {
           if (alreadyCourted.has(fresh.wrestlerId)) continue;
           alreadyCourted.add(fresh.wrestlerId);
@@ -8427,6 +8442,10 @@ export const useGameStore = create<GameStore>()(
           return;
         }
 
+        // You, as a suitor: your own promotion, and — if the target drew
+        // Somebody At Home — where their partner already works. Signing them
+        // is a real pull when that happens to be you.
+        const targetsPartner = target.attachedTo ? world.wrestlers[target.attachedTo] : undefined;
         const result = attemptPlayerTampering(
           rng,
           target,
@@ -8434,6 +8453,7 @@ export const useGameStore = create<GameStore>()(
           world.promotion.bankBalance,
           world.settings,
           world.tamperingOffenses,
+          { promotionId: world.promotion.id, partnerPromotionId: targetsPartner?.promotionId ?? null },
         );
 
         if (result.caught) {

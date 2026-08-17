@@ -14,7 +14,7 @@
 import type { Rng } from '../rng';
 import { chance, clamp } from '../rng';
 import type { Id, Wrestler, WorldSettings } from '../types';
-import { temptation } from './tampering';
+import { temptation, type Suitor } from './tampering';
 
 export type OfferStatus = 'open' | 'resolved';
 
@@ -147,9 +147,17 @@ export function tamperingRisk(
   target: Wrestler,
   attempt: PlayerTamperingAttempt,
   settings: WorldSettings,
+  /**
+   * You, as a suitor — your promotion id and, if the target has a
+   * `somebodyAtHome` partner, where that partner currently works. Optional
+   * because the escalation/sanction call sites that reuse this risk do not
+   * always have a relationship lookup handy, and the trait simply contributes
+   * nothing when it is missing.
+   */
+  suitor?: Suitor,
 ): TamperingRisk {
   const weeksLeft = target.contract?.weeksRemaining ?? 0;
-  const baseTemptation = temptation(target, attempt.offerPremium, weeksLeft, settings);
+  const baseTemptation = temptation(target, attempt.offerPremium, weeksLeft, settings, suitor);
 
   // Even a wrestler who wants to come mostly cannot: they are under contract,
   // and walking out has its own consequences for them.
@@ -203,8 +211,9 @@ export function attemptPlayerTampering(
   bankBalance: number,
   settings: WorldSettings,
   priorOffenses = 0,
+  suitor?: Suitor,
 ): TamperingResult {
-  const risk = tamperingRisk(target, attempt, settings);
+  const risk = tamperingRisk(target, attempt, settings, suitor);
   const signed = chance(rng, risk.successChance);
   const caught = chance(rng, risk.caughtChance);
 

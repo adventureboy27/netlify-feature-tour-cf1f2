@@ -18,14 +18,6 @@ the odds a real, expensive option.
 
 ## Next up
 
-**Traits reach the rest of the game.** `career/personality.ts` decides what
-somebody wants out of a week, and nothing outside morale reads it. Contract
-demands, poaching temptation, retirement pressure and release requests all
-still key off plain morale — so a Never Satisfied is no more of a flight risk
-than a Grateful For The Work, and In It For The Money does not actually leave
-over money. This is where the personality system stops being a roster-card
-decoration.
-
 **Undercard popularity decays with only a weak counter.** Somebody who is never
 booked drifts down and the only thing pushing back is an appearances week,
 which the office picks conservatively (`assignmentAppearancesBelowPop`). A deep
@@ -68,6 +60,21 @@ generated roster for somebody who fits the scenario.
 
 ## Done and worth not re-litigating
 
+- **Traits now reach the rest of the game.** Contract demands and walk risk
+  (`career/ego.ts`), poaching temptation (`world/tampering.ts`, via a new
+  `Suitor` so `somebodyAtHome` knows whether the approaching promotion is
+  where the partner works), retirement pressure (`career/retirement.ts`), and
+  release requests (`economy/termination.ts`, via a new `WantsOutContext` for
+  `inItForTheMoney`'s pay-gap check and `somebodyAtHome`'s apart-from-partner
+  check) all reweight off the same `leverWeight`/`hasTrait` accessors morale
+  already used, plus three new narrow accessors (`walkRiskWeight`,
+  `temptationWeight`, `releaseThresholdShift`) where nothing existing fit.
+  Fixing this exposed the RNG-shared-stream trap directly: changing which
+  wrestlers `wantsOut` returns true for shifted which weeks drew a
+  `chance()` roll for a release request, which shifted every seeded draw
+  after it — including, three modules away, a bidding-war test. Fixed by
+  seeding that roll from the wrestler and week instead of the shared stream,
+  matching the pattern already used for `defect`.
 - §16 supershows are complete, including per-match approval of the joint card.
   `titleCanTravel` was cut deliberately: only one belt in the game sets
   `lineageProtected`, so wiring it up would have let every other title change

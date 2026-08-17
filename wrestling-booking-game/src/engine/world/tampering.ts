@@ -17,8 +17,9 @@
 
 import type { Rng } from '../rng';
 import { chance, clamp } from '../rng';
-import type { Wrestler, Promotion, WorldSettings, CareerStatus } from '../types';
+import type { Id, Wrestler, Promotion, WorldSettings, CareerStatus } from '../types';
 import { isPoachingTarget } from '../career/status';
+import { hasTrait, leverWeight, temptationWeight } from '../career/personality';
 
 export type TamperingKind = 'approach' | 'tampering';
 
@@ -52,18 +53,38 @@ function poachingAppeal(wrestler: Wrestler, status: CareerStatus): number {
 }
 
 /**
+ * Who is doing the approaching, and what they can offer beyond money — the
+ * two things `temptation()` cannot read off the wrestler alone.
+ */
+export interface Suitor {
+  /** The promotion making the offer. */
+  promotionId: Id;
+  /** Where their `somebodyAtHome` partner currently works, if they have one. */
+  partnerPromotionId?: Id | null;
+}
+
+/**
  * How temptable a wrestler is by a given offer. Loyalty is bought with money
  * *and* with booking — a wrestler who is paid well and pushed well is hard to
  * move, and one who is paid well and buried is not.
+ *
+ * Personality changes what the same offer is worth to the same money and
+ * morale. Before this, an In It For The Money draw and a Grateful For The
+ * Work draw on identical deals were exactly as easy to poach, which is the
+ * opposite of what those traits say about them.
  */
 export function temptation(
   wrestler: Wrestler,
   offerPremium: number,
   weeksLeftOnDeal: number,
   settings: WorldSettings,
+  suitor?: Suitor,
 ): number {
   const currentRate = wrestler.contract?.weeklyRate ?? 0;
-  const money = currentRate > 0 ? clamp(offerPremium / currentRate, 0, 2) / 2 : 1;
+  // The `money` lever is the same one In It For The Money weighs on its own
+  // morale term (2.4x) — reused here so the same trait answers "does the
+  // number move you" the same way in both places.
+  const money = (currentRate > 0 ? clamp(offerPremium / currentRate, 0, 2) / 2 : 1) * leverWeight(wrestler, 'money', settings);
 
   const unhappy = 1 - wrestler.morale / 100;
   const stalled = 1 - wrestler.momentum / 100;
@@ -75,19 +96,46 @@ export function temptation(
   const ironClad = clauses.includes('ironClad') ? settings.tamperingIronCladResistance : 0;
   const noCompete = clauses.includes('noCompete') ? settings.tamperingNoCompeteResistance : 0;
 
+  // Two structural pulls a number cannot express. No Time For The Office
+  // dislikes the current management regardless of how well it books them —
+  // that is what "nothing you book changes it" means. And Somebody At Home
+  // is not a general restlessness, it is a pull toward one specific address:
+  // it only fires when the suitor is where the partner already is.
+  const dislikesUs = hasTrait(wrestler, 'noTimeForTheOffice') ? settings.traitOfficeDislikePull : 0;
+  const drawnThere =
+    hasTrait(wrestler, 'somebodyAtHome') &&
+    suitor?.partnerPromotionId &&
+    suitor.partnerPromotionId === suitor.promotionId
+      ? settings.traitPartnerPull
+      : 0;
+  // And Wants The Spotlight is not tempted by a rival as such — they are
+  // tempted by not being the man at home. A main eventer with this trait is
+  // already where they want to be; a stalled one is exactly who a rival's
+  // promise of a push is aimed at.
+  const wantsUp =
+    hasTrait(wrestler, 'wantsTheSpotlight') && wrestler.cardStatus !== 'mainEventer'
+      ? settings.traitSpotlightPull
+      : 0;
+
   const raw =
     money * settings.tamperingMoneyWeight +
     unhappy * settings.tamperingMoraleWeight +
     stalled * settings.tamperingMomentumWeight -
     lockedIn * settings.tamperingContractLengthResistance -
     ironClad -
-    noCompete;
+    noCompete +
+    dislikesUs +
+    drawnThere +
+    wantsUp;
 
   // Attitude cuts both ways: a professional honours the deal, a mercenary
   // was always going to take the call.
   const professionalism = (wrestler.attitude / 100) * settings.tamperingAttitudeResistance;
 
-  return clamp(raw - professionalism, 0, 1);
+  // And a general loyalty multiplier for the traits that are not about any
+  // one term — Grateful For The Work is simply hard to move, in every
+  // direction, whatever the offer looks like.
+  return clamp((raw - professionalism) * temptationWeight(wrestler), 0, 1);
 }
 
 export interface TamperingContext {
@@ -96,6 +144,13 @@ export interface TamperingContext {
   rivals: readonly Promotion[];
   currentWeek: number;
   settings: WorldSettings;
+  /**
+   * Look up anybody in the business by id, so a Somebody At Home approach can
+   * ask where the partner works. Optional — a caller that does not track
+   * relationships simply gets no pull from this trait, same as before it
+   * existed.
+   */
+  wrestlerById?: (id: Id) => Wrestler | undefined;
 }
 
 /**
@@ -128,12 +183,15 @@ export function rollTamperingAttempts(rng: Rng, ctx: TamperingContext): Tamperin
         currentRate * (settings.tamperingOfferPremiumMin + appeal * settings.tamperingOfferPremiumRange),
       );
 
+      const partner = wrestler.attachedTo ? ctx.wrestlerById?.(wrestler.attachedTo) : undefined;
+      const suitor: Suitor = { promotionId: rival.id, partnerPromotionId: partner?.promotionId ?? null };
+
       attempts.push({
         wrestlerId: wrestler.id,
         rivalPromotionId: rival.id,
         kind: underContract ? 'tampering' : 'approach',
         offerPremium: premium,
-        temptation: temptation(wrestler, premium, weeksLeft, settings),
+        temptation: temptation(wrestler, premium, weeksLeft, settings, suitor),
       });
     }
   }

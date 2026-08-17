@@ -2191,6 +2191,22 @@ export interface WorldSettings {
   traitGlassNoticesAfter: number;
   traitGlassCostEach: number;
   traitGlassCostMax: number;
+  // --- traits reaching outside morale: contracts, poaching, retirement,
+  // release requests (career/ego.ts, world/tampering.ts, career/retirement.ts,
+  // economy/termination.ts) ---
+  /** How much No Time For The Office's baseline dislike adds to temptation. */
+  traitOfficeDislikePull: number;
+  /** How much being where a `somebodyAtHome` partner works adds to temptation. */
+  traitPartnerPull: number;
+  /** How much not being a main eventer adds to Wants The Spotlight's temptation. */
+  traitSpotlightPull: number;
+  /** How badly underpaid, against market worth, before In It For The Money asks out regardless of morale. */
+  traitBadlyUnderpaidGap: number;
+  /** Threshold bump for a `somebodyAtHome` wrestler whose partner is elsewhere. */
+  traitApartReleaseThreshold: number;
+  /** Retirement pressure relief for Grateful For The Work, and the push for Wants More Time Off. */
+  retirementLoveOfTheGameRelief: number;
+  retirementRoadWearyPush: number;
   moraleIdleGraceWeeks: number;
   /**
    * People per segment, for working out how long a fair wait for a match is at

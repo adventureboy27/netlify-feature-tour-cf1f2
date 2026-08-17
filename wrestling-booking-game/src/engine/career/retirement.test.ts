@@ -70,6 +70,49 @@ describe('wanting out', () => {
     expect(drawing).toBeLessThan(finished);
   });
 
+  it('worries a fragile body more than an ordinary one at the same wear', () => {
+    // Made Of Glass shares the same injury-proneness number sim/casualties.ts
+    // uses to decide how often this body actually breaks — reused here so the
+    // body worries them exactly as much as it should, given what it is.
+    const ordinary = retirementPressure(someone({ age: 33, health: 40, traits: [] }), ctx);
+    const fragile = retirementPressure(someone({ age: 33, health: 40, traits: ['madeOfGlass'] }), ctx);
+    expect(fragile).toBeGreaterThan(ordinary);
+  });
+
+  it('makes a career-threatening injury weigh even more on a fragile body', () => {
+    const hurt = {
+      severity: 'careerThreatening' as const,
+      grade: 85,
+      description: 'Neck',
+      sufferedWeek: 1,
+      totalWeeks: 60,
+      weeksRemaining: 52,
+      permanentStatLoss: {},
+      earlyReturnWeeksUsed: 0,
+    };
+    const ordinary = retirementPressure(someone({ age: 32, health: 60, injury: hurt, traits: [] }), ctx);
+    const fragile = retirementPressure(someone({ age: 32, health: 60, injury: hurt, traits: ['madeOfGlass'] }), ctx);
+    expect(fragile).toBeGreaterThan(ordinary);
+  });
+
+  it('keeps somebody who loves the game a little longer', () => {
+    const ordinary = retirementPressure(someone({ age: 45, traits: [] }), ctx);
+    const grateful = retirementPressure(someone({ age: 45, traits: ['gratefulForTheWork'] }), ctx);
+    expect(grateful).toBeLessThan(ordinary);
+  });
+
+  it('pushes the road-weary a little closer to hanging it up', () => {
+    const ordinary = retirementPressure(someone({ age: 45, traits: [] }), ctx);
+    const wornOut = retirementPressure(someone({ age: 45, traits: ['wantsMoreTimeOff'] }), ctx);
+    expect(wornOut).toBeGreaterThan(ordinary);
+  });
+
+  it('still lets age and the body do most of the deciding', () => {
+    // Real nudges, not the whole story — a young, healthy Grateful For The
+    // Work draw does not retire early just because of the trait.
+    expect(retirementPressure(someone({ age: 28, traits: ['gratefulForTheWork'] }), ctx)).toBeLessThan(0.1);
+  });
+
   it('does not let a rookie retire', () => {
     const rookie = someone({ age: 24, debutYear: 1999, health: 10 });
     const call = rollRetirement(rngFromSeed('rookie'), rookie, ctx);

@@ -14,6 +14,7 @@ import type { Rng } from '../rng';
 import { clamp } from '../rng';
 import type { Rivalry, Wrestler, WorldSettings } from '../types';
 import { yearsPro } from './status';
+import { hasTrait, injuryProneness } from './personality';
 
 export interface RetirementContext {
   currentYear: number;
@@ -49,7 +50,10 @@ export function retirementPressure(w: Wrestler, ctx: RetirementContext): number 
   const fromAge = clamp((w.age - s.retirementAgeSoft) / ageSpan, 0, 1);
 
   // The body. Condition that never comes back, and time already spent hurt.
-  const fromBody = clamp((100 - w.health) / 100, 0, 1) * s.retirementBodyWeight;
+  // Made Of Glass worries about it more than the same amount of wear worries
+  // anybody else — the same number that raises how often they get hurt
+  // (sim/casualties.ts) raises how much a given amount of hurt weighs on them.
+  const fromBody = clamp((100 - w.health) / 100, 0, 1) * s.retirementBodyWeight * injuryProneness(w);
   const careerEnding = w.injury?.severity === 'careerThreatening' ? s.retirementCareerEndingInjury : 0;
 
   // Nobody is booking them. Measured against their own peak, not the roster's
@@ -60,7 +64,12 @@ export function retirementPressure(w: Wrestler, ctx: RetirementContext): number 
   // Still drawing? Then not yet, whatever the birth certificate says.
   const stillDrawing = w.popularity >= s.mainEventPopularity ? s.retirementStillDrawingRelief : 0;
 
-  return clamp(fromAge + fromBody + careerEnding + fromDecline - stillDrawing, 0, 1);
+  // Two traits with something to say about hanging it up specifically, rather
+  // than about the job in general — see career/personality.ts.
+  const loveOfTheGame = hasTrait(w, 'gratefulForTheWork') ? s.retirementLoveOfTheGameRelief : 0;
+  const roadWeary = hasTrait(w, 'wantsMoreTimeOff') ? s.retirementRoadWearyPush : 0;
+
+  return clamp(fromAge + fromBody + careerEnding + fromDecline - stillDrawing - loveOfTheGame + roadWeary, 0, 1);
 }
 
 function reasonFor(w: Wrestler, ctx: RetirementContext): RetirementReason {

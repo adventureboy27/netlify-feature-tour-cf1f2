@@ -169,3 +169,52 @@ describe('who asks to be let go', () => {
     expect(wantsOut(person({ morale: 0, contract: null }), settings)).toBe(false);
   });
 });
+
+describe('who asks to be let go, and who barely needs an excuse', () => {
+  // Before this, the only question `wantsOut` could answer was "how unhappy
+  // is he", so a loyal veteran and a Never Satisfied draw at the same morale
+  // were exactly as likely to ask for a release.
+  it('is much harder to move at the same morale, for a loyal one', () => {
+    const morale = 25; // below the base 30 threshold for both
+    const grateful = person({ morale, traits: ['gratefulForTheWork'], contract: deal() });
+    const restless = person({ morale, traits: ['neverSatisfied'], contract: deal() });
+    expect(wantsOut(grateful, settings)).toBe(false);
+    expect(wantsOut(restless, settings)).toBe(true);
+  });
+
+  it('lets somebody ask sooner than the base line when nothing you book fixes it', () => {
+    // No Time For The Office: "nothing you book changes it." A morale that
+    // would not trigger the base threshold still triggers theirs.
+    const morale = 38; // above the base 30 threshold
+    const ordinary = person({ morale, contract: deal() });
+    const dislikesUs = person({ morale, traits: ['noTimeForTheOffice'], contract: deal() });
+    expect(wantsOut(ordinary, settings)).toBe(false);
+    expect(wantsOut(dislikesUs, settings)).toBe(true);
+  });
+
+  it('asks out over money alone, for the one who is only here for it', () => {
+    // In It For The Money reads its own contract every week that morale does
+    // — and can want out before the mood has caught up with the number.
+    const content = person({ morale: 80, traits: ['inItForTheMoney'], contract: deal({ weeklyRate: 300 }) });
+    expect(wantsOut(content, settings)).toBe(false);
+    expect(wantsOut(content, settings, { worth: 1000 })).toBe(true);
+    // But not over a fair number, however unhappy that leaves them about
+    // something else — this trait cares about the money and nothing else.
+    expect(wantsOut(content, settings, { worth: 320 })).toBe(false);
+  });
+
+  it('is drawn toward wherever the partner already is, and only when they are apart', () => {
+    const morale = 32; // above the base 30 threshold
+    const home = person({ morale, traits: ['somebodyAtHome'], contract: deal() });
+    expect(wantsOut(home, settings, { apartFromPartner: false })).toBe(false);
+    expect(wantsOut(home, settings, { apartFromPartner: true })).toBe(true);
+  });
+
+  it('gives the locker room leader one more reason to stay', () => {
+    const morale = 27; // below the base 30 threshold
+    const ordinary = person({ morale, contract: deal() });
+    const leader = person({ morale, traits: ['lockerRoomLeader'], contract: deal() });
+    expect(wantsOut(ordinary, settings)).toBe(true);
+    expect(wantsOut(leader, settings)).toBe(false);
+  });
+});
