@@ -262,6 +262,13 @@ import {
 } from '../engine/sim/referees';
 import { NETWORK_SHOWS } from '../data/networkShows';
 import { rollTamperingAttempts } from '../engine/world/tampering';
+import {
+  attemptPlayerTampering,
+  resolveOffer,
+  responseIsAvailable,
+  responseOutcome,
+  type PoachingResponse,
+} from '../engine/world/poaching';
 import { deriveCareerStatus } from '../engine/career/status';
 import { rollRetirement, rollComeback, retire, unretire, RETIREMENT_REASON_TEXT } from '../engine/career/retirement';
 import { agePool } from '../engine/world/freeAgents';
@@ -741,6 +748,10 @@ export interface GameStore {
    * left, which is the only way a shoot ever draws money.
    */
   leanIntoShoot: (rivalryId: Id) => { ok: boolean; reason: string | null };
+  /** Answer a rival's approach. Every answer costs something — see poaching.ts. */
+  answerApproach: (offerId: Id, response: PoachingResponse) => { ok: boolean; reason: string | null };
+  /** Go after somebody else's contracted talent. A bad bet, on purpose. */
+  tamperWith: (wrestlerId: Id, offerPremium: number) => { ok: boolean; reason: string | null };
   renameStoryline: (storylineId: Id, name: string) => void;
   /** Walk away from an arc. It counts as fizzled, because it is. */
   abandonStoryline: (storylineId: Id) => void;
@@ -6832,14 +6843,85 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
-        // Rival bookers come calling.
-        world.tamperingOffers = rollTamperingAttempts(rng, {
+        // ---- somebody has been talking to your talent --------------------
+        // Offers used to be regenerated wholesale every week and nothing
+        // could be done about them: no way to answer, and no resolution
+        // either way. A rival courted your champion for a fortnight and then
+        // the approach simply evaporated. Every function for answering this
+        // was written and tested and had no caller.
+        //
+        // Now an open offer survives until its date, the booker can answer it,
+        // and one that reaches the date unanswered resolves as `doNothing` —
+        // which is a decision, and sometimes loses the man.
+        for (const offer of world.tamperingOffers) {
+          if (offer.status === 'resolved' || world.week < offer.resolvesWeek) continue;
+          offer.status = 'resolved';
+          const target = world.wrestlers[offer.wrestlerId];
+          const rival = world.rivals.find((r) => r.id === offer.rivalPromotionId);
+          if (!target || !rival) continue;
+
+          // Seeded from the offer, not the world's stream. Sixth time.
+          const goes = resolveOffer(
+            rngFromSeed(`poach:${offer.id}`),
+            offer,
+            { kind: 'doNothing' },
+            world.settings,
+          );
+          if (!goes) {
+            world.weeklyNews.push(
+              wire(
+                'signing',
+                `${rival.name} came for ${target.name} and he stayed. Nobody from this office said a word to him about it.`,
+                world.week,
+              ),
+            );
+            continue;
+          }
+          world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== target.id);
+          target.promotionId = rival.id;
+          target.contract = createStandardContract(
+            target,
+            world.settings,
+            world.settings.startingYear + Math.floor(world.week / 52),
+          );
+          rival.rosterIds.push(target.id);
+          world.weeklyNews.push(
+            wire(
+              'departure',
+              `${target.name} has gone to ${rival.name}. They were talking to him for weeks and this office never answered.`,
+              world.week,
+              'lead',
+            ),
+          );
+        }
+        world.tamperingOffers = world.tamperingOffers.filter((o) => o.status === 'open');
+
+        // Rival bookers come calling. Added to what is already on the table
+        // rather than replacing it, and never two approaches for one man.
+        const alreadyCourted = new Set(world.tamperingOffers.map((o) => o.wrestlerId));
+        for (const fresh of rollTamperingAttempts(rng, {
           roster,
           statusOf: (w) => w.careerStatus,
           rivals: world.rivals,
           currentWeek: world.week,
           settings: world.settings,
-        });
+        })) {
+          if (alreadyCourted.has(fresh.wrestlerId)) continue;
+          alreadyCourted.add(fresh.wrestlerId);
+          // `rollTamperingAttempts` produces the bare approach; the stored
+          // form is the one the booker can answer. Two modules describe this
+          // feature — world/tampering.ts generates and career/poaching.ts
+          // resolves — and the second was dead because nothing ever built its
+          // shape. Converted here rather than merged, which is a bigger job
+          // than this change should be.
+          world.tamperingOffers.push({
+            ...fresh,
+            id: `poach-${world.week}-${fresh.wrestlerId}`,
+            openedWeek: world.week,
+            resolvesWeek: world.week + world.settings.poachOfferWeeks,
+            status: 'open',
+          });
+        }
 
         // And the office brings you one story a week, at most.
         const event = rollWeeklyEvent(rng, {
@@ -7986,6 +8068,118 @@ export const useGameStore = create<GameStore>()(
         }
         world.secretSignings = world.secretSignings.filter((s2) => s2.wrestlerId !== wrestlerId);
       });
+    },
+
+    answerApproach: (offerId, response) => {
+      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No world.' };
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const offer = world.tamperingOffers.find((o) => o.id === offerId && o.status === 'open');
+        const target = offer ? world.wrestlers[offer.wrestlerId] : undefined;
+        if (!offer || !target) {
+          outcome = { ok: false, reason: 'That approach is closed.' };
+          return;
+        }
+        // A legal threat against a man whose deal is running out is nothing.
+        if (!responseIsAvailable(response, offer)) {
+          outcome = { ok: false, reason: 'There is no paper to wave at them.' };
+          return;
+        }
+
+        const effect = responseOutcome(response, world.settings);
+        offer.temptation = clamp(offer.temptation + effect.temptationDelta, 0, 100);
+        if (target.contract && effect.rateMultiplier !== 1) {
+          target.contract.weeklyRate = Math.round(target.contract.weeklyRate * effect.rateMultiplier);
+        }
+        target.morale = clamp(target.morale + effect.moraleDelta, 0, 100);
+        target.momentum = clamp(target.momentum + effect.momentumDelta, 0, 100);
+        world.promotion.reputation = clamp(
+          world.promotion.reputation + effect.reputationDelta,
+          0,
+          100,
+        );
+        // The rest of the room hears what he got. That is the cost of paying
+        // one man to stay — see economy/perks.ts for the same idea.
+        for (const id of world.promotion.rosterIds) {
+          const member = world.wrestlers[id];
+          if (!member || member.id === target.id || member.deceased) continue;
+          member.morale = clamp(member.morale + effect.rosterMoraleDelta, 0, 100);
+        }
+        // Answered, so it does not resolve itself on its date. Whether he
+        // stays is still settled then, at the temptation you have left him on.
+        offer.resolvesWeek = Math.max(offer.resolvesWeek, world.week + 1);
+        world.weeklyNews.push(
+          wire('signing', `${target.name}: ${effect.description}`, world.week),
+        );
+        outcome = { ok: true, reason: effect.description };
+      });
+      return outcome;
+    },
+
+    tamperWith: (wrestlerId, offerPremium) => {
+      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No world.' };
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const target = world.wrestlers[wrestlerId];
+        if (!target || !target.contract || target.promotionId === world.promotion.id) {
+          outcome = { ok: false, reason: 'He is not under contract to anybody else.' };
+          return;
+        }
+        if (world.signingBanWeeks > 0) {
+          outcome = { ok: false, reason: 'You are barred from signing anybody.' };
+          return;
+        }
+
+        const result = attemptPlayerTampering(
+          rng,
+          target,
+          { targetWrestlerId: wrestlerId, targetPromotionId: target.promotionId!, offerPremium },
+          world.promotion.bankBalance,
+          world.settings,
+          world.tamperingOffenses,
+        );
+
+        if (result.caught) {
+          world.tamperingOffenses += 1;
+          world.promotion.bankBalance -= result.fine;
+          world.signingBanWeeks = Math.max(world.signingBanWeeks, result.signingBanWeeks);
+          world.suspensionWeeks = Math.max(world.suspensionWeeks, result.suspensionWeeks);
+          world.promotion.rating = clamp(
+            world.promotion.rating - result.companyRatingPenalty,
+            0,
+            100,
+          );
+        }
+        world.promotion.reputation = clamp(
+          world.promotion.reputation + result.reputationDelta,
+          0,
+          100,
+        );
+
+        if (result.signed) {
+          const from = world.rivals.find((r) => r.id === target.promotionId);
+          if (from) from.rosterIds = from.rosterIds.filter((id) => id !== target.id);
+          target.promotionId = world.promotion.id;
+          target.contract = {
+            ...createStandardContract(
+              target,
+              world.settings,
+              world.settings.startingYear + Math.floor(world.week / 52),
+            ),
+            weeklyRate: Math.round((target.contract?.weeklyRate ?? 0) + offerPremium),
+          };
+          world.promotion.rosterIds.push(target.id);
+        }
+
+        // §0: caught or not, signed or not, the paper says what happened.
+        world.weeklyNews.push(
+          wire('signing', result.description, world.week, result.caught ? 'lead' : 'normal'),
+        );
+        outcome = { ok: result.signed, reason: result.description };
+      });
+      return outcome;
     },
 
     leanIntoShoot: (rivalryId) => {

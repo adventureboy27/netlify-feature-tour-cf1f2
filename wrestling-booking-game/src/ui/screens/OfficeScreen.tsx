@@ -22,6 +22,7 @@ import { grudgeAgainst, grudgeLine } from '../../engine/world/grudges';
 import { leverageReason } from '../../engine/career/leverage';
 import { useGameStore } from '../../state/store';
 import { tvVerdict, wonTheNight, playerChartPosition } from '../../engine/world/tvRatings';
+import { responseIsAvailable, type PoachingResponse } from '../../engine/world/poaching';
 import { temptationLabel } from '../../engine/world/tampering';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { mostRecentDeath, stillHeldAgainstUs } from '../../engine/career/onOurWatch';
@@ -680,6 +681,8 @@ function ContractsTab() {
   const world = useGameStore((s) => s.world);
 
   const answerRenewal = useGameStore((s) => s.answerRenewal);
+  const answerApproach = useGameStore((s) => s.answerApproach);
+  const [approachNote, setApproachNote] = useState<string | null>(null);
   const answerReleaseRequest = useGameStore((s) => s.answerReleaseRequest);
   if (!world) return null;
 
@@ -905,6 +908,47 @@ function ContractsTab() {
                 </div>
               );
             })}
+          </div>
+        </section>
+      )}
+
+      {/* And what you can do about it. Every answer costs something, which is
+          the whole decision — see career/poaching.ts. Left alone, the approach
+          settles itself on its date and sometimes takes the man. */}
+      {world.tamperingOffers.length > 0 && (
+        <section className="mt-2">
+          <div className="flex flex-col gap-2">
+            {world.tamperingOffers.map((offer) => {
+              const target = wrestler(offer.wrestlerId);
+              if (!target) return null;
+              const answers = (
+                [
+                  { response: { kind: 'matchMoney' }, label: 'Match the money' },
+                  { response: { kind: 'promiseAPush' }, label: 'Promise the spot' },
+                  { response: { kind: 'legalThreat' }, label: 'Enforce the contract' },
+                  { response: { kind: 'doNothing' }, label: 'Let it ride' },
+                ] as { response: PoachingResponse; label: string }[]
+              ).filter((a) => responseIsAvailable(a.response, offer));
+              return (
+                <div key={`answer-${offer.id}`} className="rounded border border-neutral-800 bg-neutral-900 p-2">
+                  <div className="mb-1 text-[11px] text-neutral-400">{target.name}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {answers.map((answer) => (
+                      <button
+                        key={answer.label}
+                        type="button"
+                        data-testid={`answer-${offer.id}-${answer.response.kind}`}
+                        onClick={() => setApproachNote(answerApproach(offer.id, answer.response).reason)}
+                        className="rounded bg-neutral-800 px-2 py-1 text-[11px] text-neutral-200 hover:bg-neutral-700"
+                      >
+                        {answer.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {approachNote && <p className="text-[11px] text-amber-300">{approachNote}</p>}
           </div>
         </section>
       )}

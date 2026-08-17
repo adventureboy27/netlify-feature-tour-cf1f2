@@ -1963,6 +1963,8 @@ export interface WorldSettings {
   residencyConcessionsPerHead: number;
 
   // Answering a rival's offer (engine/world/poaching.ts)
+  /** Weeks an approach stays open before it resolves on its own. */
+  poachOfferWeeks: number;
   poachResponseMoneyEffect: number;
   poachResponseMoneyRaise: number;
   poachResponsePushEffect: number;

@@ -486,6 +486,8 @@ export function defaultWorldSettings(): WorldSettings {
     residencyConcessionsPerHead: 2.4,
 
     // Answering a rival's offer
+    // How long a rival's approach sits on the table before it settles itself.
+    poachOfferWeeks: 2,
     poachResponseMoneyEffect: 0.45,
     poachResponseMoneyRaise: 1.35,
     poachResponsePushEffect: 0.3,

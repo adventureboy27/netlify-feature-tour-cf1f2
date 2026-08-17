@@ -59,7 +59,6 @@ import type { WeatherCallOptionId } from '../data/weatherCalls';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
 import type { PendingEvent } from '../engine/events/types';
 import type { EventHistory } from '../engine/events/scheduler';
-import type { TamperingAttempt } from '../engine/world/tampering';
 import { emptyEventHistory } from '../engine/events/scheduler';
 import type { Rng } from '../engine/rng';
 import { pick, randInt, rngFromSeed } from '../engine/rng';
@@ -173,7 +172,12 @@ export interface World {
   lastEventOutcome: { title: string; summary: string } | null;
   eventHistory: EventHistory;
   /** Rival offers currently on the table. */
-  tamperingOffers: TamperingAttempt[];
+  /**
+   * Rival approaches sitting on the desk. The answerable shape from
+   * career/poaching.ts, not the bare attempt world/tampering.ts generates —
+   * an offer nobody can answer is not a decision, it is a notification.
+   */
+  tamperingOffers: PoachingOffer[];
   /** Rival offers awaiting your answer — you always get one first. */
   poachingOffers: PoachingOffer[];
   /** One-time production purchases. They travel to every show. */
