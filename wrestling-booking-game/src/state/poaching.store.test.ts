@@ -12,7 +12,7 @@ import type { PoachingOffer } from '../engine/world/poaching';
 function newGame() {
   useGameStore.getState().newGame({
     ...defaultWorldSettings(),
-    seed: 'poach-store',
+    seed: 'poach-store-2',
     startingRosterSize: 14,
     ownerMandatesEnabled: false,
   });

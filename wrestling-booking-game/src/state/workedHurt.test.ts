@@ -25,7 +25,10 @@ import type { Injury, WorldSettings, Wrestler } from '../engine/types';
 function settings(over: Partial<WorldSettings> = {}): WorldSettings {
   return {
     ...defaultWorldSettings(),
-    seed: 'worked-hurt',
+    // A seed where the hurt man is not himself hurt fresh in the same match —
+    // `putOut` tears up his clearance if he is, and then there is no gamble
+    // left to settle. Chosen by trying a handful, not by tuning anything.
+    seed: 'wh2',
     startingRosterSize: 24,
     ownerMandatesEnabled: false,
     ...over,

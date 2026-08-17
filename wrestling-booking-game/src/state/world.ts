@@ -627,6 +627,9 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     const signed = generateWrestlers(rng, size, {
       // Rolls what the business believes about them, as against what is true.
       settings,
+      // Every company's roster is built to the split, not just yours.
+      divisionShare: settings.womensRosterShare,
+      divisionFloor: settings.womensDivisionFloor,
       homeTerritoryIds: territoryIds,
       currentYear: settings.startingYear,
       existingAppearances: Object.values(wrestlers).map((w) => w.appearance),

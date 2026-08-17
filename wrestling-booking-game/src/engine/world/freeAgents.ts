@@ -69,6 +69,11 @@ export function generateFreeAgentPool(
   const wrestlers = generateWrestlers(rng, settings.freeAgentPoolSize, {
     // Rolls what the business believes about them, as against what is true.
     settings,
+    // Built to the split rather than rolled per head, for the same reason the
+    // player's roster is: left to chance a small batch comes out lopsided,
+    // and a division of two is one match repeated forever.
+    divisionShare: settings.womensRosterShare,
+    divisionFloor: settings.womensDivisionFloor,
     currentYear: settings.startingYear,
     existingAppearances,
     existingNames: new Set(existingNames),

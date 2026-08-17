@@ -81,7 +81,9 @@ export function defaultWorldSettings(): WorldSettings {
     movedShowFollowing: -2,
     weatherInjuryMaxWeeks: 3,
     // A women's championship needs a division, not two wrestlers taking turns.
-    womensRosterShare: 0.3,
+    // An even split, and it is now read by every generator rather than only
+    // by the player's opening roster.
+    womensRosterShare: 0.5,
     womensDivisionFloor: 6,
     // One team per this many wrestlers, within bounds.
     wrestlersPerTagTeam: 7,
