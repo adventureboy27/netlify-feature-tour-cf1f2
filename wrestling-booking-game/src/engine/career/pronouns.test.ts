@@ -1,15 +1,20 @@
 // The guard on the whole rule.
 //
-// This bug has been found three times: once on the free-agent list under
-// Deacon Yolanda's name, once across a whole session of new systems, and once
-// on the older content underneath them. Fifty-six of the three hundred people
-// this game generates are women, and prose written for men reads as a bug to
-// every one of them.
+// This bug has been found five times now: on the free-agent list under Deacon
+// Yolanda's name, across a whole session of new systems, on the older content
+// underneath them, on the roster card ("the act is costing every match he is
+// in", under a woman), and in the store's own write-ups. Half the people this
+// game generates are women, and prose written for men reads as a bug to every
+// one of them.
 //
-// So it stops being a thing anybody has to remember. This walks the source of
-// the modules that write sentences about people and fails on a bare gendered
-// pronoun in a string literal — the fix is either a `Pronouns` argument or a
-// rewrite that does not need one.
+// So it stops being a thing anybody has to remember. This walks every layer
+// that writes sentences about people — the engine, the content, the store and
+// the screens — and fails on a bare gendered pronoun. The fix is either a
+// `Pronouns` argument or a rewrite that does not need one.
+//
+// Each widening of the net found more, which is the argument for the net: the
+// first version globbed engine/ and data/ only, and the two layers it did not
+// look at had thirty-two offending lines between them.
 
 import { describe, expect, it } from 'vitest';
 
@@ -17,7 +22,7 @@ import { describe, expect, it } from 'vitest';
  * Every engine and data source file, read as text. Vite's raw glob rather
  * than node:fs so the guard runs on the same toolchain as everything else.
  */
-const SOURCES = import.meta.glob('../../{engine,data}/**/*.ts', {
+const SOURCES = import.meta.glob('../../{engine,data,state}/**/*.ts', {
   query: '?raw',
   import: 'default',
   eager: true,

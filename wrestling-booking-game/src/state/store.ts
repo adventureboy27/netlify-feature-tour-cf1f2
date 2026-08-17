@@ -3209,7 +3209,7 @@ export const useGameStore = create<GameStore>()(
               kind: 'interference',
               text: muggingLine(
                 ringside.muggingBy?.[side] ?? 'The muscle',
-                ringside.muggingDistractor?.[side] ?? 'His mouthpiece',
+                ringside.muggingDistractor?.[side] ?? 'The mouthpiece',
                 victim.name,
               ),
             });
@@ -5816,7 +5816,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'signing',
-                `The sheets have worked out where ${person.name} went. He has not been on a ${signing.fromPromotionName} show since his deal ran out and somebody finally asked why. Whatever you were saving him for, it is not a surprise now.`,
+                `The sheets have worked out where ${person.name} went. ${Cap(pronounsFor(person).they)} has not been on a ${signing.fromPromotionName} show since that deal ran out and somebody finally asked why. Whatever you were saving ${pronounsFor(person).them} for, it is not a surprise now.`,
                 world.week,
                 'lead',
               ),
@@ -7054,7 +7054,7 @@ export const useGameStore = create<GameStore>()(
           world.weeklyNews.push(
             wire(
               'departure',
-              `${target.name} has gone to ${rival.name}. They were talking to him for weeks and this office never answered.`,
+              `${target.name} has gone to ${rival.name}. They were talking to ${pronounsFor(target).them} for weeks and this office never answered.`,
               world.week,
               'lead',
             ),
@@ -7873,7 +7873,7 @@ export const useGameStore = create<GameStore>()(
           return;
         }
         if (incoming && incoming.promotionId !== rival.id) {
-          verdict = { accepted: false, reason: 'He does not work for them.' };
+          verdict = { accepted: false, reason: 'They do not work for them.' };
           return;
         }
         if (cashFromYou > world.promotion.bankBalance) {
@@ -7938,7 +7938,7 @@ export const useGameStore = create<GameStore>()(
           return;
         }
         if (referee.promotionId) {
-          outcome = { ok: false, reason: 'He is already working for somebody.' };
+          outcome = { ok: false, reason: 'Already working for somebody.' };
           return;
         }
         const rate = currentRefereeAskingRate(referee, world.settings);
@@ -8115,19 +8115,19 @@ export const useGameStore = create<GameStore>()(
         if (!canSignSecretly(person, world.promotion.id, world.settings)) {
           outcome = {
             ok: false,
-            reason: 'There is nothing to talk about. He is not out of contract any time soon.',
+            reason: 'There is nothing to talk about. That deal is not up any time soon.',
           };
           return;
         }
         if (world.secretSignings.some((s2) => s2.wrestlerId === wrestlerId)) {
-          outcome = { ok: false, reason: 'You already have an understanding with him.' };
+          outcome = { ok: false, reason: 'You already have an understanding there.' };
           return;
         }
         const cost = secretWeeklyCost(person, world.settings);
         // Nothing is paid today — nothing is signed today. But you do not
         // shake on a number you cannot cover when it comes due.
         if (world.promotion.bankBalance < cost * world.settings.secretSigningProofWeeks) {
-          outcome = { ok: false, reason: 'You cannot cover what you would be promising him.' };
+          outcome = { ok: false, reason: 'You cannot cover what you would be promising.' };
           return;
         }
         // Whether they go for it at all. A happy man in a good spot mostly
@@ -8206,10 +8206,10 @@ export const useGameStore = create<GameStore>()(
           wire(
             'signing',
             !wasSecret
-              ? `${person.name} finally turned up for ${world.promotion.name}. The sheets had already placed him, which took most of it away.`
+              ? `${person.name} finally turned up for ${world.promotion.name}. The sheets had already placed ${pronounsFor(person).them}, which took most of it away.`
               : sinceFree <= 1
-                ? `${person.name} walked out on ${world.promotion.name}'s show tonight. He worked his last date for ${signing.fromPromotionName} on the final day of his contract and signed here before the week was out. Nobody had time to catch on.`
-                : `${person.name} walked out on ${world.promotion.name}'s show tonight. Everybody in the building still had him down at ${signing.fromPromotionName}. His deal there quietly ran out ${sinceFree} weeks ago and he has been signed here ever since.`,
+                ? `${person.name} walked out on ${world.promotion.name}'s show tonight. ${Cap(pronounsFor(person).they)} worked ${pronounsFor(person).their} last date for ${signing.fromPromotionName} on the final day of that contract and signed here before the week was out. Nobody had time to catch on.`
+                : `${person.name} walked out on ${world.promotion.name}'s show tonight. Everybody in the building still had ${pronounsFor(person).them} down at ${signing.fromPromotionName}. That deal quietly ran out ${sinceFree} weeks ago and ${pronounsFor(person).they} has been signed here ever since.`,
             world.week,
             'lead',
           ),
@@ -8290,7 +8290,7 @@ export const useGameStore = create<GameStore>()(
         if (!world) return;
         const target = world.wrestlers[wrestlerId];
         if (!target || !target.contract || target.promotionId === world.promotion.id) {
-          outcome = { ok: false, reason: 'He is not under contract to anybody else.' };
+          outcome = { ok: false, reason: 'They are not under contract to anybody else.' };
           return;
         }
         if (world.signingBanWeeks > 0) {
@@ -8437,7 +8437,7 @@ export const useGameStore = create<GameStore>()(
         );
         const generated = pattern
           .replace('{a}', surnames[0] ?? 'Them')
-          .replace('{b}', surnames[1] ?? 'Him')
+          .replace('{b}', surnames[1] ?? 'Them')
           .replace('{town}', town?.name ?? 'Town');
 
         world.storylines.push({
@@ -9088,7 +9088,7 @@ export const useGameStore = create<GameStore>()(
           world.weeklyNews.push(
             wire(
               'departure',
-              `${wrestler.name} asked for his release. He was told no, and he is still on the roster.`,
+              `${wrestler.name} asked for a release. ${Cap(pronounsFor(wrestler).they)} was told no, and is still on the roster.`,
               world.week,
             ),
           );
