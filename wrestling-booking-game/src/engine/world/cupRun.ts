@@ -17,6 +17,8 @@ import {
   recordResult,
   roundName,
   totalRounds,
+  nightFatigueMultiplier,
+  nightHealthCost,
 } from '../tournament/bracket';
 import { cupPurse, cupStanding, CUP_NAME, type CupPurse, type CrownReign } from './cup';
 
@@ -62,6 +64,12 @@ export interface CupResult {
   roundsWon: Record<Id, number>;
   rounds: number;
   reign: CrownReign;
+  /**
+   * What the night took out of the people who kept winning it. Applied by the
+   * caller, because the engine does not reach into the world — and reported,
+   * because §0 has no exception for a body that got worn down in a bracket.
+   */
+  wornOut: { wrestlerId: Id; cost: number }[];
   line: string;
 }
 
@@ -108,6 +116,28 @@ export function runCup(rng: Rng, ctx: CupRunContext): CupResult | null {
   const roundsWon: Record<Id, number> = {};
   for (const w of everyone) roundsWon[w.id] = 0;
 
+  /**
+   * How many times each entrant has already gone out there tonight.
+   *
+   * This is the whole cost of a one-night tournament and it was not being
+   * charged: `matchesWorkedTonight`, `nightFatigueMultiplier` and
+   * `nightHealthCost` were all written and tested and none of them had a
+   * caller, so a wrestler in their third match of the night was exactly as
+   * fresh as they were in their first and the bracket was a pure seeding
+   * exercise.
+   *
+   * Two separate things, deliberately:
+   *
+   *   - The multiplier is tonight only. It scales what the sim thinks of them
+   *     for this tie — the wrestler you seeded to win gets progressively worse
+   *     at winning, and the bracket does not care who you had planned for the
+   *     final. Applied to a copy, so nothing about it leaks past the last bell.
+   *   - The health cost is real and it persists, charged to the actual person
+   *     once the night is over. Winning a one-night tournament should be
+   *     something a body remembers.
+   */
+  const workedTonight = new Map<Id, number>();
+
   // Walk it. `bookableMatches` hands back only the ties whose feeder matches
   // have resolved, so this drains the bracket a round at a time on its own.
   let guard = 0;
@@ -128,7 +158,22 @@ export function runCup(rng: Rng, ctx: CupRunContext): CupResult | null {
         { wrestlerId: b.id, side: 1 },
       ];
 
-      const result = simulateMatch(rng, participants, byId, {
+      // Fatigued copies for this tie only. `kayfabeScore` reads health, so
+      // scaling it there is what makes a third match harder to win than a
+      // first without inventing a second modifier the sim has to know about.
+      const tired = (w: Wrestler): Wrestler => {
+        const already = workedTonight.get(w.id) ?? 0;
+        if (already === 0) return w;
+        return {
+          ...w,
+          health: w.health * nightFatigueMultiplier(already, ctx.settings),
+        };
+      };
+      const tonight = new Map(byId);
+      tonight.set(a.id, tired(a));
+      tonight.set(b.id, tired(b));
+
+      const result = simulateMatch(rng, participants, tonight, {
         rules: CUP_RULES,
         stipulation: null,
         requirementsMet: true,
@@ -145,6 +190,8 @@ export function runCup(rng: Rng, ctx: CupRunContext): CupResult | null {
 
       const winnerId = result.winnerWrestlerIds[0] ?? aId;
       roundsWon[winnerId] = (roundsWon[winnerId] ?? 0) + 1;
+      workedTonight.set(aId, (workedTonight.get(aId) ?? 0) + 1);
+      workedTonight.set(bId, (workedTonight.get(bId) ?? 0) + 1);
 
       bouts.push({
         round: tie.round,
@@ -157,6 +204,17 @@ export function runCup(rng: Rng, ctx: CupRunContext): CupResult | null {
       });
 
       tournament = recordResult(tournament, tie.id, winnerId);
+    }
+  }
+
+  // What the night actually took out of them, charged to the real people now
+  // the bracket is done. A single-night tournament is meant to be a body
+  // decision as much as a booking one.
+  const wornOut: { wrestlerId: Id; cost: number }[] = [];
+  if (tournament.format === 'singleNight') {
+    for (const [id, worked] of workedTonight) {
+      const cost = nightHealthCost(Math.max(0, worked - 1), ctx.settings);
+      if (cost > 0) wornOut.push({ wrestlerId: id, cost });
     }
   }
 
@@ -196,6 +254,7 @@ export function runCup(rng: Rng, ctx: CupRunContext): CupResult | null {
     roundsWon,
     rounds: totalRounds(tournament),
     reign,
+    wornOut,
     line: `${winner.name} won ${CUP_NAME} ${ctx.year} for ${company.name}.`,
   };
 }

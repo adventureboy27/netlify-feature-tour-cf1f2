@@ -8577,6 +8577,32 @@ export const useGameStore = create<GameStore>()(
 
         world.lastCup = result;
 
+        // What the night took out of anybody who worked it more than once.
+        // A single-night bracket is meant to be a body decision as much as a
+        // booking one, and it was charging nothing at all — the three
+        // functions for it were written, tested and never called.
+        //
+        // §0: it comes off their health, so it gets a sentence.
+        const worn: string[] = [];
+        for (const { wrestlerId, cost } of result.wornOut) {
+          const person = world.wrestlers[wrestlerId];
+          if (!person || person.deceased) continue;
+          person.health = clamp(person.health - cost, 0, 100);
+          if (world.promotion.rosterIds.includes(wrestlerId)) worn.push(person.name);
+        }
+        if (worn.length > 0) {
+          world.weeklyNews.push(
+            wire(
+              'misfortune',
+              worn.length === 1
+                ? `${worn[0]} went to the well more than once in one night at ${CUP_NAME}, and is feeling every bit of it.`
+                : `${worn.slice(0, -1).join(', ')} and ${worn[worn.length - 1]} all worked more than once in a night at ${CUP_NAME}. That is a week of ice baths.`,
+              world.week,
+              'normal',
+            ),
+          );
+        }
+
         // Half the pot to the winner's company, half to the winner. Exactly as
         // split, and both halves are real money in real hands.
         const winnerCompany =
