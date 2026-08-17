@@ -252,6 +252,7 @@ import { NETWORK_SHOWS } from '../data/networkShows';
 import { rollTamperingAttempts } from '../engine/world/tampering';
 import { deriveCareerStatus } from '../engine/career/status';
 import { rollRetirement, rollComeback, retire, unretire, RETIREMENT_REASON_TEXT } from '../engine/career/retirement';
+import { agePool } from '../engine/world/freeAgents';
 import { rollDeath, DEATH_CAUSE_TEXT } from '../engine/career/mortality';
 import { backstageAttackChance, backstageDamage, backstageLine, muggingLine } from '../engine/sim/ringside';
 import { annualInductions } from '../engine/career/hallOfFame';
@@ -5191,6 +5192,13 @@ export const useGameStore = create<GameStore>()(
             );
           }
         }
+        // Another week on the shelf for everybody nobody has signed. This is
+        // the only thing that changes about a free agent while he sits there,
+        // and `currentAskingRate` reads it to bring his price down — so
+        // without it the signing page was a frozen price list and waiting
+        // somebody out did nothing. See world/freeAgents.ts.
+        world.freeAgents = agePool(world.freeAgents);
+
         // Ninety days, counted down for everybody in the business.
         for (const person of Object.values(world.wrestlers)) {
           if ((person.noCompeteWeeks ?? 0) > 0) {

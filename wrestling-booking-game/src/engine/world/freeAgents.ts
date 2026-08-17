@@ -11,7 +11,7 @@
 
 import type { Rng } from '../rng';
 import { chance, randInt } from '../rng';
-import type { Wrestler, WorldSettings, CareerStatus, Appearance } from '../types';
+import type { Wrestler, WorldSettings, Appearance } from '../types';
 import { generateWrestlers } from '../generate/wrestler';
 import { askingRate, desiredContractWeeks, isAffordable } from '../economy/contracts';
 
@@ -124,43 +124,23 @@ export function canSign(
   return isAffordable(wrestler, bankBalance, settings);
 }
 
-export interface PoolTickContext {
-  freeAgents: readonly FreeAgent[];
-  wrestlerById: (id: string) => Wrestler | undefined;
-  statusOf: (wrestler: Wrestler) => CareerStatus;
-  /** Combined pull of every AI promotion, 0-1. */
-  rivalDemand: number;
-  settings: WorldSettings;
-}
-
 /**
- * A week in the pool: everyone gets a week older on the shelf, and rivals
- * quietly sign the good ones. Leave a prospect sitting there and somebody
- * else will take them — the pool is not a reservation.
+ * A week on the shelf.
+ *
+ * The only thing that changes about a free agent while nobody signs him, and
+ * the thing `currentAskingRate` reads to bring his price down — so without
+ * this the pool is a frozen price list. It was: measured over forty weeks, not
+ * one asking rate and not one `weeksUnsigned` moved, because the function that
+ * did it had no caller. The "39 weeks unsigned" on the signing page was a
+ * number dealt at world creation and never touched again.
+ *
+ * This replaced a `tickPool` that also had rivals sign people out of the pool.
+ * That half was cut rather than wired: the store already has short-handed
+ * rivals signing from the pool, and two systems quietly doing the same thing
+ * is how a business ends up with a rule nobody can find.
  */
-export function tickPool(rng: Rng, ctx: PoolTickContext): { updated: FreeAgent[]; signedAway: string[] } {
-  const signedAway: string[] = [];
-  const updated: FreeAgent[] = [];
-
-  for (const agent of ctx.freeAgents) {
-    const wrestler = ctx.wrestlerById(agent.wrestlerId);
-    if (!wrestler) continue;
-
-    const status = ctx.statusOf(wrestler);
-    // Rivals go for the same people you would.
-    const desirability =
-      (wrestler.popularity / 100) * 0.6 + (wrestler.hype / 100) * (wrestler.age < 30 ? 0.4 : 0.1);
-    const takenChance = desirability * ctx.rivalDemand * ctx.settings.freeAgentRivalSigningChance;
-
-    if (status !== 'retired' && chance(rng, takenChance)) {
-      signedAway.push(agent.wrestlerId);
-      continue;
-    }
-
-    updated.push({ ...agent, weeksUnsigned: agent.weeksUnsigned + 1 });
-  }
-
-  return { updated, signedAway };
+export function agePool(freeAgents: readonly FreeAgent[]): FreeAgent[] {
+  return freeAgents.map((agent) => ({ ...agent, weeksUnsigned: agent.weeksUnsigned + 1 }));
 }
 
 /** Sort the pool the way a booker actually reads it: best available first. */

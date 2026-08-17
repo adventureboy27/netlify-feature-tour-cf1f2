@@ -3,15 +3,13 @@ import {
   generateFreeAgentPool,
   currentAskingRate,
   canSign,
-  tickPool,
+  agePool,
   rankPool,
   AVAILABILITY_LABELS,
   type FreeAgent,
 } from './freeAgents';
 import { defaultWorldSettings } from './settings';
-import { deriveCareerStatus } from '../career/status';
 import { rngFromSeed } from '../rng';
-import type { Wrestler } from '../types';
 
 const settings = defaultWorldSettings();
 
@@ -95,61 +93,37 @@ describe('signing', () => {
 });
 
 describe('a week in the pool', () => {
-  const statusOf = (w: Wrestler) =>
-    deriveCareerStatus(w, { currentYear: settings.startingYear, rosterPeakPopularity: 90, settings });
-
   it('ages everybody on the shelf by a week', () => {
-    const { freeAgents, get } = pool();
-    const { updated } = tickPool(rngFromSeed('tick'), {
-      freeAgents,
-      wrestlerById: get,
-      statusOf,
-      rivalDemand: 0,
-      settings,
-    });
+    const { freeAgents } = pool();
+    const updated = agePool(freeAgents);
     for (const agent of updated) {
       const before = freeAgents.find((a) => a.wrestlerId === agent.wrestlerId)!;
       expect(agent.weeksUnsigned).toBe(before.weeksUnsigned + 1);
     }
   });
 
-  it('keeps everyone when no rival is interested', () => {
-    const { freeAgents, get } = pool();
-    const { signedAway } = tickPool(rngFromSeed('quiet'), {
-      freeAgents,
-      wrestlerById: get,
-      statusOf,
-      rivalDemand: 0,
-      settings,
-    });
-    expect(signedAway).toEqual([]);
+  it('is what brings a price down, so patience is a strategy', () => {
+    // The whole reason the shelf-time is counted. Without the ageing this was
+    // a frozen price list and waiting somebody out did nothing at all.
+    const { freeAgents } = pool();
+    const agent = freeAgents[0]!;
+    let aged = [agent];
+    for (let week = 0; week < 30; week++) aged = agePool(aged);
+    expect(currentAskingRate(aged[0]!, settings)).toBeLessThan(currentAskingRate(agent, settings));
   });
 
-  it('lets rivals take the good ones if you leave them there', () => {
-    // The pool is not a reservation — sit on a prospect and somebody else
-    // signs them.
-    let { freeAgents } = pool();
-    const { get } = pool();
-    const rng = rngFromSeed('rivals-hungry');
-    let taken = 0;
-    for (let week = 0; week < 52; week++) {
-      const result = tickPool(rng, { freeAgents, wrestlerById: get, statusOf, rivalDemand: 1, settings });
-      taken += result.signedAway.length;
-      freeAgents = result.updated;
-    }
-    expect(taken).toBeGreaterThan(0);
-    expect(freeAgents.length).toBeLessThan(settings.freeAgentPoolSize);
+  it('stops discounting somewhere — he is not eventually free', () => {
+    const { freeAgents } = pool();
+    let aged = [freeAgents[0]!];
+    for (let week = 0; week < 5000; week++) aged = agePool(aged);
+    expect(currentAskingRate(aged[0]!, settings)).toBeGreaterThanOrEqual(settings.contractBaseWeeklyRate);
   });
 
-  it('takes the desirable ones first', () => {
-    const { freeAgents, get } = pool();
-    const rng = rngFromSeed('who-goes');
-    const { signedAway } = tickPool(rng, { freeAgents, wrestlerById: get, statusOf, rivalDemand: 1, settings });
-    if (signedAway.length === 0) return;
-    const takenPop = signedAway.map((id) => get(id)!.popularity);
-    const allPop = freeAgents.map((a) => get(a.wrestlerId)!.popularity);
-    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
-    expect(mean(takenPop)).toBeGreaterThan(mean(allPop) * 0.8);
+  it('changes nothing else about anybody', () => {
+    const { freeAgents } = pool();
+    const [before] = freeAgents;
+    const [after] = agePool(freeAgents);
+    expect({ ...after!, weeksUnsigned: 0 }).toEqual({ ...before!, weeksUnsigned: 0 });
   });
 });
 
