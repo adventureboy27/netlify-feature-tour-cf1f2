@@ -24,6 +24,20 @@ const SOURCES = import.meta.glob('../../{engine,data}/**/*.ts', {
 }) as Record<string, string>;
 
 /**
+ * The screens, too.
+ *
+ * The engine sweep missed a whole layer, and a played save found it: "the act
+ * is costing every match he is in" sat under a woman's roster card, because it
+ * was JSX text rather than a string literal in `engine/`. Anything the player
+ * reads counts, wherever it is written.
+ */
+const SCREENS = import.meta.glob('../../ui/**/*.tsx', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
+
+/**
  * The only files allowed to contain a gendered pronoun, and why.
  *
  * This used to be a list of content waiting to be swept. It is empty of those
@@ -82,8 +96,33 @@ describe('nothing the player reads is written for men only', () => {
     expect(offenders, `gendered prose:\n${offenders.join('\n')}`).toEqual([]);
   });
 
+  it('has none in anything a screen puts on the page either', () => {
+    // JSX text is not a string literal, so the sweep above cannot see it.
+    // Comments come out first — they explain the code to a reader, not the
+    // game to a player — and what is left is markup and prose.
+    const offenders: string[] = [];
+
+    for (const [path, text] of Object.entries(SCREENS)) {
+      const relative = shortName(path);
+      const prose = text
+        // Block comments, including the `{/* ... */}` JSX form.
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/.*$/gm, '');
+
+      prose.split('\n').forEach((line, index) => {
+        if (!GENDERED.test(line)) return;
+        // A `{they}`-style token is the fix, not the problem.
+        if (/\{(they|them|their)\}/i.test(line)) return;
+        offenders.push(`${relative}:${index + 1}  ${line.trim().slice(0, 90)}`);
+      });
+    }
+
+    expect(offenders, `gendered prose on screen:\n${offenders.join('\n')}`).toEqual([]);
+  });
+
   it('is watching a real body of content, not an empty directory', () => {
     // A guard that silently stopped scanning would pass forever.
     expect(Object.keys(SOURCES).length).toBeGreaterThan(80);
+    expect(Object.keys(SCREENS).length).toBeGreaterThan(10);
   });
 });

@@ -105,7 +105,7 @@ export function LegacyScreen() {
                     <div className="text-[10px] text-neutral-400">
                       {whoTheyWere(w, yearOf(passing.week))} · aged {passing.age}
                     </div>
-                    {/* §0 does not stop applying once he is on the wall: this
+                    {/* §0 does not stop applying once they are on the wall: this
                         says how it happened, including when it was us. */}
                     <div className="text-[10px] text-neutral-500">
                       {howTheyWent(w, DEATH_CAUSE_TEXT[passing.cause])}

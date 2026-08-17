@@ -27,6 +27,12 @@ import { temptationLabel } from '../../engine/world/tampering';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { mostRecentDeath, stillHeldAgainstUs } from '../../engine/career/onOurWatch';
 import { moodBand, moodLabel, moraleSummary, troubleInTheRoom } from '../../engine/career/morale';
+import {
+  CARD_STATUS_LABELS,
+  hotCommodities,
+  mainEventPicture,
+  trajectoryLabel,
+} from '../../engine/career/cardStatus';
 import { egoLabel } from '../../engine/career/ego';
 import { awardById } from '../../engine/career/awards';
 import { strikeWarning } from '../../engine/world/mandates';
@@ -233,9 +239,64 @@ function DeskTab() {
     world.settings,
   ).slice(0, 5);
 
+  // Who is at the top and who is coming. `mainEventPicture` and
+  // `hotCommodities` were written with the card-status system and neither ever
+  // had a caller, so the view a booker actually plans from — not the roster
+  // sorted by a number, but "who is in it" — existed only in the engine.
+  const active = world.promotion.rosterIds
+    .map((id) => world.wrestlers[id])
+    .filter((w): w is Wrestler => Boolean(w) && !w!.deceased);
+  const picture = mainEventPicture(active, world.promotion, world.settings).slice(0, 6);
+  const inThePicture = new Set(picture.map((c) => c.wrestlerId));
+  // Anybody moving who is not already up there. The undercard half of the
+  // same question, and the reason to look at somebody early.
+  const climbing = hotCommodities(active, world.promotion, world.settings)
+    .filter((c) => !inThePicture.has(c.wrestlerId))
+    .slice(0, 4);
+
   return (
     <>
       <ChampionCallPanel />
+
+      {picture.length > 0 && (
+        <section className="mb-3">
+          <h2 className="mb-2 text-sm font-medium text-neutral-300">The main event picture</h2>
+          <div className="flex flex-col gap-1">
+            {picture.map((c) => {
+              const person = world.wrestlers[c.wrestlerId];
+              if (!person) return null;
+              const going = trajectoryLabel(person, world.settings);
+              return (
+                <div
+                  key={c.wrestlerId}
+                  data-testid={`picture-${c.wrestlerId}`}
+                  className="flex items-baseline justify-between gap-2 rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5"
+                >
+                  <span className="truncate text-xs font-medium">{person.name}</span>
+                  <span className="shrink-0 text-[10px] text-neutral-500">
+                    {CARD_STATUS_LABELS[c.status]}
+                    {going && (
+                      <span className={going === 'On the way up' ? ' text-emerald-400' : ' text-rose-400'}>
+                        {' '}· {going}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {climbing.length > 0 && (
+            <p className="mt-1 text-[10px] leading-snug text-neutral-500">
+              Also moving:{' '}
+              {climbing
+                .map((c) => world.wrestlers[c.wrestlerId]?.name)
+                .filter(Boolean)
+                .join(', ')}
+              .
+            </p>
+          )}
+        </section>
+      )}
 
       {unhappy.length > 0 && (
         <section className="mb-3">
@@ -255,7 +316,7 @@ function DeskTab() {
                 </div>
                 {/* Why, in the words the morale system itself used. One place
                     computes the arithmetic and the sentence, so the page
-                    cannot drift from what is actually happening to him. */}
+                    cannot drift from what is actually happening to them. */}
                 <div className="text-[10px] leading-snug text-neutral-500">
                   {moraleSummary(w, world.settings)}
                 </div>
@@ -753,9 +814,9 @@ function ContractsTab() {
 
   return (
     <>
-      {/* Somebody wants out. Granting it costs nothing and puts him on
-          ninety days; refusing keeps him, and he gets unhappier every week
-          you make him stay. */}
+      {/* Somebody wants out. Granting it costs nothing and puts them on
+          ninety days; refusing keeps them, and they get unhappier every week
+          you make them stay. */}
       {world.releaseRequests.length > 0 && (
         <section className="mb-4">
           <h2 className="mb-2 text-sm font-medium text-neutral-300">Asking to leave</h2>
@@ -779,7 +840,7 @@ function ContractsTab() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-neutral-500">
-                        Wants out. Says he will tear up what he is owed —{' '}
+                        Wants out. Willing to tear up what they are owed —{' '}
                         <Money amount={severanceOwed(person.contract)} /> of guarantees.
                       </div>
                     </div>
@@ -791,7 +852,7 @@ function ContractsTab() {
                       onClick={() => answerReleaseRequest(request.wrestlerId, true)}
                       className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-200 hover:bg-neutral-700"
                     >
-                      Let him go — ninety days
+                      Let them go — ninety days
                     </button>
                     <button
                       type="button"
@@ -799,7 +860,7 @@ function ContractsTab() {
                       onClick={() => answerReleaseRequest(request.wrestlerId, false)}
                       className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700"
                     >
-                      He honours the deal
+                      They honour the deal
                     </button>
                   </div>
                 </article>
@@ -852,8 +913,9 @@ function ContractsTab() {
                         {CAREER_STATUS_LABELS[person.careerStatus]} · {egoLabel(person.ego)}
                       </div>
                       {/* Why the number is what it is, when it is not simply
-                          what he is worth. Stated, never advised on — a booker
-                          reading this can still hand him a main-event deal. */}
+                          what they are worth. Stated, never advised on — a
+                          booker reading this can still hand them a main-event
+                          deal. */}
                       {leverageReason(person, world.settings) && (
                         <div className="text-[11px] text-amber-500/80">
                           {leverageReason(person, world.settings)}
@@ -1117,14 +1179,14 @@ function OfficialsTab() {
                     onClick={() => setDefault(referee.id)}
                     className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700 disabled:opacity-40"
                   >
-                    Give him the card
+                    Give them the card
                   </button>
                   {referee.wrestlerId ? (
                     // Taking one of your own out of the shirt is a career
                     // decision, not a release — it happens on the roster,
-                    // where the year he owes the job is written down.
+                    // where the year they owe the job is written down.
                     <span className="self-center text-[10px] text-neutral-600">
-                      One of your own — move him back on the roster page
+                      One of your own — move them back on the roster page
                     </span>
                   ) : (
                     <button
@@ -1133,7 +1195,7 @@ function OfficialsTab() {
                       onClick={() => release(referee.id)}
                       className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-rose-300 hover:bg-neutral-700"
                     >
-                      Let him go
+                      Let them go
                     </button>
                   )}
                 </div>
@@ -1293,7 +1355,7 @@ function TradesTab() {
                 !theirsId ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'
               }`}
             >
-              Nothing — just move him on
+              Nothing — just move them on
             </button>
             {theirRoster.slice(0, 24).map((w) => (
               <button

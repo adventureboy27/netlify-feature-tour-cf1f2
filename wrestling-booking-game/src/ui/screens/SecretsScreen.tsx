@@ -33,18 +33,18 @@ import { Money } from '../components/display';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import type { Wrestler } from '../../engine/types';
 
-/** How likely his own office is to get wind, in words. §0: never a percentage. */
+/** How likely their own office is to get wind, in words. §0: never a percentage. */
 function retentionWord(chance: number): string {
-  if (chance >= 0.24) return 'Their office is all over him';
+  if (chance >= 0.24) return 'Their office is all over them';
   if (chance >= 0.15) return 'Somebody there will hear about this';
   if (chance >= 0.08) return 'They are not paying attention yet';
   return 'Nobody there suspects a thing';
 }
 
-/** How likely the sheets are to place him, in words. */
+/** How likely the sheets are to place them, in words. */
 function exposureWord(chance: number): string {
   if (chance >= 0.5) return 'Somebody is going to print this any day';
-  if (chance >= 0.3) return 'People have noticed he stopped appearing';
+  if (chance >= 0.3) return 'People have noticed they stopped appearing';
   if (chance >= 0.15) return 'A couple of people are asking questions';
   return 'Nobody has joined it up yet';
 }
@@ -57,7 +57,7 @@ function appealWord(appeal: number): string {
 }
 
 function weeksWord(weeks: number): string {
-  if (weeks <= 0) return 'His deal is up';
+  if (weeks <= 0) return 'That deal is up';
   if (weeks === 1) return 'Free next week';
   return `Free in ${weeks} weeks`;
 }
@@ -93,9 +93,9 @@ export function SecretsScreen() {
     <div className="p-3 pb-24 text-neutral-100">
       <h1 className="text-lg font-bold">The quiet business</h1>
       <p className="mb-3 text-[11px] leading-snug text-neutral-500">
-        Nobody works for two companies. What you can do is find a man whose deal is nearly up, agree
-        something neither of you ever wrote down, and have him signed the hour it lapses — then walk him out
-        before anybody works out where he went.
+        Nobody works for two companies. What you can do is find somebody whose deal is nearly up,
+        agree something neither of you ever wrote down, and have them signed the hour it lapses — then
+        walk them out before anybody works out where they went.
       </p>
 
       {note && <p className="mb-3 rounded-lg border border-amber-900 bg-amber-950/30 p-2 text-xs text-amber-200">{note}</p>}
@@ -136,7 +136,7 @@ export function SecretsScreen() {
                       <div className="truncate text-sm font-semibold">{billedAs(person)}</div>
                       <div className="text-[11px] text-neutral-500">
                         {walkable
-                          ? `Signed here. The world still has him down at ${signing.fromPromotionName}.`
+                          ? `Signed here. The world still has them down at ${signing.fromPromotionName}.`
                           : `Still working ${signing.fromPromotionName} dates. Nothing is signed.`}
                       </div>
                       <div className="mt-0.5 text-[11px] text-neutral-400">
@@ -157,7 +157,7 @@ export function SecretsScreen() {
                         )}
                       </div>
                       <div className={`text-[11px] ${secret ? 'text-neutral-500' : 'text-rose-400'}`}>
-                        {secret ? risk : 'The sheets have placed him. Whatever this was, it is not a surprise.'}
+                        {secret ? risk : 'The sheets have placed them. Whatever this was, it is not a surprise.'}
                       </div>
                     </div>
                   </div>
@@ -173,11 +173,11 @@ export function SecretsScreen() {
                         }}
                         className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold text-white ${theme.action}`}
                       >
-                        Walk him out {impact >= 2.5 ? 'tonight' : 'anyway'}
+                        Walk them out {impact >= 2.5 ? 'tonight' : 'anyway'}
                       </button>
                     ) : (
                       <span className="flex-1 rounded-lg border border-neutral-800 px-3 py-2 text-center text-xs text-neutral-500">
-                        He is under contract to them
+                        Still under contract to them
                       </span>
                     )}
                     <button
@@ -186,7 +186,7 @@ export function SecretsScreen() {
                         tearUp(signing.wrestlerId);
                         setNote(
                           walkable
-                            ? `${person.name} released. He is a free agent and nobody knows he was ever anything else.`
+                            ? `${person.name} released. A free agent, and nobody knows it was ever anything else.`
                             : `Whatever you had agreed with ${person.name} is off.`,
                         );
                       }}
@@ -247,7 +247,7 @@ export function SecretsScreen() {
                     const result = signSecretly(person.id);
                     setNote(
                       result.ok
-                        ? `${person.name} shook on it. Nothing is written down and nothing is owed until his deal runs out.`
+                        ? `${person.name} shook on it. Nothing is written down and nothing is owed until that deal runs out.`
                         : result.reason,
                     );
                   }}
@@ -266,8 +266,8 @@ export function SecretsScreen() {
         </div>
       ) : (
         <p className="text-[11px] text-neutral-600">
-          A man with a year left on his deal has nothing to discuss. Approaching one who does and being turned
-          down means he knows you asked, and so, eventually, does his office.
+          Somebody with a year left to run has nothing to discuss. Approaching one who does and being
+          turned down means they know you asked, and so, eventually, does their office.
         </p>
       )}
     </div>

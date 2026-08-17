@@ -96,7 +96,7 @@ export function FreeAgentsScreen() {
                 </div>
                 {sittingOut && <div className="text-[10px] text-amber-400">{sittingOut}</div>}
                 {refuses && <div className="text-[10px] leading-snug text-rose-400">{refuses}</div>}
-                {/* What he wants, and why the number is what it is. Both stated
+                {/* What they want, and why the number is what it is. Both stated
                     before the signing rather than discovered after it. */}
                 <div className="text-[10px] text-neutral-500">
                   Wants {contractLengthLine(agent.wantsWeeks)}
@@ -104,10 +104,10 @@ export function FreeAgentsScreen() {
                 {leverageReason(wrestler, world.settings) && (
                   <div className="text-[10px] text-neutral-600">{leverageReason(wrestler, world.settings)}</div>
                 )}
-                {/* What has already happened to this body, and — if he is hurt
-                    right now — what the doctor and the man each say about it.
-                    The other decision these two views are for: sign him, or
-                    leave him for somebody else. */}
+                {/* What has already happened to this body, and — if they are
+                    hurt right now — what the doctor and the wrestler each say
+                    about it. The other decision these two views are for: sign
+                    them, or leave them for somebody else. */}
                 {bodyLine(wrestler.injuryHistory ?? [], world.settings) && (
                   <div className="text-[10px] leading-snug text-neutral-500">
                     {bodyLine(wrestler.injuryHistory ?? [], world.settings)}

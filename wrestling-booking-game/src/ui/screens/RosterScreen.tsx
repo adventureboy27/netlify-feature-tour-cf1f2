@@ -20,6 +20,14 @@ import { egoLabel } from '../../engine/career/ego';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
 import { leaveStatusLine, shunLine, shunned } from '../../engine/career/onOurWatch';
 import { circleOf, circleSummary } from '../../engine/career/circle';
+import {
+  homeCompany,
+  openStint,
+  recordLine,
+  stintLine,
+  yearsManaging,
+  yearsWrestling,
+} from '../../engine/career/ledger';
 import { freshnessLabel, isStale } from '../../engine/sim/freshness';
 import { pronounsFor } from '../../engine/career/pronouns';
 import { retirementPressure } from '../../engine/career/retirement';
@@ -49,7 +57,7 @@ import { PERKS } from '../../data/perks';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { HeatBadge, Money } from '../components/display';
 import { scout } from '../../engine/career/scouting';
-import type { Wrestler } from '../../engine/types';
+import type { Wrestler, WorldSettings } from '../../engine/types';
 
 /**
  * Short enough for a roster card. The long names live in the engine's
@@ -309,7 +317,7 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   </div>
                 )}
 
-                {/* He has told you he is going. Loudest thing on the card,
+                {/* They have told you they are going. Loudest thing on the card,
                     because a fortnight of warning is the whole value of it. */}
                 {w.noticeGivenWeek != null && (
                   <div className="mt-0.5 text-[10px] font-semibold text-rose-300">
@@ -322,23 +330,23 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     anywhere the player could see. Words, never the number. */}
                 {isStale(w, world.settings) && (
                   <div className="mt-0.5 text-[10px] font-medium text-amber-400">
-                    {freshnessLabel(w, world.settings)} — the act is costing every match he is in.
+                    {freshnessLabel(w, world.settings)} — the act is costing every match it is in.
                   </div>
                 )}
 
-                {/* The room has decided this one was his fault. Information
-                    about the man, like the injury stances — the booker can
-                    still put him on the card and find out. */}
+                {/* The room has decided this one was their fault. Information
+                    about the person, like the injury stances — the booker can
+                    still put them on the card and find out. */}
                 {shunned(w.blamedFor, world.week, world.settings) && (
                   <div className="mt-0.5 text-[10px] font-semibold leading-snug text-rose-300">
                     {shunLine(w.blamedFor!, world.week, world.settings, pronounsFor(w))}
                   </div>
                 )}
 
-                {/* Away, and there is nothing wrong with him. Deliberately
-                    not styled as an injury and it says why he is gone — a man
-                    sent home for a month must not read as a torn something.
-                    See engine/career/onOurWatch.ts. */}
+                {/* Away, and there is nothing wrong with them. Deliberately
+                    not styled as an injury and it says why they are gone —
+                    somebody sent home for a month must not read as a torn
+                    something. See engine/career/onOurWatch.ts. */}
                 {w.leave && (
                   <div className="mt-0.5 text-[10px] leading-snug text-sky-300">
                     {leaveStatusLine(w.leave)} <span className="text-neutral-500">{w.leave.reason}</span>
@@ -352,9 +360,9 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   </div>
                 )}
 
-                {/* The two views on it. Information the booker weighs when he
-                    decides whether to put this man on the card, not a question
-                    the game asks him. See engine/career/theBody.ts. */}
+                {/* The two views on it. Information the booker weighs when
+                    deciding whether to put somebody on the card, not a question
+                    the game asks. See engine/career/theBody.ts. */}
                 {stanceOn(w, world.settings) && (
                   <>
                     <div className="mt-0.5 text-[10px] leading-snug text-neutral-400">{stanceOn(w, world.settings)!.doctor.verdict}</div>
@@ -407,20 +415,20 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     week would bury the one that matters. Half of what it
                     reports is chemistry nobody can explain, which is why it is
                     a read and not a reason. */}
-                {/* What is leaving his purse every week, and to whom. A cut
+                {/* What is leaving their purse every week, and to whom. A cut
                     the player cannot see is a cut they cannot make a decision
                     about — see engine/career/representation.ts. */}
                 {(() => {
                   const rep = representativeOf(world.representations ?? [], w.id);
                   const line = clientCutLine(rep, rep ? world.wrestlers[rep.managerId]?.name : undefined);
                   return line ? (
-                    <div className="mt-0.5 truncate text-[10px] text-amber-400/80" title="His manager's percentage. It comes out of what he earns, not out of your budget — but he remembers it at renewal.">
+                    <div className="mt-0.5 truncate text-[10px] text-amber-400/80" title="The manager's percentage. It comes out of what they earn, not out of your budget — but they remember it at renewal.">
                       {line}
                     </div>
                   ) : null;
                 })()}
 
-                {/* His own book, if he is the one taking a percentage. */}
+                {/* Their own book, if they are the one taking a percentage. */}
                 {w.role === 'manager' && wearLabel(w, world.settings) && (
                   <div className="mt-0.5 truncate text-[10px] text-orange-400">
                     {wearLabel(w, world.settings)} — too many people to be everywhere for
@@ -472,7 +480,7 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   >
                     ⚭ {w.lineage.parentName}'s kid
                     {w.lineage.provenBy !== null ? (
-                      <span className="ml-1 text-emerald-400">· made his own name</span>
+                      <span className="ml-1 text-emerald-400">· made their own name</span>
                     ) : (
                       <span className="ml-1 text-amber-500/80">
                         · {patienceLeft(w, world.week, world.settings)}w of goodwill left
@@ -481,7 +489,7 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   </div>
                 )}
 
-                {/* the read — why you would use him, and why you might not.
+                {/* the read — why you would use them, and why you might not.
                     First, above the bars, because it is the thing a booker
                     actually decides on and the bars are the detail behind it. */}
                 <div className="mt-1 flex flex-col gap-px">
@@ -560,6 +568,14 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     ))}
                   </div>
                 )}
+
+                {/* Where they have been, and what they did there.
+                    The ledger has tracked per-company records, earnings and
+                    time in the ring since it was written, and no screen has
+                    ever shown a line of it — so the one question a renewal
+                    turns on, what this person has actually done, could only be
+                    answered from the lifetime W-L on the card. */}
+                <CareerLedger wrestler={w} settings={world.settings} />
 
                 {/* the deal */}
                 <div className="mt-1 flex items-center justify-between border-t border-neutral-800 pt-1 text-[10px]">
@@ -870,5 +886,68 @@ function BeltIcon({ color }: { color: string }) {
       <rect x="0" y="3" width="10" height="2" fill={color} opacity="0.55" />
       <ellipse cx="5" cy="4" rx="2.6" ry="3.4" fill={color} />
     </svg>
+  );
+}
+
+/**
+ * Where somebody has been, and what they did there.
+ *
+ * Every number here is a fact about the past, not a rating: §0's ban on
+ * showing stats as numbers is about *ability*, and a win-loss record is the
+ * opposite of a hidden attribute — it is the thing the crowd already knows.
+ *
+ * Newest spell first, capped, because a twenty-year veteran with eight stints
+ * would otherwise bury the rest of the card. The one that matters most is the
+ * one they are in.
+ */
+function CareerLedger({ wrestler, settings }: { wrestler: Wrestler; settings: WorldSettings }) {
+  const ledger = wrestler.ledger;
+  if (!ledger || ledger.stints.length === 0) return null;
+
+  const years = yearsWrestling(ledger, settings);
+  const suit = yearsManaging(ledger, settings);
+  const home = homeCompany(ledger);
+  // Newest last in the ledger, because a return is a second stint.
+  const spells = [...ledger.stints].reverse().slice(0, 3);
+
+  return (
+    <details className="mt-1 border-t border-neutral-800 pt-1">
+      <summary className="cursor-pointer list-none text-[10px] text-neutral-500">
+        Career · {recordLine(ledger.lifetime)}
+        {years >= 1 && <span className="text-neutral-600"> · {Math.round(years)}y in the ring</span>}
+      </summary>
+
+      <div className="mt-1 flex flex-col gap-px">
+        {spells.map((stint, i) => (
+          <div key={`${stint.promotionId}-${stint.joinedWeek}-${i}`} className="text-[10px] text-neutral-500">
+            {stintLine(stint, settings)}
+          </div>
+        ))}
+        {ledger.stints.length > spells.length && (
+          <div className="text-[10px] text-neutral-600">
+            and {ledger.stints.length - spells.length} earlier{' '}
+            {ledger.stints.length - spells.length === 1 ? 'spell' : 'spells'}
+          </div>
+        )}
+        {/* Where they made their name, which is not always where they are. */}
+        {home && home.promotionId !== openStint(ledger)?.promotionId && (
+          <div className="text-[10px] text-amber-500/70">
+            Made their name at {home.promotionName}.
+          </div>
+        )}
+        {/* Time in a suit is kept apart from time in the ring on purpose —
+            somebody who wrestled fifteen years and managed ten has fifteen. */}
+        {suit >= 1 && (
+          <div className="text-[10px] text-neutral-600">
+            {Math.round(suit)}y at ringside · {recordLine(ledger.managing)} in the corner
+          </div>
+        )}
+        {ledger.earnings > 0 && (
+          <div className="text-[10px] text-neutral-600">
+            Paid <Money amount={ledger.earnings} /> across the career.
+          </div>
+        )}
+      </div>
+    </details>
   );
 }

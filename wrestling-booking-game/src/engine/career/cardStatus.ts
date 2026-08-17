@@ -56,7 +56,7 @@ const CARD_STATUS_LADDER: CardStatus[] = [
   'enhancement',
 ];
 
-const CARD_STATUS_LABELS: Record<CardStatus, string> = {
+export const CARD_STATUS_LABELS: Record<CardStatus, string> = {
   mainEventer: 'Main eventer',
   upperMidcard: 'Upper midcard',
   midcard: 'Midcard',

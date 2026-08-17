@@ -695,7 +695,7 @@ function SegmentEditor({
                   None
                 </button>
                 {/* Your own people first: a wrestler you moved into a suit
-                    costs nothing per night, because he is already paid. */}
+                    costs nothing per night, because they are already paid. */}
                 {staffManagers.map((manager) => (
                   <button
                     key={manager.id}
@@ -976,7 +976,7 @@ function WhatTheyWant() {
             </span>
             {demand.signableFrom && (
               <span className="ml-1 text-amber-400">
-                His deal there is nearly up — see The quiet business.
+                That deal is nearly up — see The quiet business.
               </span>
             )}
           </li>
