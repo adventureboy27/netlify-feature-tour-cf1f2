@@ -55,11 +55,11 @@ export const SHOW_TWEETS: TweetTemplate[] = [
   { text: 'cancel my subscription. again.', tone: 'criticism', maxRating: 32 },
 
   // --- jokes, any night
-  { text: 'my wife just asked why i am yelling at a man in trunks. no answer for her.', tone: 'joke' },
+  { text: 'somebody just asked why i am yelling at people in trunks. i had no answer.', tone: 'joke' },
   { text: 'the referee counted so slowly i aged', tone: 'joke' },
   { text: 'popcorn was £4. the show was worth less than the popcorn.', tone: 'joke', maxRating: 45 },
   { text: 'guy behind me shouted “BORING” at the national anthem. legend.', tone: 'joke' },
-  { text: 'my nephew asked if it was real and i had to sit him down', tone: 'joke' },
+  { text: 'my nephew asked if it was real and i had to sit them down', tone: 'joke' },
   { text: 'i have watched this company for 20 years and i still cannot explain why', tone: 'joke' },
   { text: 'security tackled a guy in a hot dog costume. best part of the night.', tone: 'joke', maxRating: 50 },
 

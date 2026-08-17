@@ -36,7 +36,7 @@ export const SPONSORS: Sponsor[] = [
     requiresRating: 45,
     weeklyFee: 2_500,
     conditions: [],
-    blurb: 'A banner over the entrance and a man who wants his name said on the microphone.',
+    blurb: 'A banner over the entrance and somebody who wants their name said on the microphone.',
   },
   {
     id: 'regionalBrand',

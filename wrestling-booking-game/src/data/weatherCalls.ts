@@ -77,7 +77,7 @@ export const FORECAST_LINES: Record<ForecastStrength, string[]> = {
     'Every service is saying the same thing and not one of them has it turning.',
     'Nobody local thinks this misses. The men who load the truck are already talking about it like it has happened.',
     'The county has told people to stay off the roads tomorrow night, and the county does not do that lightly.',
-    'The building manager rang you. He never rings you.',
+    'The building manager rang you. They never ring you.',
   ],
   even: [
     'It could go either way. Half of them turn it north of the building and half of them do not.',

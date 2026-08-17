@@ -94,7 +94,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'localPaper',
     name: 'The local paper came',
-    lines: ['The {town} paper sent somebody. He spent the whole night asking whether it was real.'],
+    lines: ['The {town} paper sent somebody who spent the whole night asking whether it was real.'],
     seasons: 'any',
     climates: 'any',
     severity: 'flavour',

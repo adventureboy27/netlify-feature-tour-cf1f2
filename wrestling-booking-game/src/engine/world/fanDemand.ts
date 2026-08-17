@@ -127,7 +127,7 @@ export function fanDemands(ctx: DemandContext): FanDemand[] {
       kind: 'wastedElsewhere',
       wrestlerIds: [w.id],
       heat: Math.min(100, wasted + w.hype / 3),
-      text: `${w.name} is being wasted where he is. Everybody can see it except the people booking him.`,
+      text: `${w.name} is being wasted, and everybody can see it except the people doing the booking.`,
       ...(gettable ? { signableFrom: w.promotionId } : {}),
     });
   }
@@ -154,7 +154,7 @@ export function fanDemands(ctx: DemandContext): FanDemand[] {
       wrestlerIds: [w.id],
       titleId: belt.id,
       heat: w.momentum,
-      text: `${w.name} has beaten everybody put in front of him. Give him the ${belt.name}.`,
+      text: `${w.name} has beaten everybody put in front of them. Give them the ${belt.name}.`,
     });
   }
 

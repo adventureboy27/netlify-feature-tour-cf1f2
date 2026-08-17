@@ -354,9 +354,9 @@ export function splitNote(
     case 'notWorthTheCut':
       return `${clientName} has stopped paying ${managerName} to be somewhere else. That is over.`;
     case 'outgrewHim':
-      return `${clientName} does his own talking now. ${managerName} is out of a client.`;
+      return `${clientName} does their own talking now. ${managerName} is out of a client.`;
     case 'droppedForTheBook':
-      return `${managerName} has let ${clientName} go. He has too many names and not enough nights.`;
+      return `${managerName} has let ${clientName} go — too many names and not enough nights.`;
     case 'notEarningEnough':
       return `${managerName} has stopped representing ${clientName}. A percentage of nothing is nothing.`;
   }
@@ -376,7 +376,7 @@ export function endRepresentation(
 /** What the wrestler's profile shows: the money going out of his purse. */
 export function clientCutLine(rep: Representation | null, managerName: string | undefined): string | null {
   if (!rep || !managerName) return null;
-  return `${Math.round(rep.cut * 100)}% of his purse goes to ${managerName}`;
+  return `${Math.round(rep.cut * 100)}% of the purse goes to ${managerName}`;
 }
 
 /** What the manager's profile shows: the book, which is why he is worth having. */
@@ -392,7 +392,7 @@ export function bookLine(
   const spread = attention(book.length, settings);
   const focus =
     spread >= 0.9
-      ? 'Gives them his full attention.'
+      ? 'Gives them their full attention.'
       : spread >= settings.repStretchedAt
         ? 'Has enough on to be somewhere else half the time.'
         : 'Is spread far too thin to do any of them much good.';

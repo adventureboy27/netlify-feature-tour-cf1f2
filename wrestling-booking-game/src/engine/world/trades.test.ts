@@ -101,7 +101,7 @@ describe('what somebody is worth', () => {
 
   it('says what they are worth in words, never a number', () => {
     expect(tradeWorth(person({ popularity: 95, contract: deal({ weeklyRate: 100 }) }), settings)).toBe(
-      'Everybody wants him',
+      'Everybody wants them',
     );
     for (const pop of [10, 40, 70, 95]) {
       expect(tradeWorth(person({ popularity: pop }), settings)).not.toMatch(/\d/);

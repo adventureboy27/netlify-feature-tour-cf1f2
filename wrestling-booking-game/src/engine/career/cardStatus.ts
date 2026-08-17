@@ -205,7 +205,7 @@ export function statusMove(
     if (fire) {
       return {
         kind: 'caughtFire',
-        note: `Something has happened with ${wrestler.name}. The crowd has decided, and the office is catching up — he has gone from nowhere on the card to somebody they have to build around.`,
+        note: `Something has happened with ${wrestler.name}. The crowd has decided, and the office is catching up — gone from nowhere on the card to somebody they have to build around.`,
       };
     }
     return {

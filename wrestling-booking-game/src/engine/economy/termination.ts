@@ -121,7 +121,7 @@ export function exitTerms(
       kind,
       severance: 0,
       noCompeteWeeks: 0,
-      text: `${wrestler.name}'s contract with ${promotionName} has run out. He is free to sign anywhere, today.`,
+      text: `${wrestler.name}'s contract with ${promotionName} has run out. Free to sign anywhere, today.`,
     };
   }
 
@@ -134,7 +134,7 @@ export function exitTerms(
       noCompeteWeeks: 0,
       text:
         severance > 0
-          ? `${promotionName} have released ${wrestler.name} and paid off what was left of his deal. He can sign anywhere immediately.`
+          ? `${promotionName} have released ${wrestler.name} and paid off what was left of the deal. ${wrestler.name} can sign anywhere immediately.`
           : `${promotionName} have released ${wrestler.name}. There was nothing guaranteed on the deal, so it cost them nothing.`,
     };
   }
@@ -144,7 +144,7 @@ export function exitTerms(
     // He asked out. Walking away from the money is what he is offering.
     severance: 0,
     noCompeteWeeks: settings.noCompeteWeeks,
-    text: `${wrestler.name} asked for his release and ${promotionName} granted it. He tore up what he was owed, and he cannot work anywhere for ninety days.`,
+    text: `${wrestler.name} asked for a release and ${promotionName} granted it. What was owed was torn up, and there is no working anywhere for ninety days.`,
   };
 }
 
@@ -158,7 +158,7 @@ export function noCompeteLabel(wrestler: Wrestler): string | null {
   const weeks = wrestler.noCompeteWeeks ?? 0;
   if (weeks <= 0) return null;
   if (weeks <= 2) return 'Free to sign shortly';
-  if (weeks <= 6) return 'Sitting out his notice';
+  if (weeks <= 6) return 'Sitting out their notice';
   return 'Ninety days, just started';
 }
 

@@ -80,16 +80,16 @@ export function negotiatingLeverage(wrestler: Wrestler, settings: WorldSettings)
  * this more than you do" can still hand him a main-event deal.
  */
 export function leverageLine(leverage: number, settings: WorldSettings): string {
-  if (leverage >= settings.leverageStrongAt) return 'He can ask for whatever he likes and get it.';
-  if (leverage >= settings.leverageFairAt) return 'He knows what he is worth, and so does everybody else.';
-  if (leverage >= settings.leverageWeakAt) return 'There is not a queue for him any more.';
-  return 'He needs this more than you do.';
+  if (leverage >= settings.leverageStrongAt) return 'Can ask for whatever they like and get it.';
+  if (leverage >= settings.leverageFairAt) return 'Knows what they are worth, and so does everybody else.';
+  if (leverage >= settings.leverageWeakAt) return 'There is not a queue for them any more.';
+  return 'They need this more than you do.';
 }
 
 /** Why the number is what it is, when it is not simply their prime. */
 export function leverageReason(wrestler: Wrestler, settings: WorldSettings): string | null {
   if (negotiatingLeverage(wrestler, settings) >= settings.leverageFairAt) return null;
-  if (wrestler.comebackWeek != null) return 'He walked away once. Coming back costs him the rate he left on.';
+  if (wrestler.comebackWeek != null) return 'Walked away once. Coming back costs them the rate they left on.';
   if (wrestler.age > settings.veteranAge) return 'The phone does not ring the way it did.';
   return null;
 }

@@ -114,7 +114,7 @@ export function evaluateTrade(ctx: TradeContext): TradeVerdict {
   if (offer.incoming) {
     const theirs = canBeTraded(offer.incoming);
     if (!theirs.ok) {
-      return { accepted: false, reason: `They will not part with him — ${(theirs.reason ?? '').toLowerCase()}` };
+      return { accepted: false, reason: `They will not part with them — ${(theirs.reason ?? '').toLowerCase()}` };
     }
   }
 
@@ -186,7 +186,7 @@ export function tradeLine(
 }
 
 /** In words, what somebody is worth on the market. Never a number. */
-export type TradeWorth = 'A liability' | 'Hard to move' | 'Tradeable' | 'Wanted' | 'Everybody wants him';
+export type TradeWorth = 'A liability' | 'Hard to move' | 'Tradeable' | 'Wanted' | 'Everybody wants them';
 
 export function tradeWorth(wrestler: Wrestler, settings: WorldSettings): TradeWorth {
   const value = tradeValue(wrestler, settings);
@@ -194,7 +194,7 @@ export function tradeWorth(wrestler: Wrestler, settings: WorldSettings): TradeWo
   if (value < 60) return 'Hard to move';
   if (value < 250) return 'Tradeable';
   if (value < 550) return 'Wanted';
-  return 'Everybody wants him';
+  return 'Everybody wants them';
 }
 
 /** Rivals who would even take the call this week. */

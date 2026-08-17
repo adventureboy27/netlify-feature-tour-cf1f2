@@ -46,7 +46,7 @@ export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
     'The Mouth of the South',
     'The Loudest Man Alive',
     'The Silver Tongue',
-    'The Living Legend in His Own Mind',
+    'The Living Legend in Their Own Mind',
     'The Voice',
     'The Last Word',
     'The Talker',

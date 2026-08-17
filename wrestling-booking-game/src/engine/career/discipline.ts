@@ -190,7 +190,7 @@ export function recordLabel(
 /** What a suspension costs the promotion, said out loud. */
 export function suspensionLine(name: string, sanction: Sanction): string | null {
   if (sanction.kind !== 'suspended') return null;
-  return `${name} has been suspended for ${sanction.weeks} weeks. He is off every card until it is served.`;
+  return `${name} has been suspended for ${sanction.weeks} weeks, and is off every card until it is served.`;
 }
 
 export interface Disciplined {

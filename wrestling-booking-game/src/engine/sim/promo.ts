@@ -97,10 +97,10 @@ export function jabAt(
   if (!target || !targetHasMouthpiece) return null;
 
   const lines = [
-    `{speaker} wanted to know why {target} needs somebody else to do his talking.`,
-    `{speaker} spent a minute on the fact that {target} has not said a word for himself in months.`,
+    `{speaker} wanted to know why {target} needs somebody else to do their talking.`,
+    `{speaker} spent a minute on the fact that {target} has not said a word for themselves in months.`,
     `{speaker} asked the crowd whether anybody had ever actually heard {target} speak.`,
-    `{speaker} offered to wait while somebody fetched {target} his mouthpiece.`,
+    `{speaker} offered to wait while somebody fetched {target} a mouthpiece.`,
   ];
   return pick(rng, lines)
     .replace(/\{speaker\}/g, ctx.speaker.name)

@@ -206,7 +206,7 @@ export function backstageDamage(manager: Manager, settings: WorldSettings): numb
 }
 
 export function backstageLine(managerName: string, victimName: string): string {
-  return `${victimName} was jumped in the corridor before the bell. Nobody saw who, but ${managerName} was not where he was supposed to be.`;
+  return `${victimName} was jumped in the corridor before the bell. Nobody saw who, but ${managerName} was not where they were supposed to be.`;
 }
 
 /** Is this pairing actually worth the fee? Shown as words, never a number. */
@@ -495,7 +495,7 @@ export function muggingDamage(muscle: Manager, settings: WorldSettings): number 
 }
 
 export function muggingLine(muscleName: string, distractorName: string, victimName: string): string {
-  return `${distractorName} had the referee by the ropes, and ${muscleName} put ${victimName} into the barricade while his back was turned.`;
+  return `${distractorName} had the referee by the ropes, and ${muscleName} put ${victimName} into the barricade from behind.`;
 }
 
 export function ringsideTotals(ctx: RingsideContext): RingsideTotals {

@@ -177,7 +177,7 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'refBump',
         headline: pick(rng, [
-          `The referee got flattened and spent the finish on his back. Nobody in the building agreed on what they had just seen.`,
+          `The referee got flattened and spent the finish flat on the mat. Nobody in the building agreed on what they had just seen.`,
           `There was no official conscious for the finish, and the two of them will be arguing about it for months.`,
           `The referee took the worst bump of the night and missed everything that mattered. Nobody left satisfied.`,
         ]),
