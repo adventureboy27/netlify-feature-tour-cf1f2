@@ -38,6 +38,7 @@
 // runs. The money forgets. The record does not.
 
 import { chance, clamp } from '../rng';
+import { Cap, type Pronouns } from './pronouns';
 import type { Rng } from '../rng';
 import type { Id, Wrestler, WorldSettings } from '../types';
 
@@ -87,8 +88,8 @@ export function roomMoraleCost(settings: WorldSettings): number {
   return -settings.watchRoomMoraleCost;
 }
 
-export function roomLine(name: string, promotionName: string): string {
-  return `Nobody in that locker room is talking to the office. ${name} went out there because ${promotionName} said he could.`;
+export function roomLine(name: string, promotionName: string, who: Pronouns): string {
+  return `Nobody in that locker room is talking to the office. ${name} went out there because ${promotionName} said ${who.they} could.`;
 }
 
 /**
@@ -134,8 +135,8 @@ export function wontWorkForUs(wrestler: Wrestler, weight: number, settings: Worl
 }
 
 /** Why he will not sign, in his words. Never a silent dead button. */
-export function refusalLine(name: string, deadName: string): string {
-  return `${name} will not take the call. He has read what happened to ${deadName}.`;
+export function refusalLine(name: string, deadName: string, who: Pronouns): string {
+  return `${name} will not take the call. ${Cap(who.they)} has read what happened to ${deadName}.`;
 }
 
 /**
@@ -145,8 +146,8 @@ export function refusalLine(name: string, deadName: string): string {
  * building that night — so if a stranger will not come, the man who watched
  * it happen certainly will not stay.
  */
-export function wontRenewLine(name: string, deadName: string): string {
-  return `${name}'s deal is up and he is not signing another one. He was there the night ${deadName} died.`;
+export function wontRenewLine(name: string, deadName: string, who: Pronouns): string {
+  return `${name}'s deal is up and ${who.they} is not signing another one. ${Cap(who.they)} was there the night ${deadName} died.`;
 }
 
 // ------------------------------------------------------------ paid leave
@@ -176,9 +177,9 @@ export interface Leave {
  * player finds it on the results page as a thing that has happened, which is
  * the same way he finds out about the death.
  */
-export function compassionateLeave(deadName: string, settings: WorldSettings): Leave {
+export function compassionateLeave(deadName: string, settings: WorldSettings, who: Pronouns): Leave {
   return {
-    reason: `Sent home after ${deadName} died in the ring with him. Back in ${settings.watchLeaveWeeks} weeks, on full pay.`,
+    reason: `Sent home after ${deadName} died in the ring with ${who.them}. Back in ${settings.watchLeaveWeeks} weeks, on full pay.`,
     weeksRemaining: settings.watchLeaveWeeks,
     paid: true,
   };
@@ -291,7 +292,12 @@ export function blameLine(name: string, deadName: string): string {
 }
 
 /** What the roster card says about him, for as long as it is true. */
-export function shunLine(blame: BlamedFor, currentWeek: number, settings: WorldSettings): string {
+export function shunLine(
+  blame: BlamedFor,
+  currentWeek: number,
+  settings: WorldSettings,
+  who: Pronouns,
+): string {
   const weeks = Math.max(0, settings.watchShunWeeks - (currentWeek - blame.week));
-  return `Nobody will get in the ring with him after ${blame.name}. ${weeks} ${weeks === 1 ? 'week' : 'weeks'} before that starts to pass.`;
+  return `Nobody will get in the ring with ${who.them} after ${blame.name}. ${weeks} ${weeks === 1 ? 'week' : 'weeks'} before that starts to pass.`;
 }

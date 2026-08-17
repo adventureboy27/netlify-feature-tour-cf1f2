@@ -13,6 +13,7 @@ import { rankPool, currentAskingRate, canSign, AVAILABILITY_LABELS } from '../..
 import { contractLengthLine } from '../../engine/economy/contracts';
 import { leverageReason } from '../../engine/career/leverage';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
+import { pronounsFor } from '../../engine/career/pronouns';
 import {
   mostRecentDeath,
   ourPrice,
@@ -74,7 +75,7 @@ export function FreeAgentsScreen() {
           const rate = ourPrice(currentAskingRate(agent, world.settings), heldAgainstUs, world.settings);
           // He is not sitting out a no-compete; he simply will not work here.
           const refuses = buried && wontWorkForUs(wrestler, heldAgainstUs, world.settings)
-            ? refusalLine(wrestler.name, buried.name)
+            ? refusalLine(wrestler.name, buried.name, pronounsFor(wrestler))
             : null;
           const affordable = canSign(wrestler, world.promotion.bankBalance, world.signingBanWeeks, world.settings);
           // He negotiated his way out of somewhere and gave up the money to

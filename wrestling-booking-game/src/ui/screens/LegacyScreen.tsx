@@ -17,7 +17,7 @@ import { effectiveAppearance } from '../../engine/generate/gimmickLook';
 import { billedAs } from '../../engine/generate/nickname';
 import { DEATH_CAUSE_TEXT } from '../../engine/career/mortality';
 import { yearsPro } from '../../engine/career/status';
-import { howHeWent, whatHeLeaves, whoHeWas } from '../../engine/career/epitaph';
+import { howTheyWent, whatTheyLeave, whoTheyWere } from '../../engine/career/epitaph';
 import { awardById } from '../../engine/career/awards';
 
 export function LegacyScreen() {
@@ -80,7 +80,7 @@ export function LegacyScreen() {
             {[...world.memoriam].reverse().map((passing) => {
               const w = world.wrestlers[passing.wrestlerId];
               if (!w) return null;
-              const left = whatHeLeaves(w, {
+              const left = whatTheyLeave(w, {
                 currentWeek: passing.week,
                 currentYear: yearOf(passing.week),
                 titles: world.titles,
@@ -103,12 +103,12 @@ export function LegacyScreen() {
                       <span className="shrink-0 text-[10px] text-neutral-600">{yearOf(passing.week)}</span>
                     </div>
                     <div className="text-[10px] text-neutral-400">
-                      {whoHeWas(w, yearOf(passing.week))} · aged {passing.age}
+                      {whoTheyWere(w, yearOf(passing.week))} · aged {passing.age}
                     </div>
                     {/* §0 does not stop applying once he is on the wall: this
                         says how it happened, including when it was us. */}
                     <div className="text-[10px] text-neutral-500">
-                      {howHeWent(w, DEATH_CAUSE_TEXT[passing.cause])}
+                      {howTheyWent(w, DEATH_CAUSE_TEXT[passing.cause])}
                     </div>
                     {left.length > 0 && (
                       <ul className="mt-1 flex flex-col gap-0.5">

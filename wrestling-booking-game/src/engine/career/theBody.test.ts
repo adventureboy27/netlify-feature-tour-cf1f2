@@ -23,6 +23,7 @@ import {
   securityWanted,
   type InjuryRecord,
 } from './theBody';
+import { HE, SHE } from './pronouns';
 import { defaultWorldSettings } from '../world/settings';
 import { rngFromSeed } from '../rng';
 import type { Injury, Wrestler } from '../types';
@@ -234,7 +235,7 @@ describe('what he wants out of a deal', () => {
 
   it('says what he is after without advising anybody — §0', () => {
     for (const a of ['insurance', 'cash', 'comfort'] as const) {
-      const line = appetiteLine(a, 'Cass');
+      const line = appetiteLine(a, 'Cass', HE);
       expect(line).toMatch(/Cass/);
       expect(line.toLowerCase()).not.toMatch(/should|offer him|do not/);
     }
@@ -320,9 +321,26 @@ describe('handing in notice', () => {
   });
 
   it('says it plainly, and does not ask anybody anything', () => {
-    const line = noticeLine('Cass Ryland', 2);
+    const line = noticeLine('Cass Ryland', 2, HE);
     expect(line).toMatch(/Cass Ryland/);
     expect(line).toMatch(/not asking/i);
     expect(line).not.toMatch(/\?/);
+  });
+});
+
+describe('the roster is not all men', () => {
+  it('never says he about a woman in anything the player reads', () => {
+    const injury = hurt({ severity: 'careerThreatening' });
+    const her = man({ name: 'Josie Voss', gender: 'f' });
+
+    const lines = [
+      doctorsOpinion(injury, her, settings).verdict,
+      wrestlersOpinion(her, [], rngFromSeed('a'), settings).says,
+      resolveInjuryCall('workThroughIt', doctorsOpinion(injury, her, settings), her, rngFromSeed('b'), settings).line,
+      noticeLine('Josie Voss', 2, SHE),
+      appetiteLine('cash', 'Josie Voss', SHE),
+      appetiteLine('comfort', 'Josie Voss', SHE),
+    ];
+    for (const line of lines) expect(line, line).not.toMatch(/\b(he|him|his)\b/i);
   });
 });

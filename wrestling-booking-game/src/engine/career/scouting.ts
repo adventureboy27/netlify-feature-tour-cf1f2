@@ -16,24 +16,12 @@
 // Everything here is derived. Nothing new is stored, so a read is never
 // stale and never needs updating when the underlying number moves.
 
+import { pronounsFor } from './pronouns';
 import type { Wrestler, WorldSettings } from '../types';
 
-/**
- * He or she. The roster is generated to a division split — roughly a third of
- * it is women — and every line here said "him" until somebody looked at the
- * free-agent list and saw it under Deacon Yolanda's name.
- */
-interface Pronouns {
-  they: string;
-  them: string;
-  their: string;
-}
-
-function pronouns(wrestler: Wrestler): Pronouns {
-  return wrestler.gender === 'f'
-    ? { they: 'she', them: 'her', their: 'her' }
-    : { they: 'he', them: 'him', their: 'his' };
-}
+// He or she — now shared, because this bug turned up a second time across a
+// whole session's worth of new systems. See career/pronouns.ts.
+const pronouns = pronounsFor;
 
 /** Ranked worst-first: the flag that most affects tonight wins. */
 export type AvailabilityFlag =

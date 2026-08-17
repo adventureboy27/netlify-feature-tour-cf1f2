@@ -322,7 +322,7 @@ export function weeklyMorale(
       const theirs =
         ctx.moodOfTheOthers.reduce((sum, m) => sum + m, 0) / ctx.moodOfTheOthers.length;
       const rubOff = ((theirs - wrestler.morale) / 100) * s.moraleContagionWeight;
-      if (rubOff > 0) add('Spent the night with somebody enjoying himself.', rubOff);
+      if (rubOff > 0) add('Spent the night with somebody who was enjoying it.', rubOff);
       else if (rubOff < 0) add('Spent the night with somebody who wants out.', rubOff);
     }
 
@@ -408,7 +408,7 @@ export function weeklyMorale(
   // "This is a good company to be at" over the top of it.
   if (ctx.carryingSomethingReal) {
     add(
-      `Carrying something real with ${ctx.carryingSomethingReal.withName}. It is not doing him any good.`,
+      `Carrying something real with ${ctx.carryingSomethingReal.withName}. It is doing nobody any good.`,
       -ctx.carryingSomethingReal.weeklyCost,
     );
   }

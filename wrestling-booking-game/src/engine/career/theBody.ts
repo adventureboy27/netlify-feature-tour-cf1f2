@@ -28,6 +28,7 @@
 
 import type { Rng } from '../rng';
 import { chance, clamp, rngFromSeed } from '../rng';
+import { Cap, pronounsFor, type Pronouns } from './pronouns';
 import type { Injury, InjurySeverity, Wrestler, WorldSettings } from '../types';
 
 /**
@@ -130,6 +131,7 @@ export interface DoctorsOpinion {
  * depends on which opinion the booker follows.
  */
 export function doctorsOpinion(injury: Injury, wrestler: Wrestler, settings: WorldSettings): DoctorsOpinion {
+  const who = pronounsFor(wrestler);
   // Age and a used-up body both add to it. The same tear costs a man of forty
   // longer than a man of twenty-four, which is not a moral judgement, it is
   // how tissue works.
@@ -139,7 +141,7 @@ export function doctorsOpinion(injury: Injury, wrestler: Wrestler, settings: Wor
 
   const grave = injury.severity === 'careerThreatening';
   const verdict = grave
-    ? `The doctor will not put a date on it. He wants to talk about whether there is a career here at all.`
+    ? `The doctor will not put a date on it. ${Cap(who.they)} wants to talk about whether there is a career here at all.`
     : `The doctor says ${weeks} ${weeks === 1 ? 'week' : 'weeks'}, and means it.`;
 
   return { weeks, verdict, grave };
@@ -169,6 +171,7 @@ export function wrestlersOpinion(
   rng: Rng,
   settings: WorldSettings,
 ): WrestlersOpinion {
+  const who = pronounsFor(wrestler);
   const care =
     careOf(wrestler, settings) +
     history.length * settings.bodyHistoryTeachesCaution -
@@ -179,7 +182,7 @@ export function wrestlersOpinion(
   if (chance(rng, reckless * settings.bodyWorkThroughChance)) {
     return {
       intent: 'workThroughIt',
-      says: `${wrestler.name} says he is fine and wants to be on the next show. He is not fine.`,
+      says: `${wrestler.name} says ${who.they} is fine and wants to be on the next show. ${Cap(who.they)} is not fine.`,
     };
   }
   if (chance(rng, reckless)) {
@@ -190,7 +193,7 @@ export function wrestlersOpinion(
   }
   return {
     intent: 'restProperly',
-    says: `${wrestler.name} intends to do exactly what he has been told, for once.`,
+    says: `${wrestler.name} intends to do exactly what ${who.they} has been told, for once.`,
   };
 }
 
@@ -232,6 +235,7 @@ export function resolveInjuryCall(
   rng: Rng,
   settings: WorldSettings,
 ): InjuryResolution {
+  const who = pronounsFor(wrestler);
   if (intent === 'restProperly') {
     return {
       outcome: 'healedClean',
@@ -251,7 +255,7 @@ export function resolveInjuryCall(
       weeksOut: weeks,
       healthCost: pushing ? settings.bodyWorkThroughToll : 0,
       line: pushing
-        ? `${wrestler.name} worked through it and got away with it. He was back in ${weeks}.`
+        ? `${wrestler.name} worked through it and got away with it. ${Cap(who.they)} was back in ${weeks}.`
         : `${wrestler.name} came back inside the doctor's date and it held.`,
     };
   }
@@ -267,7 +271,7 @@ export function resolveInjuryCall(
       // a death is always printed through `deathLine`, which has already said
       // who he was and how old. Written as the clause that follows it, so the
       // obituary does not say his name twice.
-      line: `He went out there against medical advice and did not come back.`,
+      line: `${Cap(who.they)} went out there against medical advice and did not come back.`,
     };
   }
 
@@ -279,7 +283,7 @@ export function resolveInjuryCall(
     weeksOut: weeks,
     healthCost: ending ? settings.bodyCareerEndingToll : settings.bodyWorseToll,
     line: ending
-      ? `${wrestler.name} should have listened. That is the end of it — he will not wrestle again.`
+      ? `${wrestler.name} should have listened. That is the end of it — ${who.they} will not wrestle again.`
       : `${wrestler.name} should have listened. Eight weeks has become ${weeks}.`,
   };
 }
@@ -365,14 +369,14 @@ export function dealAppetite(
 }
 
 /** What he is after, said plainly on the negotiating page. */
-export function appetiteLine(appetite: DealAppetite, name: string): string {
+export function appetiteLine(appetite: DealAppetite, name: string, who: Pronouns): string {
   switch (appetite) {
     case 'insurance':
       return `${name} wants looking after — the cover, the dates, the travel.`;
     case 'cash':
-      return `${name} does not want a premium coming out of his money. He wants the money.`;
+      return `${name} does not want a premium coming out of ${who.their} money. ${Cap(who.they)} wants the money.`;
     case 'comfort':
-      return `${name} wants the life made bearable more than he wants either.`;
+      return `${name} wants the life made bearable more than ${who.they} wants either.`;
   }
 }
 
@@ -428,7 +432,7 @@ export function handsInNotice(
 }
 
 /** What he says on his way past the office. */
-export function noticeLine(name: string, weeksLeft: number): string {
+export function noticeLine(name: string, weeksLeft: number, who: Pronouns): string {
   const when = weeksLeft <= 1 ? 'when this one runs out' : `in ${weeksLeft} weeks`;
-  return `${name} has told you he is not re-signing. He is done ${when}, and he was not asking.`;
+  return `${name} has told you ${who.they} is not re-signing. ${Cap(who.they)} is done ${when}, and ${who.they} was not asking.`;
 }

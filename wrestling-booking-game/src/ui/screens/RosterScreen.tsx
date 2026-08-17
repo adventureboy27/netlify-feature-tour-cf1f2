@@ -20,6 +20,7 @@ import { egoLabel } from '../../engine/career/ego';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
 import { leaveStatusLine, shunLine, shunned } from '../../engine/career/onOurWatch';
 import { freshnessLabel, isStale } from '../../engine/sim/freshness';
+import { pronounsFor } from '../../engine/career/pronouns';
 import { retirementPressure } from '../../engine/career/retirement';
 import { canFormTeam, teamOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
 import { ATTIRE_PALETTE } from '../paperdoll/palette';
@@ -329,7 +330,7 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     still put him on the card and find out. */}
                 {shunned(w.blamedFor, world.week, world.settings) && (
                   <div className="mt-0.5 text-[10px] font-semibold leading-snug text-rose-300">
-                    {shunLine(w.blamedFor!, world.week, world.settings)}
+                    {shunLine(w.blamedFor!, world.week, world.settings, pronounsFor(w))}
                   </div>
                 )}
 

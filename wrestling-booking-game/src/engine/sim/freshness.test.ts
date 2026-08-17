@@ -9,6 +9,7 @@ import {
   recallBookings,
   staleGimmickPenalty,
 } from './freshness';
+import { HE, SHE } from '../career/pronouns';
 import { defaultWorldSettings } from '../world/settings';
 import { generateWrestlers } from '../generate/wrestler';
 import { rngFromSeed } from '../rng';
@@ -242,8 +243,10 @@ describe('telling the player an act has worn out', () => {
   });
 
   it('says what it costs and what to do about it', () => {
-    const said = goneStaleLine('Duke Rawlins');
+    const said = goneStaleLine('Duke Rawlins', HE);
     expect(said).toContain('Duke Rawlins');
     expect(said).toContain('every match');
+    // And it is not written for men only.
+    expect(goneStaleLine('Josie Voss', SHE)).not.toMatch(/\b(he|him|his)\b/i);
   });
 });

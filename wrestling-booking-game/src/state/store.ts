@@ -397,6 +397,7 @@ import { rivalWeek, shouldFold } from '../engine/world/rivalEconomy';
 import { publishPositions } from '../engine/world/publication';
 import { generateFanReaction, crowdVerdict } from '../engine/world/fanReaction';
 import { FAN_HANDLES } from '../data/fanVoices';
+import { Cap, pronounsFor } from '../engine/career/pronouns';
 import { appraise, aiBid, settleAuction, playerBidAmount, type Bid, type PlayerBidLevel } from '../engine/world/auction';
 import {
   recordTeamResult,
@@ -2486,7 +2487,7 @@ export const useGameStore = create<GameStore>()(
               'death',
               ourDoing.blamed
                 ? blameLine(ourDoing.blamed.name, person.name)
-                : roomLine(person.name, world.promotion.name),
+                : roomLine(person.name, world.promotion.name, pronounsFor(person)),
               world.week,
               'lead',
             ),
@@ -2511,7 +2512,7 @@ export const useGameStore = create<GameStore>()(
           for (const id of ourDoing.alsoInTheRing) {
             const other = world.wrestlers[id];
             if (!other || other.deceased) continue;
-            other.leave = compassionateLeave(person.name, world.settings);
+            other.leave = compassionateLeave(person.name, world.settings, pronounsFor(other));
             sentHome.push(other.name);
           }
           if (sentHome.length > 0) {
@@ -4770,7 +4771,7 @@ export const useGameStore = create<GameStore>()(
             wire(
               'official',
               counted.length === 1
-                ? `There was no official fit to work, so ${counted[0]} counted in a shirt he had to borrow. Nobody in those matches was happy about it.`
+                ? `There was no official fit to work, so ${counted[0]} counted in a shirt they had to borrow. Nobody in those matches was happy about it.`
                 : `There was no official fit to work. ${counted.slice(0, -1).join(', ')} and ${counted[counted.length - 1]} counted their own matches, and the room noticed who was not on the payroll.`,
               world.week,
               'lead',
@@ -4983,7 +4984,7 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 wire(
                   'departure',
-                  `${unlucky.name} went over on the ice in the loading bay carrying his own bag in and is out for ${weeks} ${weeks === 1 ? 'week' : 'weeks'}. Nothing to do with the match.`,
+                  `${unlucky.name} went over on the ice in the loading bay carrying ${pronounsFor(unlucky).their} own bag in and is out for ${weeks} ${weeks === 1 ? 'week' : 'weeks'}. Nothing to do with the match.`,
                   world.week,
                   'normal',
                 ),
@@ -5228,7 +5229,7 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 wire(
                   'departure',
-                  `${member.name} has stopped asking to be let go. He did not get an answer and he is not going to ask again.`,
+                  `${member.name} has stopped asking to be let go. ${Cap(pronounsFor(member).they)} did not get an answer and is not going to ask again.`,
                   world.week,
                 ),
               );
@@ -5242,7 +5243,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'departure',
-                `${member.name} has asked to be let out of his contract. He says he will walk away from the money.`,
+                `${member.name} has asked to be let out of ${pronounsFor(member).their} contract, and says ${pronounsFor(member).they} will walk away from the money.`,
                 world.week,
               ),
             );
@@ -5263,7 +5264,7 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 wire(
                   'departure',
-                  `${person.name} is out of his ninety days and can sign anywhere.`,
+                  `${person.name} is out of ${pronounsFor(person).their} ninety days and can sign anywhere.`,
                   world.week,
                   'minor',
                 ),
@@ -5441,6 +5442,7 @@ export const useGameStore = create<GameStore>()(
               factionRumours.push({
                 kind: 'recruitment',
                 subject: joining.name,
+                who: pronounsFor(joining),
                 true: true,
                 heat: wanted.appeal,
               });
@@ -5461,6 +5463,7 @@ export const useGameStore = create<GameStore>()(
               factionRumours.push({
                 kind: 'defection',
                 subject: member.name,
+                who: pronounsFor(member),
                 true: risk >= world.settings.factionDefectionCap * 0.6,
                 heat: risk / world.settings.factionDefectionCap,
               });
@@ -5510,6 +5513,7 @@ export const useGameStore = create<GameStore>()(
             heard.push({
               kind: 'onFire',
               subject: hottest.name,
+              who: pronounsFor(hottest),
               true: true,
               heat: hottest.momentum / 100,
             });
@@ -5519,10 +5523,10 @@ export const useGameStore = create<GameStore>()(
           // of thing the front row can see and the booker hopes they cannot.
           for (const person of roster) {
             if (person.injury && person.clearedToWorkHurt) {
-              heard.push({ kind: 'workingHurt', subject: person.name, true: true, heat: 0.8 });
+              heard.push({ kind: 'workingHurt', subject: person.name, who: pronounsFor(person), true: true, heat: 0.8 });
             }
             if (person.noticeGivenWeek != null) {
-              heard.push({ kind: 'walkingOut', subject: person.name, true: true, heat: 0.9 });
+              heard.push({ kind: 'walkingOut', subject: person.name, who: pronounsFor(person), true: true, heat: 0.9 });
             }
           }
 
@@ -5536,6 +5540,7 @@ export const useGameStore = create<GameStore>()(
               kind: 'badBlood',
               subject: names[0]!,
               other: names[1]!,
+              who: pronounsFor(world.wrestlers[feud.participantIds[0]!]!),
               true: true,
               heat: feud.shootHeat / 100,
             });
@@ -5543,7 +5548,7 @@ export const useGameStore = create<GameStore>()(
 
           // And the ones that are not about anything, so that reading the
           // feed stays a judgement rather than an instruction.
-          const pairs = roster.map((w) => ({ name: w.name, other: pick(gossip, roster).name }));
+          const pairs = roster.map((w) => ({ name: w.name, other: pick(gossip, roster).name, who: pronounsFor(w) }));
           while (heard.length < world.settings.rumoursPerWeek) {
             const made = inventRumour(gossip, pairs, ['defection', 'recruitment', 'badBlood', 'workingHurt', 'walkingOut', 'onFire']);
             if (!made) break;
@@ -5617,7 +5622,7 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 wire(
                   'signing',
-                  `${signing.fromPromotionName} have tied ${person.name} down to a new deal. Somebody there heard he had been talking to people and got in first.`,
+                  `${signing.fromPromotionName} have tied ${person.name} down to a new deal. Somebody there heard ${pronounsFor(person).they} had been talking to people and got in first.`,
                   world.week,
                   'normal',
                 ),
@@ -5719,7 +5724,7 @@ export const useGameStore = create<GameStore>()(
           const wasFresh = !isStale(person, world.settings);
           ageGimmick(person, workedThisWeek.has(person.id), world.settings);
           if (wasFresh && isStale(person, world.settings) && world.promotion.rosterIds.includes(person.id)) {
-            world.weeklyNews.push(wire('misfortune', goneStaleLine(person.name), world.week, 'normal'));
+            world.weeklyNews.push(wire('misfortune', goneStaleLine(person.name, pronounsFor(person)), world.week, 'normal'));
           }
         }
         // ---- who left the business this week -----------------------------
@@ -6075,7 +6080,7 @@ export const useGameStore = create<GameStore>()(
             referee.promotionId = null;
             referee.weeksUnsigned = 0;
             if (employer === world.promotion.id) {
-              official(`${referee.name}'s contract has run out. He is back in the pool and anybody can sign him.`);
+              official(`${referee.name}'s contract has run out. Back in the pool, and anybody can sign them.`);
               if (world.defaultRefereeId === referee.id) world.defaultRefereeId = null;
             }
           }
@@ -6147,7 +6152,7 @@ export const useGameStore = create<GameStore>()(
           if (w.discipline && tickSuspension(w.discipline, world.week)) {
             if (w.promotionId === world.promotion.id) {
               world.weeklyNews.push(
-                wire('signing', `${w.name} has served his suspension and is available again.`, world.week, 'minor'),
+                wire('signing', `${w.name} has served ${pronounsFor(w).their} suspension and is available again.`, world.week, 'minor'),
               );
             }
           }
@@ -6226,7 +6231,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'signing',
-                `${agent.name} is speaking for ${target.name} now, for ${Math.round(cut * 100)}% of his purse.`,
+                `${agent.name} is speaking for ${target.name} now, for ${Math.round(cut * 100)}% of ${pronounsFor(target).their} purse.`,
                 world.week,
                 'minor',
               ),
@@ -6378,7 +6383,7 @@ export const useGameStore = create<GameStore>()(
 
           member.noticeGivenWeek = world.week;
           world.weeklyNews.push(
-            wire('signing', noticeLine(member.name, member.contract.weeksRemaining), world.week, 'lead'),
+            wire('signing', noticeLine(member.name, member.contract.weeksRemaining, pronounsFor(member)), world.week, 'lead'),
           );
         }
 
@@ -6414,7 +6419,7 @@ export const useGameStore = create<GameStore>()(
               weeksUnsigned: 0,
             });
             world.weeklyNews.push(
-              wire('signing', wontRenewLine(member.name, buriedByUs.name), world.week, 'lead'),
+              wire('signing', wontRenewLine(member.name, buriedByUs.name, pronounsFor(member)), world.week, 'lead'),
             );
             continue;
           }
@@ -6433,7 +6438,7 @@ export const useGameStore = create<GameStore>()(
               weeksUnsigned: 0,
             });
             world.weeklyNews.push(
-              wire('signing', `${member.name} worked his last date and left, exactly as he said he would.`, world.week),
+              wire('signing', `${member.name} worked ${pronounsFor(member).their} last date and left, exactly as ${pronounsFor(member).they} said ${pronounsFor(member).they} would.`, world.week),
             );
             continue;
           }
@@ -6871,7 +6876,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'signing',
-                `${rival.name} came for ${target.name} and he stayed. Nobody from this office said a word to him about it.`,
+                `${rival.name} came for ${target.name} and ${pronounsFor(target).they} stayed. Nobody from this office said a word to ${pronounsFor(target).them} about it.`,
                 world.week,
               ),
             );

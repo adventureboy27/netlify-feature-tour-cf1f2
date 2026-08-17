@@ -28,6 +28,7 @@
 
 import type { Rng } from '../rng';
 import { chance, pick } from '../rng';
+import type { Pronouns } from '../career/pronouns';
 import type { WorldSettings } from '../types';
 
 /** What kind of thing is being whispered about. */
@@ -51,6 +52,12 @@ export interface Rumour {
   subject: string;
   /** The other party, when there is one. */
   other?: string;
+  /**
+   * How the feed refers to the subject. Required rather than optional: every
+   * one of these lines used to say "he" about a roster that is a good deal
+   * more than men, which is the second time that has happened here.
+   */
+  who: Pronouns;
   /**
    * Whether it is actually true. Never shown — it decides how many voices
    * pick it up, and nothing else.
@@ -95,7 +102,7 @@ const WHISPERS: Record<RumourKind, string[]> = {
   defection: [
     'hearing {subject} is done with the group. watch that space',
     'something is off with {subject} and the rest of them. body language all wrong',
-    'my guy says {subject} has been asking about going out on his own',
+    'somebody backstage says {subject} has been asking about going out alone',
     '{subject} stood way off from the rest of them tonight. nobody else clock that?',
   ],
   recruitment: [
@@ -111,8 +118,8 @@ const WHISPERS: Record<RumourKind, string[]> = {
     'the stiff shots between {subject} and {other} are getting hard to watch',
   ],
   workingHurt: [
-    '{subject} is hurt. you can see it every time he plants that leg',
-    'somebody get {subject} off the road, he is moving like a man twice his age',
+    '{subject} is hurt. you can see it every time {they} plant that leg',
+    'somebody get {subject} off the road, {they} are moving like somebody twice {their} age',
     'that is not selling, {subject} is actually injured',
     '{subject} has been protecting something for weeks now',
   ],
@@ -120,13 +127,13 @@ const WHISPERS: Record<RumourKind, string[]> = {
     'hearing {subject} has not signed anything and is not going to',
     '{subject} to a rival promotion is the worst kept secret in the business',
     'that felt like a goodbye from {subject} and i do not like it',
-    'nobody books a guy like that unless he is already gone. {subject} is out',
+    'nobody books somebody like that unless they are already gone. {subject} is out',
   ],
   onFire: [
     '{subject} is the best thing in this company and it is not close',
     'every week {subject} goes out there and steals it. every week',
     'put the belt on {subject}. what are we even doing',
-    'i did not care about {subject} six months ago and now i plan my week around him',
+    'i did not care about {subject} six months ago and now i plan my week around {them}',
   ],
 };
 
@@ -145,7 +152,12 @@ export function rumourTweets(rumour: Rumour, rng: Rng, settings: WorldSettings):
     const [phrasing] = phrasings.splice(index, 1);
     if (!phrasing) break;
     out.push(
-      phrasing.replace(/\{subject\}/g, rumour.subject).replace(/\{other\}/g, rumour.other ?? 'somebody'),
+      phrasing
+        .replace(/\{subject\}/g, rumour.subject)
+        .replace(/\{other\}/g, rumour.other ?? 'somebody')
+        .replace(/\{they\}/g, rumour.who.they)
+        .replace(/\{them\}/g, rumour.who.them)
+        .replace(/\{their\}/g, rumour.who.their),
     );
   }
   return out;
@@ -160,10 +172,17 @@ export function rumourTweets(rumour: Rumour, rng: Rng, settings: WorldSettings):
  */
 export function inventRumour(
   rng: Rng,
-  candidates: readonly { name: string; other?: string }[],
+  candidates: readonly { name: string; other?: string; who: Pronouns }[],
   kinds: readonly RumourKind[],
 ): Rumour | null {
   if (candidates.length === 0 || kinds.length === 0) return null;
-  const who = pick(rng, [...candidates]);
-  return { kind: pick(rng, [...kinds]), subject: who.name, other: who.other, true: false, heat: 0 };
+  const pickedOne = pick(rng, [...candidates]);
+  return {
+    kind: pick(rng, [...kinds]),
+    subject: pickedOne.name,
+    other: pickedOne.other,
+    who: pickedOne.who,
+    true: false,
+    heat: 0,
+  };
 }

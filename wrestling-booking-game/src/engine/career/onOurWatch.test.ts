@@ -11,6 +11,7 @@ import {
   roomLine,
   stillHeldAgainstUs,
   tickLeave,
+  wontRenewLine,
   wontWorkForUs,
   blameLine,
   negligenceOf,
@@ -19,6 +20,7 @@ import {
   shunned,
   type DeathOnOurWatch,
 } from './onOurWatch';
+import { HE, SHE } from './pronouns';
 import { defaultWorldSettings } from '../world/settings';
 import type { Wrestler } from '../types';
 
@@ -88,13 +90,13 @@ describe('who stops taking your calls', () => {
   });
 
   it('says so in words rather than leaving a dead button', () => {
-    expect(refusalLine('Duke Rawlins', 'Earl Mercer')).toContain('Earl Mercer');
+    expect(refusalLine('Duke Rawlins', 'Earl Mercer', HE)).toContain('Earl Mercer');
   });
 });
 
 describe('the month off', () => {
   it('is four weeks, paid, and says why', () => {
-    const leave = compassionateLeave('Earl Mercer', settings);
+    const leave = compassionateLeave('Earl Mercer', settings, HE);
     expect(leave.weeksRemaining).toBe(settings.watchLeaveWeeks);
     expect(leave.paid).toBe(true);
     expect(leave.reason).toContain('Earl Mercer');
@@ -102,7 +104,7 @@ describe('the month off', () => {
   });
 
   it('counts down and then it is over', () => {
-    let leave = compassionateLeave('Earl Mercer', settings) as ReturnType<typeof compassionateLeave> | null;
+    let leave = compassionateLeave('Earl Mercer', settings, HE) as ReturnType<typeof compassionateLeave> | null;
     for (let i = 1; i < settings.watchLeaveWeeks; i++) {
       leave = tickLeave(leave!);
       expect(leave).not.toBeNull();
@@ -111,7 +113,7 @@ describe('the month off', () => {
   });
 
   it('reads as time away rather than as an injury', () => {
-    const said = leaveStatusLine(compassionateLeave('Earl Mercer', settings));
+    const said = leaveStatusLine(compassionateLeave('Earl Mercer', settings, HE));
     expect(said).toContain('Away');
     expect(said.toLowerCase()).not.toContain('injur');
   });
@@ -127,7 +129,7 @@ describe('the month off', () => {
 describe('the room', () => {
   it('takes a hit, and it is aimed at the office rather than at the man', () => {
     expect(roomMoraleCost(settings)).toBeLessThan(0);
-    expect(roomLine('Earl Mercer', 'Ironbelt Wrestling')).toContain('Ironbelt Wrestling');
+    expect(roomLine('Earl Mercer', 'Ironbelt Wrestling', HE)).toContain('Ironbelt Wrestling');
   });
 });
 
@@ -235,7 +237,7 @@ describe('the man nobody will work with', () => {
   });
 
   it('says who and how much longer, rather than a bare status', () => {
-    const said = shunLine(blame, 110, settings);
+    const said = shunLine(blame, 110, settings, HE);
     expect(said).toContain('Earl Mercer');
     expect(said).toContain(`${settings.watchShunWeeks - 10} weeks`);
   });
@@ -243,5 +245,24 @@ describe('the man nobody will work with', () => {
   it('aims the sentence at the man rather than at the office', () => {
     expect(blameLine('Cyclone', 'Earl Mercer')).toContain('not blaming the office');
     expect(blameLine('Cyclone', 'Earl Mercer')).toContain('Cyclone');
+  });
+});
+
+describe('the roster is not all men', () => {
+  // Caught twice now: once on the free-agent list under Deacon Yolanda's
+  // name, and again when a whole session of new systems went in saying "he"
+  // about everybody. Every line that names a person takes pronouns.
+  it('says she about a woman, everywhere', () => {
+    const blame = { wrestlerId: 'dead', name: 'Earl Mercer', week: 100 };
+    const lines = [
+      roomLine('Josie Voss', 'Ironbelt Wrestling', SHE),
+      refusalLine('Josie Voss', 'Earl Mercer', SHE),
+      wontRenewLine('Josie Voss', 'Earl Mercer', SHE),
+      shunLine(blame, 110, settings, SHE),
+      compassionateLeave('Earl Mercer', settings, SHE).reason,
+    ];
+    for (const line of lines) {
+      expect(line, line).not.toMatch(/\b(he|him|his)\b/i);
+    }
   });
 });

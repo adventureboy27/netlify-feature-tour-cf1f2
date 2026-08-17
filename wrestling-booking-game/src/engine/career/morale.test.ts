@@ -371,16 +371,16 @@ describe('the man the room blames, still on the books', () => {
 });
 
 describe('mood rubs off on the people you are in there with', () => {
-  it('lifts a miserable man who worked with somebody enjoying himself', () => {
+  it('lifts a miserable wrestler who worked with somebody enjoying it', () => {
     const sulking = person({ id: 'a', morale: 10 });
     const alone = weeklyMorale(sulking, week({ moodOfTheOthers: [] }), settings);
     const withACheerfulOne = weeklyMorale(sulking, week({ moodOfTheOthers: [90] }), settings);
 
     expect(withACheerfulOne.delta).toBeGreaterThan(alone.delta);
-    expect(withACheerfulOne.reasons.some((r) => r.text.includes('enjoying himself'))).toBe(true);
+    expect(withACheerfulOne.reasons.some((r) => r.text.includes('enjoying it'))).toBe(true);
   });
 
-  it('drags a happy man who spent the night with somebody who wants out', () => {
+  it('drags a contented one who spent the night with somebody who wants out', () => {
     // Both ways, or it is not contagion — it is a free repair tool.
     const content = person({ id: 'a', morale: 90 });
     const alone = weeklyMorale(content, week({ moodOfTheOthers: [] }), settings);

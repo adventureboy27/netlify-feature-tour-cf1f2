@@ -103,7 +103,7 @@ export function memorialShow(
     day: spareNight(takenNights, rng),
     forWrestlerId,
     forName,
-    announcement: `${promotionName} have added a show this week for ${forName}. Ten bells, everybody on the card who can stand, and the gate to his family.`,
+    announcement: `${promotionName} have added a show this week for ${forName}. Ten bells, everybody on the card who can stand, and the gate to ${forName}'s family.`,
   };
 }
 
@@ -136,7 +136,7 @@ const CAUSES = [
   'the volunteer fire service',
   'a children’s hospital',
   'the families of the mill layoffs',
-  'a wrestler nobody has heard of who cannot pay for his surgery',
+  'a wrestler nobody has heard of who cannot pay for their surgery',
   'the flood relief fund',
   'the local food bank',
 ];
@@ -239,7 +239,7 @@ export function scaleForGenerosity(base: number, generosity: number, settings: W
 /** How the paper reports it afterwards. */
 export function afterLine(show: ImpromptuShow): string {
   if (show.kind === 'memorial') {
-    return `The building was full for ${show.forName ?? 'him'} and nobody left early.`;
+    return `The building was full for ${show.forName ?? 'them'} and nobody left early.`;
   }
   return `${show.name} drew a decent house for a night nobody was paid for.`;
 }

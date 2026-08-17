@@ -1,3 +1,4 @@
+import type { Pronouns } from '../career/pronouns';
 // Things going stale.
 //
 // The game had no concept of this at all, which quietly broke two systems and
@@ -208,6 +209,6 @@ export function freshnessLabel(wrestler: Wrestler, settings: WorldSettings): Fre
 }
 
 /** The week it tips over, said once, rather than a status nobody looks at. */
-export function goneStaleLine(name: string): string {
-  return `${name}'s act has stopped working. The crowd has seen it, and it is costing every match he is in until somebody freshens it up or he gets a run off.`;
+export function goneStaleLine(name: string, who: Pronouns): string {
+  return `${name}'s act has stopped working. The crowd has seen it, and it is costing every match ${who.they} is in until somebody freshens it up or ${who.they} gets a run off.`;
 }

@@ -12,6 +12,7 @@
 // died forty years ago in a save.
 
 import { yearsPro, weeksAsChampion } from './status';
+import { pronounsFor } from './pronouns';
 import type { Title, Wrestler } from '../types';
 
 /**
@@ -22,14 +23,14 @@ import type { Title, Wrestler } from '../types';
  * including the man who never won anything, and it must never read as a
  * judgement on him for it.
  */
-export function whoHeWas(w: Wrestler, currentYear: number): string {
+export function whoTheyWere(w: Wrestler, currentYear: number): string {
   const years = yearsPro(w, currentYear);
   if (w.careerStatus === 'hallOfFamer') return 'Hall of Fame';
   if (w.titleReigns.length >= 3) return `${w.titleReigns.length}-time champion`;
   if (w.titleReigns.length > 0) return w.titleReigns.length === 1 ? 'A champion, once' : 'A two-time champion';
   if (years >= 15) return `${years} years in the business`;
   if ((w.career.matches ?? 0) > 0) return 'A working wrestler';
-  return 'Never got his run';
+  return `Never got ${pronounsFor(w).their} run`;
 }
 
 /**
@@ -39,7 +40,7 @@ export function whoHeWas(w: Wrestler, currentYear: number): string {
  * memorial, and the point of the page is that somebody reading it recognises
  * a person rather than a row.
  */
-export function whatHeLeaves(
+export function whatTheyLeave(
   w: Wrestler,
   ctx: { currentWeek: number; currentYear: number; titles: readonly Title[] },
   limit = 4,
@@ -85,13 +86,13 @@ export function whatHeLeaves(
 /**
  * The one that has to be said whatever else is on the list.
  *
- * A man the company sent out on an injury and did not get back is not
+ * Somebody the company sent out on an injury and did not get back is not
  * remembered as "an accident" — §0's rule that a death says how it happened
  * does not stop applying once he is on the wall.
  */
-export function howHeWent(w: Wrestler, causeText: string): string {
+export function howTheyWent(w: Wrestler, causeText: string): string {
   if ((w.injuryHistory ?? []).some((r) => r.workedThroughIt) && w.deceased?.cause === 'accident') {
-    return 'Went out there hurt, and did not come back.';
+    return `Went out there hurt, and did not come back.`;
   }
   // `DEATH_CAUSE_TEXT` is written to follow "has died" — "in an accident",
   // "peacefully, at home". Standing on its own under a name it needs to read

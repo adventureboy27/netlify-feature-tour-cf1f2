@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { inventRumour, rumourTweets, voicesFor, type Rumour } from './rumours';
 import { defaultWorldSettings } from './settings';
 import { rngFromSeed } from '../rng';
+import { HE, SHE } from '../career/pronouns';
 
 const settings = defaultWorldSettings();
 const rumour = (over: Partial<Rumour> = {}): Rumour => ({
@@ -11,6 +12,7 @@ const rumour = (over: Partial<Rumour> = {}): Rumour => ({
   subject: 'Duke Rawlins',
   true: true,
   heat: 1,
+  who: HE,
   ...over,
 });
 
@@ -89,13 +91,31 @@ describe('what the chorus sounds like', () => {
 
 describe('the ones that are not about anything', () => {
   it('invents a rumour that is flatly untrue', () => {
-    const made = inventRumour(rngFromSeed('m'), [{ name: 'Duke Rawlins' }], ['defection']);
+    const made = inventRumour(rngFromSeed('m'), [{ name: 'Duke Rawlins', who: HE }], ['defection']);
     expect(made!.true).toBe(false);
     expect(made!.heat).toBe(0);
   });
 
   it('has nothing to say about an empty roster', () => {
     expect(inventRumour(rngFromSeed('m'), [], ['defection'])).toBeNull();
-    expect(inventRumour(rngFromSeed('m'), [{ name: 'A' }], [])).toBeNull();
+    expect(inventRumour(rngFromSeed('m'), [{ name: 'A', who: HE }], [])).toBeNull();
+  });
+});
+
+describe('the feed is not talking about men only', () => {
+  it('never says he about a woman, in any phrasing of any kind', () => {
+    // Every whisper, exhaustively — this is the file where a stray "he" is
+    // most likely to survive, because the templates are prose.
+    const kinds = ['defection', 'recruitment', 'badBlood', 'workingHurt', 'walkingOut', 'onFire'] as const;
+    for (const kind of kinds) {
+      for (let i = 0; i < 40; i++) {
+        const lines = rumourTweets(
+          { kind, subject: 'Josie Voss', other: 'Mabel Cartwright', who: SHE, true: true, heat: 1 },
+          rngFromSeed(`w${kind}${i}`),
+          settings,
+        );
+        for (const line of lines) expect(line, line).not.toMatch(/\b(he|him|his|guy|man)\b/i);
+      }
+    }
   });
 });
