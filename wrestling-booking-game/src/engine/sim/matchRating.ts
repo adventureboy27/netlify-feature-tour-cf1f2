@@ -11,12 +11,15 @@
 
 import type { Rng } from '../rng';
 import { gaussian, clamp } from '../rng';
-import type { Wrestler, RatingBreakdownEntry, Stipulation, FinishType } from '../types';
+import type { Wrestler, RatingBreakdownEntry, Stipulation, FinishType, WorldSettings } from '../types';
+import { carried } from './ringcraft';
 import { styleMeshScore } from '../../data/styles';
 import { ratingToStars } from '../economy/showRating';
 
 export interface MatchRatingContext {
   participants: Wrestler[];
+  /** Needed by the terms that read tunables directly, e.g. carrying. */
+  settings: WorldSettings;
   winProbability: number; // pFinal for the winning side — feeds the "balance" term
   isPPV: boolean;
   stipulation: Stipulation | null;
@@ -119,11 +122,24 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
   };
 
   const avgPop = mean(ctx.participants.map((p) => p.popularity));
-  const avgWorkrate = mean(ctx.participants.map((p) => 0.45 * p.skill + 0.3 * p.agility + 0.25 * p.stamina));
   const avgCondition = mean(ctx.participants.map((p) => p.health)) / 100;
 
+  // What each of them brings, before anybody helps anybody.
+  const rawWork = ctx.participants.map((p) => 0.45 * p.skill + 0.3 * p.agility + 0.25 * p.stamina);
+
+  // And then the best hand in the match gets hold of it. This used to be a
+  // flat mean, which is the arithmetic that made carrying impossible to
+  // express: a limited opponent dragged a great worker down by exactly as much
+  // however good the great worker was, so there was never a reason to put your
+  // best technician opposite somebody who needed the help. See sim/ringcraft.ts.
+  const lifted = carried(ctx.participants, rawWork, ctx.settings);
+  const scaleWork = (value: number) => (value / 100) * 24 * (0.7 + 0.3 * avgCondition);
+
   const popComponent = term('Popularity', (avgPop / 100) * 42);
-  const workComponent = term('Workrate', (avgWorkrate / 100) * 24 * (0.7 + 0.3 * avgCondition));
+  const workComponent = term('Workrate', scaleWork(mean(rawWork)));
+  // Broken out rather than folded in, so the breakdown says who saved the
+  // match rather than reporting a workrate nobody in it actually has.
+  const carryComponent = term('Carried', scaleWork(mean(lifted.contributions)) - workComponent);
 
   const buckets = ctx.participants.map((p) => (p.alignment >= 15 ? 'face' : p.alignment <= -15 ? 'heel' : 'tween'));
   const hasFace = buckets.includes('face');
@@ -185,7 +201,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
   // than it wastes a bad one. (§11.3 pays that back in rivalry heat: a
   // non-decisive finish builds twice the heat. That is the trade.)
   const satisfactionBase = FINISH_SATISFACTION[ctx.finish];
-  const upToNow = popComponent + workComponent + chemistry + balance + styleMesh;
+  const upToNow = popComponent + workComponent + carryComponent + chemistry + balance + styleMesh;
   const resentmentScale = satisfactionBase < 0 ? 1 + clamp(upToNow / 60, 0, 1) : 1;
   const finishSatisfaction = term('Finish', satisfactionBase * resentmentScale);
 
@@ -193,6 +209,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
 
   const total =
     popComponent +
+    carryComponent +
     workComponent +
     chemistry +
     balance +

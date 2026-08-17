@@ -37,6 +37,7 @@ function rate(participants: Wrestler[], finish: FinishType, over: Partial<MatchR
   // simVariance 0 so these compare cleanly.
   return computeMatchRating(mulberry32(1), {
     participants,
+    settings,
     winProbability: 0.5,
     isPPV: false,
     stipulation: null,
@@ -112,6 +113,7 @@ describe('two great wrestlers given room to work', () => {
     const greats = rate(pair(62), 'cleanPin');
     const squash = computeMatchRating(mulberry32(1), {
       participants: pair(62),
+      settings,
       winProbability: 0.92, // completely one-sided
       isPPV: false,
       stipulation: stipulationById('squash')!,

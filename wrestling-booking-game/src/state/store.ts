@@ -175,6 +175,7 @@ import {
   type LedgerRole,
 } from '../engine/career/ledger';
 import { ledgerOf } from '../engine/career/ledgerAccess';
+import { moodSpread } from '../engine/career/personality';
 import {
   askingCut,
   bookOf,
@@ -5331,6 +5332,27 @@ export const useGameStore = create<GameStore>()(
               // on the third, and the order of `rosterIds` would silently
               // decide who cheered whom up.
               moraleOf: (who) => moodBefore.get(who) ?? world.wrestlers[who]?.morale ?? 0,
+              // Whose mood actually carries. Most people's does not.
+              spreadOf: (who) => {
+                const person = world.wrestlers[who];
+                return person ? moodSpread(person) : 1;
+              },
+              // What the market says they are worth, for the one trait that
+              // reads its own contract every week. See career/personality.ts.
+              worthOf: (who) => {
+                const person = world.wrestlers[who];
+                return person ? askingRate(person, world.settings) : 0;
+              },
+              // Their partner, and whether the two of them are on the same
+              // shows. A trait about missing somebody needs somebody real to
+              // miss, so the pairing is stored rather than implied.
+              attachedOf: (person) => {
+                if (!person.attachedTo) return null;
+                const other = world.wrestlers[person.attachedTo];
+                if (!other || other.deceased) return null;
+                return { name: other.name, hereToo: other.promotionId === world.promotion.id };
+              },
+              promotionName: world.promotion.name,
               // Live bad blood, and only inside this locker room — what two
               // men at a rival promotion are doing to each other is not this
               // office's problem.

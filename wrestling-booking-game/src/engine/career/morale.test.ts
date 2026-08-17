@@ -42,6 +42,17 @@ function week(over: Partial<MoraleContext> = {}): MoraleContext {
     workedWithEnemies: 0,
     companyRating: 55,
     roster: [],
+    who: {
+      id: 'w1',
+      morale: 65,
+      popularity: 50,
+      weeklyPay: 500,
+      worth: 500,
+      weeksStraight: 0,
+      injuries: 0,
+      attached: null,
+      promotionName: 'Ironbelt Wrestling',
+    },
     ...over,
   };
 }
@@ -323,6 +334,10 @@ describe('reading a week off a show', () => {
     deliveredTo: new Set<string>(['c']),
     roster: [] as Wrestler[],
     currentWeek: 40,
+    spreadOf: () => 1,
+    worthOf: () => 500,
+    attachedOf: () => null,
+    promotionName: 'Ironbelt Wrestling',
   };
 
   it('finds the match somebody was in, and which way it went', () => {
@@ -413,7 +428,7 @@ describe('mood rubs off on the people you are in there with', () => {
   it('lifts a miserable wrestler who worked with somebody enjoying it', () => {
     const sulking = person({ id: 'a', morale: 10 });
     const alone = weeklyMorale(sulking, week({ moodOfTheOthers: [] }), settings);
-    const withACheerfulOne = weeklyMorale(sulking, week({ moodOfTheOthers: [90] }), settings);
+    const withACheerfulOne = weeklyMorale(sulking, week({ moodOfTheOthers: [{ morale: 90, spread: 1 }] }), settings);
 
     expect(withACheerfulOne.delta).toBeGreaterThan(alone.delta);
     expect(withACheerfulOne.reasons.some((r) => r.text.includes('enjoying it'))).toBe(true);
@@ -423,7 +438,7 @@ describe('mood rubs off on the people you are in there with', () => {
     // Both ways, or it is not contagion — it is a free repair tool.
     const content = person({ id: 'a', morale: 90 });
     const alone = weeklyMorale(content, week({ moodOfTheOthers: [] }), settings);
-    const withAMalcontent = weeklyMorale(content, week({ moodOfTheOthers: [10] }), settings);
+    const withAMalcontent = weeklyMorale(content, week({ moodOfTheOthers: [{ morale: 10, spread: 1 }] }), settings);
 
     expect(withAMalcontent.delta).toBeLessThan(alone.delta);
     expect(withAMalcontent.reasons.some((r) => r.text.includes('wants out'))).toBe(true);
@@ -431,7 +446,7 @@ describe('mood rubs off on the people you are in there with', () => {
 
   it('does nothing between two people in the same mood', () => {
     const even = person({ id: 'a', morale: 50 });
-    expect(weeklyMorale(even, week({ moodOfTheOthers: [50] }), settings).delta).toBeCloseTo(
+    expect(weeklyMorale(even, week({ moodOfTheOthers: [{ morale: 50, spread: 1 }] }), settings).delta).toBeCloseTo(
       weeklyMorale(even, week({ moodOfTheOthers: [] }), settings).delta,
       5,
     );
@@ -441,15 +456,15 @@ describe('mood rubs off on the people you are in there with', () => {
     // A six-man match with one miserable body in it is not the same as being
     // in there with him alone.
     const w = person({ id: 'a', morale: 50 });
-    const oneOnOne = weeklyMorale(w, week({ moodOfTheOthers: [0] }), settings).delta;
-    const inACrowd = weeklyMorale(w, week({ moodOfTheOthers: [0, 80, 80] }), settings).delta;
+    const oneOnOne = weeklyMorale(w, week({ moodOfTheOthers: [{ morale: 0, spread: 1 }] }), settings).delta;
+    const inACrowd = weeklyMorale(w, week({ moodOfTheOthers: [{ morale: 0, spread: 1 }, { morale: 80, spread: 1 }, { morale: 80, spread: 1 }] }), settings).delta;
     expect(inACrowd).toBeGreaterThan(oneOnOne);
   });
 
   it('is a nudge, not a transfer', () => {
     // The widest possible gap, so this is the ceiling on the whole mechanic.
     const rock = person({ id: 'a', morale: 0 });
-    const lifted = weeklyMorale(rock, week({ moodOfTheOthers: [100] }), settings).delta;
+    const lifted = weeklyMorale(rock, week({ moodOfTheOthers: [{ morale: 100, spread: 1 }] }), settings).delta;
     const flat = weeklyMorale(rock, week({ moodOfTheOthers: [] }), settings).delta;
     expect(lifted - flat).toBeLessThanOrEqual(settings.moraleContagionWeight);
   });
@@ -479,6 +494,10 @@ describe('mood rubs off on the people you are in there with', () => {
         alliesOf: () => new Set<string>(),
         enemiesOf: () => new Set<string>(),
         beltsHeldBy: () => 0,
+        spreadOf: () => 1,
+    worthOf: () => 500,
+        attachedOf: () => null,
+        promotionName: 'Ironbelt Wrestling',
         moraleOf: (id) => (id === 'mgr' ? 0 : 80),
         shootBurden: () => null,
         weeksIdle: 0,
@@ -488,7 +507,7 @@ describe('mood rubs off on the people you are in there with', () => {
         currentWeek: 40,
       },
     );
-    expect(ctx.moodOfTheOthers).toEqual([80]);
+    expect(ctx.moodOfTheOthers).toEqual([{ morale: 80, spread: 1 }]);
   });
 });
 
@@ -544,5 +563,88 @@ describe('the night itself', () => {
   it('says nothing about a show somebody was not on', () => {
     const off = weeklyMorale(person(), week({ worked: false, slot: null, showRating: 15 }), settings);
     expect(off.reasons.some((r) => r.text.includes('mess'))).toBe(false);
+  });
+});
+
+describe('two people, the same week, different answers', () => {
+  // The whole reason personality exists. Measured before it was built: a
+  // twenty-six-person locker room at a company rated in the seventies, and
+  // every person in it drifting to the same number, because nothing in the
+  // room wanted different things. These tests are that gap, stated.
+  const undercard = week({ worked: true, slot: 0, slotCount: 6, outcome: 'lost' });
+
+  it('leaves one of them fine about an opener and loss, and one of them furious', () => {
+    const grateful = person({ traits: ['gratefulForTheWork'] }, 'a');
+    const hungry = person({ ...grateful, traits: ['wantsTheSpotlight'] }, 'a');
+    const gratefulReport = weeklyMorale(grateful, undercard, settings);
+    const hungryReport = weeklyMorale({ ...grateful, traits: ['wantsTheSpotlight'] }, undercard, settings);
+    void hungry;
+
+    expect(gratefulReport.delta).toBeGreaterThan(hungryReport.delta);
+  });
+
+  it('settles them in different places when the booker does nothing at all', () => {
+    // Nobody booked, nothing happening, same company. They still diverge,
+    // which is what stops a room moving as one block.
+    const quiet = week({ worked: false, slot: null, weeksIdle: 1 });
+    const base = person({}, 'settle');
+    const easy = weeklyMorale({ ...base, morale: 50, traits: ['gratefulForTheWork'] }, quiet, settings);
+    const hard = weeklyMorale({ ...base, morale: 50, traits: ['neverSatisfied'] }, quiet, settings);
+    expect(easy.delta).toBeGreaterThan(hard.delta);
+  });
+
+  it('turns a stretch of nothing into good news for the one who wanted it', () => {
+    const base = person({}, 'rest');
+    const idle = week({ worked: false, slot: null, weeksIdle: 9 });
+    const restless = weeklyMorale({ ...base, traits: ['wantsTheSpotlight'] }, idle, settings);
+    const relieved = weeklyMorale({ ...base, traits: ['wantsMoreTimeOff'] }, idle, settings);
+
+    expect(restless.delta).toBeLessThan(0);
+    expect(relieved.delta).toBeGreaterThan(restless.delta);
+    expect(relieved.reasons.some((r) => r.text.includes('at home'))).toBe(true);
+  });
+
+  it('pays the one who only wants paying, and nothing else works on them', () => {
+    const nash = person({ traits: ['inItForTheMoney'], morale: 55 }, 'nash');
+    const underpaid = week({
+      ...undercard,
+      who: { ...undercard.who, weeklyPay: 200, worth: 900 },
+    });
+    const paidWell = week({
+      ...undercard,
+      who: { ...undercard.who, weeklyPay: 1600, worth: 900 },
+    });
+    // Same opener, same loss. The money is the whole difference.
+    expect(weeklyMorale(nash, paidWell, settings).delta).toBeGreaterThan(
+      weeklyMorale(nash, underpaid, settings).delta,
+    );
+  });
+
+  it('lets a locker room leader lift a room that a nobody could not', () => {
+    const sulking = person({ id: 'a', morale: 15 }, 'sulk');
+    const withAnybody = weeklyMorale(sulking, week({ moodOfTheOthers: [{ morale: 90, spread: 1 }] }), settings);
+    const withALeader = weeklyMorale(
+      sulking,
+      week({ moodOfTheOthers: [{ morale: 90, spread: 1 }, { morale: 40, spread: 2.2 }] }),
+      settings,
+    );
+    // The leader is only middling himself, so he pulls the average his way —
+    // which is the point: who spreads a mood matters, not just what it is.
+    expect(withALeader.delta).toBeLessThan(withAnybody.delta);
+  });
+
+  it('still explains every point of it in words', () => {
+    // §0. A trait that moved somebody silently would be exactly the
+    // off-screen change the whole game is written to prevent.
+    for (const traits of [['neverSatisfied'], ['inItForTheMoney'], ['madeOfGlass'], ['wantsMoreTimeOff']] as const) {
+      const report = weeklyMorale(
+        person({ traits: [...traits] }, `say-${traits[0]}`),
+        week({ who: { ...undercard.who, weeklyPay: 100, worth: 900, injuries: 9, weeksStraight: 18 } }),
+        settings,
+      );
+      if (report.delta === 0) continue;
+      expect(report.headline, traits[0]).not.toBeNull();
+      expect(report.headline!.text.length, traits[0]).toBeGreaterThan(5);
+    }
   });
 });

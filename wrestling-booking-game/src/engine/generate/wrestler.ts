@@ -7,6 +7,7 @@ import type { Rng } from '../rng';
 import { rngFromSeed, clamp, gaussian, randInt, weightedPick, pick, chance, shuffle } from '../rng';
 import type { Appearance, Archetype, CardStatus, Id, Wrestler, WorldSettings } from '../types';
 import { rollHype } from '../career/hype';
+import { drawTraits } from '../career/personality';
 import { ARCHETYPES, archetypeById } from '../../data/archetypes';
 import { WRESTLING_STYLES } from '../../data/styles';
 import { GIMMICKS } from '../../data/gimmicks';
@@ -225,10 +226,38 @@ export function generateWrestler(
     100,
   );
 
+  // Ring intelligence, and how much the locker room likes them. Both seeded
+  // from the id for the same reason selfPreservation is — another draw off the
+  // world stream here would shift every seeded roll after it.
+  //
+  // Neither is a re-labelling of something already on the sheet. Ring IQ is
+  // not workrate: a green kid can know exactly what to do out there and a
+  // twenty-year veteran can still be lost, so `skill` only leans on it. And
+  // likeability is not charisma — charisma is the crowd, this is the car ride,
+  // and the wrestler the fans adore who nobody will travel with is a real
+  // person the game could not previously describe.
+  const head = rngFromSeed(`head:${id}`);
+  const ringIQ = clamp(
+    gaussian(head, 50, 18) + skill * 0.25 + coachability * 0.15 - 20,
+    1,
+    100,
+  );
+  const likeability = clamp(gaussian(head, 50, 20) + attitude * 0.2 - 10, 1, 100);
+
+  // Who they are. Drawn off their own stream so that adding a personality to
+  // the game did not silently re-roll every wrestler already in it.
+  // One stream of its own, so drawTraits can take as many numbers as it needs.
+  const who = rngFromSeed(`who:${id}`);
+  const traits = options.settings ? drawTraits(() => who.next(), options.settings) : [];
+
   const wrestler: Wrestler = {
     id,
     name,
     selfPreservation,
+    ringIQ,
+    likeability,
+    traits,
+    attachedTo: null,
     injuryHistory: [],
 
     popularity,

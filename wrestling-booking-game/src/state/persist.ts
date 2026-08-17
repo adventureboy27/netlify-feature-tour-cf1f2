@@ -134,7 +134,7 @@ const SLOT_KEY = 'wbg.save.v1';
 // Version 36 adds Wrestler.selfPreservation and Wrestler.injuryHistory. The
 // first is defaulted where it is read, but the history is appended to without
 // a guard the moment anybody gets hurt.
-const SCHEMA_VERSION = 40;
+const SCHEMA_VERSION = 41;
 
 export interface SaveFile {
   schema: number;

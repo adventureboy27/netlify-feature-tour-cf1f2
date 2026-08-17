@@ -67,6 +67,7 @@ import { COMMENTARY_TEAMS } from '../data/commentators';
 import { generateWrestlers } from '../engine/generate/wrestler';
 import { createRivalry } from '../engine/sim/rivalry';
 import { createStandardContract } from '../engine/economy/contracts';
+import { hasTrait } from '../engine/career/personality';
 import { createStartingTitles, awardTitle } from '../data/titles';
 import { styleProfileFor } from '../data/promotionIdentity';
 import type { PromotionArchetype } from '../data/promotionIdentity';
@@ -694,6 +695,21 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   addTeams(roster, promotion.id);
   for (const rival of rivals) {
     addTeams(rival.rosterIds.map((id) => wrestlers[id]!).filter(Boolean), rival.id);
+  }
+
+  // Pair up everybody who drew Somebody At Home. The trait is about missing a
+  // particular person, so it needs a particular person — and the pairing is
+  // deliberately across companies, because a couple already on the same roster
+  // is not a decision the booker has to make anything of. Signing one of them
+  // is signing half of a problem, and the other half is somebody else's.
+  const lonely = Object.values(wrestlers).filter((w) => hasTrait(w, 'somebodyAtHome') && !w.attachedTo);
+  for (const person of lonely) {
+    const match = lonely.find(
+      (other) => other.id !== person.id && !other.attachedTo && other.promotionId !== person.promotionId,
+    );
+    if (!match) continue;
+    person.attachedTo = match.id;
+    match.attachedTo = person.id;
   }
 
   const playerTitles = crownOpeningChampions(

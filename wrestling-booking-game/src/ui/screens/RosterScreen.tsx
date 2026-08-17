@@ -20,6 +20,8 @@ import { egoLabel } from '../../engine/career/ego';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
 import { leaveStatusLine, shunLine, shunned } from '../../engine/career/onOurWatch';
 import { circleOf, circleSummary } from '../../engine/career/circle';
+import { traitsOf } from '../../engine/career/personality';
+import { likeabilityLabel, ringcraftLabel } from '../../engine/sim/ringcraft';
 import {
   homeCompany,
   openStint,
@@ -565,6 +567,35 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   <div className="mt-1 flex flex-wrap gap-1">
                     {rivalries.map((r) => (
                       <HeatBadge key={r.id} heat={r.heat} shootHeat={r.shootHeat} />
+                    ))}
+                  </div>
+                )}
+
+                {/* What they are like out there, and what the room makes of
+                    them. Neither was expressible before: ring IQ is not
+                    workrate, and backstage likeability is not charisma — the
+                    wrestler the fans adore who nobody will travel with is a
+                    real person the game could not previously describe. */}
+                <div className="mt-0.5 flex flex-wrap gap-x-2 text-[10px] leading-snug">
+                  <span className="text-sky-400/90">{ringcraftLabel(w, world.settings)}</span>
+                  <span className="text-neutral-500">{likeabilityLabel(w, world.settings)}</span>
+                </div>
+
+                {/* Who they are, and what that means for the booker. The
+                    morale system asks everybody the same questions; these
+                    decide what the answers are worth to this particular
+                    person, so they belong next to the mood rather than buried
+                    in a career fold. */}
+                {traitsOf(w).length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {traitsOf(w).map((trait) => (
+                      <span
+                        key={trait.id}
+                        title={trait.blurb}
+                        className="rounded bg-violet-950/60 px-1.5 py-0.5 text-[10px] text-violet-300"
+                      >
+                        {trait.name}
+                      </span>
                     ))}
                   </div>
                 )}

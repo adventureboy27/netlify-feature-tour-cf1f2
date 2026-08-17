@@ -542,6 +542,29 @@ export interface Wrestler {
    * See career/theBody.ts.
    */
   selfPreservation: number;
+  /**
+   * Who they are, drawn once and permanent. One or two of them. See
+   * career/personality.ts — these decide what a person actually wants out of
+   * the week, which is what stopped a locker room being twenty-six copies of
+   * the same slightly unhappy man.
+   */
+  traits?: TraitId[];
+  /**
+   * Set only for `somebodyAtHome`: the wrestler they are with. Paired up
+   * across companies, so the trait has somebody real to be away from.
+   */
+  attachedTo?: Id | null;
+  /**
+   * Ring intelligence, 0-100. Not workrate — knowing what to do out there.
+   * Decides whether a spot goes wrong, and how much of a bad opponent's match
+   * this person can carry. See sim/ringcraft.ts.
+   */
+  ringIQ: number;
+  /**
+   * How much the locker room likes them, 0-100. Nothing to do with charisma,
+   * which is the crowd. This is who people want to be in a car with.
+   */
+  likeability: number;
   /** Everything that has ever happened to this body, dated. */
   injuryHistory: InjuryRecord[];
   /**
@@ -753,6 +776,7 @@ import type { PromotionSchedule } from './world/schedule';
 import type { Ledger } from './career/ledger';
 import type { DisciplineRecord } from './career/discipline';
 import type { BlamedFor, DeathOnOurWatch, Leave } from './career/onOurWatch';
+import type { TraitId } from './career/personality';
 
 export type ContractType = 'fullTime' | 'partTime' | 'perAppearance' | 'developmental' | 'legends';
 
@@ -1167,6 +1191,10 @@ export type MatchBeatKind =
   | 'nearFall'
   | 'signature'
   | 'interference'
+  // A spot that went wrong. Its own kind rather than an ugly 'signature',
+  // because the write-up and the incident system both need to tell the
+  // difference between a move and a mistake. See sim/ringcraft.ts.
+  | 'botch'
   | 'finish';
 
 export interface MatchBeat {
@@ -2052,6 +2080,68 @@ export interface WorldSettings {
    * Weeks off the card that cost nothing. A roster is always bigger than a
    * card; without this, depth itself would rot a locker room.
    */
+  // --- who somebody is, and what they want out of a week ---
+  /**
+   * Ceiling on how far a trait can multiply one morale term. Two traits that
+   * both care about the spotlight compound, and without a cap a rare pairing
+   * would produce somebody the booking cannot move at all.
+   */
+  traitLeverCap: number;
+  /** What the same idle weeks are worth to somebody who wanted the rest. */
+  traitRestRelief: number;
+  /**
+   * Bounds on the shifted set point. A pairing of two gloomy traits at a
+   * failing company must still leave somewhere above zero to settle toward,
+   * and the happiest possible person at the best company is not immune to
+   * being badly booked.
+   */
+  // --- ring intelligence and the locker room's opinion (sim/ringcraft.ts) ---
+  /** Ring IQ below which somebody cannot carry anybody. Most of a roster. */
+  carryRingIQFloor: number;
+  /** Most of the gap a great worker can close on a poor opponent. */
+  carryMax: number;
+  /** How much lift before the write-up says somebody carried it. */
+  carryWorthSaying: number;
+  /** How much being worn down and being unfit add to botch risk. */
+  botchFromCondition: number;
+  botchFromStamina: number;
+  /** A match of this length is the baseline; longer raises the odds. */
+  botchReferenceMinutes: number;
+  botchPerRiskPoint: number;
+  botchMaxChance: number;
+  /** Share of botches that hurt somebody. rules.ts still owns the injury. */
+  botchInjuryShare: number;
+  botchRatingCost: number;
+  botchBadOneMultiplier: number;
+  /** How much a botch that hurt somebody raises the injury roll. */
+  botchInjuryMultiplier: number;
+  /** Where the words for ring IQ change. */
+  ringcraftGeneralAt: number;
+  ringcraftSafeAt: number;
+  ringcraftGreenAt: number;
+  /** Where the words for how the room feels about somebody change. */
+  likedBelovedAt: number;
+  likedFineAt: number;
+  likedAwkwardAt: number;
+  moraleSetPointFloor: number;
+  moraleSetPointCeiling: number;
+  /** Chance somebody is drawn with a second trait rather than one. */
+  traitSecondChance: number;
+  /** How far off the market rate before an In It For The Money notices. */
+  traitPayGapNotices: number;
+  traitPayGapWeight: number;
+  traitPayGapMax: number;
+  /** What being on the same shows as their partner is worth, and being apart. */
+  traitTogetherGain: number;
+  traitApartCost: number;
+  /** Weeks straight on the road before Wants More Time Off starts saying so. */
+  traitRestWantedAfter: number;
+  traitRoadCostPerWeek: number;
+  traitRoadCostMax: number;
+  /** Trips to the doctor before Made Of Glass starts to wear on them. */
+  traitGlassNoticesAfter: number;
+  traitGlassCostEach: number;
+  traitGlassCostMax: number;
   moraleIdleGraceWeeks: number;
   /**
    * People per segment, for working out how long a fair wait for a match is at

@@ -2,7 +2,7 @@
 // -> rating -> narrative into the single entry point callers use.
 
 import type { Rng } from '../rng';
-import { chance, weightedPick } from '../rng';
+import { chance, clamp, weightedPick } from '../rng';
 import type {
   Title,
   Id,
@@ -16,6 +16,9 @@ import type {
   Rivalry,
 } from '../types';
 import { shootRatingBonus, shootInjuryMultiplier, heatFromMatch, type HeatChange } from './rivalry';
+import { rollBotch } from './ringcraft';
+import { ratingToStars } from '../economy/showRating';
+import { injuryProneness } from '../career/personality';
 import type { RingsideTotals } from './ringside';
 import { ruleAdjustedWeights, kayfabeScore } from './kayfabe';
 import { pairWinProbability, multiManWinProbabilities } from './winProbability';
@@ -74,6 +77,11 @@ export interface MatchSimResult {
   rating: number;
   stars: number;
   ratingBreakdown: RatingBreakdownEntry[];
+  /**
+   * Whoever blew a spot, if anybody did. Named so the caller can charge it to
+   * them; the write-up already carries the sentence. See sim/ringcraft.ts.
+   */
+  botchedById: Id | null;
   beats: MatchBeat[];
   /** Whoever the official caught in the act, so the office can act on it. */
   caughtManagerId?: string | null;
@@ -243,6 +251,7 @@ export function simulateMatch(
   const allParticipants = sides.flatMap((s) => sideMembers.get(s)!);
   const { rating, stars, breakdown } = computeMatchRating(rng, {
     participants: allParticipants,
+    settings: ctx.settings,
     winProbability: winnerProbability,
     isPPV: ctx.isPPV,
     stipulation: ctx.stipulation,
@@ -266,6 +275,17 @@ export function simulateMatch(
     staleGimmickPenalty: ctx.staleGimmickPenalty ?? 0,
     signatureStipulationFit: ctx.signatureStipulationFit ?? 0,
   });
+
+  // Did somebody lose their place out there. Rolled after the rating because
+  // it is a thing that happened *in* the match rather than a property of the
+  // people in it — and it is charged to the match, said out loud, and
+  // occasionally hurts whoever blew it. See sim/ringcraft.ts.
+  const botch = rollBotch(rng, allParticipants, ctx.matchLengthMinutes, ctx.settings);
+  const botchBeat: MatchBeat[] = botch
+    ? [{ kind: 'botch' as const, significant: true, text: botch.text }]
+    : [];
+  const finalRating = clamp(rating - (botch?.ratingCost ?? 0), 3, 100);
+  const finalStars = ratingToStars(finalRating);
 
   // §0: a result that flipped with no sentence explaining it reads as the sim
   // glitching. Whoever got caught is named, at the top of the highlights.
@@ -317,10 +337,12 @@ export function simulateMatch(
     winnerSide: draw ? null : winnerSide,
     winnerWrestlerIds: draw ? [] : winnerMembers.map((w) => w.id),
     finish,
-    rating,
-    stars,
+    rating: finalRating,
+    stars: finalStars,
     ratingBreakdown: breakdown,
-    beats: [...cornerBeat, ...distractionBeat, ...beats],
+    beats: [...cornerBeat, ...distractionBeat, ...botchBeat, ...beats],
+    /** Who blew a spot, if anybody did. The caller decides what it costs them. */
+    botchedById: botch?.workerId ?? null,
     caughtManagerId,
     winProbabilitiesBySide,
     injuryMultiplier:
@@ -328,7 +350,12 @@ export function simulateMatch(
       shootInjuryMultiplier(rivalry ?? undefined, ctx.settings) *
       // Nobody to stop it when it goes wrong.
       (ctx.ringside?.injuryMultiplier ?? 1) *
-      pace.injuryMultiplier,
+      pace.injuryMultiplier *
+      // A spot that went wrong badly enough to hurt somebody.
+      (botch?.hurtSomebody ? ctx.settings.botchInjuryMultiplier : 1) *
+      // And some bodies simply break more than others. See the Made Of Glass
+      // trait in career/personality.ts — this is where it has teeth.
+      Math.max(...allParticipants.map((p) => injuryProneness(p))),
     // What the night takes out of them, and how numb the crowd now is to
     // being shown this.
     healthCostMultiplier: pace.healthCostMultiplier,

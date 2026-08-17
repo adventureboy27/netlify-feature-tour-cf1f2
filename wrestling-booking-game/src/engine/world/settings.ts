@@ -564,6 +564,49 @@ export function defaultWorldSettings(): WorldSettings {
     // Two weeks off is a week off. Three is a message. Measured: at a grace
     // of 0 a 24-man roster running a 6-match card lost every person morale
     // every single week, because half the roster is idle by construction.
+    // Who somebody is. See career/personality.ts — one trait each, mostly,
+    // and the second one is where the interesting people come from.
+    traitLeverCap: 2.5,
+    traitRestRelief: 0.45,
+    // Ring intelligence. The floor is high on purpose: carrying a match is a
+    // rare thing, and a world where two thirds of the roster can do it is a
+    // world where booking the pairing does not matter.
+    carryRingIQFloor: 68,
+    carryMax: 0.55,
+    carryWorthSaying: 6,
+    botchFromCondition: 0.5,
+    botchFromStamina: 0.35,
+    botchReferenceMinutes: 15,
+    botchPerRiskPoint: 0.055,
+    botchMaxChance: 0.16,
+    botchInjuryShare: 0.12,
+    botchRatingCost: 5,
+    botchBadOneMultiplier: 2.2,
+    botchInjuryMultiplier: 3.5,
+    ringcraftGeneralAt: 78,
+    ringcraftSafeAt: 58,
+    ringcraftGreenAt: 35,
+    likedBelovedAt: 78,
+    likedFineAt: 55,
+    likedAwkwardAt: 32,
+    moraleSetPointFloor: 22,
+    moraleSetPointCeiling: 92,
+    traitSecondChance: 0.28,
+    // An In It For The Money notices a tenth either way, and the swing is
+    // deliberately large: they are cheap to keep and expensive to shortchange,
+    // which is the whole of the character.
+    traitPayGapNotices: 0.1,
+    traitPayGapWeight: 6,
+    traitPayGapMax: 3.5,
+    traitTogetherGain: 1.6,
+    traitApartCost: 1.1,
+    // Six weeks is a tour. Everybody can do a tour; this one wants it to end.
+    traitRestWantedAfter: 6,
+    traitRoadCostPerWeek: 0.55,
+    traitRoadCostMax: 3,
+    traitGlassNoticesAfter: 3,
+    traitGlassCostEach: 0.5,
+    traitGlassCostMax: 2.5,
     moraleIdleGraceWeeks: 2,
     moraleSpotsPerSegment: 2,
     moraleIdlePerWeek: 1.1,

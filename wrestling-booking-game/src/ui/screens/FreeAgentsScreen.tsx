@@ -14,6 +14,7 @@ import { contractLengthLine } from '../../engine/economy/contracts';
 import { leverageReason } from '../../engine/career/leverage';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
 import { pronounsFor } from '../../engine/career/pronouns';
+import { traitsOf } from '../../engine/career/personality';
 import {
   mostRecentDeath,
   ourPrice,
@@ -96,6 +97,23 @@ export function FreeAgentsScreen() {
                 </div>
                 {sittingOut && <div className="text-[10px] text-amber-400">{sittingOut}</div>}
                 {refuses && <div className="text-[10px] leading-snug text-rose-400">{refuses}</div>}
+                {/* Who you would actually be signing. Stated before the
+                    signing rather than discovered in the first weekly report
+                    — a Never Satisfied and a Grateful For The Work at the same
+                    weekly rate are not the same purchase. */}
+                {traitsOf(wrestler).length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {traitsOf(wrestler).map((trait) => (
+                      <span
+                        key={trait.id}
+                        title={trait.blurb}
+                        className="rounded bg-violet-950/60 px-1.5 py-0.5 text-[10px] text-violet-300"
+                      >
+                        {trait.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {/* What they want, and why the number is what it is. Both stated
                     before the signing rather than discovered after it. */}
                 <div className="text-[10px] text-neutral-500">

@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../rng';
 import { generateWrestler } from '../generate/wrestler';
 import { computeMatchRating, type MatchRatingContext } from './matchRating';
+import { defaultWorldSettings } from '../world/settings';
+
+const settings = defaultWorldSettings();
 
 function baseContext(overrides: Partial<MatchRatingContext> = {}): MatchRatingContext {
   const rng = mulberry32(1);
@@ -9,6 +12,7 @@ function baseContext(overrides: Partial<MatchRatingContext> = {}): MatchRatingCo
   const b = generateWrestler(rng, new Set());
   return {
     participants: [a, b],
+    settings,
     winProbability: 0.5,
     isPPV: false,
     stipulation: null,

@@ -30,6 +30,14 @@ import { clamp } from '../rng';
 import { nameBurden } from './lineage';
 import { loudestPerk, perkMorale, resentmentToward } from '../economy/perks';
 import { shunned } from './onOurWatch';
+import {
+  leverWeight,
+  setPointShift,
+  traitReasons,
+  wantsRest,
+  type MoraleLever,
+  type TraitSubject,
+} from './personality';
 import type { Id, Wrestler, WorldSettings } from '../types';
 
 /** Where somebody's head is at, in bands the UI can draw. */
@@ -95,8 +103,13 @@ export interface MoraleContext {
    * who is enjoying himself is a different night from twenty minutes with
    * somebody who wants out, and it goes both ways — which makes who you put
    * a miserable man in with a real lever rather than a cosmetic one.
+   *
+   * Weighted by `spread`, because some people's mood carries and most people's
+   * does not. A Locker Room Leader having a good week is worth putting people
+   * with; Poison having a bad one is worth keeping away from anybody you care
+   * about. See career/personality.ts.
    */
-  moodOfTheOthers: number[];
+  moodOfTheOthers: { morale: number; spread: number }[];
   /** Everybody they get changed alongside, for the perks they can all see. */
   roster: readonly Wrestler[];
   /** Which week it is, for anything in the room that is fading. */
@@ -114,6 +127,13 @@ export interface MoraleContext {
   workedWithEnemies: number;
   /** Is the company itself worth being at? Feeds the slow drift. */
   companyRating: number;
+  /**
+   * The facts a trait needs that nothing else here carries — what they are
+   * paid against what they are worth, how long they have been on the road,
+   * how many times this body has broken, and who they are away from.
+   * See career/personality.ts.
+   */
+  who: TraitSubject;
 }
 
 /** The bits of a resolved show this needs. Structural, so no import cycle. */
@@ -155,6 +175,13 @@ export function moraleContext(
     /** The locker room, for reading what the office gave everybody else. */
     roster: readonly Wrestler[];
     currentWeek: number;
+    /** What the market says this person is worth, for the ones who check. */
+    worthOf: (id: Id) => number;
+    /** How much of their mood this person pushes onto everybody else. */
+    spreadOf: (id: Id) => number;
+    /** Their partner, for `somebodyAtHome`. Null when they have none. */
+    attachedOf: (wrestler: Wrestler) => { name: string; hereToo: boolean } | null;
+    promotionName: string;
   },
 ): MoraleContext {
   const segment = show?.segments.find((seg) =>
@@ -196,7 +223,10 @@ export function moraleContext(
     carryingSomethingReal: world.shootBurden(wrestler.id),
     moodOfTheOthers: others
       .filter((p) => p.role === 'competitor')
-      .map((p) => world.moraleOf(p.wrestlerId)),
+      .map((p) => ({
+        morale: world.moraleOf(p.wrestlerId),
+        spread: world.spreadOf(p.wrestlerId),
+      })),
     showRating: show?.showRating ?? 0,
     gaveThemWhatTheyWanted: world.deliveredTo.has(wrestler.id),
     workedWithAllies: others.filter((p) => allies.has(p.wrestlerId)).length,
@@ -204,6 +234,17 @@ export function moraleContext(
     companyRating: world.companyRating,
     roster: world.roster,
     currentWeek: world.currentWeek,
+    who: {
+      id: wrestler.id,
+      morale: wrestler.morale,
+      popularity: wrestler.popularity,
+      weeklyPay: (wrestler.contract?.weeklyRate ?? 0) + (wrestler.contract?.perAppearance ?? 0),
+      worth: world.worthOf(wrestler.id),
+      weeksStraight: wrestler.consecutiveWeeksWorked,
+      injuries: wrestler.injuryHistory?.length ?? 0,
+      attached: world.attachedOf(wrestler),
+      promotionName: world.promotionName,
+    },
   };
 }
 
@@ -308,9 +349,16 @@ export function weeklyMorale(
   const s = settings;
   const expects = expectation(wrestler, s);
   const reasons: MoraleReason[] = [];
-  const add = (text: string, delta: number) => {
-    if (Math.abs(delta) < 0.05) return;
-    reasons.push({ text, delta });
+  /**
+   * Every term goes through here, and every term names which part of the week
+   * it belongs to so that who this person is can weight it. A trait never adds
+   * morale of its own through this door — it only decides how hard what
+   * already happened lands. See career/personality.ts.
+   */
+  const add = (text: string, delta: number, lever?: MoraleLever) => {
+    const weighted = lever ? delta * leverWeight(wrestler, lever, s) : delta;
+    if (Math.abs(weighted) < 0.05) return;
+    reasons.push({ text, delta: weighted });
   };
 
   if (ctx.worked && ctx.slot !== null) {
@@ -320,25 +368,25 @@ export function weeklyMorale(
     const height = ctx.slotCount > 1 ? ctx.slot / (ctx.slotCount - 1) : 1;
     const position = (height - expects) * s.moralePositionWeight;
     if (height >= 0.99) {
-      add('Main evented the show.', Math.max(position, s.moraleMainEventFloor));
+      add('Main evented the show.', Math.max(position, s.moraleMainEventFloor), 'spotlight');
     } else if (position >= 0) {
-      add('Booked high on the card.', position);
+      add('Booked high on the card.', position, 'spotlight');
     } else {
-      add('Stuck in the undercard.', position);
+      add('Stuck in the undercard.', position, 'spotlight');
     }
 
     switch (ctx.outcome) {
       case 'won':
-        add('Went over.', s.moraleWinGain);
+        add('Went over.', s.moraleWinGain, 'winning');
         break;
       case 'lost': {
         // Losing is the job. Losing to somebody the crowd has never heard of
         // is a different conversation, and the gap is the whole term.
         const gap = clamp((wrestler.popularity - (ctx.beatenByPopularity ?? 0)) / 100, 0, 1);
         if (gap >= s.moraleBadLossGap) {
-          add('Beaten by somebody nobody has heard of.', -gap * s.moraleBadLossWeight);
+          add('Beaten by somebody nobody has heard of.', -gap * s.moraleBadLossWeight, 'winning');
         } else {
-          add('Took the loss.', -s.moraleRoutineLoss);
+          add('Took the loss.', -s.moraleRoutineLoss, 'winning');
         }
         break;
       }
@@ -357,18 +405,24 @@ export function weeklyMorale(
     // gets better faster in with somebody who is not, and burying him on a
     // card with the other malcontents makes it worse.
     if (ctx.moodOfTheOthers.length > 0) {
+      // A weighted mean, not a flat one: the people whose mood carries pull
+      // harder. Flat, a locker room leader was worth exactly as much as
+      // anybody else in the match, which made the trait a label.
+      const weight = ctx.moodOfTheOthers.reduce((sum, m) => sum + m.spread, 0);
       const theirs =
-        ctx.moodOfTheOthers.reduce((sum, m) => sum + m, 0) / ctx.moodOfTheOthers.length;
+        weight > 0
+          ? ctx.moodOfTheOthers.reduce((sum, m) => sum + m.morale * m.spread, 0) / weight
+          : 0;
       const rubOff = ((theirs - wrestler.morale) / 100) * s.moraleContagionWeight;
-      if (rubOff > 0) add('Spent the night with somebody who was enjoying it.', rubOff);
-      else if (rubOff < 0) add('Spent the night with somebody who wants out.', rubOff);
+      if (rubOff > 0) add('Spent the night with somebody who was enjoying it.', rubOff, 'theRoom');
+      else if (rubOff < 0) add('Spent the night with somebody who wants out.', rubOff, 'theRoom');
     }
 
     if (ctx.workedWithAllies > 0) {
-      add('Worked with a friend.', ctx.workedWithAllies * s.moraleAllyGain);
+      add('Worked with a friend.', ctx.workedWithAllies * s.moraleAllyGain, 'theRoom');
     }
     if (ctx.workedWithEnemies > 0) {
-      add('Put in with somebody they cannot stand.', -ctx.workedWithEnemies * s.moraleEnemyCost);
+      add('Put in with somebody they cannot stand.', -ctx.workedWithEnemies * s.moraleEnemyCost, 'theRoom');
     }
   } else if (ctx.weeksIdle > idleGrace(ctx, s)) {
     // Not booked, and it has been long enough to be a pattern rather than a
@@ -377,13 +431,22 @@ export function weeklyMorale(
     const weeks = ctx.weeksIdle;
     const over = weeks - idleGrace(ctx, s);
     const cost = Math.min(s.moraleIdleCap, over * s.moraleIdlePerWeek) * (s.moraleIdleFloor + expects);
-    add(`${weeks} weeks now without a match.`, -cost);
+    if (wantsRest(wrestler)) {
+      // For this one the same fact is the good news. Somebody who wanted the
+      // road to stop is not being overlooked, they are being left alone — and
+      // the booker who works that out has a use for the weeks nobody else
+      // wants.
+      add(`${weeks} weeks at home, which suits them.`, cost * s.traitRestRelief, 'idle');
+    } else {
+      add(`${weeks} weeks now without a match.`, -cost, 'idle');
+    }
   }
 
   if (ctx.beltsHeld > 0) {
     add(
       ctx.beltsHeld === 1 ? 'Carrying a title.' : `Carrying ${ctx.beltsHeld} titles.`,
       ctx.beltsHeld * s.moraleChampionGain,
+      'gold',
     );
   }
 
@@ -396,8 +459,8 @@ export function weeklyMorale(
   // The night itself. Everybody in the building can tell a good show from a
   // bad one, and being part of a good one is its own thing.
   const showSwing = ((ctx.showRating - s.moraleShowNeutral) / 100) * s.moraleShowWeight;
-  if (ctx.worked && showSwing > 0) add('It was a good show.', showSwing);
-  if (ctx.worked && showSwing < 0) add('The show was a mess.', showSwing);
+  if (ctx.worked && showSwing > 0) add('It was a good show.', showSwing, 'theShow');
+  if (ctx.worked && showSwing < 0) add('The show was a mess.', showSwing, 'theShow');
 
   // And a slow pull toward a set point: how good a place this is to work,
   // which is what stops morale ratcheting to an absorbing 0 or 100 and makes
@@ -465,9 +528,24 @@ export function weeklyMorale(
     );
   }
 
+  // What each trait has to say about this particular week — being underpaid,
+  // being run into the ground, being a long way from somebody. Added rather
+  // than weighted, because these are things that happened rather than things
+  // that landed harder.
+  for (const said of traitReasons(wrestler, ctx.who, s)) add(said.text, said.delta);
+
   // A struggling outfit is a fine place to work if the booker uses you; it is
   // the booking above that decides, and this only sets the floor and ceiling.
-  const setPoint = s.moraleSetPointBase + (ctx.companyRating / 100) * s.moraleSetPointRange;
+  //
+  // Shifted by who they are: some people are hard to make unhappy and some are
+  // hard to please, and that is a fact about them rather than a verdict on the
+  // booking. It is the reason a locker room stopped being twenty-six versions
+  // of the same slightly unhappy person.
+  const setPoint = clamp(
+    s.moraleSetPointBase + (ctx.companyRating / 100) * s.moraleSetPointRange + setPointShift(wrestler),
+    s.moraleSetPointFloor,
+    s.moraleSetPointCeiling,
+  );
   const settle = (setPoint - wrestler.morale) * s.moraleSettleRate;
   if (settle >= s.moraleSettleReportable) add('This is a good company to be at.', settle);
   else if (settle <= -s.moraleSettleReportable) add('The company is going backwards.', settle);
