@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { rollCasualty, stoppageCasualty, injuryFrom, outFor, type CasualtyContext } from './casualties';
+import {
+  rollCasualty,
+  stoppageCasualty,
+  injuryFrom,
+  outFor,
+  severityOf,
+  gradeFromLength,
+  weeksFromGrade,
+  riskFromGrade,
+  healPerWeek,
+  aggravate,
+  fitToWork,
+  injuryWord,
+  type CasualtyContext,
+} from './casualties';
 import { INJURY_CAUSES, causesFor, injuryCauseById } from '../../data/casualties';
 import { defaultWorldSettings } from '../world/settings';
 import { rngFromSeed } from '../rng';
@@ -218,5 +232,77 @@ describe('how bad a dangerous match makes it', () => {
       return stoppageCasualty(rng, c).weeks;
     });
     expect(Math.max(...worst)).toBeGreaterThanOrEqual(settings.injurySevereWeeks * 2);
+  });
+});
+
+describe('severity as a number', () => {
+  const settings = defaultWorldSettings();
+
+  it('keeps the labels meaning what they meant on the week scale', () => {
+    // Grade replaced a severity inferred from a week count. If the bands do
+    // not line up with the old thresholds then a refactor has quietly become
+    // a balance change — which it did, once, moving severe from ten weeks to
+    // fifteen before anybody noticed.
+    const at = (weeks: number) => severityOf(gradeFromLength(weeks, settings), settings);
+    expect(at(2)).toBe('minor');
+    expect(at(6)).toBe('moderate');
+    expect(at(12)).toBe('severe');
+    expect(at(28)).toBe('careerThreatening');
+  });
+
+  it('converts back and forth without drifting', () => {
+    for (const weeks of [1, 4, 9, 15, 26]) {
+      const back = weeksFromGrade(gradeFromLength(weeks, settings), settings);
+      expect(Math.abs(back - weeks), `${weeks}w`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('climbs the re-injury risk steeply with how hurt somebody is', () => {
+    expect(riskFromGrade(0, settings)).toBe(1);
+    const knock = riskFromGrade(15, settings);
+    const bad = riskFromGrade(65, settings);
+    const awful = riskFromGrade(95, settings);
+    expect(knock).toBeGreaterThan(1);
+    expect(knock).toBeLessThan(1.3);
+    expect(bad).toBeGreaterThan(2);
+    expect(awful).toBeGreaterThan(bad);
+    // Steeper than linear — a knock is a risk, a torn knee is recklessness.
+    expect(bad - knock).toBeGreaterThan(knock - 1);
+  });
+
+  it('mends when rested, barely when trained on, and worsens in a ring', () => {
+    expect(healPerWeek('rest', settings)).toBeLessThan(0);
+    expect(healPerWeek('gym', settings)).toBeLessThan(0);
+    expect(healPerWeek('gym', settings)).toBeGreaterThan(healPerWeek('rest', settings));
+    expect(healPerWeek('wrestled', settings)).toBeGreaterThan(0);
+  });
+
+  it('makes going out on it a slow bleed rather than a punishment', () => {
+    // Deliberately small: the cost of working hurt is being hurt *again*, not
+    // this drift. A bleed big enough to feel on its own would make the
+    // decision obvious rather than tempting.
+    expect(healPerWeek('wrestled', settings)).toBeLessThan(Math.abs(healPerWeek('rest', settings)));
+  });
+
+  it('stacks a fresh injury onto an old one rather than replacing it', () => {
+    const worse = aggravate(60, 30, settings);
+    expect(worse).toBeGreaterThan(60);
+    expect(worse).toBeGreaterThan(30);
+    // A light knock cannot launder a bad knee.
+    expect(aggravate(60, 5, settings)).toBeGreaterThanOrEqual(60);
+    expect(aggravate(90, 60, settings)).toBeLessThanOrEqual(100);
+  });
+
+  it('lets somebody be booked while still carrying something', () => {
+    expect(fitToWork(5, settings)).toBe(true);
+    expect(fitToWork(40, settings)).toBe(false);
+    // And carrying something is still a risk, which is the point.
+    expect(riskFromGrade(5, settings)).toBeGreaterThan(1);
+  });
+
+  it('never shows the player a number (§0)', () => {
+    for (const grade of [0, 10, 30, 60, 95]) {
+      expect(injuryWord(grade, settings)).not.toMatch(/\d/);
+    }
   });
 });

@@ -52,6 +52,7 @@ describe('wanting out', () => {
       age: 32,
       injury: {
         severity: 'careerThreatening',
+        grade: 85,
         description: 'Neck',
         sufferedWeek: 1,
         totalWeeks: 60,

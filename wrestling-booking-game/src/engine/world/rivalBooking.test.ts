@@ -61,6 +61,7 @@ describe('who a rival can book', () => {
           ...w!,
           injury: {
             severity: 'moderate',
+            grade: 35,
             description: 'Knee',
             sufferedWeek: 1,
             totalWeeks: 6,

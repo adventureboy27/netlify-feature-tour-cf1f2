@@ -22,6 +22,7 @@
 // than a difficulty. So the clock is always visible and the last week before
 // it expires says so. It reports; it never advises.
 
+import { riskFromGrade } from '../sim/casualties';
 import type { Id, Title, TitleTier, Wrestler, WorldSettings } from '../types';
 
 /** How long this kind of belt can go unfought before the company acts. */
@@ -196,5 +197,10 @@ function isClearedToDefendHurt(wrestler: Wrestler): boolean {
  * where it is charged.
  */
 export function workingHurtRisk(wrestler: Wrestler, settings: WorldSettings): number {
-  return isClearedToDefendHurt(wrestler) ? settings.workingHurtInjuryMultiplier : 1;
+  if (!isClearedToDefendHurt(wrestler)) return 1;
+  // Scaled by how hurt they actually are, which this could not do until an
+  // injury had a grade on it. It was a flat multiplier, so a booker sending
+  // somebody out on a knock ran exactly the risk of sending them out on a torn
+  // knee. See sim/casualties.ts.
+  return riskFromGrade(wrestler.injury?.grade ?? 0, settings);
 }

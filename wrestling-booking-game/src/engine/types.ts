@@ -245,6 +245,13 @@ export interface InjuryRecord {
 
 export interface Injury {
   severity: InjurySeverity;
+  /**
+   * How bad it is right now, 0-100. The thing that actually moves: it heals
+   * down each week by how they are being looked after, and a fresh injury on
+   * top of it stacks rather than replacing it. `severity` is a label for this
+   * and `weeksRemaining` is an estimate derived from it. See sim/casualties.ts.
+   */
+  grade: number;
   description: string;
   sufferedWeek: number;
   totalWeeks: number;
@@ -3311,6 +3318,26 @@ export interface WorldSettings {
   /** How often an injury is the bad one, independent of how rough the match was. */
   casualtyCatastrophicChance: number;
   casualtyCatastrophicMultiplier: number;
+  // --- how bad an injury is, as a number (sim/casualties.ts) ---
+  /** Where the severity labels sit on the 0-100 grade scale. */
+  gradeModerate: number;
+  gradeSevere: number;
+  gradeCareerThreatening: number;
+  /** Under this they can be booked again, still carrying it. */
+  gradeFitToWork: number;
+  /** Weeks out at grade 100. The scale that converts between the two. */
+  gradeWeeksAtWorst: number;
+  /** Grade healed per week resting, and the fraction of that other weeks get. */
+  gradeHealResting: number;
+  gradeHealTrainingShare: number;
+  gradeHealLightDutyShare: number;
+  /** What a match on it adds. Small — the real cost is being hurt again. */
+  gradeWorsenPerMatch: number;
+  /** How steeply re-injury risk climbs with grade, and where it tops out. */
+  gradeRiskCurve: number;
+  gradeRiskAtWorst: number;
+  /** How much of a fresh injury stacks onto one somebody already had. */
+  gradeAggravationShare: number;
   /** Health taken off somebody who was hurt, on top of the time out. */
   casualtyHealthCost: number;
   injuryModerateWeeks: number;

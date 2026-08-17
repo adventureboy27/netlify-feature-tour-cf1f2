@@ -284,6 +284,13 @@ import {
   rollCasualty,
   stoppageCasualty,
   injuryFrom,
+  gradeFromLength,
+  severityOf,
+  aggravate,
+  healPerWeek,
+  weeksFromGrade,
+  fitToWork,
+  aggravationLine,
   outFor,
   type Casualty,
 } from '../engine/sim/casualties';
@@ -1001,8 +1008,10 @@ function resolveConfrontationSlot(
   if (outcome.casualty) {
     const hurt = wrestlerById.get(outcome.casualty.wrestlerId);
     if (hurt && !hurt.injury) {
+      const twistGrade = gradeFromLength(outcome.casualty.weeks, world.settings);
       hurt.injury = {
-        severity: outcome.casualty.weeks >= 4 ? 'moderate' : 'minor',
+        severity: severityOf(twistGrade, world.settings),
+        grade: twistGrade,
         description: outcome.twistLabel,
         sufferedWeek: world.week,
         totalWeeks: outcome.casualty.weeks,
@@ -1771,13 +1780,10 @@ function applyEffect(world: World, effect: EventEffect): number {
         // this already carries the sentence explaining it; this makes sure
         // the roster card agrees with the story.
         const cause = pick(rng, causesFor('competitor', 0));
+        const effectGrade = gradeFromLength(effect.weeks, world.settings);
         w.injury = {
-          severity:
-            effect.weeks >= world.settings.injurySevereWeeks
-              ? 'severe'
-              : effect.weeks >= world.settings.injuryModerateWeeks
-                ? 'moderate'
-                : 'minor',
+          severity: severityOf(effectGrade, world.settings),
+          grade: effectGrade,
           description: cause?.label ?? 'Injured',
           sufferedWeek: world.week,
           totalWeeks: effect.weeks,
@@ -2404,7 +2410,7 @@ export const useGameStore = create<GameStore>()(
           misfortunes.push(misfortune);
 
           if (misfortune.kind !== 'absence') {
-            person.injury = injuryFromMisfortune(misfortune, world.week, person.injury);
+            person.injury = injuryFromMisfortune(misfortune, world.week, person.injury, world.settings);
             person.health = clamp(person.health - world.settings.casualtyHealthCost, 0, 100);
             person.career.longestInjuryWeeks = Math.max(
               person.career.longestInjuryWeeks,
@@ -3029,7 +3035,31 @@ export const useGameStore = create<GameStore>()(
               // to swap a six-week injury for a two-week one.
               const existing = person.injury;
               const next = injuryFrom(casualty, world.week);
-              person.injury = existing && existing.weeksRemaining > next.weeksRemaining ? existing : next;
+              if (existing) {
+                // It stacks. Going out on something and getting hurt again is
+                // how a serious injury becomes a career-threatening one — and
+                // taking the worse of the two would let a bad knee be
+                // laundered by a light knock.
+                const before = existing.severity;
+                const worse = aggravate(existing.grade, next.grade, world.settings);
+                person.injury = {
+                  ...existing,
+                  grade: worse,
+                  severity: severityOf(worse, world.settings),
+                  weeksRemaining: weeksFromGrade(worse, world.settings),
+                  totalWeeks: Math.max(existing.totalWeeks, weeksFromGrade(worse, world.settings)),
+                };
+                world.weeklyNews.push(
+                  wire(
+                    'misfortune',
+                    aggravationLine(person.name, before, person.injury.severity),
+                    world.week + 1,
+                    'normal',
+                  ),
+                );
+              } else {
+                person.injury = next;
+              }
               // Into the permanent record as well as the current status.
               //
               // This is the path virtually every in-ring injury takes, and it
@@ -5070,14 +5100,6 @@ export const useGameStore = create<GameStore>()(
           }),
         );
 
-        // Injuries count down whether or not you booked around them.
-        for (const id of world.promotion.rosterIds) {
-          const member = world.wrestlers[id];
-          if (!member?.injury) continue;
-          member.injury.weeksRemaining -= 1;
-          if (member.injury.weeksRemaining <= 0) member.injury = null;
-        }
-
         // Deals run down whether or not anybody was booked.
         const expired = expireContracts(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
         if (world.signingBanWeeks > 0) world.signingBanWeeks -= 1;
@@ -5127,6 +5149,7 @@ export const useGameStore = create<GameStore>()(
               unlucky.career.longestInjuryWeeks = Math.max(unlucky.career.longestInjuryWeeks, weeks);
               unlucky.injury = {
                 severity: 'minor',
+                grade: 15,
                 description: 'Hurt getting to the building',
                 sufferedWeek: world.week,
                 totalWeeks: weeks,
@@ -5905,6 +5928,44 @@ export const useGameStore = create<GameStore>()(
           ),
           ...world.rivalShows.flatMap((show) => show.matches.flatMap((m) => m.participantIds)),
         ]);
+
+        // Injuries mend — or do not — depending on what the week was spent
+        // doing. This used to be a flat countdown, which meant a torn knee
+        // healed at exactly the same rate whether the man sat at home or
+        // worked three matches on it. The grade is what moves now, and the
+        // weeks left are re-derived from it, so somebody looking after
+        // themselves comes back sooner than anybody said.
+        for (const id of world.promotion.rosterIds) {
+          const member = world.wrestlers[id];
+          if (!member?.injury) continue;
+          const doing = workedThisWeek.has(member.id)
+            ? ('wrestled' as const)
+            : assignmentOf(member, world.settings);
+          const before = member.injury.severity;
+          member.injury.grade = clamp(
+            member.injury.grade + healPerWeek(doing, world.settings),
+            0,
+            100,
+          );
+          member.injury.severity = severityOf(member.injury.grade, world.settings);
+          member.injury.weeksRemaining = weeksFromGrade(member.injury.grade, world.settings);
+
+          // §0: a body that got worse this week owes the paper a sentence.
+          // Going out on it and quietly deteriorating is exactly the kind of
+          // off-screen change the write-up is supposed to make impossible.
+          if (doing === 'wrestled' && member.injury.severity !== before) {
+            world.weeklyNews.push(
+              wire('misfortune', aggravationLine(member.name, before, member.injury.severity), world.week, 'normal'),
+            );
+          }
+
+          // Fit enough to be booked again. Not fully mended — they can still
+          // be carrying something, and it still makes them easier to hurt.
+          if (fitToWork(member.injury.grade, world.settings)) {
+            member.injury = null;
+            member.clearedToWorkHurt = false;
+          }
+        }
 
         // And an act wears out. Everybody in the business ages their gimmick,
         // not just the player's roster, so a rival's ace goes stale on the

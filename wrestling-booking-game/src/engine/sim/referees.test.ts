@@ -380,6 +380,7 @@ describe('who counts this match', () => {
     for (const r of referees) r.promotionId = 'me';
     find(referees, 'ref-hollis').injury = {
       severity: 'moderate',
+      grade: 35,
       description: 'Knee',
       sufferedWeek: 1,
       totalWeeks: 6,
@@ -428,6 +429,7 @@ describe('sharing out the card', () => {
     const hurt = find(pool(), 'ref-hollis');
     hurt.injury = {
       severity: 'severe',
+      grade: 60,
       description: 'Ankle',
       sufferedWeek: 1,
       totalWeeks: 8,

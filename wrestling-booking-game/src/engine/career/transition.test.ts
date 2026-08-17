@@ -75,6 +75,7 @@ describe('the year they owe the job', () => {
     const hurt = person({
       injury: {
         severity: 'severe',
+        grade: 60,
         description: 'Knee ligament',
         sufferedWeek: 1,
         totalWeeks: 14,

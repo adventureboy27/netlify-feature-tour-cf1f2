@@ -27,33 +27,55 @@ Two rules that have earned themselves:
 
 ## Injuries — measured 2026-08-17
 
-| | Before | After | Target |
+Two passes. The first cut the rate; the second replaced severity-as-a-label
+with severity-as-a-number.
+
+| | Original | After rate work | After the grade model |
 |---|---|---|---|
-| On the shelf at any moment | 21.0% | **12.5%** | 10-12% |
-| Injuries per match | 9.3% | 6.1% | — |
-| Median length | 6w | 6w | — |
-| 8 weeks or longer | 40.8% | ~30% | — |
-| Career-threatening | 1.0% | 1-2% | rare, never zero |
-| Worst single injury | 66w | 30-80w | rare |
-| Matches with a blown spot | 4.4% | 4.1% | — |
+| On the shelf at any moment | 21.0% | 12.5% | **9.0%** |
+| Injuries per match | 9.3% | 6.1% | 5.4% |
+| Minor / moderate / severe / career | — | — | 32 / 40 / 27 / 0.9% |
+| Worst single injury | 66w | 30-80w | 62w |
+| Matches with a blown spot | 4.4% | 4.1% | 4.7% |
 
-**What was wrong.** `injuryMultiplier` scaled an injury's *length* as hard as
-it scaled its *odds*, and every source of it compounds — stipulation, pace, bad
-blood, nobody at ringside, a blown spot, a body that breaks easily. A hardcore
-match with a botch and a fragile wrestler came to roughly 10x, turning a
-six-week injury into a sixty-week one. Length now scales sub-linearly
-(`casualtyLengthExponent`), and the odds are left alone, because the odds are
-the honest place for danger to show up.
+The shelf figure counts people who cannot be booked. It fell in the second pass
+partly because injuries got shorter and partly because somebody is fit to work
+again at `gradeFitToWork` rather than at full recovery — they come back
+carrying it, and carrying it still makes them easier to hurt.
 
-**Career-enders are their own roll** (`casualtyCatastrophicChance`), not the far
-end of the multiplier. Capping the compounding removed them entirely, which was
-not the point — a career-ender should be a rare awful thing that can happen in
-any match, not something a booker manufactures by stacking a dangerous card.
+**Pass one: compounding.** `injuryMultiplier` scaled an injury's *length* as
+hard as its *odds*, and every source of it compounds — stipulation, pace, bad
+blood, nobody at ringside, a blown spot, a fragile body. A hardcore match with
+a botch and a Made Of Glass wrestler is about 10x, turning a six-week injury
+into a sixty-week one. Length now scales sub-linearly
+(`casualtyLengthExponent`) and the odds are untouched, because the odds are the
+honest place for danger to show up. Career-enders became their own roll
+(`casualtyCatastrophicChance`) rather than the far end of a multiplier —
+capping the compounding had removed them entirely.
 
-**Known, not yet addressed:** the 8-weeks-plus share sits around 30% and barely
-moves whatever the multipliers do, because it is set by the `weeks` centres in
-the injury cause table (`src/data/casualties.ts`) rather than by any tunable.
-Changing it means editing the causes, one at a time.
+**Pass two: `Injury.grade`.** Severity used to be a label inferred from a week
+count, so nothing could ask how hurt somebody was *now*. Grade is 0-100 and is
+the thing that moves: it heals down by what the week was spent doing, a fresh
+injury stacks onto it rather than replacing it, and weeks-remaining is an
+estimate re-derived from it every week.
+
+Three numbers in that model are pinned rather than picked, and each was picked
+first and wrong:
+
+- **Band edges derive from the week thresholds.** Round numbers moved "severe"
+  from ten weeks to fifteen — a balance change dressed as a refactor.
+- **`gradeHealResting` is `100 / gradeWeeksAtWorst`.** A week of rest has to be
+  a week of recovery or the estimate lies about itself. Set by hand at 6 it was
+  nearly double, and the shelf figure read 1.2%.
+- **The tick belongs outside the per-wrestler loop.** Nested inside it, every
+  injury healed or worsened once per person in the world — about 300 times a
+  week. Symptoms were a 1.2% shelf and every surviving injury reading
+  career-threatening.
+
+**Known, not addressed:** the 8-weeks-plus share sits near 38% and barely moves
+whatever the multipliers do, because it is set by the `weeks` centres in the
+injury cause table (`src/data/casualties.ts`) rather than by any tunable.
+Changing it means editing causes one at a time.
 
 ## Morale — measured 2026-08-17
 

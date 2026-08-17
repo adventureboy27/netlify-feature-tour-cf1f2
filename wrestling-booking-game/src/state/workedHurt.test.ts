@@ -36,12 +36,14 @@ function settings(over: Partial<WorldSettings> = {}): WorldSettings {
 }
 
 function hurt(week: number, severity: Injury['severity']): Injury {
+  const grade = { minor: 15, moderate: 35, severe: 60, careerThreatening: 85 }[severity];
   return {
     description: 'a bad neck',
     weeksRemaining: 8,
     totalWeeks: 8,
     sufferedWeek: week,
     severity,
+    grade,
   } as Injury;
 }
 

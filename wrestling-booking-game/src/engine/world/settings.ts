@@ -1598,6 +1598,33 @@ export function defaultWorldSettings(): WorldSettings {
     // that a long career will meet one.
     casualtyCatastrophicChance: 0.025,
     casualtyCatastrophicMultiplier: 4,
+    // Severity as a number. 30 weeks out is the top of the scale, so grade is
+    // just "weeks, as a percentage of thirty".
+    //
+    // The band edges are derived from the week thresholds below rather than
+    // picked, so the labels keep meaning exactly what they meant when severity
+    // was inferred from a week count — moderate at 5 weeks, severe at 10,
+    // career-threatening at 26. Choosing round numbers instead quietly moved
+    // "severe" from ten weeks to fifteen, which is a balance change nobody
+    // asked for dressed up as a refactor.
+    gradeModerate: 17, // 5 / 30
+    gradeSevere: 33, // 10 / 30
+    gradeCareerThreatening: 87, // 26 / 30
+    gradeFitToWork: 12,
+    gradeWeeksAtWorst: 30,
+    // Pinned to the scale rather than picked: grade 100 is 30 weeks, so a week
+    // of proper rest is 100/30 of a grade. Any faster and the weeks-remaining
+    // estimate is lying about itself.
+    gradeHealResting: 3.3,
+    gradeHealTrainingShare: 0.45,
+    gradeHealLightDutyShare: 0.7,
+    // Deliberately small. Going out hurt should be tempting, and the thing
+    // that punishes it is the risk below, not this drift.
+    gradeWorsenPerMatch: 2.5,
+    // A knock is a small risk; a serious injury worked on is a reckless one.
+    gradeRiskCurve: 1.6,
+    gradeRiskAtWorst: 3.5,
+    gradeAggravationShare: 0.7,
     casualtyHealthCost: 30,
     injuryModerateWeeks: 5,
     injurySevereWeeks: 10,

@@ -10,6 +10,7 @@ const settings = defaultWorldSettings();
 
 const hurt = (weeks = 6): Injury => ({
   severity: 'moderate',
+  grade: 35,
   description: 'Torn shoulder',
   sufferedWeek: 1,
   totalWeeks: weeks,
@@ -127,7 +128,7 @@ describe('a setback adds to what was already wrong', () => {
       weeks: 4,
       attacked: false,
     };
-    const worse = injuryFromMisfortune(setback, 10, existing);
+    const worse = injuryFromMisfortune(setback, 10, existing, settings);
     expect(worse.weeksRemaining).toBe(10);
     // It is still the same injury, dated from when it first happened.
     expect(worse.sufferedWeek).toBe(existing.sufferedWeek);
@@ -145,7 +146,7 @@ describe('a setback adds to what was already wrong', () => {
       weeks: 12,
       attacked: false,
     };
-    const injury = injuryFromMisfortune(accident, 10, null);
+    const injury = injuryFromMisfortune(accident, 10, null, settings);
     expect(injury.weeksRemaining).toBe(12);
     expect(injury.sufferedWeek).toBe(10);
     expect(injury.severity).toBe('severe');

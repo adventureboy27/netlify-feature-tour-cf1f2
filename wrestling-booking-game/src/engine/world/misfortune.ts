@@ -22,6 +22,7 @@ import type { Rng } from '../rng';
 import { chance, pick, randInt } from '../rng';
 import { MISFORTUNES, type MisfortuneDefinition, type MisfortuneKind } from '../../data/misfortunes';
 import type { Id, Injury, Wrestler, WorldSettings } from '../types';
+import { aggravate, gradeFromLength, severityOf } from '../sim/casualties';
 
 export interface Misfortune {
   wrestlerId: Id;
@@ -85,13 +86,23 @@ export function rollMisfortune(rng: Rng, wrestler: Wrestler, settings: WorldSett
 }
 
 /** The injury an out-of-the-ring misfortune leaves behind. */
-export function injuryFromMisfortune(misfortune: Misfortune, week: number, existing: Injury | null): Injury {
+export function injuryFromMisfortune(
+  misfortune: Misfortune,
+  week: number,
+  existing: Injury | null,
+  settings: WorldSettings,
+): Injury {
   const weeks = misfortune.weeks ?? 1;
   // An aggravation adds to what was already wrong rather than replacing it —
   // that is what makes it a setback rather than a fresh start.
   const total = existing ? existing.weeksRemaining + weeks : weeks;
+  // Grade is the thing that moves now, and the same stacking rule applies to
+  // it: a car crash on top of a bad knee is worse than either alone.
+  const fresh = gradeFromLength(weeks, settings);
+  const grade = existing ? aggravate(existing.grade, fresh, settings) : fresh;
   return {
-    severity: total >= 16 ? 'careerThreatening' : total >= 8 ? 'severe' : total >= 4 ? 'moderate' : 'minor',
+    severity: severityOf(grade, settings),
+    grade,
     description: misfortune.label === 'Setback' ? `${existing?.description ?? 'The injury'}, worse` : misfortune.text,
     sufferedWeek: existing?.sufferedWeek ?? week,
     totalWeeks: total,

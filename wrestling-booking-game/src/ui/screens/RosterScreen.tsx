@@ -22,6 +22,7 @@ import { leaveStatusLine, shunLine, shunned } from '../../engine/career/onOurWat
 import { circleOf, circleSummary } from '../../engine/career/circle';
 import { traitsOf } from '../../engine/career/personality';
 import { likeabilityLabel, ringcraftLabel } from '../../engine/sim/ringcraft';
+import { injuryWord } from '../../engine/sim/casualties';
 import { assignmentById, assignmentOf } from '../../engine/career/assignment';
 import {
   homeCompany,
@@ -356,10 +357,14 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   </div>
                 )}
 
-                {/* injury */}
+                {/* injury — how bad it is, then how long that means. The
+                    weeks are an estimate re-derived from the state of it every
+                    week rather than a countdown, so somebody looking after
+                    themselves comes back sooner than this said they would. */}
                 {w.injury && (
                   <div className="mt-0.5 text-[10px] font-medium text-rose-400">
-                    ✚ Out {w.injury.weeksRemaining} {w.injury.weeksRemaining === 1 ? 'week' : 'weeks'} · {w.injury.severity}
+                    ✚ {injuryWord(w.injury.grade, world.settings)} · out about {w.injury.weeksRemaining}{' '}
+                    {w.injury.weeksRemaining === 1 ? 'week' : 'weeks'}
                   </div>
                 )}
 

@@ -120,7 +120,7 @@ describe('who cannot be moved', () => {
   });
 
   it('refuses the injured, the retired, the dead and the unsigned', () => {
-    expect(canBeTraded(person({ injury: { severity: 'severe', description: 'Knee', sufferedWeek: 1, totalWeeks: 10, weeksRemaining: 8, permanentStatLoss: {}, earlyReturnWeeksUsed: 0 } })).ok).toBe(false);
+    expect(canBeTraded(person({ injury: { severity: 'severe', grade: 60, description: 'Knee', sufferedWeek: 1, totalWeeks: 10, weeksRemaining: 8, permanentStatLoss: {}, earlyReturnWeeksUsed: 0 } })).ok).toBe(false);
     expect(canBeTraded(person({ careerStatus: 'retired' })).ok).toBe(false);
     expect(canBeTraded(person({ contract: null })).ok).toBe(false);
   });

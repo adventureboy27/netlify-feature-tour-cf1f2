@@ -156,6 +156,7 @@ describe('working hurt', () => {
   };
   const injury = {
     severity: 'moderate' as const,
+    grade: 35,
     description: 'Torn shoulder',
     sufferedWeek: 1,
     totalWeeks: 6,
@@ -174,7 +175,13 @@ describe('working hurt', () => {
 
   it('is a real multiplier for the champion the booker cleared', () => {
     const risk = workingHurtRisk(someone({ injury, clearedToWorkHurt: true }), settings);
-    expect(risk).toBe(settings.workingHurtInjuryMultiplier);
-    expect(risk).toBeGreaterThan(1.5);
+    // Scaled by how hurt they are rather than flat, which is the whole point:
+    // a knock and a torn knee used to carry identical risk.
+    expect(risk).toBeGreaterThan(1);
+    const worse = workingHurtRisk(
+      someone({ injury: { ...injury, grade: 85 }, clearedToWorkHurt: true }),
+      settings,
+    );
+    expect(worse).toBeGreaterThan(risk);
   });
 });

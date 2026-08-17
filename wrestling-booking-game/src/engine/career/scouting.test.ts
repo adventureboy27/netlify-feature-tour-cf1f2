@@ -34,6 +34,7 @@ describe('can he work tonight', () => {
     const hurt = someone({
       injury: {
         severity: 'moderate',
+        grade: 35,
         description: 'Torn shoulder',
         sufferedWeek: 3,
         totalWeeks: 6,

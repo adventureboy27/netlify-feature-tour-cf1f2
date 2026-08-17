@@ -122,6 +122,7 @@ describe('a split belt when somebody leaves the business', () => {
     useGameStore.setState((s) => {
       s.world!.wrestlers[championId]!.injury = {
         severity: 'moderate',
+        grade: 35,
         description: 'Blown knee',
         sufferedWeek: 1,
         totalWeeks: 8,

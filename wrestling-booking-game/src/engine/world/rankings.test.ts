@@ -60,6 +60,7 @@ describe('contenders', () => {
     const roster = people(4);
     roster[0]!.injury = {
       severity: 'moderate',
+      grade: 35,
       description: 'Ribs',
       sufferedWeek: 1,
       totalWeeks: 8,
