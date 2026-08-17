@@ -4,8 +4,8 @@ import {
   createRivalry,
   findRivalry,
   activeRivalriesFor,
-  rivalryRatingBonus,
   shootInjuryMultiplier,
+  shootRatingBonus,
   shootMoraleCostPerWeek,
   heatFromMatch,
   applyHeatChange,
@@ -13,12 +13,27 @@ import {
   leanIntoShoot,
   heatLabel,
   shootLabel,
-  unlocksGrudgeStipulations,
 } from './rivalry';
+import { stipulationById, stipulationRequirementsMet } from '../../data/stipulations';
 import { defaultWorldSettings } from '../world/settings';
 import type { Rivalry } from '../types';
 
 const settings = defaultWorldSettings();
+
+/**
+ * The live grudge gate: a Flaming Tables match is the hardest thing on the
+ * list to earn, and it is earned by crowd heat on the feud.
+ */
+function grudgeStipulationIsLegal(rivalryHeat: number): boolean {
+  return stipulationRequirementsMet(stipulationById('flamingTables')!, {
+    participants: [
+      { popularity: 60, toughness: 60, charisma: 60, appearance: { mask: 1 } },
+      { popularity: 60, toughness: 60, charisma: 60, appearance: { mask: 1 } },
+    ] as never,
+    rivalryHeat,
+    matchTimeLimitMinutes: 20,
+  });
+}
 
 const worked = (over: Partial<Rivalry> = {}): Rivalry => ({
   ...createRivalry('r1', ['a', 'b'], 'worked', 1, 40),
@@ -59,7 +74,7 @@ describe('heatMultiplier — heat is earned by reception, not by booking', () =>
       rivalry = applyHeatChange(rivalry, change, week);
     }
     expect(rivalry.heat).toBe(0);
-    expect(unlocksGrudgeStipulations(rivalry, settings)).toBe(false);
+    expect(grudgeStipulationIsLegal(rivalry.heat)).toBe(false);
   });
 
   it('lets two over talents build a real feud over a couple of months', () => {
@@ -73,8 +88,10 @@ describe('heatMultiplier — heat is earned by reception, not by booking', () =>
       });
       rivalry = applyHeatChange(rivalry, change, week);
     }
-    expect(rivalry.heat).toBeGreaterThanOrEqual(settings.rivalryGrudgeThreshold);
-    expect(unlocksGrudgeStipulations(rivalry, settings)).toBe(true);
+    // Asserted against the gate the game actually uses — `heatRequirement` on
+    // the stipulation itself, checked by `stipulationRequirementsMet`. There
+    // used to be a second, global threshold in rivalry.ts that nothing read.
+    expect(grudgeStipulationIsLegal(rivalry.heat)).toBe(true);
   });
 });
 
@@ -96,7 +113,9 @@ describe('worked vs shoot', () => {
     const clean = worked({ heat: sameCrowdHeat, shootHeat: 0 });
     const nasty = worked({ heat: sameCrowdHeat, shootHeat: 80 });
 
-    expect(rivalryRatingBonus(nasty, settings)).toBeGreaterThan(rivalryRatingBonus(clean, settings));
+    // The crowd-heat half is identical, so the whole difference is the bad
+    // blood — which is exactly the trap the system is built around.
+    expect(shootRatingBonus(nasty, settings)).toBeGreaterThan(shootRatingBonus(clean, settings));
     expect(shootInjuryMultiplier(nasty, settings)).toBeGreaterThan(shootInjuryMultiplier(clean, settings));
     expect(shootMoraleCostPerWeek(nasty, settings)).toBeGreaterThan(shootMoraleCostPerWeek(clean, settings));
   });
@@ -109,8 +128,9 @@ describe('worked vs shoot', () => {
 
   it('pays nothing for a rivalry that has been resolved', () => {
     const done = worked({ heat: 90, resolvedWeek: 12 });
-    expect(rivalryRatingBonus(done, settings)).toBe(0);
-    expect(unlocksGrudgeStipulations(done, settings)).toBe(false);
+    expect(shootRatingBonus(done, settings)).toBe(0);
+    expect(shootInjuryMultiplier(done, settings)).toBe(1);
+    expect(shootMoraleCostPerWeek(done, settings)).toBe(0);
   });
 });
 

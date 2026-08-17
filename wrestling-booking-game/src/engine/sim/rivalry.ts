@@ -85,26 +85,19 @@ export function activeRivalriesFor(rivalries: readonly Rivalry[], wrestlerIds: r
 // ---------------------------------------------------------------- rating
 
 /**
- * What a rivalry is worth to a match, in rating points.
+ * What a rivalry is worth to a match.
  *
- * Crowd heat is the bulk of it. Shoot heat adds on top at a steeper rate per
- * point — this is the trap. The best match on your card is two people who
- * want to hurt each other, and the game will happily let you keep booking it.
+ * Crowd heat is the bulk of it and `matchRating` already folds that in from
+ * the raw `rivalryHeat` it is handed. Shoot heat adds on top at a steeper
+ * rate per point, separately — this is the trap. The best match on your card
+ * is two people who want to hurt each other, and the game will happily let
+ * you keep booking it.
+ *
+ * There used to be a `rivalryRatingBonus` here that added the two halves for
+ * a preview panel that was never built. Removed rather than left: a second
+ * way to compute a number the sim already computes is a place for the two to
+ * drift apart.
  */
-export function rivalryRatingBonus(rivalry: Rivalry | undefined, settings: WorldSettings): number {
-  return crowdHeatRatingBonus(rivalry, settings) + shootRatingBonus(rivalry, settings);
-}
-
-/**
- * The crowd-heat half. matchRating already folds this into its chemistry
- * term from `rivalryHeat`, so callers wiring the sim pass the raw heat there
- * and only pass shootRatingBonus() separately — this exists for previews and
- * for reasoning about a rivalry's total worth in one place.
- */
-function crowdHeatRatingBonus(rivalry: Rivalry | undefined, settings: WorldSettings): number {
-  if (!rivalry || rivalry.resolvedWeek !== null) return 0;
-  return (rivalry.heat / 100) * settings.rivalryHeatRatingBonus;
-}
 
 /** The bad-blood half — rating that exists only because the fight is real. */
 export function shootRatingBonus(rivalry: Rivalry | undefined, settings: WorldSettings): number {
@@ -257,8 +250,9 @@ export function shootLabel(shootHeat: number): ShootLabel {
   return 'Somebody is getting hurt';
 }
 
-/** §12.5: heat at or above the threshold unlocks the grudge stipulations. */
-export function unlocksGrudgeStipulations(rivalry: Rivalry | undefined, settings: WorldSettings): boolean {
-  if (!rivalry || rivalry.resolvedWeek !== null) return false;
-  return rivalry.heat >= settings.rivalryGrudgeThreshold;
-}
+// §12.5's grudge-stipulation gate used to live here as one global threshold.
+// It is enforced per stipulation instead — `heatRequirement` in
+// data/stipulations.ts, checked by `stipulationRequirementsMet`, which is
+// live and finer-grained. Two gates on the same rule, one of them dead, is
+// how a Loser Leaves Town match ends up legal in one code path and not the
+// other.

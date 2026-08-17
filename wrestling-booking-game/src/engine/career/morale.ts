@@ -78,6 +78,12 @@ export interface MoraleContext {
   /** How many belts they are currently holding. */
   beltsHeld: number;
   /**
+   * A live feud with real animosity behind it, and what it is costing him a
+   * week. Null for a purely worked programme, however hot the crowd is —
+   * pretending to hate somebody is the job and costs nothing.
+   */
+  carryingSomethingReal: { withName: string; weeklyCost: number } | null;
+  /**
    * The mood of everybody they were actually in the ring with, 0-100.
    *
    * A locker room is not N independent counters. Twenty minutes with somebody
@@ -135,6 +141,8 @@ export function moraleContext(
     beltsHeldBy: (id: Id) => number;
     /** Current mood of anybody they might have been in there with. */
     moraleOf: (id: Id) => number;
+    /** Live bad blood this person is carrying, if any. See sim/rivalry.ts. */
+    shootBurden: (id: Id) => { withName: string; weeklyCost: number } | null;
     weeksIdle: number;
     companyRating: number;
     /** Everybody who was part of something the crowd had asked for. */
@@ -180,6 +188,7 @@ export function moraleContext(
     beatenByPopularity,
     weeksIdle: segment ? 0 : world.weeksIdle,
     beltsHeld: world.beltsHeldBy(wrestler.id),
+    carryingSomethingReal: world.shootBurden(wrestler.id),
     moodOfTheOthers: others
       .filter((p) => p.role === 'competitor')
       .map((p) => world.moraleOf(p.wrestlerId)),
@@ -384,6 +393,24 @@ export function weeklyMorale(
         -resented,
       );
     }
+  }
+
+  // What carrying a real fight costs the man carrying it.
+  //
+  // The whole shoot system is built as a trap: bad blood is the best rating
+  // bonus in the game and it makes the matches more dangerous. The third leg
+  // — it grinds both of them down every week it stays live — was written,
+  // tested and never called, so a booker could keep two men who genuinely
+  // hate each other on top indefinitely and pay nothing for it backstage.
+  //
+  // Here rather than in its own pass, so the roster card explains it. Applied
+  // outside, the two men simply got quieter every week and the card said
+  // "This is a good company to be at" over the top of it.
+  if (ctx.carryingSomethingReal) {
+    add(
+      `Carrying something real with ${ctx.carryingSomethingReal.withName}. It is not doing him any good.`,
+      -ctx.carryingSomethingReal.weeklyCost,
+    );
   }
 
   // The man they blame is still on the books.

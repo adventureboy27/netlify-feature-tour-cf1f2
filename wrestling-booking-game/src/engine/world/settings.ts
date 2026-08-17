@@ -160,7 +160,6 @@ export function defaultWorldSettings(): WorldSettings {
     rivalryHeatDecayPerWeek: 3,
     rivalryHeatFromMatch: 6,
     rivalryHeatFromNonDecisiveFinish: 12,
-    rivalryGrudgeThreshold: 70,
     rivalryBlowoffPopularityFactor: 0.12,
     rivalryHeatRatingBonus: 12,
     shootHeatDecayPerWeek: 0.5,
@@ -168,6 +167,9 @@ export function defaultWorldSettings(): WorldSettings {
     shootHeatInjuryMultAtMax: 1.6,
     shootHeatMoralePerWeekAtMax: 4,
     shootLeanInConversion: 0.35,
+    // Below this the animosity is not worth putting a camera on — two people
+    // being a bit frosty is not an angle.
+    shootHeatWorthRunning: 25,
 
     // Tournaments
     tournamentNightFatiguePerMatch: 0.09,

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   ageGimmick,
+  freshnessLabel,
+  goneStaleLine,
   isStale,
   overexposurePenalty,
   pairingsIn,
@@ -211,5 +213,37 @@ describe('an act wearing out', () => {
     expect(staleGimmickPenalty([someone({ gimmickFreshness: 0 })], settings)).toBeLessThanOrEqual(
       settings.staleGimmickPenaltyMax,
     );
+  });
+});
+
+describe('telling the player an act has worn out', () => {
+  const fresh = (gimmickFreshness: number) => ({ gimmickFreshness, name: 'Duke Rawlins' } as Wrestler);
+
+  it('reads as words rather than a number, all the way down', () => {
+    // §0: stats are bars and words. The whole point of this ladder is that
+    // the penalty was live and the diagnosis was invisible.
+    expect(freshnessLabel(fresh(100), settings)).toBe('Fresh');
+    expect(freshnessLabel(fresh(settings.staleGimmickThreshold), settings)).toBe('Settled in');
+    expect(freshnessLabel(fresh(settings.staleGimmickThreshold - 1), settings)).toBe('Wearing thin');
+    expect(freshnessLabel(fresh(0), settings)).toBe('Nobody is buying it');
+  });
+
+  it('turns worn the same week the penalty starts biting', () => {
+    // The label and the penalty must not disagree — a card that says "Settled
+    // in" while the rating is being docked is worse than saying nothing.
+    const justUnder = fresh(settings.staleGimmickThreshold - 0.1);
+    expect(isStale(justUnder, settings)).toBe(true);
+    expect(staleGimmickPenalty([justUnder], settings)).toBeGreaterThan(0);
+    expect(freshnessLabel(justUnder, settings)).not.toBe('Settled in');
+
+    const justOver = fresh(settings.staleGimmickThreshold);
+    expect(isStale(justOver, settings)).toBe(false);
+    expect(staleGimmickPenalty([justOver], settings)).toBe(0);
+  });
+
+  it('says what it costs and what to do about it', () => {
+    const said = goneStaleLine('Duke Rawlins');
+    expect(said).toContain('Duke Rawlins');
+    expect(said).toContain('every match');
   });
 });

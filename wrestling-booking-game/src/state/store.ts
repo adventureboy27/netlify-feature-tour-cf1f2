@@ -45,6 +45,8 @@ import {
   createRivalry,
   applyHeatChange,
   decayRivalry,
+  leanIntoShoot as leanIntoShootRivalry,
+  shootMoraleCostPerWeek,
   heatMultiplier,
 } from '../engine/sim/rivalry';
 import { computeTvRatings, buildRatingsChart } from '../engine/world/tvRatings';
@@ -112,6 +114,8 @@ import {
 } from '../engine/world/misfortune';
 import {
   ageGimmick,
+  goneStaleLine,
+  isStale,
   memoryFromRoster,
   overexposurePenalty,
   recallBookings,
@@ -722,6 +726,12 @@ export interface GameStore {
    * thing that starts the feud.
    */
   startStoryline: (participantIds: Id[], name?: string) => { ok: boolean; reason: string | null };
+  /**
+   * Point the camera at a fight that is already real. See sim/rivalry.ts —
+   * it converts backstage animosity into crowd heat and inflames what is
+   * left, which is the only way a shoot ever draws money.
+   */
+  leanIntoShoot: (rivalryId: Id) => { ok: boolean; reason: string | null };
   renameStoryline: (storylineId: Id, name: string) => void;
   /** Walk away from an arc. It counts as fizzled, because it is. */
   abandonStoryline: (storylineId: Id) => void;
@@ -5141,6 +5151,25 @@ export const useGameStore = create<GameStore>()(
               // on the third, and the order of `rosterIds` would silently
               // decide who cheered whom up.
               moraleOf: (who) => moodBefore.get(who) ?? world.wrestlers[who]?.morale ?? 0,
+              // Live bad blood, and only inside this locker room — what two
+              // men at a rival promotion are doing to each other is not this
+              // office's problem.
+              shootBurden: (who) => {
+                const feud = world.rivalries.find(
+                  (r) =>
+                    r.resolvedWeek === null &&
+                    r.shootHeat > 0 &&
+                    r.participantIds.includes(who) &&
+                    r.participantIds.every((id) => world.promotion.rosterIds.includes(id)),
+                );
+                if (!feud) return null;
+                const weeklyCost = shootMoraleCostPerWeek(feud, world.settings);
+                if (weeklyCost <= 0) return null;
+                const withName = feud.participantIds
+                  .map((id) => (id === who ? null : world.wrestlers[id]?.name))
+                  .find(Boolean);
+                return withName ? { withName, weeklyCost } : null;
+              },
               weeksIdle: world.week - (lastSeenWeek.get(id) ?? 0),
               companyRating: world.promotion.rating,
               deliveredTo: rewarded,
@@ -5468,7 +5497,15 @@ export const useGameStore = create<GameStore>()(
         // people who were on this week lose more than the people who were not.
         for (const person of Object.values(world.wrestlers)) {
           if (person.deceased || person.careerStatus === 'retired') continue;
+          // Said once, the week it tips over. `isStale` had no caller at all,
+          // so an act could wear out over a year, drag every match the man
+          // was in through `staleGimmickPenalty`, and never appear anywhere
+          // the player looks — the penalty was live and the diagnosis was not.
+          const wasFresh = !isStale(person, world.settings);
           ageGimmick(person, workedThisWeek.has(person.id), world.settings);
+          if (wasFresh && isStale(person, world.settings) && world.promotion.rosterIds.includes(person.id)) {
+            world.weeklyNews.push(wire('misfortune', goneStaleLine(person.name), world.week, 'normal'));
+          }
         }
         // ---- who left the business this week -----------------------------
         // These used to be rolled once a year, which produced fifty-one quiet
@@ -7745,6 +7782,56 @@ export const useGameStore = create<GameStore>()(
         }
         world.secretSignings = world.secretSignings.filter((s2) => s2.wrestlerId !== wrestlerId);
       });
+    },
+
+    leanIntoShoot: (rivalryId) => {
+      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No world.' };
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        const index = world.rivalries.findIndex((r) => r.id === rivalryId);
+        const rivalry = world.rivalries[index];
+        if (!rivalry || rivalry.resolvedWeek !== null) {
+          outcome = { ok: false, reason: 'That feud is over.' };
+          return;
+        }
+        if (rivalry.shootHeat <= 0) {
+          outcome = { ok: false, reason: 'There is nothing real there to point a camera at.' };
+          return;
+        }
+        // Both of them have to be yours. You cannot decide to run somebody
+        // else's locker-room problem on your television.
+        if (!rivalry.participantIds.every((id) => world.promotion.rosterIds.includes(id))) {
+          outcome = { ok: false, reason: 'They are not both yours.' };
+          return;
+        }
+
+        const before = rivalry.shootHeat;
+        world.rivalries[index] = leanIntoShootRivalry(rivalry, world.settings);
+        const names = rivalry.participantIds
+          .map((id) => world.wrestlers[id]?.name)
+          .filter(Boolean)
+          .join(' and ');
+
+        // §0: the booker did this on purpose, and the write-up says what it
+        // was — including that it did not calm anybody down.
+        world.weeklyNews.push(
+          wire(
+            'story',
+            `${world.promotion.name} are running the ${names} problem as an angle. The crowd is going to get the real thing, and neither man is any happier for it being on television.`,
+            world.week,
+            'lead',
+          ),
+        );
+        outcome = {
+          ok: true,
+          reason:
+            world.rivalries[index]!.shootHeat > before
+              ? 'The crowd is in. So is the problem.'
+              : null,
+        };
+      });
+      return outcome;
     },
 
     startStoryline: (participantIds, name) => {

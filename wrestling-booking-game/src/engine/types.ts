@@ -1638,7 +1638,6 @@ export interface WorldSettings {
   rivalryHeatFromMatch: number;
   rivalryHeatFromNonDecisiveFinish: number;
   /** Heat at or above this unlocks grudge stipulations. */
-  rivalryGrudgeThreshold: number;
   /** Blowoff winner gains heat * this in popularity. */
   rivalryBlowoffPopularityFactor: number;
   /** Rating points a maxed-out crowd-heat rivalry adds to a match. */
@@ -1653,6 +1652,8 @@ export interface WorldSettings {
   shootHeatMoralePerWeekAtMax: number;
   /** Fraction of shoot heat that converts to crowd heat when the booker leans in. */
   shootLeanInConversion: number;
+  /** Backstage heat below which there is nothing worth running as an angle. */
+  shootHeatWorthRunning: number;
 
   // Tournaments (§9)
   /** Kayfabe lost per match already worked on the same night, as a fraction. */

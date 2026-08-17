@@ -19,6 +19,7 @@ import { CAREER_STATUS_LABELS, CAREER_STATUS_BLURBS, yearsPro } from '../../engi
 import { egoLabel } from '../../engine/career/ego';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
 import { leaveStatusLine, shunLine, shunned } from '../../engine/career/onOurWatch';
+import { freshnessLabel, isStale } from '../../engine/sim/freshness';
 import { retirementPressure } from '../../engine/career/retirement';
 import { canFormTeam, teamOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
 import { ATTIRE_PALETTE } from '../paperdoll/palette';
@@ -311,6 +312,15 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                 {w.noticeGivenWeek != null && (
                   <div className="mt-0.5 text-[10px] font-semibold text-rose-300">
                     Not re-signing. Working out the deal and then gone.
+                  </div>
+                )}
+
+                {/* How worn the act is. The penalty for a stale gimmick has
+                    always been live in the rating; the diagnosis was not
+                    anywhere the player could see. Words, never the number. */}
+                {isStale(w, world.settings) && (
+                  <div className="mt-0.5 text-[10px] font-medium text-amber-400">
+                    {freshnessLabel(w, world.settings)} — the act is costing every match he is in.
                   </div>
                 )}
 

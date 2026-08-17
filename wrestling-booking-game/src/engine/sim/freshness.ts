@@ -188,3 +188,26 @@ export function ageGimmick(wrestler: Wrestler, worked: boolean, settings: WorldS
 export function isStale(wrestler: Wrestler, settings: WorldSettings): boolean {
   return wrestler.gimmickFreshness < settings.staleGimmickThreshold;
 }
+
+/**
+ * How worn the act is, in words.
+ *
+ * §0's rule about stats: bars and words, never numbers. This existed as a
+ * boolean nothing read, which meant a gimmick could decay for a year, drag
+ * every match the man was in, and never appear anywhere the player looks —
+ * the penalty was live and the diagnosis was not.
+ */
+export type FreshnessLabel = 'Fresh' | 'Settled in' | 'Wearing thin' | 'Nobody is buying it';
+
+export function freshnessLabel(wrestler: Wrestler, settings: WorldSettings): FreshnessLabel {
+  const stale = settings.staleGimmickThreshold;
+  if (wrestler.gimmickFreshness >= stale + (100 - stale) / 2) return 'Fresh';
+  if (wrestler.gimmickFreshness >= stale) return 'Settled in';
+  if (wrestler.gimmickFreshness >= stale / 2) return 'Wearing thin';
+  return 'Nobody is buying it';
+}
+
+/** The week it tips over, said once, rather than a status nobody looks at. */
+export function goneStaleLine(name: string): string {
+  return `${name}'s act has stopped working. The crowd has seen it, and it is costing every match he is in until somebody freshens it up or he gets a run off.`;
+}

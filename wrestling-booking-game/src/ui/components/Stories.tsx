@@ -22,6 +22,7 @@ import {
   type Storyline,
 } from '../../engine/world/storyline';
 import { Panel, SectionHead } from './chrome';
+import { HeatBadge } from './display';
 
 /** How the stage should read at a glance. Colour, never a number. */
 const STAGE_INK: Record<string, string> = {
@@ -127,6 +128,7 @@ function Arc({ story }: { story: Storyline }) {
 export function Stories() {
   const world = useGameStore((s) => s.world);
   const start = useGameStore((s) => s.startStoryline);
+  const leanIn = useGameStore((s) => s.leanIntoShoot);
   const [note, setNote] = useState<string | null>(null);
   if (!world) return null;
 
@@ -140,7 +142,16 @@ export function Stories() {
     .sort((a, b) => b.heat - a.heat)
     .slice(0, 3);
 
-  if (live.length === 0 && suggestions.length === 0) return null;
+  // Feuds that are not worked at all. The crowd cannot see this and the
+  // booker can — the decision is whether to put it on television, which
+  // makes the best match on the card out of the worst thing in the building.
+  const realOnes = world.rivalries
+    .filter((r) => r.resolvedWeek === null && r.shootHeat > world.settings.shootHeatWorthRunning)
+    .filter((r) => r.participantIds.every((id) => world.promotion.rosterIds.includes(id)))
+    .sort((a, b) => b.shootHeat - a.shootHeat)
+    .slice(0, 2);
+
+  if (live.length === 0 && suggestions.length === 0 && realOnes.length === 0) return null;
 
   return (
     <section className="mb-3">
@@ -154,6 +165,41 @@ export function Stories() {
         {live.map((story) => (
           <Arc key={story.id} story={story} />
         ))}
+
+        {realOnes.map((rivalry) => {
+          const names = rivalry.participantIds
+            .map((id) => world.wrestlers[id]?.name)
+            .filter(Boolean)
+            .join(' and ');
+          return (
+            <button
+              key={`shoot-${rivalry.id}`}
+              type="button"
+              data-testid={`lean-in-${rivalry.id}`}
+              onClick={() => {
+                const result = leanIn(rivalry.id);
+                setNote(
+                  result.ok
+                    ? `${names} is on television now, exactly as it is.`
+                    : result.reason,
+                );
+              }}
+              className="rounded-lg border border-dashed border-rose-900 p-2.5 text-left transition hover:border-rose-600"
+            >
+              <div className="text-sm font-semibold text-neutral-200">{names}</div>
+              <div className="mt-1">
+                <HeatBadge heat={rivalry.heat} shootHeat={rivalry.shootHeat} />
+              </div>
+              <p className="mt-1 text-[11px] leading-snug text-neutral-500">
+                This one is not worked. Put a camera on it and the crowd gets the real thing —
+                which draws, and which does not calm anybody down.
+              </p>
+              <span className="mt-1 inline-block text-[10px] font-semibold uppercase tracking-wide text-rose-400">
+                Run it as an angle
+              </span>
+            </button>
+          );
+        })}
 
         {suggestions.map((rivalry) => {
           const names = rivalry.participantIds
