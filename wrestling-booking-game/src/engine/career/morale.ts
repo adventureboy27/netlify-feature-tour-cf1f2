@@ -28,7 +28,7 @@
 
 import { clamp } from '../rng';
 import { nameBurden } from './lineage';
-import { loudestPerk, perkMorale, resentmentToward } from '../economy/perks';
+import { loudestPerk, moodInsulation, perkMorale, resentmentToward } from '../economy/perks';
 import { shunned } from './onOurWatch';
 import {
   leverWeight,
@@ -413,7 +413,12 @@ export function weeklyMorale(
         weight > 0
           ? ctx.moodOfTheOthers.reduce((sum, m) => sum + m.morale * m.spread, 0) / weight
           : 0;
-      const rubOff = ((theirs - wrestler.morale) / 100) * s.moraleContagionWeight;
+      // And a door that shuts keeps most of it out. Both directions: the
+      // person behind it catches less of the room, and — because their own
+      // `spread` is damped where it is read — the room catches less of them.
+      // See economy/perks.ts.
+      const door = 1 - (s.perksEnabled ? moodInsulation(wrestler) : 0);
+      const rubOff = ((theirs - wrestler.morale) / 100) * s.moraleContagionWeight * door;
       if (rubOff > 0) add('Spent the night with somebody who was enjoying it.', rubOff, 'theRoom');
       else if (rubOff < 0) add('Spent the night with somebody who wants out.', rubOff, 'theRoom');
     }

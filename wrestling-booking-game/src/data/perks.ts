@@ -83,6 +83,17 @@ export interface Perk {
   recovery: number;
   /** Popularity drift per week. */
   exposure: number;
+  /**
+   * How much this shuts somebody off from the room's mood, 0-1.
+   *
+   * Only the perks that physically separate somebody have it, and the private
+   * locker room is the whole point: a door that shuts is exactly how a booker
+   * quarantines a Poison, and it works in both directions — they catch less of
+   * everybody else's week and everybody else catches less of theirs. It is a
+   * real trade rather than a straight upgrade, because the same door is the
+   * loudest thing on this list and the room resents it accordingly.
+   */
+  moodInsulation: number;
 }
 
 export const PERKS: readonly Perk[] = [
@@ -103,6 +114,7 @@ export const PERKS: readonly Perk[] = [
     fatigueRelief: 2.2,
     recovery: 0.4,
     exposure: 0,
+    moodInsulation: 0,
   },
   {
     id: 'roadCrew',
@@ -119,6 +131,7 @@ export const PERKS: readonly Perk[] = [
     fatigueRelief: 1.2,
     recovery: 0.2,
     exposure: 0,
+    moodInsulation: 0,
   },
   {
     id: 'companyApartment',
@@ -136,6 +149,7 @@ export const PERKS: readonly Perk[] = [
     fatigueRelief: 0.4,
     recovery: 0.3,
     exposure: 0,
+    moodInsulation: 0,
   },
   {
     id: 'familyOnTheRoad',
@@ -152,6 +166,7 @@ export const PERKS: readonly Perk[] = [
     fatigueRelief: 0,
     recovery: 0.2,
     exposure: 0,
+    moodInsulation: 0,
   },
   {
     id: 'privateLockerRoom',
@@ -169,6 +184,9 @@ export const PERKS: readonly Perk[] = [
     fatigueRelief: 0.2,
     recovery: 0,
     exposure: 0,
+    // The reason to give one to somebody nobody can stand. Most of the room's
+    // mood stops at the door — theirs included, which is the whole trade.
+    moodInsulation: 0.7,
   },
   {
     id: 'personalTrainer',
@@ -185,6 +203,7 @@ export const PERKS: readonly Perk[] = [
     fatigueRelief: 0.6,
     recovery: 1.1,
     exposure: 0,
+    moodInsulation: 0,
   },
   {
     id: 'personalChef',
@@ -201,6 +220,7 @@ export const PERKS: readonly Perk[] = [
     fatigueRelief: 0.3,
     recovery: 0.7,
     exposure: 0,
+    moodInsulation: 0,
   },
   {
     id: 'documentaryCrew',
@@ -219,6 +239,7 @@ export const PERKS: readonly Perk[] = [
     fatigueRelief: -0.4,
     recovery: 0,
     exposure: 0.18,
+    moodInsulation: 0,
   },
 ];
 

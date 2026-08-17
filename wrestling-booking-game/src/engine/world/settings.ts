@@ -589,6 +589,31 @@ export function defaultWorldSettings(): WorldSettings {
     likedBelovedAt: 78,
     likedFineAt: 55,
     likedAwkwardAt: 32,
+    // The weeks nobody is booked for. Everything here is small on purpose: a
+    // week is a week, and the numbers are meant to add up over a season rather
+    // than be felt in a fortnight. Anything bigger makes the gym the game.
+    assignmentRestBelowHealth: 42,
+    assignmentRingBelowIQ: 45,
+    assignmentAppearancesBelowPop: 45,
+    assignmentAppearancesNeedFreshness: 45,
+    assignmentAgePeak: 22,
+    assignmentAgeNoGain: 38,
+    assignmentGymGain: 2.4,
+    assignmentGymEnergyCost: 4,
+    // Slower than the gym, because it is the harder thing to teach — and it is
+    // the one that has no other route in.
+    assignmentRingGain: 1.9,
+    assignmentRingSkillShare: 0.5,
+    assignmentRingEnergyCost: 3,
+    assignmentAppearanceDraw: 0.5,
+    assignmentAppearanceFreshnessCost: 0.9,
+    assignmentAppearanceEnergyCost: 2,
+    assignmentAppearanceFee: 220,
+    assignmentRestHealth: 4.5,
+    assignmentRestEnergy: 9,
+    assignmentRestMorale: 0.9,
+    assignmentRestWantedBonus: 1.3,
+    assignmentRestGlassBonus: 2,
     moraleSetPointFloor: 22,
     moraleSetPointCeiling: 92,
     traitSecondChance: 0.28,

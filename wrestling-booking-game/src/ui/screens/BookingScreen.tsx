@@ -24,6 +24,9 @@ import {
 } from '../../engine/world/schedule';
 import { holidayForWeek, seasonForWeek, weeksUntilHoliday, SEASON_LABELS } from '../../engine/world/seasons';
 import { PromoSlots } from '../components/PromoSlots';
+import { ASSIGNMENTS, assignmentOf } from '../../engine/career/assignment';
+import { leaveStatusLine } from '../../engine/career/onOurWatch';
+import { isSuspended } from '../../engine/career/discipline';
 import type { Id, Wrestler, Segment, Title, WorldSettings, Referee, PaceId } from '../../engine/types';
 import { PACES, paceById } from '../../data/pacing';
 import { paceFit } from '../../engine/sim/pacing';
@@ -447,7 +450,103 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
       </div>
 
       <PromoSlots />
+
+      {/* And what everybody who is not on it does instead. Here rather than on
+          the roster page because it is the same decision, made at the same
+          moment: these are exactly the people you have just finished leaving
+          off, and the answer can be different next week. */}
+      <RestOfTheWeek bookedIds={bookedIds} />
     </div>
+  );
+}
+
+/**
+ * The weeks nobody is booked for, decided alongside the card.
+ *
+ * Every row arrives with an answer already in it — the office's, per person —
+ * so a booker who does not care can ignore the whole panel and still have a
+ * roster that develops. Changing one is a tap, and it lasts until it is
+ * changed back, so the same person can be in the gym this week and out on
+ * appearances the next.
+ *
+ * Anybody hurt or away has no selector at all. There is no decision to make
+ * about somebody who is not going to be doing any of it, and offering four
+ * buttons that all mean "rest" would be a worse lie than saying so.
+ */
+function RestOfTheWeek({ bookedIds }: { bookedIds: Set<string> }) {
+  const world = useGameStore((s) => s.world)!;
+  const setAssignment = useGameStore((s) => s.setAssignment);
+
+  const roster = world.promotion.rosterIds
+    .map((id) => world.wrestlers[id])
+    .filter((w): w is Wrestler => Boolean(w) && !w!.deceased && w!.role === 'wrestler');
+
+  const off = roster.filter((w) => !bookedIds.has(w.id));
+  if (off.length === 0) return null;
+
+  const sidelined = (w: Wrestler): string | null => {
+    if (w.injury) return `Out ${w.injury.weeksRemaining} ${w.injury.weeksRemaining === 1 ? 'week' : 'weeks'}`;
+    if (w.leave) return leaveStatusLine(w.leave);
+    if (isSuspended(w.discipline, world.week)) return 'Suspended';
+    return null;
+  };
+
+  const free = off.filter((w) => !sidelined(w));
+  const out = off.filter((w) => sidelined(w));
+
+  return (
+    <details className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/60" data-testid="rest-of-week">
+      <summary className="cursor-pointer px-2.5 py-2 text-[11px] text-neutral-300">
+        The rest of the week — {free.length} not on the card
+      </summary>
+
+      <div className="flex flex-col gap-1 px-2.5 pb-2.5">
+        {free.map((w) => {
+          const doing = assignmentOf(w, world.settings);
+          const pinned = Boolean(w.assignment && w.assignment !== 'auto');
+          return (
+            <div key={w.id} className="rounded border border-neutral-800 bg-neutral-950/50 p-1.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-[11px] font-medium text-neutral-200">{w.name}</span>
+                <span className="shrink-0 text-[10px] text-neutral-600">{pinned ? 'your call' : 'office'}</span>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {ASSIGNMENTS.map((option) => {
+                  const on = doing === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      data-testid={`week-${w.id}-${option.id}`}
+                      title={option.blurb}
+                      onClick={() => setAssignment(w.id, pinned && on ? 'auto' : option.id)}
+                      className={`rounded px-1.5 py-0.5 text-[10px] ${
+                        on
+                          ? pinned
+                            ? 'bg-sky-700 text-white'
+                            : 'bg-sky-950 text-sky-300'
+                          : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+                      }`}
+                    >
+                      {option.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Nothing to decide about these, and §0 says the page still has to
+            say why they are here rather than leaving a gap. */}
+        {out.map((w) => (
+          <div key={w.id} className="flex items-baseline justify-between gap-2 px-1.5 py-1 text-[10px]">
+            <span className="truncate text-neutral-500">{w.name}</span>
+            <span className="shrink-0 text-rose-400/80">{sidelined(w)}</span>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 

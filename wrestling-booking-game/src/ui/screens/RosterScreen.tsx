@@ -22,6 +22,7 @@ import { leaveStatusLine, shunLine, shunned } from '../../engine/career/onOurWat
 import { circleOf, circleSummary } from '../../engine/career/circle';
 import { traitsOf } from '../../engine/career/personality';
 import { likeabilityLabel, ringcraftLabel } from '../../engine/sim/ringcraft';
+import { assignmentById, assignmentOf } from '../../engine/career/assignment';
 import {
   homeCompany,
   openStint,
@@ -571,6 +572,13 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   </div>
                 )}
 
+                {/* What they do with a week you did not book them for. Left
+                    alone the office picks per person, which is what stops this
+                    being thirty questions every week — the row says whose
+                    choice it was so a booker never thinks they pinned somebody
+                    they never touched. */}
+                <AssignmentRow wrestler={w} settings={world.settings} />
+
                 {/* What they are like out there, and what the room makes of
                     them. Neither was expressible before: ring IQ is not
                     workrate, and backstage likeability is not charisma — the
@@ -907,6 +915,35 @@ function TagTeamPanel() {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * What they are doing with the weeks they are not booked for.
+ *
+ * Read-only here on purpose. The control lives on the booking screen, next to
+ * the card, because that is the same decision made at the same moment — these
+ * are exactly the people you have just finished leaving off. Two controls
+ * writing one field is two places for the player to look and one of them to be
+ * out of date.
+ */
+function AssignmentRow({ wrestler, settings }: { wrestler: Wrestler; settings: WorldSettings }) {
+  const doing = assignmentOf(wrestler, settings);
+  const kind = assignmentById(doing)!;
+  const pinned = Boolean(wrestler.assignment && wrestler.assignment !== 'auto');
+
+  return (
+    <div className="mt-0.5 flex items-baseline justify-between gap-2 text-[10px]">
+      <span className="truncate text-neutral-500">
+        Weeks off · <span className="text-sky-400/90">{kind.name}</span>
+        {!pinned && <span className="text-neutral-600"> · office</span>}
+      </span>
+      {/* §0: a stat that moved is owed a sentence saying why, and "he was in
+          the gym" is that sentence. */}
+      {wrestler.doingThisWeek && (
+        <span className="shrink-0 text-neutral-600">{wrestler.doingThisWeek}</span>
+      )}
+    </div>
   );
 }
 

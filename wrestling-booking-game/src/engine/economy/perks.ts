@@ -93,6 +93,20 @@ export function perkMorale(wrestler: Wrestler): number {
   return perksOf(wrestler).reduce((sum, perk) => sum + perk.moraleGain, 0);
 }
 
+/**
+ * How much of the room's mood stops at their door, 0-1.
+ *
+ * Only the private locker room does anything here, and it does it both ways:
+ * they catch less of everybody else's week and everybody else catches less of
+ * theirs. That makes it the counter-play to the one person whose mood spreads
+ * and is always bad — and it is a genuine trade rather than an upgrade,
+ * because the same door is the loudest thing on the perk list and the room
+ * resents it every week. See career/personality.ts for who spreads a mood.
+ */
+export function moodInsulation(wrestler: Wrestler): number {
+  return perksOf(wrestler).reduce((most, perk) => Math.max(most, perk.moodInsulation), 0);
+}
+
 // ---------------------------------------------------------------------------
 // What everybody else makes of it
 

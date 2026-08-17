@@ -176,6 +176,8 @@ import {
 } from '../engine/career/ledger';
 import { ledgerOf } from '../engine/career/ledgerAccess';
 import { moodSpread } from '../engine/career/personality';
+import { assignmentOf, weekOff, type AssignmentChoice } from '../engine/career/assignment';
+import { moodInsulation } from '../engine/economy/perks';
 import {
   askingCut,
   bookOf,
@@ -798,6 +800,11 @@ export interface GameStore {
   formTagTeam: (aId: Id, bId: Id, name?: string) => void;
   /** Split a team up. Any tag belts they were carrying go vacant. */
   disbandTagTeam: (teamId: Id) => void;
+  /**
+   * Pin what somebody does with a week they are not booked for, or hand them
+   * back to the office with 'auto'. See career/assignment.ts.
+   */
+  setAssignment: (wrestlerId: Id, choice: AssignmentChoice) => void;
   /** Pay to put a worn rig back to new. */
   repairProductionAsset: (assetId: Id) => void;
   /** Meet a renewal demand in full, or refuse it and risk them walking. */
@@ -5335,7 +5342,12 @@ export const useGameStore = create<GameStore>()(
               // Whose mood actually carries. Most people's does not.
               spreadOf: (who) => {
                 const person = world.wrestlers[who];
-                return person ? moodSpread(person) : 1;
+                if (!person) return 1;
+                // Damped by their own door, which is the other half of the
+                // insulation: a Poison in a private locker room is not in
+                // anybody's face all week, so less of them reaches the room.
+                const door = world.settings.perksEnabled ? 1 - moodInsulation(person) : 1;
+                return Math.max(0, moodSpread(person) * door);
               },
               // What the market says they are worth, for the one trait that
               // reads its own contract every week. See career/personality.ts.
@@ -5906,6 +5918,32 @@ export const useGameStore = create<GameStore>()(
           // the player looks — the penalty was live and the diagnosis was not.
           const wasFresh = !isStale(person, world.settings);
           ageGimmick(person, workedThisWeek.has(person.id), world.settings);
+
+          // What they did with the week, if we did not book them for one.
+          // Only our own people — a rival's office runs its own gym, and
+          // developing somebody else's roster for them is not a thing the
+          // player should be doing for free. See career/assignment.ts.
+          if (!workedThisWeek.has(person.id) && world.promotion.rosterIds.includes(person.id)) {
+            const doing = assignmentOf(person, world.settings);
+            const week = weekOff(person, doing, world.settings);
+            person.strength = clamp(person.strength + week.strength, 1, 100);
+            person.skill = clamp(person.skill + week.skill, 1, 100);
+            person.agility = clamp(person.agility + week.agility, 1, 100);
+            person.stamina = clamp(person.stamina + week.stamina, 1, 100);
+            person.ringIQ = clamp(person.ringIQ + week.ringIQ, 1, 100);
+            person.popularity = clamp(person.popularity + week.popularity, 0, 100);
+            person.health = clamp(person.health + week.health, 0, 100);
+            person.energy = clamp(person.energy + week.energy, 0, 100);
+            person.morale = clamp(person.morale + week.morale, 0, 100);
+            person.gimmickFreshness = clamp(person.gimmickFreshness - week.freshnessCost, 0, 100);
+            if (week.earned > 0) {
+              world.promotion.bankBalance += week.earned;
+              creditPay(ledgerOf(person), week.earned);
+            }
+            person.doingThisWeek = week.note;
+          } else {
+            person.doingThisWeek = null;
+          }
           if (wasFresh && isStale(person, world.settings) && world.promotion.rosterIds.includes(person.id)) {
             world.weeklyNews.push(wire('misfortune', goneStaleLine(person.name, pronounsFor(person)), world.week, 'normal'));
           }
@@ -8035,6 +8073,14 @@ export const useGameStore = create<GameStore>()(
         };
         world.promotion.rosterIds.push(wrestlerId);
         world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== wrestlerId);
+      });
+    },
+
+    setAssignment: (wrestlerId, choice) => {
+      set((state) => {
+        const person = state.world?.wrestlers[wrestlerId];
+        if (!person) return;
+        person.assignment = choice;
       });
     },
 

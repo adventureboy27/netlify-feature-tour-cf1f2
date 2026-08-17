@@ -10,6 +10,7 @@ import {
   blockedBecause,
   canHave,
   loudestPerk,
+  moodInsulation,
   perkExposure,
   perkFatigueRelief,
   perkMorale,
@@ -215,5 +216,33 @@ describe('the content itself', () => {
 
   it('keeps them all out of a first contract', () => {
     for (const perk of PERKS) expect(perk.renewalOnly, `${perk.id}`).toBe(true);
+  });
+});
+
+describe('a door that shuts', () => {
+  // The counter-play to the one person whose mood spreads and is always bad.
+  // A genuine trade rather than an upgrade: the same door is the loudest thing
+  // on this list, so the room resents it every week it is there.
+  it('is the only perk that shuts anybody off from the room', () => {
+    const withDoor = { contract: { perks: ['privateLockerRoom'] } } as never as Wrestler;
+    expect(moodInsulation(withDoor)).toBeGreaterThan(0);
+
+    for (const perk of PERKS) {
+      if (perk.id === 'privateLockerRoom') continue;
+      const other = { contract: { perks: [perk.id] } } as never as Wrestler;
+      expect(moodInsulation(other), perk.id).toBe(0);
+    }
+  });
+
+  it('leaves somebody with no perks completely exposed to it', () => {
+    expect(moodInsulation({ contract: { perks: [] } } as never as Wrestler)).toBe(0);
+    expect(moodInsulation({ contract: null } as never as Wrestler)).toBe(0);
+  });
+
+  it('costs the room more than any other perk on the list', () => {
+    // Quarantining somebody is not free, and this is the price.
+    const door = PERKS.find((p) => p.id === 'privateLockerRoom')!;
+    const loudest = Math.max(...PERKS.map((p) => p.lockerRoomCost));
+    expect(door.lockerRoomCost).toBe(loudest);
   });
 });

@@ -555,6 +555,18 @@ export interface Wrestler {
    */
   attachedTo?: Id | null;
   /**
+   * What they do with a week they are not booked for. `auto` (or unset) lets
+   * the office decide per person, which is what stops this being thirty
+   * questions a week. See career/assignment.ts.
+   */
+  assignment?: AssignmentChoice;
+  /**
+   * What they actually did last week, when it was not a match. §0: a stat that
+   * moved wants a sentence saying why, and "he was in the gym" is that
+   * sentence. Null on a week they wrestled.
+   */
+  doingThisWeek?: string | null;
+  /**
    * Ring intelligence, 0-100. Not workrate — knowing what to do out there.
    * Decides whether a spot goes wrong, and how much of a bad opponent's match
    * this person can carry. See sim/ringcraft.ts.
@@ -777,6 +789,7 @@ import type { Ledger } from './career/ledger';
 import type { DisciplineRecord } from './career/discipline';
 import type { BlamedFor, DeathOnOurWatch, Leave } from './career/onOurWatch';
 import type { TraitId } from './career/personality';
+import type { AssignmentChoice } from './career/assignment';
 
 export type ContractType = 'fullTime' | 'partTime' | 'perAppearance' | 'developmental' | 'legends';
 
@@ -2123,6 +2136,35 @@ export interface WorldSettings {
   likedBelovedAt: number;
   likedFineAt: number;
   likedAwkwardAt: number;
+  // --- the weeks nobody is booked for (career/assignment.ts) ---
+  /** At or below this condition the office sends somebody home regardless. */
+  assignmentRestBelowHealth: number;
+  /** Below this ring IQ the office puts somebody in the ring rather than the gym. */
+  assignmentRingBelowIQ: number;
+  /** Under this standing the office sends somebody out to be seen instead. */
+  assignmentAppearancesBelowPop: number;
+  /** ...but never a worn-out act. Spending one that is already spent is waste. */
+  assignmentAppearancesNeedFreshness: number;
+  /** Age at which improvement is fastest, and the age it has stopped. */
+  assignmentAgePeak: number;
+  assignmentAgeNoGain: number;
+  /** Weekly movement per assignment, before talent, age and headroom. */
+  assignmentGymGain: number;
+  assignmentGymEnergyCost: number;
+  assignmentRingGain: number;
+  /** How much of a ring week also lands on workrate. */
+  assignmentRingSkillShare: number;
+  assignmentRingEnergyCost: number;
+  assignmentAppearanceDraw: number;
+  assignmentAppearanceFreshnessCost: number;
+  assignmentAppearanceEnergyCost: number;
+  assignmentAppearanceFee: number;
+  assignmentRestHealth: number;
+  assignmentRestEnergy: number;
+  assignmentRestMorale: number;
+  /** Extra for the two people a week at home is genuinely aimed at. */
+  assignmentRestWantedBonus: number;
+  assignmentRestGlassBonus: number;
   moraleSetPointFloor: number;
   moraleSetPointCeiling: number;
   /** Chance somebody is drawn with a second trait rather than one. */
