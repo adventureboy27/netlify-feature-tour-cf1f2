@@ -1752,6 +1752,36 @@ describe('the stories', () => {
   });
 });
 
+describe('the rest of the business pays its own wages', () => {
+  it('re-papers a rival at what they are worth now, not what they cost in week one', () => {
+    // The term was renewed and the number was left alone, so a rival's man who
+    // came up from nothing to main event for five years was still on his
+    // opening rate — his company never felt its own success, and the player's
+    // did, every renewal. One rival's average wage did not move by a dollar
+    // across eighty-seven measured weeks.
+    const settings = patientOwner();
+    useGameStore.getState().newGame(settings);
+
+    const rival = useGameStore.getState().world!.rivals[0]!;
+    const before = new Map(
+      rival.rosterIds.map((id) => [id, useGameStore.getState().world!.wrestlers[id]!.contract?.weeklyRate ?? 0]),
+    );
+
+    // Long enough that every opening deal in the business has lapsed once.
+    for (let i = 0; i < 140; i++) runWeek();
+
+    const world = useGameStore.getState().world!;
+    const still = world.rivals.find((r) => r.id === rival.id);
+    // The company may have folded on the way; that is a different system.
+    if (!still || still.closedWeek !== null) return;
+    const moved = [...before.entries()].filter(([id, was]) => {
+      const now = world.wrestlers[id]?.contract?.weeklyRate;
+      return now !== undefined && now !== was;
+    });
+    expect(moved.length).toBeGreaterThan(0);
+  });
+});
+
 describe('the joint show', () => {
   /** Get a rival to the table and sign whatever they put up. */
   function signAJointShow(): boolean {

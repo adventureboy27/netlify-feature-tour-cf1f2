@@ -506,6 +506,7 @@ import {
   createStandardContract,
   askingRate,
   renewalRate,
+  splitRate,
   desiredContractWeeks,
 } from '../engine/economy/contracts';
 import {
@@ -5849,6 +5850,15 @@ export const useGameStore = create<GameStore>()(
             const agreedWeeks = desiredContractWeeks(person, world.settings);
             person.contract.weeksRemaining = agreedWeeks;
             person.contract.totalWeeks = agreedWeeks;
+            // And it costs them what it would cost anybody. The term used to
+            // be renewed and the number left alone, so a rival's man who came
+            // up from nothing to main event for five years was still on his
+            // week-one rate — his company never felt its own success, and the
+            // player's did, every renewal. Measured over eighty-seven weeks,
+            // one rival's average wage did not move by a single dollar.
+            const owed = splitRate(person, world.settings, renewalRate(person, world.settings));
+            person.contract.weeklyRate = owed.weeklyRate;
+            person.contract.perAppearance = owed.perAppearance;
           }
         }
 
