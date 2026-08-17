@@ -128,6 +128,9 @@ export function defaultWorldSettings(): WorldSettings {
     oddsClampMin: 0.08,
     oddsClampMax: 0.92,
     simVariance: 6.5,
+    // Swapped from the original 42/24 — see the note on these in types.ts.
+    matchRatingPopularityWeight: 24,
+    matchRatingWorkrateWeight: 42,
     segmentsPerTV: 6,
     segmentsPerPPV: 10,
     broadcastWindowTV: 120,

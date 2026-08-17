@@ -22,7 +22,16 @@ the odds a real, expensive option.
 booked drifts down and the only thing pushing back is an appearances week,
 which the office picks conservatively (`assignmentAppearancesBelowPop`). A deep
 roster's lower card fades whatever the booker does. Wants measuring against
-`--report development` before tuning.
+`--report development` before tuning. Distinct from the match-rating fix below
+— this is about a wrestler's popularity *number* over a career, not about
+whether tonight's opener can rate well.
+
+**Two optional dark match slots on the card.** Player asked for this directly:
+matches that don't count toward the TV rating (they were never broadcast) but
+still develop the people in them, can test a new signing or a feud, sell
+merch, and give the live crowd more for their ticket. Fans should be able to
+tweet about them the same as any other match — just no rating contribution
+and no slot weight. Not started.
 
 ---
 
@@ -55,6 +64,17 @@ generated roster for somebody who fits the scenario.
 
 ## Done and worth not re-litigating
 
+- **A good undercard match can now actually rate as good.**
+  `computeMatchRating`'s popularity term outweighed its workrate term nearly
+  2:1 (weight 42 vs 24), so an opener was capped low by fame alone — a
+  technically flawless match with unknown talent could not out-rate a
+  mediocre main event. `matchRatingPopularityWeight`/`matchRatingWorkrateWeight`
+  (24/42, roughly swapped) fixed that: measured A/B on 6 seeds x 104 weeks
+  (`docs/BALANCE.md`), main event and overall show rating barely moved
+  (49.2->50.6, 46.7->45.9) while a skilled-but-unpopular match's odds of a
+  real 55+ rating nearly quadrupled (0.5%->1.9%). Caught and fixed a real bug
+  in `tools/probe.mjs` along the way: `--set` passed twice as separate tokens
+  silently collapsed onto the first override via a stale `argv.indexOf`.
 - **Set-point pairings no longer bottom somebody out at literal zero.** Three
   people sat at 0 morale in a measured save — long-idle, so mostly correct
   behaviour, but 0 is the exact edge of the whole scale and reads as broken

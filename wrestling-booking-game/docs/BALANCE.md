@@ -134,6 +134,48 @@ develops anybody.
 | Mean show rating, rivals | 41 |
 | Share above 55 | 8-13% |
 
+### Popularity vs. workrate in match rating — measured 2026-08-17
+
+`computeMatchRating`'s two biggest single terms were popularity (weight 42)
+and workrate (weight 24) — fame outweighed skill nearly 2:1 at the top of the
+scale. Measured effect: an opener could not become a genuinely good match by
+being well-worked, only by being famous, which is backwards for a system that
+is supposed to let a deep roster's hidden talent get discovered. A/B on the
+same 6 seeds x 104 weeks, `--set matchRatingPopularityWeight=42
+--set matchRatingWorkrateWeight=24` (the old values) against the shipped
+24/42:
+
+| | pop 42 / work 24 (old) | pop 24 / work 42 (shipped) |
+|---|---|---|
+| Mean show rating | 49.2 | 50.6 |
+| Opener rating | 24.4 | 25.8 |
+| Main event rating | 46.7 | 45.9 |
+| Low-popularity matches (bottom third) rating >=55 | 0.5% | 1.9% |
+
+Roughly a swap rather than a straight cut, sized so the two terms' *average*
+combined contribution barely moves (the roster's mean popularity and mean
+raw workrate happen to sit close together, ~46-52 on this save's roster) —
+which is why the overall show rating and main event rating barely shift.
+What moves is which matches can reach a good rating: a technically strong
+performer nobody has heard of yet went from a ~1-in-200 chance of a real
+55+ to better than 1-in-50. Still a small share in absolute terms — a
+"future superstar" being visibly great before anyone is booking them as one
+is meant to be a genuine find, not the median outcome.
+
+**A miscalibration caught during this measurement, not before it:** the
+probe's `--set` parsing broke on more than one override passed as separate
+`--set key=value` tokens — `argv.indexOf('--set')` always resolved to the
+*first* `--set` in argv, so a second `--set` silently reused the first
+override's value instead of its own. The first A/B run this produced looked
+like the reweighting made everything worse; it was actually comparing
+pop-24/work-42 against pop-42/work-42 (the second `--set` had been dropped).
+Fixed in `tools/probe.mjs` to pair each `--set` with the token that
+immediately follows it, by index, rather than re-searching argv.
+
+Reproduce: `node tools/probe.mjs --report shows --seeds 6 --weeks 104`
+against the same command with `--set matchRatingPopularityWeight=42 --set
+matchRatingWorkrateWeight=24`.
+
 `moraleShowNeutral` is pinned to this (42). It sat at 55 for a long time, which
 is above 90% of the distribution it was meant to be the middle of, so "The show
 was a mess" printed after nearly every card anybody ran.

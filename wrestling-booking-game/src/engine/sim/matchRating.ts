@@ -133,9 +133,10 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
   // however good the great worker was, so there was never a reason to put your
   // best technician opposite somebody who needed the help. See sim/ringcraft.ts.
   const lifted = carried(ctx.participants, rawWork, ctx.settings);
-  const scaleWork = (value: number) => (value / 100) * 24 * (0.7 + 0.3 * avgCondition);
+  const scaleWork = (value: number) =>
+    (value / 100) * ctx.settings.matchRatingWorkrateWeight * (0.7 + 0.3 * avgCondition);
 
-  const popComponent = term('Popularity', (avgPop / 100) * 42);
+  const popComponent = term('Popularity', (avgPop / 100) * ctx.settings.matchRatingPopularityWeight);
   const workComponent = term('Workrate', scaleWork(mean(rawWork)));
   // Broken out rather than folded in, so the breakdown says who saved the
   // match rather than reporting a workrate nobody in it actually has.

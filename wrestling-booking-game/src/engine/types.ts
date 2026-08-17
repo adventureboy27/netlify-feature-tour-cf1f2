@@ -1659,6 +1659,22 @@ export interface WorldSettings {
   oddsClampMin: number;
   oddsClampMax: number;
   simVariance: number;
+  /**
+   * The two biggest single terms in computeMatchRating, and deliberately
+   * sized against each other rather than picked in isolation: how much of a
+   * match's rating comes from who the crowd already knows it is (fame) versus
+   * what actually happens in the ring (skill, sold through carrying and
+   * pacing). Popularity used to outweigh workrate outright (42 vs 24), which
+   * meant an opener stacked with genuinely great, not-yet-over talent was
+   * capped low by fame alone — a technically flawless lower-card match could
+   * not out-rate a mediocre main event, whatever it did. Roughly swapped so
+   * the two terms are co-equal at the top of the scale, which barely moves a
+   * match where fame and skill already track together (most established
+   * main eventers) and moves a great deal for one where they do not (a future
+   * star nobody has gotten behind yet). See sim/matchRating.ts.
+   */
+  matchRatingPopularityWeight: number;
+  matchRatingWorkrateWeight: number;
   segmentsPerTV: number;
   segmentsPerPPV: number;
   broadcastWindowTV: number;

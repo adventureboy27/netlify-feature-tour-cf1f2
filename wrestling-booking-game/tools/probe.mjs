@@ -24,7 +24,7 @@
 //   node tools/probe.mjs --report morale --seeds 8 --weeks 140
 //   node tools/probe.mjs --report all --seeds 3 --weeks 104 --set casualtyChanceCompetitor=0.02
 //
-//   --report   injuries | morale | assignments | development | money | all
+//   --report   injuries | morale | shows | assignments | development | money | all
 //   --seeds    how many saves to average over (default 3)
 //   --weeks    weeks to play each one (default 104)
 //   --port     dev server port (default 5199)
@@ -52,15 +52,19 @@ const SEEDS = Number(arg('seeds', 3));
 const WEEKS = Number(arg('weeks', 104));
 const PORT = Number(arg('port', 5199));
 const RESTOCK = String(arg('restock', '1')) !== '0';
+// Each `--set` is paired with the token that follows IT specifically, by
+// index — not by re-searching for the first `--set` in argv, which is what
+// `argv.indexOf('--set')` does and which silently collapsed every `--set`
+// after the first one onto the same pair when more than one was passed as
+// two space-separated tokens (`--set a=1 --set b=2`).
+const OVERRIDE_PAIRS = argv
+  .map((a, i) => (a === '--set' ? argv[i + 1] : a.startsWith('--set=') ? a.slice('--set='.length) : null))
+  .filter(Boolean);
 const OVERRIDES = Object.fromEntries(
-  argv
-    .filter((a) => a.startsWith('--set'))
-    .map((a, i) => (a.includes('=') ? a.slice('--set='.length) : argv[argv.indexOf(a) + 1]))
-    .filter(Boolean)
-    .map((pair) => {
-      const [k, v] = String(pair).split('=');
-      return [k, Number(v)];
-    }),
+  OVERRIDE_PAIRS.map((pair) => {
+    const [k, v] = String(pair).split('=');
+    return [k, Number(v)];
+  }),
 );
 
 // --------------------------------------------------------------- the server
@@ -118,6 +122,8 @@ async function playOne(page, { seed, weeks, restock, overrides }) {
         rating: 0,
         bank: 0,
         rosterEnd: 0,
+        showRatings: [],
+        segmentRatings: [], // { slot, slotCount, rating, avgPop }
       };
 
       const seen = new Set();
@@ -148,11 +154,28 @@ async function playOne(page, { seed, weeks, restock, overrides }) {
         // What ran, and what went wrong in it.
         const show = (w.showHistory ?? []).slice(-1)[0];
         if (show && show.week === w.week - 1) {
-          for (const seg of show.segments ?? []) {
-            if (seg.kind !== 'match') continue;
+          if (typeof show.showRating === 'number') out.showRatings.push(show.showRating);
+          const matchSegs = (show.segments ?? []).filter((seg) => seg.kind === 'match');
+          for (const seg of matchSegs) {
             out.matches += 1;
             const beats = seg.result?.beats ?? seg.beats ?? [];
             if (beats.some((b) => b.kind === 'botch')) out.botched += 1;
+            if (typeof seg.result?.rating === 'number') {
+              const people = (seg.participants ?? [])
+                .map((p) => w.wrestlers[p.wrestlerId])
+                .filter(Boolean);
+              const avg = (f) => (people.length ? people.reduce((a, p) => a + (f(p) ?? 0), 0) / people.length : null);
+              out.segmentRatings.push({
+                slot: seg.slot,
+                slotCount: matchSegs.length,
+                rating: seg.result.rating,
+                avgPop: avg((p) => p.popularity),
+                avgSkill: avg((p) => p.skill),
+                avgAgility: avg((p) => p.agility),
+                avgStamina: avg((p) => p.stamina),
+                avgHealth: avg((p) => p.health),
+              });
+            }
           }
         }
 
@@ -246,6 +269,49 @@ function injuries(runs) {
   return lines;
 }
 
+function shows(runs) {
+  const showRatings = runs.flatMap((r) => r.showRatings);
+  const segs = runs.flatMap((r) => r.segmentRatings);
+  const lines = [
+    `  mean show rating   ${round(mean(showRatings))}  spread(sd) ${round(sd(showRatings))}`,
+  ];
+  if (segs.length) {
+    // Opener vs main event, read off the slot the segment actually sat in
+    // rather than a fixed index — a 4-match and a 6-match card do not share
+    // a "slot 3".
+    const isOpener = (s) => s.slot === 0;
+    const isMainEvent = (s) => s.slot === s.slotCount - 1;
+    const bucket = (pred) => segs.filter(pred);
+    const rawWorkOf = (s) => 0.45 * s.avgSkill + 0.3 * s.avgAgility + 0.25 * s.avgStamina;
+    const line = (label, list) =>
+      `  ${label.padEnd(18)} rating ${round(mean(list.map((s) => s.rating)))}  ` +
+      `pop ${round(mean(list.map((s) => s.avgPop ?? 0)))}  ` +
+      `rawWork ${round(mean(list.map(rawWorkOf)))}  ` +
+      `health ${round(mean(list.map((s) => s.avgHealth ?? 0)))}  n=${list.length}`;
+    lines.push(line('openers', bucket(isOpener)));
+    lines.push(line('main events', bucket(isMainEvent)));
+    // The thing this setting change was actually for: a skilled worker who
+    // has not gotten over yet. Read straight off the roster rather than
+    // assumed — "skilled" is top-third workrate among everyone who has ever
+    // been in a rated segment, "unpopular" is bottom-third popularity.
+    const byPop = [...segs].sort((a, b) => (a.avgPop ?? 0) - (b.avgPop ?? 0));
+    const lowPopCut = byPop[Math.floor(byPop.length / 3)]?.avgPop ?? 0;
+    const hiddenGems = segs.filter((s) => (s.avgPop ?? 0) <= lowPopCut && s.rating >= 55);
+    lines.push(
+      `  low-pop matches rating >=55   ${pct(hiddenGems.length, segs.filter((s) => (s.avgPop ?? 0) <= lowPopCut).length)}` +
+        ` of the bottom third by popularity`,
+    );
+    // The raw ingredients, so a weight change can be picked from real numbers
+    // instead of guessed and re-measured blind.
+    const rawWork = (s) => 0.45 * s.avgSkill + 0.3 * s.avgAgility + 0.25 * s.avgStamina;
+    lines.push(
+      `  raw averages       pop ${round(mean(segs.map((s) => s.avgPop)))}  ` +
+        `rawWork ${round(mean(segs.map(rawWork)))}  health ${round(mean(segs.map((s) => s.avgHealth)))}`,
+    );
+  }
+  return lines;
+}
+
 function morale(runs) {
   const all = runs.flatMap((r) => r.moraleEnd);
   const t = runs.find((r) => r.moraleThresholds)?.moraleThresholds;
@@ -298,7 +364,7 @@ function money(runs) {
   ];
 }
 
-const REPORTS = { injuries, morale, assignments, development, money };
+const REPORTS = { injuries, morale, shows, assignments, development, money };
 
 // -------------------------------------------------------------------- main
 
