@@ -1,13 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  defectionRisk,
-  factionEgoDrift,
-  factionHeat,
-  factionStanding,
-  overshadowsCompany,
-  recruitmentTargets,
-  rollRecruit,
-} from './faction';
+import { defectionRisk, factionEgoDrift, factionHeat, factionStanding, overshadowsCompany, recruitmentTargets, rollRecruit } from './faction';
 import { defaultWorldSettings } from './settings';
 import { generateWrestlers } from '../generate/wrestler';
 import { rngFromSeed } from '../rng';
@@ -188,5 +180,30 @@ describe('what it does to the people in it', () => {
     expect(factionEgoDrift('out of control', settings)).toBeGreaterThan(
       factionEgoDrift('running the place', settings),
     );
+  });
+});
+
+describe('one man, one group', () => {
+  const guy = (id: string, over: Partial<Wrestler> = {}) =>
+    ({ id, name: id, morale: 40, ego: 60, hype: 60, popularity: 40, role: 'wrestler', careerStatus: 'midcarder', ...over }) as Wrestler;
+
+  it('will not recruit somebody who is already in another faction', () => {
+    // Measured before this existed: one wrestler joined three factions in the
+    // same week, because every group read the same pool independently.
+    const group = { id: 'f1', name: 'The Anvils', memberIds: ['a'], disbandedWeek: null } as never;
+    const candidates = [guy('a'), guy('b'), guy('c')];
+
+    const open = recruitmentTargets(group, candidates, settings);
+    expect(open.map((t) => t.wrestlerId)).toContain('b');
+
+    const taken = recruitmentTargets(group, candidates, settings, new Set(['b']));
+    expect(taken.map((t) => t.wrestlerId)).not.toContain('b');
+    expect(taken.map((t) => t.wrestlerId)).toContain('c');
+  });
+
+  it('never offers a group its own members', () => {
+    const group = { id: 'f1', name: 'The Anvils', memberIds: ['a', 'b'], disbandedWeek: null } as never;
+    const targets = recruitmentTargets(group, [guy('a'), guy('b'), guy('c')], settings);
+    expect(targets.map((t) => t.wrestlerId)).toEqual(['c']);
   });
 });

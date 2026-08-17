@@ -1019,6 +1019,15 @@ export function defaultWorldSettings(): WorldSettings {
 
     // The fans. Ten voices a show, and never more than 85% agreeing.
     fanTweetsPerShow: 10,
+    // The rumour mill. Echoes are the signal: one voice is noise, three is a
+    // thing that is happening. A false rumour can reach two so that counting
+    // is a read rather than a lie detector — see world/rumours.ts.
+    rumourMaxVoices: 3,
+    rumourFalseSecondVoice: 0.3,
+    rumourTrueGoesQuiet: 0.15,
+    rumoursPerWeek: 3,
+    rumourOnFireMomentum: 70,
+    rumourBadBloodHeat: 35,
     fanDissentFloor: 0.15,
     fanMatchTweetShare: 0.55,
     fanTweetLikesScale: 400,
@@ -1176,6 +1185,11 @@ export function defaultWorldSettings(): WorldSettings {
     factionPullEstablished: 0.6,
     factionPullRunning: 0.85,
     factionPullOutOfControl: 1.1,
+    // A group is a story over months. Rolled every week this produced
+    // forty-one comings and goings in a year, which reads as noise rather
+    // than as anybody deciding anything.
+    factionChurnWeeks: 6,
+    factionMaxMembers: 5,
     factionDefectionWeight: 0.06,
     factionDefectionCap: 0.12,
     factionEgoDriftRunning: 0.6,

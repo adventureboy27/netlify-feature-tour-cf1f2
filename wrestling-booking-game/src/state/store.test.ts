@@ -4,6 +4,7 @@ import { useGameStore } from './store';
 import { defaultWorldSettings } from '../engine/world/settings';
 import type { WorldSettings } from '../engine/types';
 import { eventById } from '../data/events';
+import type { Wrestler } from '../engine/types';
 
 // A roster big enough to survive its own injuries. This was 12, which was
 // never a viable promotion — it produced 1.5-star shows and injured itself to
@@ -674,11 +675,37 @@ describe('the next generation', () => {
     worldWithALegend();
     runToTheTurnOfTheYear();
 
+    // Run on until one of them is actually *announced*. The rule under test
+    // is "when a familiar surname comes back, the paper says whose it is" —
+    // and the announcement fires when the kid turns up on your roster and
+    // starts getting over, which is not necessarily the week he graduates.
+    // Driving to the turn of the year and reading that week's paper was a bet
+    // on those being the same week; they stopped being once the year produced
+    // four second-generation kids instead of one.
+    let announced: { kid: Wrestler; text: string } | null = null;
+    for (let week = 0; week < 120 && !announced; week++) {
+      const now = useGameStore.getState().world!;
+      for (const w of Object.values(now.wrestlers)) {
+        if (!w.lineage) continue;
+        const item = now.weeklyNews.find((n) => n.text.includes(w.name) && n.kind === 'debut');
+        if (item) {
+          announced = { kid: w, text: item.text };
+          break;
+        }
+      }
+      if (announced) break;
+      useGameStore.getState().autoFillCard();
+      useGameStore.getState().resolveWeek();
+      if (useGameStore.getState().world?.pendingWeatherCall) {
+        useGameStore.getState().answerWeatherCall('runIt');
+      }
+    }
+
     const world = useGameStore.getState().world!;
     const kids = Object.values(world.wrestlers).filter((w) => w.lineage);
     expect(kids.length).toBeGreaterThan(0);
 
-    const kid = kids[0]!;
+    const kid = announced?.kid ?? [...kids].sort((a, b) => b.debutYear - a.debutYear)[0]!;
     const parent = world.wrestlers[kid.lineage!.parentId];
     expect(parent, 'a kid whose father is not in the world').toBeDefined();
     expect(kid.lineage!.parentName).toBe(parent!.name);
@@ -708,10 +735,10 @@ describe('the next generation', () => {
       expect(Object.keys(kid.regionalPopularity).length).toBeGreaterThan(0);
     }
 
-    // §0: nothing happens to a person off-screen. The paper ran it.
-    const story = world.weeklyNews.find((item) => item.text.includes(kid.name));
-    expect(story, 'no wire item announced the second-generation debut').toBeDefined();
-    expect(story!.text).toContain(kid.lineage!.parentName);
+    // §0: nothing happens to a person off-screen. The paper ran it, and it
+    // said whose kid he is — which is the whole point of the feature.
+    expect(announced, 'no wire item announced a second-generation debut').not.toBeNull();
+    expect(announced!.text).toContain(announced!.kid.lineage!.parentName);
   });
 
   it('takes the name back off somebody nobody was ever shown', () => {

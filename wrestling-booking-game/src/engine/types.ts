@@ -2488,6 +2488,18 @@ export interface WorldSettings {
    * The smallest share of the feed that always dissents, either way. Nobody
    * is ever unanimous about wrestling and a feed that is reads as fake.
    */
+  /** Most fans who will ever repeat one true rumour. */
+  rumourMaxVoices: number;
+  /** Chance a made-up rumour gets a second voice, so counting is not a lie detector. */
+  rumourFalseSecondVoice: number;
+  /** Chance a true, obvious thing still only gets one person saying it. */
+  rumourTrueGoesQuiet: number;
+  /** How many whispers reach the feed in a week, true and false together. */
+  rumoursPerWeek: number;
+  /** Momentum at which the crowd starts saying somebody is the best thing here. */
+  rumourOnFireMomentum: number;
+  /** Backstage heat the front row can start to notice. */
+  rumourBadBloodHeat: number;
   fanDissentFloor: number;
   /** How much of the feed is about a specific match rather than the show. */
   fanMatchTweetShare: number;
@@ -2726,6 +2738,10 @@ export interface WorldSettings {
   factionPullRunning: number;
   factionPullOutOfControl: number;
   /** What makes somebody want out, and the cap on it. */
+  /** How often a group considers taking somebody on or losing somebody. */
+  factionChurnWeeks: number;
+  /** Nobody wants to be the eighth man in a stable. */
+  factionMaxMembers: number;
   factionDefectionWeight: number;
   factionDefectionCap: number;
   /** What being in the group that runs the place does to an ego, per week. */

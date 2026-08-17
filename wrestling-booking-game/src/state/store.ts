@@ -68,7 +68,15 @@ import type { Manager } from '../engine/sim/ringside';
 import { evaluateTrade, tradeLine } from '../engine/world/trades';
 import { decayPaceSaturation } from '../engine/sim/pacing';
 import { resolveConfrontation } from '../engine/sim/confrontation';
-import { factionEgoDrift, factionHeat, factionStanding } from '../engine/world/faction';
+import {
+  defectionRisk,
+  factionEgoDrift,
+  factionHeat,
+  factionStanding,
+  recruitmentTargets,
+  rollRecruit,
+} from '../engine/world/faction';
+import { inventRumour, rumourTweets, type Rumour } from '../engine/world/rumours';
 import { demandsDelivered, deliveryBonus, fanDemands } from '../engine/world/fanDemand';
 import { deliveredTo, moraleContext, weeklyMorale } from '../engine/career/morale';
 import { absenceDecay, cardDrawIn, localStanding, setLocal, workingGain } from '../engine/career/reach';
@@ -381,6 +389,7 @@ import { SUPERSHOW_SEASONS } from '../engine/world/supershow';
 import { rivalWeek, shouldFold } from '../engine/world/rivalEconomy';
 import { publishPositions } from '../engine/world/publication';
 import { generateFanReaction, crowdVerdict } from '../engine/world/fanReaction';
+import { FAN_HANDLES } from '../data/fanVoices';
 import { appraise, aiBid, settleAuction, playerBidAmount, type Bid, type PlayerBidLevel } from '../engine/world/auction';
 import {
   recordTeamResult,
@@ -2500,6 +2509,13 @@ export const useGameStore = create<GameStore>()(
             );
           }
         };
+        /**
+         * What the internet has heard this week. Collected as the world's
+         * systems run and emptied into the fan feed at the end — see
+         * world/rumours.ts for why the count of voices is the whole signal.
+         */
+        const factionRumours: Rumour[] = [];
+
         /** Stories the booker actually settled in the ring tonight. */
         const blowoffsTonight: {
           storylineId: Id;
@@ -5347,9 +5363,197 @@ export const useGameStore = create<GameStore>()(
             world.settings,
           );
           const drift = factionEgoDrift(standing, world.settings);
-          if (drift === 0) continue;
+          if (drift !== 0) {
+            for (const member of members) {
+              if (member) member.ego = clamp(member.ego + drift, 0, 100);
+            }
+          }
+
+          // ---- who joins, and who walks ---------------------------------
+          // A faction that never takes anybody and never loses anybody is a
+          // tag team with extra members. All three functions for this were
+          // written and tested and had no caller, so a group formed once and
+          // then sat there for the rest of the save.
+          //
+          // Rolled once a week per group rather than per candidate, so a
+          // faction cannot absorb four people in a night.
+          const ourMembers = faction.memberIds.filter((id) => world.promotion.rosterIds.includes(id));
+          if (ourMembers.length === 0) continue;
+
+          // A group is a story that runs for months, not a revolving door.
+          // Rolled weekly this produced forty-one comings and goings in a
+          // year and read as noise. Each faction gets its own week in the
+          // cycle, off its own id, so they do not all move at once.
+          const turn = [...faction.id].reduce((h, c) => h + c.charCodeAt(0), 0);
+          if ((world.week + turn) % world.settings.factionChurnWeeks !== 0) continue;
+
+          // One man, one group.
+          const spokenFor = new Set(
+            world.stables
+              .filter((other) => other.id !== faction.id && other.disbandedWeek === null)
+              .flatMap((other) => other.memberIds),
+          );
+
+          // Somebody the group is circling. The reason is the interesting
+          // part and it goes on the wire with the signing.
+          const targets = recruitmentTargets(
+            faction,
+            world.promotion.rosterIds
+              .map((id) => world.wrestlers[id])
+              .filter((w): w is Wrestler => Boolean(w)),
+            world.settings,
+            spokenFor,
+          );
+          const wanted = faction.memberIds.length < world.settings.factionMaxMembers ? targets[0] : undefined;
+          // Seeded from the group and the week, not the world's stream. See
+          // the note on the gossip rng below — same trap, same fix.
+          if (
+            wanted &&
+            rollRecruit(
+              rngFromSeed(`recruit:${faction.id}:${world.week}`),
+              wanted,
+              standing,
+              world.settings,
+            )
+          ) {
+            const joining = world.wrestlers[wanted.wrestlerId];
+            if (joining && !faction.memberIds.includes(joining.id)) {
+              faction.memberIds.push(joining.id);
+              world.weeklyNews.push(
+                wire(
+                  'team',
+                  `${joining.name} has thrown in with ${faction.name}. ${wanted.reason}`,
+                  world.week,
+                  'lead',
+                ),
+              );
+              factionRumours.push({
+                kind: 'recruitment',
+                subject: joining.name,
+                true: true,
+                heat: wanted.appeal,
+              });
+            }
+          }
+
+          // And the door swings the other way. A group that has stopped
+          // drawing starts losing the people whose egos brought them.
           for (const member of members) {
-            if (member) member.ego = clamp(member.ego + drift, 0, 100);
+            if (!member || faction.memberIds.length <= 2) continue;
+            const risk = defectionRisk(member, standing, world.settings);
+            if (risk <= 0) continue;
+            // Seeded from the man and the week rather than drawn from the
+            // world's stream — an extra draw here shifts every seeded roll
+            // downstream. This has bitten four times now.
+            if (!chance(rngFromSeed(`defect:${member.id}:${world.week}`), risk)) {
+              // Not gone, but the internet can tell he is thinking about it.
+              factionRumours.push({
+                kind: 'defection',
+                subject: member.name,
+                true: risk >= world.settings.factionDefectionCap * 0.6,
+                heat: risk / world.settings.factionDefectionCap,
+              });
+              continue;
+            }
+            faction.memberIds = faction.memberIds.filter((id) => id !== member.id);
+            world.weeklyNews.push(
+              wire(
+                'team',
+                `${member.name} has walked out on ${faction.name}. It stopped being worth being in.`,
+                world.week,
+                'lead',
+              ),
+            );
+          }
+        }
+
+        // ---- what the internet has heard --------------------------------
+        // The wire is what happened; this is what people think is about to.
+        // It is the one channel allowed to be wrong, and the signal is the
+        // number of voices rather than any one line — see world/rumours.ts.
+        //
+        // Real whispers first, then invented ones to fill the week, then the
+        // whole lot shuffled so a planted rumour does not sit identifiably at
+        // the bottom of the feed.
+        if (world.lastFanReaction && world.lastFanReaction.week >= world.week - 1) {
+          // Seeded from the week, never drawn from the world's stream. Every
+          // draw added here shifts every seeded roll downstream and silently
+          // rebases unrelated content — this block broke a secret-signing
+          // test the first time it was written, which is the fifth time that
+          // has happened in this file. If you are adding randomness to
+          // `resolveWeek`, seed it from something stable and move on.
+          const gossip = rngFromSeed(`rumours:${world.settings.seed}:${world.week}`);
+          const roster = world.promotion.rosterIds
+            .map((id) => world.wrestlers[id])
+            .filter((w): w is Wrestler => Boolean(w) && !w!.deceased);
+
+          const heard: Rumour[] = [...factionRumours];
+
+          // Somebody the crowd has decided is the best thing here. Good news
+          // is information too, and it repeats the same way bad news does.
+          const hottest = roster.reduce<Wrestler | null>(
+            (best, w) => (!best || w.momentum > best.momentum ? w : best),
+            null,
+          );
+          if (hottest && hottest.momentum >= world.settings.rumourOnFireMomentum) {
+            heard.push({
+              kind: 'onFire',
+              subject: hottest.name,
+              true: true,
+              heat: hottest.momentum / 100,
+            });
+          }
+
+          // A man working hurt with the office's blessing is exactly the kind
+          // of thing the front row can see and the booker hopes they cannot.
+          for (const person of roster) {
+            if (person.injury && person.clearedToWorkHurt) {
+              heard.push({ kind: 'workingHurt', subject: person.name, true: true, heat: 0.8 });
+            }
+            if (person.noticeGivenWeek != null) {
+              heard.push({ kind: 'walkingOut', subject: person.name, true: true, heat: 0.9 });
+            }
+          }
+
+          // Bad blood the crowd is not supposed to know about.
+          for (const feud of world.rivalries) {
+            if (feud.resolvedWeek !== null || feud.shootHeat < world.settings.rumourBadBloodHeat) continue;
+            if (!feud.participantIds.every((id) => world.promotion.rosterIds.includes(id))) continue;
+            const names = feud.participantIds.map((id) => world.wrestlers[id]?.name).filter(Boolean);
+            if (names.length < 2) continue;
+            heard.push({
+              kind: 'badBlood',
+              subject: names[0]!,
+              other: names[1]!,
+              true: true,
+              heat: feud.shootHeat / 100,
+            });
+          }
+
+          // And the ones that are not about anything, so that reading the
+          // feed stays a judgement rather than an instruction.
+          const pairs = roster.map((w) => ({ name: w.name, other: pick(gossip, roster).name }));
+          while (heard.length < world.settings.rumoursPerWeek) {
+            const made = inventRumour(gossip, pairs, ['defection', 'recruitment', 'badBlood', 'workingHurt', 'walkingOut', 'onFire']);
+            if (!made) break;
+            heard.push(made);
+          }
+
+          const lines = heard
+            .slice(0, world.settings.rumoursPerWeek)
+            .flatMap((rumour) => rumourTweets(rumour, gossip, world.settings));
+          const handles = [...FAN_HANDLES].filter(
+            (h) => !world.lastFanReaction!.tweets.some((t) => t.handle === h),
+          );
+          for (const text of lines) {
+            const handle = handles.splice(Math.floor(gossip.next() * handles.length), 1)[0];
+            if (!handle) break;
+            world.lastFanReaction.tweets.push({
+              handle,
+              text,
+              tone: 'contrarian',
+              likes: Math.round(1 + gossip.next() * world.settings.fanTweetLikesScale * 0.4),
+            });
           }
         }
 

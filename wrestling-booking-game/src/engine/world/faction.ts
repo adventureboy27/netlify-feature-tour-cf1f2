@@ -105,11 +105,24 @@ export function recruitmentTargets(
   faction: Stable,
   candidates: readonly Wrestler[],
   settings: WorldSettings,
+  /**
+   * Everybody already in some other group. A man belongs to one faction, and
+   * without this every group recruited from the same pool independently —
+   * measured, one wrestler joined three factions in the same week.
+   */
+  spokenFor: ReadonlySet<Id> = new Set(),
 ): RecruitmentTarget[] {
   const inside = new Set(faction.memberIds);
 
   return candidates
-    .filter((w) => !inside.has(w.id) && !w.deceased && w.careerStatus !== 'retired' && w.role === 'wrestler')
+    .filter(
+      (w) =>
+        !inside.has(w.id) &&
+        !spokenFor.has(w.id) &&
+        !w.deceased &&
+        w.careerStatus !== 'retired' &&
+        w.role === 'wrestler',
+    )
     .map((w) => {
       const unhappy = (100 - w.morale) / 100;
       const ego = w.ego / 100;
