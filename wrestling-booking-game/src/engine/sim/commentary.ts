@@ -37,6 +37,7 @@
 
 import type { Rng } from '../rng';
 import { pick, chance } from '../rng';
+import { Cap, HE, pronounsFor } from '../career/pronouns';
 import type { FinishType, Id, MatchBeat, MatchBeatKind, Title, Wrestler, WorldSettings } from '../types';
 import {
   PLAY_BY_PLAY,
@@ -336,33 +337,55 @@ function filler(ctx: CommentaryContext, rng: Rng) {
     const rookie =
       momentum.inTrouble.find((w) => w.age <= ctx.settings.commentaryRookieAge) ??
       everyone.find((w) => w.age <= ctx.settings.commentaryRookieAge);
+    const top = momentum.onTop[0] ? pronounsFor(momentum.onTop[0]) : HE;
+    const low = momentum.inTrouble[0] ? pronounsFor(momentum.inTrouble[0]) : HE;
+    const win = winners[0] ? pronounsFor(winners[0]) : HE;
+    const lose = losers[0] ? pronounsFor(losers[0]) : HE;
+
     return text
       .replace(/\{town\}/g, ctx.townName)
-      .replace(/\{formerChamp\}/g, ctx.formerChampionName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{formerChamp\}/g, ctx.formerChampionName ?? everyone[0]?.name ?? 'them')
       .replace(/\{formerTitle\}/g, ctx.formerChampionTitle ?? 'a championship')
-      .replace(/\{otherChamp\}/g, ctx.otherBeltHolderName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{otherChamp\}/g, ctx.otherBeltHolderName ?? everyone[0]?.name ?? 'them')
       .replace(/\{otherBelt\}/g, ctx.otherBeltName ?? 'a championship')
-      .replace(/\{streaking\}/g, ctx.onATearName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{streaking\}/g, ctx.onATearName ?? everyone[0]?.name ?? 'them')
       .replace(/\{tearRun\}/g, String(Math.max(2, ctx.onATearRun)))
-      .replace(/\{slumping\}/g, ctx.slumpingName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{slumping\}/g, ctx.slumpingName ?? everyone[0]?.name ?? 'them')
       .replace(/\{slumpRun\}/g, String(Math.max(2, ctx.slumpingRun)))
-      .replace(/\{oldHand\}/g, ctx.oldHandName ?? everyone[0]?.name ?? 'him')
+      .replace(/\{oldHand\}/g, ctx.oldHandName ?? everyone[0]?.name ?? 'them')
       .replace(/\{oldHandYears\}/g, String(Math.max(1, ctx.oldHandYears)))
-      .replace(/\{debutant\}/g, ctx.debutantName ?? everyone[0]?.name ?? 'him')
-      .replace(/\{secondGen\}/g, ctx.secondGenName ?? everyone[0]?.name ?? 'him')
-      .replace(/\{secondGenParent\}/g, ctx.secondGenParentName ?? 'his father')
+      .replace(/\{debutant\}/g, ctx.debutantName ?? everyone[0]?.name ?? 'them')
+      .replace(/\{secondGen\}/g, ctx.secondGenName ?? everyone[0]?.name ?? 'them')
+      .replace(/\{secondGenParent\}/g, ctx.secondGenParentName ?? 'their parent')
       .replace(/\{timesMet\}/g, String(ctx.timesMet))
       .replace(/\{feudWeeks\}/g, String(Math.max(1, ctx.feudWeeks)))
       .replace(/\{feudMatches\}/g, String(Math.max(1, ctx.feudMatches)))
       .replace(/\{weather\}/g, ctx.weatherLine ?? 'the weather')
       .replace(/\{play\}/g, ctx.team.playByPlayName)
       .replace(/\{colour\}/g, ctx.team.colourName)
-      .replace(/\{onTop\}/g, momentum.onTop[0]?.name ?? 'the man in control')
-      .replace(/\{onTopPartner\}/g, momentum.onTop[1]?.name ?? momentum.onTop[0]?.name ?? 'his partner')
+      // Pronouns for the two people the line can legitimately talk about.
+      // The commentary is the one place where a blind swap cannot work — in
+      // "{onTop} grounds {lowThem}, taking {topTheir} time about it" the two
+      // pronouns are two different wrestlers, and getting them the wrong way
+      // round reverses who is winning the match. So the templates name which
+      // one they mean and this resolves it. See career/pronouns.ts.
+      .replace(/\{topThey\}/g, top.they)
+      .replace(/\{topThem\}/g, top.them)
+      .replace(/\{topTheir\}/g, top.their)
+      .replace(/\{Top\}/g, Cap(top.they))
+      .replace(/\{lowThey\}/g, low.they)
+      .replace(/\{lowThem\}/g, low.them)
+      .replace(/\{lowTheir\}/g, low.their)
+      .replace(/\{Low\}/g, Cap(low.they))
+      .replace(/\{winThey\}/g, win.they)
+      .replace(/\{Win\}/g, Cap(win.they))
+      .replace(/\{loseThem\}/g, lose.them)
+      .replace(/\{onTop\}/g, momentum.onTop[0]?.name ?? 'the person in control')
+      .replace(/\{onTopPartner\}/g, momentum.onTop[1]?.name ?? momentum.onTop[0]?.name ?? 'their partner')
       .replace(/\{inTrouble\}/g, momentum.inTrouble[0]?.name ?? 'the other one')
       .replace(
         /\{inTroublePartner\}/g,
-        momentum.inTrouble[1]?.name ?? momentum.inTrouble[0]?.name ?? 'his partner',
+        momentum.inTrouble[1]?.name ?? momentum.inTrouble[0]?.name ?? 'their partner',
       )
       .replace(/\{winner\}/g, winners[0]?.name ?? 'the winner')
       .replace(/\{loser\}/g, losers[0]?.name ?? 'their opponent')
@@ -371,7 +394,7 @@ function filler(ctx: CommentaryContext, rng: Rng) {
       .replace(/\{finisher\}/g, momentum.onTop[0]?.moveSet?.finisher?.name ?? 'the finish')
       .replace(/\{winnerFinisher\}/g, winners[0]?.moveSet?.finisher?.name ?? 'the finish')
       .replace(/\{manager\}/g, manager?.name ?? 'the manager')
-      .replace(/\{managerClient\}/g, manager?.clientName ?? ctx.sideA[0]?.name ?? 'his man')
+      .replace(/\{managerClient\}/g, manager?.clientName ?? ctx.sideA[0]?.name ?? 'their client')
       .replace(/\{ref\}/g, ctx.refereeName ?? ctx.guestRefereeName ?? 'the official')
       .replace(/\{guestRef\}/g, ctx.guestRefereeName ?? 'the guest official')
       .replace(/\{refMiss\}/g, ctx.refereeMiss ?? 'missed it')

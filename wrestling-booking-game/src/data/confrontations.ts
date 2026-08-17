@@ -71,7 +71,7 @@ export const CONFRONTATIONS: ConfrontationDefinition[] = [
   {
     id: 'callOut',
     name: 'Call-out',
-    blurb: 'One of them demands the other comes out and says it to his face.',
+    blurb: 'One of them demands the other comes out and says it to their face.',
     intent: 'callOut',
     venues: ['ring'],
     requires: 'none',
@@ -106,8 +106,8 @@ export const CONFRONTATIONS: ConfrontationDefinition[] = [
     heat: 16,
     openers: [
       '{a} and {b} were put at the same table with a contract between them and told to sign.',
-      'The table went out, the chairs went out, and {a} sat down opposite {b} without looking at him.',
-      '{a} signed first, slid the pen across to {b}, and did not take his hand off the table.',
+      'The table went out, the chairs went out, and {a} sat down opposite {b} without once looking up.',
+      '{a} signed first, slid the pen across to {b}, and kept one hand flat on the table.',
     ],
   },
   {
@@ -119,8 +119,8 @@ export const CONFRONTATIONS: ConfrontationDefinition[] = [
     requires: 'championship',
     heat: 14,
     openers: [
-      '{b} was doing an address with the belt on his shoulder when {a} came down and took it off him.',
-      '{a} told {b} that the title had not looked like it meant anything since he won it.',
+      '{b} was doing an address with the belt up on one shoulder when {a} came down and took it away.',
+      '{a} told {b} the title had not looked like it meant anything since it changed hands.',
       '{a} held the belt up next to {b}’s face so the crowd could see which of them the camera wanted.',
     ],
   },
@@ -133,8 +133,8 @@ export const CONFRONTATIONS: ConfrontationDefinition[] = [
     requires: 'none',
     heat: 11,
     openers: [
-      '{a} pointed out that the crowd had chanted {b}’s name during his match, not his own.',
-      '{a} asked {b} to his face what he had done to deserve the position he is in.',
+      '{a} pointed out that the crowd had chanted {b}’s name during somebody else’s match, not their own.',
+      '{a} asked {b}, face to face, what had ever been done to deserve that spot on the card.',
       '{a} said the difference between them is a marketing department, and meant it.',
     ],
   },
@@ -149,7 +149,7 @@ export const CONFRONTATIONS: ConfrontationDefinition[] = [
     heat: 18,
     openers: [
       '{a} spent the whole segment talking to {c} and never once looked at {b}.',
-      '{a} told {b}, in front of the building, exactly what {c} had said about him.',
+      '{a} told {b}, in front of the building, exactly what {c} had said behind their back.',
       '{a} put an arm round {c} while {b} was still holding the microphone.',
     ],
   },
@@ -163,7 +163,7 @@ export const CONFRONTATIONS: ConfrontationDefinition[] = [
     heat: 13,
     openers: [
       '{a} blamed {b} for the loss in front of everybody instead of taking it inside.',
-      '{a} asked {b} why he had been slow getting into the ring, and would not accept the answer.',
+      '{a} asked {b} about being slow getting into the ring, and would not accept the answer.',
       '{b} tried to laugh it off and {a} did not laugh.',
     ],
   },
@@ -190,8 +190,8 @@ export const CONFRONTATIONS: ConfrontationDefinition[] = [
     requires: 'none',
     heat: 17,
     openers: [
-      '{a} was behind the door when {b} came through it and did not give him a chance to turn round.',
-      '{b} was still in his gear when {a} put him into the equipment cases.',
+      '{a} was behind the door when {b} came through it, and there was no chance to turn round.',
+      '{b} was still in ring gear when {a} came through and put them into the equipment cases.',
       'It was over before anybody got there, and {a} was still standing.',
     ],
   },
@@ -265,7 +265,7 @@ export const CONFRONTATION_TWISTS: ConfrontationTwist[] = [
   },
   {
     id: 'answeredBack',
-    label: 'He had an answer',
+    label: 'There was an answer ready',
     weight: 30,
     venues: ['ring', 'backstage'],
     intents: [],
@@ -273,9 +273,9 @@ export const CONFRONTATION_TWISTS: ConfrontationTwist[] = [
     shootHeat: 0,
     alignmentShift: 0,
     lines: [
-      '{b} had an answer ready and the building went with him for it.',
-      '{b} did not raise his voice once and still came out of it ahead.',
-      '{b} gave it back word for word, and it was better than what he got.',
+      '{b} had an answer ready and the building went with it.',
+      '{b} did not raise a voice once and still came out of it ahead.',
+      '{b} gave it back word for word, and it was better than what came in.',
     ],
   },
 
@@ -309,12 +309,12 @@ export const CONFRONTATION_TWISTS: ConfrontationTwist[] = [
     lines: [
       '{a} put {b} through the table before the pen had touched the paper.',
       'The table did not survive the signing. Neither did {b}.',
-      '{b} went over the table backwards and the contract went with him.',
+      '{b} went over the table backwards and the contract went too.',
     ],
   },
   {
     id: 'refusedToSign',
-    label: 'He would not sign',
+    label: 'No signature',
     weight: 14,
     venues: ['ring'],
     intents: ['contractSigning'],
@@ -331,7 +331,7 @@ export const CONFRONTATION_TWISTS: ConfrontationTwist[] = [
   // --- The ones that make a story ---------------------------------------
   {
     id: 'allyMisfire',
-    label: 'He hit the wrong man',
+    label: 'The wrong one got hit',
     weight: 12,
     venues: ['ring', 'backstage'],
     intents: [],
@@ -342,8 +342,8 @@ export const CONFRONTATION_TWISTS: ConfrontationTwist[] = [
     injuryWeeks: [1, 2],
     hurts: 'third',
     lines: [
-      '{a} swung at {b}, {b} moved, and {c} took it flush. {c} is his own partner.',
-      '{c} stepped in to break it up and {a} hit him instead of {b}. Nobody is sure it was an accident.',
+      '{a} swung at {b}, {b} moved, and {c} took it flush. {c} is {a}’s own partner.',
+      '{c} stepped in to break it up and {a} connected with {c} instead of {b}. Nobody is sure it was an accident.',
       '{a} went for {b} and put {c} down by mistake, and {c} got up looking at {a} rather than at {b}.',
     ],
   },
@@ -379,7 +379,7 @@ export const CONFRONTATION_TWISTS: ConfrontationTwist[] = [
   },
   {
     id: 'walkedOff',
-    label: 'He would not engage',
+    label: 'No engagement',
     weight: 10,
     venues: ['ring', 'backstage'],
     intents: [],
@@ -402,7 +402,7 @@ export const CONFRONTATION_TWISTS: ConfrontationTwist[] = [
     shootHeat: 0,
     alignmentShift: -1,
     lines: [
-      '{a} said the unforgivable thing and the building cheered him for it.',
+      '{a} said the unforgivable thing and the building cheered for it.',
       'It was meant to make {a} the villain. Nine thousand people decided otherwise.',
       'The turn landed and landed the wrong way round, and {a} could hear it happening.',
     ],

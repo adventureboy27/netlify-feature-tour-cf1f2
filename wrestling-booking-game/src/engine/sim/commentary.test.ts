@@ -157,10 +157,25 @@ const ALWAYS_SAFE = new Set([
   'sideB',
   // The town is always known — the show is being staged somewhere.
   'town',
+  // Pronouns for the two the line is already allowed to name. Safe for the
+  // same reason `onTop` and `inTrouble` are: they are the people in the ring.
+  'topThey',
+  'topThem',
+  'topTheir',
+  'Top',
+  'lowThey',
+  'lowThem',
+  'lowTheir',
+  'Low',
 ]);
 
 /** Placeholders nobody on commentary could know before the bell. */
-const SPOILERS = new Set(['winner', 'loser', 'winnerFinisher']);
+const SPOILERS = new Set([
+  // Pronouns for the winner and loser give the result away exactly as their
+  // names do, so they belong on the same side of the line.
+  'winThey',
+  'Win',
+  'loseThem','winner', 'loser', 'winnerFinisher']);
 
 function placeholdersIn(text: string): string[] {
   return [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]!);

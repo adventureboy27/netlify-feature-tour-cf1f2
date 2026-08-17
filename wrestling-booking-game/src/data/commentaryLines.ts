@@ -90,40 +90,40 @@ export const PLAY_BY_PLAY: Partial<Record<MatchBeatKind, readonly string[]>> = {
   ],
   control: [
     '{onTop} takes over now. Stomps in the corner and the referee is counting.',
-    '{onTop} grounds him. Wearing {inTrouble} down, taking his time about it.',
+    '{onTop} grounds {lowThem}. Wearing {inTrouble} down, taking {topTheir} time about it.',
     'A hard whip into the corner and {inTrouble} folds up on impact.',
-    '{onTop} has the arm and he is not letting go of it.',
+    '{onTop} has the arm and {topThey} is not letting go of it.',
     'Right hands. One after another, and {inTrouble} has nowhere to go.',
     '{onTop} drives a knee into the midsection and {inTrouble} drops to a knee.',
-    'He is picking him apart. {onTop} in complete control here.',
+    '{Top} is picking {lowThem} apart. {onTop} in complete control here.',
     'Elbow. Elbow. Another one. {inTrouble} is in serious trouble.',
     '{onTop} slows it right down — a chinlock, and the crowd does not like it.',
-    'Backbreaker, and {onTop} holds him there across the knee.',
+    'Backbreaker, and {onTop} holds {lowThem} there across the knee.',
   ],
   hopeSpot: [
     '{onTop} fires back! Out of nowhere!',
-    'Wait — {onTop} ducks under and catches him coming in!',
-    'He is up! {onTop} is up and the building is coming with him!',
-    '{onTop} blocks it, blocks it again, and now the right hands are his!',
-    'Reversal! {onTop} sends him across and follows in behind!',
+    'Wait — {onTop} ducks under and catches {lowThem} coming in!',
+    '{Top} is up! {onTop} is up and the building is coming with {topThem}!',
+    '{onTop} blocks it, blocks it again, and now the right hands are {topTheir}!',
+    'Reversal! {onTop} sends {lowThem} across and follows in behind!',
     'Out of nothing — {onTop} catches the foot and turns it into a takedown!',
-    '{onTop} will not stay down. He is on his feet and he is throwing bombs!',
+    '{onTop} will not stay down. {Top} is on {topTheir} feet and {topThey} is throwing bombs!',
   ],
   nearFall: [
     'Cover — one, two, and {inTrouble} gets the shoulder up!',
-    'ONE, TWO — no! How is he still in this?',
-    'He hooks the leg — two and a half! That was as close as it gets.',
+    'ONE, TWO — no! How is {lowThey} still in this?',
+    '{Top} hooks the leg — two and a half! That was as close as it gets.',
     'Cover, and {inTrouble} kicks out at the very last instant!',
     'One! Two! Th— no! I thought that was it.',
     'That has to be it — no! {inTrouble} is still alive!',
   ],
   signature: [
-    '{onTop} up top now. He is going to fly.',
-    'He is setting up for {finisher}. This could be it.',
-    '{onTop} lifts him up — and drives him straight through the mat!',
-    'Off the top rope and he connects flush! Nobody is moving.',
-    'He is calling for it. {onTop} is calling for the end.',
-    'What a shot! {onTop} caught him square and {inTrouble} went down like a bag of sand.',
+    '{onTop} up top now. {Top} is going to fly.',
+    '{Top} is setting up for {finisher}. This could be it.',
+    '{onTop} lifts {lowThem} up — and drives {lowThem} straight through the mat!',
+    'Off the top rope and {topThey} connects flush! Nobody is moving.',
+    '{Top} is calling for it. {onTop} is calling for the end.',
+    'What a shot! {onTop} caught {lowThem} square and {inTrouble} went down like a bag of sand.',
   ],
   interference: [
     'Hang on — somebody else is out here. This is falling apart.',
@@ -134,8 +134,8 @@ export const PLAY_BY_PLAY: Partial<Record<MatchBeatKind, readonly string[]>> = {
     '{winnerFinisher}! Cover — one, two, three! It is over!',
     'That is it! {winner} gets the three and this one is finished!',
     'One, two, three — {winner} has done it!',
-    'He hooks the leg and gets it! {winner} wins it!',
-    '{winner} put him away, and {loser} has no answer for it.',
+    '{Win} hooks the leg and gets it! {winner} wins it!',
+    '{winner} put {loseThem} away, and {loser} has no answer for it.',
     'It is over. {winner} stands, {loser} does not.',
   ],
 };
@@ -171,7 +171,7 @@ export const OPENERS: readonly ColourTemplate[] = [
     needs: ['blowoff'],
   },
   {
-    text: 'Debut night. {debutant} has never worked a match for this company, and he starts against {sideB}.',
+    text: 'Debut night. {debutant} has never worked a match for this company, and starts against {sideB}.',
     needs: ['debut'],
   },
   {
@@ -193,12 +193,12 @@ export const STAKES: readonly ColourTemplate[] = [
     needs: ['longReign'],
   },
   {
-    text: 'I called {secondGenParent}\u2019s matches for years, {play}. Now I am calling his kid\u2019s. That is what this business does to you.',
+    text: 'I called {secondGenParent}\u2019s matches for years, {play}. Now I am calling the kid\u2019s. That is what this business does to you.',
     needs: ['secondGeneration'],
     leaning: 'analyst',
   },
   {
-    text: 'There is a weight to carrying a name like that. {secondGen} did not ask for it and he cannot put it down either.',
+    text: 'There is a weight to carrying a name like that. {secondGen} did not ask for it and cannot put it down either.',
     needs: ['secondGeneration'],
     leaning: 'analyst',
   },
@@ -208,7 +208,7 @@ export const STAKES: readonly ColourTemplate[] = [
     leaning: 'analyst',
   },
   {
-    text: 'I will say this for the champion — he did not steal that belt. He earned it.',
+    text: 'I will say this for the champion — that belt was not stolen. It was earned.',
     needs: ['titleRetained'],
     leaning: 'face',
   },
@@ -217,7 +217,7 @@ export const STAKES: readonly ColourTemplate[] = [
     needs: ['grudge'],
   },
   {
-    text: '{manager} is out here with {managerClient}, and that man has never been at ringside for an honest three-count in his life.',
+    text: '{manager} is out here with {managerClient}, and has never been at ringside for an honest three-count.',
     needs: ['deviousManager'],
     leaning: 'face',
     provocative: true,
@@ -261,7 +261,7 @@ export const STAKES: readonly ColourTemplate[] = [
     text: 'Look at the size of {big} next to {small}. That is not a fair fight on paper.',
     needs: ['sizeGap'],
   },
-  { text: '{rookie} is a baby in this business and he is in there with a wolf.', needs: ['rookie'] },
+  { text: '{rookie} is a baby in this business, in there with a wolf.', needs: ['rookie'] },
   { text: 'Listen to this place. They are up for this one already.', needs: ['hotCrowd'] },
 
   // --- who they are, before a hand has been laid on anybody ---------------
@@ -270,23 +270,23 @@ export const STAKES: readonly ColourTemplate[] = [
     needs: ['formerChampion'],
   },
   {
-    text: 'A former {formerTitle} holder in there tonight. {formerChamp} has been at the top of this company before and he wants it back.',
+    text: 'A former {formerTitle} holder in there tonight. {formerChamp} has been at the top of this company before and wants it back.',
     needs: ['formerChampion'],
   },
   {
-    text: '{otherChamp} is the {otherBelt} holder and it is not even on the line here. He is wrestling for nothing but pride.',
+    text: '{otherChamp} is the {otherBelt} holder and it is not even on the line here. Wrestling for nothing but pride.',
     needs: ['reigningElsewhere'],
   },
   {
-    text: '{streaking} has not lost in weeks. Whatever he is doing, it is working.',
+    text: '{streaking} has not lost in weeks. Whatever is going on there, it is working.',
     needs: ['onATear'],
   },
   {
-    text: 'That is {tearRun} straight for {streaking}, {play}. Nobody has come close to him.',
+    text: 'That is {tearRun} straight for {streaking}, {play}. Nobody has come close.',
     needs: ['onATear'],
   },
   {
-    text: '{oldHandYears} years {oldHand} has been doing this. {oldHandYears} years, and he is still here.',
+    text: '{oldHandYears} years {oldHand} has been doing this. {oldHandYears} years, and still here.',
     needs: ['longCareer'],
   },
   {
@@ -298,11 +298,11 @@ export const STAKES: readonly ColourTemplate[] = [
     needs: ['longCareer', 'debut'],
   },
   {
-    text: '{slumping} cannot buy a win at the moment, {play}. He needs this one badly.',
+    text: '{slumping} cannot buy a win at the moment, {play}. This one is needed badly.',
     needs: ['slumping'],
   },
   {
-    text: '{slumpRun} in a row {slumping} has dropped now. You start to wonder what is going on with him.',
+    text: '{slumpRun} in a row {slumping} has dropped now. You start to wonder what is going on there.',
     needs: ['slumping'],
   },
   {
@@ -361,12 +361,12 @@ export const COLOUR: readonly ColourTemplate[] = [
     after: ['control', 'nearFall'],
   },
   {
-    text: 'Watch {manager} — every time {ref} turns his back, that man moves.',
+    text: 'Watch {manager} — every time {ref} turns away, that is when the move comes.',
     needs: ['deviousManager', 'referee'],
     provocative: true,
   },
   {
-    text: 'That is coaching, {play}. {manager} is telling him exactly where to go and he is going there.',
+    text: 'That is coaching, {play}. {manager} is calling exactly where to go, and that is where it goes.',
     needs: ['manager'],
     after: ['control', 'signature'],
     leaning: 'analyst',
@@ -377,13 +377,13 @@ export const COLOUR: readonly ColourTemplate[] = [
     provocative: true,
   },
   {
-    text: 'And {manager} is loving this. Look at him.',
+    text: 'And {manager} is loving this. Look at that.',
     needs: ['manager'],
     after: ['control'],
     leaning: 'heel',
   },
   {
-    text: 'Somebody get {manager} away from that ring. He is a participant at this point.',
+    text: 'Somebody get {manager} away from that ring. That is a participant at this point.',
     needs: ['deviousManager'],
     leaning: 'face',
     provocative: true,
@@ -391,7 +391,7 @@ export const COLOUR: readonly ColourTemplate[] = [
 
   // --- the official ------------------------------------------------------
   {
-    text: '{ref} is losing this one, {play}. He has been a step behind since the bell.',
+    text: '{ref} is losing this one, {play}. A step behind since the bell.',
     needs: ['referee'],
     after: ['control', 'nearFall'],
     provocative: true,
@@ -428,7 +428,7 @@ export const COLOUR: readonly ColourTemplate[] = [
     needs: ['refereeMiss'],
   },
   {
-    text: 'I am not blaming {ref}. It happens fast and there is one of him.',
+    text: 'I am not blaming {ref}. It happens fast and there is only one official out there.',
     needs: ['refereeMiss'],
     leaning: 'analyst',
     provocative: true,
@@ -450,12 +450,12 @@ export const COLOUR: readonly ColourTemplate[] = [
     after: ['control', 'nearFall'],
   },
   {
-    text: '{tearRun} wins on the bounce and he is wrestling like it.',
+    text: '{tearRun} wins on the bounce, and it shows in every move out there.',
     needs: ['onATear'],
     after: ['control', 'signature'],
   },
   {
-    text: 'That is what {slumpRun} straight losses does to a man. He has stopped trusting himself.',
+    text: 'That is what {slumpRun} straight losses does to somebody. The trust is gone.',
     needs: ['slumping'],
     after: ['nearFall', 'control'],
   },
@@ -496,12 +496,12 @@ export const COLOUR: readonly ColourTemplate[] = [
 
   // --- somebody is hurt --------------------------------------------------
   {
-    text: 'He is hurt, {play}. That is not selling. {hurt} is genuinely hurt.',
+    text: 'That is not selling, {play}. {hurt} is genuinely hurt.',
     needs: ['injuredInMatch'],
     after: ['control', 'signature'],
   },
   {
-    text: '{hurtHow} — and he is trying to get up. He should not be trying to get up.',
+    text: '{hurtHow} — and still trying to get up. That is somebody who should be staying down.',
     needs: ['injuredInMatch'],
   },
   {
@@ -559,7 +559,7 @@ export const COLOUR: readonly ColourTemplate[] = [
 
   // --- size and age ------------------------------------------------------
   {
-    text: '{small} cannot match {big} for power. He has to be smarter than that.',
+    text: '{small} cannot match {big} for power, and will have to be smarter than that.',
     needs: ['sizeGap', 'smallInTrouble'],
     after: ['control'],
     leaning: 'analyst',
@@ -570,7 +570,7 @@ export const COLOUR: readonly ColourTemplate[] = [
     after: ['control'],
   },
   {
-    text: '{vet} has been doing this for twenty years. He does not panic in that position.',
+    text: '{vet} has been doing this for twenty years. No panic in that position.',
     needs: ['veteran', 'vetInTrouble'],
     after: ['control', 'nearFall'],
     leaning: 'analyst',
@@ -581,12 +581,12 @@ export const COLOUR: readonly ColourTemplate[] = [
     after: ['control'],
   },
   {
-    text: '{rookie} is learning something tonight and it is costing him.',
+    text: '{rookie} is learning something tonight, and the lesson is expensive.',
     needs: ['rookie', 'rookieInTrouble'],
     after: ['control'],
   },
   {
-    text: 'Green as grass, {rookie}, but he has heart. You cannot teach that.',
+    text: 'Green as grass, {rookie}, but the heart is there. You cannot teach that.',
     needs: ['rookie'],
     after: ['hopeSpot'],
     leaning: 'face',
@@ -633,7 +633,7 @@ export const COLOUR: readonly ColourTemplate[] = [
 
   // --- careers, mid-match -------------------------------------------------
   {
-    text: 'He has been here before, {play}. {formerChamp} held the {formerTitle} and he knows what this feels like.',
+    text: 'Been here before, {play}. {formerChamp} held the {formerTitle} and knows exactly what this feels like.',
     needs: ['formerChampion'],
     after: ['nearFall', 'signature'],
   },
@@ -644,23 +644,23 @@ export const COLOUR: readonly ColourTemplate[] = [
     leaning: 'analyst',
   },
   {
-    text: '{otherChamp} is a champion in this company and he is being made to look ordinary.',
+    text: '{otherChamp} is a champion in this company and is being made to look ordinary.',
     needs: ['reigningElsewhere'],
     after: ['control'],
     provocative: true,
   },
   {
-    text: 'This is what a run of form does for a man. {streaking} believes he is going to win this.',
+    text: 'This is what a run of form does. {streaking} believes this one is already won.',
     needs: ['onATear'],
     after: ['hopeSpot', 'signature'],
   },
   {
-    text: 'You can see it in {slumping}. He has stopped expecting things to go his way.',
+    text: 'You can see it in {slumping}. Stopped expecting anything to go the right way.',
     needs: ['slumping'],
     after: ['control', 'nearFall'],
   },
   {
-    text: 'That is nerves, {play}. {debutant} has never had a crowd like this in front of him.',
+    text: 'That is nerves, {play}. {debutant} has never had a crowd like this in front of them.',
     needs: ['debut'],
     after: ['control'],
   },
@@ -671,13 +671,13 @@ export const COLOUR: readonly ColourTemplate[] = [
     leaning: 'face',
   },
   {
-    text: 'He has his father\u2019s timing. You cannot teach that — {secondGen} grew up in a locker room.',
+    text: 'That is the family timing. You cannot teach it — {secondGen} grew up in a locker room.',
     needs: ['secondGeneration'],
     after: ['signature', 'hopeSpot'],
     leaning: 'face',
   },
   {
-    text: 'The crowd is behind him because of the surname, {play}. They will stay behind him for what he does with it.',
+    text: 'The crowd is behind {secondGen} because of the surname, {play}. They will stay for what gets done with it.',
     needs: ['secondGeneration'],
     after: ['nearFall', 'control'],
     leaning: 'analyst',
@@ -698,7 +698,7 @@ export const COLOUR: readonly ColourTemplate[] = [
     leaning: 'analyst',
   },
   {
-    text: '{timesMet} matches and he still fell for that. You would think he would learn.',
+    text: '{timesMet} matches and they still fell for that. You would think somebody would learn.',
     needs: ['metOften'],
     after: ['signature', 'nearFall'],
     provocative: true,
@@ -745,7 +745,7 @@ export const COLOUR: readonly ColourTemplate[] = [
 
   // --- tag ----------------------------------------------------------------
   {
-    text: '{inTrouble} needs to make the tag. {inTroublePartner} has his hand out and he cannot reach him.',
+    text: '{inTrouble} needs to make the tag. {inTroublePartner} has a hand out and it is inches away.',
     needs: ['tagMatch'],
     after: ['control'],
   },
@@ -804,7 +804,7 @@ export const CLOSERS: readonly ColourTemplate[] = [
     needs: ['greatMatch'],
   },
   {
-    text: '{winner} won it, and {manager} is already in the ring celebrating like he did it himself.',
+    text: '{winner} won it, and {manager} is already in the ring celebrating like it was their doing.',
     needs: ['manager'],
   },
   {
@@ -817,12 +817,12 @@ export const CLOSERS: readonly ColourTemplate[] = [
     needs: ['hotCrowd', 'greatMatch'],
   },
   {
-    text: 'I hope {ref} is proud of what he let happen out here.',
+    text: 'I hope {ref} is proud of what got allowed out here.',
     needs: ['refereeMiss'],
     leaning: 'face',
   },
   {
-    text: 'A former {formerTitle} holder, and he is right back in the conversation after that.',
+    text: 'A former {formerTitle} holder, right back in the conversation after that.',
     needs: ['formerChampion'],
   },
   {

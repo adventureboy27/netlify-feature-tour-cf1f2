@@ -24,14 +24,15 @@ const SOURCES = import.meta.glob('../../{engine,data}/**/*.ts', {
 }) as Record<string, string>;
 
 /**
- * Files still carrying gendered prose, with the reason each is waiting.
+ * The only files allowed to contain a gendered pronoun, and why.
  *
- * Not a suppression list to grow — a list to empty. Every entry is content
- * where the pronoun's subject is genuinely ambiguous between two people in
- * the same line ("{onTop} grounds him... taking his time about it" is two
- * different wrestlers), so it needs a written pass rather than a substitution.
+ * This used to be a list of content waiting to be swept. It is empty of those
+ * now — what is left is the two files describing fixed, named characters, and
+ * the pronoun machinery itself. Nothing should be added here. If a new file
+ * trips this test the answer is a `Pronouns` argument or a rewrite, not an
+ * entry below.
  */
-const NOT_YET_SWEPT = new Set([
+const ALLOWED = new Set([
   // Fixed, named characters whose gender is part of who they are — the
   // pronoun in their description is correct rather than assumed.
   'data/refereePool.ts',
@@ -39,9 +40,6 @@ const NOT_YET_SWEPT = new Set([
   // The helper itself, and the module that had the first private copy of it.
   'career/pronouns.ts',
   'career/scouting.ts',
-  'data/commentaryLines.ts',
-  'data/confrontations.ts',
-  'sim/commentary.ts',
 ]);
 
 /**
@@ -63,7 +61,7 @@ describe('nothing the player reads is written for men only', () => {
     for (const [path, text] of Object.entries(SOURCES)) {
       if (path.endsWith('.test.ts')) continue;
       const relative = shortName(path);
-      if ([...NOT_YET_SWEPT].some((skip) => relative.endsWith(skip.split('/').pop()!))) continue;
+      if ([...ALLOWED].some((skip) => relative.endsWith(skip.split('/').pop()!))) continue;
 
       {
         text
