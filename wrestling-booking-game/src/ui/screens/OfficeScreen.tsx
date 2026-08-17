@@ -26,6 +26,7 @@ import { responseIsAvailable, type PoachingResponse } from '../../engine/world/p
 import { temptationLabel } from '../../engine/world/tampering';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { mostRecentDeath, stillHeldAgainstUs } from '../../engine/career/onOurWatch';
+import { moodBand, moodLabel, moraleSummary, troubleInTheRoom } from '../../engine/career/morale';
 import { egoLabel } from '../../engine/career/ego';
 import { awardById } from '../../engine/career/awards';
 import { strikeWarning } from '../../engine/world/mandates';
@@ -222,9 +223,47 @@ function DeskTab() {
   const dismissAuction = useGameStore((s) => s.dismissAuctionResult);
   if (!world) return null;
 
+  // Everybody unhappy enough to be a problem, worst first. `troubleInTheRoom`
+  // has existed since the morale system was written and nothing ever called
+  // it, so the one question a booker most wants answered — who is about to
+  // become my problem — had no page. Reading it off the roster card meant
+  // opening twenty cards.
+  const unhappy = troubleInTheRoom(
+    world.promotion.rosterIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w) && !w!.deceased),
+    world.settings,
+  ).slice(0, 5);
+
   return (
     <>
       <ChampionCallPanel />
+
+      {unhappy.length > 0 && (
+        <section className="mb-3">
+          <h2 className="mb-2 text-sm font-medium text-neutral-300">Trouble in the room</h2>
+          <div className="flex flex-col gap-1">
+            {unhappy.map((w) => (
+              <div
+                key={w.id}
+                data-testid={`trouble-${w.id}`}
+                className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="truncate text-xs font-medium">{w.name}</span>
+                  <span className="shrink-0 text-[10px] text-rose-400">
+                    {moodLabel(moodBand(w.morale, world.settings))}
+                  </span>
+                </div>
+                {/* Why, in the words the morale system itself used. One place
+                    computes the arithmetic and the sentence, so the page
+                    cannot drift from what is actually happening to him. */}
+                <div className="text-[10px] leading-snug text-neutral-500">
+                  {moraleSummary(w, world.settings)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* A company has closed, and everything it had is on the table. */}
       {world.pendingAuction && (

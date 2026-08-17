@@ -5207,7 +5207,7 @@ export const useGameStore = create<GameStore>()(
           );
           member.morale = clamp(member.morale + report.delta, 0, 100);
           member.moraleLastDelta = report.delta;
-          member.moraleNote = report.reasons[0]?.text ?? null;
+          member.moraleNote = report.headline?.text ?? null;
         }
         for (const id of world.promotion.rosterIds) {
           const member = world.wrestlers[id];

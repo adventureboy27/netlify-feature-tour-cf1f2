@@ -19,6 +19,7 @@ import { CAREER_STATUS_LABELS, CAREER_STATUS_BLURBS, yearsPro } from '../../engi
 import { egoLabel } from '../../engine/career/ego';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
 import { leaveStatusLine, shunLine, shunned } from '../../engine/career/onOurWatch';
+import { circleOf, circleSummary } from '../../engine/career/circle';
 import { freshnessLabel, isStale } from '../../engine/sim/freshness';
 import { pronounsFor } from '../../engine/career/pronouns';
 import { retirementPressure } from '../../engine/career/retirement';
@@ -359,6 +360,17 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     <div className="mt-0.5 text-[10px] leading-snug text-neutral-400">{stanceOn(w, world.settings)!.doctor.verdict}</div>
                     <div className="text-[10px] leading-snug text-amber-400/90">{stanceOn(w, world.settings)!.man.says}</div>
                   </>
+                )}
+
+                {/* Who they travel with, and who they will not be in a room
+                    with. The relationships have driven booking and morale
+                    since they were written; `circleSummary` says them out
+                    loud, and had no caller until now — so the booker was
+                    guessing at a thing the sim already knew. */}
+                {circleSummary(circleOf(world.relationships, w.id, world.settings), (id) => world.wrestlers[id]?.name) && (
+                  <div className="mt-0.5 text-[10px] leading-snug text-neutral-500">
+                    {circleSummary(circleOf(world.relationships, w.id, world.settings), (id) => world.wrestlers[id]?.name)}
+                  </div>
                 )}
 
                 {/* And what has already happened to this body. */}

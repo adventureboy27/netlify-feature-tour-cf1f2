@@ -452,3 +452,33 @@ describe('mood rubs off on the people you are in there with', () => {
     expect(ctx.moodOfTheOthers).toEqual([80]);
   });
 });
+
+describe('the one line a card shows', () => {
+  it('says what is wrong rather than what is right, when something is wrong', () => {
+    // The bug this exists to stop: the pull toward the set point is largest
+    // exactly when somebody is furthest from it, so every miserable wrestler
+    // on the roster was described as "This is a good company to be at".
+    const sulking = person({ id: 'a', morale: 5 });
+    const report = weeklyMorale(sulking, week({ worked: false, weeksIdle: 9 }), settings);
+
+    expect(report.headline).not.toBeNull();
+    expect(report.headline!.delta).toBeLessThan(0);
+    expect(report.headline!.text).not.toContain('good company');
+  });
+
+  it('falls back to good news when there is genuinely nothing wrong', () => {
+    const content = person({ id: 'a', morale: 50, popularity: 20, ego: 10 });
+    const report = weeklyMorale(content, week({ slot: 5, slotCount: 6, outcome: 'won' }), settings);
+    expect(report.headline).not.toBeNull();
+    // Nothing negative happened, so the line is allowed to be positive.
+    if (!report.reasons.some((r) => r.delta < 0)) {
+      expect(report.headline!.delta).toBeGreaterThan(0);
+    }
+  });
+
+  it('is always one of the reasons it reported, never invented', () => {
+    const w = person({ id: 'a', morale: 40 });
+    const report = weeklyMorale(w, week({ outcome: 'lost', beatenByPopularity: 5 }), settings);
+    if (report.headline) expect(report.reasons).toContain(report.headline);
+  });
+});

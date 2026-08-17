@@ -43,6 +43,11 @@ export interface MoraleReason {
 }
 
 export interface MoraleReport {
+  /**
+   * The single reason worth printing — see the note where it is chosen. Null
+   * only when nothing at all moved this week.
+   */
+  headline: MoraleReason | null;
   /** What to add to their morale this week, already bounded. */
   delta: number;
   /** Why, loudest first. Empty when nothing moved. */
@@ -444,10 +449,21 @@ export function weeklyMorale(
     -s.moraleWeeklyCap,
     s.moraleWeeklyCap,
   );
-  return {
-    delta,
-    reasons: reasons.filter((r) => r.text).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)),
-  };
+  const said = reasons.filter((r) => r.text).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+  // The one line a card or a list shows.
+  //
+  // Not simply the loudest, because the loudest is very often the pull toward
+  // the set point — and that term is *largest* exactly when somebody is
+  // furthest from it. So every miserable man on the roster was described as
+  // "This is a good company to be at", which is useless and reads as sarcasm.
+  //
+  // What a booker wants from one line is what is wrong. So: the loudest thing
+  // working against them if there is one, and only if nothing is do we fall
+  // back to the loudest thing at all.
+  const headline = said.find((r) => r.delta < 0) ?? said[0] ?? null;
+
+  return { delta, reasons: said, headline };
 }
 
 /**
