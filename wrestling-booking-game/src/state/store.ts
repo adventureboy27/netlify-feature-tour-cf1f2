@@ -78,7 +78,7 @@ import {
 } from '../engine/world/faction';
 import { inventRumour, rumourTweets, type Rumour } from '../engine/world/rumours';
 import { demandsDelivered, deliveryBonus, fanDemands } from '../engine/world/fanDemand';
-import { deliveredTo, moraleContext, weeklyMorale } from '../engine/career/morale';
+import { clampMorale, deliveredTo, moraleContext, weeklyMorale } from '../engine/career/morale';
 import { absenceDecay, cardDrawIn, localStanding, setLocal, workingGain } from '../engine/career/reach';
 import {
   advance,
@@ -1424,10 +1424,9 @@ function settleSupershow(world: World, rng: Rng): void {
         const stakes = crossPromoStakes(holdsTitle, world.settings);
         const swing = stakes.popularityMultiplier * world.settings.supershowMoraleSwing / 2;
         person.popularity = clamp(person.popularity + (winners.has(id) ? swing : -swing), 0, 100);
-        person.morale = clamp(
+        person.morale = clampMorale(
           person.morale + (winners.has(id) ? stakes.moraleSwing : -stakes.moraleSwing),
-          0,
-          100,
+          world.settings,
         );
       }
 
@@ -1675,13 +1674,13 @@ function applyEffect(world: World, effect: EventEffect): number {
   switch (effect.kind) {
     case 'morale': {
       const w = at(effect.wrestlerId);
-      if (w) w.morale = bump(w.morale, effect.delta);
+      if (w) w.morale = clampMorale(w.morale + effect.delta, world.settings);
       break;
     }
     case 'rosterMorale':
       for (const id of world.promotion.rosterIds) {
         const w = at(id);
-        if (w) w.morale = bump(w.morale, effect.delta);
+        if (w) w.morale = clampMorale(w.morale + effect.delta, world.settings);
       }
       break;
     case 'popularity': {
@@ -2610,7 +2609,7 @@ export const useGameStore = create<GameStore>()(
           for (const grief of felt) {
             const mourner = world.wrestlers[grief.wrestlerId];
             if (!mourner) continue;
-            mourner.morale = clamp(mourner.morale + grief.moraleDelta, 0, 100);
+            mourner.morale = clampMorale(mourner.morale + grief.moraleDelta, world.settings);
             mourner.moraleNote = grief.note;
           }
           const said = mourningLine(felt);
@@ -2638,7 +2637,7 @@ export const useGameStore = create<GameStore>()(
           for (const id of world.promotion.rosterIds) {
             const member = world.wrestlers[id];
             if (!member || member.deceased) continue;
-            member.morale = clamp(member.morale + roomMoraleCost(world.settings) * ours, 0, 100);
+            member.morale = clampMorale(member.morale + roomMoraleCost(world.settings) * ours, world.settings);
           }
           world.weeklyNews.push(
             wire(
@@ -2948,20 +2947,18 @@ export const useGameStore = create<GameStore>()(
               for (const competitor of participantWrestlers) {
                 if (annoyedByTheDraft.has(competitor.id)) continue;
                 annoyedByTheDraft.add(competitor.id);
-                competitor.morale = clamp(
+                competitor.morale = clampMorale(
                   competitor.morale - world.settings.draftedRefereeMoraleCost,
-                  0,
-                  100,
+                  world.settings,
                 );
               }
             } else {
               // The booker named him on purpose. That is an angle, and it is
               // a fresh irritation every time he does it.
               for (const competitor of participantWrestlers) {
-                competitor.morale = clamp(
+                competitor.morale = clampMorale(
                   competitor.morale - world.settings.guestRefereeMoraleCost,
-                  0,
-                  100,
+                  world.settings,
                 );
               }
             }
@@ -3003,10 +3000,9 @@ export const useGameStore = create<GameStore>()(
               result.rating = clamp(result.rating - world.settings.refereeMissRatingPenalty * severity, 0, 100);
               result.stars = ratingToStars(result.rating);
               if (victim) {
-                victim.morale = clamp(
+                victim.morale = clampMorale(
                   victim.morale - world.settings.refereeMissVictimMorale * severity,
-                  0,
-                  100,
+                  world.settings,
                 );
               }
             }
@@ -4308,7 +4304,7 @@ export const useGameStore = create<GameStore>()(
           for (const id of world.promotion.rosterIds) {
             const member = world.wrestlers[id];
             if (!member || member.deceased) continue;
-            member.morale = clamp(member.morale + earned(takings.morale), 0, 100);
+            member.morale = clampMorale(member.morale + earned(takings.morale), world.settings);
             // It is still a night's work. A company that buries somebody
             // properly still put its roster in a building to do it.
             member.fatigueDebt = clamp(
@@ -4446,7 +4442,7 @@ export const useGameStore = create<GameStore>()(
           if (effect.effects.rosterMorale) {
             for (const id of world.promotion.rosterIds) {
               const member = world.wrestlers[id];
-              if (member) member.morale = clamp(member.morale + effect.effects.rosterMorale, 0, 100);
+              if (member) member.morale = clampMorale(member.morale + effect.effects.rosterMorale, world.settings);
             }
           }
           if (effect.effects.reputation) {
@@ -5414,7 +5410,7 @@ export const useGameStore = create<GameStore>()(
             }),
             world.settings,
           );
-          member.morale = clamp(member.morale + report.delta, 0, 100);
+          member.morale = clampMorale(member.morale + report.delta, world.settings);
           member.moraleLastDelta = report.delta;
           member.moraleNote = report.headline?.text ?? null;
         }
@@ -5444,7 +5440,7 @@ export const useGameStore = create<GameStore>()(
               );
               continue;
             }
-            member.morale = clamp(member.morale - refusalCost(world.settings), 0, 100);
+            member.morale = clampMorale(member.morale - refusalCost(world.settings), world.settings);
             continue;
           }
           // What personality needs that morale alone does not carry: what the
@@ -6009,7 +6005,7 @@ export const useGameStore = create<GameStore>()(
             person.popularity = clamp(person.popularity + week.popularity, 0, 100);
             person.health = clamp(person.health + week.health, 0, 100);
             person.energy = clamp(person.energy + week.energy, 0, 100);
-            person.morale = clamp(person.morale + week.morale, 0, 100);
+            person.morale = clampMorale(person.morale + week.morale, world.settings);
             person.gimmickFreshness = clamp(person.gimmickFreshness - week.freshnessCost, 0, 100);
             if (week.earned > 0) {
               world.promotion.bankBalance += week.earned;
@@ -6801,7 +6797,7 @@ export const useGameStore = create<GameStore>()(
               if (!w) continue;
               w.popularity = clamp(w.popularity + effect.popularity, 0, 100);
               w.momentum = clamp(w.momentum + effect.momentum, -100, 100);
-              w.morale = clamp(w.morale + effect.morale, 0, 100);
+              w.morale = clampMorale(w.morale + effect.morale, world.settings);
             }
             world.awardHistory.push(winner);
           }
@@ -8038,14 +8034,14 @@ export const useGameStore = create<GameStore>()(
         world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== outgoingId);
         rival.rosterIds.push(outgoingId);
         outgoing.promotionId = rival.id;
-        outgoing.morale = clamp(outgoing.morale - world.settings.tradeMoraleCost, 0, 100);
+        outgoing.morale = clampMorale(outgoing.morale - world.settings.tradeMoraleCost, world.settings);
         dropFromCard(world, outgoingId);
 
         if (incoming) {
           rival.rosterIds = rival.rosterIds.filter((id) => id !== incoming.id);
           world.promotion.rosterIds.push(incoming.id);
           incoming.promotionId = world.promotion.id;
-          incoming.morale = clamp(incoming.morale - world.settings.tradeMoraleCost, 0, 100);
+          incoming.morale = clampMorale(incoming.morale - world.settings.tradeMoraleCost, world.settings);
         }
 
         world.promotion.bankBalance -= cashFromYou;
@@ -8198,12 +8194,12 @@ export const useGameStore = create<GameStore>()(
             // costs the rest of the paper.
             guaranteedPct: guaranteedShareFor(member.ego, world.settings),
           };
-          member.morale = clamp(member.morale + 10, 0, 100);
+          member.morale = clampMorale(member.morale + 10, world.settings);
           return;
         }
 
         // Refused. They might take a plain deal anyway, or they might go.
-        member.morale = clamp(member.morale - 15, 0, 100);
+        member.morale = clampMorale(member.morale - 15, world.settings);
         if (chance(rng, offer.demand.walkRisk)) {
           world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestlerId);
           member.promotionId = null;
@@ -8280,7 +8276,7 @@ export const useGameStore = create<GameStore>()(
         if (!chance(rng, secretSigningAppeal(person, world.settings))) {
           outcome = { ok: false, reason: `${person.name} turned it down, and now knows you asked.` };
           // They know. That is a real cost of trying.
-          person.morale = clamp(person.morale - world.settings.secretSigningRefusalMorale, 0, 100);
+          person.morale = clampMorale(person.morale - world.settings.secretSigningRefusalMorale, world.settings);
           return;
         }
 
@@ -8402,7 +8398,7 @@ export const useGameStore = create<GameStore>()(
         if (target.contract && effect.rateMultiplier !== 1) {
           target.contract.weeklyRate = Math.round(target.contract.weeklyRate * effect.rateMultiplier);
         }
-        target.morale = clamp(target.morale + effect.moraleDelta, 0, 100);
+        target.morale = clampMorale(target.morale + effect.moraleDelta, world.settings);
         target.momentum = clamp(target.momentum + effect.momentumDelta, 0, 100);
         world.promotion.reputation = clamp(
           world.promotion.reputation + effect.reputationDelta,
@@ -8414,7 +8410,7 @@ export const useGameStore = create<GameStore>()(
         for (const id of world.promotion.rosterIds) {
           const member = world.wrestlers[id];
           if (!member || member.id === target.id || member.deceased) continue;
-          member.morale = clamp(member.morale + effect.rosterMoraleDelta, 0, 100);
+          member.morale = clampMorale(member.morale + effect.rosterMoraleDelta, world.settings);
         }
         // Answered, so it does not resolve itself on its date. Whether he
         // stays is still settled then, at the temptation you have left him on.
@@ -9228,7 +9224,7 @@ export const useGameStore = create<GameStore>()(
         if (!grant) {
           // He stays, and he is not happy about it. Saying no is often right
           // — he is still your wrestler and he still has to work.
-          wrestler.morale = clamp(wrestler.morale - refusalCost(world.settings) * 2, 0, 100);
+          wrestler.morale = clampMorale(wrestler.morale - refusalCost(world.settings) * 2, world.settings);
           // And he remembers. Morale comes back; this does not. The next time
           // he is a free man and this company is in the room, they are not in
           // it — see economy/bidding.ts stanceToward.

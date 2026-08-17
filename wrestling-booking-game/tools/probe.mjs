@@ -195,6 +195,17 @@ async function playOne(page, { seed, weeks, restock, overrides }) {
         out.rating = w.promotion.rating;
         out.bank = w.promotion.bankBalance;
         out.rosterEnd = w.promotion.rosterIds.length;
+        // The mood thresholds themselves, so the morale report reads bands
+        // and the floor from what this save was actually run with — not a
+        // copy hardcoded here that could quietly drift from settings.ts.
+        out.moraleThresholds = {
+          floor: w.settings.moraleFloor,
+          delighted: w.settings.moodDelightedAbove,
+          happy: w.settings.moodHappyAbove,
+          content: w.settings.moodContentAbove,
+          restless: w.settings.moodRestlessAbove,
+          unhappy: w.settings.moodUnhappyAbove,
+        };
       }
       return out;
     },
@@ -237,10 +248,29 @@ function injuries(runs) {
 
 function morale(runs) {
   const all = runs.flatMap((r) => r.moraleEnd);
-  return [
+  const t = runs.find((r) => r.moraleThresholds)?.moraleThresholds;
+  const lines = [
     `  mean ${round(mean(all))}  spread(sd) ${round(sd(all))}`,
     `  range ${Math.round(Math.min(...all))} to ${Math.round(Math.max(...all))}`,
   ];
+  if (t) {
+    const band = (m) =>
+      m >= t.delighted ? 'delighted'
+      : m >= t.happy ? 'happy'
+      : m >= t.content ? 'content'
+      : m >= t.restless ? 'restless'
+      : m >= t.unhappy ? 'unhappy'
+      : 'miserable';
+    const counts = {};
+    for (const m of all) counts[band(m)] = (counts[band(m)] ?? 0) + 1;
+    const order = ['delighted', 'happy', 'content', 'restless', 'unhappy', 'miserable'];
+    lines.push(`  bands   ${order.map((b) => `${b} ${pct(counts[b] ?? 0, all.length)}`).join('  ')}`);
+    // Right at the floor is the number that mattered: it is what "stuck and
+    // cannot climb out" looks like in a played save, not the mean.
+    const atFloor = all.filter((m) => m <= t.floor).length;
+    lines.push(`  at the floor (${t.floor})       ${pct(atFloor, all.length)}`);
+  }
+  return lines;
 }
 
 function assignments(runs) {

@@ -2238,6 +2238,15 @@ export interface WorldSettings {
   moraleSettleReportable: number;
   /** Nothing here should move somebody more than this in one week. */
   moraleWeeklyCap: number;
+  /**
+   * Nobody's morale is ever applied below this. A hard 0 read as broken
+   * rather than as "as bad as it gets" — the number that is not supposed to
+   * move again — and it let sustained neglect grind somebody into a literal
+   * floor of the whole scale with no room left to worsen or recover into.
+   * Below `moodUnhappyAbove` (18), so "miserable" still exists as a real
+   * band above it — this is the bottom of miserable, not an escape from it.
+   */
+  moraleFloor: number;
 
   // The live call — see sim/commentary.ts.
   /** Off means the results screen is the written highlight and nothing else. */

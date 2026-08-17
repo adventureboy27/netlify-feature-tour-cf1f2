@@ -91,6 +91,29 @@ the number that matters here, not the mean.
 
 **Set points and levers** live in `src/engine/career/personality.ts`.
 
+### The floor — measured 2026-08-17
+
+`moraleFloor` (10) replaced the implicit 0 floor every `.morale = clamp(x, 0,
+100)` write used across `state/store.ts`. A/B on the same 5 seeds x 160 weeks,
+`--set moraleFloor=0` against the shipped default of 10:
+
+| | floor 0 (old) | floor 10 (shipped) |
+|---|---|---|
+| At the literal floor | 4.7% of the roster | 4.7% of the roster |
+| Disgruntled (restless+unhappy+miserable) | 52.3% | 59.0% |
+| Range | 0 to 100 | 10 to 96 |
+
+Same share of the roster still bottoms out under sustained neglect (long idle,
+demanding traits) — that is booking-driven and correct, not a bug the floor is
+meant to fix. What changes is where they sit when it happens: a livable rock
+bottom inside "miserable" rather than the literal edge of the whole scale, which
+read as broken rather than as "as bad as it gets." The wider disgruntled band is
+a side effect of nobody's mood being able to hard-clamp at the exact bottom
+anymore, not a deliberate second lever — no term magnitude or weekly cap moved.
+
+Reproduce: `node tools/probe.mjs --report morale --seeds 5 --weeks 160` against
+the same command with `--set moraleFloor=0`.
+
 ## The roster — measured 2026-08-17
 
 | | Value |

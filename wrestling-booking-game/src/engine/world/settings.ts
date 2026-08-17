@@ -683,6 +683,9 @@ export function defaultWorldSettings(): WorldSettings {
     moraleSettleRate: 0.06,
     moraleSettleReportable: 0.6,
     moraleWeeklyCap: 9,
+    // Comfortably under moodUnhappyAbove (18): still a real "miserable"
+    // reading, not a promotion out of the band. See the note in types.ts.
+    moraleFloor: 10,
 
     // The live call. Sixteen lines is about forty seconds of reading, which
     // is long enough to tell the story of a match and short enough that six

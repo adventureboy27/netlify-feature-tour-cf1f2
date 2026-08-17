@@ -43,6 +43,17 @@ import type { Id, Wrestler, WorldSettings } from '../types';
 /** Where somebody's head is at, in bands the UI can draw. */
 export type MoodBand = 'delighted' | 'happy' | 'content' | 'restless' | 'unhappy' | 'miserable';
 
+/**
+ * Apply a morale change with the floor everybody in the store applies it
+ * with. Every write to `.morale` goes through this rather than a bare
+ * `clamp(x, 0, 100)`, so a single missed call site can't quietly reopen the
+ * literal-zero trap `moraleFloor` exists to close. See the note on it in
+ * types.ts.
+ */
+export function clampMorale(value: number, settings: WorldSettings): number {
+  return clamp(value, settings.moraleFloor, 100);
+}
+
 export interface MoraleReason {
   /** Said plainly, from their point of view. */
   text: string;

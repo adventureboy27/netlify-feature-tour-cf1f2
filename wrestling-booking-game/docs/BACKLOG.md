@@ -24,11 +24,6 @@ which the office picks conservatively (`assignmentAppearancesBelowPop`). A deep
 roster's lower card fades whatever the booker does. Wants measuring against
 `--report development` before tuning.
 
-**Set-point pairings can bottom somebody out.** Three people sat at 0 morale in
-a measured save. They were long-idle, so it may be correct, but a Never
-Satisfied plus No Time For The Office who is also not being booked has almost
-no road back. Check whether it reads as unfair in play.
-
 ---
 
 ## Infrastructure debt
@@ -60,6 +55,19 @@ generated roster for somebody who fits the scenario.
 
 ## Done and worth not re-litigating
 
+- **Set-point pairings no longer bottom somebody out at literal zero.** Three
+  people sat at 0 morale in a measured save — long-idle, so mostly correct
+  behaviour, but 0 is the exact edge of the whole scale and reads as broken
+  rather than "as bad as it gets." Every `.morale` write in `state/store.ts`
+  (21 sites) now goes through `career/morale.ts`'s `clampMorale`, which holds
+  the floor at `moraleFloor` (10, comfortably inside "miserable") instead of
+  0. Measured A/B on the same seeds (`docs/BALANCE.md`): the same ~4.7% of
+  the roster still bottoms out under sustained neglect — that part is
+  intentional, booking-driven consequence — but nobody sits at a literal,
+  scale-breaking zero, and the disgruntled band (restless+unhappy+miserable)
+  widened from 52% to 59% as a side effect, with no term magnitude or weekly
+  cap touched. `tools/probe.mjs`'s morale report now prints a band histogram
+  and a "% at the floor" line so this stays measurable going forward.
 - **Traits now reach the rest of the game.** Contract demands and walk risk
   (`career/ego.ts`), poaching temptation (`world/tampering.ts`, via a new
   `Suitor` so `somebodyAtHome` knows whether the approaching promotion is

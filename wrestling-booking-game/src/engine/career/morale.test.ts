@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  clampMorale,
   deliveredTo,
   expectation,
   moodBand,
@@ -73,6 +74,31 @@ describe('the bands', () => {
 
   it('starts everybody happy, with somewhere to go in both directions', () => {
     expect(moodBand(person().morale, settings)).toBe('happy');
+  });
+});
+
+describe('the floor', () => {
+  // Every write to `.morale` in the store goes through `clampMorale` rather
+  // than a bare `clamp(x, 0, 100)`, precisely so nothing can grind somebody
+  // down to a literal, absorbing zero. This is the one function that promise
+  // rests on, so it gets its own coverage rather than trusting every call
+  // site to have got the bound right.
+  it('never lands below the floor, however hard the week pushed', () => {
+    expect(clampMorale(settings.moraleFloor - 500, settings)).toBe(settings.moraleFloor);
+    expect(clampMorale(0, settings)).toBe(settings.moraleFloor);
+  });
+
+  it('still reads as miserable, not as a promotion out of the band', () => {
+    expect(moodBand(settings.moraleFloor, settings)).toBe('miserable');
+  });
+
+  it('is a floor, not a magnet — leaves anybody already above it alone', () => {
+    expect(clampMorale(60, settings)).toBe(60);
+    expect(clampMorale(settings.moraleFloor + 1, settings)).toBe(settings.moraleFloor + 1);
+  });
+
+  it('still caps at the top of the scale', () => {
+    expect(clampMorale(500, settings)).toBe(100);
   });
 });
 
