@@ -2053,6 +2053,12 @@ export interface WorldSettings {
    * card; without this, depth itself would rot a locker room.
    */
   moraleIdleGraceWeeks: number;
+  /**
+   * People per segment, for working out how long a fair wait for a match is at
+   * a company of a given size. Two is the smallest a match can be, which makes
+   * the rotation estimate the longest it can honestly be. See idleGrace().
+   */
+  moraleSpotsPerSegment: number;
   /** Per week beyond the grace period, and the ceiling on that. */
   moraleIdlePerWeek: number;
   moraleIdleCap: number;
@@ -3237,13 +3243,19 @@ export interface WorldSettings {
   /** Roster size of a rival at the top of the ladder. */
   rivalRosterSizeMax: number;
   /**
-   * A rival roster is dealt contracts of staggered length rather than all the
-   * same one, so that at any given week a handful of people in the business
-   * are running down and the rest are not. Without this every deal in the
-   * world would lapse on the same day.
+   * Every opening roster in the world — the player's included — is dealt
+   * contracts of staggered length rather than all the same one, so that at any
+   * given week a handful of people are running down and the rest are not.
+   *
+   * The rivals had this from the start and the player did not, which was not a
+   * cosmetic difference: twenty-six deals signed in week one on a fixed
+   * two-year term all lapsed in week 105, and a measured save lost its entire
+   * roster in a single week with two million in the bank. Nothing else in the
+   * game can empty a company like that, and no amount of good booking could
+   * have prevented it.
    */
-  rivalContractMinWeeks: number;
-  rivalContractMaxWeeks: number;
+  openingContractMinWeeks: number;
+  openingContractMaxWeeks: number;
   territoryCount: number;
   startingTerritories: number;
   startingYear: number;

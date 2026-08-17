@@ -532,9 +532,20 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
   const wrestlers: Record<Id, Wrestler> = {};
   for (const w of roster) {
     w.promotionId = 'player-promotion';
-    // Every one of them is on a plain two-year deal. Before this, contracts
-    // were null across the board and payroll silently computed to zero.
+    // Every one of them is on a plain deal. Before this, contracts were null
+    // across the board and payroll silently computed to zero.
     w.contract = createStandardContract(w, settings, settings.startingYear);
+    // Staggered, exactly as the rivals' are below — and this is the half that
+    // was missing. A fixed two-year term for the whole opening roster meant
+    // twenty-six deals signed in week one all lapsed in week 105; a measured
+    // save went from twenty-six people to nobody in that single week, with two
+    // million in the bank and no booking decision that could have stopped it.
+    w.contract.weeksRemaining = randInt(
+      rng,
+      settings.openingContractMinWeeks,
+      settings.openingContractMaxWeeks,
+    );
+    w.contract.totalWeeks = Math.max(w.contract.totalWeeks, w.contract.weeksRemaining);
     wrestlers[w.id] = w;
   }
 
@@ -650,8 +661,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
       // makes a man quietly available. See world/secretSigning.ts.
       w.contract.weeksRemaining = randInt(
         rng,
-        settings.rivalContractMinWeeks,
-        settings.rivalContractMaxWeeks,
+        settings.openingContractMinWeeks,
+        settings.openingContractMaxWeeks,
       );
       wrestlers[w.id] = w;
     }

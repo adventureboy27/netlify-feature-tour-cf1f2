@@ -174,16 +174,36 @@ describe('resolveWeek', () => {
 });
 
 describe('the opening position', () => {
-  it('puts everyone on the roster on a two-year deal with no clauses', () => {
+  it('puts everyone on the roster on a real deal with no clauses', () => {
     const { world } = useGameStore.getState();
     const roster = world!.promotion.rosterIds.map((id) => world!.wrestlers[id]!);
     expect(roster.length).toBeGreaterThan(0);
     for (const w of roster) {
       expect(w.contract, w.name).not.toBeNull();
-      expect(w.contract!.totalWeeks).toBe(104);
       expect(w.contract!.clauses).toEqual([]);
       expect(w.contract!.weeklyRate).toBeGreaterThan(0);
+      expect(w.contract!.weeksRemaining, w.name).toBeGreaterThan(0);
+      expect(w.contract!.totalWeeks, w.name).toBeGreaterThanOrEqual(w.contract!.weeksRemaining);
     }
+  });
+
+  it('staggers those deals rather than expiring the whole roster in one week', () => {
+    // This was a fixed two-year term for everybody, and it emptied a measured
+    // save: twenty-six deals signed in week one all lapsed in week 105, and
+    // the company went from a full roster to nobody in that single week with
+    // two million in the bank. No booking decision could have prevented it.
+    const { world } = useGameStore.getState();
+    const roster = world!.promotion.rosterIds.map((id) => world!.wrestlers[id]!);
+    const terms = new Set(roster.map((w) => w.contract!.weeksRemaining));
+    expect(terms.size).toBeGreaterThan(roster.length / 3);
+
+    // And no single week takes more than a handful of them.
+    const byWeek = new Map<number, number>();
+    for (const w of roster) {
+      const week = w.contract!.weeksRemaining;
+      byWeek.set(week, (byWeek.get(week) ?? 0) + 1);
+    }
+    expect(Math.max(...byWeek.values())).toBeLessThan(roster.length / 3);
   });
 
   it('makes payroll a real number — the bug this fixes made it silently zero', () => {

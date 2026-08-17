@@ -207,6 +207,39 @@ export function moraleContext(
   };
 }
 
+/**
+ * How long a fair wait for a match actually is at this company.
+ *
+ * The flat two-week grace was not politeness, it was an attempt at exactly
+ * this — the comment on it said "a roster is always bigger than a card, so if
+ * missing one show cost morale then every promotion would decay simply for
+ * being deep enough to run" — and it did not work, because two weeks is only
+ * a fair rotation for a company running twelve of a fourteen-man roster.
+ *
+ * Measured over a hundred and sixty weeks of a well-run save: twenty-six
+ * people, a card of six, and the average person in the room sat at seventeen
+ * morale — "miserable" — with the company rated in the seventies and two and a
+ * half million in the bank. They were not unhappy about anything the booker
+ * did. They were each waiting their turn in a rotation that takes three weeks
+ * and being charged for a week of it, every week, forever.
+ *
+ * So the grace is the rotation itself, plus a week. Nobody resents the
+ * arithmetic of the company they signed for; what people resent is being
+ * passed over past their turn. A deep roster is now something a booker can
+ * carry rather than a standing morale bill.
+ */
+function idleGrace(ctx: MoraleContext, settings: WorldSettings): number {
+  // A dark week is not a rotation. Nobody worked because there was no show,
+  // and being kept at home while the company runs nothing is a fair grievance.
+  if (ctx.slotCount <= 0 || ctx.roster.length === 0) return settings.moraleIdleGraceWeeks;
+  // Two a match is the smallest a segment can be, so this reads the card as
+  // singles — which is the fewest spots it can hold and therefore the longest
+  // the wait can honestly be said to be.
+  const spots = ctx.slotCount * settings.moraleSpotsPerSegment;
+  const rotation = Math.ceil(ctx.roster.length / Math.max(1, spots));
+  return Math.max(settings.moraleIdleGraceWeeks, rotation + 1);
+}
+
 /** The band, for the face and the colour. */
 export function moodBand(morale: number, settings: WorldSettings): MoodBand {
   if (morale >= settings.moodDelightedAbove) return 'delighted';
@@ -337,16 +370,12 @@ export function weeklyMorale(
     if (ctx.workedWithEnemies > 0) {
       add('Put in with somebody they cannot stand.', -ctx.workedWithEnemies * s.moraleEnemyCost);
     }
-  } else if (ctx.weeksIdle > s.moraleIdleGraceWeeks) {
+  } else if (ctx.weeksIdle > idleGrace(ctx, s)) {
     // Not booked, and it has been long enough to be a pattern rather than a
-    // week off. The grace period is not politeness — a roster is always
-    // bigger than a card, so if missing one show cost morale then every
-    // promotion would decay simply for being deep enough to run.
-    //
-    // Past that it compounds, and it is far worse for somebody who thinks
-    // they matter.
+    // week off. Past that it compounds, and it is far worse for somebody who
+    // thinks they matter.
     const weeks = ctx.weeksIdle;
-    const over = weeks - s.moraleIdleGraceWeeks;
+    const over = weeks - idleGrace(ctx, s);
     const cost = Math.min(s.moraleIdleCap, over * s.moraleIdlePerWeek) * (s.moraleIdleFloor + expects);
     add(`${weeks} weeks now without a match.`, -cost);
   }

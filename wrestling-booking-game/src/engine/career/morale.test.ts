@@ -140,6 +140,45 @@ describe('how the booker moves it', () => {
     expect(eight.reasons[0]!.text).toContain('8 weeks');
   });
 
+  it('waits out the rotation before it charges a deep roster anything', () => {
+    // The bug this closes, measured over a hundred and sixty weeks of a
+    // well-run save: twenty-six people, a card of six, the company rated in
+    // the seventies with two and a half million in the bank, and the average
+    // person in the room sat at seventeen morale. Nobody was unhappy about
+    // anything the booker did. They were each waiting their turn in a
+    // three-week rotation and being charged for a week of it, every week.
+    const deep = Array.from({ length: 26 }, (_, i) => person({}, `deep${i}`));
+    const idle = (weeks: number, roster: Wrestler[]) =>
+      weeklyMorale(person(), week({ worked: false, slot: null, weeksIdle: weeks, roster }), settings);
+
+    expect(idle(3, deep).reasons.some((r) => r.text.includes('without a match'))).toBe(false);
+    // Past your turn is still past your turn.
+    expect(idle(8, deep).reasons.some((r) => r.text.includes('without a match'))).toBe(true);
+  });
+
+  it('charges a small roster sooner, because everybody there works', () => {
+    // Six people and a card of six: if you are not on it, that is a choice.
+    const thin = Array.from({ length: 6 }, (_, i) => person({}, `thin${i}`));
+    const said = weeklyMorale(
+      person(),
+      week({ worked: false, slot: null, weeksIdle: 3, roster: thin }),
+      settings,
+    );
+    expect(said.reasons.some((r) => r.text.includes('without a match'))).toBe(true);
+  });
+
+  it('does not call a dark week a rotation', () => {
+    // Nobody worked because there was no show. Being kept at home while the
+    // company runs nothing is a fair grievance however deep the roster is.
+    const deep = Array.from({ length: 26 }, (_, i) => person({}, `dark${i}`));
+    const said = weeklyMorale(
+      person(),
+      week({ worked: false, slot: null, weeksIdle: 5, slotCount: 0, roster: deep }),
+      settings,
+    );
+    expect(said.reasons.some((r) => r.text.includes('without a match'))).toBe(true);
+  });
+
   it('punishes it far more for somebody who thinks they matter', () => {
     const star = weeklyMorale(
       person({ popularity: 92, ego: 85 }),

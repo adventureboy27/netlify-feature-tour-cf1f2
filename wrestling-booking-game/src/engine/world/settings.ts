@@ -565,6 +565,7 @@ export function defaultWorldSettings(): WorldSettings {
     // of 0 a 24-man roster running a 6-match card lost every person morale
     // every single week, because half the roster is idle by construction.
     moraleIdleGraceWeeks: 2,
+    moraleSpotsPerSegment: 2,
     moraleIdlePerWeek: 1.1,
     moraleIdleCap: 6,
     moraleIdleFloor: 0.35,
@@ -1575,8 +1576,8 @@ export function defaultWorldSettings(): WorldSettings {
     // From one week to two and a half years. The floor matters: at 6 the
     // opening world had nobody inside the safe end of the signing window, so
     // week one could only ever offer a long-odds handshake.
-    rivalContractMinWeeks: 1,
-    rivalContractMaxWeeks: 130,
+    openingContractMinWeeks: 1,
+    openingContractMaxWeeks: 130,
     territoryCount: 12,
     startingTerritories: 1,
     startingYear: new Date().getFullYear(),
