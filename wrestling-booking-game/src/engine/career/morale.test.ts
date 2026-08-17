@@ -521,3 +521,28 @@ describe('the one line a card shows', () => {
     if (report.headline) expect(report.reasons).toContain(report.headline);
   });
 });
+
+describe('the night itself', () => {
+  // Calibration, and it was wrong for a long time. `moraleShowNeutral` sat at
+  // 55 while 160 of the player's shows and 889 of the rivals' both averaged 41
+  // over a played save — so "The show was a mess" printed after nearly every
+  // card anybody ran, and a term written to reward a good night was a standing
+  // tax on the whole business.
+  it('calls an ordinary night ordinary, not a disaster', () => {
+    const ordinary = weeklyMorale(person(), week({ showRating: 41 }), settings);
+    expect(ordinary.reasons.some((r) => r.text.includes('mess'))).toBe(false);
+  });
+
+  it('still knows a good night from a bad one', () => {
+    const good = weeklyMorale(person(), week({ showRating: 75 }), settings);
+    const bad = weeklyMorale(person(), week({ showRating: 15 }), settings);
+    expect(good.reasons.some((r) => r.text.includes('good show'))).toBe(true);
+    expect(bad.reasons.some((r) => r.text.includes('mess'))).toBe(true);
+    expect(good.delta).toBeGreaterThan(bad.delta);
+  });
+
+  it('says nothing about a show somebody was not on', () => {
+    const off = weeklyMorale(person(), week({ worked: false, slot: null, showRating: 15 }), settings);
+    expect(off.reasons.some((r) => r.text.includes('mess'))).toBe(false);
+  });
+});

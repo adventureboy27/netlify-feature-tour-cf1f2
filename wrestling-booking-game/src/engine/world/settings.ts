@@ -581,7 +581,14 @@ export function defaultWorldSettings(): WorldSettings {
     moraleContagionWeight: 3.5,
     moraleAllyGain: 0.5,
     moraleEnemyCost: 1.4,
-    moraleShowNeutral: 55,
+    // What an ordinary night actually scores, measured rather than assumed:
+    // 160 of the player's shows and 889 of the rivals' over a played save both
+    // averaged 41, and only one night in ten cleared 55. So this sat above the
+    // whole distribution, "The show was a mess" fired on nearly every card
+    // anybody ran, and a term meant to reward a good night was a standing tax
+    // on the entire business instead. It has to be the middle of the range or
+    // it is not a neutral point.
+    moraleShowNeutral: 42,
     moraleShowWeight: 4,
     // Even a small company is a fine place to work if the booker uses you.
     // Pulling everybody toward the company rating instead dragged a mid-table
