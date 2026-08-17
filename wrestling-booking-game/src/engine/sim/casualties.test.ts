@@ -161,3 +161,62 @@ describe('how long they are out', () => {
     expect(long.weeks).toBeGreaterThan(short.weeks);
   });
 });
+
+describe('how bad a dangerous match makes it', () => {
+  const settings = defaultWorldSettings();
+
+  function ctx(multiplier: number, seed: string) {
+    return {
+      rng: rngFromSeed(seed),
+      ctx: {
+        personId: 'w1',
+        name: 'Somebody',
+        role: 'competitor' as const,
+        violenceLevel: 50,
+        injuryMultiplier: multiplier,
+        toughness: 50,
+        settings,
+      },
+    };
+  }
+
+  /** Median length over many rolls at a given danger level. */
+  function median(multiplier: number): number {
+    const weeks: number[] = [];
+    for (let i = 0; i < 400; i++) {
+      const { rng, ctx: c } = ctx(multiplier, `len${multiplier}-${i}`);
+      weeks.push(stoppageCasualty(rng, c).weeks);
+    }
+    weeks.sort((a, b) => a - b);
+    return weeks[Math.floor(weeks.length / 2)]!;
+  }
+
+  it('still makes a rough match worse than a safe one', () => {
+    expect(median(3)).toBeGreaterThan(median(1));
+  });
+
+  it('does not scale length as hard as it scales the odds', () => {
+    // The bug this closes. `injuryMultiplier` fed both the chance and the
+    // length at full strength, and every source of it compounds — stipulation,
+    // pace, bad blood, a blown spot, a body that breaks easily. A hardcore
+    // match with a botch in it and a fragile wrestler came to about ten times,
+    // which turned a six-week injury into a sixty-week one. A measured save's
+    // worst injury was sixty-six weeks and two in five were eight weeks plus.
+    const safe = median(1);
+    const brutal = median(8);
+    expect(brutal).toBeLessThan(safe * 8);
+    expect(brutal).toBeLessThan(safe * 3);
+  });
+
+  it('still ends somebody occasionally, however careful the booking', () => {
+    // Its own roll rather than the far end of the multiplier, so a career
+    // ender is a rare awful thing that can happen in any match rather than
+    // something a booker manufactures by stacking a dangerous card. Capping
+    // the compounding above removed these entirely, which was not the point.
+    const worst = Array.from({ length: 900 }, (_, i) => {
+      const { rng, ctx: c } = ctx(1, `cat${i}`);
+      return stoppageCasualty(rng, c).weeks;
+    });
+    expect(Math.max(...worst)).toBeGreaterThanOrEqual(settings.injurySevereWeeks * 2);
+  });
+});

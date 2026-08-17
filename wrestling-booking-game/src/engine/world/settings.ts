@@ -1587,12 +1587,17 @@ export function defaultWorldSettings(): WorldSettings {
     // Casualties. A competitor is in the match; a referee is in the way; a
     // manager is at ringside asking for it. A guest referee is the worst of
     // both — in the middle of it without a wrestler's licence.
-    casualtyChanceCompetitor: 0.035,
+    casualtyChanceCompetitor: 0.017,
     casualtyChanceGuestReferee: 0.05,
     casualtyChanceReferee: 0.012,
     casualtyChanceManager: 0.02,
     casualtyChanceCap: 0.4,
-    casualtyWeeksVariance: 0.5,
+    casualtyWeeksVariance: 0.4,
+    casualtyLengthExponent: 0.45,
+    // About one injury in forty. Rare enough to be a story, common enough
+    // that a long career will meet one.
+    casualtyCatastrophicChance: 0.025,
+    casualtyCatastrophicMultiplier: 4,
     casualtyHealthCost: 30,
     injuryModerateWeeks: 5,
     injurySevereWeeks: 10,

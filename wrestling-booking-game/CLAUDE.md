@@ -70,6 +70,39 @@ single file, CSS and JS inlined, sprite atlas already data-URI'd by Vite.
 Open it directly, no server; mail it to a phone and it works there too. The
 game is offline-only by design, so nothing is lost in the folding.
 
+## Traps that have caught somebody more than once
+
+**Adding an RNG draw shifts every seeded roll after it.** The world has one
+shared stream. Inserting a `chance()` or `pick()` anywhere in weekly resolution
+silently breaks unrelated seeded tests, because everything downstream now draws
+different numbers. Seed from the entity instead:
+`rngFromSeed(\`blame:${person.id}:${world.week}\`)`. This has cost real time on
+five separate occasions.
+
+**Wire items stamped with the current week during show resolution vanish.**
+`weeklyNews` is filtered with `item.week >= world.week` *after* `world.week +=
+1`, so anything pushed during resolution and stamped `world.week` is dropped as
+last week's news. Stamp `world.week + 1`, or file it after the increment. Six
+§0 lines were silently lost to this before anybody noticed.
+
+**Measure in a played save, not in tests.** Every serious balance bug in this
+codebase was found with `tools/probe.mjs` and none were found by the suite:
+the whole roster's contracts expiring in one week, the idle-morale rotation
+charging everybody forever, a "neutral" show rating above 90% of the
+distribution, rival wages that never moved. Tests check a function does what it
+says; the probe checks whether the game is any good. Baselines live in
+`docs/BALANCE.md` — read it before tuning anything, and compare like with like
+(same seed count, `--set` to A/B).
+
+**Re-express tests, never re-baseline them.** If a change breaks a test,
+the question is what the test was protecting, not what number makes it pass.
+
+## Shell notes
+
+- `pkill` returns exit 144 when it matches nothing, which aborts a compound
+  command — run it on its own line.
+- The full vitest run exceeds the 120s Bash timeout. Redirect to a log file.
+
 ## When the spec is ambiguous
 
 Pick the option that produces a harder, more interesting decision for the

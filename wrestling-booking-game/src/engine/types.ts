@@ -3302,6 +3302,15 @@ export interface WorldSettings {
   casualtyChanceCap: number;
   /** How far a given injury swings either side of its listed length. */
   casualtyWeeksVariance: number;
+  /**
+   * How hard a dangerous match scales an injury's *length*, as an exponent on
+   * the same multiplier that scales its odds. Below 1 on purpose — see
+   * weeksOut() in sim/casualties.ts.
+   */
+  casualtyLengthExponent: number;
+  /** How often an injury is the bad one, independent of how rough the match was. */
+  casualtyCatastrophicChance: number;
+  casualtyCatastrophicMultiplier: number;
   /** Health taken off somebody who was hurt, on top of the time out. */
   casualtyHealthCost: number;
   injuryModerateWeeks: number;

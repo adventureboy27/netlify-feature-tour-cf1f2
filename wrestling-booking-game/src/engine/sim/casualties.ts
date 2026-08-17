@@ -50,6 +50,38 @@ export interface CasualtyContext {
 }
 
 /**
+ * How long an injury keeps somebody out.
+ *
+ * `injuryMultiplier` carries everything that made the match dangerous —
+ * stipulation, pace, bad blood, nobody at ringside to stop it, a blown spot, a
+ * body that breaks easily — and it used to scale the *length* as hard as it
+ * scaled the odds. Those compound: a hardcore match with a botch in it and a
+ * fragile wrestler is about ten times, which turned a six-week injury into a
+ * sixty-week one. That is where a measured save's worst injury of sixty-six
+ * weeks came from, and why two in five injuries were eight weeks or longer.
+ *
+ * A dangerous match should make an injury much more *likely* and only somewhat
+ * *worse*, so the length scales sub-linearly. The odds are left alone: that is
+ * the honest place for danger to show up.
+ */
+function weeksOut(rng: Rng, cause: { weeks: number }, multiplier: number, settings: WorldSettings): number {
+  const swing = 1 + (rng.next() - 0.5) * 2 * settings.casualtyWeeksVariance;
+  const worse = Math.pow(Math.max(0.01, multiplier), settings.casualtyLengthExponent);
+
+  // And once in a long while it is the bad one. Deliberately its own roll
+  // rather than the far end of the multiplier: a career-threatening injury
+  // should be a rare, awful thing that can happen to anybody in any match, not
+  // something a booker can reliably manufacture by stacking a dangerous card —
+  // and when the compounding above was capped, these stopped happening at all,
+  // which is not what anybody wanted either.
+  const catastrophic = chance(rng, settings.casualtyCatastrophicChance)
+    ? settings.casualtyCatastrophicMultiplier
+    : 1;
+
+  return Math.max(1, Math.round(cause.weeks * swing * worse * catastrophic));
+}
+
+/**
  * Roll an injury for one person, or nothing.
  *
  * The odds differ by what they were doing: a competitor is in the match, a
@@ -78,8 +110,7 @@ export function rollCasualty(rng: Rng, ctx: CasualtyContext): Casualty | null {
 
   // The listed weeks are a centre, not a verdict — the same injury keeps one
   // wrestler out a month and ends another one's year.
-  const swing = 1 + (rng.next() - 0.5) * 2 * s.casualtyWeeksVariance;
-  const weeks = Math.max(1, Math.round(cause.weeks * swing * ctx.injuryMultiplier));
+  const weeks = weeksOut(rng, cause, ctx.injuryMultiplier, s);
 
   return {
     personId: ctx.personId,
@@ -116,8 +147,7 @@ export function injuryFrom(casualty: Casualty, week: number): Injury {
 export function stoppageCasualty(rng: Rng, ctx: CasualtyContext): Casualty {
   const options = causesFor(ctx.role, ctx.violenceLevel);
   const cause = options.length > 0 ? pick(rng, options) : injuryCauseById('concussion')!;
-  const swing = 1 + (rng.next() - 0.5) * 2 * ctx.settings.casualtyWeeksVariance;
-  const weeks = Math.max(1, Math.round(cause.weeks * swing * ctx.injuryMultiplier));
+  const weeks = weeksOut(rng, cause, ctx.injuryMultiplier, ctx.settings);
   return {
     personId: ctx.personId,
     name: ctx.name,
