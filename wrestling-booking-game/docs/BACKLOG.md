@@ -22,10 +22,15 @@ direction without asking first.
 
 ## Infrastructure debt
 
-**`src/state/store.ts` is ~9,000 lines** and `resolveWeek` is most of it. Every
-session pays to navigate it. Splitting by concern is invisible to the player and
-permanently cheapens all future work. No visible payoff, real compounding
-value.
+**`resolveWeek` is still ~5,200 lines inline in `store.ts`.** The ~90
+independent, player-triggered actions around it are split out now (see
+"Done" below), which took `store.ts` from ~9,400 lines to ~6,100 — but
+`resolveWeek` itself is one function, sharing a lot of local state computed
+once and read many times later, and every value it touches is RNG-order-
+sensitive (see the RNG note in the root `CLAUDE.md`). Decomposing it into
+phases is a real, harder follow-up, deliberately not started here. Do not
+start it without asking first — this is a different, riskier kind of cut
+than the one already made.
 
 **Twelve scenario tests pin a magic seed.** They pass, but they rely on a
 specific generated person having specific properties. Sturdier to search the
@@ -43,6 +48,22 @@ generated roster for somebody who fits the scenario.
 ---
 
 ## Done and worth not re-litigating
+
+- **`store.ts` split into `storeHelpers.ts` plus eleven slice files.** The
+  ~90 non-`resolveWeek` actions (card building, events, tag teams/identity,
+  business deals, show/production, officials/schedule, roster/contracts,
+  storylines, titles, the cup, the supershow) moved out to
+  `state/slices/*.ts` using zustand's immer-middleware slice pattern; the 22
+  functions shared between those actions and `resolveWeek` moved to
+  `state/storeHelpers.ts`. `store.ts` dropped from ~9,400 lines to ~6,100.
+  Pure refactor — no action's behavior changed, and the RNG draw order
+  inside `resolveWeek` (still fully inline) is untouched. `rng` is now
+  exported from `store.ts` as a live ES-module binding so slices that only
+  ever *read* the stream can import it directly; the four actions that
+  reseed it (`newGame`, `newGameFromPlan`, `continueGame`,
+  `importSaveFile`) stay in `store.ts`, since nothing outside this file may
+  reassign it. Verified with `tsc --noEmit`, the full suite (2645/2645),
+  and a production build.
 
 - **Every promotion runs its own gym now, and a stat left untrained can fall
   as well as rise.** Rival rosters were static apart from ageing — the
