@@ -49,6 +49,33 @@ generated roster for somebody who fits the scenario.
 
 ## Done and worth not re-litigating
 
+- **The championship builder is now count → name → per-belt holders/colours,
+  matching the new-game promotions flow instead of an eight-field form per
+  belt.** `TitleBuilder` dropped its tier/division/weight-class/stipulation
+  pickers and the preset-library picker; those defaulted to 'open'/'open'/
+  none rather than asked for. Tier is still real underneath — it drives
+  defence windows and team-held display — but the player is only ever asked
+  for holders (1-5), which now decides tier for the two group sizes anything
+  else in the game special-cases (2 → 'tag', 3 → 'trios'); everything else
+  keeps whatever tier it already had, so a house style's varied suggested
+  lineup (world/secondary/television/hardcore) is never clobbered by this
+  component. "How many titles" is a caller-side concern, not the
+  component's — `NewGameScreen` resizes the array from its own count
+  dropdown, `PromotionScreen`'s existing one-at-a-time "introduce a title"
+  flow is unaffected. Colours moved from a 12-swatch `<select>` to an
+  overlay with a live strap/plate preview, the same swatches as quick
+  presets, plus free-choice colour pickers for anything else.
+  Found and fixed a real pre-existing bug along the way while wiring up
+  holders 1-5: `crownOpeningChampions` hardcoded the opening-champion count
+  to 2 for tier 'tag' and 1 for literally everything else — including
+  'trios' — so a Six-Man Tag preset had only ever opened with a single
+  champion, not three. It now reads `title.holdersRequired`, which
+  `createStartingTitles` always fills in regardless of tier, so a trios or
+  any custom multi-holder belt is crowned correctly. Verified in a real
+  browser: resized to 3 belts, set one to 2 holders and one to 3, picked a
+  swatch through the overlay, started the game, and confirmed via the save
+  data that the tag belt crowned exactly 2, the trios belt crowned exactly
+  3, and the custom colour landed on the right title.
 - **New-game is now three steps, and imports go through the same three
   steps rather than a separate flow.** How many promotions (1-7, dropdown so
   nobody can type past it) → name each one, Generate or Import per slot,

@@ -20,7 +20,7 @@ import { savedGameSummary } from '../../state/persist';
 import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
 import { startingBlueprints } from '../../data/titles';
 import { beltPrefix } from '../../data/promotionIdentity';
-import { TitleBuilder } from '../components/TitleBuilder';
+import { TitleBuilder, blankTitleBlueprint } from '../components/TitleBuilder';
 import { worldSettingsFromPreset } from '../../engine/world/settings';
 import { WORLD_PRESET_INFO } from '../../data/worldPresets';
 import { rngFromSeed } from '../../engine/rng';
@@ -34,6 +34,14 @@ const MAX_PROMOTIONS = 7;
 
 function freshSlots(count: number, previous: SlotDraft[]): SlotDraft[] {
   const next = Array.from({ length: count }, (_, i) => previous[i] ?? { name: '', mode: 'generate' as const });
+  return next;
+}
+
+/** Grow or shrink the belt list to match a chosen count, keeping what's already there. */
+function resizeBelts(count: number, previous: TitleBlueprint[]): TitleBlueprint[] {
+  if (count <= previous.length) return previous.slice(0, count);
+  const next = [...previous];
+  while (next.length < count) next.push(blankTitleBlueprint());
   return next;
 }
 
@@ -462,7 +470,25 @@ export function NewGameScreen() {
                 <p className="mb-2 text-[11px] text-neutral-500">
                   Name them what you want. These are what every card you ever book will be built toward.
                 </p>
-                <TitleBuilder belts={belts} prefix={prefix} onChange={editBelts} maxBelts={MAX_BELTS} />
+                <label className="mb-2 block text-[10px] uppercase tracking-wider text-neutral-500">
+                  How many championships?
+                  <select
+                    data-testid="belt-count"
+                    value={belts.length}
+                    onChange={(e) => {
+                      setTouched(true);
+                      setBelts((prev) => resizeBelts(Number(e.target.value), prev));
+                    }}
+                    className="ml-2 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs normal-case tracking-normal text-neutral-200"
+                  >
+                    {Array.from({ length: MAX_BELTS + 1 }, (_, n) => n).map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <TitleBuilder belts={belts} prefix={prefix} onChange={editBelts} />
               </section>
             </>
           ) : (

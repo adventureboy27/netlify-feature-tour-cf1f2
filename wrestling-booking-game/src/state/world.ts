@@ -1247,12 +1247,20 @@ function crownOpeningChampions(titles: Title[], roster: readonly Wrestler[]): Ti
   };
 
   return titles.map((title) => {
+    // Read off the belt itself rather than special-cased per tier — every
+    // title always has a concrete `holdersRequired` by the time it reaches
+    // here (createStartingTitles fills it from the tier if nothing set it
+    // explicitly), so this crowns a trios champion three-deep and a custom
+    // four- or five-holder belt just as correctly as it always crowned a tag
+    // team. Before this it only ever read the count for 'tag' (hardcoded to
+    // 2) and defaulted every other tier to 1 — including 'trios', which
+    // meant a Six-Man Tag preset opened with a single champion, not three.
     const holders =
       title.tier === 'tag'
-        ? bestFor(() => true, 2)
+        ? bestFor(() => true, title.holdersRequired)
         : title.division === 'womens'
-          ? bestFor((w) => w.gender === 'f')
-          : bestFor((w) => w.gender === 'm');
+          ? bestFor((w) => w.gender === 'f', title.holdersRequired)
+          : bestFor((w) => w.gender === 'm', title.holdersRequired);
 
     if (holders.length === 0) return title;
     return awardTitle(

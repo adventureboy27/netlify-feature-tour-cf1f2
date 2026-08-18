@@ -38,23 +38,11 @@ import { FileTransfer } from '../components/FileTransfer';
 import { VenuePicker } from '../components/VenuePicker';
 import { ResidencyDeal } from '../components/ResidencyDeal';
 import { Stands } from '../components/Stands';
-import { TitleBuilder } from '../components/TitleBuilder';
+import { TitleBuilder, blankTitleBlueprint } from '../components/TitleBuilder';
 import { factionHeat, factionStanding } from '../../engine/world/faction';
 import { retiredTitlesOf } from '../../data/titles';
 import { beltPrefix } from '../../data/promotionIdentity';
 import type { TitleBlueprint } from '../../engine/types';
-
-/** A belt the player is about to introduce, before they have typed anything. */
-function blankTitleBlueprint(): TitleBlueprint {
-  return {
-    suffix: 'Championship',
-    blurb: 'A new championship.',
-    tier: 'secondary',
-    division: 'open',
-    weightClass: 'open',
-    signatureStipulationId: null,
-  };
-}
 
 export function PromotionScreen() {
   const world = useGameStore((s) => s.world);
@@ -598,12 +586,7 @@ function TitleWorkshop() {
         </button>
       ) : (
         <div className="flex flex-col gap-2">
-          <TitleBuilder
-            belts={drafts}
-            prefix={beltPrefix(world.promotion.name)}
-            onChange={setDrafts}
-            maxBelts={1}
-          />
+          <TitleBuilder belts={drafts} prefix={beltPrefix(world.promotion.name)} onChange={setDrafts} />
           <div className="flex gap-2">
             <button
               type="button"

@@ -8,6 +8,54 @@ const build = (over = {}) => createInitialWorld(rngFromSeed('world'), { ...setti
 const buildFromPlan = (plan: NewGamePlan, seed = 'world-plan') =>
   createInitialWorld(rngFromSeed(seed), settings, plan);
 
+describe('opening champions', () => {
+  it('crowns as many people as a trios belt actually asks for, not just one', () => {
+    // Before this was fixed, crownOpeningChampions hardcoded 2 for 'tag' and
+    // 1 for everything else — including 'trios' — so a Six-Man Tag preset
+    // opened with a single champion rather than three.
+    const world = build({
+      startingTitles: [
+        {
+          suffix: 'Trios Title',
+          blurb: 'Three a side.',
+          tier: 'trios',
+          division: 'open',
+          weightClass: 'open',
+          signatureStipulationId: null,
+          holdersRequired: 3,
+        },
+      ],
+    });
+    const title = world.titles.find((t) => t.promotionId === world.promotion.id)!;
+    expect(title.vacant).toBe(false);
+    expect(title.currentHolderIds).toHaveLength(3);
+  });
+
+  it('crowns a custom belt with however many holders it was built with', () => {
+    const world = build({
+      startingTitles: [
+        {
+          suffix: 'Faction Title',
+          blurb: 'Held by the whole group.',
+          tier: 'secondary',
+          division: 'open',
+          weightClass: 'open',
+          signatureStipulationId: null,
+          holdersRequired: 5,
+        },
+      ],
+    });
+    const title = world.titles.find((t) => t.promotionId === world.promotion.id)!;
+    expect(title.currentHolderIds).toHaveLength(5);
+  });
+
+  it('still crowns a tag title as a pair', () => {
+    const world = build();
+    const tag = world.titles.find((t) => t.promotionId === world.promotion.id && t.tier === 'tag')!;
+    expect(tag.currentHolderIds).toHaveLength(2);
+  });
+});
+
 describe('rival promotions', () => {
   it('creates exactly as many rivals as the settings ask for', () => {
     expect(build().rivals).toHaveLength(settings.rivalPromotionCount);

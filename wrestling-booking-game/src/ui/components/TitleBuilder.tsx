@@ -6,10 +6,30 @@
 // its spine, and being handed five you cannot rename is being handed somebody
 // else's company.
 //
-// It opens pre-filled with the house style's suggestion rather than empty.
-// A blank "you have no championships" page is a worse start than five
-// sensible ones you can immediately make yours, and it also means a player
-// who does not care about this can ignore the whole section.
+// Overhauled to match the new-game promotions flow: how many, name them, and
+// two per-belt controls (holders, colours) rather than a form with eight
+// fields per belt. Division, weight class and signature stipulation used to
+// be pickable here too; nobody who wanted a quick set of belts had an opinion
+// about any of them, so they are dropped to sensible defaults ('open',
+// 'open', none) instead of asked for. A promotion that wants a division-
+// locked women's title or a stipulation-bound hardcore belt still gets one —
+// house styles still hand those out via `startingBlueprints` — this screen
+// just no longer makes typing five belts require five little decisions each.
+//
+// How many belts exist is the caller's call, not this component's: the
+// new-game screen resizes `belts` from its own count dropdown, and the
+// mid-game "introduce a title" flow on PromotionScreen only ever hands this
+// a single draft. So there is no add/remove control in here — the array
+// length IS the count.
+//
+// Tier is still a real field underneath (it drives how long a belt can go
+// undefended, and whether it's read as team-held everywhere from the roster
+// screen to a tag split), but the player is never asked for it directly.
+// Two holders means a tag belt and three means a trios belt because nothing
+// else in the game currently means anything by "held by 2" or "held by 3" —
+// see `tierForHolders`. Everything else keeps whatever tier it already had
+// (a house style's suggested lineup varies tier on purpose; a blank new row
+// starts 'secondary').
 //
 // Prestige is not editable and deliberately so: a belt's standing is earned
 // by who carries it and for how long, and typing 100 into your own world
@@ -17,44 +37,11 @@
 // free. It comes from the tier instead.
 
 import { useState } from 'react';
-import {
-  defaultHolders,
-  startingPrestige,
-  TITLE_COLORWAYS,
-  TITLE_PRESETS,
-  TITLE_PRESET_FAMILIES,
-} from '../../data/titles';
-import { STIPULATIONS } from '../../data/stipulations';
-import type { TitleBlueprint, TitleDivision, TitleTier, WeightClass } from '../../engine/types';
-
-const TIERS: { id: TitleTier; label: string; hint: string }[] = [
-  { id: 'world', label: 'World', hint: 'The top of the company. Main events are built to it.' },
-  { id: 'secondary', label: 'Secondary', hint: 'The belt somebody carries on the way up.' },
-  { id: 'television', label: 'Television', hint: 'Defended often, on the show rather than the pay-per-view.' },
-  { id: 'cruiserweight', label: 'Cruiserweight', hint: 'For the smaller, faster half of the roster.' },
-  { id: 'hardcore', label: 'Hardcore', hint: 'Won and lost under whatever the stipulation says.' },
-  { id: 'tertiary', label: 'Lower card', hint: 'Something for the people not in the main events yet.' },
-  { id: 'tag', label: 'Tag team', hint: 'Two people. Held by a team, not a person.' },
-  { id: 'trios', label: 'Trios', hint: 'Three people. Rarer, and harder to book.' },
-];
-
-const DIVISIONS: { id: TitleDivision; label: string }[] = [
-  { id: 'mens', label: "Men's" },
-  { id: 'womens', label: "Women's" },
-  { id: 'open', label: 'Open to anybody' },
-];
-
-const WEIGHT_CLASSES: { id: WeightClass; label: string }[] = [
-  { id: 'open', label: 'Any weight' },
-  { id: 'lightweight', label: 'Lightweight' },
-  { id: 'juniorHeavy', label: 'Junior heavyweight' },
-  { id: 'lightHeavy', label: 'Light heavyweight' },
-  { id: 'heavyweight', label: 'Heavyweight' },
-  { id: 'superHeavy', label: 'Super heavyweight' },
-];
+import { defaultHolders, TITLE_COLORWAYS } from '../../data/titles';
+import type { TitleBlueprint, TitleTier } from '../../engine/types';
 
 /** A belt the player added themselves, before they have typed anything. */
-function blankBelt(): TitleBlueprint {
+export function blankTitleBlueprint(): TitleBlueprint {
   return {
     suffix: 'Championship',
     blurb: 'A new championship.',
@@ -65,27 +52,137 @@ function blankBelt(): TitleBlueprint {
   };
 }
 
+/**
+ * What "held by N" implies about the tier, for the two group sizes the rest
+ * of the game actually treats specially (team-title display, tag splits,
+ * opening-champion crowning). Anything else keeps whatever tier it already
+ * had — so switching a belt from 2 holders back to 1 falls back to a plain
+ * singles tier rather than staying permanently "tag", but a house style's
+ * 'world' or 'television' pick for a singles belt is never overwritten by
+ * this component at all.
+ */
+function tierForHolders(holders: number, current: TitleTier): TitleTier {
+  if (holders === 2) return 'tag';
+  if (holders === 3) return 'trios';
+  if (current === 'tag' || current === 'trios') return 'secondary';
+  return current;
+}
+
+const DEFAULT_STRAP = '#3a2214';
+const DEFAULT_PLATE = '#f1c40f';
+
+function BeltPreview({ suffix, prefix, strap, plate }: { suffix: string; prefix: string; strap: string; plate: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 p-4">
+      <div className="relative flex h-10 w-full max-w-[220px] items-center justify-center rounded-full" style={{ backgroundColor: strap }}>
+        <div className="h-8 w-16 rounded-md border-2 border-black/30" style={{ backgroundColor: plate }} />
+      </div>
+      <div className="text-center text-[11px] text-neutral-400">
+        {prefix} {suffix || 'Championship'}
+      </div>
+    </div>
+  );
+}
+
+function ColorOverlay({
+  belt,
+  prefix,
+  onChange,
+  onClose,
+}: {
+  belt: TitleBlueprint;
+  prefix: string;
+  onChange: (colorway: { strap: string; plate: string }) => void;
+  onClose: () => void;
+}) {
+  const strap = belt.colorway?.strap ?? DEFAULT_STRAP;
+  const plate = belt.colorway?.plate ?? DEFAULT_PLATE;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-lg border border-neutral-700 bg-neutral-900 p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 text-sm font-medium text-neutral-200">Strap and plate — {belt.suffix || 'Championship'}</div>
+
+        <BeltPreview suffix={belt.suffix} prefix={prefix} strap={strap} plate={plate} />
+
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <label className="text-[10px] uppercase tracking-wider text-neutral-500">
+            Strap
+            <input
+              type="color"
+              data-testid="belt-color-strap"
+              value={strap}
+              onChange={(e) => onChange({ strap: e.target.value, plate })}
+              className="mt-1 h-9 w-full cursor-pointer rounded border border-neutral-700 bg-neutral-950"
+            />
+          </label>
+          <label className="text-[10px] uppercase tracking-wider text-neutral-500">
+            Plate
+            <input
+              type="color"
+              data-testid="belt-color-plate"
+              value={plate}
+              onChange={(e) => onChange({ strap, plate: e.target.value })}
+              className="mt-1 h-9 w-full cursor-pointer rounded border border-neutral-700 bg-neutral-950"
+            />
+          </label>
+        </div>
+
+        <div className="mt-3 text-[10px] uppercase tracking-wider text-neutral-500">Or start from</div>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {TITLE_COLORWAYS.map((c) => (
+            <button
+              key={c.name}
+              type="button"
+              data-testid={`belt-swatch-${c.name.replace(/\s+/g, '-')}`}
+              title={c.name}
+              onClick={() => onChange({ strap: c.strap, plate: c.plate })}
+              className="flex h-7 w-7 overflow-hidden rounded border border-neutral-700"
+            >
+              <span className="h-full w-1/2" style={{ backgroundColor: c.strap }} />
+              <span className="h-full w-1/2" style={{ backgroundColor: c.plate }} />
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          data-testid="belt-color-done"
+          onClick={onClose}
+          className="mt-4 w-full rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function TitleBuilder({
   belts,
   prefix,
   onChange,
-  maxBelts,
 }: {
   belts: TitleBlueprint[];
   /** The short form of the company name that every belt is prefixed with. */
   prefix: string;
   onChange: (next: TitleBlueprint[]) => void;
-  maxBelts: number;
 }) {
-  const [picking, setPicking] = useState(false);
+  const [colorPickerIndex, setColorPickerIndex] = useState<number | null>(null);
   const update = (index: number, patch: Partial<TitleBlueprint>) =>
     onChange(belts.map((belt, i) => (i === index ? { ...belt, ...patch } : belt)));
 
+  const editing = colorPickerIndex !== null ? belts[colorPickerIndex] : undefined;
+
   return (
     <div className="flex flex-col gap-2">
-      {belts.map((belt, index) => (
-        <div key={index} className="rounded-lg border border-neutral-800 bg-neutral-950 p-2.5">
-          <div className="mb-1.5 flex items-center gap-2">
+      {belts.map((belt, index) => {
+        const holders = belt.holdersRequired ?? defaultHolders(belt.tier);
+        return (
+          <div key={index} className="flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 p-2.5">
             <span className="shrink-0 text-[11px] text-neutral-600">{prefix}</span>
             <input
               type="text"
@@ -95,236 +192,56 @@ export function TitleBuilder({
               onChange={(e) => update(index, { suffix: e.target.value })}
               className="min-w-0 flex-1 rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5 text-sm"
             />
-            <button
-              type="button"
-              aria-label={`Remove ${belt.suffix}`}
-              data-testid={`belt-remove-${index}`}
-              onClick={() => onChange(belts.filter((_, i) => i !== index))}
-              className="shrink-0 rounded border border-neutral-800 px-2 py-1 text-xs text-neutral-500 hover:border-rose-800 hover:text-rose-400"
-            >
-              Drop
-            </button>
-          </div>
 
-          <input
-            type="text"
-            aria-label={`What the ${belt.suffix} is for`}
-            value={belt.blurb}
-            onChange={(e) => update(index, { blurb: e.target.value })}
-            placeholder="What is this belt for?"
-            className="mb-2 w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5 text-[11px] text-neutral-300"
-          />
-
-          <div className="grid gap-1.5 sm:grid-cols-3">
-            <label className="text-[10px] uppercase tracking-wider text-neutral-500">
-              Kind
-              <select
-                aria-label={`${belt.suffix} kind`}
-                data-testid={`belt-tier-${index}`}
-                value={belt.tier}
-                onChange={(e) => update(index, { tier: e.target.value as TitleTier })}
-                className="mt-0.5 w-full rounded border border-neutral-800 bg-neutral-900 px-1.5 py-1.5 text-xs normal-case tracking-normal text-neutral-200"
-              >
-                {TIERS.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-[10px] uppercase tracking-wider text-neutral-500">
-              Division
-              <select
-                aria-label={`${belt.suffix} division`}
-                data-testid={`belt-division-${index}`}
-                value={belt.division}
-                onChange={(e) => update(index, { division: e.target.value as TitleDivision })}
-                className="mt-0.5 w-full rounded border border-neutral-800 bg-neutral-900 px-1.5 py-1.5 text-xs normal-case tracking-normal text-neutral-200"
-              >
-                {DIVISIONS.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-[10px] uppercase tracking-wider text-neutral-500">
-              Weight
-              <select
-                aria-label={`${belt.suffix} weight class`}
-                value={belt.weightClass}
-                onChange={(e) => update(index, { weightClass: e.target.value as WeightClass })}
-                className="mt-0.5 w-full rounded border border-neutral-800 bg-neutral-900 px-1.5 py-1.5 text-xs normal-case tracking-normal text-neutral-200"
-              >
-                {WEIGHT_CLASSES.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          {/* The belt that is always defended one way. A deathmatch title
-              contested under normal rules is a disappointment and the crowd
-              says so, which is the whole reason this is a property. */}
-          <label className="mt-1.5 block text-[10px] uppercase tracking-wider text-neutral-500">
-            Always defended under
-            <select
-              aria-label={`${belt.suffix} signature stipulation`}
-              value={belt.signatureStipulationId ?? ''}
-              onChange={(e) => update(index, { signatureStipulationId: e.target.value || null })}
-              className="mt-0.5 w-full rounded border border-neutral-800 bg-neutral-900 px-1.5 py-1.5 text-xs normal-case tracking-normal text-neutral-200"
-            >
-              <option value="">Nothing in particular</option>
-              {STIPULATIONS.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {/* Only defendable under it, rather than merely suited to it. A
-              Battle Royal Trophy that can be won in a singles match is not a
-              Battle Royal Trophy. */}
-          {belt.signatureStipulationId && (
-            <label className="mt-1.5 flex items-center gap-2 text-[11px] text-neutral-400">
-              <input
-                type="checkbox"
-                data-testid={`belt-stip-required-${index}`}
-                checked={Boolean(belt.stipulationRequired)}
-                onChange={(e) => update(index, { stipulationRequired: e.target.checked })}
-                className="h-4 w-4"
-              />
-              And only under it — it cannot be defended any other way
-            </label>
-          )}
-
-          <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
-            <label className="text-[10px] uppercase tracking-wider text-neutral-500">
+            <label className="shrink-0 text-[10px] text-neutral-500">
               Held by
               <select
                 aria-label={`How many people hold the ${belt.suffix}`}
                 data-testid={`belt-holders-${index}`}
-                value={belt.holdersRequired ?? defaultHolders(belt.tier)}
-                onChange={(e) => update(index, { holdersRequired: Number(e.target.value) })}
-                className="mt-0.5 w-full rounded border border-neutral-800 bg-neutral-900 px-1.5 py-1.5 text-xs normal-case tracking-normal text-neutral-200"
+                value={holders}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  update(index, { holdersRequired: next, tier: tierForHolders(next, belt.tier) });
+                }}
+                className="ml-1 rounded border border-neutral-800 bg-neutral-900 px-1.5 py-1.5 text-xs text-neutral-200"
               >
                 {[1, 2, 3, 4, 5].map((n) => (
                   <option key={n} value={n}>
-                    {n === 1 ? 'One person' : `${n} people`}
+                    {n}
                   </option>
                 ))}
               </select>
             </label>
 
-            <label className="text-[10px] uppercase tracking-wider text-neutral-500">
-              Strap and plate
-              <select
-                aria-label={`${belt.suffix} colours`}
-                data-testid={`belt-colorway-${index}`}
-                value={belt.colorway ? `${belt.colorway.strap}|${belt.colorway.plate}` : ''}
-                onChange={(e) => {
-                  const [strap, plate] = e.target.value.split('|');
-                  update(index, { colorway: strap && plate ? { strap, plate } : undefined });
-                }}
-                className="mt-0.5 w-full rounded border border-neutral-800 bg-neutral-900 px-1.5 py-1.5 text-xs normal-case tracking-normal text-neutral-200"
-              >
-                <option value="">Whatever suits the tier</option>
-                {TITLE_COLORWAYS.map((c) => (
-                  <option key={c.name} value={`${c.strap}|${c.plate}`}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          {belt.colorway && (
-            <div className="mt-1 flex items-center gap-1.5">
+            <button
+              type="button"
+              aria-label={`Choose colours for ${belt.suffix}`}
+              data-testid={`belt-colors-${index}`}
+              onClick={() => setColorPickerIndex(index)}
+              className="shrink-0 flex items-center gap-1.5 rounded border border-neutral-800 px-2 py-1.5 text-xs text-neutral-300 hover:border-neutral-500"
+            >
               <span
-                className="inline-block h-4 w-8 rounded-sm border border-neutral-700"
-                style={{ backgroundColor: belt.colorway.strap }}
+                className="inline-block h-3.5 w-3.5 rounded-sm border border-neutral-700"
+                style={{ backgroundColor: belt.colorway?.plate ?? DEFAULT_PLATE }}
                 aria-hidden
               />
-              <span
-                className="inline-block h-4 w-4 rounded-sm"
-                style={{ backgroundColor: belt.colorway.plate }}
-                aria-hidden
-              />
-            </div>
-          )}
-
-          <div className="mt-1.5 text-[10px] text-neutral-600">
-            {TIERS.find((t) => t.id === belt.tier)?.hint} Opens at{' '}
-            {startingPrestige(belt.tier) >= 65
-              ? 'high standing'
-              : startingPrestige(belt.tier) >= 45
-                ? 'decent standing'
-                : 'modest standing'}
-            .
+              Colours
+            </button>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          data-testid="belt-add"
-          onClick={() => onChange([...belts, blankBelt()])}
-          disabled={belts.length >= maxBelts}
-          className="rounded-lg border border-neutral-700 px-3 py-2 text-xs text-neutral-300 hover:border-neutral-500 disabled:border-neutral-900 disabled:text-neutral-700"
-        >
-          Add a blank one
-        </button>
-        <button
-          type="button"
-          data-testid="belt-from-preset"
-          onClick={() => setPicking((open) => !open)}
-          disabled={belts.length >= maxBelts}
-          className="rounded-lg border border-neutral-700 px-3 py-2 text-xs text-neutral-300 hover:border-neutral-500 disabled:border-neutral-900 disabled:text-neutral-700"
-        >
-          {picking ? 'Never mind' : 'Start from something'}
-        </button>
-        <span className="text-[10px] text-neutral-600">
-          {belts.length === 0
-            ? 'No belts. The card has nothing to build toward.'
-            : `${belts.length} of ${maxBelts}. A company with too many has none that mean anything.`}
-        </span>
-      </div>
+      {belts.length === 0 && (
+        <p className="text-[11px] text-neutral-600">No belts. The card has nothing to build toward.</p>
+      )}
 
-      {/* Starting points, not a menu — everything is editable the moment it
-          is picked, which is the whole reason the presets are safe to offer. */}
-      {picking && (
-        <div className="mt-2 rounded-lg border border-neutral-800 bg-neutral-950 p-2">
-          {TITLE_PRESET_FAMILIES.map((family) => (
-            <div key={family} className="mb-2 last:mb-0">
-              <div className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">{family}</div>
-              <div className="flex flex-wrap gap-1">
-                {TITLE_PRESETS.filter((preset) => preset.family === family).map((preset) => (
-                  <button
-                    key={preset.suffix}
-                    type="button"
-                    data-testid={`preset-${preset.suffix.replace(/\s+/g, '-')}`}
-                    title={preset.blurb}
-                    onClick={() => {
-                      if (belts.length >= maxBelts) return;
-                      const { family: _family, ...blueprint } = preset;
-                      onChange([...belts, blueprint]);
-                      setPicking(false);
-                    }}
-                    className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5 text-[11px] text-neutral-300 hover:border-emerald-700 hover:text-neutral-100"
-                  >
-                    {preset.suffix}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+      {editing && colorPickerIndex !== null && (
+        <ColorOverlay
+          belt={editing}
+          prefix={prefix}
+          onChange={(colorway) => update(colorPickerIndex, { colorway })}
+          onClose={() => setColorPickerIndex(null)}
+        />
       )}
     </div>
   );
