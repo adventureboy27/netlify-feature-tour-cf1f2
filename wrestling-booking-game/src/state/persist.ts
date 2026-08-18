@@ -134,7 +134,11 @@ const SLOT_KEY = 'wbg.save.v1';
 // Version 36 adds Wrestler.selfPreservation and Wrestler.injuryHistory. The
 // first is defaulted where it is read, but the history is appended to without
 // a guard the moment anybody gets hurt.
-const SCHEMA_VERSION = 43;
+//
+// Version 44 adds World.currentDarkMatches and the darkMatch* settings. A
+// version-43 save has no array, which the card builder and the weekly tick
+// both index into without a guard.
+const SCHEMA_VERSION = 44;
 
 export interface SaveFile {
   schema: number;

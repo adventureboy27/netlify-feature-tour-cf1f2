@@ -26,13 +26,6 @@ roster's lower card fades whatever the booker does. Wants measuring against
 — this is about a wrestler's popularity *number* over a career, not about
 whether tonight's opener can rate well.
 
-**Two optional dark match slots on the card.** Player asked for this directly:
-matches that don't count toward the TV rating (they were never broadcast) but
-still develop the people in them, can test a new signing or a feud, sell
-merch, and give the live crowd more for their ticket. Fans should be able to
-tweet about them the same as any other match — just no rating contribution
-and no slot weight. Not started.
-
 ---
 
 ## Infrastructure debt
@@ -64,6 +57,23 @@ generated roster for somebody who fits the scenario.
 
 ## Done and worth not re-litigating
 
+- **Two optional dark match slots on the card.** Player asked for this
+  directly. `World.currentDarkMatches` sits alongside `currentCard` and
+  `currentPromos` (same "does not consume a card spot" principle as the promo
+  slots), resolved by a new pure engine function
+  (`engine/sim/darkMatch.ts::resolveDarkMatch`) rather than folded into the
+  ~1,100-line televised-card loop: real sim, real winner, real development
+  (`computeAftermath`, popularity scaled to `darkMatchPopularityShare` since
+  nobody outside the building saw it), real injury risk — but deliberately no
+  stipulation, titles, managers, or referee, and never folded into
+  `computeShowRating`'s slot weights, so it cannot move the TV rating however
+  good it was. Fans in `ratedSegments` can pick a dark match as best/worst of
+  the night the same as anything broadcast. A dark match adds a flat
+  attendance-scaled merch bump (`darkMatchMerchPerHead`). Schema bumped to 44
+  (`World.currentDarkMatches` is dereferenced without a guard). Verified in a
+  real browser, not just tests: booked one, ran the show, confirmed the
+  card's `showRating` was unaffected, the news feed printed "Dark match,
+  never aired: ... beat ...", and the wrestlers' records moved.
 - **A good undercard match can now actually rate as good.**
   `computeMatchRating`'s popularity term outweighed its workrate term nearly
   2:1 (weight 42 vs 24), so an opener was capped low by fame alone — a

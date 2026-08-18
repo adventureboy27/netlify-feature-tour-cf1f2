@@ -134,6 +134,12 @@ export interface World {
   currentCard: Segment[];
   /** Talking slots, separate from the match card — §9. */
   currentPromos: Segment[];
+  /**
+   * Optional matches that never air. They don't consume a card spot and
+   * don't move the TV rating, same principle as the promo slots above — see
+   * engine/sim/darkMatch.ts.
+   */
+  currentDarkMatches: Segment[];
   showHistory: Show[];
   rivalries: Rivalry[];
   /**
@@ -501,6 +507,15 @@ export function createEmptyPromoSlots(count: number): Segment[] {
   }));
 }
 
+/**
+ * Optional matches that never air — see engine/sim/darkMatch.ts. Two a night
+ * by default, same shape as the promo slots above: they sit alongside the
+ * card rather than inside it.
+ */
+export function createEmptyDarkMatches(count: number): Segment[] {
+  return Array.from({ length: count }, (_, i) => ({ ...createEmptySegment(i), dark: true }));
+}
+
 function randomId(rng: Rng, prefix: string): string {
   let hex = '';
   for (let i = 0; i < 12; i++) hex += Math.floor(pseudoRandInt(rng, 16)).toString(16);
@@ -742,6 +757,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     promotion,
     currentCard: createEmptyCard(settings.segmentsPerTV),
     currentPromos: createEmptyPromoSlots(settings.promoSlotsPerCard),
+    currentDarkMatches: createEmptyDarkMatches(settings.darkMatchSlots),
     showHistory: [],
     rivalries: seedShootRivalries(roster),
     // Nothing is named at the start. The booker names what they build.

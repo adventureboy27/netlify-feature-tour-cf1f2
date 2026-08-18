@@ -173,6 +173,85 @@ describe('resolveWeek', () => {
   });
 });
 
+describe('dark matches', () => {
+  it('setDarkMatchParticipant and removeDarkMatchParticipant work the same as the card ones', () => {
+    const { world, setDarkMatchParticipant, removeDarkMatchParticipant } = useGameStore.getState();
+    const wrestlerId = Object.keys(world!.wrestlers)[0]!;
+    setDarkMatchParticipant(0, wrestlerId, 0);
+    expect(useGameStore.getState().world!.currentDarkMatches[0]!.participants).toEqual([
+      { wrestlerId, side: 0, role: 'competitor' },
+    ]);
+    removeDarkMatchParticipant(0, wrestlerId);
+    expect(useGameStore.getState().world!.currentDarkMatches[0]!.participants).toHaveLength(0);
+  });
+
+  it('never moves the TV rating, however good it was — an empty card still rates zero', () => {
+    const { world, setDarkMatchParticipant } = useGameStore.getState();
+    const ids = Object.keys(world!.wrestlers);
+    // The whole televised card is left empty on purpose: if the dark match's
+    // rating leaked into showRating at all, this would no longer be zero.
+    setDarkMatchParticipant(0, ids[0]!, 0);
+    setDarkMatchParticipant(0, ids[1]!, 1);
+    useGameStore.getState().resolveWeek();
+    const show = useGameStore.getState().world!.showHistory[0]!;
+    expect(show.showRating).toBe(0);
+    const dark = show.segments.find((s) => s.dark);
+    expect(dark?.result).not.toBeNull();
+    expect(dark?.result!.rating).toBeGreaterThan(0);
+  });
+
+  it('develops the people in it even though they never touched the card', () => {
+    const { world, setDarkMatchParticipant } = useGameStore.getState();
+    const ids = Object.keys(world!.wrestlers);
+    setDarkMatchParticipant(0, ids[0]!, 0);
+    setDarkMatchParticipant(0, ids[1]!, 1);
+    const before = { a: world!.wrestlers[ids[0]!]!.record, b: world!.wrestlers[ids[1]!]!.record };
+    useGameStore.getState().resolveWeek();
+    const after = useGameStore.getState().world!;
+    const totalBefore = before.a.wins + before.a.losses + before.a.draws + before.b.wins + before.b.losses + before.b.draws;
+    const r = after.wrestlers[ids[0]!]!.record;
+    const s = after.wrestlers[ids[1]!]!.record;
+    const totalAfter = r.wins + r.losses + r.draws + s.wins + s.losses + s.draws;
+    expect(totalAfter).toBeGreaterThan(totalBefore);
+  });
+
+  it('is left empty by an unfilled slot, and both slots resolve independently', () => {
+    const { world, setDarkMatchParticipant } = useGameStore.getState();
+    const ids = Object.keys(world!.wrestlers);
+    setDarkMatchParticipant(0, ids[0]!, 0);
+    setDarkMatchParticipant(0, ids[1]!, 1);
+    useGameStore.getState().resolveWeek();
+    const show = useGameStore.getState().world!.showHistory[0]!;
+    const darkSegments = show.segments.filter((s) => s.dark);
+    expect(darkSegments).toHaveLength(1); // the unfilled second slot never made it into the record
+    expect(darkSegments[0]!.result).not.toBeNull();
+  });
+
+  it('sells more merch than the identical night without one', () => {
+    // The bonus is turned up far past its shipped default so it dwarfs
+    // whatever else two independently-simulated weeks might disagree about —
+    // both runs share a seed, but running a dark match consumes real RNG the
+    // other run does not, which can shift unrelated later rolls (weather,
+    // gimmick variance) the same way any RNG-stream change can. See the
+    // CLAUDE.md note on that trap. The comparison itself is what is under
+    // test, not the exact shipped size of the bonus.
+    const settings = { ...freshSettings(), darkMatchMerchPerHead: 500 };
+    useGameStore.getState().newGame(settings);
+    useGameStore.getState().resolveWeek();
+    const merchWithout = useGameStore.getState().world!.showHistory[0]!.merch;
+
+    useGameStore.getState().newGame(settings);
+    const { setDarkMatchParticipant } = useGameStore.getState();
+    const ids = Object.keys(useGameStore.getState().world!.wrestlers);
+    setDarkMatchParticipant(0, ids[0]!, 0);
+    setDarkMatchParticipant(0, ids[1]!, 1);
+    useGameStore.getState().resolveWeek();
+    const merchWith = useGameStore.getState().world!.showHistory[0]!.merch;
+
+    expect(merchWith).toBeGreaterThan(merchWithout);
+  });
+});
+
 describe('the opening position', () => {
   it('puts everyone on the roster on a real deal with no clauses', () => {
     const { world } = useGameStore.getState();

@@ -33,6 +33,7 @@ import {
   createInitialWorld,
   createEmptyCard,
   createEmptyPromoSlots,
+  createEmptyDarkMatches,
   pairKey,
   rivalRosterSize,
   type World,
@@ -366,6 +367,7 @@ import { stipulationById, stipulationRequirementsMet } from '../data/stipulation
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
 import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
 import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/aftermath';
+import { resolveDarkMatch } from '../engine/sim/darkMatch';
 import { runRivalShow, bookRivalCard, canWork, type RivalShow } from '../engine/world/rivalBooking';
 import {
   openingOffer,
@@ -585,6 +587,9 @@ export interface GameStore {
   setSegmentParticipant: (slot: number, wrestlerId: Id, side: number) => void;
   removeSegmentParticipant: (slot: number, wrestlerId: Id) => void;
   setSegmentRules: (slot: number, rules: Partial<MatchRules>) => void;
+  /** Cast a dark match slot — sits alongside the card, never airs. */
+  setDarkMatchParticipant: (slot: number, wrestlerId: Id, side: number) => void;
+  removeDarkMatchParticipant: (slot: number, wrestlerId: Id) => void;
   /** Cast a promo slot: who is talking, about what, and to whom. */
   setPromo: (
     slot: number,
@@ -2050,6 +2055,23 @@ export const useGameStore = create<GameStore>()(
     removeSegmentParticipant: (slot, wrestlerId) => {
       set((state) => {
         const segment = state.world?.currentCard[slot];
+        if (!segment) return;
+        segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
+      });
+    },
+
+    setDarkMatchParticipant: (slot, wrestlerId, side) => {
+      set((state) => {
+        const segment = state.world?.currentDarkMatches[slot];
+        if (!segment) return;
+        segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
+        segment.participants.push({ wrestlerId, side, role: 'competitor' });
+      });
+    },
+
+    removeDarkMatchParticipant: (slot, wrestlerId) => {
+      set((state) => {
+        const segment = state.world?.currentDarkMatches[slot];
         if (!segment) return;
         segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
       });
@@ -3785,6 +3807,105 @@ export const useGameStore = create<GameStore>()(
 
 
         });
+
+        // ---- the dark matches ---------------------------------------------
+        // Optional, off-camera, and simulated for real — resolved after the
+        // televised card and before the talking, on the same principle as
+        // the promo slots below: they sit alongside the card rather than
+        // inside it and never touch the TV rating. See the design note at
+        // the top of engine/sim/darkMatch.ts for exactly what they get and
+        // don't — no stipulations, no titles, no managers, no referee.
+        let darkMatchesRun = 0;
+        if (!night.cancelled) {
+          for (const segment of world.currentDarkMatches) {
+            const sides = new Set(segment.participants.map((p) => p.side));
+            if (segment.participants.length < 2 || sides.size < 2) continue;
+
+            const participantWrestlers = segment.participants.map((p) => wrestlerById.get(p.wrestlerId)!);
+            const rivalry = findRivalry(world.rivalries, participantWrestlers.map((w) => w.id)) ?? null;
+            const simParticipants: SimParticipant[] = segment.participants.map((p) => ({
+              wrestlerId: p.wrestlerId,
+              side: p.side,
+            }));
+            const lengthMinutes =
+              segment.rules.timeLimit > 0 ? segment.rules.timeLimit : world.settings.defaultMatchLength;
+
+            const outcome = resolveDarkMatch(rng, simParticipants, wrestlerById, world.week, {
+              rules: segment.rules,
+              matchLengthMinutes: lengthMinutes,
+              settings: world.settings,
+              promotionArchetype: world.promotion.identity,
+              rivalry,
+            });
+
+            segment.result = outcome.result;
+            darkMatchesRun += 1;
+
+            for (const change of outcome.changes) {
+              const w = world.wrestlers[change.wrestlerId];
+              if (w) applyAftermath(w, change, world.settings, outcome.result.rating);
+            }
+
+            // Same rule the televised card uses: it stacks, and a body
+            // already carrying something keeps the worse of the two. See
+            // the identical logic a few hundred lines up, in putOut.
+            for (const { casualty, injury } of outcome.casualties) {
+              const person = world.wrestlers[casualty.personId];
+              if (!person) continue;
+              person.health = clamp(person.health - world.settings.casualtyHealthCost, 0, 100);
+              person.career.longestInjuryWeeks = Math.max(person.career.longestInjuryWeeks, casualty.weeks);
+              const existing = person.injury;
+              if (existing) {
+                const before = existing.severity;
+                const worse = aggravate(existing.grade, injury.grade, world.settings);
+                person.injury = {
+                  ...existing,
+                  grade: worse,
+                  severity: severityOf(worse, world.settings),
+                  weeksRemaining: weeksFromGrade(worse, world.settings),
+                  totalWeeks: Math.max(existing.totalWeeks, weeksFromGrade(worse, world.settings)),
+                };
+                world.weeklyNews.push(
+                  wire(
+                    'misfortune',
+                    aggravationLine(person.name, before, person.injury.severity),
+                    world.week + 1,
+                    'normal',
+                  ),
+                );
+              } else {
+                person.injury = injury;
+              }
+              person.injuryHistory = recordInjury(
+                person.injuryHistory ?? [],
+                injury,
+                world.settings.startingYear + Math.floor(world.week / 52),
+              );
+              person.clearedToWorkHurt = false;
+            }
+
+            // §0: nothing happens off-screen, including backstage.
+            const winnerNames = outcome.result.winnerWrestlerIds
+              .map((id) => world.wrestlers[id]?.name)
+              .filter(Boolean)
+              .join(' & ');
+            const loserNames = participantWrestlers
+              .filter((w) => !outcome.result.winnerWrestlerIds.includes(w.id))
+              .map((w) => w.name)
+              .join(' & ');
+            world.weeklyNews.push(
+              wire(
+                'houseShow',
+                winnerNames && loserNames
+                  ? `Dark match, never aired: ${winnerNames} beat ${loserNames} in front of tonight's crowd.`
+                  : `A dark match closed out the crowd's night. It never aired.`,
+                world.week + 1,
+                'minor',
+              ),
+            );
+          }
+        }
+
         // ---- the talking ------------------------------------------------
         // Promo slots sit alongside the card rather than inside it (§9), so
         // they are resolved here, after the matches, and contribute to the
@@ -4086,6 +4207,14 @@ export const useGameStore = create<GameStore>()(
           averagePopularity: cardStrength,
           settings: world.settings,
         });
+
+        // A bonus match the crowd was not expecting is worth more merch at
+        // the table on the way out, whatever it rated — the ticket already
+        // felt like it went further. Sized as a fraction of an ordinary
+        // night's per-head spend; see darkMatchMerchPerHead.
+        if (darkMatchesRun > 0) {
+          revenue.merch += Math.round(attendance * world.settings.darkMatchMerchPerHead * darkMatchesRun);
+        }
 
         const showCosts = computeShowCosts({
           // The rent held for the term, not this week's list price — that is
@@ -4580,6 +4709,10 @@ export const useGameStore = create<GameStore>()(
           segments: [
             ...world.currentCard,
             ...world.currentPromos.filter((slot) => slot.promoResult || slot.confrontationResult),
+            // Never on the card that decided showRating below — dark is
+            // still set on these, so nothing downstream mistakes one for a
+            // broadcast segment.
+            ...world.currentDarkMatches.filter((slot) => slot.result),
           ],
           attendance,
           ticketPrice,
@@ -4600,8 +4733,11 @@ export const useGameStore = create<GameStore>()(
 
         // ---- what the fans made of it -----------------------------------
         // Generated from the show that actually happened: the best and worst
-        // matches on it, and anything that changed hands.
-        const ratedSegments = world.currentCard
+        // matches on it, and anything that changed hands. Dark matches count
+        // here — the player asked for the fans in the building to be able to
+        // tweet about them same as anything broadcast, even though nobody
+        // outside the building saw them.
+        const ratedSegments = [...world.currentCard, ...world.currentDarkMatches]
           .map((segment) => ({ segment, result: segment.result }))
           .filter((entry): entry is { segment: Segment; result: SegmentResult } => Boolean(entry.result));
 
@@ -7276,6 +7412,7 @@ export const useGameStore = create<GameStore>()(
           ),
         );
         world.currentPromos = createEmptyPromoSlots(world.settings.promoSlotsPerCard);
+        world.currentDarkMatches = createEmptyDarkMatches(world.settings.darkMatchSlots);
 
         // A week off the term, and a show against the town's patience if one
         // happened. When the last week runs out the company is touring again,

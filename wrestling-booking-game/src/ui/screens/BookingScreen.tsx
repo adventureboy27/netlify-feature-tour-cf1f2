@@ -24,6 +24,7 @@ import {
 } from '../../engine/world/schedule';
 import { holidayForWeek, seasonForWeek, weeksUntilHoliday, SEASON_LABELS } from '../../engine/world/seasons';
 import { PromoSlots } from '../components/PromoSlots';
+import { DarkMatchSlots } from '../components/DarkMatchSlots';
 import { ASSIGNMENTS, assignmentOf } from '../../engine/career/assignment';
 import { leaveStatusLine } from '../../engine/career/onOurWatch';
 import { isSuspended } from '../../engine/career/discipline';
@@ -450,6 +451,8 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
       </div>
 
       <PromoSlots />
+
+      <DarkMatchSlots />
 
       {/* And what everybody who is not on it does instead. Here rather than on
           the roster page because it is the same decision, made at the same

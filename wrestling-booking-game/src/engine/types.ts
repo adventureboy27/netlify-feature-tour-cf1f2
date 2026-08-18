@@ -1323,6 +1323,12 @@ export interface Segment {
   titleIds: Id[];
   deckStacking: DeckStacking;
   result: SegmentResult | null;
+  /**
+   * A match that never aired — see engine/sim/darkMatch.ts. Undefined (not
+   * false) on every ordinary segment, so a schema dump or an old save reads
+   * unambiguously as "broadcast" without needing a migration.
+   */
+  dark?: boolean;
 }
 
 /** What a town made of what it was charged. See economy/showBudget.ts. */
@@ -1688,6 +1694,16 @@ export interface WorldSettings {
   houseShowsEnabled: boolean;
   tournamentsEnabled: boolean;
   promoSlotsPerCard: number;
+  /** Optional matches that never air — see engine/sim/darkMatch.ts. */
+  darkMatchSlots: number;
+  /**
+   * How much of the ordinary popularity swing from a match actually carries
+   * when nobody outside the building saw it. Locker-room word of mouth and a
+   * little, not a television audience's worth.
+   */
+  darkMatchPopularityShare: number;
+  /** Merch per attendee per dark match run — sized against merchSpendPerHead. */
+  darkMatchMerchPerHead: number;
   /** §11.4 hardcore saturation: added per point of a stipulation's violenceLevel. */
   hardcoreSaturationPerViolence: number;
   /** §11.4 hardcore saturation: points shed each week. */

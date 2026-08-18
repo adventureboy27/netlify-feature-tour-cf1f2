@@ -156,6 +156,13 @@ export function defaultWorldSettings(): WorldSettings {
     houseShowsEnabled: true,
     tournamentsEnabled: true,
     promoSlotsPerCard: 2,
+    darkMatchSlots: 2,
+    // A televised match's popularity swing chases the crowd it reached.
+    // A dark match reaches the building and not much past it.
+    darkMatchPopularityShare: 0.3,
+    // A fifth of what a head spends on merch on an ordinary night — a bonus
+    // match is a nice surprise, not the reason they came.
+    darkMatchMerchPerHead: 0.9,
     hardcoreSaturationPerViolence: 6,
     hardcoreSaturationDecayPerWeek: 8,
     slotExpectationPercentileMin: 0.5,
