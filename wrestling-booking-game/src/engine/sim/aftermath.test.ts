@@ -75,6 +75,23 @@ describe('what the match itself is worth', () => {
     const [winner] = run({ rating: 100, isMainEvent: true });
     expect(winner!.popularity).toBeLessThan(4);
   });
+
+  it('falls slower than it climbs, off the same-sized gap', () => {
+    // Fixture sits everybody at 60. A rating 20 below and 20 above are
+    // symmetric gaps; only the fall should be damped.
+    const [loser] = run({ rating: 40, winnerIds: [] }); // nobody wins, so no win bonus muddies it
+    const [gainer] = run({ rating: 80, winnerIds: [] });
+    expect(Math.abs(loser!.popularity)).toBeLessThan(gainer!.popularity);
+    expect(Math.abs(loser!.popularity) / gainer!.popularity).toBeCloseTo(settings.matchPopularityChaseFallShare, 5);
+  });
+
+  it('does not damp the climb at all — a real riser still moves at full speed', () => {
+    const flat = defaultWorldSettings();
+    const damped = { ...flat, matchPopularityChaseFallShare: 0.1 };
+    const [risingNormal] = run({ rating: 90, winnerIds: [], settings: flat });
+    const [risingDamped] = run({ rating: 90, winnerIds: [], settings: damped });
+    expect(risingDamped!.popularity).toBeCloseTo(risingNormal!.popularity, 5);
+  });
 });
 
 describe('the physical cost', () => {

@@ -2624,6 +2624,13 @@ export interface WorldSettings {
    * match worked. Small: this is the slowest number in the game.
    */
   matchPopularityChase: number;
+  /**
+   * How much of the ordinary chase rate applies when the chase would pull
+   * popularity down rather than up. Same shape as ratingLadderFallMultiplier
+   * on the company's own rating: reputation is stickier going down. See the
+   * note on popularityChase in sim/aftermath.ts for the measured reason.
+   */
+  matchPopularityChaseFallShare: number;
   /** Multiplier on everything for the main event. */
   mainEventAftermathMultiplier: number;
   /** Condition every match costs. */

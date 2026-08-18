@@ -180,6 +180,40 @@ matchRatingWorkrateWeight=24`.
 is above 90% of the distribution it was meant to be the middle of, so "The show
 was a mess" printed after nearly every card anybody ran.
 
+## Undercard popularity decay — measured 2026-08-18
+
+`--report development` on a roster kept fully stocked and booked, nobody
+idle on purpose: mean popularity fell 49.3 -> 42.2 over two seasons (104
+weeks). Not composition (new low-popularity signings diluting the average)
+— isolated that by disabling `matchPopularityChase` entirely, which left
+only a 49.3 -> 46.7 drift, and by also turning restocking off
+(`--restock=0`, a fixed roster, no new signings at all), which showed
+popularity *climbing*, 49.3 -> 56.5, from win bonuses alone. So the fall
+side of `popularityChase` — the term that pulls a wrestler's popularity
+toward the rating of the matches they're in — was the whole story: a fixed
+six-slot card serving a much bigger roster means most of the roster spends
+most weeks chasing a ~25-rated opener (see the shows section above) down,
+and there was nothing damping that side of it.
+
+Fixed the same way `ratingLadderFallMultiplier` already treats the
+company's own rating — falling slower than climbing, not falling not at
+all — via `matchPopularityChaseFallShare` (0.4):
+
+| | fall undamped (old) | fall at 0.4 (shipped) |
+|---|---|---|
+| Popularity, week 1 -> 104 | 49.3 -> 42.2 | 49.3 -> 46.1 |
+
+46.1 lands close to the 46.7 composition-only floor measured above — most
+of the individual-level decay is gone, a fixed roster with no chase at all
+would still drift a little from new signings, and there is still real
+(damped, not eliminated) downward pressure on anyone kept on the
+undercard, because reaching zero real consequence for a genuinely dead-end
+push was never the goal — see docs/BACKLOG.md.
+
+Reproduce: `node tools/probe.mjs --report development --seeds 6 --weeks 104`
+against the same command with `--set matchPopularityChase=0`, and again with
+`--set matchPopularityChase=0 --restock=0`.
+
 ## Company health, well-run save
 
 | | Value |

@@ -16,18 +16,6 @@ the odds a real, expensive option.
 
 ---
 
-## Next up
-
-**Undercard popularity decays with only a weak counter.** Somebody who is never
-booked drifts down and the only thing pushing back is an appearances week,
-which the office picks conservatively (`assignmentAppearancesBelowPop`). A deep
-roster's lower card fades whatever the booker does. Wants measuring against
-`--report development` before tuning. Distinct from the match-rating fix below
-— this is about a wrestler's popularity *number* over a career, not about
-whether tonight's opener can rate well.
-
----
-
 ## Infrastructure debt
 
 **`src/state/store.ts` is ~9,000 lines** and `resolveWeek` is most of it. Every
@@ -57,6 +45,22 @@ generated roster for somebody who fits the scenario.
 
 ## Done and worth not re-litigating
 
+- **Undercard popularity no longer erodes the whole roster over a career.**
+  Measured (`--report development`, `docs/BALANCE.md`): a roster kept fully
+  stocked and booked every week, nobody idle on purpose, still lost 7 points
+  of mean popularity over two seasons. Not composition — isolated with
+  `--set matchPopularityChase=0` (drift nearly stopped) and `--restock=0`
+  on top of that (popularity actually *climbed*, from win bonuses alone).
+  `popularityChase` (`sim/aftermath.ts`) pulls a wrestler's popularity
+  toward the rating of the matches they're in with no damping either
+  direction, and a fixed six-slot card serving a much bigger roster means
+  most people spend most weeks chasing a ~25-rated opener down. Fixed the
+  same way `ratingLadderFallMultiplier` already treats the company's own
+  rating: falling slower than climbing, not stopped, via the new
+  `matchPopularityChaseFallShare` (0.4). Measured result lands at 46.1,
+  close to the 46.7 composition-only floor — most of the individual decay
+  is gone, real (damped) downward pressure on a chronic undercard act
+  remains.
 - **Two optional dark match slots on the card.** Player asked for this
   directly. `World.currentDarkMatches` sits alongside `currentCard` and
   `currentPromos` (same "does not consume a card spot" principle as the promo

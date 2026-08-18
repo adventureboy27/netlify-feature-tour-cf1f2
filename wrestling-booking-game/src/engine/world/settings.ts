@@ -1098,6 +1098,7 @@ export function defaultWorldSettings(): WorldSettings {
     momentumPerDraw: 2,
     popularityPerWin: 0.25,
     matchPopularityChase: 0.02,
+    matchPopularityChaseFallShare: 0.4,
     mainEventAftermathMultiplier: 1.4,
     matchHealthCost: 4,
     matchHealthCostPerViolence: 1.6,

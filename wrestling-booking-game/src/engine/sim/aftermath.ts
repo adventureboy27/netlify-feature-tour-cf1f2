@@ -85,9 +85,23 @@ export interface AftermathChange {
  * at 0 or 100. This converges instead — which is also the truer model, since
  * how over you are and how good your matches are should be the same question
  * asked twice.
+ *
+ * The fall is slower than the climb, same principle and same shape as
+ * `ratingLadderFallMultiplier` on the company's own rating: reputation is
+ * stickier going down than it is going up. Without this, a fixed six-slot
+ * card serving a much bigger roster meant most of that roster spent most
+ * weeks chasing a ~25-rated opener down, and a full roster kept stocked and
+ * booked every week — nobody idle, nobody buried on purpose — still lost
+ * seven points of mean popularity over two seasons (measured, `--report
+ * development`; see docs/BALANCE.md). Disabling the chase entirely on a
+ * fixed roster instead showed it *climbing*, from win bonuses alone — the
+ * downward half of the chase was the whole story, not the win bonus being
+ * too small.
  */
 function popularityChase(rating: number, current: number, settings: WorldSettings): number {
-  return (rating - current) * settings.matchPopularityChase;
+  const gap = rating - current;
+  const share = gap < 0 ? settings.matchPopularityChaseFallShare : 1;
+  return gap * settings.matchPopularityChase * share;
 }
 
 /**
