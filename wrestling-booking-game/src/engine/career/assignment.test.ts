@@ -182,6 +182,45 @@ describe('a week on appearances', () => {
       expect(weekOff(person(), kind.id, settings).freshnessCost, kind.id).toBe(0);
     }
   });
+
+  it('costs an old body some conditioning — a tour, not a training camp', () => {
+    const week = weekOff(person({ age: 40 }), 'appearances', settings);
+    expect(week.strength).toBeLessThan(0);
+    expect(week.agility).toBeLessThan(0);
+    expect(week.stamina).toBeLessThan(0);
+  });
+});
+
+describe('neglect — the other half of the gym', () => {
+  it('barely touches somebody at their physical peak', () => {
+    const week = weekOff(person({ age: 22 }), 'appearances', settings);
+    expect(week.strength).toBe(0);
+    expect(week.agility).toBe(0);
+    expect(week.stamina).toBe(0);
+  });
+
+  it('costs more the older the body neglecting itself is', () => {
+    const young = weekOff(person({ age: 25 }), 'appearances', settings);
+    const old = weekOff(person({ age: 42 }), 'appearances', settings);
+    expect(old.strength).toBeLessThan(young.strength);
+  });
+
+  it('never runs past the floor, however long it goes on', () => {
+    const worn = person({ age: 44, strength: settings.physicalStatFloor + 0.02 });
+    const week = weekOff(worn, 'appearances', settings);
+    expect(worn.strength + week.strength).toBeGreaterThanOrEqual(settings.physicalStatFloor);
+  });
+
+  it('is the trade the gym does not have — training the same week never costs anything', () => {
+    // Old enough to genuinely be losing conditioning on appearances (see the
+    // test above) but still young enough to gain from the gym, so this is a
+    // fair comparison rather than picking an age where growth has already
+    // stopped for an unrelated reason.
+    const week = weekOff(person({ age: 30 }), 'gym', settings);
+    expect(week.strength).toBeGreaterThan(0);
+    expect(week.agility).toBeGreaterThan(0);
+    expect(week.stamina).toBeGreaterThan(0);
+  });
 });
 
 describe('a week at home', () => {
@@ -198,11 +237,25 @@ describe('a week at home', () => {
     expect(weekOff(person(), 'gym', settings).morale).toBe(0);
   });
 
-  it('improves nothing at all, which is the trade', () => {
-    const week = weekOff(person(), 'rest', settings);
-    expect(week.strength).toBe(0);
-    expect(week.ringIQ).toBe(0);
-    expect(week.popularity).toBe(0);
+  it('never improves anything, needed or not', () => {
+    for (const health of [40, 100]) {
+      const week = weekOff(person({ health }), 'rest', settings);
+      expect(week.ringIQ).toBe(0);
+      expect(week.popularity).toBe(0);
+      expect(week.strength).toBeLessThanOrEqual(0);
+    }
+  });
+
+  it('costs a genuinely hurt or worn-out body nothing extra — that would be punishing the same hurt twice', () => {
+    expect(weekOff(person({ health: 40 }), 'rest', settings).strength).toBe(0);
+    expect(weekOff(person({ injury: { severity: 'minor' } as never }), 'rest', settings).strength).toBe(0);
+  });
+
+  it('costs a healthy body sent home anyway a little conditioning — the trade for the auto-assignment never making, a booker parking somebody there instead of the gym does', () => {
+    const week = weekOff(person({ health: 100 }), 'rest', settings);
+    expect(week.strength).toBeLessThan(0);
+    expect(week.agility).toBeLessThan(0);
+    expect(week.stamina).toBeLessThan(0);
   });
 
   it('is worth more to the two people it is actually aimed at', () => {

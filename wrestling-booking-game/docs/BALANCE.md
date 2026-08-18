@@ -214,6 +214,46 @@ Reproduce: `node tools/probe.mjs --report development --seeds 6 --weeks 104`
 against the same command with `--set matchPopularityChase=0`, and again with
 `--set matchPopularityChase=0 --restock=0`.
 
+## Rival development and neglect decay — measured 2026-08-18
+
+Before this, a rival's roster was static apart from ageing — confirmed in
+the code, not assumed: `career/assignment.ts`'s weekly gym/ring/appearances
+pass only ever ran over `world.promotion.rosterIds`, so nobody signed to a
+rival ever moved a physical stat, full stop, for as long as the game has
+existed. `--report development` now tracks the average of
+strength/agility/stamina across every rival roster combined, start vs end:
+
+| | Value |
+|---|---|
+| Rival physical average, week 1 -> 104 (3 seeds) | 56.4 -> 59.0 |
+
+That is the whole population, including established veterans already at or
+past their `potentials` ceiling (headroom 0, no room left to gain) — the
+same people who would show zero movement under the player-side system too.
+Gradual by design, same magnitude as the player's own gym (`assignmentGymGain
+2.4/week` at full rate and headroom, tapered by age exactly like the
+player's).
+
+The other half — a stat that isn't being maintained should drift down, not
+just stop drifting up — landed at `assignmentNeglectLoss 1.2`, ramping 0 at
+`assignmentAgePeak` (22) to full at the new `assignmentAgeDeclineMax` (45),
+floored at `physicalStatFloor` (20) so nobody gets erased. It only fires on
+`appearances` (a deliberate trade: popularity and cash for a week not spent
+training) and on `rest` the wrestler didn't actually need (healthy, unhurt,
+but parked at home anyway) — never on a genuine injury/exhaustion rest,
+which would be punishing the same hurt twice. Under plain `autoAssignment`
+(no booker pins, which is what the probe plays) "Sent home for the week" is
+50.6% of all assignments but is *entirely* the needed kind — the office
+never sends a healthy person home on its own — so in an unmodified save the
+decay term only ever fires on the 5.7% out on appearances. It shows up as
+real per-person cost (see `career/assignment.test.ts`'s "neglect" suite for
+the unit-level numbers) without dragging the population average down,
+because gym time (34.1% of assignments) outweighs it by roughly 6:1.
+
+Reproduce: `node tools/probe.mjs --report development --seeds 3 --weeks 104`
+(rival physical average); `node tools/probe.mjs --report assignments --seeds
+3 --weeks 104` (the 50.6/34.1/9.7/5.7 split above).
+
 ## Company health, well-run save
 
 | | Value |

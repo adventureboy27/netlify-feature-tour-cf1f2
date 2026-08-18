@@ -435,6 +435,38 @@ describe('the rest of the business', () => {
     }
   });
 
+  it('develops its own roster too, not just the player s — see career/assignment.ts', () => {
+    // Most of a rival's roster is not booked on any given week, same as the
+    // player's — that unbooked majority is exactly who used to sit static
+    // apart from ageing. strength/agility/stamina/ringIQ never move for any
+    // reason except the gym/ring assignment, so any of them rising anywhere
+    // in the rival population is a direct signal the wiring actually reaches
+    // rivals now. A single week only samples a couple of unbooked people per
+    // roster and a small, veteran-heavy rival roster can genuinely have no
+    // headroom left to grow that week — so this runs half a year across every
+    // rival, the same "give the sim room to show a real signal" approach
+    // "moves their belts over a few years" already uses below.
+    const rivalIds = useGameStore.getState().world!.rivals.flatMap((r) => r.rosterIds);
+    const before = useGameStore.getState().world!;
+    const snapshot = new Map(
+      rivalIds.map((id) => {
+        const w = before.wrestlers[id]!;
+        return [id, w.strength + w.agility + w.stamina + w.ringIQ];
+      }),
+    );
+
+    for (let i = 0; i < 26; i++) runWeek();
+
+    const after = useGameStore.getState().world!;
+    const grew = rivalIds.some((id) => {
+      const was = snapshot.get(id);
+      const w = after.wrestlers[id];
+      if (was === undefined || !w) return false;
+      return w.strength + w.agility + w.stamina + w.ringIQ > was;
+    });
+    expect(grew).toBe(true);
+  });
+
   it('moves their belts over a few years without the player touching anything', () => {
     // The claim is about rivals booking themselves, so the player's company
     // has to still be trading to watch it happen: three years of empty cards

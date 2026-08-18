@@ -119,6 +119,12 @@ async function playOne(page, { seed, weeks, restock, overrides }) {
         ringIQEnd: [],
         popStart: [],
         popEnd: [],
+        // The physical stats a rival's own gym is now supposed to move —
+        // static apart from ageing before, so this is the whole point of the
+        // measurement. Per-wrestler average of strength/agility/stamina,
+        // start vs end, across every rival's roster combined.
+        rivalPhysStart: [],
+        rivalPhysEnd: [],
         rating: 0,
         bank: 0,
         rosterEnd: 0,
@@ -134,6 +140,11 @@ async function playOne(page, { seed, weeks, restock, overrides }) {
           out.ringIQStart.push(w.ringIQ ?? 0);
           out.popStart.push(w.popularity ?? 0);
         }
+      }
+      const rivalStartIds = s().world.rivals.flatMap((r) => r.rosterIds);
+      for (const id of rivalStartIds) {
+        const w = s().world.wrestlers[id];
+        if (w) out.rivalPhysStart.push((w.strength + w.agility + w.stamina) / 3);
       }
 
       for (let i = 0; i < weeks; i++) {
@@ -214,6 +225,13 @@ async function playOne(page, { seed, weeks, restock, overrides }) {
           out.moraleEnd.push(p.morale ?? 0);
           out.ringIQEnd.push(p.ringIQ ?? 0);
           out.popEnd.push(p.popularity ?? 0);
+        }
+        // Same people as rivalPhysStart where they're still around — a rival
+        // that folded or traded somebody away just shrinks the paired sample,
+        // same as the player-roster measurements above already tolerate.
+        for (const id of rivalStartIds) {
+          const p = w.wrestlers[id];
+          if (p) out.rivalPhysEnd.push((p.strength + p.agility + p.stamina) / 3);
         }
         out.rating = w.promotion.rating;
         out.bank = w.promotion.bankBalance;
@@ -350,8 +368,9 @@ function assignments(runs) {
 
 function development(runs) {
   return [
-    `  ring IQ    ${round(mean(runs.flatMap((r) => r.ringIQStart)))} -> ${round(mean(runs.flatMap((r) => r.ringIQEnd)))}`,
-    `  popularity ${round(mean(runs.flatMap((r) => r.popStart)))} -> ${round(mean(runs.flatMap((r) => r.popEnd)))}`,
+    `  ring IQ            ${round(mean(runs.flatMap((r) => r.ringIQStart)))} -> ${round(mean(runs.flatMap((r) => r.ringIQEnd)))}  (player roster)`,
+    `  popularity         ${round(mean(runs.flatMap((r) => r.popStart)))} -> ${round(mean(runs.flatMap((r) => r.popEnd)))}  (player roster)`,
+    `  rival physical avg ${round(mean(runs.flatMap((r) => r.rivalPhysStart)))} -> ${round(mean(runs.flatMap((r) => r.rivalPhysEnd)))}  (str+agi+sta / 3, every rival roster)`,
   ];
 }
 

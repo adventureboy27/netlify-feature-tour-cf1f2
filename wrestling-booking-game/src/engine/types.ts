@@ -2204,6 +2204,20 @@ export interface WorldSettings {
   /** Extra for the two people a week at home is genuinely aimed at. */
   assignmentRestWantedBonus: number;
   assignmentRestGlassBonus: number;
+  /**
+   * The other half of the gym: a physical stat left untrained doesn't just
+   * stand still. Out on appearances, or resting when nothing was actually
+   * wrong, costs strength/agility/stamina instead of building them — see
+   * `declineRate` in career/assignment.ts. Ramps from 0 at `assignmentAgePeak`
+   * (a young body barely notices a week off) to full at this age (an old one
+   * does), mirroring the growth curve rather than sharing it — a twenty-year
+   * gap because growth stopping and decline starting are not the same event.
+   */
+  assignmentAgeDeclineMax: number;
+  /** Weekly loss per stat at full decline rate and full room to fall. */
+  assignmentNeglectLoss: number;
+  /** A neglected stat drifts toward this, never past it. Washed up, not zero. */
+  physicalStatFloor: number;
   moraleSetPointFloor: number;
   moraleSetPointCeiling: number;
   /** Chance somebody is drawn with a second trait rather than one. */

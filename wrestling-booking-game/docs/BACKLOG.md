@@ -37,11 +37,6 @@ generated roster for somebody who fits the scenario.
 
 - **`stintLine` / `recordLine` career history** is on the roster card now, but
   nothing shows a *rival's* roster history anywhere.
-- **Rival promotions never develop their people.** The assignment system is the
-  player's only; a rival's roster stats are static apart from ageing. Deliberate
-  for now — developing somebody else's roster for them is work the player should
-  not be doing for free — but it means rivals slowly fall behind a player who
-  uses the gym.
 - **The two-module tampering split** (`world/tampering.ts` generates,
   `career/poaching.ts` resolves) was never merged and is confusing to navigate.
 
@@ -49,6 +44,34 @@ generated roster for somebody who fits the scenario.
 
 ## Done and worth not re-litigating
 
+- **Every promotion runs its own gym now, and a stat left untrained can fall
+  as well as rise.** Rival rosters were static apart from ageing — the
+  weekly gym/ring/appearances/rest pass in `career/assignment.ts` only ever
+  ran over the player's own roster, gated by `world.promotion.rosterIds.
+  includes(person.id)` in `state/store.ts`. That gate is now a lookup
+  across every promotion (`promotionsById`, built from `world.promotion`
+  plus `world.rivals`), so a rival's unbooked majority develops exactly
+  like the player's, appearances income lands in the right promotion's own
+  bank, and the news wire still only ever reports on the player's business
+  (nothing changed there). Measured: rival physical average (strength +
+  agility + stamina, every rival roster) rose 56.4 -> 59.0 over two seasons
+  — see docs/BALANCE.md.
+  The other half of "gradual increases or decreases": a physical stat not
+  being maintained now drifts toward a floor instead of just standing
+  still. New `declineRate` (career/assignment.ts) mirrors `learningRate`
+  but isn't the same curve reversed — growth stopping at 38
+  (`assignmentAgeNoGain`) and decline starting are deliberately not the
+  same event, so it ramps its own curve from `assignmentAgePeak` (22) to a
+  new `assignmentAgeDeclineMax` (45). It only fires on `appearances` (a
+  real trade: cash and popularity for a week not spent training) and on
+  `rest` nobody actually needed (healthy, unhurt, parked at home anyway) —
+  never on a genuine injury or exhaustion rest, which would double-punish
+  the same hurt. Floored at a new `physicalStatFloor` (20) so nobody gets
+  erased. `autoAssignment` never sends a healthy person home on its own, so
+  in an unmodified save this only ever bites the ~6% of weeks spent on
+  appearances — a real, felt cost for parking a talent on a publicity tour
+  instead of training them, without dragging the whole population down,
+  since gym time still outweighs it by roughly 6:1.
 - **The championship builder is now count → name → per-belt holders/colours,
   matching the new-game promotions flow instead of an eight-field form per
   belt.** `TitleBuilder` dropped its tier/division/weight-class/stipulation

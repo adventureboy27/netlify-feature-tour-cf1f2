@@ -188,6 +188,44 @@ function headroom(current: number, ceiling: number): number {
 }
 
 /**
+ * How fast this person loses conditioning when the week wasn't spent
+ * maintaining it — the other half of `learningRate`, and deliberately not
+ * the same curve run backwards. Growth stopping (`assignmentAgeNoGain`, 38)
+ * and decline starting are not the same event: a twenty-two-year-old fresh
+ * off a signing tour is not appreciably worse for it, but a wrestler already
+ * past the age where anything is left to gain is exactly the one still
+ * capable of losing what they have. Ramps 0 at `assignmentAgePeak` to 1 at
+ * `assignmentAgeDeclineMax`.
+ */
+export function declineRate(wrestler: Wrestler, settings: WorldSettings): number {
+  return clamp(
+    (wrestler.age - settings.assignmentAgePeak) /
+      Math.max(1, settings.assignmentAgeDeclineMax - settings.assignmentAgePeak),
+    0,
+    1,
+  );
+}
+
+/** How much room is left before the floor. A stat already there has nothing left to lose. */
+function fallroom(current: number, floor: number): number {
+  return Math.max(0, current - floor) / 100;
+}
+
+/**
+ * The physical cost of a week that wasn't spent maintaining the body —
+ * appearances, or rest nobody needed. Mirrors the gym's shape (rate times
+ * room to move) but runs toward the floor instead of the ceiling, and on a
+ * different age curve — see `declineRate`.
+ */
+function applyNeglect(out: WeekOff, wrestler: Wrestler, settings: WorldSettings): void {
+  const step = settings.assignmentNeglectLoss * declineRate(wrestler, settings);
+  const floor = settings.physicalStatFloor;
+  out.strength -= step * fallroom(wrestler.strength, floor);
+  out.agility -= step * fallroom(wrestler.agility, floor);
+  out.stamina -= step * fallroom(wrestler.stamina, floor);
+}
+
+/**
  * One week not on a card.
  *
  * Everything here is small on purpose. A week is a week: the numbers only mean
@@ -238,6 +276,8 @@ export function weekOff(
       out.energy = -settings.assignmentAppearanceEnergyCost;
       out.earned = Math.round(settings.assignmentAppearanceFee * (wrestler.popularity / 100));
       out.note = 'Out signing photographs.';
+      // A tour, not a training camp. The gym isn't where they spent the week.
+      applyNeglect(out, wrestler, settings);
       break;
     }
 
@@ -250,6 +290,12 @@ export function weekOff(
       // And a body that keeps breaking mends better when it is left alone.
       if (hasTrait(wrestler, 'madeOfGlass')) out.health += settings.assignmentRestGlassBonus;
       out.note = 'Sent home for the week.';
+      // Recovering from an actual injury, or genuinely worn down, costs
+      // nothing extra — that would be punishing somebody twice for the same
+      // hurt. This only bites a booker who parks a healthy person at home
+      // instead of the gym, which `autoAssignment` never does on its own.
+      const needed = wrestler.injury != null || wrestler.health <= settings.assignmentRestBelowHealth;
+      if (!needed) applyNeglect(out, wrestler, settings);
       break;
     }
   }

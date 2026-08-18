@@ -6134,6 +6134,18 @@ export const useGameStore = create<GameStore>()(
         // not just the player's roster, so a rival's ace goes stale on the
         // same clock — but working is what does most of the damage, so the
         // people who were on this week lose more than the people who were not.
+        //
+        // Every promotion in the business runs its own gym now, not only the
+        // player's — a rival roster used to be static apart from ageing,
+        // which meant the player was the only company anybody ever developed
+        // and the gap only ever widened. `promotionsById` is who pays for an
+        // appearances week and whose books credit it; it is never the
+        // player's business what a rival does with its own gym, so this
+        // stays silent on the wire either way (see below).
+        const promotionsById = new Map<Id, Promotion>([
+          [world.promotion.id, world.promotion],
+          ...world.rivals.map((r): [Id, Promotion] => [r.id, r]),
+        ]);
         for (const person of Object.values(world.wrestlers)) {
           if (person.deceased || person.careerStatus === 'retired') continue;
           // Said once, the week it tips over. `isStale` had no caller at all,
@@ -6143,11 +6155,10 @@ export const useGameStore = create<GameStore>()(
           const wasFresh = !isStale(person, world.settings);
           ageGimmick(person, workedThisWeek.has(person.id), world.settings);
 
-          // What they did with the week, if we did not book them for one.
-          // Only our own people — a rival's office runs its own gym, and
-          // developing somebody else's roster for them is not a thing the
-          // player should be doing for free. See career/assignment.ts.
-          if (!workedThisWeek.has(person.id) && world.promotion.rosterIds.includes(person.id)) {
+          // What they did with the week, if we did not book them for one —
+          // for whichever promotion signs them. See career/assignment.ts.
+          const promotion = person.promotionId ? promotionsById.get(person.promotionId) : undefined;
+          if (!workedThisWeek.has(person.id) && promotion) {
             const doing = assignmentOf(person, world.settings);
             const week = weekOff(person, doing, world.settings);
             person.strength = clamp(person.strength + week.strength, 1, 100);
@@ -6161,13 +6172,15 @@ export const useGameStore = create<GameStore>()(
             person.morale = clampMorale(person.morale + week.morale, world.settings);
             person.gimmickFreshness = clamp(person.gimmickFreshness - week.freshnessCost, 0, 100);
             if (week.earned > 0) {
-              world.promotion.bankBalance += week.earned;
+              promotion.bankBalance += week.earned;
               creditPay(ledgerOf(person), week.earned);
             }
             person.doingThisWeek = week.note;
           } else {
             person.doingThisWeek = null;
           }
+          // The wire only ever reports on the player's own business — a
+          // rival's gimmick going stale is their problem to notice, not §0's.
           if (wasFresh && isStale(person, world.settings) && world.promotion.rosterIds.includes(person.id)) {
             world.weeklyNews.push(wire('misfortune', goneStaleLine(person.name, pronounsFor(person)), world.week, 'normal'));
           }
