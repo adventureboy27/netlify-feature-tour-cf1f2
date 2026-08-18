@@ -39,34 +39,39 @@ import {
 } from './world';
 import {
   findManager,
-  dropFromCard,
   carriedNight,
-  closeReign,
   stripTitle,
   closeInterimClaim,
   resolveConfrontationSlot,
   leaveTheBusiness,
-  letThemGo,
   commitTitleChange,
   closePromotion,
   resolveAuction,
   settleSupershow,
-  supershowRoster,
   openBiddingWar,
   settleBiddingWar,
-  applyEffect,
   applyEffects,
   incidentContextFor,
   couldTurnUp,
 } from './storeHelpers';
-import { createStartingTitles, isActiveTitle } from '../data/titles';
+import { createCardBuilderSlice } from './slices/cardBuilder';
+import { createEventsSlice } from './slices/events';
+import { createTagTeamsAndIdentitySlice } from './slices/tagTeamsAndIdentity';
+import { createBusinessDealsSlice } from './slices/businessDeals';
+import { createShowAndProductionSlice } from './slices/showAndProduction';
+import { createOfficialsAndScheduleSlice } from './slices/officialsAndSchedule';
+import { createRosterAndContractsSlice } from './slices/rosterAndContracts';
+import { createStorylinesSlice } from './slices/storylines';
+import { createTitlesSlice } from './slices/titles';
+import { createCupSlice } from './slices/cup';
+import { createSupershowSlice } from './slices/supershow';
+import { isActiveTitle } from '../data/titles';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import {
   findRivalry,
   createRivalry,
   applyHeatChange,
   decayRivalry,
-  leanIntoShoot as leanIntoShootRivalry,
   shootMoraleCostPerWeek,
   heatMultiplier,
 } from '../engine/sim/rivalry';
@@ -79,13 +84,10 @@ import {
 } from '../engine/sim/ringside';
 import { refereeMissById } from '../data/refereeMisses';
 import {
-  canChangeRole,
-  refereeFromWrestler,
   managerFromWrestler,
   learnOnTheJob,
   type TransitionRole,
 } from '../engine/career/transition';
-import { evaluateTrade, tradeLine } from '../engine/world/trades';
 import { decayPaceSaturation } from '../engine/sim/pacing';
 import {
   defectionRisk,
@@ -109,7 +111,7 @@ import {
   storylineBetween,
 } from '../engine/world/storyline';
 import type { StorylineBeatKind } from '../data/storylineBeats';
-import { MATCH_BEAT_LINES, STORYLINE_NAME_PATTERNS } from '../data/storylineBeats';
+import { MATCH_BEAT_LINES } from '../data/storylineBeats';
 import { callTheMatch } from '../engine/sim/commentary';
 import {
   isAlly,
@@ -120,18 +122,10 @@ import {
   rollNewTie,
 } from '../engine/career/relationships';
 import {
-  canSignSecretly,
-  canWalkOut,
   isFree,
-  revealImpact,
   rollExposure,
   rollRetention,
-  secretSigningAppeal,
-  secretWeeklyCost,
-  stillSecret,
-  weeksUntilFree,
 } from '../engine/world/secretSigning';
-import { confrontationById } from '../data/confrontations';
 import {
   injuryFromMisfortune,
   pickReplacement,
@@ -165,7 +159,6 @@ import {
   // number bid on a lot of assets rather than an offer of employment.
   type Bid as ContractBid,
 } from '../engine/economy/bidding';
-import { styleProfileFor } from '../data/promotionIdentity';
 import { crossing, hypeDrift } from '../engine/career/hype';
 import { isFinished } from '../engine/career/status';
 import { bereavements, hasLapsed, mourningLine, tieDrift, applyDrift } from '../engine/career/circle';
@@ -230,8 +223,6 @@ import {
   weeklyLineage,
 } from '../engine/career/lineage';
 import {
-  exitTerms,
-  guaranteedShareFor,
   wantsOut,
   canBeSigned,
   refusalCost,
@@ -255,18 +246,11 @@ import {
   tickRefereePool,
   refereeWageBill,
   createRefereeContract,
-  currentRefereeAskingRate,
-  signedReferees,
-  spreadOfficials,
-  isAvailable as refereeIsAvailable,
 } from '../engine/sim/referees';
 import { NETWORK_SHOWS } from '../data/networkShows';
 import { rollTamperingAttempts } from '../engine/world/tampering';
 import {
-  attemptPlayerTampering,
   resolveOffer,
-  responseIsAvailable,
-  responseOutcome,
   type PoachingResponse,
 } from '../engine/world/poaching';
 import { deriveCareerStatus } from '../engine/career/status';
@@ -293,12 +277,10 @@ import {
 import { computeBuys, computeBuyRevenue, isInMonth, weekLabel } from '../engine/world/calendar';
 import {
   bigShowName,
-  defaultShowName,
   houseShowRevenueMultiplier,
   houseShowsThisWeek,
   isBigShowWeek,
   recoveryMultiplier,
-  resizeSchedule,
   scheduleOf,
   segmentsForShow,
   showsThisWeek,
@@ -306,7 +288,7 @@ import {
 } from '../engine/world/schedule';
 import type { Day } from '../engine/world/calendar';
 import { resolvePromo, promoIsValid, promoShowContribution, promoEnergyCost } from '../engine/sim/promo';
-import { promoTopicById, type PromoTopicId } from '../data/promoTopics';
+import { type PromoTopicId } from '../data/promoTopics';
 import {
   broadcastBreaches,
   sponsorBreaches,
@@ -335,23 +317,13 @@ import {
   invasionDamage,
   claimsTerritory,
   strongestTerritory,
-  venueFitsTerritory,
 } from '../engine/world/territories';
 import { businessCapacity, graduateClass, graduateCount, workingPopulation } from '../engine/world/academy';
 import { walkOnIntake, walkOnLine } from '../engine/world/walkOns';
 import { managerIntake } from '../engine/world/managerTalent';
 import { rollForNickname } from '../engine/generate/nickname';
-import {
-  checkRename,
-  checkRestyle,
-  namesInUse,
-  repackage,
-  RENAME_REJECTION_TEXT,
-} from '../engine/generate/repackage';
 import { rollWeeklyEvent, recordFired } from '../engine/events/scheduler';
-import { resolveOption } from '../engine/events/apply';
-import { CREATIVE_EVENTS, eventById } from '../data/events';
-import type { EventSubjects } from '../engine/events/types';
+import { CREATIVE_EVENTS } from '../data/events';
 import type { Passing, Wrestler } from '../engine/types';
 import { clamp, pick, chance, randInt } from '../engine/rng';
 import { defaultWorldSettings } from '../engine/world/settings';
@@ -360,7 +332,7 @@ import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch'
 import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
 import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/aftermath';
 import { resolveDarkMatch } from '../engine/sim/darkMatch';
-import { runRivalShow, bookRivalCard, canWork, type RivalShow } from '../engine/world/rivalBooking';
+import { runRivalShow, canWork, type RivalShow } from '../engine/world/rivalBooking';
 import {
   openingOffer,
   respondToOffer,
@@ -369,29 +341,15 @@ import {
   moodLine,
   supershowPurse,
 } from '../engine/world/supershow';
-import { draftSupershow } from '../engine/world/supershowRun';
-import { strikeMatch } from '../engine/world/supershowCard';
 import {
   willEnter,
   slotsPerPromotion,
-  cupEntrantsFrom,
   cupPurse,
-  crownAura,
-  crownSurge,
-  crownWinsBefore,
-  crownsFor,
   fieldIsBigEnough,
-  fieldLine,
   CUP_MONTH,
-  CUP_NAME,
-  CUP_TROPHY,
 } from '../engine/world/cup';
-import { runCup, cupStandingFor } from '../engine/world/cupRun';
 import {
-  HAULAGE,
   haulageById,
-  nextHaulage,
-  ladderStatus,
   productionEffects,
   productionUpkeepPerShow,
 } from '../engine/economy/production';
@@ -407,8 +365,6 @@ import {
   recordTeamResult,
   disbandBrokenTeams,
   formTeams,
-  canFormTeam,
-  createTeam,
 } from '../engine/world/tagTeams';
 import {
   resolveTitleOutcomes,
@@ -418,7 +374,6 @@ import {
 } from '../engine/sim/titleMatch';
 import type { ChampionInjuryChoice } from '../engine/world/titleDefence';
 import {
-  championInjuryOptions,
   defenceStatus,
   isTeamHeld,
   isUnificationMatch,
@@ -443,12 +398,9 @@ import {
   priceGoodwill,
   priceReaction,
   updateRecentShowQuality,
-  newAssetCondition,
   wearAsset,
   assetEffectiveness,
   assetHasFailed,
-  repairAsset,
-  repairCost,
 } from '../engine/economy/showBudget';
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import { decayGrudges, grudgeAgainst } from '../engine/world/grudges';
@@ -460,7 +412,6 @@ import {
   negligenceOf,
   officeShare,
   ourPrice,
-  shunned,
   wasNegligent,
   roomLine,
   roomMoraleCost,
@@ -484,21 +435,16 @@ import {
   productionInRoom,
   venueAtmosphereModifier,
 } from '../engine/economy/venue';
-import { nightAtTheTables, prunedStands, standById } from '../engine/economy/stands';
+import { nightAtTheTables } from '../engine/economy/stands';
 import {
-  breakLeaseCost,
-  exposureLine,
   localCeiling,
   localTopTicket,
-  residencyDeposit,
   residencyExposure,
   residencyHaulageCost,
   residencyHomeById,
   residencyMerchMultiplier,
   residencyOverhead,
-  residencyTerms,
   scaleExposure,
-  signResidency,
   tickResidency,
   venueForHome,
 } from '../engine/economy/residency';
@@ -519,9 +465,8 @@ import {
   clauseUpkeep,
   blocksDeckStacking,
 } from '../engine/career/ego';
-import { availablePerks, perkUpkeep } from '../engine/economy/perks';
+import { perkUpkeep } from '../engine/economy/perks';
 import type { PerkId } from '../data/perks';
-import { canSign, currentAskingRate } from '../engine/world/freeAgents';
 import {
   computeWeeklyExpenses,
   computeShowExpenseSplit,
@@ -546,7 +491,12 @@ import {
 // World — it's a stream generator, not a value the UI ever reads or
 // serializes. Re-seeded on newGame(); advances across resolveWeek() calls
 // exactly like any other engine consumer of Rng.
-let rng: Rng = rngFromSeed(defaultWorldSettings().seed);
+// Exported as a live binding: slice files that only ever *read* the current
+// stream (never reseed it — only newGame/newGameFromPlan/continueGame/
+// importSaveFile do that, and those stay in this file) can import `rng`
+// directly and always see the current value, the same way a function defined
+// right here would.
+export let rng: Rng = rngFromSeed(defaultWorldSettings().seed);
 
 // §12.5 route 3 — "two wrestlers meeting three times in a short span".
 const MEETINGS_TO_FORM_RIVALRY = 3;
@@ -840,8 +790,24 @@ export interface GameStore {
 // dropFromCard .. couldTurnUp moved to ./storeHelpers.ts
 
 export const useGameStore = create<GameStore>()(
-  immer((set, get) => ({
+  immer((set, get, api) => ({
     world: null,
+
+    // Actions that don't need to see the whole weekly-resolution loop live
+    // in their own files under state/slices/ — see the doc comment at the
+    // top of storeHelpers.ts for why the split happened and what stayed
+    // here. Everything below this block (through resolveWeek) is unchanged.
+    ...createCardBuilderSlice(set, get, api),
+    ...createEventsSlice(set, get, api),
+    ...createTagTeamsAndIdentitySlice(set, get, api),
+    ...createBusinessDealsSlice(set, get, api),
+    ...createShowAndProductionSlice(set, get, api),
+    ...createOfficialsAndScheduleSlice(set, get, api),
+    ...createRosterAndContractsSlice(set, get, api),
+    ...createStorylinesSlice(set, get, api),
+    ...createTitlesSlice(set, get, api),
+    ...createCupSlice(set, get, api),
+    ...createSupershowSlice(set, get, api),
 
     newGame: (settings = defaultWorldSettings()) => {
       rng = rngFromSeed(settings.seed);
@@ -954,205 +920,6 @@ export const useGameStore = create<GameStore>()(
       return { added, problems };
     },
 
-    setSegmentParticipant: (slot, wrestlerId, side) => {
-      set((state) => {
-        const segment = state.world?.currentCard[slot];
-        if (!segment) return;
-        // A wrestler occupies exactly one slot in a segment at a time.
-        segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
-        segment.participants.push({ wrestlerId, side, role: 'competitor' });
-      });
-    },
-
-    removeSegmentParticipant: (slot, wrestlerId) => {
-      set((state) => {
-        const segment = state.world?.currentCard[slot];
-        if (!segment) return;
-        segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
-      });
-    },
-
-    setDarkMatchParticipant: (slot, wrestlerId, side) => {
-      set((state) => {
-        const segment = state.world?.currentDarkMatches[slot];
-        if (!segment) return;
-        segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
-        segment.participants.push({ wrestlerId, side, role: 'competitor' });
-      });
-    },
-
-    removeDarkMatchParticipant: (slot, wrestlerId) => {
-      set((state) => {
-        const segment = state.world?.currentDarkMatches[slot];
-        if (!segment) return;
-        segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
-      });
-    },
-
-    setSegmentRules: (slot, rules) => {
-      set((state) => {
-        const segment = state.world?.currentCard[slot];
-        if (!segment) return;
-        Object.assign(segment.rules, rules);
-      });
-    },
-
-    setSegmentStipulation: (slot, stipulationId) => {
-      set((state) => {
-        const segment = state.world?.currentCard[slot];
-        if (!segment) return;
-        segment.stipulation = stipulationId;
-      });
-    },
-
-    autoFillCard: () => {
-      set((state) => {
-        const world = state.world;
-        // Two ways a save ends: the bank, and the owner.
-        if (!world || world.folded || world.fired) return;
-
-        const alreadyBooked = new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
-        const available = world.promotion.rosterIds
-          .map((id) => world.wrestlers[id])
-          .filter(
-            (w): w is Wrestler =>
-              Boolean(w) &&
-              !alreadyBooked.has(w!.id) &&
-              canWork(w!, world.settings, world.week) &&
-              // Nobody will get in the ring with the man the room blames for
-              // a death, so the office does not offer him a match. Filtered
-              // here rather than in `canWork` for two reasons: he is
-              // physically able to work, and a company that releases him
-              // should not find him unbookable everywhere in the world —
-              // this is *this* locker room refusing, not a status on the man.
-              //
-              // And it stops the office, not the player. Booking him anyway
-              // is still one tap away, with no warning and no block (§0).
-              !shunned(w!.blamedFor, world.week, world.settings),
-          );
-
-        // The microphone, first.
-        //
-        // Fill the card only ever filled *matches*, so an auto-played save
-        // never cut a promo — which meant a whole system with a UI, a topic
-        // list and a show-rating contribution ran zero times unless the player
-        // built every card by hand. It also meant no manager was ever booked
-        // as a mouthpiece, so the one thing a manager is best at never
-        // happened either.
-        //
-        // The office books the obvious thing: the best talker on the roster,
-        // aimed at somebody they already have a feud with when there is one.
-        const talkers = [...available].sort((a, b) => b.charisma - a.charisma);
-        const speaking = new Set<Id>();
-        for (const slot of world.currentPromos) {
-          if (slot.kind === 'confrontation' || slot.promoSpeakerId) continue;
-          const speaker = talkers.find((w) => !speaking.has(w.id));
-          if (!speaker) break;
-
-          // Somebody they are already in with, if anybody. A promo aimed at a
-          // live feud is worth more than one aimed at nobody — see promo.ts.
-          const feud = world.rivalries.find(
-            (r) => r.resolvedWeek === null && r.participantIds.includes(speaker.id),
-          );
-          const targetId = feud?.participantIds.find((id) => id !== speaker.id) ?? null;
-          const target = targetId ? world.wrestlers[targetId] : undefined;
-          const holdsTitle = world.titles.some(
-            (t) => t.promotionId === world.promotion.id && t.currentHolderIds.includes(speaker.id),
-          );
-
-          // What the office books when it is choosing for itself. Selling
-          // the main event is the safe, obvious thing a real office does with
-          // twenty minutes and a good talker.
-          //
-          // This used to fall back to calling out the locker room, which is
-          // the single most damaging thing anybody can say into a microphone
-          // — it takes morale off *every wrestler on the roster*. The office
-          // booked it every week the best talker had no feud and no belt,
-          // which was most weeks, and it was the largest force in the morale
-          // system by a distance: measured at 691 points off a twelve-man
-          // locker room over fourteen weeks, against 285 of everything the
-          // weekly morale pass put back. It is a fine thing for a booker to
-          // choose. It is not a default.
-          const topicId: PromoTopicId = target
-            ? 'continueFeud'
-            : holdsTitle
-              ? 'championshipAddress'
-              : 'hypeMatch';
-          if (!promoIsValid(topicId, speaker, target ?? null, holdsTitle)) continue;
-
-          slot.promoSpeakerId = speaker.id;
-          slot.promoTopicId = topicId;
-          slot.promoTargetId = target?.id ?? null;
-          // And a mouthpiece for somebody who cannot talk, which is the whole
-          // reason to carry one — see sim/ringside.ts.
-          // Off the roster rather than off `staffManagers`, which only fills
-          // when somebody *changes role* — a manager signed as a manager was
-          // never in it, so the lookup found nobody however many you had.
-          const ownMouth = speaker.charisma;
-          const mouthpiece = world.promotion.rosterIds
-            .map((id) => world.wrestlers[id])
-            .find(
-              (m): m is Wrestler =>
-                Boolean(m) &&
-                m!.role === 'manager' &&
-                !m!.deceased &&
-                m!.charisma > ownMouth + world.settings.autoFillMouthpieceGap,
-            );
-          slot.promoMouthpieceId = mouthpiece?.id ?? null;
-          speaking.add(speaker.id);
-        }
-
-        const emptySlots = world.currentCard
-          .map((segment, index) => ({ segment, index }))
-          .filter(({ segment }) => new Set(segment.participants.map((p) => p.side)).size < 2);
-        if (emptySlots.length === 0 || available.length < 2) return;
-
-        // Same AI that books the rival cards, pointed at your roster — so the
-        // office's idea of a card is exactly as good as the competition's.
-        const card = bookRivalCard(rng, {
-          promotion: world.promotion,
-          available,
-          titles: world.titles,
-          stables: world.stables,
-          week: world.week,
-          settings: { ...world.settings, segmentsPerTV: emptySlots.length },
-          // Without this the office books the same six matches every week and
-          // walks the company into the ground on repetition alone.
-          memory: recallBookings(world.showHistory, world.week, world.settings),
-          refuses: (aId, bId) =>
-            refusesToWorkWith(findRelationship(world.relationships, aId, bId), world.settings),
-        });
-
-        card.matches.forEach((match, i) => {
-          const target = emptySlots[i];
-          if (!target) return;
-          const segment = world.currentCard[target.index]!;
-          segment.participants = match.sides.flatMap((members, side) =>
-            members.map((w) => ({ wrestlerId: w.id, side, role: 'competitor' as const })),
-          );
-          segment.titleIds = match.titleIds ?? [];
-        });
-
-        // The office names an official for the card if the player has not.
-        // Per-match assignments are left alone — deciding which referee gets
-        // the main event is the interesting half of the job and Fill the card
-        // should not do it for you.
-        const availableOfficials = signedReferees(world.referees, world.promotion.id).filter(refereeIsAvailable);
-        if (!world.defaultRefereeId || !availableOfficials.some((r) => r.id === world.defaultRefereeId)) {
-          world.defaultRefereeId = availableOfficials[0]?.id ?? null;
-        }
-      });
-    },
-
-    toggleSegmentTitle: (slot, titleId) => {
-      set((state) => {
-        const segment = state.world?.currentCard[slot];
-        if (!segment) return;
-        const index = segment.titleIds.indexOf(titleId);
-        if (index >= 0) segment.titleIds.splice(index, 1);
-        else segment.titleIds.push(titleId);
-      });
-    },
 
     resolveWeek: () => {
       set((state) => {
@@ -6367,1944 +6134,5 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
-    chooseEventOption: (optionId) => {
-      set((state) => {
-        const world = state.world;
-        const pending = world?.pendingEvent;
-        if (!world || !pending) return;
-
-        const event = eventById(pending.eventId);
-        if (!event) {
-          world.pendingEvent = null;
-          return;
-        }
-
-        const subjects: EventSubjects = {
-          primary: pending.subjects.primaryId ? world.wrestlers[pending.subjects.primaryId] : undefined,
-          secondary: pending.subjects.secondaryId ? world.wrestlers[pending.subjects.secondaryId] : undefined,
-          promotion: world.promotion,
-          rival: world.rivals.find((r) => r.id === pending.subjects.rivalId),
-        };
-
-        const outcome = resolveOption(rng, event, optionId, subjects, world.settings);
-        for (const effect of outcome.effects) applyEffect(world, rng, effect);
-
-        world.pendingEvent = null;
-        world.lastEventOutcome = { title: pending.title, summary: outcome.summary };
-      });
-    },
-
-    dismissEventOutcome: () => {
-      set((state) => {
-        if (state.world) state.world.lastEventOutcome = null;
-      });
-    },
-
-    // DESIGN: what kind of company you are is the first real decision, and it
-    // renames your belts — so it is open until the first show goes out and
-    // shut for good afterwards. A promotion that changes what it stands for
-    // every week does not stand for anything.
-    formTagTeam: (aId, bId, name) => {
-      set((state) => {
-        const world = state.world;
-        // Two ways a save ends: the bank, and the owner.
-        if (!world || world.folded || world.fired) return;
-
-        const a = world.wrestlers[aId];
-        const b = world.wrestlers[bId];
-        const rosterIds = new Set(world.promotion.rosterIds);
-        if (!canFormTeam(a, b, world.stables, rosterIds, name).ok || !a || !b) return;
-
-        const taken = new Set(world.stables.filter((t) => t.disbandedWeek === null).map((t) => t.name));
-        world.stables.push(
-          createTeam(rng, a, b, world.week, `${world.promotion.id}-team-${world.nextId++}`, taken, name),
-        );
-      });
-    },
-
-    disbandTagTeam: (teamId) => {
-      set((state) => {
-        const world = state.world;
-        const team = world?.stables.find((t) => t.id === teamId && t.disbandedWeek === null);
-        if (!world || !team) return;
-
-        // A team that has split cannot defend the tag titles. The belts go
-        // vacant with the split on the record, which is how it goes.
-        for (const title of world.titles) {
-          if (title.vacant || title.tier !== 'tag') continue;
-          if (!team.memberIds.every((id) => title.currentHolderIds.includes(id))) continue;
-
-          const last = title.history[title.history.length - 1];
-          if (last && last.endWeek === null) {
-            last.endWeek = world.week;
-            last.endMethod = 'vacatedByBooker';
-          }
-          for (const id of title.currentHolderIds) {
-            const open = world.wrestlers[id]?.titleReigns.find((r) => r.titleId === title.id && r.endWeek === null);
-            if (open) {
-              open.endWeek = world.week;
-              open.endMethod = 'vacatedByBooker';
-            }
-          }
-          title.vacant = true;
-          title.currentHolderIds = [];
-        }
-
-        team.disbandedWeek = world.week;
-      });
-    },
-
-    repackageWrestler: (wrestlerId, change) => {
-      const world = get().world;
-      const w = world?.wrestlers[wrestlerId];
-      if (!world || !w) return { ok: false, reason: 'Nobody by that name.' };
-
-      // Checked before the write, so a rejected repackage changes nothing.
-      const everybody = Object.values(world.wrestlers);
-      if (change.name !== undefined) {
-        const check = checkRename(change.name, w.name, namesInUse(everybody), world.settings);
-        if (!check.ok) return { ok: false, reason: RENAME_REJECTION_TEXT[check.reason!] };
-      }
-      if (change.appearance) {
-        const look = checkRestyle(change.appearance, wrestlerId, everybody);
-        if (!look.ok) {
-          const clash = look.clashesWith ? world.wrestlers[look.clashesWith]?.name : null;
-          return {
-            ok: false,
-            reason: clash
-              ? `Too close to how ${clash} already looks. Change more than a couple of things.`
-              : 'Too close to how somebody else already looks.',
-          };
-        }
-      }
-
-      set((state) => {
-        const draft = state.world;
-        const target = draft?.wrestlers[wrestlerId];
-        if (!draft || !target) return;
-        repackage(target, change, draft.week);
-      });
-      const after = get().world;
-      if (after) saveGame(after, rng.state?.() ?? 0);
-      return { ok: true, reason: null };
-    },
-
-    retireWrestler: (wrestlerId) => {
-      set((state) => {
-        const world = state.world;
-        const w = world?.wrestlers[wrestlerId];
-        if (!world || !w || w.careerStatus === 'retired') return;
-
-        // Belts do not retire with their holder. This used to be its own copy
-        // of the vacating logic, which is how it drifted: leaveTheBusiness
-        // learned to resolve a split belt's interim claim and this path did
-        // not, so retiring an interim champion by hand left a claim on a title
-        // for somebody who was gone — and a belt owing a unification nobody
-        // can turn up for can never be defended again.
-        retire(w);
-        leaveTheBusiness(world, wrestlerId, 'retired');
-      });
-    },
-
-    setPromotionIdentity: (name, archetype) => {
-      set((state) => {
-        const world = state.world;
-        if (!world || world.showHistory.length > 0) return;
-
-        world.promotion.name = name.trim() || world.promotion.name;
-        world.promotion.identity = archetype;
-        world.promotion.styleProfile = styleProfileFor(archetype);
-
-        // Rename in place rather than rebuilding: the opening champions were
-        // crowned at week one and a rename must not vacate their belts.
-        const renamed = createStartingTitles(world.promotion.id, world.promotion.name, archetype);
-        const own = world.titles.filter((t) => t.promotionId === world.promotion.id);
-        own.forEach((title, i) => {
-          const fresh = renamed[i];
-          if (!fresh) return;
-          title.name = fresh.name;
-          title.blurb = fresh.blurb;
-          title.tier = fresh.tier;
-          title.prestige = fresh.prestige;
-          title.colorway = fresh.colorway;
-          title.signatureStipulationId = fresh.signatureStipulationId;
-        });
-      });
-    },
-
-    bidOnAuction: (level) => {
-      set((state) => {
-        if (state.world?.pendingAuction) resolveAuction(state.world, rng, level);
-      });
-    },
-
-    dismissAuctionResult: () => {
-      set((state) => {
-        if (state.world) state.world.lastAuction = null;
-      });
-    },
-
-    answerBroadcastOffer: (accept) => {
-      set((state) => {
-        const world = state.world;
-        if (!world?.pendingBroadcastOffer) return;
-        if (accept) {
-          world.broadcastDealId = world.pendingBroadcastOffer;
-          // A new deal starts clean; whatever the last one was unhappy about
-          // is not this one's business.
-          world.breachWeeks = {};
-        }
-        world.pendingBroadcastOffer = null;
-        world.weeksAtRating = 0;
-      });
-    },
-
-    signSponsor: (sponsorId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world || world.sponsorIds.includes(sponsorId)) return;
-        if (!world.pendingSponsorOffers.includes(sponsorId)) return;
-        world.sponsorIds.push(sponsorId);
-        world.pendingSponsorOffers = world.pendingSponsorOffers.filter((id) => id !== sponsorId);
-      });
-    },
-
-    dropSponsor: (sponsorId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        world.sponsorIds = world.sponsorIds.filter((id) => id !== sponsorId);
-        delete world.breachWeeks[sponsorId];
-      });
-    },
-
-    dismissMandateOutcome: () => {
-      set((state) => {
-        if (state.world) state.world.lastMandateOutcome = null;
-      });
-    },
-
-    dismissYearInReview: () => {
-      set((state) => {
-        if (state.world) state.world.yearInReview = null;
-      });
-    },
-
-    setVenue: (venueId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        // A signed term is a signed term. Changing rooms means breaking it.
-        if (world.residency) return;
-        world.showSetup.venueId = venueId;
-
-        // A room that will not take a stand must not go on charging for it.
-        // The bug this prevents: booking a bar in the VFW hall, moving to the
-        // casino, and paying nine hundred a week for a bar that never opened.
-        const venue = venueById(venueId) ?? fallbackVenue();
-        world.showSetup.standIds = prunedStands(world.showSetup.standIds, {
-          gimmickMerchMultiplier: 1,
-          prestige: world.promotion.rating,
-          identity: world.promotion.identity,
-          venue,
-          rigInRoom: productionInRoom(world.productionRungs, venue),
-          settings: world.settings,
-        });
-      });
-    },
-
-    toggleStand: (standId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world || !standById(standId)) return;
-        world.showSetup.standIds = world.showSetup.standIds.includes(standId)
-          ? world.showSetup.standIds.filter((id) => id !== standId)
-          : [...world.showSetup.standIds, standId];
-      });
-    },
-
-    signResidency: (homeId, weeks) => {
-      set((state) => {
-        const world = state.world;
-        if (!world || world.residency) return;
-
-        // No rating gate: a legion hall in Brackett will take anybody's money.
-        // A big company signing one is a mistake, not an impossibility, and
-        // the game does not stop anybody making it (§0).
-        const home = residencyHomeById(homeId);
-        if (!home) return;
-
-        const term = residencyTerms(world.settings).find((t) => t.weeks === weeks);
-        if (!term) return;
-
-        const deposit = residencyDeposit(home, term, world.settings);
-        if (world.promotion.bankBalance < deposit) return;
-
-        world.promotion.bankBalance -= deposit;
-        world.residency = signResidency(home, term, world.week);
-        world.weeklyNews.push(
-          wire(
-            'signing',
-            `${world.promotion.name} has taken the ${home.name} in ${home.town} for ${term.label.toLowerCase()}. ` +
-              `${exposureLine(world.residency)} The trucks stay in the yard.`,
-            world.week,
-          ),
-        );
-      });
-    },
-
-    breakResidency: () => {
-      set((state) => {
-        const world = state.world;
-        if (!world?.residency) return;
-
-        const owed = breakLeaseCost(world.residency, world.settings);
-        const { homeName, town } = world.residency;
-        world.promotion.bankBalance -= owed;
-        world.residency = null;
-        world.weeklyNews.push(
-          wire(
-            'signing',
-            `${world.promotion.name} has bought its way out of the ${homeName} in ${town}. It cost $${owed.toLocaleString()} to be allowed to leave.`,
-            world.week,
-          ),
-        );
-      });
-    },
-
-    setTerritory: (territoryId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        world.showSetup.territoryId = territoryId;
-
-        // A building bigger than the town cannot be run there. Rather than
-        // refuse the move, drop to the biggest room the market can hold —
-        // the player picked where to go, and the venue follows.
-        const town = world.territories.find((t) => t.id === territoryId);
-        const venue = venueById(world.showSetup.venueId);
-        if (town && venue && !venueFitsTerritory(venue.capacity, town.capacity)) {
-          const fits = VENUES.filter(
-            (v) => world.promotion.rating >= v.minCompanyRating && venueFitsTerritory(v.capacity, town.capacity),
-          );
-          world.showSetup.venueId = (fits[fits.length - 1] ?? fallbackVenue()).id;
-        }
-      });
-    },
-
-    setPromo: (slot, cast) => {
-      set((state) => {
-        const promo = state.world?.currentPromos[slot];
-        if (!promo) return;
-        if (cast.topicId !== undefined) {
-          promo.promoTopicId = cast.topicId;
-          // A topic that needs nobody should not keep a stale target around.
-          const topic = cast.topicId ? promoTopicById(cast.topicId) : undefined;
-          if (topic && !topic.needsTarget) promo.promoTargetId = null;
-        }
-        if (cast.speakerId !== undefined) promo.promoSpeakerId = cast.speakerId;
-        if (cast.targetId !== undefined) promo.promoTargetId = cast.targetId;
-        if (cast.mouthpieceId !== undefined) promo.promoMouthpieceId = cast.mouthpieceId;
-      });
-    },
-
-    setConfrontation: (slot, cast) => {
-      set((state) => {
-        const segment = state.world?.currentPromos[slot];
-        if (!segment) return;
-
-        if (cast.confrontationId !== undefined) {
-          segment.confrontationId = cast.confrontationId;
-          if (cast.confrontationId) {
-            segment.kind = 'confrontation';
-            // A promo's target is the obvious person to carry over.
-            segment.confrontationOppositeId ??= segment.promoTargetId ?? null;
-            segment.confrontationVenue ??= confrontationById(cast.confrontationId)?.venues[0] ?? 'ring';
-            segment.promoTopicId = null;
-          } else {
-            // Back to being a promo, and nothing stale left behind.
-            segment.kind = 'promo';
-            segment.confrontationOppositeId = null;
-            segment.confrontationThirdId = null;
-            segment.confrontationResult = null;
-          }
-        }
-        if (cast.venue !== undefined) segment.confrontationVenue = cast.venue;
-        if (cast.speakerId !== undefined) segment.promoSpeakerId = cast.speakerId;
-        if (cast.oppositeId !== undefined) segment.confrontationOppositeId = cast.oppositeId;
-        if (cast.thirdId !== undefined) segment.confrontationThirdId = cast.thirdId;
-      });
-    },
-
-    setTicketPrice: (price) => {
-      set((state) => {
-        if (state.world) state.world.showSetup.ticketPrice = Math.max(1, Math.round(price));
-      });
-    },
-
-    toggleShowExtra: (extraId) => {
-      set((state) => {
-        const setup = state.world?.showSetup;
-        if (!setup) return;
-        setup.extraIds = setup.extraIds.includes(extraId)
-          ? setup.extraIds.filter((id) => id !== extraId)
-          : [...setup.extraIds, extraId];
-      });
-    },
-
-    buyRung: (rungId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const truck = haulageById(world.haulageId) ?? HAULAGE[0]!;
-        const status = ladderStatus(world.productionRungs, truck, world.promotion.bankBalance);
-        const here = status.find((r) => r.rung.id === rungId);
-        // The ladder decides. Rung order, truck space and money are all checked
-        // in one place (economy/production.ts) so the UI and the store can
-        // never disagree about what is buyable.
-        if (!here || here.blocked !== null) return;
-
-        world.promotion.bankBalance -= here.rung.cost;
-        world.productionRungs.push(here.rung.id);
-        world.weeklyNews.push(
-          wire(
-            'story',
-            `${world.promotion.name} bought a ${here.rung.name.toLowerCase()}. ${here.rung.blurb}`,
-            world.week,
-            'minor',
-          ),
-        );
-      });
-    },
-
-    buyHaulage: (haulageId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const next = nextHaulage(world.haulageId);
-        // One rung at a time, and only upwards — you cannot skip from a pickup
-        // to a fleet, and you cannot sell the semi back for a pickup.
-        if (!next || next.id !== haulageId) return;
-        if (world.promotion.bankBalance < next.cost) return;
-
-        world.promotion.bankBalance -= next.cost;
-        world.haulageId = next.id;
-        world.weeklyNews.push(
-          wire('story', `${world.promotion.name} are hauling on a ${next.name.toLowerCase()} now. ${next.blurb}`, world.week, 'minor'),
-        );
-      });
-    },
-
-    buyProductionAsset: (assetId) => {
-      set((state) => {
-        const world = state.world;
-        const asset = productionAssetById(assetId);
-        if (!world || !asset) return;
-        if (world.ownedAssetIds.includes(assetId)) return;
-        // No warnings (§0) — but you cannot spend money you do not have.
-        if (world.promotion.bankBalance < asset.cost) return;
-        world.promotion.bankBalance -= asset.cost;
-        world.ownedAssetIds.push(assetId);
-        world.assetConditions.push(newAssetCondition(assetId));
-      });
-    },
-
-    setSegmentManager: (slot, managerId, forSide, seat = 0) => {
-      set((state) => {
-        const segment = state.world?.currentCard[slot];
-        if (!segment) return;
-        const all = segment.managerIds ?? [];
-        const inCorner = all.filter((m) => m.forSide === forSide);
-        const elsewhere = all.filter((m) => m.forSide !== forSide);
-
-        // A corner is a short list rather than a single slot: seat 0 is the
-        // mouthpiece, seat 1 the muscle. Two men in one corner is the whole
-        // point — one pulls the official and the other uses the seconds.
-        const kept = inCorner.filter((_, i) => i !== seat);
-        const rebuilt = managerId
-          ? [...inCorner.slice(0, seat).filter(Boolean), { managerId, forSide }, ...inCorner.slice(seat + 1)]
-          : kept;
-
-        // Nobody stands in two corners at once, and nobody stands in the same
-        // corner twice.
-        const seen = new Set<Id>();
-        const deduped = rebuilt.filter((m) => {
-          if (seen.has(m.managerId)) return false;
-          seen.add(m.managerId);
-          return true;
-        });
-
-        segment.managerIds = [
-          ...elsewhere.filter((m) => !deduped.some((d) => d.managerId === m.managerId)),
-          ...deduped.slice(0, state.world!.settings.cornerSeats),
-        ];
-      });
-    },
-
-    setSegmentReferee: (slot, refereeId) => {
-      set((state) => {
-        const segment = state.world?.currentCard[slot];
-        if (!segment) return;
-        segment.refereeId = refereeId;
-        // An assigned official and a guest in the shirt are alternatives.
-        if (refereeId) segment.guestRefereeId = null;
-      });
-    },
-
-    setSegmentGuestReferee: (slot, wrestlerId) => {
-      set((state) => {
-        const segment = state.world?.currentCard[slot];
-        if (!segment) return;
-        segment.guestRefereeId = wrestlerId;
-        if (wrestlerId) segment.refereeId = null;
-      });
-    },
-
-    setDefaultReferee: (refereeId) => {
-      set((state) => {
-        if (!state.world) return;
-        state.world.defaultRefereeId = refereeId;
-      });
-    },
-
-    setShowsPerWeek: (count) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        // A named show that survives a trim keeps its name — the pattern is a
-        // fixture list the company has announced, not a queue to be rebuilt.
-        world.promotion.schedule = resizeSchedule(
-          scheduleOf(world.promotion, world.settings),
-          count,
-          world.promotion.name,
-          rngFromSeed(`${world.settings.seed}-schedule-${world.week}-${count}`),
-          world.settings,
-        );
-      });
-    },
-
-    setPPVCadence: (cadence) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        world.promotion.schedule = { ...scheduleOf(world.promotion, world.settings), ppvCadence: cadence };
-      });
-    },
-
-    renameShow: (showId, name) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const trimmed = name.trim();
-        if (!trimmed) return;
-        const schedule = scheduleOf(world.promotion, world.settings);
-        world.promotion.schedule = {
-          ...schedule,
-          shows: schedule.shows.map((show) => (show.id === showId ? { ...show, name: trimmed } : show)),
-        };
-      });
-    },
-
-    toggleShowOnDay: (day) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const schedule = scheduleOf(world.promotion, world.settings);
-        const existing = schedule.shows.find((show) => show.day === day);
-
-        if (existing) {
-          // The televised night is the one the booker builds a card for. Losing
-          // it by tapping a square would quietly take the company off the air,
-          // so that one has to be moved rather than deleted.
-          if (existing.televised) return;
-          world.promotion.schedule = {
-            ...schedule,
-            shows: schedule.shows.filter((show) => show.id !== existing.id),
-          };
-          return;
-        }
-
-        if (schedule.shows.length >= world.settings.scheduleMaxShows) return;
-
-        world.promotion.schedule = {
-          ...schedule,
-          shows: [
-            ...schedule.shows,
-            {
-              // NOT `show-N`: the seeded pattern numbers its shows by position
-              // (`show-0`, `show-1`, ...) and `nextId` collided with those, so
-              // a night added by hand could share an id with an existing show
-              // — and removing either one then removed both.
-              id: `night-${world.nextId++}`,
-              name: defaultShowName(
-                world.promotion.name,
-                day,
-                schedule.shows.length,
-                rngFromSeed(`${world.settings.seed}-night-${day}-${world.week}`),
-                new Set(schedule.shows.map((s) => s.name)),
-              ),
-              day,
-              televised: false,
-            },
-          ],
-        };
-      });
-    },
-
-    setShowDay: (showId, day) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const schedule = scheduleOf(world.promotion, world.settings);
-        // Two shows on one night is one show. Whoever was already there swaps
-        // onto the night the mover came from, so the pattern stays a week.
-        const mover = schedule.shows.find((show) => show.id === showId);
-        if (!mover) return;
-        const occupant = schedule.shows.find((show) => show.day === day && show.id !== showId);
-        world.promotion.schedule = {
-          ...schedule,
-          shows: schedule.shows.map((show) => {
-            if (show.id === showId) return { ...show, day };
-            if (occupant && show.id === occupant.id) return { ...show, day: mover.day };
-            return show;
-          }),
-        };
-      });
-    },
-
-    spreadOfficialsAcrossCard: () => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const crew = signedReferees(world.referees, world.promotion.id);
-        // Spread across the matches that exist, not the empty slots. Counting
-        // slots put the best official on a main event that had nobody in it
-        // and left him working eight matches a year.
-        const booked = world.currentCard
-          .map((segment, slot) => ({ segment, slot }))
-          .filter(({ segment }) => new Set(segment.participants.map((p) => p.side)).size >= 2);
-        const assignments = spreadOfficials(crew, booked.length);
-        booked.forEach(({ segment }, i) => {
-          // A match with a guest referee booked into it is a booking
-          // decision, not an oversight — leave those alone.
-          if (segment.guestRefereeId) return;
-          segment.refereeId = assignments[i] ?? null;
-        });
-      });
-    },
-
-    changeRole: (wrestlerId, role) => {
-      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No game in progress.' };
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const person = world.wrestlers[wrestlerId];
-        if (!person || person.promotionId !== world.promotion.id) {
-          outcome = { ok: false, reason: 'They do not work for you.' };
-          return;
-        }
-
-        const check = canChangeRole(person, role, world.week, world.settings);
-        if (!check.ok) {
-          outcome = { ok: false, reason: check.reason };
-          return;
-        }
-
-        const currentYear = world.settings.startingYear + Math.floor(world.week / 52);
-
-        // Coming out of whatever they were doing. The officiating record is
-        // kept rather than deleted — a man who spent two years learning the
-        // job does not forget it because he wrestled a season — it just stops
-        // being available to book.
-        const existingReferee = world.referees.find((r) => r.wrestlerId === wrestlerId);
-        if (existingReferee) existingReferee.promotionId = null;
-        if (world.defaultRefereeId === existingReferee?.id) world.defaultRefereeId = null;
-
-        person.role = role;
-        person.roleSinceWeek = world.week;
-
-        if (role === 'referee') {
-          if (existingReferee) {
-            existingReferee.promotionId = world.promotion.id;
-            existingReferee.name = person.name;
-            existingReferee.injury = person.injury;
-          } else {
-            world.referees.push(refereeFromWrestler(person, currentYear, world.settings));
-          }
-        }
-
-        if (role === 'manager' && !world.staffManagers.some((m) => m.wrestlerId === wrestlerId)) {
-          world.staffManagers.push(managerFromWrestler(person));
-        }
-
-        // Whatever they were booked into this week, they are not doing it now.
-        for (const segment of [...world.currentCard, ...world.currentPromos]) {
-          segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
-          if (segment.guestRefereeId === wrestlerId) segment.guestRefereeId = null;
-          if (role !== 'manager') {
-            segment.managerIds = (segment.managerIds ?? []).filter(
-              (m) => m.managerId !== `mgr-of-${wrestlerId}`,
-            );
-          }
-          if (role !== 'referee' && segment.refereeId === existingReferee?.id) segment.refereeId = null;
-        }
-
-        outcome = { ok: true, reason: null };
-      });
-      return outcome;
-    },
-
-    proposeTrade: (outgoingId, rivalId, incomingId, cashFromYou) => {
-      let verdict = { accepted: false, reason: 'No game in progress.' };
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const outgoing = world.wrestlers[outgoingId];
-        const rival = world.rivals.find((r) => r.id === rivalId);
-        const incoming = incomingId ? world.wrestlers[incomingId] : null;
-        if (!outgoing || !rival || outgoing.promotionId !== world.promotion.id) {
-          verdict = { accepted: false, reason: 'That deal does not exist.' };
-          return;
-        }
-        if (incoming && incoming.promotionId !== rival.id) {
-          verdict = { accepted: false, reason: 'They do not work for them.' };
-          return;
-        }
-        if (cashFromYou > world.promotion.bankBalance) {
-          verdict = { accepted: false, reason: 'You do not have that.' };
-          return;
-        }
-
-        const answer = evaluateTrade({
-          offer: { outgoing, incoming: incoming ?? null, cashFromYou },
-          them: rival,
-          theirRosterSize: rival.rosterIds.length,
-          targetRosterSize: rivalRosterSize(rival.rating, world.settings),
-          settings: world.settings,
-        });
-
-        if (!answer.accepted) {
-          // They will not take the call again for a while, so the player
-          // cannot simply re-ask every week until the dice land.
-          world.tradeRefusals[rivalId] = world.week;
-          verdict = { accepted: false, reason: answer.reason };
-          return;
-        }
-
-        // Done. Both contracts travel with their wrestlers untouched — that
-        // is what makes a bad deal a real thing to be rid of.
-        world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== outgoingId);
-        rival.rosterIds.push(outgoingId);
-        outgoing.promotionId = rival.id;
-        outgoing.morale = clampMorale(outgoing.morale - world.settings.tradeMoraleCost, world.settings);
-        dropFromCard(world, outgoingId);
-
-        if (incoming) {
-          rival.rosterIds = rival.rosterIds.filter((id) => id !== incoming.id);
-          world.promotion.rosterIds.push(incoming.id);
-          incoming.promotionId = world.promotion.id;
-          incoming.morale = clampMorale(incoming.morale - world.settings.tradeMoraleCost, world.settings);
-        }
-
-        world.promotion.bankBalance -= cashFromYou;
-        rival.bankBalance += cashFromYou;
-
-        world.weeklyNews.push(
-          wire(
-            'signing',
-            tradeLine(outgoing.name, incoming?.name ?? null, world.promotion.name, rival.name, cashFromYou),
-            world.week,
-          ),
-        );
-        verdict = { accepted: true, reason: answer.reason };
-      });
-      return verdict;
-    },
-
-    signReferee: (refereeId) => {
-      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No game in progress.' };
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const referee = world.referees.find((r) => r.id === refereeId);
-        if (!referee) {
-          outcome = { ok: false, reason: 'Nobody by that name is licensed.' };
-          return;
-        }
-        if (referee.promotionId) {
-          outcome = { ok: false, reason: 'Already working for somebody.' };
-          return;
-        }
-        const rate = currentRefereeAskingRate(referee, world.settings);
-        // Same affordability test the wrestlers get: a deal you cannot
-        // service for a season is a deal you cannot make.
-        if (rate * world.settings.contractAffordabilityWeeks > world.promotion.bankBalance) {
-          outcome = { ok: false, reason: 'You cannot service that wage.' };
-          return;
-        }
-        referee.promotionId = world.promotion.id;
-        referee.contract = createRefereeContract(
-          referee,
-          world.settings,
-          world.settings.startingYear + Math.floor(world.week / 52),
-        );
-        referee.weeksUnsigned = 0;
-        // First official through the door takes the card by default, so a
-        // promotion is never one signing away from still having nobody.
-        if (!world.defaultRefereeId) world.defaultRefereeId = referee.id;
-        outcome = { ok: true, reason: null };
-      });
-      return outcome;
-    },
-
-    releaseReferee: (refereeId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const referee = world.referees.find((r) => r.id === refereeId);
-        if (!referee || referee.promotionId !== world.promotion.id) return;
-        referee.promotionId = null;
-        referee.contract = null;
-        referee.weeksUnsigned = 0;
-        if (world.defaultRefereeId === refereeId) world.defaultRefereeId = null;
-        // Any match he was booked for reverts to the card's official.
-        for (const segment of world.currentCard) {
-          if (segment.refereeId === refereeId) segment.refereeId = null;
-        }
-      });
-    },
-
-    signFreeAgent: (wrestlerId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const wrestler = world.wrestlers[wrestlerId];
-        const agent = world.freeAgents.find((a) => a.wrestlerId === wrestlerId);
-        if (!wrestler || !agent) return;
-        if (!canSign(wrestler, world.promotion.bankBalance, world.signingBanWeeks, world.settings)) return;
-        // Ninety days means ninety days, including for the company he just
-        // left. This is the thing the player traded a payout for.
-        if (!canBeSigned(wrestler)) return;
-
-        // And what this company did. A man who looks after himself does not
-        // sign here while it is fresh, and the ones who will want paying for
-        // it. Enforced in the store as well as greyed out on the page, so the
-        // rule is the rule. See career/onOurWatch.ts.
-        const held = stillHeldAgainstUs(world.promotion.deathsOnOurWatch ?? [], world.week, world.settings);
-        if (wontWorkForUs(wrestler, held, world.settings)) return;
-
-        wrestler.promotionId = world.promotion.id;
-        wrestler.contract = {
-          // The term he advertised in the pool, so the length a booker read on
-          // Tuesday is the length he signs on Thursday.
-          ...createStandardContract(wrestler, world.settings, world.settings.startingYear, agent.wantsWeeks),
-          weeklyRate: ourPrice(currentAskingRate(agent, world.settings), held, world.settings),
-          // Somebody with a big opinion of themselves demands guarantees to
-          // sign, not only to re-sign. Attaching this at renewal alone meant
-          // a star could sit on the roster for years on a deal you could tear
-          // up for nothing, which is not what signing a star is.
-          guaranteedPct: guaranteedShareFor(wrestler.ego, world.settings),
-        };
-        world.promotion.rosterIds.push(wrestlerId);
-        world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== wrestlerId);
-      });
-    },
-
-    setAssignment: (wrestlerId, choice) => {
-      set((state) => {
-        const person = state.world?.wrestlers[wrestlerId];
-        if (!person) return;
-        person.assignment = choice;
-      });
-    },
-
-    repairProductionAsset: (assetId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const asset = productionAssetById(assetId);
-        const index = world.assetConditions.findIndex((c) => c.assetId === assetId);
-        if (!asset || index < 0) return;
-        const cost = repairCost(world.assetConditions[index]!, asset.cost, world.settings);
-        if (cost <= 0 || world.promotion.bankBalance < cost) return;
-        world.promotion.bankBalance -= cost;
-        world.assetConditions[index] = repairAsset(world.assetConditions[index]!);
-      });
-    },
-
-    answerRenewal: (wrestlerId, accept) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const index = world.pendingRenewals.findIndex((r) => r.wrestlerId === wrestlerId);
-        const offer = world.pendingRenewals[index];
-        const member = world.wrestlers[wrestlerId];
-        if (index < 0 || !offer || !member) return;
-
-        world.pendingRenewals.splice(index, 1);
-
-        if (accept) {
-          // You paid what they asked, clauses and all. The clauses are the
-          // part that will hurt later.
-          member.contract = {
-            ...createStandardContract(member, world.settings, world.settings.startingYear),
-            weeklyRate: offer.demand.weeklyRate,
-            clauses: [...offer.demand.clauses],
-            // Guaranteed money is what the top of the card asks for and
-            // nobody else gets. It is also what makes re-signing a star a
-            // commitment rather than a line item — from here, cutting him
-            // costs the rest of the paper.
-            guaranteedPct: guaranteedShareFor(member.ego, world.settings),
-          };
-          member.morale = clampMorale(member.morale + 10, world.settings);
-          return;
-        }
-
-        // Refused. They might take a plain deal anyway, or they might go.
-        member.morale = clampMorale(member.morale - 15, world.settings);
-        if (chance(rng, offer.demand.walkRisk)) {
-          world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestlerId);
-          member.promotionId = null;
-          member.contract = null;
-          world.freeAgents.push({
-            wrestlerId,
-            reason: 'contractExpired',
-            askingRate: offer.demand.weeklyRate,
-            wantsWeeks: desiredContractWeeks(member, world.settings),
-            weeksUnsigned: 0,
-          });
-        } else {
-          member.contract = createStandardContract(member, world.settings, world.settings.startingYear);
-        }
-      });
-    },
-
-    releaseWrestler: (wrestlerId) => {
-      let outcome = { ok: false, reason: 'No game in progress.' as string | null, cost: 0 };
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const wrestler = world.wrestlers[wrestlerId];
-        if (!wrestler) return;
-
-        const terms = exitTerms(wrestler, 'fired', world.settings, world.promotion.name);
-        // You cannot cut somebody you cannot afford to pay off. This is the
-        // whole weight of guaranteed money: a deal you regret is a deal you
-        // are stuck inside until you can fund the way out.
-        if (terms.severance > world.promotion.bankBalance) {
-          outcome = {
-            ok: false,
-            reason: 'You cannot cover what is guaranteed on that deal.',
-            cost: terms.severance,
-          };
-          return;
-        }
-
-        world.promotion.bankBalance -= terms.severance;
-        letThemGo(world, wrestler, terms);
-        outcome = { ok: true, reason: null, cost: terms.severance };
-      });
-      return outcome;
-    },
-
-    signSecretly: (wrestlerId) => {
-      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No world.' };
-      set((state) => {
-        const world = state.world;
-        const person = world?.wrestlers[wrestlerId];
-        if (!world || !person) return;
-
-        if (!canSignSecretly(person, world.promotion.id, world.settings)) {
-          outcome = {
-            ok: false,
-            reason: 'There is nothing to talk about. That deal is not up any time soon.',
-          };
-          return;
-        }
-        if (world.secretSignings.some((s2) => s2.wrestlerId === wrestlerId)) {
-          outcome = { ok: false, reason: 'You already have an understanding there.' };
-          return;
-        }
-        const cost = secretWeeklyCost(person, world.settings);
-        // Nothing is paid today — nothing is signed today. But you do not
-        // shake on a number you cannot cover when it comes due.
-        if (world.promotion.bankBalance < cost * world.settings.secretSigningProofWeeks) {
-          outcome = { ok: false, reason: 'You cannot cover what you would be promising.' };
-          return;
-        }
-        // Whether they go for it at all. A happy man in a good spot mostly
-        // does not, which is why the list of who *would* is the interesting
-        // half of the screen.
-        if (!chance(rng, secretSigningAppeal(person, world.settings))) {
-          outcome = { ok: false, reason: `${person.name} turned it down, and now knows you asked.` };
-          // They know. That is a real cost of trying.
-          person.morale = clampMorale(person.morale - world.settings.secretSigningRefusalMorale, world.settings);
-          return;
-        }
-
-        const rival = world.rivals.find((r) => r.id === person.promotionId);
-        world.secretSignings.push({
-          wrestlerId,
-          wrestlerName: person.name,
-          fromPromotionId: person.promotionId!,
-          fromPromotionName: rival?.name ?? 'somewhere else',
-          agreedWeek: world.week,
-          // What was shaken on: the week his deal runs out. He works every
-          // date they have booked him for between now and then.
-          freeWeek: world.week + weeksUntilFree(person),
-          weeklyRate: cost,
-          signedWeek: null,
-          blownWeek: null,
-        });
-        outcome = { ok: true, reason: null };
-        // Deliberately no wire item. Nothing has happened yet — that is the
-        // entire point.
-      });
-      return outcome;
-    },
-
-    revealSecretSigning: (wrestlerId) => {
-      set((state) => {
-        const world = state.world;
-        const index = world?.secretSignings.findIndex((s2) => s2.wrestlerId === wrestlerId) ?? -1;
-        if (!world || index < 0) return;
-        const signing = world.secretSignings[index]!;
-        const person = world.wrestlers[wrestlerId];
-        if (!person) return;
-        // He cannot walk out on your show while he is still working theirs.
-        // The whole thing rests on this: no man is under two contracts.
-        if (!canWalkOut(signing)) return;
-
-        const impact = revealImpact(signing, person, world.week, world.settings);
-        const wasSecret = stillSecret(signing);
-
-        // He has been yours since his old deal lapsed. This is the moment the
-        // rest of the world finds out — which is also the moment he becomes
-        // somebody you can book.
-        for (const rival of world.rivals) {
-          rival.rosterIds = rival.rosterIds.filter((id) => id !== wrestlerId);
-        }
-        person.promotionId = world.promotion.id;
-        if (!world.promotion.rosterIds.includes(wrestlerId)) world.promotion.rosterIds.push(wrestlerId);
-        world.secretSignings.splice(index, 1);
-
-        // The pop. A reveal nobody saw coming is worth several times a
-        // signing announcement; one the sheets already printed is worth a
-        // fraction of it.
-        person.momentum = clamp(person.momentum + impact * world.settings.revealMomentumPerImpact, 0, 100);
-        person.popularity = clamp(person.popularity + impact * world.settings.revealPopularityPerImpact, 0, 100);
-        world.promotion.rating = clamp(
-          world.promotion.rating + impact * world.settings.revealCompanyRatingPerImpact,
-          0,
-          100,
-        );
-        const victim = world.rivals.find((r) => r.id === signing.fromPromotionId);
-        if (victim) {
-          victim.rating = clamp(victim.rating - impact * world.settings.revealRivalRatingPerImpact, 0, 100);
-        }
-
-        const sinceFree = Math.max(0, world.week - signing.freeWeek);
-        world.weeklyNews.push(
-          wire(
-            'signing',
-            !wasSecret
-              ? `${person.name} finally turned up for ${world.promotion.name}. The sheets had already placed ${pronounsFor(person).them}, which took most of it away.`
-              : sinceFree <= 1
-                ? `${person.name} walked out on ${world.promotion.name}'s show tonight. ${Cap(pronounsFor(person).they)} worked ${pronounsFor(person).their} last date for ${signing.fromPromotionName} on the final day of that contract and signed here before the week was out. Nobody had time to catch on.`
-                : `${person.name} walked out on ${world.promotion.name}'s show tonight. Everybody in the building still had ${pronounsFor(person).them} down at ${signing.fromPromotionName}. That deal quietly ran out ${sinceFree} weeks ago and ${pronounsFor(person).they} has been signed here ever since.`,
-            world.week,
-            'lead',
-          ),
-        );
-      });
-    },
-
-    tearUpSecretSigning: (wrestlerId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const signing = world.secretSignings.find((s2) => s2.wrestlerId === wrestlerId);
-        const person = world.wrestlers[wrestlerId];
-        // Walking away from a handshake costs nothing, because a handshake is
-        // nothing. Walking away from a signed contract nobody has seen means
-        // releasing a man the world thinks still works somewhere else — so he
-        // becomes exactly what he is: a free agent nobody has announced.
-        if (signing?.signedWeek !== null && signing !== undefined && person) {
-          person.promotionId = null;
-          person.contract = null;
-          world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestlerId);
-        }
-        world.secretSignings = world.secretSignings.filter((s2) => s2.wrestlerId !== wrestlerId);
-      });
-    },
-
-    answerApproach: (offerId, response) => {
-      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No world.' };
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const offer = world.tamperingOffers.find((o) => o.id === offerId && o.status === 'open');
-        const target = offer ? world.wrestlers[offer.wrestlerId] : undefined;
-        if (!offer || !target) {
-          outcome = { ok: false, reason: 'That approach is closed.' };
-          return;
-        }
-        // A legal threat against a man whose deal is running out is nothing.
-        if (!responseIsAvailable(response, offer)) {
-          outcome = { ok: false, reason: 'There is no paper to wave at them.' };
-          return;
-        }
-
-        const effect = responseOutcome(response, world.settings);
-        offer.temptation = clamp(offer.temptation + effect.temptationDelta, 0, 100);
-        if (target.contract && effect.rateMultiplier !== 1) {
-          target.contract.weeklyRate = Math.round(target.contract.weeklyRate * effect.rateMultiplier);
-        }
-        target.morale = clampMorale(target.morale + effect.moraleDelta, world.settings);
-        target.momentum = clamp(target.momentum + effect.momentumDelta, 0, 100);
-        world.promotion.reputation = clamp(
-          world.promotion.reputation + effect.reputationDelta,
-          0,
-          100,
-        );
-        // The rest of the room hears what he got. That is the cost of paying
-        // one man to stay — see economy/perks.ts for the same idea.
-        for (const id of world.promotion.rosterIds) {
-          const member = world.wrestlers[id];
-          if (!member || member.id === target.id || member.deceased) continue;
-          member.morale = clampMorale(member.morale + effect.rosterMoraleDelta, world.settings);
-        }
-        // Answered, so it does not resolve itself on its date. Whether he
-        // stays is still settled then, at the temptation you have left him on.
-        offer.resolvesWeek = Math.max(offer.resolvesWeek, world.week + 1);
-        world.weeklyNews.push(
-          wire('signing', `${target.name}: ${effect.description}`, world.week),
-        );
-        outcome = { ok: true, reason: effect.description };
-      });
-      return outcome;
-    },
-
-    tamperWith: (wrestlerId, offerPremium) => {
-      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No world.' };
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const target = world.wrestlers[wrestlerId];
-        if (!target || !target.contract || target.promotionId === world.promotion.id) {
-          outcome = { ok: false, reason: 'They are not under contract to anybody else.' };
-          return;
-        }
-        if (world.signingBanWeeks > 0) {
-          outcome = { ok: false, reason: 'You are barred from signing anybody.' };
-          return;
-        }
-
-        // You, as a suitor: your own promotion, and — if the target drew
-        // Somebody At Home — where their partner already works. Signing them
-        // is a real pull when that happens to be you.
-        const targetsPartner = target.attachedTo ? world.wrestlers[target.attachedTo] : undefined;
-        const result = attemptPlayerTampering(
-          rng,
-          target,
-          { targetWrestlerId: wrestlerId, targetPromotionId: target.promotionId!, offerPremium },
-          world.promotion.bankBalance,
-          world.settings,
-          world.tamperingOffenses,
-          { promotionId: world.promotion.id, partnerPromotionId: targetsPartner?.promotionId ?? null },
-        );
-
-        if (result.caught) {
-          world.tamperingOffenses += 1;
-          world.promotion.bankBalance -= result.fine;
-          world.signingBanWeeks = Math.max(world.signingBanWeeks, result.signingBanWeeks);
-          world.suspensionWeeks = Math.max(world.suspensionWeeks, result.suspensionWeeks);
-          world.promotion.rating = clamp(
-            world.promotion.rating - result.companyRatingPenalty,
-            0,
-            100,
-          );
-        }
-        world.promotion.reputation = clamp(
-          world.promotion.reputation + result.reputationDelta,
-          0,
-          100,
-        );
-
-        if (result.signed) {
-          const from = world.rivals.find((r) => r.id === target.promotionId);
-          if (from) from.rosterIds = from.rosterIds.filter((id) => id !== target.id);
-          target.promotionId = world.promotion.id;
-          target.contract = {
-            ...createStandardContract(
-              target,
-              world.settings,
-              world.settings.startingYear + Math.floor(world.week / 52),
-            ),
-            weeklyRate: Math.round((target.contract?.weeklyRate ?? 0) + offerPremium),
-          };
-          world.promotion.rosterIds.push(target.id);
-        }
-
-        // §0: caught or not, signed or not, the paper says what happened.
-        world.weeklyNews.push(
-          wire('signing', result.description, world.week, result.caught ? 'lead' : 'normal'),
-        );
-        outcome = { ok: result.signed, reason: result.description };
-      });
-      return outcome;
-    },
-
-    leanIntoShoot: (rivalryId) => {
-      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No world.' };
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const index = world.rivalries.findIndex((r) => r.id === rivalryId);
-        const rivalry = world.rivalries[index];
-        if (!rivalry || rivalry.resolvedWeek !== null) {
-          outcome = { ok: false, reason: 'That feud is over.' };
-          return;
-        }
-        if (rivalry.shootHeat <= 0) {
-          outcome = { ok: false, reason: 'There is nothing real there to point a camera at.' };
-          return;
-        }
-        // Both of them have to be yours. You cannot decide to run somebody
-        // else's locker-room problem on your television.
-        if (!rivalry.participantIds.every((id) => world.promotion.rosterIds.includes(id))) {
-          outcome = { ok: false, reason: 'They are not both yours.' };
-          return;
-        }
-
-        const before = rivalry.shootHeat;
-        world.rivalries[index] = leanIntoShootRivalry(rivalry, world.settings);
-        const names = rivalry.participantIds
-          .map((id) => world.wrestlers[id]?.name)
-          .filter(Boolean)
-          .join(' and ');
-
-        // §0: the booker did this on purpose, and the write-up says what it
-        // was — including that it did not calm anybody down.
-        world.weeklyNews.push(
-          wire(
-            'story',
-            `${world.promotion.name} are running the ${names} problem as an angle. The crowd is going to get the real thing, and neither man is any happier for it being on television.`,
-            world.week,
-            'lead',
-          ),
-        );
-        outcome = {
-          ok: true,
-          reason:
-            world.rivalries[index]!.shootHeat > before
-              ? 'The crowd is in. So is the problem.'
-              : null,
-        };
-      });
-      return outcome;
-    },
-
-    startStoryline: (participantIds, name) => {
-      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No world.' };
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const people = participantIds
-          .map((id) => world.wrestlers[id])
-          .filter((w): w is Wrestler => Boolean(w));
-        if (people.length < 2) {
-          outcome = { ok: false, reason: 'A story needs two people in it.' };
-          return;
-        }
-        if (storylineBetween(world.storylines, participantIds)) {
-          outcome = { ok: false, reason: 'These two are already in a story.' };
-          return;
-        }
-
-        // Booking a story is allowed to be what starts the feud — that is
-        // how most of them start in the real thing.
-        let rivalry = findRivalry(world.rivalries, participantIds);
-        if (!rivalry) {
-          rivalry = createRivalry(
-            `rivalry-story-${world.week}-${world.rivalries.length}`,
-            [...participantIds],
-            'worked',
-            world.week,
-            0,
-          );
-          world.rivalries.push(rivalry);
-        }
-
-        const surnames = people.map((w) => w.name.split(' ').slice(-1)[0] ?? w.name);
-        const town = world.territories.find((t) => t.id === world.promotion.homeTerritoryId);
-        const pattern = pick(
-          rngFromSeed(`${world.settings.seed}-story-${world.week}-${participantIds.join('-')}`),
-          STORYLINE_NAME_PATTERNS,
-        );
-        const generated = pattern
-          .replace('{a}', surnames[0] ?? 'Them')
-          .replace('{b}', surnames[1] ?? 'Them')
-          .replace('{town}', town?.name ?? 'Town');
-
-        world.storylines.push({
-          id: `story-${world.week}-${world.storylines.length}`,
-          name: (name ?? '').trim() || generated,
-          participantIds: [...participantIds],
-          rivalryId: rivalry.id,
-          stage: 'opening',
-          startWeek: world.week,
-          lastAdvancedWeek: world.week,
-          beats: [],
-          neglectedWeeks: 0,
-          resolvedWeek: null,
-          payoff: null,
-        });
-        outcome = { ok: true, reason: null };
-      });
-      return outcome;
-    },
-
-    renameStoryline: (storylineId, name) => {
-      set((state) => {
-        const story = state.world?.storylines.find((s2) => s2.id === storylineId);
-        if (!story) return;
-        const trimmed = name.trim();
-        if (trimmed) story.name = trimmed;
-      });
-    },
-
-    abandonStoryline: (storylineId) => {
-      set((state) => {
-        const world = state.world;
-        const story = world?.storylines.find((s2) => s2.id === storylineId);
-        if (!world || !story || !isLive(story)) return;
-        story.stage = 'fizzled';
-        story.resolvedWeek = world.week;
-        story.payoff = 'Dropped. Whatever it was going to be, it is not going to be it.';
-        world.weeklyNews.push(
-          wire('story', `${story.name} has been quietly dropped.`, world.week, 'minor'),
-        );
-      });
-    },
-
-    createTitle: (blueprint) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const [belt] = createStartingTitles(world.promotion.id, world.promotion.name, world.promotion.identity, [
-          blueprint,
-        ]);
-        if (!belt) return;
-        // Ids are positional within a batch, so a mid-run belt has to take one
-        // nothing else has ever used — including belts that were retired.
-        belt.id = `${world.promotion.id}-title-${world.week}-${world.titles.length}`;
-        belt.lastDefendedWeek = world.week;
-        world.titles.push(belt);
-        world.promotion.titleIds.push(belt.id);
-        world.weeklyNews.push(
-          wire('title', `${world.promotion.name} has introduced the ${belt.name}. It is vacant.`, world.week, 'lead'),
-        );
-      });
-    },
-
-    retireTitle: (titleId) => {
-      set((state) => {
-        const world = state.world;
-        const title = world?.titles.find((t) => t.id === titleId);
-        if (!world || !title || title.retiredWeek) return;
-
-        // Whoever is carrying it stops being champion — but the lineage says
-        // the belt was retired, not that they lost it, because they did not.
-        const holders = title.currentHolderIds
-          .map((id) => world.wrestlers[id]?.name)
-          .filter(Boolean)
-          .join(' & ');
-        if (!title.vacant) closeReign(world, title, 'titleRetired');
-        title.vacant = true;
-        title.currentHolderIds = [];
-        title.interimHolderIds = [];
-        title.interimSinceWeek = null;
-        title.retiredWeek = world.week;
-        world.promotion.titleIds = world.promotion.titleIds.filter((id) => id !== titleId);
-
-        world.weeklyNews.push(
-          wire(
-            'title',
-            holders
-              ? `The ${title.name} has been retired. ${holders} was the last to hold it.`
-              : `The ${title.name} has been retired.`,
-            world.week,
-            'lead',
-          ),
-        );
-      });
-    },
-
-    editTitle: (titleId, patch) => {
-      set((state) => {
-        const world = state.world;
-        const title = world?.titles.find((t) => t.id === titleId);
-        if (!world || !title) return;
-
-        const renamed = patch.name?.trim();
-        if (renamed && renamed !== title.name) {
-          world.weeklyNews.push(
-            wire('title', `The ${title.name} is now the ${renamed}.`, world.week, 'normal'),
-          );
-          title.name = renamed;
-        }
-        if (patch.blurb !== undefined) title.blurb = patch.blurb.trim() || title.blurb;
-        if (patch.signatureStipulationId !== undefined) {
-          title.signatureStipulationId = patch.signatureStipulationId;
-        }
-      });
-    },
-
-    unretireTitle: (titleId) => {
-      set((state) => {
-        const world = state.world;
-        const title = world?.titles.find((t) => t.id === titleId);
-        if (!world || !title || !title.retiredWeek) return;
-        title.retiredWeek = null;
-        title.vacant = true;
-        title.currentHolderIds = [];
-        // The clock starts again from today rather than from whenever it was
-        // last defended, which might be twenty years ago.
-        title.lastDefendedWeek = world.week;
-        if (!world.promotion.titleIds.includes(title.id)) world.promotion.titleIds.push(title.id);
-
-        const previous = title.history[title.history.length - 1];
-        const lastHolder = previous?.holderIds.map((id) => world.wrestlers[id]?.name).filter(Boolean).join(' & ');
-        world.weeklyNews.push(
-          wire(
-            'title',
-            lastHolder
-              ? `The ${title.name} is back. It has not been defended since ${lastHolder} held it, and it is vacant.`
-              : `The ${title.name} is back, and vacant.`,
-            world.week,
-            'lead',
-          ),
-        );
-      });
-    },
-
-    answerChampionCall: (choice, interimHolderId) => {
-      set((state) => {
-        const world = state.world;
-        const call = world?.pendingChampionCall;
-        if (!world || !call) return;
-        const title = world.titles.find((t) => t.id === call.titleId);
-        if (!title || title.vacant) {
-          world.pendingChampionCall = null;
-          return;
-        }
-
-        // A team-held belt has one option however it is asked for. Enforced
-        // here rather than only in the UI, so the rule is the rule.
-        const options = championInjuryOptions(title);
-        const settled = options.some((o) => o.id === choice) ? choice : 'vacate';
-
-        if (settled === 'vacate') {
-          stripTitle(world, title, 'vacatedByBooker');
-          world.weeklyNews.push(
-            wire(
-              'title',
-              `The ${title.name} is vacant. ${call.championName} could not defend it and the company would not let it sit.`,
-              world.week,
-              'lead',
-            ),
-          );
-        } else if (settled === 'defendAnyway') {
-          // The only route by which an injured wrestler gets on a card at
-          // all. They were told what it costs; casualties.ts charges it.
-          for (const id of title.currentHolderIds) {
-            const person = world.wrestlers[id];
-            if (person?.injury) person.clearedToWorkHurt = true;
-          }
-          // The clock does not stop for an injury. Clearing them to work is
-          // a decision to keep defending, so it had better be defended.
-          world.weeklyNews.push(
-            wire(
-              'title',
-              `${call.championName} will defend the ${title.name} hurt. ${call.injuryText}, and the company is letting it happen.`,
-              world.week,
-              'lead',
-            ),
-          );
-        } else if (settled === 'interim' && interimHolderId) {
-          const interim = world.wrestlers[interimHolderId];
-          if (!interim) return;
-          title.interimHolderIds = [interimHolderId];
-          title.interimSinceWeek = world.week;
-          // An interim reign is a reign — it goes on the record, and the
-          // unification is what decides whether it stays there.
-          interim.titleReigns.push({
-            titleId: title.id,
-            promotionId: title.promotionId,
-            holderIds: [interimHolderId],
-            holderAges: [interim.age],
-            wonFromIds: null,
-            wonByMethod: 'awarded',
-            startWeek: world.week,
-            endWeek: null,
-            endMethod: null,
-          });
-          world.weeklyNews.push(
-            wire(
-              'title',
-              `${interim.name} is the interim ${title.name}. ${call.championName} keeps the real one, and when they are fit the two of them settle it in one match.`,
-              world.week,
-              'lead',
-            ),
-          );
-        }
-
-        world.pendingChampionCall = null;
-      });
-    },
-
-    setPerk: (wrestlerId, perkId, on) => {
-      let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'Nobody by that name.' };
-      set((state) => {
-        const world = state.world;
-        if (!world || !world.settings.perksEnabled) return;
-        const wrestler = world.wrestlers[wrestlerId];
-        if (!wrestler?.contract || wrestler.promotionId !== world.promotion.id) return;
-
-        const contract = wrestler.contract;
-        if (!contract.perks) contract.perks = [];
-        if (!on) {
-          contract.perks = contract.perks.filter((id) => id !== perkId);
-          outcome = { ok: true, reason: null };
-          return;
-        }
-        // Everything here is renewal-only, and somebody on your roster is by
-        // definition somebody you already have — so this is a renewal.
-        const year = world.settings.startingYear + Math.floor(world.week / 52);
-        const allowed = availablePerks(wrestler, { currentYear: year, isRenewal: true });
-        if (!allowed.some((perk) => perk.id === perkId)) {
-          outcome = { ok: false, reason: 'They have not earned that yet.' };
-          return;
-        }
-        if (!contract.perks.includes(perkId)) contract.perks.push(perkId);
-        outcome = { ok: true, reason: null };
-      });
-      return outcome;
-    },
-
-    answerCupEntry: (enter) => {
-      set((state) => {
-        const world = state.world;
-        const invite = world?.pendingCupEntry;
-        if (!world || !invite) return;
-        world.pendingCupEntry = null;
-        world.lastCupYear = invite.year;
-
-        // Everybody who can afford it and is worth a look buys in. The player
-        // is just one more entry — a company that sits out simply is not there,
-        // and the tournament happens without them.
-        const others = world.rivals.filter(
-          (r) => r.closedWeek === null && willEnter(r, world.settings),
-        );
-        const paying = enter ? [world.promotion, ...others] : others;
-        if (!fieldIsBigEnough(paying.length, world.settings)) {
-          // Refunded rather than pocketed: they never ran the thing.
-          world.weeklyNews.push(
-            wire('story', fieldLine(paying.length, 0, world.settings), world.week, 'minor'),
-          );
-          return;
-        }
-
-        const slots = slotsPerPromotion(paying.length, world.settings);
-        const rosterOf = (ids: readonly Id[]) =>
-          ids.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
-
-        const field = paying.map((promotion) => ({
-          promotion,
-          entrants: cupEntrantsFrom(
-            rosterOf(promotion.rosterIds),
-            slots,
-            (w) => canWork(w, world.settings, world.week),
-          ),
-        }));
-
-        // The fee leaves the bank whether the night goes well or badly. That
-        // is what makes it a gamble rather than a free roll.
-        if (enter) world.promotion.bankBalance -= invite.fee;
-
-        const year = world.settings.startingYear + Math.floor(world.week / 52);
-        const result = runCup(rng, {
-          field,
-          slotsEach: slots,
-          week: world.week,
-          year,
-          settings: world.settings,
-        });
-        if (!result) return;
-
-        world.lastCup = result;
-
-        // What the night took out of anybody who worked it more than once.
-        // A single-night bracket is meant to be a body decision as much as a
-        // booking one, and it was charging nothing at all — the three
-        // functions for it were written, tested and never called.
-        //
-        // §0: it comes off their health, so it gets a sentence.
-        const worn: string[] = [];
-        for (const { wrestlerId, cost } of result.wornOut) {
-          const person = world.wrestlers[wrestlerId];
-          if (!person || person.deceased) continue;
-          person.health = clamp(person.health - cost, 0, 100);
-          if (world.promotion.rosterIds.includes(wrestlerId)) worn.push(person.name);
-        }
-        if (worn.length > 0) {
-          world.weeklyNews.push(
-            wire(
-              'misfortune',
-              worn.length === 1
-                ? `${worn[0]} went to the well more than once in one night at ${CUP_NAME}, and is feeling every bit of it.`
-                : `${worn.slice(0, -1).join(', ')} and ${worn[worn.length - 1]} all worked more than once in a night at ${CUP_NAME}. That is a week of ice baths.`,
-              world.week,
-              'normal',
-            ),
-          );
-        }
-
-        // Half the pot to the winner's company, half to the winner. Exactly as
-        // split, and both halves are real money in real hands.
-        const winnerCompany =
-          result.winnerPromotionId === world.promotion.id
-            ? world.promotion
-            : world.rivals.find((r) => r.id === result.winnerPromotionId);
-        if (winnerCompany) winnerCompany.bankBalance += result.purse.companyShare;
-
-        const champion = world.wrestlers[result.winnerId];
-        if (champion) {
-          creditPay(ledgerOf(champion), result.purse.wrestlerShare);
-
-          // The road to superstardom. The crown aura is standing the crowd
-          // hands over and it leaves when the crown does; this is the wrestler
-          // themselves coming back different, and it is permanent. It stacks
-          // for a repeat winner, which is the whole reason to want it twice.
-          // Scaled by how many times they have taken it before. It still
-          // stacks — that is the reason to want it twice — but each one moves
-          // them less, so a three-time winner is confirmed rather than capped.
-          const surge = crownSurge(world.settings, crownWinsBefore(world.cupHistory, champion.id));
-          champion.popularity = clamp(
-            champion.popularity + surge.popularity + crownAura(world.settings),
-            0,
-            100,
-          );
-          champion.skill = clamp(champion.skill + surge.skill, 0, 100);
-          champion.charisma = clamp(champion.charisma + surge.charisma, 0, 100);
-          champion.stamina = clamp(champion.stamina + surge.stamina, 0, 100);
-          champion.attitude = clamp(champion.attitude + surge.attitude, 0, 100);
-          champion.momentum = clamp(champion.momentum + surge.momentum, 0, 100);
-        }
-
-        // How far everybody got, in standing.
-        for (const person of field.flatMap((f) => f.entrants)) {
-          const swing = cupStandingFor(result, person.id, world.settings);
-          const live = world.wrestlers[person.id];
-          if (live) live.popularity = clamp(live.popularity + swing, 0, 100);
-        }
-
-        // The crown changes hands, and the old holder loses the aura with it.
-        const previous = world.crown;
-        if (previous && previous.wrestlerId !== result.winnerId) {
-          const dethroned = world.wrestlers[previous.wrestlerId];
-          if (dethroned) {
-            dethroned.popularity = clamp(
-              dethroned.popularity - crownAura(world.settings),
-              0,
-              100,
-            );
-          }
-        }
-        world.crown = result.reign;
-        world.cupHistory.push(result.reign);
-
-        // Say it out loud when somebody does it more than once — that is the
-        // difference between a good year and a career.
-        const crowns = crownsFor(world.cupHistory, result.winnerId).length;
-        if (crowns > 1) {
-          world.weeklyNews.push(
-            wire(
-              'story',
-              `${result.winnerName} has now won ${CUP_NAME} ${crowns} times.`,
-              world.week,
-              'lead',
-            ),
-          );
-        }
-
-        world.weeklyNews.push(
-          wire('story', fieldLine(paying.length, slots, world.settings), world.week, 'minor'),
-        );
-        world.weeklyNews.push(wire('story', result.line, world.week, 'lead'));
-        world.weeklyNews.push(
-          wire(
-            'story',
-            `${result.winnerName} takes $${result.purse.wrestlerShare.toLocaleString()} and ${CUP_TROPHY} for the year. ` +
-              `${result.winnerPromotionName} take the other $${result.purse.companyShare.toLocaleString()}.`,
-            world.week,
-            'lead',
-          ),
-        );
-      });
-    },
-
-    dismissCupResult: () => {
-      set((state) => {
-        if (state.world) state.world.lastCup = null;
-      });
-    },
-
-    proposeSupershow: (partnerId) => {
-      set((state) => {
-        const world = state.world;
-        if (!world || world.pendingSupershow || world.lastSupershow) return;
-        const cooldown = world.settings.supershowProposalCooldownWeeks;
-        if (
-          world.lastSupershowApproachWeek !== null &&
-          world.week - world.lastSupershowApproachWeek < cooldown
-        ) {
-          return;
-        }
-        const partner = world.rivals.find((r) => r.id === partnerId);
-        if (!partner || partner.closedWeek !== null || partner.rosterIds.length < 4) return;
-
-        world.lastSupershowApproachWeek = world.week;
-
-        // The standing gap, plus whatever they are still carrying from the
-        // last time you worked together. Until now only the first half
-        // existed, so a company you buried nine-nil last November sat down
-        // with you in May as though nothing had happened.
-        const resentment = clamp(
-          (partner.rating - world.promotion.rating) / 2 +
-            (grudgeAgainst(world.grudges, partner.id)?.resentment ?? 0),
-          0,
-          100,
-        );
-        const draft = openingOffer(
-          world.promotion,
-          partner,
-          world.promotion.homeTerritoryId,
-          world.week,
-          world.settings,
-        );
-        const reply = respondToOffer(rng, draft, world.promotion, partner, resentment, world.settings);
-
-        if (reply.kind === 'refused') {
-          // Asking and being turned down is itself a story, and being turned
-          // down in the trades is worse than being turned down on the phone.
-          world.weeklyNews.push(
-            wire(
-              'story',
-              reply.publicly
-                ? `${partner.name} turned down a joint show with ${world.promotion.name}, and made sure it was heard. ${reply.because}`
-                : `${partner.name} passed on a joint show. ${reply.because}`,
-              world.week,
-              reply.publicly ? 'lead' : 'minor',
-            ),
-          );
-          return;
-        }
-
-        const deal = reply.deal;
-        const estimate = supershowPurse(
-          world.promotion,
-          partner,
-          deal,
-          Math.round(deal.cardSize / 2),
-          Math.round(deal.cardSize / 4),
-          world.settings,
-        );
-        world.pendingSupershow = {
-          deal,
-          partnerName: partner.name,
-          pitch:
-            reply.kind === 'countered'
-              ? reply.because
-              : `${partner.name} are in. Their terms are your terms.`,
-          estimatedNet: estimate.playerNet,
-          expiresWeek: world.week + world.settings.supershowOfferWeeks,
-        };
-        world.weeklyNews.push(
-          wire(
-            'story',
-            reply.kind === 'countered'
-              ? `${partner.name} will run with you, on their own terms. ${reply.because}`
-              : `${partner.name} have agreed to a joint pay-per-view.`,
-            world.week,
-            'lead',
-          ),
-        );
-      });
-    },
-
-    answerSupershow: (accept) => {
-      set((state) => {
-        const world = state.world;
-        const offer = world?.pendingSupershow;
-        if (!world || !offer) return;
-        world.pendingSupershow = null;
-
-        if (!accept) {
-          // Turning down a joint show is remembered. They asked once.
-          world.weeklyNews.push(
-            wire('story', `${world.promotion.name} passed on the joint show with ${offer.partnerName}.`, world.week, 'minor'),
-          );
-          return;
-        }
-
-        const partner = world.rivals.find((r) => r.id === offer.deal.partnerId);
-        if (!partner || partner.closedWeek !== null) return;
-
-        // Signing the deal does not run the show. It produces a card, with the
-        // other office's refusals already on it, and then §16's other
-        // negotiation starts. See engine/world/supershowCard.ts.
-        const booking = draftSupershow(rng, {
-          player: world.promotion,
-          partner,
-          deal: offer.deal,
-          playerRoster: supershowRoster(world, world.promotion.rosterIds),
-          partnerRoster: supershowRoster(world, partner.rosterIds),
-          titles: world.titles,
-          stables: world.stables,
-          territories: world.territories,
-          week: world.week,
-          settings: world.settings,
-          resentment: grudgeAgainst(world.grudges, partner.id)?.resentment ?? 0,
-        });
-        if (!booking) return;
-
-        world.pendingSupershowCard = booking;
-
-        const theirs = booking.card.struck.filter((m) => m.struckBy === partner.id).length;
-        world.weeklyNews.push(
-          wire(
-            'story',
-            theirs > 0
-              ? `${partner.name} signed the joint show and sent a card back with ${theirs} of your matches crossed off.`
-              : `${partner.name} signed the joint show and took the card as it was written.`,
-            world.week,
-            'lead',
-          ),
-        );
-      });
-    },
-
-    strikeSupershowMatch: (matchId) => {
-      set((state) => {
-        const world = state.world;
-        const booking = world?.pendingSupershowCard;
-        if (!world || !booking) return;
-        const match = booking.card.matches.find((m) => m.id === matchId);
-        if (!match) return;
-        booking.card = strikeMatch(
-          booking.card,
-          matchId,
-          world.promotion.id,
-          `${world.promotion.name} will not run it.`,
-        );
-      });
-    },
-
-    runSupershowNight: () => {
-      set((state) => {
-        if (!state.world) return;
-        settleSupershow(state.world, rng);
-      });
-    },
-
-    dismissSupershowResult: () => {
-      set((state) => {
-        if (state.world) state.world.lastSupershow = null;
-      });
-    },
-
-    answerBiddingInvitation: (join) => {
-      set((state) => {
-        const world = state.world;
-        const war = world?.pendingBiddingWar;
-        if (!world || !war || war.stage !== 'invited' || war.playerIn !== null) return;
-        war.playerIn = join;
-        if (join) {
-          war.stage = 'bidding';
-          return;
-        }
-        // Out is out. The auction happens anyway and the booker reads about it.
-        settleBiddingWar(world, rng, null);
-      });
-    },
-
-    submitBid: (offer) => {
-      set((state) => {
-        const world = state.world;
-        const war = world?.pendingBiddingWar;
-        if (!world || !war || war.stage !== 'bidding' || !war.playerIn) return;
-        // You cannot offer a bonus you do not have. Everything else about the
-        // bid is allowed to be a mistake — §0 says the game does not warn.
-        if (offer.signingBonus > world.promotion.bankBalance) return;
-        settleBiddingWar(world, rng, {
-          ...offer,
-          promotionId: world.promotion.id,
-          promotionName: world.promotion.name,
-        });
-      });
-    },
-
-    dismissBiddingResult: () => {
-      set((state) => {
-        if (state.world) state.world.lastBiddingWar = null;
-      });
-    },
-
-    answerWeatherCall: (choice) => {
-      set((state) => {
-        const world = state.world;
-        if (!world?.pendingWeatherCall) return;
-        world.weatherChoice = choice;
-      });
-      // Answering *is* running the show. The week was held open waiting for
-      // this, so it resolves the moment the booker decides rather than making
-      // them press the same button twice.
-      get().resolveWeek();
-    },
-
-    answerReleaseRequest: (wrestlerId, grant) => {
-      set((state) => {
-        const world = state.world;
-        if (!world) return;
-        const index = world.releaseRequests.findIndex((r) => r.wrestlerId === wrestlerId);
-        const wrestler = world.wrestlers[wrestlerId];
-        if (index < 0 || !wrestler) return;
-        world.releaseRequests.splice(index, 1);
-
-        if (!grant) {
-          // He stays, and he is not happy about it. Saying no is often right
-          // — he is still your wrestler and he still has to work.
-          wrestler.morale = clampMorale(wrestler.morale - refusalCost(world.settings) * 2, world.settings);
-          // And he remembers. Morale comes back; this does not. The next time
-          // he is a free man and this company is in the room, they are not in
-          // it — see economy/bidding.ts stanceToward.
-          if (!wrestler.grudges) wrestler.grudges = [];
-          if (!wrestler.grudges.includes(world.promotion.id)) wrestler.grudges.push(world.promotion.id);
-          world.weeklyNews.push(
-            wire(
-              'departure',
-              `${wrestler.name} asked for a release. ${Cap(pronounsFor(wrestler).they)} was told no, and is still on the roster.`,
-              world.week,
-            ),
-          );
-          return;
-        }
-
-        const terms = exitTerms(wrestler, 'negotiatedRelease', world.settings, world.promotion.name);
-        letThemGo(world, wrestler, terms);
-      });
-    },
   })),
 );
