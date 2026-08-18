@@ -17,10 +17,6 @@ phases is a real, harder follow-up, deliberately not started here. Do not
 start it without asking first — this is a different, riskier kind of cut
 than the one already made.
 
-**Twelve scenario tests pin a magic seed.** They pass, but they rely on a
-specific generated person having specific properties. Sturdier to search the
-generated roster for somebody who fits the scenario.
-
 ---
 
 ## Smaller, known, not urgent
@@ -31,6 +27,26 @@ generated roster for somebody who fits the scenario.
 ---
 
 ## Done and worth not re-litigating
+
+- **The "twelve magic-seed tests" line was stale — checked and the pattern is
+  gone.** An exhaustive pass over `store.test.ts` (the scenario-test file the
+  line meant) and every other seeded test in the suite found no case of a
+  test reaching into a generated roster by a fixed index and assuming
+  whoever that seed happened to produce satisfied some property the test
+  actually needed. Every place that needs someone specific already either
+  overrides the property right after generation or explicitly
+  `.find()`/`.filter()`s the roster for a match — and several carry their own
+  comments documenting exactly this fix having been made already (e.g.
+  `store.test.ts` around "a bound that has to be re-tuned every time the
+  world gains a system is testing the seed, not the rule" and "asserting on
+  *this* legend's kid specifically made the test a bet on nobody bigger
+  having finished that year"). One candidate
+  (`data/titleLifecycle.test.ts`'s `'cannot be put on a card'` test, which
+  books two unfiltered generated wrestlers against a title) was investigated
+  and ruled out: the test retires the title first, and `eligibleTitles`
+  short-circuits on `retiredWeek` before either wrestler's properties are
+  ever read. Whatever prompted this backlog line, it had already been fixed
+  by the time it was checked — removed rather than re-litigated.
 
 - **Illegal tampering is gone — from both directions.** It was a trap button:
   the player's own `tamperWith` success capped at 18% regardless of the
