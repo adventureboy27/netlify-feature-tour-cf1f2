@@ -138,7 +138,16 @@ const SLOT_KEY = 'wbg.save.v1';
 // Version 44 adds World.currentDarkMatches and the darkMatch* settings. A
 // version-43 save has no array, which the card builder and the weekly tick
 // both index into without a guard.
-const SCHEMA_VERSION = 44;
+//
+// Version 45 removes illegal tampering entirely — a rival could go after
+// somebody still under contract to you, and the player could go after
+// somebody else's. World.tamperingOffers is renamed World.approachOffers and
+// drops its now-single-valued `kind`; World.poachingOffers (dead — nothing
+// ever wrote to it), World.signingBanWeeks, World.suspensionWeeks and
+// World.tamperingOffenses are gone. A version-44 save has the old field
+// names and shapes, which the weekly tick and the contracts screen would
+// both misread.
+const SCHEMA_VERSION = 45;
 
 export interface SaveFile {
   schema: number;

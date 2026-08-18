@@ -58,7 +58,7 @@ export default function App() {
   }
 
   // A story waiting on a decision is worth a badge — it's easy to miss a tab.
-  const officeBadge = world.pendingEvent !== null || world.tamperingOffers.length > 0;
+  const officeBadge = world.pendingEvent !== null || world.approachOffers.length > 0;
   const theme = promotionTheme(world.promotion.identity);
 
   function navigate(next: Screen) {

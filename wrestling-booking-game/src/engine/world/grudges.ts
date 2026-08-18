@@ -1,11 +1,11 @@
 // What a company remembers about working with you.
 //
 // `coopAppetite` has always taken a resentment figure, and its own doc comment
-// has always said that resentment comes "from poaching, from tampering, from
-// being beaten badly on a previous joint show". The first two were real. The
-// third was not: the store computed resentment from the standing gap alone, so
-// a partner you buried nine-nil last November would sit down with you in May
-// as though nothing had happened.
+// has always said that resentment comes "from poaching, from being beaten
+// badly on a previous joint show". The first was real. The second was not:
+// the store computed resentment from the standing gap alone, so a partner you
+// buried nine-nil last November would sit down with you in May as though
+// nothing had happened.
 //
 // That made the supershow a dice roll against a rating difference rather than
 // a relationship. It also removed the only interesting decision in the whole

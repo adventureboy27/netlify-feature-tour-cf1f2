@@ -147,8 +147,8 @@ export function worthAnAuction(wrestler: Wrestler, settings: WorldSettings): boo
 }
 
 /** Can this company sign anybody at all right now? */
-function canBid(promotion: Promotion, banned: boolean): boolean {
-  return promotion.closedWeek === null && !banned;
+function canBid(promotion: Promotion): boolean {
+  return promotion.closedWeek === null;
 }
 
 /**
@@ -164,14 +164,13 @@ export function interestedIn(
   promotions: readonly Promotion[],
   ctx: {
     weeklyPayroll: (promotionId: Id) => number;
-    banned: (promotionId: Id) => boolean;
     /** The announced floor. A company that cannot reach it is not in the room. */
     minimum: number;
   },
   settings: WorldSettings,
 ): Promotion[] {
   return promotions.filter((promotion) => {
-    if (!canBid(promotion, ctx.banned(promotion.id))) return false;
+    if (!canBid(promotion)) return false;
     // Measured with the same runway maths the bid itself uses, so a company
     // that turns up cannot then bid the floor. Two different affordability
     // checks put ghost bidders in the room: broke companies entered on the

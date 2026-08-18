@@ -248,8 +248,8 @@ import {
   createRefereeContract,
 } from '../engine/sim/referees';
 import { NETWORK_SHOWS } from '../data/networkShows';
-import { rollTamperingAttempts } from '../engine/world/tampering';
 import {
+  rollApproaches,
   resolveOffer,
   type PoachingResponse,
 } from '../engine/world/poaching';
@@ -722,8 +722,6 @@ export interface GameStore {
   leanIntoShoot: (rivalryId: Id) => { ok: boolean; reason: string | null };
   /** Answer a rival's approach. Every answer costs something — see poaching.ts. */
   answerApproach: (offerId: Id, response: PoachingResponse) => { ok: boolean; reason: string | null };
-  /** Go after somebody else's contracted talent. A bad bet, on purpose. */
-  tamperWith: (wrestlerId: Id, offerPremium: number) => { ok: boolean; reason: string | null };
   renameStoryline: (storylineId: Id, name: string) => void;
   /** Walk away from an arc. It counts as fizzled, because it is. */
   abandonStoryline: (storylineId: Id) => void;
@@ -948,9 +946,9 @@ export const useGameStore = create<GameStore>()(
         //
         // Reconciled once a week against `promotionId` rather than hooked into
         // each of the ten places a roster can change — signings, releases,
-        // auctions, a company folding, tampering, a secret signing. Patching
-        // those individually would have left holes, and a career page with
-        // holes in it is worse than no career page.
+        // auctions, a company folding, a rival's approach, a secret signing.
+        // Patching those individually would have left holes, and a career
+        // page with holes in it is worse than no career page.
         for (const person of Object.values(world.wrestlers)) {
           if (person.deceased) continue;
           const ledger = ledgerOf(person);
@@ -3913,7 +3911,6 @@ export const useGameStore = create<GameStore>()(
 
         // Deals run down whether or not anybody was booked.
         const expired = expireContracts(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
-        if (world.signingBanWeeks > 0) world.signingBanWeeks -= 1;
 
         // ---- who wants out, and who is still sitting out ------------------
         // A release request is never a surprise: morale is on the roster card
@@ -5978,7 +5975,7 @@ export const useGameStore = create<GameStore>()(
         // Now an open offer survives until its date, the booker can answer it,
         // and one that reaches the date unanswered resolves as `doNothing` —
         // which is a decision, and sometimes loses the man.
-        for (const offer of world.tamperingOffers) {
+        for (const offer of world.approachOffers) {
           if (offer.status === 'resolved' || world.week < offer.resolvesWeek) continue;
           offer.status = 'resolved';
           const target = world.wrestlers[offer.wrestlerId];
@@ -6019,12 +6016,12 @@ export const useGameStore = create<GameStore>()(
             ),
           );
         }
-        world.tamperingOffers = world.tamperingOffers.filter((o) => o.status === 'open');
+        world.approachOffers = world.approachOffers.filter((o) => o.status === 'open');
 
         // Rival bookers come calling. Added to what is already on the table
         // rather than replacing it, and never two approaches for one man.
-        const alreadyCourted = new Set(world.tamperingOffers.map((o) => o.wrestlerId));
-        for (const fresh of rollTamperingAttempts(rng, {
+        const alreadyCourted = new Set(world.approachOffers.map((o) => o.wrestlerId));
+        for (const fresh of rollApproaches(rng, {
           roster,
           statusOf: (w) => w.careerStatus,
           rivals: world.rivals,
@@ -6034,13 +6031,9 @@ export const useGameStore = create<GameStore>()(
         })) {
           if (alreadyCourted.has(fresh.wrestlerId)) continue;
           alreadyCourted.add(fresh.wrestlerId);
-          // `rollTamperingAttempts` produces the bare approach; the stored
-          // form is the one the booker can answer. Two modules describe this
-          // feature — world/tampering.ts generates and career/poaching.ts
-          // resolves — and the second was dead because nothing ever built its
-          // shape. Converted here rather than merged, which is a bigger job
-          // than this change should be.
-          world.tamperingOffers.push({
+          // `rollApproaches` produces the bare attempt; this is the stored,
+          // answerable form.
+          world.approachOffers.push({
             ...fresh,
             id: `poach-${world.week}-${fresh.wrestlerId}`,
             openedWeek: world.week,

@@ -753,7 +753,6 @@ export function openBiddingWar(world: World, rng: Rng, wrestler: Wrestler, reaso
     everyone,
     {
       weeklyPayroll: (id) => payrollOf(world, id),
-      banned: (id) => (id === world.promotion.id ? world.signingBanWeeks > 0 : false),
       minimum,
     },
     world.settings,

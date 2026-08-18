@@ -165,7 +165,7 @@ describe('library coverage', () => {
   it('covers the systems the player was promised', () => {
     const ids = CREATIVE_EVENTS.map((e) => e.id);
     expect(ids).toContain('gimmickRequest'); // gimmick change -> restyle
-    expect(ids).toContain('rivalTampering'); // rival bookers going after talent
+    expect(ids).toContain('rivalInterest'); // rival bookers going after talent
     expect(ids).toContain('stableProposal'); // forming a group
   });
 });

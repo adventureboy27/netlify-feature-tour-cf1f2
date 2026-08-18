@@ -80,15 +80,11 @@ describe('signing', () => {
   const dear = [...wrestlers].sort((a, b) => b.popularity - a.popularity)[0]!;
 
   it('lets you take on someone you can service for a season', () => {
-    expect(canSign(cheap, 500000, 0, settings)).toBe(true);
+    expect(canSign(cheap, 500000, settings)).toBe(true);
   });
 
   it('refuses a deal you cannot cover', () => {
-    expect(canSign(dear, 100, 0, settings)).toBe(false);
-  });
-
-  it('refuses everybody while you are banned from signing', () => {
-    expect(canSign(cheap, 1_000_000, 4, settings)).toBe(false);
+    expect(canSign(dear, 100, settings)).toBe(false);
   });
 });
 

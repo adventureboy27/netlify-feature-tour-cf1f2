@@ -5,21 +5,6 @@ read. Roughly in the order it is worth doing.
 
 ---
 
-## On hold
-
-**Tampering is a trap button.** Success capped at 18% regardless of the
-situation; getting caught runs 40-75% depending on the target's fame, and
-escalates on repeat offences to losing television. The code comment says
-it's *meant* to be a last resort, so this may be intended — but a button
-that is never the correct play is dead content rather than a hard choice.
-Three directions on the table: leave it as a deliberate trap, make the odds
-a real option generally, or keep it bad for stars but let it cross into
-"actually correct" in narrow situations (unhappy prospect, weak rival
-roster, big offer). Explicitly paused — no call made, do not pick a
-direction without asking first.
-
----
-
 ## Infrastructure debt
 
 **`resolveWeek` is still ~5,200 lines inline in `store.ts`.** The ~90
@@ -42,12 +27,29 @@ generated roster for somebody who fits the scenario.
 
 - **`stintLine` / `recordLine` career history** is on the roster card now, but
   nothing shows a *rival's* roster history anywhere.
-- **The two-module tampering split** (`world/tampering.ts` generates,
-  `career/poaching.ts` resolves) was never merged and is confusing to navigate.
 
 ---
 
 ## Done and worth not re-litigating
+
+- **Illegal tampering is gone — from both directions.** It was a trap button:
+  the player's own `tamperWith` success capped at 18% regardless of the
+  situation, getting caught ran 40-75%, and it escalated to losing
+  television — and it wasn't even wired to a UI button, so nobody could ever
+  actually press it. Rather than tune the odds (the option this replaced),
+  removed the whole illegal half on both sides: a rival can no longer go
+  after somebody still under contract to you, and you can no longer go after
+  somebody else's. What's left — a rival approaching once a wrestler's own
+  deal has run out — is legal, was always the more interesting half, and is
+  unchanged. `world/tampering.ts` and `career/poaching.ts`'s split (a smaller
+  item above) is resolved as a side effect: both merged into
+  `engine/world/poaching.ts`. Also gone as a direct consequence: the
+  `legalThreat` response (nothing left to threaten), `World.signingBanWeeks`
+  / `suspensionWeeks` / `tamperingOffenses`, the dead `World.poachingOffers`
+  field nothing ever wrote to, and the bidding war's `banned` plumbing that
+  existed only to serve the signing ban. `World.tamperingOffers` is renamed
+  `World.approachOffers` (schema 45). Verified with `tsc --noEmit`, the full
+  suite, and a production build.
 
 - **`store.ts` split into `storeHelpers.ts` plus eleven slice files.** The
   ~90 non-`resolveWeek` actions (card building, events, tag teams/identity,

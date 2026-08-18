@@ -1,6 +1,6 @@
 // Signing, releasing, trading, and every other way a contract changes —
-// role changes, free agency, renewals, secret signings, tampering defence
-// and offence, and the release-request desk.
+// role changes, free agency, renewals, secret signings, answering a rival's
+// approach, and the release-request desk.
 //
 // Split out of store.ts purely for navigability; every action here is
 // unchanged from what it always did.
@@ -28,7 +28,7 @@ import {
   stillSecret,
   weeksUntilFree,
 } from '../../engine/world/secretSigning';
-import { attemptPlayerTampering, responseIsAvailable, responseOutcome } from '../../engine/world/poaching';
+import { responseOutcome } from '../../engine/world/poaching';
 
 type RosterAndContractsSlice = Pick<
   GameStore,
@@ -42,7 +42,6 @@ type RosterAndContractsSlice = Pick<
   | 'revealSecretSigning'
   | 'tearUpSecretSigning'
   | 'answerApproach'
-  | 'tamperWith'
   | 'answerReleaseRequest'
 >;
 
@@ -187,7 +186,7 @@ export const createRosterAndContractsSlice: StateCreator<
       const wrestler = world.wrestlers[wrestlerId];
       const agent = world.freeAgents.find((a) => a.wrestlerId === wrestlerId);
       if (!wrestler || !agent) return;
-      if (!canSign(wrestler, world.promotion.bankBalance, world.signingBanWeeks, world.settings)) return;
+      if (!canSign(wrestler, world.promotion.bankBalance, world.settings)) return;
       // Ninety days means ninety days, including for the company he just
       // left. This is the thing the player traded a payout for.
       if (!canBeSigned(wrestler)) return;
@@ -435,15 +434,10 @@ export const createRosterAndContractsSlice: StateCreator<
     set((state) => {
       const world = state.world;
       if (!world) return;
-      const offer = world.tamperingOffers.find((o) => o.id === offerId && o.status === 'open');
+      const offer = world.approachOffers.find((o) => o.id === offerId && o.status === 'open');
       const target = offer ? world.wrestlers[offer.wrestlerId] : undefined;
       if (!offer || !target) {
         outcome = { ok: false, reason: 'That approach is closed.' };
-        return;
-      }
-      // A legal threat against a man whose deal is running out is nothing.
-      if (!responseIsAvailable(response, offer)) {
-        outcome = { ok: false, reason: 'There is no paper to wave at them.' };
         return;
       }
 
@@ -473,76 +467,6 @@ export const createRosterAndContractsSlice: StateCreator<
         wire('signing', `${target.name}: ${effect.description}`, world.week),
       );
       outcome = { ok: true, reason: effect.description };
-    });
-    return outcome;
-  },
-
-  tamperWith: (wrestlerId, offerPremium) => {
-    let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No world.' };
-    set((state) => {
-      const world = state.world;
-      if (!world) return;
-      const target = world.wrestlers[wrestlerId];
-      if (!target || !target.contract || target.promotionId === world.promotion.id) {
-        outcome = { ok: false, reason: 'They are not under contract to anybody else.' };
-        return;
-      }
-      if (world.signingBanWeeks > 0) {
-        outcome = { ok: false, reason: 'You are barred from signing anybody.' };
-        return;
-      }
-
-      // You, as a suitor: your own promotion, and — if the target drew
-      // Somebody At Home — where their partner already works. Signing them
-      // is a real pull when that happens to be you.
-      const targetsPartner = target.attachedTo ? world.wrestlers[target.attachedTo] : undefined;
-      const result = attemptPlayerTampering(
-        rng,
-        target,
-        { targetWrestlerId: wrestlerId, targetPromotionId: target.promotionId!, offerPremium },
-        world.promotion.bankBalance,
-        world.settings,
-        world.tamperingOffenses,
-        { promotionId: world.promotion.id, partnerPromotionId: targetsPartner?.promotionId ?? null },
-      );
-
-      if (result.caught) {
-        world.tamperingOffenses += 1;
-        world.promotion.bankBalance -= result.fine;
-        world.signingBanWeeks = Math.max(world.signingBanWeeks, result.signingBanWeeks);
-        world.suspensionWeeks = Math.max(world.suspensionWeeks, result.suspensionWeeks);
-        world.promotion.rating = clamp(
-          world.promotion.rating - result.companyRatingPenalty,
-          0,
-          100,
-        );
-      }
-      world.promotion.reputation = clamp(
-        world.promotion.reputation + result.reputationDelta,
-        0,
-        100,
-      );
-
-      if (result.signed) {
-        const from = world.rivals.find((r) => r.id === target.promotionId);
-        if (from) from.rosterIds = from.rosterIds.filter((id) => id !== target.id);
-        target.promotionId = world.promotion.id;
-        target.contract = {
-          ...createStandardContract(
-            target,
-            world.settings,
-            world.settings.startingYear + Math.floor(world.week / 52),
-          ),
-          weeklyRate: Math.round((target.contract?.weeklyRate ?? 0) + offerPremium),
-        };
-        world.promotion.rosterIds.push(target.id);
-      }
-
-      // §0: caught or not, signed or not, the paper says what happened.
-      world.weeklyNews.push(
-        wire('signing', result.description, world.week, result.caught ? 'lead' : 'normal'),
-      );
-      outcome = { ok: result.signed, reason: result.description };
     });
     return outcome;
   },

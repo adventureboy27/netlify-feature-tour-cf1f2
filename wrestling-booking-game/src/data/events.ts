@@ -383,7 +383,7 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
 
   // ------------------------------------------------------------------ rival
   {
-    id: 'rivalTampering',
+    id: 'rivalInterest',
     category: 'rival',
     title: '{rival} has been talking to {primary}',
     body: [

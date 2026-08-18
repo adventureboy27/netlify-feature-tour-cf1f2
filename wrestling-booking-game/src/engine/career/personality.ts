@@ -103,7 +103,7 @@ export interface Trait {
    * Multiplier on how easy a rival finds them to poach, applied to the whole
    * temptation score. Reserved for traits whose loyalty (or lack of it) is
    * not about any one term — a specific number like pay or a bad office gets
-   * its own hook in world/tampering.ts instead of this.
+   * its own hook in world/poaching.ts instead of this.
    */
   temptationWeight?: number;
   /**
@@ -165,7 +165,7 @@ export const TRAITS: readonly Trait[] = [
     excludes: ['wantsTheSpotlight'],
     weighs: { winning: 0.15, spotlight: 0.4, gold: 0.4, money: 2.4 },
     // The `money` lever above is reused directly in career/ego.ts and
-    // world/tampering.ts, so this trait does the same thing at the
+    // world/poaching.ts, so this trait does the same thing at the
     // negotiating table and to a rival's offer that it already does to
     // morale: the number is what moves them, nothing else does much.
     walkRiskWeight: 1.3,
@@ -306,7 +306,7 @@ export function walkRiskWeight(wrestler: Pick<Wrestler, 'traits'>): number {
   return traitsOf(wrestler).reduce((mul, t) => mul * (t.walkRiskWeight ?? 1), 1);
 }
 
-/** How easy a rival finds them to poach, overall. See world/tampering.ts. */
+/** How easy a rival finds them to poach, overall. See world/poaching.ts. */
 export function temptationWeight(wrestler: Pick<Wrestler, 'traits'>): number {
   return traitsOf(wrestler).reduce((mul, t) => mul * (t.temptationWeight ?? 1), 1);
 }

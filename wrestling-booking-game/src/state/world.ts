@@ -203,15 +203,11 @@ export interface World {
   /** Outcome of the last decision, shown once then cleared. */
   lastEventOutcome: { title: string; summary: string } | null;
   eventHistory: EventHistory;
-  /** Rival offers currently on the table. */
   /**
-   * Rival approaches sitting on the desk. The answerable shape from
-   * career/poaching.ts, not the bare attempt world/tampering.ts generates —
-   * an offer nobody can answer is not a decision, it is a notification.
+   * Rival approaches sitting on the desk, awaiting your answer — you always
+   * get one first. See engine/world/poaching.ts.
    */
-  tamperingOffers: PoachingOffer[];
-  /** Rival offers awaiting your answer — you always get one first. */
-  poachingOffers: PoachingOffer[];
+  approachOffers: PoachingOffer[];
   /** One-time production purchases. They travel to every show. */
   ownedAssetIds: Id[];
   /** Rungs of the production ladder owned, in the order they were bought. */
@@ -302,12 +298,6 @@ export interface World {
   secretSignings: SecretSigning[];
   /** What was decided, carried into the resolve that follows. */
   weatherChoice: WeatherCallOptionId | null;
-  /** Weeks left on a signing ban from being caught tampering. */
-  signingBanWeeks: number;
-  /** Weeks dark from a tampering suspension. No shows, wages still due. */
-  suspensionWeeks: number;
-  /** How many times you have been caught tampering. Sanctions escalate. */
-  tamperingOffenses: number;
   /** Everyone in the business who is not signed anywhere. */
   freeAgents: FreeAgent[];
   /**
@@ -986,8 +976,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     pendingEvent: null,
     lastEventOutcome: null,
     eventHistory: emptyEventHistory(),
-    tamperingOffers: [],
-    poachingOffers: [],
+    approachOffers: [],
     ownedAssetIds: [],
     // You start on a wooden mat, on a pickup and a rented trailer. Everything
     // on the ladder is somewhere above you — see economy/production.ts.
@@ -1020,9 +1009,6 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     lastBiddingWar: null,
     secretSignings: [],
     weatherChoice: null,
-    signingBanWeeks: 0,
-    suspensionWeeks: 0,
-    tamperingOffenses: 0,
     freeAgents: [...pool.freeAgents, ...managers.freeAgents],
     referees,
     // You open with one official on the books, and a six-match card runs him
@@ -1076,8 +1062,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
 // booking in §19/M5. What the player actually feels week to week is simpler:
 // somebody is opposite them on television, drawing an audience, and sending
 // people to talk to their talent. These are those promotions with a rating
-// and a name — enough for TV ratings to be a real contest and for tampering
-// to have a source. Giving them rosters and letting them book is the next
+// and a name — enough for TV ratings to be a real contest and for a rival
+// approach to have a source. Giving them rosters and letting them book is the next
 // layer, and it slots in behind this same shape.
 // Each rival is a *kind* of company, not just a name — which is what makes
 // losing a wrestler to one feel different from losing them to another. The

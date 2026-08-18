@@ -74,9 +74,8 @@ export type CoopMood = 'eager' | 'cautious' | 'dismissive' | 'hostile';
  *
  * Standing is the spine of it: a smaller company sees a bigger stage, a bigger
  * one sees no upside in legitimising you. Resentment — from poaching, from
- * tampering, from being beaten badly on a previous joint show — overrides the
- * lot, because a booker who thinks you have wronged him does not care about
- * the gate.
+ * being beaten badly on a previous joint show — overrides the lot, because a
+ * booker who thinks you have wronged him does not care about the gate.
  */
 export function coopAppetite(
   us: Promotion,

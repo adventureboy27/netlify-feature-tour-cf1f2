@@ -1865,19 +1865,15 @@ export interface WorldSettings {
   /** How much of a promotion's draw is tonight's show vs. its reputation, 0-1. */
   tvShowQualityWeight: number;
 
-  // Tampering and poaching (engine/world/tampering.ts)
-  tamperingBaseChance: number;
-  /** Appeal a wrestler must have before a rival risks tampering with a live deal. */
-  tamperingAppealThreshold: number;
-  tamperingOfferPremiumMin: number;
-  tamperingOfferPremiumRange: number;
-  tamperingMoneyWeight: number;
-  tamperingMoraleWeight: number;
-  tamperingMomentumWeight: number;
-  tamperingContractLengthResistance: number;
-  tamperingAttitudeResistance: number;
-  tamperingIronCladResistance: number;
-  tamperingNoCompeteResistance: number;
+  // Rivals approaching your talent once a deal has run out (engine/world/poaching.ts)
+  approachBaseChance: number;
+  approachOfferPremiumMin: number;
+  approachOfferPremiumRange: number;
+  approachMoneyWeight: number;
+  approachMoraleWeight: number;
+  approachMomentumWeight: number;
+  approachContractLengthResistance: number;
+  approachAttitudeResistance: number;
 
   // Creative events (engine/events/scheduler.ts)
   /** Chance an event even considers firing in a given week. */
@@ -2048,25 +2044,8 @@ export interface WorldSettings {
   poachResponseMoneyEffect: number;
   poachResponseMoneyRaise: number;
   poachResponsePushEffect: number;
-  poachResponseLegalEffect: number;
   /** Weeks an offer sits open before it resolves. */
   poachOfferWeeksToRespond: number;
-
-  // The player tampering with someone else's talent — a deliberately bad bet
-  playerTamperingSuccessScale: number;
-  playerTamperingSuccessCap: number;
-  playerTamperingCaughtBase: number;
-  playerTamperingCaughtByFame: number;
-  playerTamperingFineFraction: number;
-  playerTamperingMinFine: number;
-  playerTamperingReputationPenalty: number;
-  playerTamperingBanWeeks: number;
-  /** Weeks dark when a repeat offence draws a suspension. */
-  playerTamperingSuspensionWeeks: number;
-  /** Company rating stripped on expulsion — losing the TV slot. */
-  playerTamperingExpulsionRatingLoss: number;
-  /** How much harsher each subsequent offence is. */
-  playerTamperingEscalation: number;
 
   // Ego and the cost of success (engine/career/ego.ts)
   egoFromStanding: number;
@@ -2238,7 +2217,7 @@ export interface WorldSettings {
   traitGlassCostEach: number;
   traitGlassCostMax: number;
   // --- traits reaching outside morale: contracts, poaching, retirement,
-  // release requests (career/ego.ts, world/tampering.ts, career/retirement.ts,
+  // release requests (career/ego.ts, world/poaching.ts, career/retirement.ts,
   // economy/termination.ts) ---
   /** How much No Time For The Office's baseline dislike adds to temptation. */
   traitOfficeDislikePull: number;

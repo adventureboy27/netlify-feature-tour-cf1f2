@@ -24,7 +24,7 @@ export type EventCategory =
   | 'lockerRoom' // morale, cliques, backstage friction
   | 'creative' // gimmicks, turns, character direction
   | 'business' // money, TV, sponsors, venues
-  | 'rival' // other promotions, poaching, tampering
+  | 'rival' // other promotions, poaching
   | 'personal'; // injuries, life outside the ring, retirement
 
 /** Who or what an event is about. Resolved when the event fires. */

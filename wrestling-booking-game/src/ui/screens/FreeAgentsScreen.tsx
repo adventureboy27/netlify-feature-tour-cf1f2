@@ -38,7 +38,6 @@ export function FreeAgentsScreen() {
 
   if (!world) return null;
 
-  const banned = world.signingBanWeeks > 0;
   // What this company did to the last man it sent out hurt, and how much of
   // it the business is still holding against it.
   const deaths = world.promotion.deathsOnOurWatch ?? [];
@@ -52,11 +51,6 @@ export function FreeAgentsScreen() {
         <p className="text-xs text-neutral-500">
           Bank <Money amount={world.promotion.bankBalance} /> · roster {world.promotion.rosterIds.length}
         </p>
-        {banned && (
-          <p className="mt-2 rounded bg-rose-950/50 p-2 text-xs text-rose-300">
-            You are barred from signing anyone for another {world.signingBanWeeks} weeks.
-          </p>
-        )}
       </div>
 
       {/* What this company did, and what the market thinks of it. Stated at
@@ -78,7 +72,7 @@ export function FreeAgentsScreen() {
           const refuses = buried && wontWorkForUs(wrestler, heldAgainstUs, world.settings)
             ? refusalLine(wrestler.name, buried.name, pronounsFor(wrestler))
             : null;
-          const affordable = canSign(wrestler, world.promotion.bankBalance, world.signingBanWeeks, world.settings);
+          const affordable = canSign(wrestler, world.promotion.bankBalance, world.settings);
           // He negotiated his way out of somewhere and gave up the money to
           // do it. Nobody can touch him yet, including the company he left.
           const sittingOut = noCompeteLabel(wrestler);

@@ -119,13 +119,7 @@ export function currentAskingRate(agent: FreeAgent, settings: WorldSettings): nu
 }
 
 /** Can this promotion actually take them on? */
-export function canSign(
-  wrestler: Wrestler,
-  bankBalance: number,
-  signingBanWeeks: number,
-  settings: WorldSettings,
-): boolean {
-  if (signingBanWeeks > 0) return false;
+export function canSign(wrestler: Wrestler, bankBalance: number, settings: WorldSettings): boolean {
   return isAffordable(wrestler, bankBalance, settings);
 }
 

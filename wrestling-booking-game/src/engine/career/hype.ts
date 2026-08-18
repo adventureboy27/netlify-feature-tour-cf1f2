@@ -2,7 +2,8 @@
 //
 // `talent` is the hidden ceiling (§3.8) and the player is never shown it. But
 // until now every *promotion* read it directly — keenness, market value, the
-// prospect label, rival demand in the free agent pool, tampering. Which meant
+// prospect label, rival demand in the free agent pool, a rival's approach.
+// Which meant
 // the AI was omniscient about the one number the player can never see, and
 // meant something worse: nobody could ever be wrong about anybody.
 //

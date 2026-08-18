@@ -61,7 +61,7 @@ function company(id: string, over: Partial<Promotion> = {}): Promotion {
   } as Promotion;
 }
 
-const NOBODY_BANNED = { weeklyPayroll: () => 20_000, banned: () => false, minimum: 1_500 };
+const BASE_CTX = { weeklyPayroll: () => 20_000, minimum: 1_500 };
 
 /** A rival's offer, asserted to exist. Most tests are about a company that bids. */
 function offerFrom(seed: string, w: Wrestler, c: Promotion, payroll = 20_000, minimum = 0): Bid {
@@ -127,29 +127,23 @@ describe('who is worth an auction', () => {
 
 describe('who is interested', () => {
   it('wants a star if it has the headroom', () => {
-    const rooms = interestedIn(star(), [company('a'), company('b')], NOBODY_BANNED, settings);
+    const rooms = interestedIn(star(), [company('a'), company('b')], BASE_CTX, settings);
     expect(rooms.map((p) => p.id)).toEqual(['a', 'b']);
   });
 
   it('prices out a company that cannot cover its own payroll for six months', () => {
     const broke = company('broke', { bankBalance: 40_000 });
-    expect(interestedIn(star(), [broke], NOBODY_BANNED, settings)).toEqual([]);
-  });
-
-  it('leaves out a company that has been caught tampering', () => {
-    const ctx = { weeklyPayroll: () => 20_000, banned: (id: string) => id === 'b', minimum: 1_500 };
-    const rooms = interestedIn(star(), [company('a'), company('b')], ctx, settings);
-    expect(rooms.map((p) => p.id)).toEqual(['a']);
+    expect(interestedIn(star(), [broke], BASE_CTX, settings)).toEqual([]);
   });
 
   it('leaves out a company that has closed', () => {
     const gone = company('gone', { closedWeek: 40 });
-    expect(interestedIn(star(), [gone], NOBODY_BANNED, settings)).toEqual([]);
+    expect(interestedIn(star(), [gone], BASE_CTX, settings)).toEqual([]);
   });
 
   it('keeps the current employer in, so long as they can make the number', () => {
     const holder = company('holder', { bankBalance: 4_000_000, rosterIds: [star().id] });
-    expect(interestedIn(star(), [holder], NOBODY_BANNED, settings).map((p) => p.id)).toEqual(['holder']);
+    expect(interestedIn(star(), [holder], BASE_CTX, settings).map((p) => p.id)).toEqual(['holder']);
   });
 
   it('throws the current employer out when they cannot', () => {
@@ -157,12 +151,12 @@ describe('who is interested', () => {
     // them. A company that cannot say yes to it loses their man, and that is
     // the whole reason a booker should be watching what their stars are worth.
     const skint = company('skint', { bankBalance: 200_000, rosterIds: [star().id] });
-    expect(interestedIn(star(), [skint], NOBODY_BANNED, settings)).toEqual([]);
+    expect(interestedIn(star(), [skint], BASE_CTX, settings)).toEqual([]);
   });
 
   it('is not interested in somebody who would not improve the top of the card', () => {
     const elite = company('elite', { rating: 95 });
-    expect(interestedIn(person('ok', { popularity: 60 }), [elite], NOBODY_BANNED, settings)).toEqual([]);
+    expect(interestedIn(person('ok', { popularity: 60 }), [elite], BASE_CTX, settings)).toEqual([]);
   });
 });
 
@@ -447,8 +441,8 @@ describe('the number their people name', () => {
 
   it('empties the room of everybody who cannot say yes to it', () => {
     const field = [company('a'), company('b', { bankBalance: 4_000_000 })];
-    const cheap = interestedIn(star(), field, { ...NOBODY_BANNED, minimum: 1_200 }, settings);
-    const dear = interestedIn(star(), field, { ...NOBODY_BANNED, minimum: 30_000 }, settings);
+    const cheap = interestedIn(star(), field, { ...BASE_CTX, minimum: 1_200 }, settings);
+    const dear = interestedIn(star(), field, { ...BASE_CTX, minimum: 30_000 }, settings);
     expect(cheap.length).toBeGreaterThan(dear.length);
     // The rich one is the survivor.
     expect(dear.map((p) => p.id)).not.toContain('a');

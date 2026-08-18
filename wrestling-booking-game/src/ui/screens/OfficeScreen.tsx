@@ -1,5 +1,5 @@
 // The office — §8.1. What the week brings you before a single thing is
-// booked: the story that needs a decision, who is being tampered with, and
+// booked: the story that needs a decision, who a rival is talking to, and
 // where you finished in the ratings.
 //
 // The event card is the centrepiece. Both halves of every option are shown —
@@ -22,8 +22,7 @@ import { grudgeAgainst, grudgeLine } from '../../engine/world/grudges';
 import { leverageReason } from '../../engine/career/leverage';
 import { useGameStore } from '../../state/store';
 import { tvVerdict, wonTheNight, playerChartPosition } from '../../engine/world/tvRatings';
-import { responseIsAvailable, type PoachingResponse } from '../../engine/world/poaching';
-import { temptationLabel } from '../../engine/world/tampering';
+import { temptationLabel, type PoachingResponse } from '../../engine/world/poaching';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { mostRecentDeath, stillHeldAgainstUs } from '../../engine/career/onOurWatch';
 import { moodBand, moodLabel, moraleSummary, troubleInTheRoom } from '../../engine/career/morale';
@@ -90,7 +89,7 @@ export function OfficeScreen() {
     (world.lastEventOutcome ? 1 : 0) +
     (world.lastAuction ? 1 : 0);
   const inContracts =
-    world.pendingRenewals.length + world.tamperingOffers.length + world.releaseRequests.length;
+    world.pendingRenewals.length + world.approachOffers.length + world.releaseRequests.length;
   // A promotion with nobody in a striped shirt is a promotion where a
   // wrestler counts every fall, so that is worth a badge on its own.
   const officialsNeedYou =
@@ -801,7 +800,7 @@ function ContractsTab() {
 
   if (
     world.pendingRenewals.length === 0 &&
-    world.tamperingOffers.length === 0 &&
+    world.approachOffers.length === 0 &&
     world.releaseRequests.length === 0 &&
     departures.length === 0
   ) {
@@ -972,11 +971,11 @@ function ContractsTab() {
         </section>
       )}
 
-      {world.tamperingOffers.length > 0 && (
+      {world.approachOffers.length > 0 && (
         <section>
           <h2 className="mb-2 text-sm font-medium text-neutral-300">Somebody has been talking to your talent</h2>
           <div className="flex flex-col gap-2">
-            {world.tamperingOffers.map((offer) => {
+            {world.approachOffers.map((offer) => {
               const target = wrestler(offer.wrestlerId);
               const rival = world.rivals.find((r) => r.id === offer.rivalPromotionId);
               if (!target) return null;
@@ -997,10 +996,7 @@ function ContractsTab() {
                       <span className="ml-1 text-neutral-500">{CAREER_STATUS_LABELS[target.careerStatus]}</span>
                     </div>
                     <div className="text-[11px] text-neutral-500">
-                      {rival?.name ?? 'A rival'} ·{' '}
-                      <span className={offer.kind === 'tampering' ? 'text-rose-400' : 'text-amber-400'}>
-                        {offer.kind === 'tampering' ? 'under contract to you' : 'deal running out'}
-                      </span>
+                      {rival?.name ?? 'A rival'} · <span className="text-amber-400">deal running out</span>
                     </div>
                   </div>
                   <span className="shrink-0 rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-neutral-300">
@@ -1014,22 +1010,19 @@ function ContractsTab() {
       )}
 
       {/* And what you can do about it. Every answer costs something, which is
-          the whole decision — see career/poaching.ts. Left alone, the approach
+          the whole decision — see world/poaching.ts. Left alone, the approach
           settles itself on its date and sometimes takes the man. */}
-      {world.tamperingOffers.length > 0 && (
+      {world.approachOffers.length > 0 && (
         <section className="mt-2">
           <div className="flex flex-col gap-2">
-            {world.tamperingOffers.map((offer) => {
+            {world.approachOffers.map((offer) => {
               const target = wrestler(offer.wrestlerId);
               if (!target) return null;
-              const answers = (
-                [
-                  { response: { kind: 'matchMoney' }, label: 'Match the money' },
-                  { response: { kind: 'promiseAPush' }, label: 'Promise the spot' },
-                  { response: { kind: 'legalThreat' }, label: 'Enforce the contract' },
-                  { response: { kind: 'doNothing' }, label: 'Let it ride' },
-                ] as { response: PoachingResponse; label: string }[]
-              ).filter((a) => responseIsAvailable(a.response, offer));
+              const answers: { response: PoachingResponse; label: string }[] = [
+                { response: { kind: 'matchMoney' }, label: 'Match the money' },
+                { response: { kind: 'promiseAPush' }, label: 'Promise the spot' },
+                { response: { kind: 'doNothing' }, label: 'Let it ride' },
+              ];
               return (
                 <div key={`answer-${offer.id}`} className="rounded border border-neutral-800 bg-neutral-900 p-2">
                   <div className="mb-1 text-[11px] text-neutral-400">{target.name}</div>

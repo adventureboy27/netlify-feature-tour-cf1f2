@@ -317,18 +317,15 @@ export function defaultWorldSettings(): WorldSettings {
     tvRatingCeiling: 12,
     tvShowQualityWeight: 0.55,
 
-    // Tampering and poaching
-    tamperingBaseChance: 0.09,
-    tamperingAppealThreshold: 0.55,
-    tamperingOfferPremiumMin: 0.15,
-    tamperingOfferPremiumRange: 0.6,
-    tamperingMoneyWeight: 0.5,
-    tamperingMoraleWeight: 0.35,
-    tamperingMomentumWeight: 0.15,
-    tamperingContractLengthResistance: 0.45,
-    tamperingAttitudeResistance: 0.3,
-    tamperingIronCladResistance: 0.5,
-    tamperingNoCompeteResistance: 0.2,
+    // Rivals approaching your talent once a deal has run out (§19)
+    approachBaseChance: 0.09,
+    approachOfferPremiumMin: 0.15,
+    approachOfferPremiumRange: 0.6,
+    approachMoneyWeight: 0.5,
+    approachMoraleWeight: 0.35,
+    approachMomentumWeight: 0.15,
+    approachContractLengthResistance: 0.45,
+    approachAttitudeResistance: 0.3,
 
     // Creative events — tuned so something happens often enough to matter and
     // rarely enough to stay a story. Roughly one event every 3-4 weeks.
@@ -503,22 +500,7 @@ export function defaultWorldSettings(): WorldSettings {
     poachResponseMoneyEffect: 0.45,
     poachResponseMoneyRaise: 1.35,
     poachResponsePushEffect: 0.3,
-    poachResponseLegalEffect: 0.5,
     poachOfferWeeksToRespond: 1,
-
-    // The player tampering. Low ceiling on success, high chance of being
-    // caught, and a punishment bad enough that it is never the smart play.
-    playerTamperingSuccessScale: 0.35,
-    playerTamperingSuccessCap: 0.18,
-    playerTamperingCaughtBase: 0.4,
-    playerTamperingCaughtByFame: 0.35,
-    playerTamperingFineFraction: 0.35,
-    playerTamperingMinFine: 25000,
-    playerTamperingReputationPenalty: 25,
-    playerTamperingBanWeeks: 12,
-    playerTamperingSuspensionWeeks: 6,
-    playerTamperingExpulsionRatingLoss: 25,
-    playerTamperingEscalation: 1.0,
 
     // Ego. Rises roughly twice as fast as it falls — you can make somebody in
     // a season and spend two bringing them back down.
@@ -646,9 +628,9 @@ export function defaultWorldSettings(): WorldSettings {
     traitGlassCostEach: 0.5,
     traitGlassCostMax: 2.5,
     // Traits reaching outside morale. Scaled against the formulas they land
-    // in rather than picked in isolation: the tampering pulls are a fraction
+    // in rather than picked in isolation: the approach pulls are a fraction
     // of a raw temptation score that usually sits under 1 before the clamp
-    // (tamperingMoneyWeight alone maxes at 0.5), and the release threshold
+    // (approachMoneyWeight alone maxes at 0.5), and the release threshold
     // bump is against a 0-100 morale scale with the base ask-out line at 30.
     traitOfficeDislikePull: 0.12,
     traitPartnerPull: 0.22,
