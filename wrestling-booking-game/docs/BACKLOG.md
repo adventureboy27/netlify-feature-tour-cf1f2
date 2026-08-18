@@ -5,14 +5,18 @@ read. Roughly in the order it is worth doing.
 
 ---
 
-## Decisions waiting on the designer
+## On hold
 
-**Tampering is a trap button.** Measured: about a 12% chance of getting a
-gettable target and a 58% chance of being caught, escalating to losing your
-television. The code comment says it is *meant* to be a last resort, so this may
-be intended — but a button that is never the correct play is dead content
-rather than a hard choice. Needs a call: leave it as a deliberate trap, or make
-the odds a real, expensive option.
+**Tampering is a trap button.** Success capped at 18% regardless of the
+situation; getting caught runs 40-75% depending on the target's fame, and
+escalates on repeat offences to losing television. The code comment says
+it's *meant* to be a last resort, so this may be intended — but a button
+that is never the correct play is dead content rather than a hard choice.
+Three directions on the table: leave it as a deliberate trap, make the odds
+a real option generally, or keep it bad for stars but let it cross into
+"actually correct" in narrow situations (unhappy prospect, weak rival
+roster, big offer). Explicitly paused — no call made, do not pick a
+direction without asking first.
 
 ---
 
