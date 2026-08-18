@@ -19,14 +19,25 @@ than the one already made.
 
 ---
 
-## Smaller, known, not urgent
-
-- **`stintLine` / `recordLine` career history** is on the roster card now, but
-  nothing shows a *rival's* roster history anywhere.
-
----
-
 ## Done and worth not re-litigating
+
+- **A rival's roster, and their career history, is now browsable — "The
+  competition" (`RivalRosterScreen.tsx`, behind More).** Every screen that
+  touched a rival before this showed a name and a record at most (Rankings'
+  top-N lists, the Sheet's top-N lists) — nothing let you open a company and
+  see who they actually had. The new screen lists every company still
+  running (folded ones are skipped — their people already scattered to the
+  free agent pool or somebody else's roster, tracked there), and picking one
+  shows its full roster: `WrestlerRow` (unchanged, already generic — no
+  edits needed to reuse it read-only) plus belts held, plus `CareerLedger`.
+  `CareerLedger` itself was pulled out of `RosterScreen.tsx` into
+  `ui/components/CareerLedger.tsx` so both screens share one implementation
+  rather than fork it. No management actions on this screen by design — you
+  can look, not touch. Verified in a real browser: started a 3-promotion
+  game, ran four weeks so ledgers had stints and records to show, opened The
+  competition, switched between both rivals, and expanded a career ledger —
+  confirmed belts, records, and stint history all render correctly and the
+  promotion switcher works.
 
 - **The "twelve magic-seed tests" line was stale — checked and the pattern is
   gone.** An exhaustive pass over `store.test.ts` (the scenario-test file the

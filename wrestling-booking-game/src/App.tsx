@@ -20,6 +20,7 @@ import { CrucibleScreen } from './ui/screens/CrucibleScreen';
 import { FinanceScreen } from './ui/screens/FinanceScreen';
 import { RecordsScreen } from './ui/screens/RecordsScreen';
 import { RankingsScreen } from './ui/screens/RankingsScreen';
+import { RivalRosterScreen } from './ui/screens/RivalRosterScreen';
 import { SheetScreen } from './ui/screens/SheetScreen';
 import { SecretsScreen } from './ui/screens/SecretsScreen';
 import { Money } from './ui/components/display';
@@ -126,6 +127,7 @@ export default function App() {
             <p className="p-6 text-center text-sm text-neutral-500">No show has run yet.</p>
           ))}
         {screen === 'rankings' && <RankingsScreen />}
+        {screen === 'rivalRosters' && <RivalRosterScreen />}
         {screen === 'sheet' && <SheetScreen />}
         {screen === 'secrets' && <SecretsScreen />}
         {screen === 'records' && <RecordsScreen />}

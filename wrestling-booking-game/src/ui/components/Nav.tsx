@@ -31,6 +31,7 @@ export type Screen =
   | 'contactSheet'
   | 'editor'
   | 'secrets'
+  | 'rivalRosters'
   | 'more';
 
 // ---------------------------------------------------------------------------
@@ -186,6 +187,11 @@ const MORE: { id: Screen; label: string; blurb: string }[] = [
   },
   { id: 'territories', label: 'Territories', blurb: 'The towns you can run, the venues in them, and what a ticket costs.' },
   { id: 'rankings', label: 'Rankings', blurb: 'Where your company sits against every other one in the business.' },
+  {
+    id: 'rivalRosters',
+    label: 'The competition',
+    blurb: "Every other company's full roster, and the career that got each of them there.",
+  },
   { id: 'sheet', label: 'The Sheet', blurb: "The dirtsheet's weekly lists — who is hot, who is buried, who is leaving." },
   { id: 'records', label: 'Records', blurb: 'Win-loss records, title histories, and the longest reigns.' },
   { id: 'legacy', label: 'Legacy', blurb: 'The Hall of Fame, the retired, and the ones who are gone.' },
