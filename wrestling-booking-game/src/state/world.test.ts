@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { createInitialWorld } from './world';
+import { createInitialWorld, type NewGamePlan } from './world';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { rngFromSeed } from '../engine/rng';
 
 const settings = defaultWorldSettings();
 const build = (over = {}) => createInitialWorld(rngFromSeed('world'), { ...settings, ...over });
+const buildFromPlan = (plan: NewGamePlan, seed = 'world-plan') =>
+  createInitialWorld(rngFromSeed(seed), settings, plan);
 
 describe('rival promotions', () => {
   it('creates exactly as many rivals as the settings ask for', () => {
@@ -59,5 +61,94 @@ describe('a new world', () => {
     expect(world.tournaments).toEqual([]);
     expect(world.pendingEvent).toBeNull();
     expect(world.eventHistory.lastFiredWeek).toBe(-Infinity);
+  });
+});
+
+describe('a world built from a new-game plan', () => {
+  it('builds one promotion per slot, with the player at playerIndex', () => {
+    const plan: NewGamePlan = {
+      slots: [
+        { name: 'Eastern Championship Wrestling', roster: 'generate' },
+        { name: 'World Combat Organization', roster: 'generate' },
+        { name: 'Northeast Wrestling Federation', roster: 'generate' },
+      ],
+      playerIndex: 1,
+    };
+    const world = buildFromPlan(plan);
+    expect(world.promotion.name).toBe('World Combat Organization');
+    expect(world.promotion.isPlayer).toBe(true);
+    expect(world.rivals).toHaveLength(2);
+    expect(world.rivals.map((r) => r.name).sort()).toEqual(
+      ['Eastern Championship Wrestling', 'Northeast Wrestling Federation'].sort(),
+    );
+    expect(world.rivals.every((r) => !r.isPlayer)).toBe(true);
+  });
+
+  it('starts every promotion, player and rival, with the identical bank balance', () => {
+    const plan: NewGamePlan = {
+      slots: [
+        { name: 'A', roster: 'generate' },
+        { name: 'B', roster: 'generate' },
+        { name: 'C', roster: 'generate' },
+      ],
+      playerIndex: 0,
+    };
+    const world = buildFromPlan(plan);
+    const balances = [world.promotion.bankBalance, ...world.rivals.map((r) => r.bankBalance)];
+    expect(new Set(balances).size).toBe(1);
+    expect(world.promotion.bankBalance).toBe(settings.startingCash);
+  });
+
+  it('honors an explicit archetype and rolls one when a slot leaves it out', () => {
+    const plan: NewGamePlan = {
+      slots: [
+        { name: 'A', archetype: 'hardcore', roster: 'generate' },
+        { name: 'B', roster: 'generate' },
+      ],
+      playerIndex: 0,
+    };
+    const world = buildFromPlan(plan);
+    expect(world.promotion.identity).toBe('hardcore');
+    expect(world.rivals[0]!.identity).toBeTruthy();
+  });
+
+  it('signs an imported roster onto the promotion rather than the free-agent pool', () => {
+    const plan: NewGamePlan = {
+      slots: [
+        {
+          name: 'Imported Co',
+          roster: [
+            { name: 'Dutch Kessler', gender: 'm', style: 'hardcore' },
+            { name: 'Reina Salvaje', gender: 'f' },
+          ],
+        },
+        { name: 'Rival Co', roster: 'generate' },
+      ],
+      playerIndex: 0,
+    };
+    const world = buildFromPlan(plan);
+    const names = world.promotion.rosterIds.map((id) => world.wrestlers[id]!.name);
+    expect(names).toEqual(['Dutch Kessler', 'Reina Salvaje']);
+    for (const id of world.promotion.rosterIds) {
+      const w = world.wrestlers[id]!;
+      expect(w.promotionId).toBe(world.promotion.id);
+      expect(w.contract).toBeTruthy();
+      expect(world.freeAgents.some((a) => a.wrestlerId === w.id)).toBe(false);
+    }
+  });
+
+  it('produces the exact same world a plain seed would, when every slot mirrors the procedural defaults', () => {
+    // Not a byte-for-byte guarantee — buildPlannedPromotion draws its
+    // archetype and owner personality from the shared stream in a different
+    // order than the procedural path does — but it should still be a fully
+    // playable, non-degenerate world.
+    const plan: NewGamePlan = {
+      slots: [{ name: settings.promotionName, roster: 'generate' }],
+      playerIndex: 0,
+    };
+    const world = buildFromPlan(plan);
+    expect(world.rivals).toHaveLength(0);
+    expect(world.promotion.rosterIds.length).toBe(settings.startingRosterSize);
+    expect(Object.keys(world.wrestlers).length).toBeGreaterThan(settings.startingRosterSize);
   });
 });

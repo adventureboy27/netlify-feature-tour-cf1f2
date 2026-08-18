@@ -18,7 +18,7 @@
 
 import type { Appearance, Wrestler } from '../types';
 import { APPEARANCE_TRAIT_RANGES } from '../generate/appearance';
-import { clamp } from '../rng';
+import { clamp, shuffle, type Rng } from '../rng';
 
 /** The format version. Bumped only when an old file could be misread. */
 export const ROSTER_FORMAT = 1;
@@ -41,6 +41,12 @@ export interface RosterEntry {
   style?: string;
   /** Trait numbers. Anything unrecognised is ignored. */
   appearance?: Record<string, number>;
+  /**
+   * Which promotion this wrestler belongs to, for a multi-promotion import.
+   * See groupByCompany — if every entry in a file carries one, the game
+   * builds one promotion per distinct value rather than a single pool.
+   */
+  company?: string;
 }
 
 export interface RosterFile {
@@ -153,6 +159,7 @@ export function parseRoster(raw: string): ImportResult {
       if (value !== undefined) entry[stat] = value;
     }
     if (typeof row.style === 'string') entry.style = row.style;
+    if (typeof row.company === 'string' && row.company.trim()) entry.company = row.company.trim();
 
     // Appearance traits are checked against the ranges the generator uses, so
     // a file cannot produce a sprite the atlas has no cell for.
@@ -211,4 +218,77 @@ export function applyRosterEntry(base: Wrestler, entry: RosterEntry): Wrestler {
 /** Pretty-printed, because a roster file is meant to be edited by hand. */
 export function serializeRoster(file: RosterFile): string {
   return JSON.stringify(file, null, 2);
+}
+
+// ---------------------------------------------------------------------------
+// Splitting one file across several promotions — the new-game import.
+
+export interface CompanyGroups {
+  /** Company name -> the wrestlers tagged for it, in file order. */
+  groups: Map<string, RosterEntry[]>;
+  /** In a file where some entries are tagged and some are not, the rest. */
+  ungrouped: RosterEntry[];
+}
+
+/**
+ * Read a parsed roster as either a set of named companies or one flat pool.
+ *
+ * Returns `null` when nothing in the file carries a `company` — the whole
+ * file is a flat pool, for `splitEvenlyByGender` to divide up. Returns groups
+ * the moment even one entry is tagged; anything left untagged in that file
+ * comes back as `ungrouped` rather than silently dropped or forced into a
+ * company nobody asked it to join.
+ */
+export function groupByCompany(entries: readonly RosterEntry[]): CompanyGroups | null {
+  if (!entries.some((e) => e.company)) return null;
+
+  const groups = new Map<string, RosterEntry[]>();
+  const ungrouped: RosterEntry[] = [];
+  for (const entry of entries) {
+    if (!entry.company) {
+      ungrouped.push(entry);
+      continue;
+    }
+    const list = groups.get(entry.company);
+    if (list) list.push(entry);
+    else groups.set(entry.company, [entry]);
+  }
+  return { groups, ungrouped };
+}
+
+/**
+ * Deal a flat pool out across N destinations, keeping each one's gender mix
+ * close to even.
+ *
+ * Split by gender first and deal each half separately, rather than shuffling
+ * everybody together and hoping — with a small pool and few slots, one
+ * shuffle can easily leave a promotion all of one gender by chance, which is
+ * exactly the outcome this exists to rule out. Which slots absorb the
+ * remainder, when a gender's count doesn't divide evenly, is re-randomised
+ * per gender so the same slot doesn't systematically end up the one that
+ * always gets the extra.
+ */
+export function splitEvenlyByGender(
+  entries: readonly RosterEntry[],
+  slotCount: number,
+  rng: Rng,
+): RosterEntry[][] {
+  const n = Math.max(1, slotCount);
+  const buckets: RosterEntry[][] = Array.from({ length: n }, () => []);
+
+  const byGender = new Map<string, RosterEntry[]>();
+  for (const entry of entries) {
+    const key = entry.gender ?? '?';
+    const list = byGender.get(key);
+    if (list) list.push(entry);
+    else byGender.set(key, [entry]);
+  }
+
+  for (const group of byGender.values()) {
+    const dealOrder = shuffle(rng, Array.from({ length: n }, (_, i) => i));
+    shuffle(rng, group).forEach((entry, i) => {
+      buckets[dealOrder[i % n]!]!.push(entry);
+    });
+  }
+  return buckets;
 }

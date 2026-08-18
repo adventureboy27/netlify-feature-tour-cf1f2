@@ -69,8 +69,9 @@ import { createRivalry } from '../engine/sim/rivalry';
 import { createStandardContract } from '../engine/economy/contracts';
 import { hasTrait } from '../engine/career/personality';
 import { createStartingTitles, awardTitle } from '../data/titles';
-import { styleProfileFor } from '../data/promotionIdentity';
+import { styleProfileFor, PROMOTION_ARCHETYPES } from '../data/promotionIdentity';
 import type { PromotionArchetype } from '../data/promotionIdentity';
+import { applyRosterEntry, type RosterEntry } from '../engine/world/roster-io';
 import { seedRelationships } from '../engine/career/relationships';
 import type { SupershowBooking, SupershowOffer, SupershowResult } from '../engine/world/supershowRun';
 import type { CupResult } from '../engine/world/cupRun';
@@ -106,6 +107,30 @@ import type { AssetCondition } from '../engine/economy/showBudget';
 import type { ContractDemand } from '../engine/career/ego';
 
 export const SEGMENTS_PER_CARD = 6; // matches WorldSettings.segmentsPerTV default
+
+/**
+ * One promotion as the new-game screen built it, rather than as
+ * `RIVAL_PROMOTIONS` would have rolled it.
+ *
+ * `roster: 'generate'` is a normal procedurally-rolled company, same as
+ * every rival always has been. A `RosterEntry[]` is a company signed
+ * straight off an imported file — every name in it gets a contract and a
+ * spot, nothing held back to a free-agent pool the way a plain
+ * `importRosterFile` would (see state/store.ts).
+ */
+export interface PromotionPlanSlot {
+  name: string;
+  /** Rolled randomly if omitted — nobody is asked to pick a house style for every company they type in. */
+  archetype?: PromotionArchetype;
+  roster: 'generate' | RosterEntry[];
+}
+
+export interface NewGamePlan {
+  /** 1-7 promotions, in display order. */
+  slots: PromotionPlanSlot[];
+  /** Which slot the booker is playing as. Everyone else is a rival. */
+  playerIndex: number;
+}
 
 /**
  * A hurt champion, waiting on a decision. Carries the names rather than only
@@ -527,119 +552,284 @@ function pseudoRandInt(rng: Rng, max: number): number {
   return Math.floor(rng.next() * max);
 }
 
-export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
-  // Everybody in the business comes from somewhere. Wrestler.homeTerritoryId
-  // has been on the type since the beginning and was written as the literal
-  // 'territory-unassigned' for every single person ever generated — see
-  // engine/career/reach.ts, which is what finally reads it.
-  const territoryIds = TERRITORIES.map((t) => t.id);
+/**
+ * One promotion, built from a new-game plan slot rather than from
+ * `RIVAL_PROMOTIONS` and `settings.promotionName`/`promotionArchetype`.
+ *
+ * Used for every slot in a plan — the player's own included — which is why
+ * `ctx.isPlayer` exists: everything else about the two is identical (the
+ * whole point of the new flow is that a hand-named or imported company is
+ * not a second-class citizen next to the one you would have generated
+ * yourself).
+ */
+function buildPlannedPromotion(
+  rng: Rng,
+  settings: WorldSettings,
+  slot: PromotionPlanSlot,
+  ctx: {
+    id: Id;
+    isPlayer: boolean;
+    /** Offsets the PPV calendar so no two promotions run the same night. */
+    calendarOffset: number;
+    ownerId: string;
+    homeTerritoryId: Id;
+    territoryIds: Id[];
+    /** The whole business so far. Read for distinctness, and mutated with this promotion's roster. */
+    wrestlers: Record<Id, Wrestler>;
+  },
+): Promotion {
+  // Rolled randomly if the slot did not name one — nobody typing in eight
+  // company names should also have to pick eight house styles.
+  const archetype = slot.archetype ?? pick(rng, PROMOTION_ARCHETYPES);
 
-  const roster = generateWrestlers(rng, settings.startingRosterSize, {
-    // Rolls what the business believes about them, as against what is true.
-    settings,
-    homeTerritoryIds: territoryIds,
-    currentYear: settings.startingYear,
-    // Built to a division split rather than rolled per head. Left to chance a
-    // small roster regularly produced a two-woman division, which is one
-    // match for a championship, repeated until somebody retires.
-    divisionShare: settings.womensRosterShare,
-    divisionFloor: settings.womensDivisionFloor,
-  });
-  const wrestlers: Record<Id, Wrestler> = {};
-  for (const w of roster) {
-    w.promotionId = 'player-promotion';
-    // Every one of them is on a plain deal. Before this, contracts were null
-    // across the board and payroll silently computed to zero.
-    w.contract = createStandardContract(w, settings, settings.startingYear);
-    // Staggered, exactly as the rivals' are below — and this is the half that
-    // was missing. A fixed two-year term for the whole opening roster meant
-    // twenty-six deals signed in week one all lapsed in week 105; a measured
-    // save went from twenty-six people to nobody in that single week, with two
-    // million in the bank and no booking decision that could have stopped it.
-    w.contract.weeksRemaining = randInt(
-      rng,
-      settings.openingContractMinWeeks,
-      settings.openingContractMaxWeeks,
-    );
-    w.contract.totalWeeks = Math.max(w.contract.totalWeeks, w.contract.weeksRemaining);
-    wrestlers[w.id] = w;
+  const existingAppearances = () => Object.values(ctx.wrestlers).map((w) => w.appearance);
+  const existingNames = () => new Set(Object.values(ctx.wrestlers).map((w) => w.name.trim().toLowerCase()));
+
+  let roster: Wrestler[];
+  if (slot.roster === 'generate') {
+    const size = ctx.isPlayer
+      ? settings.startingRosterSize
+      : rivalRosterSize(settings.startingCompanyRating, settings);
+    roster = generateWrestlers(rng, size, {
+      settings,
+      homeTerritoryIds: ctx.territoryIds,
+      currentYear: settings.startingYear,
+      divisionShare: settings.womensRosterShare,
+      divisionFloor: settings.womensDivisionFloor,
+      existingAppearances: existingAppearances(),
+      existingNames: existingNames(),
+    });
+  } else {
+    // Generation runs first, exactly like a plain roster-file import — see
+    // importRosterFile in state/store.ts — and the file overwrites what it
+    // names. The difference here is where the result lands: straight onto
+    // this promotion's roster with a signed contract, not the free-agent
+    // pool. A name collision is dropped rather than crashing the whole
+    // import; the UI checked for that before it ever got here, so it should
+    // not happen, but a new-game screen has to survive a bad file (§0 —
+    // nothing silently corrupts a save, and nothing throws either).
+    const entries = slot.roster;
+    const base = generateWrestlers(rng, entries.length, {
+      settings,
+      homeTerritoryIds: ctx.territoryIds,
+      currentYear: settings.startingYear,
+      existingAppearances: existingAppearances(),
+      existingNames: existingNames(),
+    });
+    const taken = existingNames();
+    roster = [];
+    entries.forEach((entry, i) => {
+      const genBase = base[i];
+      if (!genBase) return;
+      if (taken.has(entry.name.trim().toLowerCase())) return;
+      const wrestler = applyRosterEntry(genBase, entry);
+      taken.add(wrestler.name.trim().toLowerCase());
+      roster.push(wrestler);
+    });
   }
 
-  // Everyone else in the business. Generated after the roster so the
-  // distinctness check (§7) sees the signed talent first.
-  const pool = generateFreeAgentPool(
-    rng,
-    settings,
-    roster.map((w) => w.appearance),
-    new Set(roster.map((w) => w.name.trim().toLowerCase())),
-  );
-  for (const agent of pool.wrestlers) wrestlers[agent.id] = agent;
+  for (const w of roster) {
+    w.promotionId = ctx.id;
+    w.contract = createStandardContract(w, settings, settings.startingYear);
+    // Staggered, not uniform — same reason as every other opening roster in
+    // this file: a fixed term for the whole company means every deal in it
+    // lapses in the same week, years from now, and the business quietly
+    // empties itself in one turn nobody saw coming.
+    w.contract.weeksRemaining = randInt(rng, settings.openingContractMinWeeks, settings.openingContractMaxWeeks);
+    w.contract.totalWeeks = Math.max(w.contract.totalWeeks, w.contract.weeksRemaining);
+    ctx.wrestlers[w.id] = w;
+  }
 
-  // Managers, as people. Free agents every one of them — a company that wants
-  // a mouthpiece signs one the same as it signs anybody, and a rival can get
-  // there first. Before this they were a static rental list with no contract,
-  // no wage and nothing to poach. See engine/world/managerTalent.ts.
-  const managerBodies = generateWrestlers(rng, MANAGERS.length, {
-    settings,
-    currentYear: settings.startingYear,
-    existingAppearances: [...roster.map((w) => w.appearance), ...pool.wrestlers.map((w) => w.appearance)],
-    existingNames: new Set(
-      [...roster, ...pool.wrestlers].map((w) => w.name.trim().toLowerCase()),
-    ),
-  });
-  const managers = seedManagerTalent(rng, MANAGERS, managerBodies, settings.startingYear, settings);
-  for (const manager of managers.wrestlers) wrestlers[manager.id] = manager;
+  const calendar = ppvCalendarFor(archetype, settings.ppvCalendarSize, ctx.calendarOffset);
 
-  const startingSetup = defaultShowSetup(settings);
-
-  const promotion: Promotion = {
-    id: 'player-promotion',
-    name: settings.promotionName,
-    identity: settings.promotionArchetype,
-    ppvCalendar: ppvCalendarFor(settings.promotionArchetype, settings.ppvCalendarSize, 0),
-    // Two nights a week and a monthly big one — the shape the business
-    // settled on, so a player who never opens the schedule screen starts
-    // somewhere deliberate rather than somewhere accidental.
-    schedule: defaultSchedule(
-      rng,
-      settings.promotionName,
-      ppvCalendarFor(settings.promotionArchetype, settings.ppvCalendarSize, 0),
-      settings,
-    ),
-    isPlayer: true,
+  return {
+    id: ctx.id,
+    name: slot.name,
+    identity: archetype,
+    ppvCalendar: calendar,
+    schedule: ctx.isPlayer
+      ? defaultSchedule(rng, slot.name, calendar, settings)
+      : scheduleForRival(
+          rng,
+          { name: slot.name, rating: settings.startingCompanyRating, identity: archetype },
+          calendar,
+          settings,
+        ),
+    isPlayer: ctx.isPlayer,
+    // Identical across every promotion, imported or generated, player or
+    // rival — an explicit design call, not a default left unconsidered: a
+    // hand-built world starts everybody on the same footing, and it is the
+    // booking from week one that pulls a company ahead or behind.
     rating: settings.startingCompanyRating,
     bankBalance: settings.startingCash,
     rosterIds: roster.map((w) => w.id),
     titleIds: [],
     ownedTerritoryIds: [],
-    homeTerritoryId: startingSetup.territoryId,
-    styleProfile: styleProfileFor(settings.promotionArchetype),
+    homeTerritoryId: ctx.homeTerritoryId,
+    styleProfile: styleProfileFor(archetype),
     bookingCredibility: 50,
-    reputation: 50,
+    reputation: settings.startingCompanyRating,
     hardcoreSaturation: 0,
-    // A new promotion has no track record; its first show sets the bar.
     recentShowQuality: settings.startingCompanyRating,
     weeksInTheRed: 0,
     closedWeek: null,
-    // DESIGN: a real Wrestler with role 'owner' is M5 (owner mandates); a
-    // bare id placeholder is enough for M2, which never dereferences it.
-    // Who calls the matches. Drawn once and kept — see sim/commentary.ts.
-    //
-    // From its own stream, not the world's. Commentary is narration: it must
-    // never move the simulation's random sequence, or adding a line of banter
-    // would change who wins matches three years from now. Measured the hard
-    // way — assigning this from `rng` shifted every seeded outcome in the
-    // game and broke two unrelated tests.
-    commentaryTeam: assignCommentaryTeam(
-      rngFromSeed(`${settings.seed}-broadcast`),
-      COMMENTARY_TEAMS,
-      new Set(),
-    ),
-    ownerId: randomId(rng, 'owner'),
-    // Who you work for, and therefore what you are going to be leaned on
-    // about for the rest of the save.
+    commentaryTeam: ctx.isPlayer
+      ? assignCommentaryTeam(rngFromSeed(`${settings.seed}-broadcast`), COMMENTARY_TEAMS, new Set())
+      : undefined,
+    ownerId: ctx.ownerId,
     ownerPersonality: pick(rng, OWNER_PROFILES).id,
   };
+}
+
+export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: NewGamePlan): World {
+  // Everybody in the business comes from somewhere. Wrestler.homeTerritoryId
+  // has been on the type since the beginning and was written as the literal
+  // 'territory-unassigned' for every single person ever generated — see
+  // engine/career/reach.ts, which is what finally reads it.
+  const territoryIds = TERRITORIES.map((t) => t.id);
+  // Hoisted above the branch below: a plain settings->room lookup, needed by
+  // both the procedural path (as the promotion's own home) and the planned
+  // one (buildPlannedPromotion needs it for the player's ctx before the
+  // promotion object exists).
+  const startingSetup = defaultShowSetup(settings);
+
+  const wrestlers: Record<Id, Wrestler> = {};
+  let roster: Wrestler[];
+  let promotion: Promotion;
+
+  // Free agents, then managers built from them — factored out so both the
+  // planned and procedural paths can run it at the exact point in the RNG
+  // stream the procedural path always has, rather than duplicating it.
+  // See the trap in CLAUDE.md: moving an rng-consuming step shifts every
+  // seeded draw after it, and the procedural path's tests are pinned to the
+  // sequence as it has always run — roster, then this, then the promotion.
+  let pool!: ReturnType<typeof generateFreeAgentPool>;
+  let managers!: ReturnType<typeof seedManagerTalent>;
+  const buildSupportPool = (rosterSoFar: readonly Wrestler[]) => {
+    // Everyone else in the business. Generated after the roster so the
+    // distinctness check (§7) sees the signed talent first.
+    pool = generateFreeAgentPool(
+      rng,
+      settings,
+      rosterSoFar.map((w) => w.appearance),
+      new Set(rosterSoFar.map((w) => w.name.trim().toLowerCase())),
+    );
+    for (const agent of pool.wrestlers) wrestlers[agent.id] = agent;
+
+    // Managers, as people. Free agents every one of them — a company that
+    // wants a mouthpiece signs one the same as it signs anybody, and a rival
+    // can get there first. Before this they were a static rental list with
+    // no contract, no wage and nothing to poach. See engine/world/managerTalent.ts.
+    const managerBodies = generateWrestlers(rng, MANAGERS.length, {
+      settings,
+      currentYear: settings.startingYear,
+      existingAppearances: [...rosterSoFar.map((w) => w.appearance), ...pool.wrestlers.map((w) => w.appearance)],
+      existingNames: new Set(
+        [...rosterSoFar, ...pool.wrestlers].map((w) => w.name.trim().toLowerCase()),
+      ),
+    });
+    managers = seedManagerTalent(rng, MANAGERS, managerBodies, settings.startingYear, settings);
+    for (const manager of managers.wrestlers) wrestlers[manager.id] = manager;
+  };
+
+  if (plan) {
+    // The new-game screen built a plan — see PromotionPlanSlot. Every slot,
+    // player included, goes through the same builder; nothing here is a
+    // special case for "the player's own company."
+    const playerSlot = plan.slots[plan.playerIndex];
+    if (!playerSlot) throw new Error('New-game plan has no slot at playerIndex.');
+    promotion = buildPlannedPromotion(rng, settings, playerSlot, {
+      id: 'player-promotion',
+      isPlayer: true,
+      calendarOffset: 0,
+      ownerId: randomId(rng, 'owner'),
+      homeTerritoryId: startingSetup.territoryId,
+      territoryIds,
+      wrestlers,
+    });
+    roster = promotion.rosterIds.map((id) => wrestlers[id]!);
+    buildSupportPool(roster);
+  } else {
+    roster = generateWrestlers(rng, settings.startingRosterSize, {
+      // Rolls what the business believes about them, as against what is true.
+      settings,
+      homeTerritoryIds: territoryIds,
+      currentYear: settings.startingYear,
+      // Built to a division split rather than rolled per head. Left to chance a
+      // small roster regularly produced a two-woman division, which is one
+      // match for a championship, repeated until somebody retires.
+      divisionShare: settings.womensRosterShare,
+      divisionFloor: settings.womensDivisionFloor,
+    });
+    for (const w of roster) {
+      w.promotionId = 'player-promotion';
+      // Every one of them is on a plain deal. Before this, contracts were null
+      // across the board and payroll silently computed to zero.
+      w.contract = createStandardContract(w, settings, settings.startingYear);
+      // Staggered, exactly as the rivals' are below — and this is the half that
+      // was missing. A fixed two-year term for the whole opening roster meant
+      // twenty-six deals signed in week one all lapsed in week 105; a measured
+      // save went from twenty-six people to nobody in that single week, with two
+      // million in the bank and no booking decision that could have stopped it.
+      w.contract.weeksRemaining = randInt(
+        rng,
+        settings.openingContractMinWeeks,
+        settings.openingContractMaxWeeks,
+      );
+      w.contract.totalWeeks = Math.max(w.contract.totalWeeks, w.contract.weeksRemaining);
+      wrestlers[w.id] = w;
+    }
+    buildSupportPool(roster);
+
+    promotion = {
+      id: 'player-promotion',
+      name: settings.promotionName,
+      identity: settings.promotionArchetype,
+      ppvCalendar: ppvCalendarFor(settings.promotionArchetype, settings.ppvCalendarSize, 0),
+      // Two nights a week and a monthly big one — the shape the business
+      // settled on, so a player who never opens the schedule screen starts
+      // somewhere deliberate rather than somewhere accidental.
+      schedule: defaultSchedule(
+        rng,
+        settings.promotionName,
+        ppvCalendarFor(settings.promotionArchetype, settings.ppvCalendarSize, 0),
+        settings,
+      ),
+      isPlayer: true,
+      rating: settings.startingCompanyRating,
+      bankBalance: settings.startingCash,
+      rosterIds: roster.map((w) => w.id),
+      titleIds: [],
+      ownedTerritoryIds: [],
+      homeTerritoryId: startingSetup.territoryId,
+      styleProfile: styleProfileFor(settings.promotionArchetype),
+      bookingCredibility: 50,
+      reputation: 50,
+      hardcoreSaturation: 0,
+      // A new promotion has no track record; its first show sets the bar.
+      recentShowQuality: settings.startingCompanyRating,
+      weeksInTheRed: 0,
+      closedWeek: null,
+      // DESIGN: a real Wrestler with role 'owner' is M5 (owner mandates); a
+      // bare id placeholder is enough for M2, which never dereferences it.
+      // Who calls the matches. Drawn once and kept — see sim/commentary.ts.
+      //
+      // From its own stream, not the world's. Commentary is narration: it must
+      // never move the simulation's random sequence, or adding a line of banter
+      // would change who wins matches three years from now. Measured the hard
+      // way — assigning this from `rng` shifted every seeded outcome in the
+      // game and broke two unrelated tests.
+      commentaryTeam: assignCommentaryTeam(
+        rngFromSeed(`${settings.seed}-broadcast`),
+        COMMENTARY_TEAMS,
+        new Set(),
+      ),
+      ownerId: randomId(rng, 'owner'),
+      // Who you work for, and therefore what you are going to be leaned on
+      // about for the rest of the save.
+      ownerPersonality: pick(rng, OWNER_PROFILES).id,
+    };
+  }
 
   // The officials. Everybody starts unsigned except the one warm body you
   // inherited — competent enough to keep a match together, not good enough to
@@ -651,38 +841,59 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings): World {
     startingReferee.contract = createRefereeContract(startingReferee, settings, settings.startingYear);
   }
 
-  const rivals = createRivalPromotions(rng, settings);
-
-  // Every rival is staffed. A promotion with a name and no wrestlers cannot
-  // run a show, and until they run shows they are scenery.
-  for (const rival of rivals) {
-    const size = rivalRosterSize(rival.rating, settings);
-    const signed = generateWrestlers(rng, size, {
-      // Rolls what the business believes about them, as against what is true.
-      settings,
-      // Every company's roster is built to the split, not just yours.
-      divisionShare: settings.womensRosterShare,
-      divisionFloor: settings.womensDivisionFloor,
-      homeTerritoryIds: territoryIds,
-      currentYear: settings.startingYear,
-      existingAppearances: Object.values(wrestlers).map((w) => w.appearance),
-      existingNames: new Set(Object.values(wrestlers).map((w) => w.name.trim().toLowerCase())),
+  let rivals: Promotion[];
+  if (plan) {
+    // Same builder as the player, once per slot that isn't theirs — the
+    // whole point of the planned path is that a rival is not generated any
+    // differently from how it would have been if the player had chosen it.
+    rivals = plan.slots.flatMap((slot, i) => {
+      if (i === plan.playerIndex) return [];
+      return [
+        buildPlannedPromotion(rng, settings, slot, {
+          id: `rival-${i}`,
+          isPlayer: false,
+          calendarOffset: i + 1,
+          ownerId: `owner-rival-${i}`,
+          homeTerritoryId: 'territory-unassigned',
+          territoryIds,
+          wrestlers,
+        }),
+      ];
     });
-    for (const w of signed) {
-      w.promotionId = rival.id;
-      w.contract = createStandardContract(w, settings, settings.startingYear);
-      // Staggered, not uniform. Every rival deal being the same length means
-      // nobody in the business is ever running down until one week when
-      // everybody is at once — and a deal running down is the only thing that
-      // makes a man quietly available. See world/secretSigning.ts.
-      w.contract.weeksRemaining = randInt(
-        rng,
-        settings.openingContractMinWeeks,
-        settings.openingContractMaxWeeks,
-      );
-      wrestlers[w.id] = w;
+  } else {
+    rivals = createRivalPromotions(rng, settings);
+
+    // Every rival is staffed. A promotion with a name and no wrestlers cannot
+    // run a show, and until they run shows they are scenery.
+    for (const rival of rivals) {
+      const size = rivalRosterSize(rival.rating, settings);
+      const signed = generateWrestlers(rng, size, {
+        // Rolls what the business believes about them, as against what is true.
+        settings,
+        // Every company's roster is built to the split, not just yours.
+        divisionShare: settings.womensRosterShare,
+        divisionFloor: settings.womensDivisionFloor,
+        homeTerritoryIds: territoryIds,
+        currentYear: settings.startingYear,
+        existingAppearances: Object.values(wrestlers).map((w) => w.appearance),
+        existingNames: new Set(Object.values(wrestlers).map((w) => w.name.trim().toLowerCase())),
+      });
+      for (const w of signed) {
+        w.promotionId = rival.id;
+        w.contract = createStandardContract(w, settings, settings.startingYear);
+        // Staggered, not uniform. Every rival deal being the same length means
+        // nobody in the business is ever running down until one week when
+        // everybody is at once — and a deal running down is the only thing that
+        // makes a man quietly available. See world/secretSigning.ts.
+        w.contract.weeksRemaining = randInt(
+          rng,
+          settings.openingContractMinWeeks,
+          settings.openingContractMaxWeeks,
+        );
+        wrestlers[w.id] = w;
+      }
+      rival.rosterIds = signed.map((w) => w.id);
     }
-    rival.rosterIds = signed.map((w) => w.id);
   }
 
   // Tag teams, for everybody. A tag division without named teams in it is

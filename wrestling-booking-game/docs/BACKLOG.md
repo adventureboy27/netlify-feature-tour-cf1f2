@@ -49,6 +49,34 @@ generated roster for somebody who fits the scenario.
 
 ## Done and worth not re-litigating
 
+- **New-game is now three steps, and imports go through the same three
+  steps rather than a separate flow.** How many promotions (1-7, dropdown so
+  nobody can type past it) → name each one, Generate or Import per slot,
+  with a single roster file split across every Import slot → which one you
+  play as. `state/world.ts`'s `createInitialWorld` takes an optional
+  `NewGamePlan`; when absent, the original single-promotion path runs
+  completely untouched — same code, same RNG draw order, verified against
+  all ~2600 existing tests rather than assumed (an earlier version of the
+  branch reordered a few RNG-consuming steps and broke two seeded
+  `store.test.ts` cases before the fix; `buildSupportPool` now runs at the
+  exact point in the stream the procedural path always ran it, in both
+  paths). `buildPlannedPromotion` builds a promotion — player or rival,
+  generated or imported, identically — with a uniformly-rolled house style
+  when a slot didn't name one and an identical starting bank balance for
+  everyone (a deliberate call, not the old rival formula of
+  `rating*4000`). One file format serves both: entries tagged with a
+  `company` field build one promotion per distinct company, kept intact and
+  matched to a slot by name; a fully untagged file (or the untagged
+  leftovers in an otherwise-tagged one) is one flat pool, split evenly by
+  gender across whichever Import slots didn't get a name match
+  (`roster-io.ts`'s `groupByCompany`/`splitEvenlyByGender`,
+  `state/newGamePlan.ts`'s `resolveNewGamePlan`). A company nobody's slot
+  name matched is left unimported rather than silently folded into a
+  differently-named promotion. Verified in a real browser: pasted a
+  two-company-shaped file with only one company tagged, split across 3
+  slots, confirmed via `localStorage` that the tagged wrestlers landed
+  exactly on the matching promotion (not the player's, not mixed in), and
+  every promotion opened with the same starting bank balance.
 - **Undercard popularity no longer erodes the whole roster over a career.**
   Measured (`--report development`, `docs/BALANCE.md`): a roster kept fully
   stocked and booked every week, nobody idle on purpose, still lost 7 points

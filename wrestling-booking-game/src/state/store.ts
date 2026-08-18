@@ -38,6 +38,7 @@ import {
   rivalRosterSize,
   type World,
   type YearInReview,
+  type NewGamePlan,
 } from './world';
 import { createStartingTitles, awardTitle, isActiveTitle } from '../data/titles';
 import type { PromotionArchetype } from '../data/promotionIdentity';
@@ -568,6 +569,13 @@ const ORGANIC_RIVALRY_HEAT_SCALE = 0.25;
 export interface GameStore {
   world: World | null;
   newGame: (settings?: WorldSettings) => void;
+  /**
+   * The new-game screen's alternative to `newGame` — one or more promotions
+   * exactly as the player named and staffed (or imported) them, rather than
+   * the single hand-authored company `newGame` always builds. See
+   * `state/world.ts`'s `NewGamePlan`.
+   */
+  newGameFromPlan: (plan: NewGamePlan, settings?: WorldSettings) => void;
   /** Resume the saved game, if there is one. Returns whether it loaded. */
   continueGame: () => boolean;
   /** Write the current world to local storage. Called after every week. */
@@ -1943,6 +1951,15 @@ export const useGameStore = create<GameStore>()(
     newGame: (settings = defaultWorldSettings()) => {
       rng = rngFromSeed(settings.seed);
       const world = createInitialWorld(rng, settings);
+      set((state) => {
+        state.world = world;
+      });
+      saveGame(world, rng.state?.() ?? 0);
+    },
+
+    newGameFromPlan: (plan, settings = defaultWorldSettings()) => {
+      rng = rngFromSeed(settings.seed);
+      const world = createInitialWorld(rng, settings, plan);
       set((state) => {
         state.world = world;
       });

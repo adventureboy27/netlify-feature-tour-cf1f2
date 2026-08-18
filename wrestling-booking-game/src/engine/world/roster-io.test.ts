@@ -4,7 +4,10 @@ import {
   parseRoster,
   applyRosterEntry,
   serializeRoster,
+  groupByCompany,
+  splitEvenlyByGender,
   ROSTER_FORMAT,
+  type RosterEntry,
 } from './roster-io';
 import { generateWrestlers } from '../generate/wrestler';
 import { defaultWorldSettings } from './settings';
@@ -183,5 +186,85 @@ describe('putting one in', () => {
     expect(merged.appearance.hairStyle).toBe(3);
     // Untouched traits survive.
     expect(merged.appearance.skinTone).toBe(base!.appearance.skinTone);
+  });
+});
+
+describe('the company field', () => {
+  it('reads it off a parsed entry, trimmed', () => {
+    const result = parseRoster(
+      JSON.stringify({ format: 1, wrestlers: [{ name: 'Dutch Kessler', company: '  ECW  ' }] }),
+    );
+    expect(result.entries[0]!.company).toBe('ECW');
+  });
+
+  it('leaves it unset when the file does not have one', () => {
+    const result = parseRoster(JSON.stringify({ format: 1, wrestlers: [{ name: 'Nobody Special' }] }));
+    expect(result.entries[0]!.company).toBeUndefined();
+  });
+});
+
+describe('grouping by company', () => {
+  const w = (name: string, company?: string, gender?: 'm' | 'f'): RosterEntry => ({ name, company, gender });
+
+  it('reads a flat file as no grouping at all', () => {
+    expect(groupByCompany([w('A'), w('B'), w('C')])).toBeNull();
+  });
+
+  it('splits a fully-tagged file into its companies, in file order', () => {
+    const result = groupByCompany([w('A', 'ECW'), w('B', 'WCW'), w('C', 'ECW')]);
+    expect(result).not.toBeNull();
+    expect([...result!.groups.keys()]).toEqual(['ECW', 'WCW']);
+    expect(result!.groups.get('ECW')!.map((e) => e.name)).toEqual(['A', 'C']);
+    expect(result!.groups.get('WCW')!.map((e) => e.name)).toEqual(['B']);
+    expect(result!.ungrouped).toEqual([]);
+  });
+
+  it('sets aside anybody untagged in an otherwise-tagged file, rather than dropping them', () => {
+    const result = groupByCompany([w('A', 'ECW'), w('B')]);
+    expect(result!.groups.get('ECW')!.map((e) => e.name)).toEqual(['A']);
+    expect(result!.ungrouped.map((e) => e.name)).toEqual(['B']);
+  });
+});
+
+describe('splitting a flat pool across slots', () => {
+  const pool = (menCount: number, womenCount: number): RosterEntry[] => [
+    ...Array.from({ length: menCount }, (_, i) => ({ name: `Man ${i}`, gender: 'm' as const })),
+    ...Array.from({ length: womenCount }, (_, i) => ({ name: `Woman ${i}`, gender: 'f' as const })),
+  ];
+
+  it('accounts for everybody, exactly once', () => {
+    const entries = pool(9, 9);
+    const buckets = splitEvenlyByGender(entries, 4, rngFromSeed('split'));
+    expect(buckets).toHaveLength(4);
+    const allNames = buckets.flatMap((b) => b.map((e) => e.name)).sort();
+    expect(allNames).toEqual(entries.map((e) => e.name).sort());
+  });
+
+  it('keeps every slot within one of an even gender split', () => {
+    const buckets = splitEvenlyByGender(pool(20, 20), 5, rngFromSeed('gender'));
+    for (const bucket of buckets) {
+      const men = bucket.filter((e) => e.gender === 'm').length;
+      const women = bucket.filter((e) => e.gender === 'f').length;
+      expect(Math.abs(men - women)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('does not always dump the remainder on the same slot', () => {
+    // 5 into 4 slots leaves one slot with the extra men and, independently,
+    // one slot (not necessarily the same one) with the extra women.
+    const seeds = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const remainderSlots = new Set<number>();
+    for (const seed of seeds) {
+      const buckets = splitEvenlyByGender(pool(5, 5), 4, rngFromSeed(seed));
+      const sizes = buckets.map((b) => b.length);
+      remainderSlots.add(sizes.indexOf(Math.max(...sizes)));
+    }
+    expect(remainderSlots.size).toBeGreaterThan(1);
+  });
+
+  it('handles a pool nobody tagged with a gender at all', () => {
+    const entries = [{ name: 'A' }, { name: 'B' }, { name: 'C' }];
+    const buckets = splitEvenlyByGender(entries, 2, rngFromSeed('nogender'));
+    expect(buckets.flatMap((b) => b.map((e) => e.name)).sort()).toEqual(['A', 'B', 'C']);
   });
 });
