@@ -58,7 +58,6 @@ import {
   type PPVCadence,
 } from '../../engine/world/schedule';
 import { identityOf } from '../../data/promotionIdentity';
-import { BID_LEVEL_LABELS, playerBidAmount, type PlayerBidLevel } from '../../engine/world/auction';
 import { foldRisk, FOLD_RISK_LABELS } from '../../engine/world/rivalEconomy';
 import type { Wrestler } from '../../engine/types';
 import { contractUrgency } from '../../engine/economy/contracts';
@@ -86,15 +85,14 @@ export function OfficeScreen() {
   // is there so you never have to guess whether tabbing away lost something.
   const onTheDesk =
     (world.pendingEvent ? 1 : 0) +
-    (world.pendingAuction ? 1 : 0) +
+    (world.pendingFoldPicks ? 1 : 0) +
     (world.yearInReview ? 1 : 0) +
     (world.mandate ? 1 : 0) +
     (world.pendingBroadcastOffer ? 1 : 0) +
     world.pendingSponsorOffers.length +
     world.lastDealsLost.length +
     (world.lastMandateOutcome ? 1 : 0) +
-    (world.lastEventOutcome ? 1 : 0) +
-    (world.lastAuction ? 1 : 0);
+    (world.lastEventOutcome ? 1 : 0);
   const inContracts =
     world.pendingRenewals.length + world.approachOffers.length + world.releaseRequests.length;
   // A promotion with nobody in a striped shirt is a promotion where a
@@ -231,8 +229,8 @@ function DeskTab() {
   const choose = useGameStore((s) => s.chooseEventOption);
   const dismiss = useGameStore((s) => s.dismissEventOutcome);
   const dismissYear = useGameStore((s) => s.dismissYearInReview);
-  const bid = useGameStore((s) => s.bidOnAuction);
-  const dismissAuction = useGameStore((s) => s.dismissAuctionResult);
+  const pickFolded = useGameStore((s) => s.pickFoldedWrestler);
+  const finishPicking = useGameStore((s) => s.finishFoldPicking);
   // Keyed to which event it's open for, not a bare boolean: a branching
   // conversation keeps the same eventId across nodes and should stay open,
   // but a brand new event firing later needs its own "Talk it through" tap.
@@ -339,85 +337,60 @@ function DeskTab() {
         </section>
       )}
 
-      {/* A company has closed, and everything it had is on the table. */}
-      {world.pendingAuction && (
-        <section className="mb-3 rounded border border-sky-800 bg-sky-950/30 p-3" data-testid="auction">
-          <div className="text-xs uppercase tracking-wide text-sky-400">Fire sale</div>
-          <h2 className="mt-1 text-sm font-semibold">{world.pendingAuction.lot.fromPromotionName} has closed</h2>
+      {/* A company has closed. Its belts are already vacant — see
+          TitleMemorialPanel/the wire — and its roster is here, open for the
+          booker to pick through one at a time: anybody they want, and a
+          rival wanting them too is what makes it a contest. */}
+      {world.pendingFoldPicks && (
+        <section className="mb-3 rounded border border-sky-800 bg-sky-950/30 p-3" data-testid="fold-picks">
+          <div className="text-xs uppercase tracking-wide text-sky-400">A promotion has closed</div>
+          <h2 className="mt-1 text-sm font-semibold">{world.pendingFoldPicks.fromPromotionName} is gone</h2>
           <p className="mt-1 text-xs text-neutral-300">
-            Everything goes as one lot: {world.pendingAuction.lot.wrestlerIds.length} contracts,{' '}
-            {world.pendingAuction.lot.titleIds.length} championships
-            {world.pendingAuction.lot.cash > 0 && (
-              <>
-                , and <Money amount={world.pendingAuction.lot.cash} /> left in the account
-              </>
-            )}
-            . Sealed bids — one round, and everybody still open is bidding.
+            {world.pendingFoldPicks.wrestlerIds.length} of their wrestlers are loose in the business. Pick
+            anybody you want — if a rival wants them too, it goes to a bidding war. Whoever is left when
+            you are done goes to free agency.
           </p>
-          <p className="mt-1 text-[11px] text-neutral-500">
-            Appraised at <Money amount={world.pendingAuction.lot.appraisal} />. You have{' '}
-            <Money amount={world.promotion.bankBalance} />.
-          </p>
+          {world.foldBidQueue.length > 0 && (
+            <p className="mt-1 text-[11px] text-amber-300">
+              {world.foldBidQueue.length} contested {world.foldBidQueue.length === 1 ? 'pick is' : 'picks are'}{' '}
+              queued for a bidding war, one at a time.
+            </p>
+          )}
 
-          <ul className="mt-2 flex flex-wrap gap-1 text-[10px] text-neutral-400">
-            {world.pendingAuction.lot.titleIds
-              .map((id) => world.titles.find((t) => t.id === id))
-              .filter(Boolean)
-              .map((title) => (
-                <li
-                  key={title!.id}
-                  className="rounded px-1 py-px"
-                  style={{ backgroundColor: title!.colorway.strap, color: title!.colorway.plate }}
+          <div className="mt-2 flex flex-col gap-1">
+            {world.pendingFoldPicks.wrestlerIds.map((id) => {
+              const person = world.wrestlers[id];
+              if (!person) return null;
+              return (
+                <div
+                  key={id}
+                  data-testid={`fold-pick-row-${id}`}
+                  className="flex items-center justify-between gap-2 rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5"
                 >
-                  {title!.name}
-                </li>
-              ))}
-          </ul>
-
-          <div className="mt-3 flex flex-col gap-1">
-            {(['aggressive', 'fair', 'lowball', 'pass'] as PlayerBidLevel[]).map((level) => (
-              <button
-                key={level}
-                type="button"
-                data-testid={`bid-${level}`}
-                onClick={() => bid(level)}
-                className="flex items-center justify-between rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-left text-xs hover:border-neutral-600"
-              >
-                <span>{BID_LEVEL_LABELS[level]}</span>
-                <span className="text-neutral-500">
-                  {level === 'pass' ? (
-                    '—'
-                  ) : (
-                    <Money amount={playerBidAmount(level, world.pendingAuction!.lot, world.settings)} />
-                  )}
-                </span>
-              </button>
-            ))}
+                  <div className="min-w-0">
+                    <div className="truncate text-xs font-medium">{person.name}</div>
+                    <div className="text-[10px] text-neutral-500">{CAREER_STATUS_LABELS[person.careerStatus]}</div>
+                  </div>
+                  <button
+                    type="button"
+                    data-testid={`pick-folded-${id}`}
+                    onClick={() => pickFolded(id)}
+                    className="shrink-0 rounded bg-sky-700 px-2 py-1 text-[11px] font-medium text-white hover:bg-sky-600"
+                  >
+                    Pick
+                  </button>
+                </div>
+              );
+            })}
           </div>
-        </section>
-      )}
 
-      {world.lastAuction && (
-        <section className="mb-3 rounded border border-neutral-800 bg-neutral-900 p-3" data-testid="auction-result">
-          <div className="text-xs uppercase tracking-wide text-neutral-500">The lot went to</div>
-          <p className="mt-1 text-sm">
-            <span className="font-medium">{world.lastAuction.wonByName}</span>
-            {world.lastAuction.result.winnerId ? (
-              <>
-                {' '}
-                took {world.lastAuction.lot.fromPromotionName} for{' '}
-                <Money amount={world.lastAuction.result.winningBid} />.
-              </>
-            ) : (
-              <> met the reserve. The contracts lapsed and the roster is loose in the business.</>
-            )}
-          </p>
           <button
             type="button"
-            onClick={dismissAuction}
-            className="mt-2 rounded bg-neutral-800 px-3 py-1 text-xs hover:bg-neutral-700"
+            data-testid="finish-fold-picking"
+            onClick={finishPicking}
+            className="mt-3 rounded bg-neutral-800 px-3 py-1.5 text-xs hover:bg-neutral-700"
           >
-            Understood
+            Done — the rest go to free agency
           </button>
         </section>
       )}

@@ -46,7 +46,7 @@ import {
   leaveTheBusiness,
   commitTitleChange,
   closePromotion,
-  resolveAuction,
+  finishFoldPicking,
   settleSupershow,
   openBiddingWar,
   settleBiddingWar,
@@ -360,7 +360,6 @@ import { publishPositions } from '../engine/world/publication';
 import { generateFanReaction, crowdVerdict } from '../engine/world/fanReaction';
 import { FAN_HANDLES } from '../data/fanVoices';
 import { Cap, pronounsFor } from '../engine/career/pronouns';
-import type { PlayerBidLevel } from '../engine/world/auction';
 import {
   recordTeamResult,
   disbandBrokenTeams,
@@ -574,10 +573,10 @@ export interface GameStore {
   /** Answer the pending creative event. */
   chooseEventOption: (optionId: string) => void;
   dismissEventOutcome: () => void;
-  /** Bid on a closed company's assets, or let them go. */
-  bidOnAuction: (level: PlayerBidLevel) => void;
-  /** Clear the fire-sale result once it has been read. */
-  dismissAuctionResult: () => void;
+  /** Pick one wrestler off a folded promotion's roster — signs them directly, or opens a bidding war if a rival wants them too. */
+  pickFoldedWrestler: (wrestlerId: Id) => void;
+  /** Done browsing the folded roster — whoever is left goes to free agency. */
+  finishFoldPicking: () => void;
   /** Clear the turn-of-the-year summary once it has been read. */
   dismissYearInReview: () => void;
   /** Clear the owner's verdict on the last mandate once it has been read. */
@@ -966,9 +965,10 @@ export const useGameStore = create<GameStore>()(
         // record of what happened rather than a second guess at it.
         const books = new StatementBuilder(world.week, world.promotion.bankBalance);
 
-        // An auction you never answered goes ahead without you. The business
-        // does not wait for a booker to make up their mind.
-        if (world.pendingAuction) resolveAuction(world, rng, 'pass', books);
+        // A folded roster left open from a prior week — the booker gets the
+        // rest of that week to pick through it, then the business moves on.
+        // Whoever is left goes to free agency, same as picking nobody.
+        if (world.pendingFoldPicks && world.pendingFoldPicks.openedWeek < world.week) finishFoldPicking(world);
 
         // An auction the booker never answered goes ahead without them. The
         // room does not hold a star off the market because somebody did not
@@ -3822,7 +3822,7 @@ export const useGameStore = create<GameStore>()(
             settings: world.settings,
           };
 
-          if (!world.pendingAuction && shouldFold(failing)) {
+          if (!world.pendingFoldPicks && shouldFold(failing)) {
             closePromotion(world, rival);
           } else if (
             rival.weeksInTheRed > world.settings.rivalBankruptcyGraceWeeks &&

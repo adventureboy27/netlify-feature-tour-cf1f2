@@ -30,6 +30,8 @@ import { findRelationship } from '../engine/career/relationships';
 import { applyDrift } from '../engine/career/circle';
 import { disciplineOf, sanctionFor, applySanction } from '../engine/career/discipline';
 import type { Leave } from '../engine/career/onOurWatch';
+import { wontWorkForUs, stillHeldAgainstUs } from '../engine/career/onOurWatch';
+import { canSign } from '../engine/world/freeAgents';
 import type { EventEffect } from '../engine/events/types';
 import type { World } from './world';
 import type { Rng } from '../engine/rng';
@@ -47,8 +49,7 @@ import { gradeFromLength, severityOf } from '../engine/sim/casualties';
 import { recordInjury } from '../engine/career/theBody';
 import { wire, biddingOpenedLine, biddingSettledLine } from '../engine/world/wire';
 import { createStandardContract, askingRate, desiredContractWeeks } from '../engine/economy/contracts';
-import { exitTerms } from '../engine/economy/termination';
-import { appraise, aiBid, settleAuction, playerBidAmount, type Bid, type PlayerBidLevel } from '../engine/world/auction';
+import { exitTerms, canBeSigned, guaranteedShareFor } from '../engine/economy/termination';
 import { StatementBuilder } from '../engine/economy/statement';
 import { runSupershow } from '../engine/world/supershowRun';
 import { canWork } from '../engine/world/rivalBooking';
@@ -462,118 +463,113 @@ export function commitTitleChange(world: World, titleIndex: number, newHolderIds
 }
 
 /**
- * Close a company down and put everything it owned on the block. The lot is
- * one package — contracts, belts and whatever was in the account — because a
- * dead promotion being swallowed whole is an event, and its roster being
- * quietly redistributed is not.
+ * Close a company down. Every belt it held goes vacant immediately — a
+ * champion still needs a company behind them to defend it for — and the
+ * roster goes up for the booker to pick through: whoever they want, one at a
+ * time, with a rival's competing interest the only thing that turns a pick
+ * into a real contest. See pickFromFoldedRoster/finishFoldPicking.
  */
 export function closePromotion(world: World, promotion: Promotion): void {
   promotion.closedWeek = world.week;
 
   const roster = promotion.rosterIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
-  const titles = world.titles.filter((t) => t.promotionId === promotion.id);
-  const cash = Math.max(0, promotion.bankBalance);
+  for (const title of world.titles) {
+    if (title.promotionId !== promotion.id || title.vacant) continue;
+    stripTitle(world, title, 'promotionFolded');
+  }
 
-  world.pendingAuction = {
+  world.pendingFoldPicks = {
+    fromPromotionId: promotion.id,
+    fromPromotionName: promotion.name,
+    wrestlerIds: roster.map((w) => w.id),
     openedWeek: world.week,
-    lot: {
-      fromPromotionId: promotion.id,
-      fromPromotionName: promotion.name,
-      wrestlerIds: roster.map((w) => w.id),
-      titleIds: titles.map((t) => t.id),
-      cash,
-      appraisal: appraise(roster, titles, cash, world.settings),
-    },
   };
+
+  promotion.rosterIds = [];
+  promotion.titleIds = [];
+  promotion.bankBalance = 0;
 }
 
 /**
- * Settle the fire sale. The player's bid comes in as a level; everybody still
- * open bids for themselves. Whoever wins absorbs the roster and the belts —
- * lineage and all — and pays for the privilege.
+ * The booker reaches for one specific wrestler off a folded roster. If no
+ * rival wants them too, they're signed on the spot — this is a pick, not a
+ * negotiation. If a rival does want them, it's a real contest and goes
+ * through the bidding-war module instead (queued if one is already running).
  */
-export function resolveAuction(world: World, rng: Rng, playerLevel: PlayerBidLevel, books?: StatementBuilder): void {
-  const pending = world.pendingAuction;
-  if (!pending) return;
-  const { lot } = pending;
+export function pickFromFoldedRoster(world: World, rng: Rng, wrestlerId: Id): void {
+  const pending = world.pendingFoldPicks;
+  if (!pending || !pending.wrestlerIds.includes(wrestlerId)) return;
+  const wrestler = world.wrestlers[wrestlerId];
+  if (!wrestler) return;
 
-  const incoming = lot.wrestlerIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
-  const bidders = world.rivals.filter((r) => r.closedWeek === null && r.id !== lot.fromPromotionId);
+  pending.wrestlerIds = pending.wrestlerIds.filter((id) => id !== wrestlerId);
 
-  const bids: Bid[] = bidders.map((rival) => ({
-    promotionId: rival.id,
-    amount: aiBid(rng, rival, lot, incoming, world.settings),
-  }));
+  const minimum = askingMinimum(rng, wrestler, world.settings);
+  const rivalsInterested = interestedIn(
+    wrestler,
+    world.rivals,
+    { weeklyPayroll: (id) => payrollOf(world, id), minimum },
+    world.settings,
+  );
 
-  const playerAmount = playerBidAmount(playerLevel, lot, world.settings);
-  // You cannot bid money you do not have. Bidding the house is allowed;
-  // bidding somebody else's is not.
-  const affordable = Math.min(playerAmount, Math.max(0, world.promotion.bankBalance));
-  if (affordable > 0 && !world.folded) {
-    bids.push({ promotionId: world.promotion.id, amount: affordable });
+  if (rivalsInterested.length === 0) {
+    signPickedWrestler(world, wrestler);
+    return;
   }
 
-  const standingOf = (id: Id) =>
-    id === world.promotion.id ? world.promotion.rating : (world.rivals.find((r) => r.id === id)?.rating ?? 0);
-  const result = settleAuction(bids, lot, world.settings, standingOf);
-
-  const winner =
-    result.winnerId === world.promotion.id
-      ? world.promotion
-      : world.rivals.find((r) => r.id === result.winnerId);
-
-  if (winner) {
-    winner.bankBalance -= result.winningBid;
-    // The cash in the dead company's account comes with the lot.
-    winner.bankBalance += lot.cash;
-    if (winner.id === world.promotion.id) {
-      books?.spend('other', result.winningBid);
-      books?.earn('other', lot.cash);
-    }
-
-    for (const w of incoming) {
-      w.promotionId = winner.id;
-      // Deals carry over as they were — the new owner inherits the contract,
-      // including whatever it costs them.
-      if (!w.contract) w.contract = createStandardContract(w, world.settings, world.settings.startingYear);
-      winner.rosterIds.push(w.id);
-    }
-
-    for (const title of world.titles) {
-      if (!lot.titleIds.includes(title.id)) continue;
-      // The belt keeps its name and every reign in its history. It is being
-      // defended somewhere else now, that is all.
-      title.promotionId = winner.id;
-      winner.titleIds.push(title.id);
-    }
-  } else {
-    // Nobody met the reserve. The contracts lapse and everyone is loose.
-    for (const w of incoming) {
-      w.promotionId = null;
-      w.contract = null;
-      world.freeAgents.push({
-        wrestlerId: w.id,
-        reason: 'released',
-        askingRate: askingRate(w, world.settings),
-        wantsWeeks: desiredContractWeeks(w, world.settings),
-        weeksUnsigned: 0,
-      });
-    }
+  // Contested. Only one bidding war can run at a time, so anything already
+  // in progress means this one waits its turn.
+  if (world.pendingBiddingWar) {
+    world.foldBidQueue.push(wrestlerId);
+    return;
   }
-
-  const dead = world.rivals.find((r) => r.id === lot.fromPromotionId);
-  if (dead) {
-    dead.rosterIds = [];
-    dead.titleIds = [];
-    dead.bankBalance = 0;
+  if (!openBiddingWar(world, rng, wrestler, 'foldPickup')) {
+    // The interest check above and openBiddingWar's own don't ask exactly
+    // the same question (affordability against a freshly-drawn minimum vs.
+    // the announced one) — on the rare miss, the pick still goes through
+    // rather than vanishing.
+    signPickedWrestler(world, wrestler);
   }
+}
 
-  world.lastAuction = {
-    lot,
-    result,
-    wonByName: winner?.name ?? 'Nobody',
+/** Sign a folded-roster pick straight onto the roster, same guardrails as an ordinary free-agent signing. */
+function signPickedWrestler(world: World, wrestler: Wrestler): void {
+  if (!canSign(wrestler, world.promotion.bankBalance, world.settings)) return;
+  if (!canBeSigned(wrestler)) return;
+  const held = stillHeldAgainstUs(world.promotion.deathsOnOurWatch ?? [], world.week, world.settings);
+  if (wontWorkForUs(wrestler, held, world.settings)) return;
+
+  wrestler.promotionId = world.promotion.id;
+  wrestler.contract = {
+    ...createStandardContract(wrestler, world.settings, world.settings.startingYear, desiredContractWeeks(wrestler, world.settings)),
+    weeklyRate: askingRate(wrestler, world.settings),
+    guaranteedPct: guaranteedShareFor(wrestler.ego, world.settings),
   };
-  world.pendingAuction = null;
+  world.promotion.rosterIds.push(wrestler.id);
+}
+
+/**
+ * The booker is done browsing. Whoever is left in the pool — passed over, or
+ * never gotten to — goes into ordinary free agency, same as any other
+ * release. Nobody vanishes; everybody lands somewhere.
+ */
+export function finishFoldPicking(world: World): void {
+  const pending = world.pendingFoldPicks;
+  if (!pending) return;
+  for (const id of pending.wrestlerIds) {
+    const w = world.wrestlers[id];
+    if (!w) continue;
+    w.promotionId = null;
+    w.contract = null;
+    world.freeAgents.push({
+      wrestlerId: id,
+      reason: 'released',
+      askingRate: askingRate(w, world.settings),
+      wantsWeeks: desiredContractWeeks(w, world.settings),
+      weeksUnsigned: 0,
+    });
+  }
+  world.pendingFoldPicks = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -741,12 +737,22 @@ export function openBiddingWar(world: World, rng: Rng, wrestler: Wrestler, reaso
   // One at a time. Two open auctions would mean two blocking dialogs and a
   // player choosing between them, which is not the decision this is about.
   if (world.pendingBiddingWar) return false;
-  if (!worthAnAuction(wrestler, world.settings)) return false;
+  // A fold pickup earns its place in the room by the booker wanting them and
+  // a rival wanting them too — that is the whole test. The ordinary
+  // star/phenom popularity gate would exclude exactly the mid-card wrestlers
+  // this pass is about surfacing.
+  if (reason !== 'foldPickup' && !worthAnAuction(wrestler, world.settings)) return false;
 
   // Drawn once, before anybody is asked anything — the number is the thing
   // that decides who is even in the room.
   const minimum = askingMinimum(rng, wrestler, world.settings);
-  const everyone = [world.promotion, ...world.rivals];
+  // A fold pickup skips interestedIn's own desire test for the player: they
+  // already expressed it by picking this exact wrestler off the folded
+  // roster, so testing it again against a generic popularity-vs-rating
+  // formula could contradict the click they just made. Rivals still go
+  // through the ordinary desire test — that is what decides whether the
+  // pick is actually contested.
+  const everyone = reason === 'foldPickup' ? world.rivals : [world.promotion, ...world.rivals];
   const interested = interestedIn(
     wrestler,
     everyone,
@@ -760,7 +766,11 @@ export function openBiddingWar(world: World, rng: Rng, wrestler: Wrestler, reaso
   const rivals = interested.filter((p) => p.id !== world.promotion.id);
   // Fewer than two other companies in the room and this is a negotiation, not
   // an auction — the ordinary free-agent flow handles that perfectly well.
-  if (rivals.length < world.settings.biddingMinRivals) return false;
+  // A fold pickup is different: the booker already reached for this one
+  // specifically, so a single rival also wanting them is the whole contest —
+  // "any that they choose that other companies also want."
+  const minRivals = reason === 'foldPickup' ? 1 : world.settings.biddingMinRivals;
+  if (rivals.length < minRivals) return false;
 
   world.pendingBiddingWar = {
     id: `war-${world.nextId++}`,
@@ -773,8 +783,9 @@ export function openBiddingWar(world: World, rng: Rng, wrestler: Wrestler, reaso
     round: 1,
     reBidReason: null,
     // The player is only invited if they are one of the interested parties.
-    // Being told about an auction you could never have entered is noise.
-    playerIn: interested.some((p) => p.id === world.promotion.id) ? null : false,
+    // Being told about an auction you could never have entered is noise. A
+    // fold pickup always invites the player — see above.
+    playerIn: reason === 'foldPickup' || interested.some((p) => p.id === world.promotion.id) ? null : false,
     rivalIds: rivals.map((p) => p.id),
     bids: [],
     result: null,
@@ -895,6 +906,23 @@ export function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid 
         world.week,
       ),
     );
+  } else if (war.reason === 'foldPickup') {
+    // Every door in the room was one they would not walk through. Unlike an
+    // ordinary bidding war they have nowhere to "stay" — the promotion that
+    // employed them is gone — so they land in free agency like anybody else
+    // the booker didn't pick.
+    wrestler.promotionId = null;
+    wrestler.contract = null;
+    world.freeAgents.push({
+      wrestlerId: wrestler.id,
+      reason: 'released',
+      askingRate: askingRate(wrestler, world.settings),
+      wantsWeeks: desiredContractWeeks(wrestler, world.settings),
+      weeksUnsigned: 0,
+    });
+    world.weeklyNews.push(
+      biddingSettledLine(`${war.wrestlerName} signed with nobody. Not one of those offers was worth taking.`, world.week),
+    );
   } else {
     // Every door in the room was one they would not walk through. They stay
     // where they are — unsigned, and still in the business.
@@ -906,6 +934,22 @@ export function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid 
   war.stage = 'settled';
   world.lastBiddingWar = { war, result: war.result ?? null } as World['lastBiddingWar'];
   world.pendingBiddingWar = null;
+
+  // The booker can pick several contested wrestlers off one folded roster,
+  // but only one bidding war can ever be open — so the rest queue and open
+  // one at a time as each settles. Harmless no-op when the queue is empty or
+  // this wasn't a fold pickup at all.
+  while (world.foldBidQueue.length > 0 && !world.pendingBiddingWar) {
+    const nextId = world.foldBidQueue.shift()!;
+    const next = world.wrestlers[nextId];
+    if (!next) continue;
+    // Same fallback as the non-queued pick: if the recheck disagrees with
+    // whatever queued this one, the pick still goes through rather than the
+    // wrestler quietly vanishing with no resolution at all.
+    if (!openBiddingWar(world, rng, next, 'foldPickup')) {
+      signPickedWrestler(world, next);
+    }
+  }
 }
 
 /**

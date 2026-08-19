@@ -167,7 +167,8 @@ export type TitleReignEndMethod =
   | 'released'
   | 'contractExpired'
   | 'died'
-  | 'longTermInjury';
+  | 'longTermInjury'
+  | 'promotionFolded';
 
 export interface TitleReignRecord {
   titleId: Id;
@@ -3454,24 +3455,6 @@ export interface WorldSettings {
   minimumPromotions: number;
   /** Cash an investor puts into a company the business cannot afford to lose. */
   rivalBailoutCash: number;
-
-  // The fire sale when a company closes.
-  /** What a maximum-popularity wrestler adds to a package's appraisal. */
-  auctionValuePerStar: number;
-  /** What a maximum-prestige championship adds. */
-  auctionValuePerTitle: number;
-  /** Fraction of the appraisal a bid must clear to be valid at all. */
-  auctionReserveFraction: number;
-  auctionBaseAppetite: number;
-  auctionStyleFitAppetite: number;
-  auctionRosterRoomAppetite: number;
-  auctionAmbitionAppetite: number;
-  auctionBidVariance: number;
-  /** Most of its bank any company will spend on one lot. */
-  auctionMaxBankFraction: number;
-  auctionLowballFraction: number;
-  auctionFairFraction: number;
-  auctionAggressiveFraction: number;
 
   /** How many tag teams each promotion is formed with. */
   tagTeamsPerPromotion: number;

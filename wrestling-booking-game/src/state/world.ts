@@ -43,7 +43,6 @@ import type { SecretSigning } from '../engine/world/secretSigning';
 import type { Storyline } from '../engine/world/storyline';
 import { emptyYearRecord } from '../engine/career/awards';
 import type { RivalShow } from '../engine/world/rivalBooking';
-import type { AuctionLot, AuctionResult } from '../engine/world/auction';
 import type { PublicationPositions } from '../engine/world/publication';
 import type { Tweet } from '../engine/world/fanReaction';
 import type { PoachingOffer } from '../engine/world/poaching';
@@ -188,10 +187,17 @@ export interface World {
   lastPublication: PublicationPositions | null;
   /** What the fans said about the last show. */
   lastFanReaction: { week: number; verdict: string; tweets: Tweet[] } | null;
-  /** A fire sale awaiting your bid. Resolves whether or not you answer. */
-  pendingAuction: PendingAuction | null;
-  /** How the last fire sale went. Shown once. */
-  lastAuction: { lot: AuctionLot; result: AuctionResult; wonByName: string } | null;
+  /**
+   * A folded promotion's roster, waiting on the booker to pick through it.
+   * Anybody they want and a rival wants too goes to the bidding-war module;
+   * whoever is left when they're done goes to free agency.
+   */
+  pendingFoldPicks: PendingFoldPicks | null;
+  /**
+   * Fold pickups the booker has already chosen that are contested, waiting
+   * their turn — only one bidding war can run at a time.
+   */
+  foldBidQueue: Id[];
   /** What the other promotions ran this week. Replaced every week. */
   rivalShows: RivalShow[];
   /**
@@ -477,9 +483,11 @@ export interface YearInReview {
   awards: AwardWinner[];
 }
 
-/** A lot on the table, with the week it has to be answered by. */
-export interface PendingAuction {
-  lot: AuctionLot;
+/** A folded promotion's roster, open for the booker to pick through. */
+export interface PendingFoldPicks {
+  fromPromotionId: Id;
+  fromPromotionName: string;
+  wrestlerIds: Id[];
   openedWeek: number;
 }
 
@@ -1004,8 +1012,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     lastIncidents: [],
     lastPublication: null,
     lastFanReaction: null,
-    pendingAuction: null,
-    lastAuction: null,
+    pendingFoldPicks: null,
+    foldBidQueue: [],
     tvHistory: [],
     pendingEvent: null,
     lastEventOutcome: null,

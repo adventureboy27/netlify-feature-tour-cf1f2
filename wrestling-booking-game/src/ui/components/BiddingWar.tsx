@@ -146,12 +146,24 @@ export function BiddingWarPanel() {
         data-testid="bidding-invite"
         className="mb-3 rounded border border-amber-700 bg-amber-950/30 p-3"
       >
+        {/* The one moment in the game that gets to be loud about it — a real
+            star just hit the open market. Every other panel in this file
+            leads with a quiet all-caps eyebrow; this one leads with the
+            marquee. */}
+        <div
+          data-testid="bidding-war-banner"
+          className="mb-2 text-center text-2xl font-extrabold uppercase tracking-widest text-amber-400 [text-shadow:0_0_12px_rgba(251,191,36,0.5)]"
+        >
+          Bidding War
+        </div>
         <div className="text-[10px] uppercase tracking-wide text-amber-500">
           {war.round > 1
             ? 'They have sent the room away'
             : war.reason === 'phenom'
               ? 'The schools have turned out somebody'
-              : 'A name has hit the open market'}
+              : war.reason === 'foldPickup'
+                ? 'A folded promotion left this one loose'
+                : 'A name has hit the open market'}
         </div>
         {war.reBidReason && (
           <p className="mt-1 rounded bg-rose-950/40 px-2 py-1 text-xs text-rose-200">{war.reBidReason}</p>
@@ -170,7 +182,9 @@ export function BiddingWarPanel() {
             <p className="mt-1 text-sm text-amber-100">
               {war.reason === 'phenom'
                 ? `${subject.age} years old, out of the school this week, and already able to work. ${war.rivalIds.length} other companies want them.`
-                : `${subject.name}'s deal is up and they are not re-signing quietly. ${war.rivalIds.length} other companies are in.`}
+                : war.reason === 'foldPickup'
+                  ? `${subject.name}'s promotion just closed its doors. ${war.rivalIds.length} other ${war.rivalIds.length === 1 ? 'company wants' : 'companies want'} them as much as you do.`
+                  : `${subject.name}'s deal is up and they are not re-signing quietly. ${war.rivalIds.length} other companies are in.`}
             </p>
             <p className="mt-2 text-sm font-medium text-amber-200">
               Their people have named a number: nothing under {money(war.minimum)} a week gets read.
@@ -210,6 +224,12 @@ export function BiddingWarPanel() {
 
   return (
     <section data-testid="bidding-sheet" className="mb-3 rounded border border-amber-700 bg-amber-950/20 p-3">
+      <div
+        data-testid="bidding-war-banner"
+        className="mb-2 text-center text-2xl font-extrabold uppercase tracking-widest text-amber-400 [text-shadow:0_0_12px_rgba(251,191,36,0.5)]"
+      >
+        Bidding War
+      </div>
       <div className="text-[10px] uppercase tracking-wide text-amber-500">Your one offer</div>
       <div className="mt-2 flex gap-3">
         <div className="shrink-0">

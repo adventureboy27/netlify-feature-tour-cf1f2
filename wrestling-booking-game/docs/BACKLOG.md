@@ -382,3 +382,48 @@ than the one already made.
   is written down in `types.ts` above the `Clause` union.
 - The pronoun guard (`career/pronouns.test.ts`) now walks `engine/`, `data/`,
   `state/` and `ui/`. Every widening of it has found more; do not narrow it.
+- **A folded promotion's roster is now picked through, not auctioned as one
+  lot.** Player asked directly: "the user should get a pick any of the
+  bankrupt promotion's wrestlers. any that they choose that other companies
+  also want should go to the bidding war module. the rest should go to free
+  agency." Replaces the whole-roster `engine/world/auction.ts` module
+  (`AuctionLot`/`appraise`/`aiBid`/`settleAuction`, deleted outright) with
+  `World.pendingFoldPicks` — the fold's roster sits open for the booker to
+  browse, `pickFromFoldedRoster` (`state/storeHelpers.ts`) signs an
+  uncontested pick straight onto the roster (`signPickedWrestler`, same
+  guard triplet as `signFreeAgent` — 90-day freeze, grudge, affordability —
+  applied directly rather than through the ordinary free-agent flow) and
+  routes a contested one into the bidding-war module under a new
+  `BiddingReason: 'foldPickup'`. `finishFoldPicking` sweeps whatever the
+  booker leaves behind to `world.freeAgents`, same as any other release.
+  Titles the closed promotion held vacate immediately via the existing
+  `stripTitle` (new `TitleReignEndMethod: 'promotionFolded'`) — the player's
+  ask was scoped to wrestlers, so belts were not folded into the pick UI.
+  Two real wrinkles: `interestedIn`'s "do they actually want him" desire
+  test runs against `world.rivals` only for a fold pickup (not the player),
+  since the player's interest is already the pick itself — testing it again
+  against the generic popularity-vs-rating formula could contradict the
+  click; and `openBiddingWar`'s one-war-at-a-time limit meant multiple
+  contested picks off one roster need a queue (`World.foldBidQueue`,
+  drained one at a time at the true end of `settleBiddingWar`, with the
+  same "recheck disagreed, sign them anyway rather than let them vanish"
+  fallback the non-queued path already had). A `foldPickup` war with no
+  winning bid sends the wrestler to free agency rather than "back" to their
+  now-nonexistent employer. Second half of the ask — "have Bidding WAR
+  displayed really big and bold at the top, it's an exciting thing" — is a
+  new banner in `ui/components/BiddingWar.tsx`, plus a `foldPickup`-specific
+  line in both the invitation and result copy (`engine/economy/bidding.ts`)
+  so a fold pickup reads differently from a plain star auction. New direct
+  test coverage in `state/foldPicks.test.ts` (closing vacates titles and
+  opens the pool; an uncontested pick signs outright; a contested pick opens
+  a `foldPickup` war with the player unconditionally invited; two contested
+  picks queue and drain in order; a war with no winner lands the wrestler in
+  free agency; `finishFoldPicking` sweeps the leftovers) — the prior auction
+  system had no direct test of its own either, only the fold-trigger
+  (`rivalWeek`/`shouldFold`/`foldRisk`) tests, which moved as-is to the new
+  `engine/world/rivalEconomy.test.ts`. Verified: `tsc --noEmit` clean, full
+  suite 131 files / 2666 tests passed (2660 prior + 6 new), `npm run sim`
+  and `npm run build` both clean, and a real-browser pass confirming the
+  fold-picks panel, the queued-pick notice, the queue draining into a fresh
+  war on settle, and the bold amber "BIDDING WAR" banner all render as
+  designed.

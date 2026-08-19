@@ -111,7 +111,9 @@ export type BiddingReason =
   /** A star whose contract has run out and who is now on the open market. */
   | 'freeAgentStar'
   /** A school leaver who came out with a professional's tools. */
-  | 'phenom';
+  | 'phenom'
+  /** The booker picked them off a folded promotion's roster and at least one rival wants them too. */
+  | 'foldPickup';
 
 export interface BiddingResult {
   winningPromotionId: Id;
@@ -858,7 +860,9 @@ export function resultLine(war: BiddingWar, result: BiddingResult): string {
   const opener =
     war.reason === 'phenom'
       ? `Every company in the business wanted ${war.wrestlerName} out of the school.`
-      : `${war.wrestlerName} hit the open market and the phones did not stop.`;
+      : war.reason === 'foldPickup'
+        ? `${war.wrestlerName} came out of a folded promotion and more than one company wanted them.`
+        : `${war.wrestlerName} hit the open market and the phones did not stop.`;
   return `${opener} ${result.winningPromotionName} have signed them, ${field}. ${result.swungIt}`;
 }
 
@@ -872,7 +876,9 @@ export function invitationLine(war: BiddingWar, wrestler: Wrestler, rivalCount: 
   const who =
     war.reason === 'phenom'
       ? `${wrestler.name} came out of the school this week with a professional's tools and a professional's body, at ${wrestler.age}.`
-      : `${wrestler.name}'s contract is up.`;
+      : war.reason === 'foldPickup'
+        ? `${wrestler.name} is loose in the business after their promotion closed its doors.`
+        : `${wrestler.name}'s contract is up.`;
   const room =
     rivalCount === 1
       ? 'One other company is in for them.'

@@ -6,12 +6,12 @@
 
 import type { StateCreator } from 'zustand';
 import { rng, type GameStore } from '../store';
-import { resolveAuction, settleBiddingWar } from '../storeHelpers';
+import { settleBiddingWar, pickFromFoldedRoster, finishFoldPicking } from '../storeHelpers';
 
 type BusinessDealsSlice = Pick<
   GameStore,
-  | 'bidOnAuction'
-  | 'dismissAuctionResult'
+  | 'pickFoldedWrestler'
+  | 'finishFoldPicking'
   | 'answerBroadcastOffer'
   | 'signSponsor'
   | 'dropSponsor'
@@ -23,15 +23,15 @@ type BusinessDealsSlice = Pick<
 export const createBusinessDealsSlice: StateCreator<GameStore, [['zustand/immer', never]], [], BusinessDealsSlice> = (
   set,
 ) => ({
-  bidOnAuction: (level) => {
+  pickFoldedWrestler: (wrestlerId) => {
     set((state) => {
-      if (state.world?.pendingAuction) resolveAuction(state.world, rng, level);
+      if (state.world) pickFromFoldedRoster(state.world, rng, wrestlerId);
     });
   },
 
-  dismissAuctionResult: () => {
+  finishFoldPicking: () => {
     set((state) => {
-      if (state.world) state.world.lastAuction = null;
+      if (state.world) finishFoldPicking(state.world);
     });
   },
 
