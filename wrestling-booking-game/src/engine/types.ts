@@ -1887,6 +1887,14 @@ export interface WorldSettings {
   /** Floor on damped weight, as a fraction of the original. */
   eventMinWeightFraction: number;
 
+  // Catastrophes (engine/world/catastrophe.ts) — weather/disaster calls and
+  // no-shows, rolled once across the whole business and landed on a random
+  // promotion (player or any rival), not the player every time.
+  /** Chance, per week, that something catastrophic hits somebody's show at all. */
+  catastropheWeeklyChance: number;
+  /** Rating hit applied to a rival's own show the catastrophe lands on. */
+  catastropheRivalRatingDip: number;
+
   // Contracts (engine/economy/contracts.ts)
   contractBaseWeeklyRate: number;
   contractRateRange: number;

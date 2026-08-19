@@ -54,6 +54,7 @@ import type { Manager } from '../engine/sim/ringside';
 import type { WireItem } from '../engine/world/wire';
 import type { MemoriamShow } from '../engine/world/seasons';
 import type { WeatherCall } from '../engine/world/weatherCall';
+import type { NoShowCall, NoShowChoiceId } from '../engine/world/noShowCall';
 import type { BiddingResult, BiddingWar } from '../engine/economy/bidding';
 import type { WeatherCallOptionId } from '../data/weatherCalls';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
@@ -251,6 +252,16 @@ export interface World {
    * and it stops it because running the show *is* the decision.
    */
   pendingWeatherCall: WeatherCall | null;
+  /**
+   * A wrestler booked tonight simply never turns up, rolled by the
+   * catastrophe system (engine/world/catastrophe.ts) rather than the
+   * ordinary weekly misfortune roll — rare enough to be a real decision
+   * instead of a silent swap. Same shape as the weather call: the week does
+   * not resolve until it is answered.
+   */
+  pendingNoShowCall: NoShowCall | null;
+  /** What was decided about the no-show, carried into the resolve that follows. */
+  noShowChoice: NoShowChoiceId | null;
   /**
    * A champion is hurt and the booker has not said what to do about the belt.
    * Unlike the weather this does not hold the week open — the show goes on —
@@ -994,6 +1005,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     folded: null,
     pendingMemoriam: null,
     pendingWeatherCall: null,
+    pendingNoShowCall: null,
+    noShowChoice: null,
     pendingChampionCall: null,
     pendingBiddingWar: null,
     pendingSupershow: null,

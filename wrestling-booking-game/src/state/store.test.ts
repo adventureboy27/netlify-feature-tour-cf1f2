@@ -1473,6 +1473,12 @@ describe('the call on the weather', () => {
       useGameStore.getState().autoFillCard();
       useGameStore.getState().resolveWeek();
       if (useGameStore.getState().world?.pendingWeatherCall) return true;
+      // The catastrophe system's no-show call blocks the week exactly like
+      // the weather call does — incidental here, not the thing under test,
+      // so wave it through rather than let 400 iterations stall on it.
+      if (useGameStore.getState().world?.pendingNoShowCall) {
+        useGameStore.getState().answerNoShowCall('mysteryOpponent');
+      }
       useGameStore.getState().dismissMandateOutcome();
       const w = useGameStore.getState().world!;
       if (w.folded || w.fired) useGameStore.getState().newGame({ ...freshSettings(), chaosLevel: 3, seed: `w${i}` });

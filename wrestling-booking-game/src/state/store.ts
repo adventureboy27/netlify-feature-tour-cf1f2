@@ -480,6 +480,8 @@ import {
   resolveWeatherCall,
   hasCallLines,
 } from '../engine/world/weatherCall';
+import { rollCatastrophe, forcedSevereWeatherRoll } from '../engine/world/catastrophe';
+import { noShowCallFrom, resolveNoShowCall, type NoShowChoiceId } from '../engine/world/noShowCall';
 import {
   slotExpectedPopularities,
   saturationFromShow,
@@ -657,6 +659,8 @@ export interface GameStore {
    */
   answerReleaseRequest: (wrestlerId: Id, grant: boolean) => void;
   answerWeatherCall: (choice: WeatherCallOptionId) => void;
+  /** A booked wrestler never showed up. Same "answering runs the show" shape as the weather call. */
+  answerNoShowCall: (choice: NoShowChoiceId) => void;
   /**
    * Take the invitation to a bidding war, or stay out of it. Staying out is
    * final: there is no bidding on somebody you have already told the room you
@@ -925,6 +929,29 @@ export const useGameStore = create<GameStore>()(
         // Two ways a save ends: the bank, and the owner.
         if (!world || world.folded || world.fired) return;
 
+        // A couple of times a year, across the whole business — see
+        // catastrophe.ts. Rolled once, here, rather than at either point it
+        // gets used below, so the draw happens on the same path regardless
+        // of which branch reads the result. Skipped while a call from an
+        // earlier roll is still sitting there unanswered, so pressing
+        // "resolve" again while blocked can't roll a second catastrophe on
+        // top of the first.
+        //
+        // Drawn from its own per-week seed rather than the shared rng
+        // stream — the CLAUDE.md trap: this check runs on every single
+        // week, including the ~96% where nothing happens, and consuming the
+        // shared stream that often would shift every other seeded roll in
+        // the game by one draw, breaking unrelated tests that pin a seed.
+        const catastropheAlreadyPending =
+          world.pendingWeatherCall?.week === world.week || world.pendingNoShowCall?.week === world.week;
+        const catastrophe = catastropheAlreadyPending
+          ? null
+          : rollCatastrophe(
+              rngFromSeed(`${world.settings.seed}-catastrophe-${world.week}`),
+              [world.promotion.id, ...world.rivals.map((r) => r.id)],
+              world.settings,
+            );
+
         // The books for the week, opened before a penny moves. Every place
         // money changes hands below reports into this, so the statement is a
         // record of what happened rather than a second guess at it.
@@ -1032,6 +1059,97 @@ export const useGameStore = create<GameStore>()(
         const territory =
           world.territories.find((t) => t.id === world.showSetup.territoryId) ?? world.territories[0]!;
         const homeFollowing = followingOf(territory, world.promotion.id);
+
+        // The catastrophe roll landed on this promotion's own show tonight,
+        // and it is weather — force the same severe call the ordinary
+        // per-week forecast would produce, so everything below (carried,
+        // resolveWeatherCall, the DialogueCard in BookingScreen) handles it
+        // exactly as it always has. A promotion elsewhere in the business is
+        // handled later, at that rival's own show — see the rivalShows loop.
+        if (catastrophe?.kind === 'weather' && catastrophe.targetPromotionId === world.promotion.id) {
+          const forcedRoll = forcedSevereWeatherRoll(rng);
+          if (forcedRoll) {
+            const forcedCall = weatherCallFrom(rng, forcedRoll, world.week, territory.id, territory.name, world.settings);
+            if (forcedCall) {
+              world.pendingWeatherCall = forcedCall;
+              world.weatherChoice = null;
+            }
+          }
+        }
+
+        // Same idea for a no-show: the catastrophe landed on tonight's card
+        // specifically, and it is somebody simply never turning up. Picked
+        // from whoever is actually booked, so pulling them means something.
+        if (
+          catastrophe?.kind === 'noShow' &&
+          catastrophe.targetPromotionId === world.promotion.id &&
+          !world.pendingNoShowCall
+        ) {
+          const bookedIds = [...new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)))];
+          const bookedWrestlers = bookedIds
+            .map((id) => world.wrestlers[id])
+            .filter((w): w is Wrestler => Boolean(w));
+          if (bookedWrestlers.length > 0) {
+            const absent = pick(rng, bookedWrestlers);
+            const candidates = world.promotion.rosterIds
+              .map((id) => world.wrestlers[id])
+              .filter(
+                (w): w is Wrestler =>
+                  Boolean(w) &&
+                  w!.id !== absent.id &&
+                  !bookedIds.includes(w!.id) &&
+                  canWork(w!, world.settings, world.week),
+              );
+            world.pendingNoShowCall = noShowCallFrom(rng, world.week, world.promotion.id, absent, candidates, world.settings);
+            world.noShowChoice = null;
+            return; // nothing resolves until the booker answers, same as weather
+          }
+        }
+
+        // A no-show call from an earlier press still sitting unanswered
+        // holds the week open the same way an unanswered weather call does.
+        if (world.pendingNoShowCall?.week === world.week && !world.noShowChoice) return;
+
+        // Answered — apply it to tonight's card before anything else reads
+        // who is actually in the building. Direct card surgery rather than
+        // feeding into the ordinary per-week misfortune/standIns loop
+        // further down: that loop would re-roll its own replacement, which
+        // could hand out a different name than the one the booker was just
+        // shown and answered against.
+        if (world.pendingNoShowCall?.week === world.week && world.noShowChoice) {
+          const call = world.pendingNoShowCall;
+          const outcome = resolveNoShowCall(call, world.noShowChoice, world.settings);
+          const segmentIndex = world.currentCard.findIndex((s) =>
+            s.participants.some((p) => p.wrestlerId === call.absentId),
+          );
+          if (segmentIndex !== -1) {
+            if (outcome.pullSegment) {
+              world.currentCard = world.currentCard.filter((_s, i) => i !== segmentIndex);
+            } else if (outcome.replacementId) {
+              const role = world.currentCard[segmentIndex]!.participants.find((p) => p.wrestlerId === call.absentId);
+              if (role) role.wrestlerId = outcome.replacementId;
+            } else {
+              world.currentCard[segmentIndex]!.participants = world.currentCard[segmentIndex]!.participants.filter(
+                (p) => p.wrestlerId !== call.absentId,
+              );
+            }
+          }
+          world.weeklyNews.push(wire('misfortune', outcome.line, world.week, 'lead'));
+          const absentWrestler = world.wrestlers[call.absentId];
+          if (absentWrestler) {
+            const file = disciplineOf(absentWrestler);
+            const sanction = sanctionFor(
+              file,
+              'noShow',
+              absentWrestler.contract?.weeklyRate ?? world.settings.contractBaseWeeklyRate,
+              world.settings,
+            );
+            applySanction(file, 'noShow', sanction, world.week);
+          }
+          world.pendingNoShowCall = null;
+          world.noShowChoice = null;
+        }
+
         // A severe forecast is the one thing in the game that stops the
         // clock, and it stops it because running the show *is* the decision.
         // The roll is carried on the pending call rather than re-rolled when
@@ -3488,6 +3606,23 @@ export const useGameStore = create<GameStore>()(
               refusesToWorkWith(findRelationship(world.relationships, aId, bId), world.settings),
           });
           if (!show) continue;
+
+          // The catastrophe roll (top of resolveWeek) landed on this rival's
+          // show instead of the player's — the same random-target roll,
+          // just resolved without a decision on their side, and still
+          // written into the wire so the player finds out either way. See
+          // catastrophe.ts and the user's own framing: "the events happen
+          // but the company they happen to need to be random."
+          if (catastrophe && catastrophe.targetPromotionId === rival.id) {
+            show.showRating = clamp(show.showRating - world.settings.catastropheRivalRatingDip, 0, 100);
+            show.showStars = Math.max(0, show.showStars - 1);
+            const line =
+              catastrophe.kind === 'weather'
+                ? `${rival.name}'s show ran straight into a night nobody wanted to be out in. They ran it anyway and ate the risk.`
+                : `${rival.name} had somebody booked never turn up tonight. The office over there scrambled a replacement and the show went on.`;
+            world.weeklyNews.push(wire('misfortune', line, world.week + 1, 'normal'));
+          }
+
           rivalShows.set(rival.id, show);
 
           // Rivals' locker rooms are locker rooms too. Without this the only

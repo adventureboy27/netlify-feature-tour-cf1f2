@@ -153,7 +153,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // and history to track which node is showing and the scrollback of what was
 // already said and chosen. A version-45 save has neither, so a booker mid a
 // branching conversation when they saved would resume on an undefined node.
-const SCHEMA_VERSION = 46;
+//
+// Version 47 adds World.pendingNoShowCall and World.noShowChoice — the
+// business-wide catastrophe system's mystery-opponent decision (see
+// engine/world/catastrophe.ts, engine/world/noShowCall.ts). A version-46
+// save has neither field, so a booker mid an unanswered no-show call when
+// they saved would resume with no way to ever answer it.
+const SCHEMA_VERSION = 47;
 
 export interface SaveFile {
   schema: number;

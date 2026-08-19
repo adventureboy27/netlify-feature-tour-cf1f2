@@ -14,7 +14,12 @@ import type { EventSubjects } from '../../engine/events/types';
 
 type EventsSlice = Pick<
   GameStore,
-  'chooseEventOption' | 'dismissEventOutcome' | 'dismissMandateOutcome' | 'dismissYearInReview' | 'answerWeatherCall'
+  | 'chooseEventOption'
+  | 'dismissEventOutcome'
+  | 'dismissMandateOutcome'
+  | 'dismissYearInReview'
+  | 'answerWeatherCall'
+  | 'answerNoShowCall'
 >;
 
 export const createEventsSlice: StateCreator<GameStore, [['zustand/immer', never]], [], EventsSlice> = (
@@ -107,6 +112,15 @@ export const createEventsSlice: StateCreator<GameStore, [['zustand/immer', never
     // Answering *is* running the show. The week was held open waiting for
     // this, so it resolves the moment the booker decides rather than making
     // them press the same button twice.
+    get().resolveWeek();
+  },
+
+  answerNoShowCall: (choice) => {
+    set((state) => {
+      const world = state.world;
+      if (!world?.pendingNoShowCall) return;
+      world.noShowChoice = choice;
+    });
     get().resolveWeek();
   },
 });

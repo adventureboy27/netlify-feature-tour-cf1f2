@@ -38,6 +38,7 @@ import { recallBookings } from '../../engine/sim/freshness';
 import { promotionTheme } from '../components/chrome';
 import { DialogueCard } from '../dialogue/DialogueCard';
 import type { WeatherCallOptionId } from '../../data/weatherCalls';
+import { NO_SHOW_CALL_OPTIONS, type NoShowChoiceId } from '../../engine/world/noShowCall';
 import { Stories } from '../components/Stories';
 import { BiddingWarPanel } from '../components/BiddingWar';
 import { SupershowPanel } from '../components/Supershow';
@@ -94,6 +95,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   const toggleTitle = useGameStore((s) => s.toggleSegmentTitle);
   const autoFill = useGameStore((s) => s.autoFillCard);
   const answerWeatherCall = useGameStore((s) => s.answerWeatherCall);
+  const answerNoShowCall = useGameStore((s) => s.answerNoShowCall);
   const [openSlot, setOpenSlot] = useState(0);
 
   const roster = useMemo(
@@ -127,6 +129,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   // night the town turns out for the date rather than the card, and knowing
   // one is three weeks out is the whole reason to build toward it.
   const call = world.pendingWeatherCall;
+  const noShowCall = world.pendingNoShowCall;
   const tonightsHoliday = holidayForWeek(world.week);
   const nextHoliday = weeksUntilHoliday(world.week);
   const season = SEASON_LABELS[seasonForWeek(world.week)];
@@ -232,6 +235,29 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
           subtext={call.forecast}
           choices={call.options.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
           onChoose={(optionId) => answerWeatherCall(optionId as WeatherCallOptionId)}
+          theme={theme}
+          promotionName={world.promotion.name}
+        />
+      )}
+
+      {/* A booked wrestler simply never turned up — the rarer, business-wide
+          cousin of the ordinary silent misfortune swap. Same blocking
+          pattern as the weather call, narrator-voiced for the same reason:
+          this is the office finding out, not somebody speaking for
+          themselves. */}
+      {noShowCall && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName={`${noShowCall.absentName} never made the building`}
+          body={noShowCall.warning}
+          choices={NO_SHOW_CALL_OPTIONS.map((o) => ({
+            id: o.id,
+            label: o.label,
+            gains: o.gains,
+            costs: o.costs,
+            disabled: o.id === 'mysteryOpponent' && !noShowCall.suggestedReplacementId,
+          }))}
+          onChoose={(optionId) => answerNoShowCall(optionId as NoShowChoiceId)}
           theme={theme}
           promotionName={world.promotion.name}
         />

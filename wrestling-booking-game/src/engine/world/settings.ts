@@ -337,6 +337,12 @@ export function defaultWorldSettings(): WorldSettings {
     eventRepeatDamping: 0.55,
     eventMinWeightFraction: 0.15,
 
+    // A couple of times a year across the whole business, per direct user
+    // feedback — and landed on a random promotion, not always the player's,
+    // "so the user can dodge a bullet if the rival's stadium roof caves in."
+    catastropheWeeklyChance: 0.04,
+    catastropheRivalRatingDip: 10,
+
     // Contracts, scaled to a promotion running small buildings: a jobber is
     // around $25/wk, a midcarder around $160, a genuine draw around $750.
     // The curve is what makes a star cost multiples of a midcarder.
