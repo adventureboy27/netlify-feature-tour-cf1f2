@@ -9,8 +9,11 @@ import { applyEffect } from '../storeHelpers';
 import { eventById } from '../../data/events';
 import { resolveOption } from '../../engine/events/apply';
 import { substitute } from '../../engine/events/scheduler';
-import { pick } from '../../engine/rng';
+import { pick, clamp } from '../../engine/rng';
 import type { EventSubjects } from '../../engine/events/types';
+import { clampMorale } from '../../engine/career/morale';
+import { gradeFromLength, severityOf } from '../../engine/sim/casualties';
+import { recordInjury } from '../../engine/career/theBody';
 
 type EventsSlice = Pick<
   GameStore,
@@ -20,6 +23,8 @@ type EventsSlice = Pick<
   | 'dismissYearInReview'
   | 'answerWeatherCall'
   | 'answerNoShowCall'
+  | 'answerRivalMove'
+  | 'answerConfrontationCall'
 >;
 
 export const createEventsSlice: StateCreator<GameStore, [['zustand/immer', never]], [], EventsSlice> = (
@@ -122,5 +127,71 @@ export const createEventsSlice: StateCreator<GameStore, [['zustand/immer', never
       world.noShowChoice = choice;
     });
     get().resolveWeek();
+  },
+
+  answerRivalMove: (choice) => {
+    set((state) => {
+      const world = state.world;
+      const move = world?.pendingRivalMove;
+      if (!world || !move) return;
+
+      if (choice === 'statement') {
+        world.promotion.rating = clamp(world.promotion.rating + 2, 0, 100);
+        world.promotion.reputation = clamp(world.promotion.reputation - 1, 0, 100);
+      } else if (choice === 'counterMove') {
+        world.promotion.bankBalance -= 8000;
+        world.promotion.reputation = clamp(world.promotion.reputation + 3, 0, 100);
+      } else {
+        for (const id of world.promotion.rosterIds) {
+          const w = world.wrestlers[id];
+          if (w) w.morale = clampMorale(w.morale - 2, world.settings);
+        }
+      }
+
+      world.pendingRivalMove = null;
+    });
+  },
+
+  answerConfrontationCall: (choice) => {
+    set((state) => {
+      const world = state.world;
+      const call = world?.pendingConfrontationCall;
+      if (!world || !call) return;
+      const hurt = world.wrestlers[call.wrestlerId];
+      if (!hurt) {
+        world.pendingConfrontationCall = null;
+        return;
+      }
+
+      if (choice === 'letItHappen') {
+        if (!hurt.injury) {
+          const grade = gradeFromLength(call.weeks, world.settings);
+          hurt.injury = {
+            severity: severityOf(grade, world.settings),
+            grade,
+            description: call.twistLabel,
+            sufferedWeek: world.week,
+            totalWeeks: call.weeks,
+            weeksRemaining: call.weeks,
+            permanentStatLoss: {},
+            earlyReturnWeeksUsed: 0,
+          };
+          hurt.injuryHistory = recordInjury(
+            hurt.injuryHistory ?? [],
+            hurt.injury,
+            world.settings.startingYear + Math.floor(world.week / 52),
+          );
+          hurt.health = clamp(hurt.health - world.settings.casualtyHealthCost, 0, 100);
+        }
+        world.rivalries = world.rivalries.map((r) =>
+          r.participantIds.includes(call.wrestlerId) ? { ...r, heat: clamp(r.heat + 8, 0, 100) } : r,
+        );
+      } else {
+        world.promotion.bookingCredibility = clamp(world.promotion.bookingCredibility - 3, 0, 100);
+        world.promotion.reputation = clamp(world.promotion.reputation + 2, 0, 100);
+      }
+
+      world.pendingConfrontationCall = null;
+    });
   },
 });

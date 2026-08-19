@@ -342,6 +342,8 @@ export function defaultWorldSettings(): WorldSettings {
     // "so the user can dodge a bullet if the rival's stadium roof caves in."
     catastropheWeeklyChance: 0.04,
     catastropheRivalRatingDip: 10,
+    rivalMoveReactionPopularity: 65,
+    rivalNewTitleWeeklyChance: 0.003,
 
     // Contracts, scaled to a promotion running small buildings: a jobber is
     // around $25/wk, a midcarder around $160, a genuine draw around $750.

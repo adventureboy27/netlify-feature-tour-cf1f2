@@ -36,6 +36,9 @@ import { egoLabel } from '../../engine/career/ego';
 import { awardById } from '../../engine/career/awards';
 import { strikeWarning } from '../../engine/world/mandates';
 import { championInjuryOptions, championCallLine, type ChampionInjuryChoice } from '../../engine/world/titleDefence';
+import { TITLE_MEMORIAL_OPTIONS, type TitleMemorialChoiceId } from '../../engine/world/titleMemorial';
+import { RIVAL_MOVE_OPTIONS, type RivalMoveChoiceId } from '../../engine/world/rivalMove';
+import { CONFRONTATION_CALL_OPTIONS, type ConfrontationCallChoiceId } from '../../engine/world/confrontationCall';
 import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
 import { PaperDoll } from '../paperdoll/PaperDoll';
@@ -264,6 +267,9 @@ function DeskTab() {
   return (
     <>
       <ChampionCallPanel />
+      <TitleMemorialPanel />
+      <RivalMovePanel />
+      <ConfrontationCallPanel />
 
       {picture.length > 0 && (
         <section className="mb-3">
@@ -1642,6 +1648,135 @@ function ChampionCallPanel() {
           }
           onChoose={(optionId) => {
             answer(optionId as ChampionInjuryChoice, interimId || undefined);
+            setOpen(false);
+          }}
+          theme={promotionTheme(world.promotion.identity)}
+          promotionName={world.promotion.name}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+function TitleMemorialPanel() {
+  const world = useGameStore((s) => s.world);
+  const answer = useGameStore((s) => s.answerTitleMemorial);
+  const [open, setOpen] = useState(false);
+  if (!world?.pendingTitleMemorial) return null;
+
+  const memorial = world.pendingTitleMemorial;
+
+  return (
+    <section className="mb-3 rounded-lg border border-neutral-700 bg-neutral-900/60 p-3" data-testid="title-memorial">
+      <div className="text-xs uppercase tracking-wide text-neutral-400">A champion has died</div>
+      <h2 className="mt-1 text-sm font-semibold">
+        {memorial.championName} and the {memorial.titleName}
+      </h2>
+      <p className="mt-1 text-[11px] text-neutral-500">The belt is still listed as theirs. It needs an answer.</p>
+      <button
+        type="button"
+        data-testid="title-memorial-talk"
+        onClick={() => setOpen(true)}
+        className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:bg-neutral-700"
+      >
+        Decide what happens to the belt
+      </button>
+
+      {open && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName={`${memorial.titleName} — in memory of ${memorial.championName}`}
+          body={`${memorial.championName} died still holding the ${memorial.titleName}. The office needs a decision on what happens to it.`}
+          choices={TITLE_MEMORIAL_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
+          onChoose={(optionId) => {
+            answer(optionId as TitleMemorialChoiceId);
+            setOpen(false);
+          }}
+          theme={promotionTheme(world.promotion.identity)}
+          promotionName={world.promotion.name}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+function RivalMovePanel() {
+  const world = useGameStore((s) => s.world);
+  const answer = useGameStore((s) => s.answerRivalMove);
+  const [open, setOpen] = useState(false);
+  if (!world?.pendingRivalMove) return null;
+
+  const move = world.pendingRivalMove;
+
+  return (
+    <section className="mb-3 rounded-lg border border-sky-800 bg-sky-950/20 p-3" data-testid="rival-move">
+      <div className="text-xs uppercase tracking-wide text-sky-400">A rival made a move</div>
+      <h2 className="mt-1 text-sm font-semibold">
+        {move.rivalName} signed {move.wrestlerName}
+      </h2>
+      <p className="mt-1 text-[11px] text-neutral-500">Worth an answer, or worth ignoring — your call.</p>
+      <button
+        type="button"
+        data-testid="rival-move-talk"
+        onClick={() => setOpen(true)}
+        className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:bg-neutral-700"
+      >
+        Decide how to respond
+      </button>
+
+      {open && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName={`${move.rivalName} signs ${move.wrestlerName}`}
+          body={`${move.rivalName} just signed ${move.wrestlerName}. It's already the talk of the locker room. How do you want to answer it?`}
+          choices={RIVAL_MOVE_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
+          onChoose={(optionId) => {
+            answer(optionId as RivalMoveChoiceId);
+            setOpen(false);
+          }}
+          theme={promotionTheme(world.promotion.identity)}
+          promotionName={world.promotion.name}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+function ConfrontationCallPanel() {
+  const world = useGameStore((s) => s.world);
+  const answer = useGameStore((s) => s.answerConfrontationCall);
+  const [open, setOpen] = useState(false);
+  if (!world?.pendingConfrontationCall) return null;
+
+  const call = world.pendingConfrontationCall;
+
+  return (
+    <section className="mb-3 rounded-lg border border-rose-900/60 bg-rose-950/20 p-3" data-testid="confrontation-call">
+      <div className="text-xs uppercase tracking-wide text-rose-400">It went past words</div>
+      <h2 className="mt-1 text-sm font-semibold">
+        {call.wrestlerName} and {call.otherName}
+      </h2>
+      <p className="mt-1 text-[11px] text-neutral-500">{call.twistLabel}. The office has not said what happens next.</p>
+      <button
+        type="button"
+        data-testid="confrontation-call-talk"
+        onClick={() => setOpen(true)}
+        className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:bg-neutral-700"
+      >
+        Decide how far it goes
+      </button>
+
+      {open && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName={`${call.wrestlerName} and ${call.otherName}`}
+          body={`${call.wrestlerName} and ${call.otherName} went past words tonight — ${call.twistLabel.toLowerCase()}. The office can let it happen or pull them apart.`}
+          choices={CONFRONTATION_CALL_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
+          onChoose={(optionId) => {
+            answer(optionId as ConfrontationCallChoiceId);
             setOpen(false);
           }}
           theme={promotionTheme(world.promotion.identity)}

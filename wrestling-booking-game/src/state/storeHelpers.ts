@@ -254,30 +254,24 @@ export function resolveConfrontationSlot(
   speaker.energy = clamp(speaker.energy - world.settings.confrontationEnergyCost, 0, 100);
   opposite.energy = clamp(opposite.energy - world.settings.confrontationEnergyCost, 0, 100);
 
-  // Nothing happens to a person off-screen. If somebody got hurt in a
-  // corridor, the results page says who and how.
-  if (outcome.casualty) {
+  // A confrontation that actually goes physical is the one part of the
+  // segment genuinely worth a decision — see confrontationCall.ts. The
+  // segment's own rating/write-up are already locked in above; only the
+  // injury itself waits on an answer, and only the first one this week (a
+  // second physical confrontation the same night just goes through as
+  // rolled — one open decision at a time, same as every other pending call).
+  if (outcome.casualty && !world.pendingConfrontationCall) {
     const hurt = wrestlerById.get(outcome.casualty.wrestlerId);
     if (hurt && !hurt.injury) {
-      const twistGrade = gradeFromLength(outcome.casualty.weeks, world.settings);
-      hurt.injury = {
-        severity: severityOf(twistGrade, world.settings),
-        grade: twistGrade,
-        description: outcome.twistLabel,
-        sufferedWeek: world.week,
-        totalWeeks: outcome.casualty.weeks,
-        weeksRemaining: outcome.casualty.weeks,
-        permanentStatLoss: {},
-        earlyReturnWeeksUsed: 0,
+      const other = hurt.id === speaker.id ? opposite : speaker;
+      world.pendingConfrontationCall = {
+        week: world.week,
+        wrestlerId: hurt.id,
+        wrestlerName: hurt.name,
+        otherName: other.name,
+        twistLabel: outcome.twistLabel,
+        weeks: outcome.casualty.weeks,
       };
-      // Written into the body's permanent record, not only the current
-      // status. A career is what has already happened to it.
-      hurt.injuryHistory = recordInjury(
-        hurt.injuryHistory ?? [],
-        hurt.injury,
-        world.settings.startingYear + Math.floor(world.week / 52),
-      );
-      hurt.health = clamp(hurt.health - world.settings.casualtyHealthCost, 0, 100);
     }
   }
 

@@ -65,7 +65,7 @@ import { createStorylinesSlice } from './slices/storylines';
 import { createTitlesSlice } from './slices/titles';
 import { createCupSlice } from './slices/cup';
 import { createSupershowSlice } from './slices/supershow';
-import { isActiveTitle } from '../data/titles';
+import { isActiveTitle, createStartingTitles, startingBlueprints } from '../data/titles';
 import type { PromotionArchetype } from '../data/promotionIdentity';
 import {
   findRivalry,
@@ -482,6 +482,9 @@ import {
 } from '../engine/world/weatherCall';
 import { rollCatastrophe, forcedSevereWeatherRoll } from '../engine/world/catastrophe';
 import { noShowCallFrom, resolveNoShowCall, type NoShowChoiceId } from '../engine/world/noShowCall';
+import type { TitleMemorialChoiceId } from '../engine/world/titleMemorial';
+import type { RivalMoveChoiceId } from '../engine/world/rivalMove';
+import type { ConfrontationCallChoiceId } from '../engine/world/confrontationCall';
 import {
   slotExpectedPopularities,
   saturationFromShow,
@@ -661,6 +664,10 @@ export interface GameStore {
   answerWeatherCall: (choice: WeatherCallOptionId) => void;
   /** A booked wrestler never showed up. Same "answering runs the show" shape as the weather call. */
   answerNoShowCall: (choice: NoShowChoiceId) => void;
+  /** A rival made a signing worth reacting to. Non-blocking — answer it whenever, or never. */
+  answerRivalMove: (choice: RivalMoveChoiceId) => void;
+  /** A confrontation went physical — let the injury land, or pull them apart. */
+  answerConfrontationCall: (choice: ConfrontationCallChoiceId) => void;
   /**
    * Take the invitation to a bidding war, or stay out of it. Staying out is
    * final: there is no bidding on somebody you have already told the room you
@@ -701,6 +708,8 @@ export interface GameStore {
    * version on.
    */
   answerChampionCall: (choice: ChampionInjuryChoice, interimHolderId?: Id) => void;
+  /** A champion died holding one of this promotion's belts — vacate, name a successor, or retire it. */
+  answerTitleMemorial: (choice: TitleMemorialChoiceId) => void;
   /** Create a championship mid-run. It starts vacant, like any new belt. */
   /**
    * Sign somebody who works for a rival, without telling anybody. They stay
@@ -1379,6 +1388,23 @@ export const useGameStore = create<GameStore>()(
           // bells for somebody who was on the card last week.
           if (world.promotion.rosterIds.includes(person.id)) {
             world.pendingMemoriam = memoriamFor(person.id, person.name, world.promotion.name, world.settings);
+          }
+
+          // A belt left with a dead champion is the one thing a tribute show
+          // does not settle on its own — see titleMemorial.ts. Only this
+          // company's own belts: a rival's championship is a rival's
+          // decision, not the player's.
+          const heldNow = world.titles.find(
+            (t) => t.promotionId === world.promotion.id && !t.vacant && t.currentHolderIds.includes(person.id),
+          );
+          if (heldNow && !world.pendingTitleMemorial) {
+            world.pendingTitleMemorial = {
+              week: world.week,
+              titleId: heldNow.id,
+              titleName: heldNow.name,
+              championId: person.id,
+              championName: person.name,
+            };
           }
 
           // ...and a night that would not otherwise have existed. The
@@ -5284,7 +5310,46 @@ export const useGameStore = create<GameStore>()(
           rival.rosterIds.push(signing.id);
           // You released him; you get to watch somebody else sign him.
           world.weeklyNews.push(rivalSigningLine(signing.name, rival.name, world.week));
+          // Worth an actual reaction, not just a line on the wire, only when
+          // it's a name that would move the needle. See rivalMove.ts.
+          if (!world.pendingRivalMove && signing.popularity >= world.settings.rivalMoveReactionPopularity) {
+            world.pendingRivalMove = {
+              week: world.week,
+              rivalId: rival.id,
+              rivalName: rival.name,
+              wrestlerId: signing.id,
+              wrestlerName: signing.name,
+            };
+          }
           short -= 1;
+
+          // A rival launching a whole new championship is rarer than a
+          // signing — gated on its own per-week seed for the same reason as
+          // the catastrophe roll: this check runs for every rival, every
+          // week, and the shared rng stream would shift every other seeded
+          // roll in the game by one draw per rival if it drew from it
+          // directly. See CLAUDE.md's RNG trap note.
+          if (chance(rngFromSeed(`${world.settings.seed}-rivaltitle-${rival.id}-${world.week}`), world.settings.rivalNewTitleWeeklyChance)) {
+            const existingNames = new Set(world.titles.filter((t) => t.promotionId === rival.id).map((t) => t.name));
+            const blueprints = startingBlueprints(rival.identity);
+            // Whichever of the archetype's usual belts this rival does not
+            // already run — picked after naming, since the prefix a real
+            // belt name gets (beltPrefix, promotionIdentity.ts) is derived
+            // from the promotion's own name, not guessable up front.
+            const candidates = blueprints
+              .map((b) => createStartingTitles(rival.id, rival.name, rival.identity, [b])[0]!)
+              .filter((t) => !existingNames.has(t.name));
+            const fresh = candidates.length > 0 ? pick(rng, candidates) : null;
+            if (fresh) {
+              fresh.id = `${rival.id}-title-${world.week}-${world.titles.length}`;
+              fresh.lastDefendedWeek = world.week;
+              world.titles.push(fresh);
+              rival.titleIds.push(fresh.id);
+              world.weeklyNews.push(
+                wire('title', `${rival.name} has introduced the ${fresh.name}. It is vacant.`, world.week, 'lead'),
+              );
+            }
+          }
         }
 
         // ---- the officials' week ----------------------------------------

@@ -159,7 +159,19 @@ const SLOT_KEY = 'wbg.save.v1';
 // engine/world/catastrophe.ts, engine/world/noShowCall.ts). A version-46
 // save has neither field, so a booker mid an unanswered no-show call when
 // they saved would resume with no way to ever answer it.
-const SCHEMA_VERSION = 47;
+//
+// Version 48 adds World.pendingTitleMemorial — what happens to a belt left
+// with a dead champion (engine/world/titleMemorial.ts). A version-47 save
+// has no such field.
+//
+// Version 49 adds World.pendingRivalMove — the reaction to a rival's
+// shocking signing (engine/world/rivalMove.ts). A version-48 save has no
+// such field.
+//
+// Version 50 adds World.pendingConfrontationCall — the decision on a
+// confrontation that goes physical (engine/world/confrontationCall.ts).
+// A version-49 save has no such field.
+const SCHEMA_VERSION = 50;
 
 export interface SaveFile {
   schema: number;

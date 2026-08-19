@@ -21,6 +21,83 @@ than the one already made.
 
 ## Done and worth not re-litigating
 
+- **The dialogue engine's content roughly doubled, and four new sudden-event
+  types joined the weather call.** Direct follow-up to the dialogue engine
+  above, in three parts, driven by explicit user feedback throughout.
+
+  *Personnel decisions (Part 1, close to weekly now):* ten new
+  wrestler-initiated events — time off, late to work, a training injury
+  (branches on a failed gamble, same shape as `workingHurt`'s aftermath),
+  burnout, being sick, wanting the main event, pitching a tag team, wanting
+  to go part time, wanting a title shot (branches into how big the moment
+  is), a movie offer — plus a third `gimmickRequest` debut option, a
+  dark-match tryout with lower stakes than debuting cold. Every one of these
+  moves a wrestler's morale, momentum, popularity, or a relationship, never
+  just company money — enforced by a new test scoped to just these events,
+  since it doesn't apply to the legitimately company-only business/rival
+  events. Five new `EventEffect` kinds back this: `relationship` (the
+  missing vocabulary for a pairwise tie), `fatigue` (`fatigueDebt`), `leave`
+  (the existing `Leave`/`onOurWatch.ts` absence system), `contractType`
+  (finally giving the long-unused `ContractType` field real meaning), and
+  `violation` (routes through the existing discipline ladder). Pacing
+  retuned (`eventWeeklyChance` 0.45→0.8, `eventGlobalGapWeeks` 2→1,
+  `eventCategoryGapWeeks` 6→4) — "I want personnel decisions pretty
+  regularly (weekly)."
+
+  *Sudden events (Part 2):* a new business-wide catastrophe roll
+  (`engine/world/catastrophe.ts`) — a couple of times a year, picks a
+  category (weather/disaster or a no-show) and lands it on a promotion
+  chosen at random among the player and every rival, "so the user can dodge
+  a bullet if the rival's stadium roof caves in." On the player it reuses
+  the existing `pendingWeatherCall` machinery unchanged for weather, or
+  opens a new `pendingNoShowCall` for a no-show — blocking the week the same
+  way weather does, offering a mystery opponent (the existing
+  `pickReplacement` weighting, now shown instead of silent), a handicap
+  match, or pulling the segment, and recording a real discipline violation.
+  On a rival it applies a fixed default and always writes one wire line
+  either way — "all promotions must suffer the same issues." Three more
+  non-blocking reactive decisions, answered whenever the booker next visits
+  the office or never: `pendingTitleMemorial` (what happens to a belt left
+  with a dead champion — death itself stays fully automatic, per the
+  deliberate "applied rather than offered" design note in `seasons.ts`; only
+  the belt's fate is new), `pendingRivalMove` (react to a rival signing
+  worth reacting to, gated on the signing's popularity), and a new rare
+  mechanic where a rival can launch a whole new championship of their own
+  (narrated only — no dialogue on this one specifically, a deliberate scope
+  trim). The frequent, low-stakes, player-only misfortune/absence system
+  that already existed is untouched throughout — every new sudden event is
+  layered on top of it, not a replacement.
+
+  *The confrontation escalation call (Part 3):* research found promo/
+  confrontation/contract-signing segments already existed in full —
+  `data/confrontations.ts`'s `contractSigning` intent, `PromoSlots.tsx`'s
+  booker-facing picker, the additive `promoRating` — so this pass added only
+  the one thing missing: `pendingConfrontationCall`. When a confrontation's
+  twist roll produces an actual injury, the casualty is held back instead of
+  applying automatically; the segment's own rating/write-up are already
+  locked in (same principle as the champion call), and the booker decides
+  separately whether to let it happen (the injury lands as rolled, real
+  heat) or pull them apart (no injury, a `bookingCredibility` cost for
+  looking like the office stepped in).
+
+  *RNG discipline, learned the hard way:* the catastrophe roll and the
+  rival-new-title roll both run every week (the ~96-99% of the time nothing
+  happens included), so both draw from a per-week isolated seed
+  (`rngFromSeed`) rather than the shared stream — the exact CLAUDE.md trap,
+  caught by two real test failures during this pass (`store.test.ts`'s
+  official-departure test and the weather-call `forceCall` tests) and fixed
+  by isolating the draw rather than patching the symptom. A third failure
+  (`forceCall` stalling on an unanswered no-show call it didn't know to
+  answer) was a real gap in test-loop robustness, fixed by teaching the
+  helper to wave through an incidental no-show the same way it already
+  waves through mandate outcomes. Schema bumped 46→50 across the four new
+  `World` fields, one version per field, no migrations, old saves rejected
+  on mismatch as always. Verified with `tsc --noEmit`, the full suite (2669
+  tests), `npm run sim`, a production build, and a real-browser pass forcing
+  all four new dialogue surfaces (no-show, title memorial, rival move,
+  confrontation call) via direct store state, confirming each renders with
+  the right speaker treatment, choices, and gains/costs.
+
 - **Reactive personnel/managerial moments now play out as a conversation, not
   a flat card of buttons.** Creative events, release requests, rival
   approaches, an injured champion's title call, and severe-weather calls all

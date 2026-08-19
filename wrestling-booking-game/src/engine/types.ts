@@ -1894,6 +1894,10 @@ export interface WorldSettings {
   catastropheWeeklyChance: number;
   /** Rating hit applied to a rival's own show the catastrophe lands on. */
   catastropheRivalRatingDip: number;
+  /** Popularity a rival's free-agent signing needs to be worth a reaction (engine/world/rivalMove.ts). */
+  rivalMoveReactionPopularity: number;
+  /** Chance, per rival per week, that they launch a whole new championship. */
+  rivalNewTitleWeeklyChance: number;
 
   // Contracts (engine/economy/contracts.ts)
   contractBaseWeeklyRate: number;

@@ -6,16 +6,24 @@
 // unchanged from what it always did.
 
 import type { StateCreator } from 'zustand';
-import type { GameStore } from '../store';
-import { closeReign, stripTitle } from '../storeHelpers';
+import { rng, type GameStore } from '../store';
+import { closeReign, stripTitle, commitTitleChange } from '../storeHelpers';
 import { wire } from '../../engine/world/wire';
 import { createStartingTitles } from '../../data/titles';
 import { championInjuryOptions } from '../../engine/world/titleDefence';
 import { availablePerks } from '../../engine/economy/perks';
+import { pick } from '../../engine/rng';
+import type { Wrestler } from '../../engine/types';
 
 type TitlesSlice = Pick<
   GameStore,
-  'createTitle' | 'retireTitle' | 'editTitle' | 'unretireTitle' | 'answerChampionCall' | 'setPerk'
+  | 'createTitle'
+  | 'retireTitle'
+  | 'editTitle'
+  | 'unretireTitle'
+  | 'answerChampionCall'
+  | 'answerTitleMemorial'
+  | 'setPerk'
 >;
 
 export const createTitlesSlice: StateCreator<GameStore, [['zustand/immer', never]], [], TitlesSlice> = (set) => ({
@@ -192,6 +200,66 @@ export const createTitlesSlice: StateCreator<GameStore, [['zustand/immer', never
       }
 
       world.pendingChampionCall = null;
+    });
+  },
+
+  answerTitleMemorial: (choice) => {
+    set((state) => {
+      const world = state.world;
+      const memorial = world?.pendingTitleMemorial;
+      if (!world || !memorial) return;
+      const title = world.titles.find((t) => t.id === memorial.titleId);
+      if (!title || title.vacant) {
+        world.pendingTitleMemorial = null;
+        return;
+      }
+
+      if (choice === 'retire') {
+        closeReign(world, title, 'titleRetired');
+        title.vacant = true;
+        title.currentHolderIds = [];
+        title.interimHolderIds = [];
+        title.interimSinceWeek = null;
+        title.retiredWeek = world.week;
+        world.promotion.titleIds = world.promotion.titleIds.filter((id) => id !== title.id);
+        world.weeklyNews.push(
+          wire('title', `The ${title.name} has been retired. ${memorial.championName} was the last to hold it.`, world.week, 'lead'),
+        );
+      } else if (choice === 'passToSuccessor') {
+        const candidates = world.promotion.rosterIds
+          .map((id) => world.wrestlers[id])
+          .filter((w): w is Wrestler => Boolean(w && w.id !== memorial.championId));
+        const successor = candidates.length > 0 ? pick(rng, candidates) : null;
+        if (successor) {
+          const titleIndex = world.titles.findIndex((t) => t.id === title.id);
+          commitTitleChange(world, titleIndex, [successor.id]);
+          world.weeklyNews.push(
+            wire(
+              'title',
+              `${successor.name} has been named ${title.name} in the wake of ${memorial.championName}'s death. The office made the call rather than leave it empty.`,
+              world.week,
+              'lead',
+            ),
+          );
+        } else {
+          stripTitle(world, title, 'vacatedByBooker');
+          world.weeklyNews.push(
+            wire('title', `The ${title.name} is vacant. There was nobody left to hand it to.`, world.week, 'lead'),
+          );
+        }
+      } else {
+        stripTitle(world, title, 'vacatedByBooker');
+        world.weeklyNews.push(
+          wire(
+            'title',
+            `The ${title.name} is vacant. ${memorial.championName} died holding it, and the company would not leave it sitting.`,
+            world.week,
+            'lead',
+          ),
+        );
+      }
+
+      world.pendingTitleMemorial = null;
     });
   },
 

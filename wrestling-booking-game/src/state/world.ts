@@ -55,6 +55,9 @@ import type { WireItem } from '../engine/world/wire';
 import type { MemoriamShow } from '../engine/world/seasons';
 import type { WeatherCall } from '../engine/world/weatherCall';
 import type { NoShowCall, NoShowChoiceId } from '../engine/world/noShowCall';
+import type { TitleMemorial } from '../engine/world/titleMemorial';
+import type { RivalMove } from '../engine/world/rivalMove';
+import type { ConfrontationCall } from '../engine/world/confrontationCall';
 import type { BiddingResult, BiddingWar } from '../engine/economy/bidding';
 import type { WeatherCallOptionId } from '../data/weatherCalls';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
@@ -269,6 +272,26 @@ export interface World {
    * title for you, and says so.
    */
   pendingChampionCall: ChampionCall | null;
+  /**
+   * A champion died holding one of this promotion's belts. Unlike the
+   * tribute show (applied automatically) this is a real decision — what
+   * happens to the lineage — and it does not block the week either; the
+   * booker answers it whenever they next visit the office.
+   */
+  pendingTitleMemorial: TitleMemorial | null;
+  /**
+   * A rival just signed somebody worth reacting to. Non-blocking, like the
+   * champion call and the title memorial — the booker answers whenever they
+   * next visit the office, or never, and nothing breaks either way.
+   */
+  pendingRivalMove: RivalMove | null;
+  /**
+   * A confrontation went physical tonight and the injury itself is waiting
+   * on the booker — see confrontationCall.ts. The segment's own rating and
+   * write-up already resolved; only the casualty is on hold, and only until
+   * the booker's next office visit — nothing forces an answer.
+   */
+  pendingConfrontationCall: ConfrontationCall | null;
   /**
    * The one auction the business runs in the open. Rare: it takes a real star
    * hitting the market, or a phenom out of the school, plus at least two other
@@ -1008,6 +1031,9 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     pendingNoShowCall: null,
     noShowChoice: null,
     pendingChampionCall: null,
+    pendingTitleMemorial: null,
+    pendingRivalMove: null,
+    pendingConfrontationCall: null,
     pendingBiddingWar: null,
     pendingSupershow: null,
     pendingSupershowCard: null,
