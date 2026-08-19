@@ -66,15 +66,21 @@ function isNegative(effect: EventEffect): boolean {
   switch (effect.kind) {
     case 'release':
     case 'injury':
+    case 'violation':
       return true;
     case 'gimmickChange':
     case 'alignmentTurn':
     case 'formStable':
-      return false; // neutral — a change, not a gain or a loss
+    case 'contractType':
+    case 'leave':
+    case 'wire':
+      return false; // neutral — a change, not a gain or a loss on its own
     case 'contractRate':
       return effect.multiplier > 1; // paying more is a cost
     case 'shootHeat':
       return effect.delta > 0; // real bad blood is a liability
+    case 'fatigue':
+      return effect.delta > 0; // more fatigue is the cost, not less
     default:
       return 'delta' in effect && effect.delta < 0;
   }
@@ -174,6 +180,41 @@ describe('no option is free — the house rule', () => {
     }
   });
 
+  // Events added for the "wrestlers bring the booker their problems" content
+  // pass — the user's own requirement was that every answer has to move the
+  // wrestler's mood, a stat, or a relationship, not just company money or
+  // rating. Scoped to these ids rather than every event in the library: the
+  // business/rival events (sponsorOffer, tvSlotOffer, rivalRaidsTape, ...)
+  // are legitimately about the company, not a person, and always have been.
+  const PERSONAL_STAKES_EVENTS = new Set([
+    'lateToWork',
+    'wantsToMainEvent',
+    'tagTeamPitch',
+    'wantsTitleShot',
+    'timeOffRequest',
+    'trainingInjury',
+    'burnout',
+    'sick',
+    'wantsPartTime',
+    'wantsToFilmAMovie',
+  ]);
+  const PERSONAL_STAKES_KINDS = new Set(['morale', 'momentum', 'popularity', 'relationship']);
+
+  it('moves mood, a stat, or a relationship — never just the company', () => {
+    for (const { event, nodeId, option } of allOptions()) {
+      if (!PERSONAL_STAKES_EVENTS.has(event.id)) continue;
+      const effects = [
+        ...option.effects(ctx, settings),
+        ...(option.gamble?.onSuccess(ctx, settings) ?? []),
+        ...(option.gamble?.onFailure(ctx, settings) ?? []),
+      ];
+      const touchesSomeone = effects.some((e) => PERSONAL_STAKES_KINDS.has(e.kind));
+      expect(touchesSomeone, `${event.id}/${nodeId}/${option.id} never touches morale/momentum/popularity/relationship`).toBe(
+        true,
+      );
+    }
+  });
+
   it('keeps every gamble a genuine gamble, never a sure thing', () => {
     for (const { event, nodeId, option } of allOptions()) {
       if (!option.gamble) continue;
@@ -195,6 +236,8 @@ describe('no option is free — the house rule', () => {
         if ('wrestlerId' in effect) expect(allowed.has(effect.wrestlerId), `${event.id}/${nodeId}: ${effect.wrestlerId}`).toBe(true);
         if ('wrestlerIds' in effect) for (const id of effect.wrestlerIds) expect(allowed.has(id)).toBe(true);
         if ('memberIds' in effect) for (const id of effect.memberIds) expect(allowed.has(id)).toBe(true);
+        if ('aId' in effect) expect(allowed.has(effect.aId), `${event.id}/${nodeId}: ${effect.aId}`).toBe(true);
+        if ('bId' in effect) expect(allowed.has(effect.bId), `${event.id}/${nodeId}: ${effect.bId}`).toBe(true);
       }
     }
   });

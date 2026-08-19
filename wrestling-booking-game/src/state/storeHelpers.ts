@@ -20,11 +20,16 @@ import type {
   FinishType,
   Id,
   Promotion,
+  Relationship,
   Segment,
   Title,
   TitleReignEndMethod,
   Wrestler,
 } from '../engine/types';
+import { findRelationship } from '../engine/career/relationships';
+import { applyDrift } from '../engine/career/circle';
+import { disciplineOf, sanctionFor, applySanction } from '../engine/career/discipline';
+import type { Leave } from '../engine/career/onOurWatch';
 import type { EventEffect } from '../engine/events/types';
 import type { World } from './world';
 import type { Rng } from '../engine/rng';
@@ -1072,6 +1077,64 @@ export function applyEffect(world: World, rng: Rng, effect: EventEffect): number
       // is the point of keeping teams around at all.
       const team = world.stables.find((t) => t.id === effect.stableId);
       if (team && team.disbandedWeek === null) team.disbandedWeek = world.week;
+      break;
+    }
+    case 'relationship': {
+      const existing = findRelationship(world.relationships, effect.aId, effect.bId);
+      if (existing) {
+        existing.strength = applyDrift(existing, effect.delta);
+      } else {
+        const relationship: Relationship = {
+          aId: effect.aId,
+          bId: effect.bId,
+          type: effect.delta >= 0 ? 'friend' : 'enemy',
+          strength: clamp(50 + effect.delta, 0, 100),
+          history: [],
+        };
+        world.relationships.push(relationship);
+      }
+      break;
+    }
+    case 'fatigue': {
+      const w = at(effect.wrestlerId);
+      if (w) w.fatigueDebt = bump(w.fatigueDebt, effect.delta);
+      break;
+    }
+    case 'leave': {
+      const w = at(effect.wrestlerId);
+      if (w) {
+        const leave: Leave = { reason: effect.reason, weeksRemaining: effect.weeks, paid: true };
+        w.leave = leave;
+      }
+      break;
+    }
+    case 'contractType': {
+      const w = at(effect.wrestlerId);
+      if (w?.contract) w.contract.type = effect.type;
+      break;
+    }
+    case 'violation': {
+      const w = at(effect.wrestlerId);
+      if (w) {
+        const file = disciplineOf(w);
+        const sanction = sanctionFor(
+          file,
+          effect.violationKind,
+          w.contract?.weeklyRate ?? world.settings.contractBaseWeeklyRate,
+          world.settings,
+        );
+        applySanction(file, effect.violationKind, sanction, world.week);
+      }
+      break;
+    }
+    case 'wire': {
+      // Plain world.week, not +1 — unlike a line pushed from inside
+      // resolveWeek (see the CLAUDE.md trap), applyEffect for a creative
+      // event only ever runs from chooseEventOption, which fires between
+      // resolveWeek calls. world.week already reflects "now" here; the
+      // +1 dodge is for code racing resolveWeek's own increment, which
+      // this isn't.
+      world.weeklyNews.push(wire(effect.wireKind, effect.text, world.week, 'minor'));
       break;
     }
   }

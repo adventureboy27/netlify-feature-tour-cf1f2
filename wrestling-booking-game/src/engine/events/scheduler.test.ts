@@ -104,13 +104,16 @@ describe('nothing fires too often', () => {
     }
   });
 
-  it('fires often enough to matter and rarely enough to stay a story', () => {
+  it('fires close to every week, per the direct ask for regular personnel decisions', () => {
     const { fired } = playOut(260);
     const weeksPerEvent = 260 / fired.length;
-    // Roughly one every 3-8 weeks over five years. Every week is a soap
-    // opera; once a year is wallpaper.
-    expect(weeksPerEvent).toBeGreaterThan(3);
-    expect(weeksPerEvent).toBeLessThan(12);
+    // Was "roughly one every 3-8 weeks" — deliberately retuned (settings.ts's
+    // eventWeeklyChance/eventGlobalGapWeeks/eventCategoryGapWeeks) after
+    // direct user feedback: "I want personnel decisions pretty regularly
+    // (weekly)". Still not literally every single week — cooldowns and the
+    // 80% weekly roll leave some quiet weeks — but noticeably more than one.
+    expect(weeksPerEvent).toBeGreaterThan(1);
+    expect(weeksPerEvent).toBeLessThan(3);
   });
 
   it('spreads across the library instead of hammering one favourite', () => {

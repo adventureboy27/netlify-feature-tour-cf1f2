@@ -327,11 +327,13 @@ export function defaultWorldSettings(): WorldSettings {
     approachContractLengthResistance: 0.45,
     approachAttitudeResistance: 0.3,
 
-    // Creative events — tuned so something happens often enough to matter and
-    // rarely enough to stay a story. Roughly one event every 3-4 weeks.
-    eventWeeklyChance: 0.45,
-    eventGlobalGapWeeks: 2,
-    eventCategoryGapWeeks: 6,
+    // Creative events — with the library roughly doubled (personnel issues
+    // are meant to feel close to weekly now, per direct user feedback: "I
+    // want personnel decisions pretty regularly (weekly)"), tuned for most
+    // weeks to bring the booker something, not one every 3-4 weeks.
+    eventWeeklyChance: 0.8,
+    eventGlobalGapWeeks: 1,
+    eventCategoryGapWeeks: 4,
     eventRepeatDamping: 0.55,
     eventMinWeightFraction: 0.15,
 

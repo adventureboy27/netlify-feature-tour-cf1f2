@@ -18,7 +18,9 @@
 // which is what lets it grow to the §0 target of 150+ without becoming a
 // tangle.
 
-import type { Id, Wrestler, Promotion, WorldSettings, CareerStatus } from '../types';
+import type { Id, Wrestler, Promotion, WorldSettings, CareerStatus, ContractType } from '../types';
+import type { ViolationKind } from '../career/discipline';
+import type { WireKind } from '../world/wire';
 
 export type EventCategory =
   | 'lockerRoom' // morale, cliques, backstage friction
@@ -58,7 +60,18 @@ export type EventEffect =
   | { kind: 'release'; wrestlerId: Id }
   | { kind: 'injury'; wrestlerId: Id; weeks: number }
   | { kind: 'formStable'; memberIds: Id[]; name: string }
-  | { kind: 'disbandStable'; stableId: Id };
+  | { kind: 'disbandStable'; stableId: Id }
+  /** Moves a pairwise tie. Creates one (type inferred from the sign of `delta`) if the pair has no history yet. */
+  | { kind: 'relationship'; aId: Id; bId: Id; delta: number }
+  /** Burnout, not injury — `Wrestler.fatigueDebt` directly. */
+  | { kind: 'fatigue'; wrestlerId: Id; delta: number }
+  /** A real absence — blocks booking and ticks down weekly, same as a grief leave. */
+  | { kind: 'leave'; wrestlerId: Id; weeks: number; reason: string }
+  | { kind: 'contractType'; wrestlerId: Id; type: ContractType }
+  /** Routes through the existing discipline ladder — see career/discipline.ts. */
+  | { kind: 'violation'; wrestlerId: Id; violationKind: ViolationKind; note: string }
+  /** A one-off line on the wire — for something that happened off the regular results path (a dark-match debut, say). */
+  | { kind: 'wire'; wireKind: WireKind; text: string };
 
 /**
  * One choice the player can make. `gains` and `costs` are the honest,

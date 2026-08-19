@@ -140,6 +140,42 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     ],
   },
 
+  {
+    id: 'lateToWork',
+    category: 'lockerRoom',
+    title: '{primary} was late again',
+    speaker: 'primary',
+    body: [
+      "I know I was late. I'm not going to make excuses about it.",
+      "It won't happen again. I know I said that last time too.",
+      "The road agent already had it written down before I even got through the door.",
+    ],
+    weight: 13,
+    cooldownWeeks: 10,
+    conditions: { minWeek: 3, primary: (w) => w.attitude < 60 },
+    options: [
+      {
+        id: 'let-slide',
+        label: 'Let it go this time',
+        gains: 'No hard feelings, and they know it',
+        costs: 'The next one who is late remembers you did nothing about this one',
+        effects: ({ primary }) => [
+          { kind: 'morale', wrestlerId: primary!.id, delta: 6 },
+          { kind: 'rosterMorale', delta: -3 },
+        ],
+      },
+      {
+        id: 'write-up',
+        label: 'Write them up',
+        gains: 'The room sees the schedule actually matters',
+        costs: 'They think you are keeping a list on them — because now you are',
+        effects: ({ primary }) => [
+          { kind: 'violation', wrestlerId: primary!.id, violationKind: 'conduct', note: 'Late for the show.' },
+          { kind: 'morale', wrestlerId: primary!.id, delta: -8 },
+        ],
+      },
+    ],
+  },
   // --------------------------------------------------------------- creative
   {
     id: 'gimmickRequest',
@@ -230,6 +266,28 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
               { kind: 'momentum', wrestlerId: primary!.id, delta: 8 },
               { kind: 'money', delta: -3000 },
             ],
+          },
+          {
+            id: 'dark',
+            label: 'Debut it in a dark match',
+            gains: 'A real look at how a live crowd takes it, with nothing on the line if it flops',
+            costs: 'Nobody watching at home ever sees it happen',
+            effects: ({ primary }) => [{ kind: 'popularity', wrestlerId: primary!.id, delta: 2 }],
+            gamble: {
+              // Safer odds than debuting cold on TV — a building's worth of
+              // people is a much smaller bet than the whole audience.
+              chance: ({ primary }) => 0.5 + (primary!.charisma / 100) * 0.35,
+              onSuccess: ({ primary }) => [
+                { kind: 'popularity', wrestlerId: primary!.id, delta: 8 },
+                { kind: 'momentum', wrestlerId: primary!.id, delta: 10 },
+                {
+                  kind: 'wire',
+                  wireKind: 'debut',
+                  text: `Somebody in the crowd filmed ${primary!.name}'s new look on their phone. It is already doing better numbers than half of last week's show.`,
+                },
+              ],
+              onFailure: ({ primary }) => [{ kind: 'morale', wrestlerId: primary!.id, delta: -6 }],
+            },
           },
         ],
       },
@@ -327,6 +385,175 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
         ],
       },
     ],
+  },
+
+  {
+    id: 'wantsToMainEvent',
+    category: 'creative',
+    title: '{primary} wants the top of the card',
+    speaker: 'primary',
+    body: [
+      "I've done everything you've asked for two years. I want the top of the card, not just a good spot on it.",
+      "I'm not asking for a favour. I'm telling you I'm ready.",
+      "Every time I ask, it's 'not yet.' I want to know what 'yet' actually means.",
+    ],
+    weight: 11,
+    cooldownWeeks: 20,
+    conditions: { minWeek: 10, primary: (_w, status) => status === 'upperCard' },
+    options: [
+      {
+        id: 'grant',
+        label: 'Put them in the main event',
+        gains: 'A wrestler who finally gets what they have been chasing',
+        costs: 'If the crowd does not follow them up there, everyone in the building sees it',
+        effects: ({ primary }) => [
+          { kind: 'momentum', wrestlerId: primary!.id, delta: 16 },
+          { kind: 'morale', wrestlerId: primary!.id, delta: 14 },
+        ],
+        gamble: {
+          chance: ({ primary }) => 0.35 + (primary!.popularity / 100) * 0.4,
+          onSuccess: ({ primary }) => [{ kind: 'popularity', wrestlerId: primary!.id, delta: 14 }],
+          onFailure: ({ primary }) => [
+            { kind: 'popularity', wrestlerId: primary!.id, delta: -10 },
+            { kind: 'momentum', wrestlerId: primary!.id, delta: -14 },
+          ],
+        },
+      },
+      {
+        id: 'refuse',
+        label: 'Tell them it is not time yet',
+        gains: 'You keep the card exactly where you had it',
+        costs: 'They now know exactly where they stand with you',
+        effects: ({ primary }) => [
+          { kind: 'morale', wrestlerId: primary!.id, delta: -16 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -6 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'tagTeamPitch',
+    category: 'creative',
+    title: '{primary} and {secondary} want to team up',
+    speaker: 'narrator',
+    body: [
+      "They have been tagging in dark matches for months and it works — they want to make it official.",
+      "Two singles pushes going nowhere is worse than one tag team going somewhere, and they have already worked that out.",
+      "They already have the name picked. They just need you to say yes.",
+    ],
+    weight: 10,
+    cooldownWeeks: 24,
+    conditions: {
+      minWeek: 8,
+      primary: (w, status) => status !== 'draw' && w.popularity > 30,
+      secondary: (w, status) => status !== 'draw' && w.popularity > 30,
+    },
+    options: [
+      {
+        id: 'form',
+        label: 'Make it official',
+        gains: 'A tag division gets an act that already has real chemistry',
+        costs: 'Neither of them is available for a singles push while this runs',
+        effects: ({ primary, secondary }) => [
+          { kind: 'formStable', memberIds: [primary!.id, secondary!.id], name: 'tagTeam' },
+          { kind: 'relationship', aId: primary!.id, bId: secondary!.id, delta: 20 },
+          { kind: 'morale', wrestlerId: primary!.id, delta: 10 },
+          { kind: 'morale', wrestlerId: secondary!.id, delta: 10 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -5 },
+          { kind: 'momentum', wrestlerId: secondary!.id, delta: -5 },
+        ],
+      },
+      {
+        id: 'refuse',
+        label: 'Keep them apart',
+        gains: 'Both stay open for a singles run',
+        costs: 'Two people who wanted this hear no together, and remember who said it',
+        effects: ({ primary, secondary }) => [
+          { kind: 'morale', wrestlerId: primary!.id, delta: -10 },
+          { kind: 'morale', wrestlerId: secondary!.id, delta: -10 },
+          { kind: 'relationship', aId: primary!.id, bId: secondary!.id, delta: -6 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'wantsTitleShot',
+    category: 'creative',
+    title: '{primary} wants a title shot',
+    speaker: 'primary',
+    body: [
+      "I want a title shot. Not eventually. Now.",
+      "I've beaten everyone in my way except the one with the belt.",
+      "You know I have earned this. I want to hear you say it too.",
+    ],
+    weight: 10,
+    cooldownWeeks: 22,
+    conditions: {
+      minWeek: 12,
+      primary: (w, status) => (status === 'upperCard' || status === 'mainEventer') && w.popularity > 50,
+    },
+    options: [
+      {
+        id: 'grant',
+        label: 'Promise them the shot',
+        gains: 'A wrestler who finally has something real to chase',
+        costs: 'You just told the whole roster where the next shot is going',
+        effects: ({ primary }) => [
+          { kind: 'morale', wrestlerId: primary!.id, delta: 12 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: 8 },
+          { kind: 'rosterMorale', delta: -3 },
+        ],
+        next: 'howBig',
+      },
+      {
+        id: 'refuse',
+        label: 'Tell them to wait their turn',
+        gains: 'The title picture stays exactly where you had it',
+        costs: 'Real heat, and they will not forget you said no',
+        effects: ({ primary }) => [
+          { kind: 'morale', wrestlerId: primary!.id, delta: -16 },
+          { kind: 'shootHeat', wrestlerIds: [primary!.id], delta: 12 },
+        ],
+      },
+    ],
+    nodes: {
+      howBig: {
+        id: 'howBig',
+        speaker: 'primary',
+        body: ['So how do we get there? Do I get the shot, or do I earn the shot first?'],
+        options: [
+          {
+            id: 'cold-shot',
+            label: 'Book the title match next show',
+            gains: 'Fastest way to pay off the promise',
+            costs: 'No time to build it — the crowd has to already be there',
+            effects: () => [],
+            gamble: {
+              chance: ({ primary }) => 0.35 + (primary!.popularity / 100) * 0.4,
+              onSuccess: ({ primary }) => [
+                { kind: 'popularity', wrestlerId: primary!.id, delta: 14 },
+                { kind: 'momentum', wrestlerId: primary!.id, delta: 16 },
+              ],
+              onFailure: ({ primary }) => [
+                { kind: 'popularity', wrestlerId: primary!.id, delta: -10 },
+                { kind: 'morale', wrestlerId: primary!.id, delta: -8 },
+              ],
+            },
+          },
+          {
+            id: 'build-angle',
+            label: 'Build an angle first',
+            gains: 'The match means more by the time it actually happens',
+            costs: 'Weeks of TV time spent building instead of moving somebody else',
+            effects: ({ primary }) => [
+              { kind: 'momentum', wrestlerId: primary!.id, delta: 10 },
+              { kind: 'popularity', wrestlerId: primary!.id, delta: 6 },
+              { kind: 'money', delta: -3000 },
+            ],
+          },
+        ],
+      },
+    },
   },
 
   // --------------------------------------------------------------- business
@@ -663,6 +890,274 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
           { kind: 'rosterMorale', delta: 4 },
           { kind: 'money', delta: -4000 },
           { kind: 'momentum', wrestlerId: primary!.id, delta: -20 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'timeOffRequest',
+    category: 'personal',
+    title: '{primary} needs a week off',
+    speaker: 'primary',
+    body: [
+      "My kid has a thing at school and I already missed the last one.",
+      "I haven't had a week off since I signed here. I'm not asking for much.",
+      "Family stuff. I don't want to get into it. I just need the week.",
+      "I need to be somewhere that isn't an arena parking lot, just for once.",
+    ],
+    weight: 14,
+    cooldownWeeks: 16,
+    conditions: { minWeek: 3, primary: (_w, status) => status !== 'trainee' },
+    options: [
+      {
+        id: 'grant',
+        label: 'Give them the week',
+        gains: 'They remember you said yes',
+        costs: 'A body off the card for a show you already built around them',
+        effects: ({ primary }) => [
+          { kind: 'leave', wrestlerId: primary!.id, weeks: 1, reason: 'Personal time, granted without an argument.' },
+          { kind: 'morale', wrestlerId: primary!.id, delta: 12 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -5 },
+        ],
+      },
+      {
+        id: 'refuse',
+        label: 'Tell them the schedule does not move',
+        gains: 'The card stays exactly as booked',
+        costs: 'They hear "no" and file it away',
+        effects: ({ primary }) => [
+          { kind: 'morale', wrestlerId: primary!.id, delta: -14 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -4 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'trainingInjury',
+    category: 'personal',
+    title: '{primary} got hurt in the gym',
+    speaker: 'primary',
+    body: [
+      "Pulled something in the gym this morning. Nothing dramatic, but it's real.",
+      "Landed a drill wrong. The trainer already looked at it.",
+      "I was pushing the numbers up and something in my shoulder disagreed.",
+    ],
+    weight: 11,
+    cooldownWeeks: 18,
+    conditions: { minWeek: 4, primary: (w) => !w.injury },
+    options: [
+      {
+        id: 'rest',
+        label: 'Pull them from everything until it is checked out properly',
+        gains: 'A small injury stays small',
+        costs: 'Training time lost and a body off the card',
+        effects: ({ primary }) => [
+          { kind: 'injury', wrestlerId: primary!.id, weeks: 2 },
+          { kind: 'fatigue', wrestlerId: primary!.id, delta: -10 },
+          { kind: 'morale', wrestlerId: primary!.id, delta: 8 },
+        ],
+      },
+      {
+        id: 'push',
+        label: 'Clear them to keep going',
+        gains: 'No time lost at all if it really is nothing',
+        costs: 'You are betting on a diagnosis nobody actually made',
+        effects: ({ primary }) => [{ kind: 'fatigue', wrestlerId: primary!.id, delta: 5 }],
+        gamble: {
+          chance: ({ primary }) => 0.35 + (primary!.toughness / 100) * 0.4,
+          onSuccess: ({ primary }) => [{ kind: 'momentum', wrestlerId: primary!.id, delta: 6 }],
+          onFailure: ({ primary }) => [
+            { kind: 'injury', wrestlerId: primary!.id, weeks: 6 },
+            { kind: 'morale', wrestlerId: primary!.id, delta: -8 },
+          ],
+          // Told you so, and now there is a second, real decision about how
+          // you make it right — same shape as workingHurt's aftermath.
+          nextOnFailure: 'setback',
+        },
+      },
+    ],
+    nodes: {
+      setback: {
+        id: 'setback',
+        speaker: 'primary',
+        body: ["Told you. It's worse now, and I need you to actually do something about it this time."],
+        options: [
+          {
+            id: 'proper-treatment',
+            label: 'Pay for real treatment',
+            gains: 'They know you did not cut corners twice',
+            costs: 'A real medical bill for a bet that was yours to make',
+            effects: ({ primary }) => [
+              { kind: 'money', delta: -5000 },
+              { kind: 'morale', wrestlerId: primary!.id, delta: 14 },
+            ],
+          },
+          {
+            id: 'cheap-out',
+            label: 'Standard company care only',
+            gains: 'Cheap, and it is over quickly',
+            costs: 'They clock exactly how little that was',
+            effects: ({ primary }) => [
+              { kind: 'money', delta: -800 },
+              { kind: 'morale', wrestlerId: primary!.id, delta: -12 },
+            ],
+          },
+        ],
+      },
+    },
+  },
+  {
+    id: 'burnout',
+    category: 'personal',
+    title: '{primary} is running on empty',
+    speaker: 'primary',
+    body: [
+      "I'm not injured. I'm just done. I need you to hear that difference.",
+      "I've worked every date for months. I don't have anything left tonight, and I might not next week either.",
+      "I'm not walking out. I'm telling you before I have to.",
+    ],
+    weight: 10,
+    cooldownWeeks: 20,
+    conditions: { minWeek: 8, primary: (w) => w.fatigueDebt > 65 },
+    options: [
+      {
+        id: 'mandate-rest',
+        label: 'Pull them off the schedule for a real break',
+        gains: 'They come back able to actually perform',
+        costs: 'Weeks of a body you were counting on',
+        effects: ({ primary }) => [
+          { kind: 'leave', wrestlerId: primary!.id, weeks: 2, reason: 'Burned out. Ordered off the road.' },
+          { kind: 'fatigue', wrestlerId: primary!.id, delta: -40 },
+          { kind: 'morale', wrestlerId: primary!.id, delta: 10 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -8 },
+        ],
+      },
+      {
+        id: 'push-forward',
+        label: 'Ask them to push through it',
+        gains: 'The card does not move',
+        costs: 'You are spending a well you already emptied',
+        effects: ({ primary }) => [
+          { kind: 'fatigue', wrestlerId: primary!.id, delta: 15 },
+          { kind: 'morale', wrestlerId: primary!.id, delta: -12 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -10 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'sick',
+    category: 'personal',
+    title: '{primary} is sick',
+    speaker: 'primary',
+    body: [
+      "I've been throwing up since this morning. I didn't want to no-show without telling you first.",
+      "Whatever's going around got me too. I can barely stand up straight.",
+      "I don't think I should be near anyone in that locker room tonight.",
+    ],
+    weight: 9,
+    cooldownWeeks: 14,
+    conditions: { minWeek: 3, primary: (w) => !w.injury && !w.leave },
+    options: [
+      {
+        id: 'send-home',
+        label: 'Send them home',
+        gains: 'Nobody else in the building catches it',
+        costs: 'A late scratch you now have to cover',
+        effects: ({ primary }) => [
+          { kind: 'leave', wrestlerId: primary!.id, weeks: 1, reason: 'Sick. Sent home rather than risk the room.' },
+          { kind: 'morale', wrestlerId: primary!.id, delta: 6 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -4 },
+        ],
+      },
+      {
+        id: 'work-through',
+        label: 'Ask them to push through it',
+        gains: 'The card holds as booked',
+        costs: 'A visibly sick performer is not the show you wanted',
+        effects: ({ primary }) => [
+          { kind: 'health', wrestlerId: primary!.id, delta: -15 },
+          { kind: 'morale', wrestlerId: primary!.id, delta: -10 },
+          { kind: 'popularity', wrestlerId: primary!.id, delta: -3 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'wantsPartTime',
+    category: 'personal',
+    title: '{primary} wants to cut back',
+    speaker: 'primary',
+    body: [
+      "I don't want to retire. I want to stop doing every single date.",
+      "My body can do twelve nights a year properly. It cannot do fifty anymore.",
+      "I'll still show up big. I just cannot be there every week doing it.",
+    ],
+    weight: 8,
+    cooldownWeeks: 30,
+    conditions: {
+      minWeek: 16,
+      primary: (_w, status) => status === 'veteran' || status === 'legend' || status === 'draw',
+    },
+    options: [
+      {
+        id: 'grant',
+        label: 'Work out a part-time arrangement',
+        gains: 'You keep a name on the roster instead of losing them entirely',
+        costs: 'A smaller wage and a wrestler you cannot count on week to week',
+        effects: ({ primary }) => [
+          { kind: 'contractType', wrestlerId: primary!.id, type: 'partTime' },
+          { kind: 'contractRate', wrestlerId: primary!.id, multiplier: 0.55 },
+          { kind: 'morale', wrestlerId: primary!.id, delta: 10 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -10 },
+        ],
+      },
+      {
+        id: 'refuse',
+        label: 'Tell them it is full-time or nothing',
+        gains: 'You keep full access to their dates',
+        costs: 'You may be pushing out someone who would have stayed part-time',
+        effects: ({ primary }) => [
+          { kind: 'morale', wrestlerId: primary!.id, delta: -14 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -6 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'wantsToFilmAMovie',
+    category: 'personal',
+    title: '{primary} has a movie offer',
+    speaker: 'primary',
+    body: [
+      "A studio wants me for six weeks. It is a real role, not a cameo.",
+      "This does not happen twice. I need you to let me go do this.",
+      "I already told them I would ask you. I am asking.",
+    ],
+    weight: 7,
+    cooldownWeeks: 40,
+    conditions: { minWeek: 20, primary: (w) => w.popularity > 65 },
+    options: [
+      {
+        id: 'grant',
+        label: 'Let them go make it',
+        gains: 'Mainstream exposure the company did not have to pay for',
+        costs: 'Weeks of a name gone from every card you build',
+        effects: ({ primary }) => [
+          { kind: 'leave', wrestlerId: primary!.id, weeks: 5, reason: 'Off shooting a film. Back on schedule.' },
+          { kind: 'popularity', wrestlerId: primary!.id, delta: 18 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -14 },
+          { kind: 'morale', wrestlerId: primary!.id, delta: 16 },
+        ],
+      },
+      {
+        id: 'refuse',
+        label: 'Tell them the company needs them here',
+        gains: 'No gap in the card at all',
+        costs: 'You just turned down the best exposure they will ever be offered',
+        effects: ({ primary }) => [
+          { kind: 'morale', wrestlerId: primary!.id, delta: -20 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -8 },
         ],
       },
     ],
