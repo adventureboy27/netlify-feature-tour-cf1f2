@@ -147,7 +147,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // World.tamperingOffenses are gone. A version-44 save has the old field
 // names and shapes, which the weekly tick and the contracts screen would
 // both misread.
-const SCHEMA_VERSION = 45;
+//
+// Version 46 lets a creative event branch into a follow-up decision instead
+// of always resolving in one tick. World.pendingEvent gains currentNodeId
+// and history to track which node is showing and the scrollback of what was
+// already said and chosen. A version-45 save has neither, so a booker mid a
+// branching conversation when they saved would resume on an undefined node.
+const SCHEMA_VERSION = 46;
 
 export interface SaveFile {
   schema: number;

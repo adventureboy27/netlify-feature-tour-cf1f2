@@ -214,3 +214,20 @@ export function wantsOut(wrestler: Wrestler, settings: WorldSettings, context: W
 export function refusalCost(settings: WorldSettings): number {
   return settings.releaseRefusedMoraleCost;
 }
+
+const RELEASE_REQUEST_LINES = [
+  "I need out. I'll walk away from what's owed if you'll let me.",
+  "This isn't working for me anymore. I'd rather leave with nothing than stay and mean it less every week.",
+  "I've thought about this for a while. I want a release, and I'm asking you first.",
+];
+
+/**
+ * What somebody asking for a release actually says, in their own words.
+ * Picked deterministically from the request itself, not the shared stream —
+ * this is presentation, not a roll, and re-rendering the same open request
+ * should never show a different line.
+ */
+export function releaseRequestLine(wrestler: Wrestler, openedWeek: number): string {
+  const index = (wrestler.id.length + openedWeek) % RELEASE_REQUEST_LINES.length;
+  return RELEASE_REQUEST_LINES[index]!;
+}

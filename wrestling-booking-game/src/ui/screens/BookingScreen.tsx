@@ -36,6 +36,8 @@ import { defenceWatch } from '../../engine/world/titleDefence';
 import { fanDemands } from '../../engine/world/fanDemand';
 import { recallBookings } from '../../engine/sim/freshness';
 import { promotionTheme } from '../components/chrome';
+import { DialogueCard } from '../dialogue/DialogueCard';
+import type { WeatherCallOptionId } from '../../data/weatherCalls';
 import { Stories } from '../components/Stories';
 import { BiddingWarPanel } from '../components/BiddingWar';
 import { SupershowPanel } from '../components/Supershow';
@@ -219,33 +221,20 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
 
       {/* The call on the weather. This is the one thing in the game that
           stops the week: the show does not resolve until it is answered,
-          because deciding whether to run it *is* running it. */}
+          because deciding whether to run it *is* running it. Narrator-voiced
+          on the conversation screen — nobody with a face is doing the
+          asking — and not dismissible: no onClose, matching the block above. */}
       {call && (
-        <section
-          data-testid="weather-call"
-          className="mb-3 rounded border border-amber-700 bg-amber-950/30 p-3"
-        >
-          <div className="text-[10px] uppercase tracking-wide text-amber-500">
-            {call.eventName} — {call.territoryName}
-          </div>
-          <p className="mt-1 text-sm text-amber-100">{call.warning}</p>
-          <p className="mt-1 text-xs italic text-amber-300/90">{call.forecast}</p>
-          <div className="mt-3 flex flex-col gap-1.5">
-            {call.options.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                data-testid={`weather-${option.id}`}
-                onClick={() => answerWeatherCall(option.id)}
-                className="rounded border border-neutral-700 bg-neutral-900 p-2 text-left hover:border-amber-500"
-              >
-                <div className="text-sm font-medium">{option.label}</div>
-                <div className="text-[11px] text-neutral-400">{option.gains}</div>
-                <div className="text-[11px] text-rose-300/80">{option.costs}</div>
-              </button>
-            ))}
-          </div>
-        </section>
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName={`${call.eventName} — ${call.territoryName}`}
+          body={call.warning}
+          subtext={call.forecast}
+          choices={call.options.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
+          onChoose={(optionId) => answerWeatherCall(optionId as WeatherCallOptionId)}
+          theme={theme}
+          promotionName={world.promotion.name}
+        />
       )}
 
       {/* The card's official. Boxing does it this way: one referee named for

@@ -85,7 +85,34 @@ export interface EventOption {
     chance: (subjects: EventSubjects) => number;
     onSuccess: (subjects: EventSubjects, settings: WorldSettings) => EventEffect[];
     onFailure: (subjects: EventSubjects, settings: WorldSettings) => EventEffect[];
+    /**
+     * Route to a different follow-up node depending on the roll. Omit to
+     * fall back to `next` (or terminate) regardless of the outcome — most
+     * gambles still just end the conversation either way.
+     */
+    nextOnSuccess?: Id;
+    nextOnFailure?: Id;
   };
+  /**
+   * Advance to this node instead of ending the conversation. Its effects
+   * still apply immediately — a branch is "and then," not "instead of."
+   * Omit to terminate here, as every option did before branching existed.
+   */
+  next?: Id;
+}
+
+/**
+ * A follow-up beat in a branching event, reached only via `next` /
+ * `nextOnSuccess` / `nextOnFailure` on an option — never fired directly by
+ * the scheduler. `speaker` picks which resolved subject the dialogue screen
+ * shows a portrait for; 'narrator' gets no portrait at all.
+ */
+export interface EventNode {
+  id: Id;
+  speaker: 'primary' | 'secondary' | 'narrator';
+  /** Same convention as CreativeEvent.body: 1+ variants, picked at random. */
+  body: string[];
+  options: EventOption[];
 }
 
 export interface EventCondition {
@@ -107,8 +134,20 @@ export interface CreativeEvent {
   /** Headline shown to the player. `{primary}` / `{secondary}` / `{rival}` are substituted. */
   title: string;
   /**
+   * Who is actually saying `body`, for the conversation screen's portrait.
+   * 'primary' — most single-subject events; the wrestler speaks in first
+   * person and gets a portrait. 'narrator' — anything with two subjects (no
+   * single mouth is doing the asking) or none at all (a sponsor, the
+   * network, a rival's whole promotion): no portrait, third person.
+   * 'secondary' exists for symmetry with EventNode but no root event uses it
+   * yet — a follow-up node is the more natural place for the second person
+   * in a two-subject event to get a turn.
+   */
+  speaker: 'primary' | 'secondary' | 'narrator';
+  /**
    * 3-6 body variants, picked at random, so the same event reads differently
-   * the second time it fires (§0 content budget).
+   * the second time it fires (§0 content budget). First person when
+   * `speaker` is 'primary'/'secondary'; third person for 'narrator'.
    */
   body: string[];
   /** Relative likelihood among everything eligible this week. */
@@ -116,16 +155,30 @@ export interface CreativeEvent {
   /** Weeks before this specific event may fire again. */
   cooldownWeeks: number;
   conditions: EventCondition;
+  /** The root node's options. */
   options: EventOption[];
+  /** Follow-up nodes a root (or another node's) option can branch into. */
+  nodes?: Record<Id, EventNode>;
 }
 
-/** A fired event, with its subjects resolved and its text already chosen. */
+/**
+ * A fired event, with its subjects resolved. Tracks which node is currently
+ * showing and the scrollback of everything already said and chosen, so a
+ * branching conversation can render as a continuous exchange rather than a
+ * one-shot card.
+ */
 export interface PendingEvent {
   eventId: Id;
   week: number;
   title: string;
   body: string;
+  /** Who's currently speaking `body` — the root event's, or the current node's. */
+  speaker: 'primary' | 'secondary' | 'narrator';
   category: EventCategory;
   subjects: { primaryId?: Id; secondaryId?: Id; rivalId?: Id };
   options: { id: string; label: string; gains: string; costs: string }[];
+  /** 'root' for the event's opening beat, otherwise an EventNode id. */
+  currentNodeId: Id | 'root';
+  /** Every node shown so far and what was picked there, oldest first. */
+  history: { nodeId: Id | 'root'; body: string; choiceId: string; choiceLabel: string }[];
 }

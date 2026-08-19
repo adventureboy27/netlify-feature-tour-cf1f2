@@ -204,3 +204,12 @@ export function workingHurtRisk(wrestler: Wrestler, settings: WorldSettings): nu
   // knee. See sim/casualties.ts.
   return riskFromGrade(wrestler.injury?.grade ?? 0, settings);
 }
+
+/**
+ * What the hurt champion says about the belt, in their own words — wraps
+ * the same `injuryText`/`outFor` the call already carries, just spoken
+ * first person instead of read off a clipboard.
+ */
+export function championCallLine(injuryText: string, outFor: string): string {
+  return `${injuryText}. I'm out ${outFor}, and the belt's just sitting there.`;
+}

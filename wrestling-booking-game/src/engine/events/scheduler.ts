@@ -119,7 +119,8 @@ export function eligibleEvents(ctx: EventRollContext): Candidate[] {
   return candidates;
 }
 
-function substitute(text: string, subjects: EventSubjects): string {
+/** Exported so a follow-up node's body/options can be substituted the same way. */
+export function substitute(text: string, subjects: EventSubjects): string {
   return text
     .replaceAll('{primary}', subjects.primary?.name ?? 'someone')
     .replaceAll('{secondary}', subjects.secondary?.name ?? 'someone else')
@@ -160,6 +161,7 @@ export function rollWeeklyEvent(rng: Rng, ctx: EventRollContext): PendingEvent |
     week: ctx.week,
     title: substitute(event.title, subjects),
     body: substitute(pick(rng, event.body), subjects),
+    speaker: event.speaker,
     category: event.category,
     subjects: {
       primaryId: subjects.primary?.id,
@@ -167,6 +169,8 @@ export function rollWeeklyEvent(rng: Rng, ctx: EventRollContext): PendingEvent |
       rivalId: subjects.rival?.id,
     },
     options: event.options.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs })),
+    currentNodeId: 'root',
+    history: [],
   };
 }
 

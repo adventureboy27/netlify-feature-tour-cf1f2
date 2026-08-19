@@ -21,6 +21,54 @@ than the one already made.
 
 ## Done and worth not re-litigating
 
+- **Reactive personnel/managerial moments now play out as a conversation, not
+  a flat card of buttons.** Creative events, release requests, rival
+  approaches, an injured champion's title call, and severe-weather calls all
+  render through one new shared component (`ui/dialogue/DialogueCard.tsx`):
+  the wrestler's real portrait, first-person body text, and the booker's
+  multiple-choice reply — a themed monogram badge stands in for the booker
+  (never a generated face), and weather/disaster calls get the no-face
+  "narrator" variant since nobody with a face is doing the asking. The
+  underlying data model (`engine/events/types.ts`) is additive: `EventOption`
+  gained an optional `next` (and a gamble's optional `nextOnSuccess`/
+  `nextOnFailure`), and `CreativeEvent` gained an optional `nodes` map — a
+  root option that omits `next` still terminates exactly as before, so all 9
+  non-branching events needed zero data changes. `resolveOption`
+  (`engine/events/apply.ts`) now takes the current node id and returns either
+  a terminal summary or a `next` node to advance to; `chooseEventOption`
+  (`state/slices/events.ts`) advances `PendingEvent.currentNodeId` and
+  appends to its `history` instead of always closing the card. Two events
+  (`gimmickRequest`, `workingHurt`) were given a real second node as proof
+  the engine actually branches — granting a gimmick change now asks how it
+  debuts, and working-hurt's gamble failure asks how the medical bill gets
+  handled — the other 9 events are single-node, first-person-only where one
+  wrestler is doing the asking (two-subject events like `backstageFight`
+  stay narrator-voiced, since forcing one person to "own" the line would
+  misstate what's happening). Release requests and rival approaches gained
+  real first-person lines (`releaseRequestLine` in
+  `engine/economy/termination.ts`, `approachLine` in `engine/world/poaching.ts`)
+  picked deterministically from the request itself, not from `world.rng`, so
+  a re-render never changes what somebody already said. Schema bumped to 46
+  for `PendingEvent`'s new `currentNodeId`/`history` fields — no migration,
+  old saves with a mid-flight event are rejected on version mismatch, same
+  as every prior bump. Verified with `tsc --noEmit`, the full suite (2633
+  tests), `npm run sim`, a production build, and a real browser: forced each
+  of the five surfaces to fire (naturally for creative events, via direct
+  store state for the rarer release/approach/champion/weather calls, which
+  the plan explicitly allows for a screenshot pass) and confirmed the
+  portrait, first-person text, and gains/costs choices all render correctly,
+  then drove `gimmickRequest`'s branch through "grant" → the `debut`
+  follow-up node → a failed gamble, confirming the scrollback, the second
+  choice's own effects, and the terminal outcome summary all work.
+  Booker-initiated back-office work (contract renewals, scheduling, browsing
+  stats/profiles) deliberately stays on ordinary browsable screens, not this
+  engine — reactive vs. proactive was an explicit split from the start. A
+  related contract/tampering-period rework (last-two-weeks renewal
+  conversation, a legal-tampering bidding war, a 90-day freeze on
+  booker-initiated releases) was scoped alongside this but deliberately not
+  built — it touches contracts/free-agency/the bidding-war auction deeply
+  enough to be its own follow-up.
+
 - **A rival's roster, and their career history, is now browsable — "The
   competition" (`RivalRosterScreen.tsx`, behind More).** Every screen that
   touched a rival before this showed a name and a record at most (Rankings'

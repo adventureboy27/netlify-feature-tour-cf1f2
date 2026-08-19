@@ -27,6 +27,7 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     id: 'backstageFight',
     category: 'lockerRoom',
     title: '{primary} and {secondary} had to be pulled apart',
+    speaker: 'narrator',
     body: [
       'It started over a missed spot and ended with both of them on the floor. Half the locker room saw it.',
       'Nobody will say who swung first. Both of them are sitting on opposite sides of the room refusing to look at each other.',
@@ -93,10 +94,11 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     id: 'veteranComplaint',
     category: 'lockerRoom',
     title: '{primary} thinks the young talent is being handed too much',
+    speaker: 'primary',
     body: [
-      'They caught you after the show. Twenty years in the business and they have opinions about who is getting the spots.',
-      'It was not a complaint exactly. It was a long story about how things used to be, with a point at the end of it.',
-      'They have been saying it in the locker room for weeks. Now they are saying it to you.',
+      "Twenty years in this business, and I've got opinions about who's getting the spots. I caught you after the show because this couldn't wait.",
+      "This isn't a complaint, exactly. It's a long story about how things used to be. But there's a point at the end of it.",
+      "I've been saying this in the locker room for weeks. Now I'm saying it to you.",
     ],
     weight: 12,
     cooldownWeeks: 22,
@@ -143,11 +145,12 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     id: 'gimmickRequest',
     category: 'creative',
     title: '{primary} wants a new gimmick',
+    speaker: 'primary',
     body: [
-      'They have been doing the same character for years and they are done with it. They have an idea. It is not a bad one.',
-      'They came to you with three pages of notes. Somebody has been thinking about this for a long time.',
-      'The current act is stale and they know it before you do. They want to change everything.',
-      'They are not asking for a push. They are asking to be someone else.',
+      "I've been doing the same character for years and I'm done with it. I've got an idea. It's not a bad one.",
+      "I wrote you three pages of notes. I've been thinking about this for a long time.",
+      "The act's stale and I knew it before you did. I want to change everything.",
+      "I'm not asking for a push. I'm asking to be someone else.",
     ],
     weight: 14,
     cooldownWeeks: 16,
@@ -164,17 +167,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
           { kind: 'popularity', wrestlerId: primary!.id, delta: -8 },
           { kind: 'momentum', wrestlerId: primary!.id, delta: -10 },
         ],
-        gamble: {
-          chance: ({ primary }) => 0.35 + (primary!.charisma / 100) * 0.45,
-          onSuccess: ({ primary }) => [
-            { kind: 'popularity', wrestlerId: primary!.id, delta: 18 },
-            { kind: 'momentum', wrestlerId: primary!.id, delta: 20 },
-          ],
-          onFailure: ({ primary }) => [
-            { kind: 'popularity', wrestlerId: primary!.id, delta: -10 },
-            { kind: 'morale', wrestlerId: primary!.id, delta: -12 },
-          ],
-        },
+        // Granting it doesn't end the conversation — how it debuts is a
+        // second, real decision, and that's what the odds actually hang on.
+        next: 'debut',
       },
       {
         id: 'refuse',
@@ -198,15 +193,57 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
         ],
       },
     ],
+    nodes: {
+      debut: {
+        id: 'debut',
+        speaker: 'primary',
+        body: [
+          'So how do we bring this out?',
+          "New look, new name — how do you want people to see it for the first time?",
+        ],
+        options: [
+          {
+            id: 'cold',
+            label: 'Debut it cold on TV',
+            gains: 'Maximum impact if the crowd bites immediately',
+            costs: 'No safety net at all if they do not',
+            effects: () => [],
+            gamble: {
+              chance: ({ primary }) => 0.35 + (primary!.charisma / 100) * 0.45,
+              onSuccess: ({ primary }) => [
+                { kind: 'popularity', wrestlerId: primary!.id, delta: 18 },
+                { kind: 'momentum', wrestlerId: primary!.id, delta: 20 },
+              ],
+              onFailure: ({ primary }) => [
+                { kind: 'popularity', wrestlerId: primary!.id, delta: -10 },
+                { kind: 'morale', wrestlerId: primary!.id, delta: -12 },
+              ],
+            },
+          },
+          {
+            id: 'vignette',
+            label: 'Vignette it first',
+            gains: 'Builds anticipation before anybody has to sell it live',
+            costs: 'Production money spent on a video package instead of a match',
+            effects: ({ primary }) => [
+              { kind: 'popularity', wrestlerId: primary!.id, delta: 5 },
+              { kind: 'momentum', wrestlerId: primary!.id, delta: 8 },
+              { kind: 'money', delta: -3000 },
+            ],
+          },
+        ],
+      },
+    },
   },
   {
     id: 'turnRequest',
     category: 'creative',
     title: '{primary} wants to turn',
+    speaker: 'primary',
     body: [
-      'They think the crowd is ready to hate them. They might be right.',
-      'They are tired of being cheered politely. They want to be booed properly.',
-      'The character has nowhere left to go in this direction and they know it.',
+      "I think the crowd's ready to hate me. I might be right.",
+      "I'm tired of being cheered politely. I want to be booed properly.",
+      "This character's got nowhere left to go in this direction, and I know it.",
     ],
     weight: 11,
     cooldownWeeks: 20,
@@ -250,6 +287,7 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     id: 'stableProposal',
     category: 'creative',
     title: '{primary} and {secondary} want to form a group',
+    speaker: 'narrator',
     body: [
       'They have been travelling together for months and they have it all worked out — name, colours, the lot.',
       'Two acts that are not going anywhere alone think they would go somewhere together.',
@@ -296,6 +334,7 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     id: 'sponsorOffer',
     category: 'business',
     title: 'A sponsor wants their name on the show',
+    speaker: 'narrator',
     body: [
       'A regional brand wants the naming rights. The money is real and the creative notes are going to be worse.',
       'They love the product. They have also sent over a two-page list of things they would rather you did not do on camera.',
@@ -348,6 +387,7 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     id: 'tvSlotOffer',
     category: 'business',
     title: 'The network is offering a better slot',
+    speaker: 'narrator',
     body: [
       'A better night, more eyes, and they want more shows a month to go with it.',
       'The slot is a real upgrade. The production commitment that comes with it is not small.',
@@ -386,11 +426,12 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     id: 'rivalInterest',
     category: 'rival',
     title: '{rival} has been talking to {primary}',
+    speaker: 'primary',
     body: [
-      'It got back to you third-hand, which means it has been going on a while.',
-      'Somebody saw them having dinner with a booker who does not work for you.',
-      'They did not deny it. They did not really explain it either.',
-      'The offer is apparently generous. The offer is apparently in writing.',
+      "It got back to you third-hand, which means it's been going on a while. I should have told you myself.",
+      "Yeah, I had dinner with a booker who doesn't work for you. I'm not going to pretend I didn't.",
+      "I'm not denying it. I'm not sure I can explain it either.",
+      "The offer's generous. It's in writing. I haven't signed anything.",
     ],
     weight: 13,
     cooldownWeeks: 14,
@@ -448,6 +489,7 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     id: 'rivalRaidsTape',
     category: 'rival',
     title: '{rival} ran your finish on their show',
+    speaker: 'narrator',
     body: [
       'Same spot, same false finish, seven days later and better lit.',
       'It is not illegal. It is not subtle either.',
@@ -490,10 +532,11 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     id: 'workingHurt',
     category: 'personal',
     title: '{primary} has been working hurt',
+    speaker: 'primary',
     body: [
-      'The trainer told you before they did. They have been taping it up for weeks.',
-      'It is not serious yet. Everyone involved has been careful to use the word "yet".',
-      'They can go. They should not, but they can.',
+      "The trainer told you before I did. I've been taping this up for weeks.",
+      "It's not serious yet. I've been careful to use that word — \"yet.\"",
+      "I can go tonight. I shouldn't. But I can.",
     ],
     weight: 12,
     cooldownWeeks: 12,
@@ -523,6 +566,10 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
             { kind: 'injury', wrestlerId: primary!.id, weeks: 10 },
             { kind: 'rosterMorale', delta: -7 },
           ],
+          // It paying off ends cleanly, as it always did. It backfiring
+          // opens a real follow-up — now they're actually hurt, worse than
+          // before, and there's a second decision about how you handle it.
+          nextOnFailure: 'aftermath',
         },
       },
       {
@@ -537,15 +584,48 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
         ],
       },
     ],
+    nodes: {
+      aftermath: {
+        id: 'aftermath',
+        speaker: 'primary',
+        body: [
+          "You knew this could happen. I need to know you're actually going to take care of it now.",
+          "This costs me time either way. The question is whether it costs you anything too.",
+        ],
+        options: [
+          {
+            id: 'full-cover',
+            label: 'Cover the medical bill in full',
+            gains: 'They know you stood behind them when it went wrong',
+            costs: 'A real bill, paid in full, for a gamble that was yours to take',
+            effects: ({ primary }) => [
+              { kind: 'money', delta: -6000 },
+              { kind: 'morale', wrestlerId: primary!.id, delta: 15 },
+            ],
+          },
+          {
+            id: 'standard-care',
+            label: 'Standard company care only',
+            gains: 'Cheap, and technically within your obligations',
+            costs: 'They remember exactly who was in the ring when it happened',
+            effects: ({ primary }) => [
+              { kind: 'money', delta: -1000 },
+              { kind: 'shootHeat', wrestlerIds: [primary!.id], delta: 15 },
+            ],
+          },
+        ],
+      },
+    },
   },
   {
     id: 'retirementThoughts',
     category: 'personal',
     title: '{primary} is thinking about the end',
+    speaker: 'primary',
     body: [
-      'Not this year, they said. But they said it out loud, which is new.',
-      'The body is telling them something and they have started listening.',
-      'They wanted you to hear it from them before you heard it from anyone else.',
+      "Not this year. But I said it out loud, and that's new.",
+      "My body's telling me something, and I've started listening.",
+      "I wanted you to hear it from me before you heard it from anyone else.",
     ],
     weight: 7,
     cooldownWeeks: 36,

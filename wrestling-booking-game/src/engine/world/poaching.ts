@@ -14,6 +14,22 @@ import { hasTrait, leverWeight, temptationWeight } from '../career/personality';
 
 export type OfferStatus = 'open' | 'resolved';
 
+const APPROACH_LINES = [
+  "I had somebody from {rival} pull me aside after the show.",
+  "{rival} reached out. I wasn't looking for it, but I took the call.",
+  "Somebody from {rival} has been talking to me. I thought you should hear it from me first.",
+];
+
+/**
+ * What the wrestler being courted says about it, in their own words. Picked
+ * deterministically from the offer itself — presentation, not a roll, so the
+ * same open offer always reads the same way.
+ */
+export function approachLine(offer: PoachingOffer, rivalName: string): string {
+  const index = (offer.wrestlerId.length + offer.openedWeek) % APPROACH_LINES.length;
+  return APPROACH_LINES[index]!.replaceAll('{rival}', rivalName);
+}
+
 /** A rival's approach, sitting on the table awaiting the player's answer. */
 export interface PoachingOffer {
   id: Id;
@@ -42,7 +58,12 @@ export interface ResponseOutcome {
   rosterMoraleDelta: number;
   /** Reputation cost of the response itself. */
   reputationDelta: number;
+  /** What it costs to say this, once — the wire item. */
   description: string;
+  /** What you're hoping for. Same convention as a creative event's option. */
+  gains: string;
+  /** What it costs you. */
+  costs: string;
 }
 
 /**
@@ -61,6 +82,8 @@ export function responseOutcome(response: PoachingResponse, settings: WorldSetti
         rosterMoraleDelta: -3,
         reputationDelta: 0,
         description: 'You matched the money. Payroll is up and everyone else will hear about it.',
+        gains: 'Makes them meaningfully less likely to go',
+        costs: 'Payroll goes up, and the rest of the room hears about it',
       };
     case 'promiseAPush':
       return {
@@ -71,6 +94,8 @@ export function responseOutcome(response: PoachingResponse, settings: WorldSetti
         rosterMoraleDelta: -2,
         reputationDelta: 0,
         description: 'You promised them the spot. That is a commitment other people noticed.',
+        gains: 'Costs nothing up front, and it is a real commitment they notice',
+        costs: 'You are on the hook for the push whether or not they stay',
       };
     case 'doNothing':
       return {
@@ -81,6 +106,8 @@ export function responseOutcome(response: PoachingResponse, settings: WorldSetti
         rosterMoraleDelta: 0,
         reputationDelta: 0,
         description: 'You let it ride.',
+        gains: 'Costs nothing today',
+        costs: 'Does nothing to change their mind either',
       };
   }
 }

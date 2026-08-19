@@ -9,7 +9,7 @@ import { CREATIVE_EVENTS, eventById } from './events';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { generateWrestler } from '../engine/generate/wrestler';
 import { rngFromSeed } from '../engine/rng';
-import type { EventEffect, EventSubjects } from '../engine/events/types';
+import type { CreativeEvent, EventEffect, EventOption, EventSubjects } from '../engine/events/types';
 import type { Promotion, Wrestler } from '../engine/types';
 
 const settings = defaultWorldSettings();
@@ -41,6 +41,24 @@ function subjects(): EventSubjects {
     ppvCalendar: ['The Reckoning'],
   };
   return { primary, secondary, promotion, rival: { ...promotion, id: 'them', name: 'Rival Co', isPlayer: false } };
+}
+
+/**
+ * Every option in an event's library — the root node's, and every follow-up
+ * node's — flattened with which node it belongs to. Branching added a second
+ * place options can live; every rule that used to walk `event.options` alone
+ * now walks this instead, so a follow-up node is held to the same standard
+ * as a root one rather than escaping the house rules by being one hop away.
+ */
+function allOptions(): { event: CreativeEvent; nodeId: string; option: EventOption }[] {
+  const entries: { event: CreativeEvent; nodeId: string; option: EventOption }[] = [];
+  for (const event of CREATIVE_EVENTS) {
+    for (const option of event.options) entries.push({ event, nodeId: 'root', option });
+    for (const node of Object.values(event.nodes ?? {})) {
+      for (const option of node.options) entries.push({ event, nodeId: node.id, option });
+    }
+  }
+  return entries;
 }
 
 /** Is this effect bad for the player? */
@@ -76,10 +94,17 @@ describe('every event is well formed', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('has unique option ids within each event', () => {
+  it('has unique option ids within each node', () => {
+    // Uniqueness is per node, not per event — resolution is always keyed by
+    // (nodeId, optionId), so a follow-up node reusing an id like 'accept'
+    // that a different node also uses is unambiguous.
     for (const event of CREATIVE_EVENTS) {
-      const ids = event.options.map((o) => o.id);
-      expect(new Set(ids).size, event.id).toBe(ids.length);
+      const rootIds = event.options.map((o) => o.id);
+      expect(new Set(rootIds).size, `${event.id}/root`).toBe(rootIds.length);
+      for (const node of Object.values(event.nodes ?? {})) {
+        const ids = node.options.map((o) => o.id);
+        expect(new Set(ids).size, `${event.id}/${node.id}`).toBe(ids.length);
+      }
     }
   });
 
@@ -87,12 +112,41 @@ describe('every event is well formed', () => {
     expect(eventById('backstageFight')).toBeDefined();
     expect(eventById('nope')).toBeUndefined();
   });
+
+  it('never branches to a node that does not exist', () => {
+    // A typo'd `next` would otherwise hang the conversation silently — the
+    // store falls back to closing it out, but that's a bug hiding as a
+    // feature. Catch it here instead.
+    for (const event of CREATIVE_EVENTS) {
+      for (const { nodeId, option } of allOptions().filter((e) => e.event.id === event.id)) {
+        for (const target of [option.next, option.gamble?.nextOnSuccess, option.gamble?.nextOnFailure]) {
+          if (!target) continue;
+          expect(event.nodes?.[target], `${event.id}/${nodeId}/${option.id} -> ${target}`).toBeDefined();
+        }
+      }
+    }
+  });
+
+  it('every node is actually reachable from some option', () => {
+    // A node nobody's `next` ever points to is dead content.
+    for (const event of CREATIVE_EVENTS) {
+      const reachable = new Set<string>();
+      for (const { option } of allOptions().filter((e) => e.event.id === event.id)) {
+        if (option.next) reachable.add(option.next);
+        if (option.gamble?.nextOnSuccess) reachable.add(option.gamble.nextOnSuccess);
+        if (option.gamble?.nextOnFailure) reachable.add(option.gamble.nextOnFailure);
+      }
+      for (const nodeId of Object.keys(event.nodes ?? {})) {
+        expect(reachable.has(nodeId), `${event.id}/${nodeId} is unreachable`).toBe(true);
+      }
+    }
+  });
 });
 
 describe('no option is free — the house rule', () => {
   const ctx = subjects();
 
-  it.each(CREATIVE_EVENTS.flatMap((e) => e.options.map((o) => [`${e.id}/${o.id}`, e, o] as const)))(
+  it.each(allOptions().map(({ event, nodeId, option }) => [`${event.id}/${nodeId}/${option.id}`, event, option] as const))(
     '%s carries a stated cost and a real one',
     (_label, _event, option) => {
       // Stated to the player...
@@ -112,41 +166,35 @@ describe('no option is free — the house rule', () => {
   );
 
   it('never lets a gamble succeed for free either', () => {
-    for (const event of CREATIVE_EVENTS) {
-      for (const option of event.options) {
-        if (!option.gamble) continue;
-        const failure = option.gamble.onFailure(ctx, settings);
-        expect(failure.length, `${event.id}/${option.id} failure does nothing`).toBeGreaterThan(0);
-        expect(failure.some(isNegative), `${event.id}/${option.id} failure does not hurt`).toBe(true);
-      }
+    for (const { event, nodeId, option } of allOptions()) {
+      if (!option.gamble) continue;
+      const failure = option.gamble.onFailure(ctx, settings);
+      expect(failure.length, `${event.id}/${nodeId}/${option.id} failure does nothing`).toBeGreaterThan(0);
+      expect(failure.some(isNegative), `${event.id}/${nodeId}/${option.id} failure does not hurt`).toBe(true);
     }
   });
 
   it('keeps every gamble a genuine gamble, never a sure thing', () => {
-    for (const event of CREATIVE_EVENTS) {
-      for (const option of event.options) {
-        if (!option.gamble) continue;
-        const p = option.gamble.chance(ctx);
-        expect(p, `${event.id}/${option.id}`).toBeGreaterThan(0.05);
-        expect(p, `${event.id}/${option.id}`).toBeLessThan(0.95);
-      }
+    for (const { event, nodeId, option } of allOptions()) {
+      if (!option.gamble) continue;
+      const p = option.gamble.chance(ctx);
+      expect(p, `${event.id}/${nodeId}/${option.id}`).toBeGreaterThan(0.05);
+      expect(p, `${event.id}/${nodeId}/${option.id}`).toBeLessThan(0.95);
     }
   });
 
   it('produces effects that reference only the subjects it was given', () => {
     const allowed = new Set(['p1', 'p2']);
-    for (const event of CREATIVE_EVENTS) {
-      for (const option of event.options) {
-        const effects = [
-          ...option.effects(ctx, settings),
-          ...(option.gamble?.onSuccess(ctx, settings) ?? []),
-          ...(option.gamble?.onFailure(ctx, settings) ?? []),
-        ];
-        for (const effect of effects) {
-          if ('wrestlerId' in effect) expect(allowed.has(effect.wrestlerId), `${event.id}: ${effect.wrestlerId}`).toBe(true);
-          if ('wrestlerIds' in effect) for (const id of effect.wrestlerIds) expect(allowed.has(id)).toBe(true);
-          if ('memberIds' in effect) for (const id of effect.memberIds) expect(allowed.has(id)).toBe(true);
-        }
+    for (const { event, nodeId, option } of allOptions()) {
+      const effects = [
+        ...option.effects(ctx, settings),
+        ...(option.gamble?.onSuccess(ctx, settings) ?? []),
+        ...(option.gamble?.onFailure(ctx, settings) ?? []),
+      ];
+      for (const effect of effects) {
+        if ('wrestlerId' in effect) expect(allowed.has(effect.wrestlerId), `${event.id}/${nodeId}: ${effect.wrestlerId}`).toBe(true);
+        if ('wrestlerIds' in effect) for (const id of effect.wrestlerIds) expect(allowed.has(id)).toBe(true);
+        if ('memberIds' in effect) for (const id of effect.memberIds) expect(allowed.has(id)).toBe(true);
       }
     }
   });

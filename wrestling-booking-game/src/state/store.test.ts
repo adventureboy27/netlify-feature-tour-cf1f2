@@ -3,7 +3,6 @@ import { MANAGERS } from '../data/ringsidePool';
 import { useGameStore } from './store';
 import { defaultWorldSettings } from '../engine/world/settings';
 import type { WorldSettings } from '../engine/types';
-import { eventById } from '../data/events';
 import type { Wrestler } from '../engine/types';
 
 // A roster big enough to survive its own injuries. This was 12, which was
@@ -784,7 +783,12 @@ describe('the next generation', () => {
   function runToTheTurnOfTheYear(): void {
     for (let i = 0; i < 70; i++) {
       const pending = useGameStore.getState().world!.pendingEvent;
-      const firstOption = pending ? eventById(pending.eventId)?.options[0] : undefined;
+      // Read off the pending event's own option list, not the root event
+      // definition's — branching means the conversation can be sitting on a
+      // follow-up node whose options aren't the root's, and always picking
+      // the root's first option would replay a choice that's no longer on
+      // offer.
+      const firstOption = pending?.options[0];
       if (firstOption) useGameStore.getState().chooseEventOption(firstOption.id);
       useGameStore.getState().dismissEventOutcome();
       if (useGameStore.getState().world!.pendingWeatherCall) {
@@ -936,7 +940,7 @@ describe('the awards night', () => {
       // inside sixty weeks of autofill: the repackage event could not fire at
       // all, being gated on a stale gimmick that nothing ever staled.
       const pending = useGameStore.getState().world!.pendingEvent;
-      const firstOption = pending ? eventById(pending.eventId)?.options[0] : undefined;
+      const firstOption = pending?.options[0];
       if (firstOption) useGameStore.getState().chooseEventOption(firstOption.id);
       useGameStore.getState().dismissEventOutcome();
       if (useGameStore.getState().world!.pendingWeatherCall) {

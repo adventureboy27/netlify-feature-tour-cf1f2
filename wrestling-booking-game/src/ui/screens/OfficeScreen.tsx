@@ -22,7 +22,7 @@ import { grudgeAgainst, grudgeLine } from '../../engine/world/grudges';
 import { leverageReason } from '../../engine/career/leverage';
 import { useGameStore } from '../../state/store';
 import { tvVerdict, wonTheNight, playerChartPosition } from '../../engine/world/tvRatings';
-import { temptationLabel, type PoachingResponse } from '../../engine/world/poaching';
+import { temptationLabel, approachLine, responseOutcome, type PoachingResponse } from '../../engine/world/poaching';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { mostRecentDeath, stillHeldAgainstUs } from '../../engine/career/onOurWatch';
 import { moodBand, moodLabel, moraleSummary, troubleInTheRoom } from '../../engine/career/morale';
@@ -35,11 +35,15 @@ import {
 import { egoLabel } from '../../engine/career/ego';
 import { awardById } from '../../engine/career/awards';
 import { strikeWarning } from '../../engine/world/mandates';
-import { championInjuryOptions } from '../../engine/world/titleDefence';
+import { championInjuryOptions, championCallLine, type ChampionInjuryChoice } from '../../engine/world/titleDefence';
 import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Money } from '../components/display';
+import { promotionTheme } from '../components/chrome';
+import { billedAs } from '../../engine/generate/nickname';
+import { DialogueCard } from '../dialogue/DialogueCard';
+import type { PendingEvent } from '../../engine/events/types';
 import { DAYS, weekLine } from '../../engine/world/calendar';
 import {
   bigShowName,
@@ -55,7 +59,7 @@ import { BID_LEVEL_LABELS, playerBidAmount, type PlayerBidLevel } from '../../en
 import { foldRisk, FOLD_RISK_LABELS } from '../../engine/world/rivalEconomy';
 import type { Wrestler } from '../../engine/types';
 import { contractUrgency } from '../../engine/economy/contracts';
-import { severanceOwed, guaranteeLabel } from '../../engine/economy/termination';
+import { severanceOwed, guaranteeLabel, releaseRequestLine } from '../../engine/economy/termination';
 import { canBeTraded, tradeWorth, tradePartners } from '../../engine/world/trades';
 import {
   signedReferees,
@@ -226,6 +230,10 @@ function DeskTab() {
   const dismissYear = useGameStore((s) => s.dismissYearInReview);
   const bid = useGameStore((s) => s.bidOnAuction);
   const dismissAuction = useGameStore((s) => s.dismissAuctionResult);
+  // Keyed to which event it's open for, not a bare boolean: a branching
+  // conversation keeps the same eventId across nodes and should stay open,
+  // but a brand new event firing later needs its own "Talk it through" tap.
+  const [openEventId, setOpenEventId] = useState<string | null>(null);
   if (!world) return null;
 
   // Everybody unhappy enough to be a problem, worst first. `troubleInTheRoom`
@@ -430,32 +438,70 @@ function DeskTab() {
         <article className="rounded border border-amber-800 bg-neutral-900 p-3">
           <div className="mb-1 text-[11px] uppercase tracking-wide text-amber-500">{world.pendingEvent.category}</div>
           <h2 className="text-sm font-semibold">{world.pendingEvent.title}</h2>
-          <p className="mt-1 text-sm text-neutral-300">{world.pendingEvent.body}</p>
-
-          <div className="mt-3 flex flex-col gap-2">
-            {world.pendingEvent.options.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                data-testid={`event-option-${option.id}`}
-                onClick={() => choose(option.id)}
-                className="rounded border border-neutral-800 bg-neutral-950 p-2 text-left hover:border-neutral-600"
-              >
-                <div className="text-sm font-medium">{option.label}</div>
-                <div className="mt-1 grid gap-0.5 text-[11px] sm:grid-cols-2">
-                  <div className="text-emerald-400">↑ {option.gains}</div>
-                  <div className="text-rose-400">↓ {option.costs}</div>
-                </div>
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            data-testid="event-talk"
+            onClick={() => setOpenEventId(world.pendingEvent!.eventId)}
+            className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:bg-neutral-700"
+          >
+            Talk it through
+          </button>
         </article>
       ) : (
         <p className="rounded border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-500">
           Quiet week. Nobody is at your door.
         </p>
       )}
+
+      {world.pendingEvent && openEventId === world.pendingEvent.eventId && (
+        <PendingEventDialogue
+          pending={world.pendingEvent}
+          wrestler={
+            world.pendingEvent.speaker !== 'narrator'
+              ? world.wrestlers[
+                  world.pendingEvent.speaker === 'secondary'
+                    ? (world.pendingEvent.subjects.secondaryId ?? '')
+                    : (world.pendingEvent.subjects.primaryId ?? '')
+                ]
+              : undefined
+          }
+          promotionName={world.promotion.name}
+          onChoose={choose}
+          onClose={() => setOpenEventId(null)}
+        />
+      )}
     </>
+  );
+}
+
+/** A creative event, on the conversation screen. Root beat or a follow-up node — same component either way. */
+function PendingEventDialogue({
+  pending,
+  wrestler,
+  promotionName,
+  onChoose,
+  onClose,
+}: {
+  pending: PendingEvent;
+  wrestler: Wrestler | undefined;
+  promotionName: string;
+  onChoose: (optionId: string) => void;
+  onClose: () => void;
+}) {
+  const theme = promotionTheme(useGameStore((s) => s.world!.promotion.identity));
+  return (
+    <DialogueCard
+      speaker={wrestler ? { kind: 'wrestler', wrestlerId: wrestler.id } : { kind: 'narrator' }}
+      wrestler={wrestler}
+      speakerName={wrestler ? billedAs(wrestler) : pending.title}
+      body={pending.body}
+      choices={pending.options}
+      onChoose={onChoose}
+      history={pending.history.map((h) => ({ body: h.body, choiceLabel: h.choiceLabel }))}
+      theme={theme}
+      promotionName={promotionName}
+      onClose={onClose}
+    />
   );
 }
 
@@ -783,7 +829,10 @@ function ContractsTab() {
   const answerApproach = useGameStore((s) => s.answerApproach);
   const [approachNote, setApproachNote] = useState<string | null>(null);
   const answerReleaseRequest = useGameStore((s) => s.answerReleaseRequest);
+  const [openReleaseId, setOpenReleaseId] = useState<string | null>(null);
+  const [openApproachId, setOpenApproachId] = useState<string | null>(null);
   if (!world) return null;
+  const theme = promotionTheme(world.promotion.identity);
 
   const wrestler = (id?: string): Wrestler | undefined => (id ? world.wrestlers[id] : undefined);
 
@@ -844,22 +893,14 @@ function ContractsTab() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-2">
                     <button
                       type="button"
-                      data-testid={`release-grant-${request.wrestlerId}`}
-                      onClick={() => answerReleaseRequest(request.wrestlerId, true)}
+                      data-testid={`release-talk-${request.wrestlerId}`}
+                      onClick={() => setOpenReleaseId(request.wrestlerId)}
                       className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-200 hover:bg-neutral-700"
                     >
-                      Let them go — ninety days
-                    </button>
-                    <button
-                      type="button"
-                      data-testid={`release-refuse-${request.wrestlerId}`}
-                      onClick={() => answerReleaseRequest(request.wrestlerId, false)}
-                      className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700"
-                    >
-                      They honour the deal
+                      Talk to them
                     </button>
                   </div>
                 </article>
@@ -868,6 +909,43 @@ function ContractsTab() {
           </div>
         </section>
       )}
+
+      {world.releaseRequests
+        .filter((request) => request.wrestlerId === openReleaseId)
+        .map((request) => {
+          const person = wrestler(request.wrestlerId);
+          if (!person) return null;
+          return (
+            <DialogueCard
+              key={request.wrestlerId}
+              speaker={{ kind: 'wrestler', wrestlerId: person.id }}
+              wrestler={person}
+              speakerName={person.name}
+              body={releaseRequestLine(person, request.openedWeek)}
+              choices={[
+                {
+                  id: 'grant',
+                  label: 'Let them go',
+                  gains: "They're free of what's owed",
+                  costs: 'Ninety days, and no company — including this one — can sign them',
+                },
+                {
+                  id: 'refuse',
+                  label: 'They honour the deal',
+                  gains: 'You keep them on the roster',
+                  costs: 'They resent it, and they remember',
+                },
+              ]}
+              onChoose={(choiceId) => {
+                answerReleaseRequest(request.wrestlerId, choiceId === 'grant');
+                setOpenReleaseId(null);
+              }}
+              theme={theme}
+              promotionName={world.promotion.name}
+              onClose={() => setOpenReleaseId(null)}
+            />
+          );
+        })}
 
       {/* How people left. Nobody drops off the roster in silence. */}
       {departures.length > 0 && (
@@ -980,9 +1058,12 @@ function ContractsTab() {
               const rival = world.rivals.find((r) => r.id === offer.rivalPromotionId);
               if (!target) return null;
               return (
-                <div
+                <button
+                  type="button"
                   key={offer.wrestlerId}
-                  className="flex items-center gap-2 rounded border border-neutral-800 bg-neutral-900 p-2"
+                  data-testid={`approach-talk-${offer.id}`}
+                  onClick={() => setOpenApproachId(offer.id)}
+                  className="flex w-full items-center gap-2 rounded border border-neutral-800 bg-neutral-900 p-2 text-left hover:border-neutral-600"
                 >
                   <PaperDoll
                     appearance={target.appearance}
@@ -1002,50 +1083,47 @@ function ContractsTab() {
                   <span className="shrink-0 rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-neutral-300">
                     {temptationLabel(offer.temptation)}
                   </span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* And what you can do about it. Every answer costs something, which is
-          the whole decision — see world/poaching.ts. Left alone, the approach
-          settles itself on its date and sometimes takes the man. */}
-      {world.approachOffers.length > 0 && (
-        <section className="mt-2">
-          <div className="flex flex-col gap-2">
-            {world.approachOffers.map((offer) => {
-              const target = wrestler(offer.wrestlerId);
-              if (!target) return null;
-              const answers: { response: PoachingResponse; label: string }[] = [
-                { response: { kind: 'matchMoney' }, label: 'Match the money' },
-                { response: { kind: 'promiseAPush' }, label: 'Promise the spot' },
-                { response: { kind: 'doNothing' }, label: 'Let it ride' },
-              ];
-              return (
-                <div key={`answer-${offer.id}`} className="rounded border border-neutral-800 bg-neutral-900 p-2">
-                  <div className="mb-1 text-[11px] text-neutral-400">{target.name}</div>
-                  <div className="flex flex-wrap gap-1">
-                    {answers.map((answer) => (
-                      <button
-                        key={answer.label}
-                        type="button"
-                        data-testid={`answer-${offer.id}-${answer.response.kind}`}
-                        onClick={() => setApproachNote(answerApproach(offer.id, answer.response).reason)}
-                        className="rounded bg-neutral-800 px-2 py-1 text-[11px] text-neutral-200 hover:bg-neutral-700"
-                      >
-                        {answer.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                </button>
               );
             })}
             {approachNote && <p className="text-[11px] text-amber-300">{approachNote}</p>}
           </div>
         </section>
       )}
+
+      {world.approachOffers
+        .filter((offer) => offer.id === openApproachId)
+        .map((offer) => {
+          const target = wrestler(offer.wrestlerId);
+          const rival = world.rivals.find((r) => r.id === offer.rivalPromotionId);
+          if (!target) return null;
+          const answers: { response: PoachingResponse; label: string }[] = [
+            { response: { kind: 'matchMoney' }, label: 'Match the money' },
+            { response: { kind: 'promiseAPush' }, label: 'Promise the spot' },
+            { response: { kind: 'doNothing' }, label: 'Let it ride' },
+          ];
+          return (
+            <DialogueCard
+              key={offer.id}
+              speaker={{ kind: 'wrestler', wrestlerId: target.id }}
+              wrestler={target}
+              speakerName={target.name}
+              body={approachLine(offer, rival?.name ?? 'a rival')}
+              choices={answers.map((a) => {
+                const outcome = responseOutcome(a.response, world.settings);
+                return { id: a.response.kind, label: a.label, gains: outcome.gains, costs: outcome.costs };
+              })}
+              onChoose={(choiceId) => {
+                const answer = answers.find((a) => a.response.kind === choiceId)!;
+                setApproachNote(answerApproach(offer.id, answer.response).reason);
+                setOpenApproachId(null);
+              }}
+              theme={theme}
+              promotionName={world.promotion.name}
+              onClose={() => setOpenApproachId(null)}
+            />
+          );
+        })}
     </>
   );
 }
@@ -1487,6 +1565,7 @@ function ChampionCallPanel() {
   const world = useGameStore((s) => s.world);
   const answer = useGameStore((s) => s.answerChampionCall);
   const [interimId, setInterimId] = useState<string>('');
+  const [open, setOpen] = useState(false);
   if (!world?.pendingChampionCall) return null;
 
   const call = world.pendingChampionCall;
@@ -1495,6 +1574,7 @@ function ChampionCallPanel() {
 
   const options = championInjuryOptions(title);
   const weeksLeft = world.settings.championInjuryGraceWeeks - (world.week - call.raisedWeek);
+  const champion = world.wrestlers[call.championIds[0] ?? ''];
   // Anybody fit, in the right division, who is not the champion.
   const candidates = world.promotion.rosterIds
     .map((id) => world.wrestlers[id])
@@ -1515,29 +1595,41 @@ function ChampionCallPanel() {
       <h2 className="mt-1 text-sm font-semibold">
         {call.championName} and the {call.titleName}
       </h2>
-      <p className="mt-1 text-xs text-neutral-300">
-        {call.injuryText}. Out {call.outFor}.
-      </p>
       <p className="mt-1 text-[11px] text-neutral-500">
         {weeksLeft <= 1
           ? 'Decide this week, or the company vacates it for you.'
           : `${weeksLeft} weeks to decide before the company vacates it for you.`}
       </p>
+      <button
+        type="button"
+        data-testid="champion-call-talk"
+        onClick={() => setOpen(true)}
+        className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:bg-neutral-700"
+      >
+        Talk to them
+      </button>
 
-      <div className="mt-2 flex flex-col gap-1.5">
-        {options.map((option) => (
-          <div key={option.id} className="rounded border border-neutral-800 bg-neutral-900 p-2">
-            <div className="text-xs font-medium">{option.label}</div>
-            <div className="mt-0.5 text-[11px] text-emerald-300/80">{option.gains}</div>
-            <div className="text-[11px] text-rose-300/80">{option.costs}</div>
-
-            {option.id === 'interim' && (
+      {open && (
+        <DialogueCard
+          speaker={champion ? { kind: 'wrestler', wrestlerId: champion.id } : { kind: 'narrator' }}
+          wrestler={champion}
+          speakerName={champion?.name ?? call.championName}
+          body={championCallLine(call.injuryText, call.outFor)}
+          choices={options.map((o) => ({
+            id: o.id,
+            label: o.label,
+            gains: o.gains,
+            costs: o.costs,
+            disabled: o.id === 'interim' && !interimId,
+          }))}
+          beforeChoices={
+            options.some((o) => o.id === 'interim') ? (
               <select
                 aria-label="Who holds the interim championship"
                 data-testid="interim-pick"
                 value={interimId}
                 onChange={(e) => setInterimId(e.target.value)}
-                className="mt-1.5 w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs"
+                className="w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs text-neutral-100"
               >
                 <option value="">Choose who carries it…</option>
                 {candidates.map((w) => (
@@ -1546,20 +1638,17 @@ function ChampionCallPanel() {
                   </option>
                 ))}
               </select>
-            )}
-
-            <button
-              type="button"
-              data-testid={`champion-call-${option.id}`}
-              onClick={() => answer(option.id, interimId || undefined)}
-              disabled={option.id === 'interim' && !interimId}
-              className="mt-1.5 w-full rounded bg-neutral-800 px-3 py-2 text-xs font-medium hover:bg-neutral-700 disabled:bg-neutral-900 disabled:text-neutral-600"
-            >
-              {option.label}
-            </button>
-          </div>
-        ))}
-      </div>
+            ) : undefined
+          }
+          onChoose={(optionId) => {
+            answer(optionId as ChampionInjuryChoice, interimId || undefined);
+            setOpen(false);
+          }}
+          theme={promotionTheme(world.promotion.identity)}
+          promotionName={world.promotion.name}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </section>
   );
 }
