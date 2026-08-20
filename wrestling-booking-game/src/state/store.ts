@@ -58,6 +58,7 @@ import {
   expireStaleLoanOffer,
   maybeOfferBuyout,
   expireStaleBuyoutOffer,
+  maybeTrimRivalPayroll,
 } from './storeHelpers';
 import { createCardBuilderSlice } from './slices/cardBuilder';
 import { createEventsSlice } from './slices/events';
@@ -360,7 +361,7 @@ import {
 } from '../engine/economy/production';
 import { StatementBuilder } from '../engine/economy/statement';
 import { SUPERSHOW_SEASONS } from '../engine/world/supershow';
-import { rivalWeek, shouldFold } from '../engine/world/rivalEconomy';
+import { rivalWeek, shouldFold, shouldTrimPayroll } from '../engine/world/rivalEconomy';
 import { publishPositions } from '../engine/world/publication';
 import { generateFanReaction, crowdVerdict } from '../engine/world/fanReaction';
 import { FAN_HANDLES } from '../data/fanVoices';
@@ -3850,6 +3851,18 @@ export const useGameStore = create<GameStore>()(
             // steps in rather than letting the debt run to infinity.
             rival.bankBalance = world.settings.rivalBailoutCash;
             rival.weeksInTheRed = 0;
+            // world.week + 1: this runs before the week actually turns over
+            // below (see the CLAUDE.md note on wire items stamped too early
+            // vanishing under the post-increment filter).
+            world.weeklyNews.push(
+              wire('story', `${rival.name} took on emergency investment to keep the doors open.`, world.week + 1, 'minor'),
+            );
+          } else {
+            // Same struggle the player faces, not the same numbers — see
+            // rivalEconomy.ts. Its own isolated seed: this is a weekly roll
+            // gated on world state, and CLAUDE.md's own history says never
+            // trust that gate to protect the shared stream.
+            maybeTrimRivalPayroll(world, rngFromSeed(`trim:${rival.id}:${world.week}`), rival);
           }
         }
 
@@ -5301,6 +5314,12 @@ export const useGameStore = create<GameStore>()(
         // finds out the week it happens rather than the following December.
         for (const rival of world.rivals) {
           if (rival.closedWeek !== null) continue;
+          // A company already cutting its own payroll to survive does not
+          // spend the same week hiring — see rivalEconomy.ts's
+          // shouldTrimPayroll. Otherwise a wrestler released three lines
+          // above this one could be signed straight back before the week is
+          // even over, and the whole point of the release was to spend less.
+          if (shouldTrimPayroll(rival.weeksInTheRed, world.settings)) continue;
           const target = rivalRosterSize(rival.rating, world.settings);
           let short = target - rival.rosterIds.length;
           // One signing a week each. A rival that refilled a whole roster in

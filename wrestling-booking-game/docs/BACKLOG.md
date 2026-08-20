@@ -19,19 +19,13 @@ than the one already made.
 
 ---
 
-## Bankruptcy rework — the loan and the buyout offer are shipped, two pieces are not
+## Bankruptcy rework — three pieces shipped, one is not
 
-Grew out of a long design conversation with the player. The loan and the
-blind bulk-buyout offer are both built (see "Done" below) and everything
-else discussed in that conversation is a confirmed, agreed design, not a
-maybe — it just hasn't been built yet:
+Grew out of a long design conversation with the player. The loan, the blind
+bulk-buyout offer, and a struggling rival's own cost-cutting are all built
+(see "Done" below). What's left is a confirmed, agreed design, not a maybe —
+it just hasn't been built yet:
 
-- **Rivals get the same struggle steps, not the same dollar amounts.**
-  Agreed explicitly: rivals should be able to release wrestlers to cut
-  payroll and take their own version of the loan before folding, the same
-  way a player would, using their own numbers rather than identical ones.
-  Needs an actual AI policy — rivals currently make zero financial
-  decisions, `rivalWeek` is a pure formula with nobody choosing anything.
 - **Fire sale of the promotion's own production gear**, for a fraction of
   its value — a genuine last resort, agreed but not scoped in detail yet.
 - **Release stigma reaching ordinary negotiations.** Free agents should get
@@ -123,6 +117,51 @@ leash the strike system already provides.
   forcing an offer, accepting it through the real dialogue UI, and
   confirming the bank balance, roster count, and a genuinely random
   championship loss all landed and were narrated on the wire.
+
+- **A struggling rival cuts its own payroll — not the player's loan system,
+  a lighter version of the same struggle.** The player was explicit about
+  the shape: "it's not dollar against dollar... it's making it so they
+  struggle some too... but not to put them out quickly by any means." Two
+  new pure functions in `rivalEconomy.ts` — `shouldTrimPayroll` (eligible at
+  half of `rivalBankruptcyGraceWeeks`, the same point `foldRisk` already
+  reads "In real trouble" on the chart the player sees) and
+  `cheapestToRelease` (lowest `weeklyRate`, not popularity or age) — plus
+  `maybeTrimRivalPayroll` in `storeHelpers.ts`, rolled weekly per rival with
+  its own isolated seed. `shouldFold`'s actual grace period is completely
+  untouched; this only makes the run-up to it visible. Also narrated, for
+  the first time, the existing rival bailout branch that was already there
+  and already silent — a rival taking on "emergency investment" now reads
+  as a real wire item instead of a bank number that quietly resets.
+
+  Found and fixed a real bug while verifying through the actual weekly
+  pipeline rather than trusting the isolated unit tests: the pre-existing
+  "rivals shop the free-agent pool" system (one signing a week, per rival,
+  whenever they're under their target size) ran *after* the new trim in the
+  same `resolveWeek` tick, so a rival that had just released someone to cut
+  costs would immediately re-sign somebody — sometimes that exact wrestler
+  — the same week, netting to no visible change at all. Fixed by skipping
+  that signing loop entirely for a rival currently in `shouldTrimPayroll`
+  territory: a company already cutting payroll to survive does not spend
+  the same week hiring. Also caught, in the same pass, a second instance of
+  the documented "wire item stamped before `world.week`'s own increment
+  vanishes" trap (both the new trim wire and the newly-narrated bailout
+  line sit in the loop that runs *before* the increment, so both needed
+  `world.week + 1` — the isolated unit tests never would have caught this
+  themselves, since they call the helpers directly rather than filtering
+  through resolveWeek's real post-increment cut; the fix was found only by
+  running the real pipeline in a browser and noticing the wire item was
+  missing). Added a regression test asserting the stamped week explicitly,
+  not just the text, so this can't quietly regress again.
+
+  Verified: `tsc --noEmit` clean, full suite 137 files / 2732 tests passed
+  (2722 prior + 10 new — 4 pure-function tests, 6 store-level tests covering
+  the trigger, the roster floor, the weekly-chance gate, a closed rival, and
+  the enabled/disabled toggle), `npm run sim` and `npm run build` both
+  clean, and a real-browser pass running the actual `resolveWeek()` — not
+  just calling the helper directly — confirming the roster genuinely and
+  *permanently* shrinks by one, the released wrestler lands in free agency
+  and stays there, and the wire item renders correctly on the real newsfeed
+  screen.
 
 - **The dialogue engine's content roughly doubled, and four new sudden-event
   types joined the weather call.** Direct follow-up to the dialogue engine

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rivalWeek, shouldFold, foldRisk } from './rivalEconomy';
+import { rivalWeek, shouldFold, foldRisk, shouldTrimPayroll, cheapestToRelease } from './rivalEconomy';
 import { defaultWorldSettings } from './settings';
 import { rngFromSeed } from '../rng';
 import { generateWrestlers } from '../generate/wrestler';
@@ -97,5 +97,36 @@ describe('closing the doors', () => {
     expect(foldRisk(10, settings)).toBe('struggling');
     expect(foldRisk(settings.rivalBankruptcyGraceWeeks - 5, settings)).toBe('inTrouble');
     expect(foldRisk(settings.rivalBankruptcyGraceWeeks + 1, settings)).toBe('closing');
+  });
+});
+
+describe('cutting costs before the doors close', () => {
+  it('starts at the same point foldRisk first reads "in real trouble", not before', () => {
+    const threshold = settings.rivalBankruptcyGraceWeeks * settings.rivalTrimAtGraceShare;
+    expect(shouldTrimPayroll(threshold - 1, settings)).toBe(false);
+    expect(shouldTrimPayroll(threshold, settings)).toBe(true);
+    expect(foldRisk(threshold, settings)).toBe('inTrouble');
+  });
+
+  it('is nowhere near this generous with the player\'s own numbers', () => {
+    // Not dollar for dollar: the player's loan trigger fires at a handful of
+    // weeks in the red. A rival gets most of a two-year grace period before
+    // it even starts, which is the whole point of "not to put them out
+    // quickly by any means."
+    expect(settings.rivalTrimAtGraceShare * settings.rivalBankruptcyGraceWeeks).toBeGreaterThan(
+      settings.loanTriggerWeeksInTheRed * 10,
+    );
+  });
+
+  it('picks the cheapest hand on the roster, not the biggest name', () => {
+    const cheap = roster(1, 40)[0]!;
+    const expensive = roster(1, 90)[0]!;
+    cheap.contract = { ...cheap.contract, weeklyRate: 100 } as Wrestler['contract'];
+    expensive.contract = { ...expensive.contract, weeklyRate: 5000 } as Wrestler['contract'];
+    expect(cheapestToRelease([expensive, cheap])).toBe(cheap);
+  });
+
+  it('has nobody to cut from an empty roster', () => {
+    expect(cheapestToRelease([])).toBeNull();
   });
 });

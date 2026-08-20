@@ -1699,6 +1699,14 @@ export function defaultWorldSettings(): WorldSettings {
     // but the business cannot spare it.
     rivalBailoutCash: 250_000,
     minimumPromotions: 4,
+    // Not dollar for dollar against the player's own loan — a lighter, more
+    // frequent form of the same struggle, and it never speeds up shouldFold
+    // above. Half of the grace period is the same point foldRisk starts
+    // reading "In real trouble," so a rival cutting people and a rival the
+    // player can see is in trouble are the same moment.
+    rivalTrimEnabled: true,
+    rivalTrimAtGraceShare: 0.5,
+    rivalTrimWeeklyChance: 0.1,
 
     // The player's own lifeline. Sized against current payroll (see
     // economy/loan.ts) rather than a flat figure — $250k is nothing to a
@@ -2175,6 +2183,14 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
     // but the business cannot spare it.
     rivalBailoutCash: 250_000,
     minimumPromotions: 4,
+    // Not dollar for dollar against the player's own loan — a lighter, more
+    // frequent form of the same struggle, and it never speeds up shouldFold
+    // above. Half of the grace period is the same point foldRisk starts
+    // reading "In real trouble," so a rival cutting people and a rival the
+    // player can see is in trouble are the same moment.
+    rivalTrimEnabled: true,
+    rivalTrimAtGraceShare: 0.5,
+    rivalTrimWeeklyChance: 0.1,
 
     tagTeamsPerPromotion: 3,
     rivalRosterSizeMin: 10,

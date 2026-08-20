@@ -52,6 +52,7 @@ import { createStandardContract, askingRate, desiredContractWeeks } from '../eng
 import { exitTerms, canBeSigned, guaranteedShareFor } from '../engine/economy/termination';
 import { loanTermsFor, buildLoan, loanCooldownCleared, type LoanTier } from '../engine/economy/loan';
 import { rollBuyoutTerms } from '../engine/economy/buyout';
+import { shouldTrimPayroll, cheapestToRelease } from '../engine/world/rivalEconomy';
 import { isFired } from '../engine/world/mandates';
 import { StatementBuilder } from '../engine/economy/statement';
 import { runSupershow } from '../engine/world/supershowRun';
@@ -1189,6 +1190,44 @@ export function answerBuyoutOffer(world: World, rng: Rng, accept: boolean): void
       world.week,
       'lead',
     ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// A struggling rival's own version of cutting costs — not the player's loan
+// system in miniature, on purpose (the player asked directly: not dollar for
+// dollar). Just the cheapest wrestler, occasionally, once a rival is far
+// enough into its own grace period. See rivalEconomy.ts's shouldTrimPayroll/
+// cheapestToRelease for the pure logic; shouldFold's timeline is untouched —
+// this makes the run-up to it visible, it does not make it happen sooner.
+
+/** Called once per rival per week from resolveWeek, with an isolated seed. */
+export function maybeTrimRivalPayroll(world: World, rng: Rng, rival: Promotion): void {
+  if (!world.settings.rivalTrimEnabled) return;
+  if (rival.closedWeek !== null) return;
+  if (rival.rosterIds.length <= world.settings.rivalRosterSizeMin) return;
+  if (!shouldTrimPayroll(rival.weeksInTheRed, world.settings)) return;
+  if (!chance(rng, world.settings.rivalTrimWeeklyChance)) return;
+
+  const roster = rival.rosterIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
+  const target = cheapestToRelease(roster);
+  if (!target) return;
+
+  rival.rosterIds = rival.rosterIds.filter((id) => id !== target.id);
+  target.promotionId = null;
+  target.contract = null;
+  world.freeAgents.push({
+    wrestlerId: target.id,
+    reason: 'released',
+    askingRate: askingRate(target, world.settings),
+    wantsWeeks: desiredContractWeeks(target, world.settings),
+    weeksUnsigned: 0,
+  });
+  // world.week + 1: called from the "their books" loop in resolveWeek,
+  // which runs before world.week actually turns over — see the CLAUDE.md
+  // note on wire items stamped too early silently vanishing.
+  world.weeklyNews.push(
+    wire('departure', `${rival.name} released ${target.name}, trying to get the payroll under control.`, world.week + 1),
   );
 }
 

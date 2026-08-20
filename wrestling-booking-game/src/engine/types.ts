@@ -3480,6 +3480,11 @@ export interface WorldSettings {
   minimumPromotions: number;
   /** Cash an investor puts into a company the business cannot afford to lose. */
   rivalBailoutCash: number;
+  /** Share of rivalBankruptcyGraceWeeks at which a struggling rival starts releasing people to cut payroll. */
+  rivalTrimEnabled: boolean;
+  rivalTrimAtGraceShare: number;
+  /** Rolled once a week per rival while eligible — a rival does not gut its own roster overnight. */
+  rivalTrimWeeklyChance: number;
 
   // --- economy/loan.ts: the one real lifeline against the player's own
   // bankruptcy. Sized against the promotion's own payroll rather than a flat

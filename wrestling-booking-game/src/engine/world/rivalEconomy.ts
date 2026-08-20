@@ -94,3 +94,30 @@ export function shouldFold(ctx: FoldCheckContext): boolean {
   if (ctx.bankBalance >= 0) return false;
   return ctx.weeksInTheRed > ctx.settings.rivalBankruptcyGraceWeeks;
 }
+
+// ---------------------------------------------------------------------------
+// A struggling rival's own version of what the player can do — not the same
+// numbers (the player asked for that directly: "not dollar against dollar"),
+// but the same shape of behaviour, so a rival in trouble is something the
+// player can actually watch happen rather than a bank figure that quietly
+// resets itself. Dying stays exactly as slow as it always was — nothing here
+// changes shouldFold or the grace period above; it only makes the run-up to
+// it visible.
+
+/**
+ * Struggling enough to start cutting costs — the same point `foldRisk`
+ * already starts reading "In real trouble" on the chart the player sees, so
+ * a booker watching a rival's fold-risk label is watching the same signal
+ * that is about to start costing that rival its own people.
+ */
+export function shouldTrimPayroll(weeksInTheRed: number, settings: WorldSettings): boolean {
+  return weeksInTheRed >= settings.rivalBankruptcyGraceWeeks * settings.rivalTrimAtGraceShare;
+}
+
+/** Who a struggling rival lets go first — the cheapest, so a real story loses the least. */
+export function cheapestToRelease(roster: readonly Wrestler[]): Wrestler | null {
+  if (roster.length === 0) return null;
+  return roster.reduce((cheapest, w) =>
+    (w.contract?.weeklyRate ?? 0) < (cheapest.contract?.weeklyRate ?? 0) ? w : cheapest,
+  );
+}
