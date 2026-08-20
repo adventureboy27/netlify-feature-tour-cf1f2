@@ -53,6 +53,9 @@ import {
   applyEffects,
   incidentContextFor,
   couldTurnUp,
+  tickLoan,
+  maybeOfferLoan,
+  expireStaleLoanOffer,
 } from './storeHelpers';
 import { createCardBuilderSlice } from './slices/cardBuilder';
 import { createEventsSlice } from './slices/events';
@@ -484,6 +487,7 @@ import { noShowCallFrom, resolveNoShowCall, type NoShowChoiceId } from '../engin
 import type { TitleMemorialChoiceId } from '../engine/world/titleMemorial';
 import type { RivalMoveChoiceId } from '../engine/world/rivalMove';
 import type { ConfrontationCallChoiceId } from '../engine/world/confrontationCall';
+import type { LoanTier } from '../engine/economy/loan';
 import {
   slotExpectedPopularities,
   saturationFromShow,
@@ -577,6 +581,8 @@ export interface GameStore {
   pickFoldedWrestler: (wrestlerId: Id) => void;
   /** Done browsing the folded roster — whoever is left goes to free agency. */
   finishFoldPicking: () => void;
+  /** Take a tier of the pending loan offer, or turn it down with `null`. */
+  answerLoanOffer: (tier: LoanTier | null) => void;
   /** Clear the turn-of-the-year summary once it has been read. */
   dismissYearInReview: () => void;
   /** Clear the owner's verdict on the last mandate once it has been read. */
@@ -969,6 +975,10 @@ export const useGameStore = create<GameStore>()(
         // rest of that week to pick through it, then the business moves on.
         // Whoever is left goes to free agency, same as picking nobody.
         if (world.pendingFoldPicks && world.pendingFoldPicks.openedWeek < world.week) finishFoldPicking(world);
+
+        // A loan offer nobody answered lapses after a week. The bank does
+        // not chase — it just stops waiting.
+        expireStaleLoanOffer(world);
 
         // An auction the booker never answered goes ahead without them. The
         // room does not hold a star off the market because somebody did not
@@ -6258,6 +6268,12 @@ export const useGameStore = create<GameStore>()(
           world.eventHistory = recordFired(world.eventHistory, event, world.week);
         }
 
+        // ---- the loan, if one is running -------------------------------
+        // Paid before the bankruptcy check below sees the balance, on
+        // purpose — a loan payment that itself tips the promotion into the
+        // red is exactly the risk it is supposed to be. See economy/loan.ts.
+        tickLoan(world);
+
         // ---- can you still pay for this? -------------------------------
         // The grace period is real: one bad month is survivable, a run of
         // them is not. Nothing is hidden — the office screen counts it down.
@@ -6287,6 +6303,11 @@ export const useGameStore = create<GameStore>()(
         } else {
           world.weeksInTheRed = 0;
         }
+
+        // The bank calls before the grace period runs out, not after — see
+        // loanTriggerWeeksInTheRed. A company that just folded this same
+        // week has nothing left to offer a loan to.
+        if (!world.folded) maybeOfferLoan(world);
 
         world.currentCard = createEmptyCard(
           segmentsForShow(

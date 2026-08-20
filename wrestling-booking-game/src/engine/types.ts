@@ -3480,6 +3480,39 @@ export interface WorldSettings {
   /** Cash an investor puts into a company the business cannot afford to lose. */
   rivalBailoutCash: number;
 
+  // --- economy/loan.ts: the one real lifeline against the player's own
+  // bankruptcy. Sized against the promotion's own payroll rather than a flat
+  // figure, so it means the same thing whether it fires in week 8 or week
+  // 800 — see the module doc comment for the full reasoning. ---
+  loanEnabled: boolean;
+  /** How many weeks in the red before the bank makes an offer at all — before bankruptcyGraceWeeks ends the save. */
+  loanTriggerWeeksInTheRed: number;
+  /** The ceiling is never smaller than this, so a tiny roster's payroll still buys a real offer. */
+  loanMinimumCeiling: number;
+  loanTierSmallFraction: number;
+  loanTierMediumFraction: number;
+  loanTierLargeFraction: number;
+  /** Ceiling, in weeks of current payroll, for a first loan. */
+  loanCeilingWeeks1st: number;
+  loanCeilingWeeks2nd: number;
+  loanCeilingWeeks3rd: number;
+  /** Total repaid per dollar borrowed. 1.3 means 130% comes back. */
+  loanRepaymentMultiple1st: number;
+  loanRepaymentMultiple2nd: number;
+  loanRepaymentMultiple3rd: number;
+  /** Weeks the repayment is spread over. Fixed at signing, never adjusted. */
+  loanRepaymentWeeks1st: number;
+  loanRepaymentWeeks2nd: number;
+  loanRepaymentWeeks3rd: number;
+  /** Solvent weeks required, loan-free, before the next offer can appear. */
+  loanCooldownWeeks1st: number;
+  loanCooldownWeeks2nd: number;
+  loanCooldownWeeks3rd: number;
+  /** Added to World.mandateStrikes the moment that attempt's loan is taken. */
+  loanMandateStrikes1st: number;
+  loanMandateStrikes2nd: number;
+  loanMandateStrikes3rd: number;
+
   /** How many tag teams each promotion is formed with. */
   tagTeamsPerPromotion: number;
   /** Roster size of the smallest rival promotion. */

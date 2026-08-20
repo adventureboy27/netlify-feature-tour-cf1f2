@@ -178,7 +178,15 @@ const SLOT_KEY = 'wbg.save.v1';
 // version-50 save loads fine and simply shows nobody with a motivator until
 // natural roster turnover generates people who have one. A schema bump
 // exists to stop a crash on old data, and there is no crash here to stop.)
-const SCHEMA_VERSION = 50;
+//
+// Version 51 adds World.loansTaken, World.solventWeeksSinceLastLoan,
+// World.pendingLoanOffer and World.activeLoan — the player's own bankruptcy
+// lifeline (engine/economy/loan.ts). Unlike motivators above, these are NOT
+// optional: resolveWeek reads loansTaken and solventWeeksSinceLastLoan on
+// every tick to decide whether to offer a loan, and a version-50 save has
+// neither, so the comparison would run against undefined and either offer a
+// loan nobody should still qualify for or never offer one again.
+const SCHEMA_VERSION = 51;
 
 export interface SaveFile {
   schema: number;

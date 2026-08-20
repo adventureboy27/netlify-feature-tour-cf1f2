@@ -37,6 +37,7 @@ import { awardById } from '../../engine/career/awards';
 import { strikeWarning } from '../../engine/world/mandates';
 import { championInjuryOptions, championCallLine, type ChampionInjuryChoice } from '../../engine/world/titleDefence';
 import { TITLE_MEMORIAL_OPTIONS, type TitleMemorialChoiceId } from '../../engine/world/titleMemorial';
+import { loanTermsFor, LOAN_TIER_LABELS, type LoanTier } from '../../engine/economy/loan';
 import { RIVAL_MOVE_OPTIONS, type RivalMoveChoiceId } from '../../engine/world/rivalMove';
 import { CONFRONTATION_CALL_OPTIONS, type ConfrontationCallChoiceId } from '../../engine/world/confrontationCall';
 import { broadcasterById } from '../../data/broadcasters';
@@ -86,6 +87,7 @@ export function OfficeScreen() {
   const onTheDesk =
     (world.pendingEvent ? 1 : 0) +
     (world.pendingFoldPicks ? 1 : 0) +
+    (world.pendingLoanOffer ? 1 : 0) +
     (world.yearInReview ? 1 : 0) +
     (world.mandate ? 1 : 0) +
     (world.pendingBroadcastOffer ? 1 : 0) +
@@ -268,6 +270,8 @@ function DeskTab() {
       <TitleMemorialPanel />
       <RivalMovePanel />
       <ConfrontationCallPanel />
+      <LoanOfferPanel />
+      <ActiveLoanNotice />
 
       {picture.length > 0 && (
         <section className="mb-3">
@@ -1671,6 +1675,106 @@ function TitleMemorialPanel() {
           onClose={() => setOpen(false)}
         />
       )}
+    </section>
+  );
+}
+
+/**
+ * The bank's offer — three tiers sized against current payroll, plus turning
+ * it down. See economy/loan.ts for why the ceiling shrinks and the terms
+ * harshen every time this is answered "yes."
+ */
+function LoanOfferPanel() {
+  const world = useGameStore((s) => s.world);
+  const answer = useGameStore((s) => s.answerLoanOffer);
+  const [open, setOpen] = useState(false);
+  if (!world?.pendingLoanOffer) return null;
+
+  const offer = world.pendingLoanOffer;
+  const terms = loanTermsFor(offer.attemptNumber, offer.payrollAtOffer, world.settings);
+  const ordinal = offer.attemptNumber === 1 ? 'first' : offer.attemptNumber === 2 ? 'second' : `${offer.attemptNumber}th`;
+
+  const tierChoice = (tier: LoanTier) => {
+    const borrowed = terms.tiers[tier];
+    const totalOwed = Math.round(borrowed * terms.repaymentMultiple);
+    const weeklyPayment = Math.max(1, Math.round(totalOwed / terms.repaymentWeeks));
+    return {
+      id: tier,
+      label: LOAN_TIER_LABELS[tier],
+      gains: `$${borrowed.toLocaleString()} now`,
+      costs: `$${weeklyPayment.toLocaleString()}/wk for ${terms.repaymentWeeks} weeks · $${totalOwed.toLocaleString()} total · ${terms.mandateStrikes} ${terms.mandateStrikes === 1 ? 'strike' : 'strikes'} with the owner`,
+    };
+  };
+
+  return (
+    <section className="mb-3 rounded-lg border border-amber-800 bg-amber-950/20 p-3" data-testid="loan-offer">
+      <div className="text-xs uppercase tracking-wide text-amber-400">The bank is calling</div>
+      <h2 className="mt-1 text-sm font-semibold">
+        {offer.attemptNumber === 1 ? 'A loan is on the table' : `The ${ordinal} loan is on the table`}
+      </h2>
+      <p className="mt-1 text-[11px] text-neutral-500">
+        Sized against payroll — cannot be renegotiated once taken, and cannot be deferred once running.
+      </p>
+      <button
+        type="button"
+        data-testid="loan-offer-talk"
+        onClick={() => setOpen(true)}
+        className="mt-2 rounded bg-amber-800/60 px-3 py-1.5 text-xs font-medium text-amber-100 hover:bg-amber-800"
+      >
+        Hear the offer
+      </button>
+
+      {open && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName="The bank"
+          body={
+            offer.attemptNumber === 1
+              ? "The promotion is bleeding money. A loan would buy real time — but every dollar comes back with interest, on a fixed weekly bill that can't be deferred, and the owner is going to hear about it either way."
+              : `This isn't the first time. The bank remembers the last one, and this offer is smaller and harsher for it — nothing about needing a ${ordinal} loan reads well to the owner.`
+          }
+          choices={[
+            tierChoice('small'),
+            tierChoice('medium'),
+            tierChoice('large'),
+            {
+              id: 'decline',
+              label: 'Turn it down',
+              gains: 'No new obligation, no strikes',
+              costs: 'The promotion faces this on its own',
+            },
+          ]}
+          onChoose={(choiceId) => {
+            answer(choiceId === 'decline' ? null : (choiceId as LoanTier));
+            setOpen(false);
+          }}
+          theme={promotionTheme(world.promotion.identity)}
+          promotionName={world.promotion.name}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+/** The loan currently on the books — a standing reminder it cannot be deferred or adjusted. */
+function ActiveLoanNotice() {
+  const world = useGameStore((s) => s.world);
+  if (!world?.activeLoan) return null;
+  const loan = world.activeLoan;
+
+  return (
+    <section className="mb-3 rounded border border-neutral-800 bg-neutral-900 px-3 py-2" data-testid="active-loan">
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="text-neutral-300">Loan repayment</span>
+        <span className="text-neutral-500">
+          <Money amount={loan.weeklyPayment} />
+          /wk · {loan.weeksRemaining} {loan.weeksRemaining === 1 ? 'week' : 'weeks'} left
+        </span>
+      </div>
+      <p className="mt-1 text-[10px] leading-snug text-neutral-500">
+        Withdrawn automatically. It cannot be deferred, and missing payroll on top of it will not stop it.
+      </p>
     </section>
   );
 }

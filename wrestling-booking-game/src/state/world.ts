@@ -107,6 +107,7 @@ import { MANAGERS } from '../data/ringsidePool';
 import { DEFAULT_PACE } from '../data/pacing';
 import type { AttendanceRecord } from '../engine/world/territories';
 import type { AssetCondition } from '../engine/economy/showBudget';
+import type { ActiveLoan } from '../engine/economy/loan';
 import type { ContractDemand } from '../engine/career/ego';
 
 export const SEGMENTS_PER_CARD = 6; // matches WorldSettings.segmentsPerTV default
@@ -249,6 +250,22 @@ export interface World {
   weeksInTheRed: number;
   /** Set when the promotion goes under. The save becomes a record, not a game. */
   folded: { week: number; reason: string } | null;
+  /**
+   * How many loans this promotion has taken across the whole save. Never
+   * resets — good behaviour earns back access (see
+   * solventWeeksSinceLastLoan), not a clean record. See economy/loan.ts.
+   */
+  loansTaken: number;
+  /**
+   * Solvent weeks, loan-free, since the last loan was fully repaid — the
+   * cooldown clock for the next offer. Any red week, or any week still
+   * repaying, resets it to 0; only demonstrated recovery counts.
+   */
+  solventWeeksSinceLastLoan: number;
+  /** A loan offer waiting on an answer. See economy/loan.ts. */
+  pendingLoanOffer: PendingLoanOffer | null;
+  /** The loan currently being paid off, if any. Auto-deducted every week; cannot be deferred. */
+  activeLoan: ActiveLoan | null;
   /**
    * Set when somebody on the roster dies. The next show the promotion runs is
    * a tribute — the business does this whether or not the booker feels like
@@ -489,6 +506,14 @@ export interface PendingFoldPicks {
   fromPromotionName: string;
   wrestlerIds: Id[];
   openedWeek: number;
+}
+
+/** A loan offer waiting on an answer. See economy/loan.ts. */
+export interface PendingLoanOffer {
+  attemptNumber: number;
+  openedWeek: number;
+  /** The payroll the ceiling was sized against — fixed at the moment the offer opened. */
+  payrollAtOffer: number;
 }
 
 /** Stable key for a pair of wrestlers, order-independent. */
@@ -1034,6 +1059,10 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     showSetup: startingSetup,
     weeksInTheRed: 0,
     folded: null,
+    loansTaken: 0,
+    solventWeeksSinceLastLoan: 0,
+    pendingLoanOffer: null,
+    activeLoan: null,
     pendingMemoriam: null,
     pendingWeatherCall: null,
     pendingNoShowCall: null,

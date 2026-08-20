@@ -19,7 +19,86 @@ than the one already made.
 
 ---
 
+## Bankruptcy rework — the loan is shipped, four pieces are not
+
+Grew out of a long design conversation with the player. The loan itself is
+built (see "Done" below) and everything else discussed in that conversation
+is a confirmed, agreed design, not a maybe — it just hasn't been built yet:
+
+- **Rivals get the same struggle steps, not the same dollar amounts.**
+  Agreed explicitly: rivals should be able to release wrestlers to cut
+  payroll and take their own version of the loan before folding, the same
+  way a player would, using their own numbers rather than identical ones.
+  Needs an actual AI policy — rivals currently make zero financial
+  decisions, `rivalWeek` is a pure formula with nobody choosing anything.
+- **The blind bulk-buyout offer.** A rival, only while the promotion is
+  genuinely distressed (an active loan repayment), offers a flat lump sum
+  for a *random* slice of the current roster — count generated per offer
+  (15-30% of the roster, clamped 2-8), price anchored to the *selling*
+  promotion's own weekly payroll times a randomized 3-8x multiplier, **not**
+  derived from the specific wrestlers taken (the player explicitly did not
+  want the price reverse-engineerable from summed contract values).
+  Titleholders are not protected — losing a champion in the batch is the
+  drama the player specifically asked for. Reuses the `interestedIn`/
+  bidding-war valuation machinery already in `storeHelpers.ts` where
+  possible, but the count/price randomness needs its own isolated RNG
+  stream, same discipline as everything else in this file.
+- **Fire sale of the promotion's own production gear**, for a fraction of
+  its value — a genuine last resort, agreed but not scoped in detail yet.
+- **Release stigma reaching ordinary negotiations.** Free agents should get
+  wary of signing with a promotion that's been visibly releasing people —
+  demanding either a higher `guaranteedPct` or (new) a real signing bonus
+  before they'll sign, not just inside contested bidding wars where
+  `ContractBid.signingBonus` already exists. The wariness should fade only
+  while the promotion stays solvent, same principle as the loan cooldown.
+  This is distinct from — and does not replace — the new 🛡️
+  security-motivated icon from the motivation system, which is an
+  individual trait, not a company-wide reputation effect.
+
+Also confirmed but deliberately *not* built as its own system: firing the
+booker for taking a loan. Decided against a standalone mechanism — it
+already routes through the existing owner-mandate strikes
+(`loanMandateStrikes1st/2nd/3rd`, added to `world.mandateStrikes` the moment
+a loan is taken, which can end the save the same way three missed mandates
+already can). Re-inventing a separate "new booker" identity was considered
+and rejected: everything it would need to do reduces to the same tightened
+leash the strike system already provides.
+
+---
+
 ## Done and worth not re-litigating
+
+- **The player's bankruptcy lifeline: a loan, sized against the promotion's
+  own payroll, repeatable but escalating.** New file `engine/economy/loan.ts`
+  — see its own doc comment for the three design decisions behind the shape
+  (not a flat figure, not one-time-ever, cumulative escalation that never
+  resets). Offered non-blocking (`World.pendingLoanOffer`, same one-week
+  grace as every other pending decision before it lapses) once
+  `weeksInTheRed` crosses `loanTriggerWeeksInTheRed` (2 — before the 4-week
+  hard bankruptcy cutoff, so it's a genuine off-ramp, not a consolation
+  prize). Three tiers (small/medium/large, fractions of a ceiling sized off
+  current payroll), and three escalating attempt tiers (1st/2nd/3rd+: less
+  money, worse repayment multiple, shorter fuse, more mandate strikes, and a
+  longer required cooldown before the next offer). The cooldown
+  (`World.solventWeeksSinceLastLoan`) counts genuinely clean weeks only — any
+  red week or any week still repaying resets it to zero, so the recovery has
+  to be real, not just waited out. `World.loansTaken` never resets across the
+  whole save — good behaviour earns back access, not a clean record.
+  Auto-repayment (`tickLoan`) is unconditional: it deducts before the
+  existing bankruptcy check even looks at the balance, so a loan taken
+  without fixing the underlying problem can be the very thing that tips the
+  promotion under, on purpose. Taking a loan adds real mandate strikes
+  immediately and can end the save on the spot if it crosses the owner's
+  threshold — reuses the existing strike/firing system rather than
+  inventing a parallel one. UI: a `DialogueCard`-driven offer panel plus a
+  standing "loan repayment" notice on the Office desk, both new. Verified:
+  `tsc --noEmit` clean, full suite 134 files / 2708 tests passed (2684 prior
+  + 24 new — 10 pure pricing/escalation tests, 14 store-level tests covering
+  the trigger, the cooldown, accepting/declining, unconditional weekly
+  deduction, and the owner-firing interaction), `npm run sim` and `npm run
+  build` both clean, and a real-browser pass taking an actual loan through
+  the real dialogue UI and confirming the bank balance, active-loan notice,
+  and the existing mandate-strike warning line all updated correctly.
 
 - **The dialogue engine's content roughly doubled, and four new sudden-event
   types joined the weather call.** Direct follow-up to the dialogue engine

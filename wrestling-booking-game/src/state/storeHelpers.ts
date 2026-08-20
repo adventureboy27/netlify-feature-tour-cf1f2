@@ -50,6 +50,8 @@ import { recordInjury } from '../engine/career/theBody';
 import { wire, biddingOpenedLine, biddingSettledLine } from '../engine/world/wire';
 import { createStandardContract, askingRate, desiredContractWeeks } from '../engine/economy/contracts';
 import { exitTerms, canBeSigned, guaranteedShareFor } from '../engine/economy/termination';
+import { loanTermsFor, buildLoan, loanCooldownCleared, type LoanTier } from '../engine/economy/loan';
+import { isFired } from '../engine/world/mandates';
 import { StatementBuilder } from '../engine/economy/statement';
 import { runSupershow } from '../engine/world/supershowRun';
 import { canWork } from '../engine/world/rivalBooking';
@@ -949,6 +951,114 @@ export function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid 
     if (!openBiddingWar(world, rng, next, 'foldPickup')) {
       signPickedWrestler(world, next);
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The loan
+//
+// The player's one real lifeline against bankruptcy — see economy/loan.ts
+// for the reasoning behind the shape of it. No RNG anywhere in here: the
+// offer is a pure function of payroll, attempt number, and how long the
+// cooldown has run, so nothing here can shift a seeded roll.
+
+/**
+ * Should the bank make an offer this week? Called from resolveWeek, right
+ * where the hard bankruptcy check already lives — the two share the same
+ * `weeksInTheRed` reading, but the loan fires well before the grace period
+ * runs out, since the whole point is to be a way off the countdown, not a
+ * consolation prize once it is too late to matter.
+ */
+export function maybeOfferLoan(world: World): void {
+  if (!world.settings.loanEnabled) return;
+  if (world.activeLoan || world.pendingLoanOffer) return;
+  if (world.weeksInTheRed < world.settings.loanTriggerWeeksInTheRed) return;
+  if (!loanCooldownCleared(world.loansTaken, world.solventWeeksSinceLastLoan, world.settings)) return;
+
+  world.pendingLoanOffer = {
+    attemptNumber: world.loansTaken + 1,
+    openedWeek: world.week,
+    payrollAtOffer: payrollOf(world, world.promotion.id),
+  };
+}
+
+/**
+ * A pending offer that sat unanswered a full week lapses — same one-week
+ * grace every other pending decision in the game gets before it is swept.
+ * Silent on purpose: the bank does not send a reminder, it just stops
+ * waiting.
+ */
+export function expireStaleLoanOffer(world: World): void {
+  if (world.pendingLoanOffer && world.pendingLoanOffer.openedWeek < world.week) {
+    world.pendingLoanOffer = null;
+  }
+}
+
+/** The booker answers the offer — a tier, or nothing at all. */
+export function answerLoanOffer(world: World, tier: LoanTier | null): void {
+  const offer = world.pendingLoanOffer;
+  if (!offer) return;
+  world.pendingLoanOffer = null;
+
+  if (!tier) {
+    world.weeklyNews.push(
+      wire('story', 'The booker turned down the bank. Whatever happens next, they will face it on their own.', world.week, 'minor'),
+    );
+    return;
+  }
+
+  const terms = loanTermsFor(offer.attemptNumber, offer.payrollAtOffer, world.settings);
+  const loan = buildLoan(tier, terms, world.week);
+  world.activeLoan = loan;
+  world.loansTaken += 1;
+  world.solventWeeksSinceLastLoan = 0;
+  world.promotion.bankBalance += loan.borrowed;
+
+  world.weeklyNews.push(
+    wire(
+      'story',
+      `The bank came through: $${loan.borrowed.toLocaleString()} against the promotion, ` +
+        `$${loan.weeklyPayment.toLocaleString()} a week for the next ${loan.weeksRemaining} weeks. ` +
+        `It cannot be deferred.`,
+      world.week,
+      'lead',
+    ),
+  );
+
+  if (world.settings.ownerMandatesEnabled && !world.fired) {
+    world.mandateStrikes += terms.mandateStrikes;
+    if (isFired(world.mandateStrikes, world.settings)) {
+      world.fired = {
+        week: world.week,
+        reason: 'The owner heard about the loan before the booker could explain it. That was the last straw.',
+      };
+    }
+  }
+}
+
+/**
+ * The weekly tick: pay what is owed, unconditionally, and track whether the
+ * business has earned the right to ask again. Called right before the
+ * existing bankruptcy check, so a loan payment that itself tips the
+ * promotion into the red is exactly the risk it is supposed to be — this
+ * buys time, it does not buy immunity.
+ */
+export function tickLoan(world: World): void {
+  if (world.activeLoan) {
+    world.promotion.bankBalance -= world.activeLoan.weeklyPayment;
+    world.activeLoan.weeksRemaining -= 1;
+    if (world.activeLoan.weeksRemaining <= 0) {
+      world.weeklyNews.push(wire('story', 'The loan is paid off. The books are the promotion\'s own again.', world.week, 'minor'));
+      world.activeLoan = null;
+    }
+  }
+
+  // Only a genuinely clean week counts — still repaying, or still in the
+  // red, and the climb back to being trusted again starts over.
+  if (!world.activeLoan && world.promotion.bankBalance >= 0) {
+    world.solventWeeksSinceLastLoan += 1;
+  } else {
+    world.solventWeeksSinceLastLoan = 0;
   }
 }
 

@@ -1700,6 +1700,41 @@ export function defaultWorldSettings(): WorldSettings {
     rivalBailoutCash: 250_000,
     minimumPromotions: 4,
 
+    // The player's own lifeline. Sized against current payroll (see
+    // economy/loan.ts) rather than a flat figure — $250k is nothing to a
+    // company that started with $400k and more than most will ever see if
+    // they started with $25k. Two weeks in the red is half of
+    // bankruptcyGraceWeeks (4): the bank calls before the business dies, not
+    // after.
+    loanEnabled: true,
+    loanTriggerWeeksInTheRed: 2,
+    loanMinimumCeiling: 10_000,
+    loanTierSmallFraction: 0.4,
+    loanTierMediumFraction: 0.7,
+    loanTierLargeFraction: 1.0,
+    // First loan buys real room — six weeks of payroll. Each one after that
+    // buys less: the bank believes the story less each time it hears it.
+    loanCeilingWeeks1st: 6,
+    loanCeilingWeeks2nd: 4,
+    loanCeilingWeeks3rd: 3,
+    loanRepaymentMultiple1st: 1.3,
+    loanRepaymentMultiple2nd: 1.6,
+    loanRepaymentMultiple3rd: 2.0,
+    loanRepaymentWeeks1st: 26,
+    loanRepaymentWeeks2nd: 26,
+    // A shorter fuse on top of everything else — by the third ask, the bank
+    // wants its money back fast, not just a bigger cut of it.
+    loanRepaymentWeeks3rd: 20,
+    // A year clean before the bank will talk again; a year and a half after
+    // a second rescue; two full years after a third. Counted in solvent
+    // weeks, not calendar time — a backslide resets the climb.
+    loanCooldownWeeks1st: 52,
+    loanCooldownWeeks2nd: 78,
+    loanCooldownWeeks3rd: 104,
+    loanMandateStrikes1st: 1,
+    loanMandateStrikes2nd: 2,
+    loanMandateStrikes3rd: 3,
+
     tagTeamsPerPromotion: 3,
     rivalRosterSizeMin: 8,
     rivalRosterSizeMax: 20,
