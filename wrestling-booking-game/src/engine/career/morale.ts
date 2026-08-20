@@ -38,6 +38,7 @@ import {
   type MoraleLever,
   type TraitSubject,
 } from './personality';
+import { motivatorLeverWeight, motivatorReasons } from './motivation';
 import type { Id, Wrestler, WorldSettings } from '../types';
 
 /** Where somebody's head is at, in bands the UI can draw. */
@@ -97,6 +98,14 @@ export interface MoraleContext {
    * makes it one.
    */
   beatenByPopularity: number | null;
+  /**
+   * The average popularity of whoever was on the other side, win, lose, or
+   * draw. Null when they did not work. See career/motivation.ts's
+   * competition-motivated read — unlike `beatenByPopularity`, this exists
+   * regardless of the result, because wanting a real test is about who was
+   * in the other corner, not whether it went their way.
+   */
+  opponentPopularity: number | null;
   /** Weeks since they were last on a show. Zero when they worked this one. */
   weeksIdle: number;
   /** How many belts they are currently holding. */
@@ -223,12 +232,19 @@ export function moraleContext(
   const enemies = world.enemiesOf(wrestler.id);
   const others = (segment?.participants ?? []).filter((p) => p.wrestlerId !== wrestler.id);
 
+  const opponents = mine ? others.filter((p) => p.role === 'competitor' && p.side !== mine.side) : [];
+  const opponentPopularity =
+    opponents.length > 0
+      ? opponents.reduce((sum, p) => sum + world.popularityOf(p.wrestlerId), 0) / opponents.length
+      : null;
+
   return {
     worked: Boolean(segment),
     slot: segment?.slot ?? null,
     slotCount: show?.segments.length ?? 0,
     outcome,
     beatenByPopularity,
+    opponentPopularity,
     weeksIdle: segment ? 0 : world.weeksIdle,
     beltsHeld: world.beltsHeldBy(wrestler.id),
     carryingSomethingReal: world.shootBurden(wrestler.id),
@@ -367,7 +383,14 @@ export function weeklyMorale(
    * already happened lands. See career/personality.ts.
    */
   const add = (text: string, delta: number, lever?: MoraleLever) => {
-    const weighted = lever ? delta * leverWeight(wrestler, lever, s) : delta;
+    // Traits and motivators can both weigh the same lever — Championship-
+    // motivated and a big-ego Wants The Spotlight would otherwise multiply
+    // twice past traitLeverCap, so the combined product is capped once here
+    // rather than each factor capping itself first. See career/motivation.ts.
+    const combinedWeight = lever
+      ? Math.min(leverWeight(wrestler, lever, s) * motivatorLeverWeight(wrestler, lever), s.traitLeverCap)
+      : 1;
+    const weighted = lever ? delta * combinedWeight : delta;
     if (Math.abs(weighted) < 0.05) return;
     reasons.push({ text, delta: weighted });
   };
@@ -549,6 +572,8 @@ export function weeklyMorale(
   // than weighted, because these are things that happened rather than things
   // that landed harder.
   for (const said of traitReasons(wrestler, ctx.who, s)) add(said.text, said.delta);
+  for (const said of motivatorReasons(wrestler, { worked: ctx.worked, opponentPopularity: ctx.opponentPopularity }, s))
+    add(said.text, said.delta);
 
   // A struggling outfit is a fine place to work if the booker uses you; it is
   // the booking above that decides, and this only sets the floor and ceiling.

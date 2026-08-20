@@ -427,3 +427,75 @@ than the one already made.
   fold-picks panel, the queued-pick notice, the queue draining into a fresh
   war on settle, and the bold amber "BIDDING WAR" banner all render as
   designed.
+- **The motivation system: what somebody is actually chasing, as its own
+  icon row, separate from morale.** Grew out of a long conversation with the
+  player about bankruptcy design, specifically the observation that a
+  well-paid star can stop trying — "they get a big money contract... then no
+  longer produce," the player's own NFL comparison — and the wish for a
+  system that answers with something other than throwing more money at it.
+  Landed on the player's own simplification over my first, heavier proposal
+  (a whole new stat with its own decay feeding into match ratings): "a
+  symbol for what motivates them, then if achieved, the morale moves" — one
+  to a handful of icons per wrestler, plus a legend.
+
+  New file `engine/career/motivation.ts`: six new `MotivatorId`s
+  (championship 🏆, push 🎤, fame ⭐, creative 🎭, competition 🥊, security 🛡️),
+  drawn once at generation off their own isolated stream
+  (`rngFromSeed(\`motivate:${id}\`)`, same pattern as traits — this is what
+  let the whole system land without rerolling a single existing wrestler,
+  confirmed by the full suite passing with zero new failures). Wired two
+  different ways because they are two different kinds of thing, and said so
+  in the module doc comment rather than forcing one mechanism on both:
+  - Championship and push re-weight morale terms that already exist for
+    everybody (`gold`, `spotlight`, `idle`) — exactly how a trait does it.
+    `morale.ts`'s `add()` now multiplies by both `leverWeight` (traits) and
+    the new `motivatorLeverWeight` (motivators), the product capped once at
+    `traitLeverCap` rather than each side capping itself and then
+    multiplying past the ceiling.
+  - Fame, creative, and competition are genuinely new weekly signals nobody
+    was reading before: how close somebody is to their own career-best
+    popularity (`Wrestler.careerHighPopularity`, already tracked, never
+    read by morale before this), how fresh their gimmick still feels
+    (`gimmickFreshness`, same story), and whether the last person they
+    shared a ring with was a real test (`MoraleContext.opponentPopularity`,
+    a new field computed the same way `beatenByPopularity` already is, but
+    for both sides regardless of the result). Bespoke in a new
+    `motivatorReasons`, called from `weeklyMorale` the same way
+    `traitReasons` already is.
+  - Security-motivated is not morale at all — it overrides
+    `theBody.ts`'s `dealAppetite` to always read as `'insurance'`, the
+    existing appetite a frightened, injury-history-driven wrestler already
+    gets, now available to anybody the player has said wants it regardless
+    of ego or history.
+
+  Money, rest, the room, gratitude, and home were **not** duplicated as new
+  motivators — they already exist as traits (`inItForTheMoney`,
+  `wantsMoreTimeOff`, `lockerRoomLeader`, `gratefulForTheWork`,
+  `somebodyAtHome`) with real, tested mechanisms behind them. Deleting and
+  rebuilding those four to fit a new parallel system would have touched
+  `drawTraits`'s RNG-sensitive pool composition and every existing trait
+  test for no mechanical gain — instead `Trait` gained an optional `icon`
+  field, set on exactly those five, and the roster card now shows one
+  unified icon row (`motivationSymbolsOf`) mixing real motivators and
+  iconified traits, plus one shared legend (`motivationLegend`, rendered as
+  a `<details>` "What the icons mean" panel on the roster screen — same
+  collapsible-key idiom `WrestlerRow.tsx`'s existing `RowKey` already uses
+  for the card-builder tags) — the player never needs to know or care which
+  underlying system produced which icon.
+
+  `Wrestler.motivators` is optional and every reader goes through
+  `motivatorsOf`/`hasMotivator`, both defaulting a missing array to empty —
+  deliberately **not** a schema bump, since a bump exists to stop an old
+  save crashing on a field it doesn't have, and there is no crash here:
+  loading a pre-existing save just shows nobody with a motivator until
+  natural roster turnover generates people who have one.
+
+  Verified: `tsc --noEmit` clean, full suite 132 files / 2684 tests passed
+  (2666 prior + 18 new, zero regressions — the RNG-isolation held), `npm run
+  sim` and `npm run build` both clean, and a real-browser pass generating a
+  20-person roster, confirming a spread of all six motivators actually
+  landed, and screenshotting both the icon row on real roster cards and the
+  expanded legend. One icon swap during that pass: crossed swords (⚔️) for
+  competition-motivated rendered as an ambiguous X in the test environment's
+  font, so it became a boxing glove (🥊) instead — safer across whatever
+  emoji font a real device actually has.

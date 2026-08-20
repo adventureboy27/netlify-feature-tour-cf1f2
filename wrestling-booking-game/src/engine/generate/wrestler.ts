@@ -8,6 +8,7 @@ import { rngFromSeed, clamp, gaussian, randInt, weightedPick, pick, chance, shuf
 import type { Appearance, Archetype, CardStatus, Id, Wrestler, WorldSettings } from '../types';
 import { rollHype } from '../career/hype';
 import { drawTraits } from '../career/personality';
+import { drawMotivators } from '../career/motivation';
 import { ARCHETYPES, archetypeById } from '../../data/archetypes';
 import { WRESTLING_STYLES } from '../../data/styles';
 import { GIMMICKS } from '../../data/gimmicks';
@@ -250,6 +251,12 @@ export function generateWrestler(
   const who = rngFromSeed(`who:${id}`);
   const traits = options.settings ? drawTraits(() => who.next(), options.settings) : [];
 
+  // Its own stream too, same reasoning as traits above — adding this system
+  // must not reroll a single trait, appearance, or stat of a wrestler who
+  // already existed before it did.
+  const motivate = rngFromSeed(`motivate:${id}`);
+  const motivators = options.settings ? drawMotivators(() => motivate.next(), options.settings) : [];
+
   const wrestler: Wrestler = {
     id,
     name,
@@ -257,6 +264,7 @@ export function generateWrestler(
     ringIQ,
     likeability,
     traits,
+    motivators,
     attachedTo: null,
     injuryHistory: [],
 

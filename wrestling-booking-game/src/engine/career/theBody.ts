@@ -30,6 +30,7 @@ import type { Rng } from '../rng';
 import { chance, clamp, rngFromSeed } from '../rng';
 import { Cap, pronounsFor, type Pronouns } from './pronouns';
 import type { Injury, InjurySeverity, Wrestler, WorldSettings } from '../types';
+import { hasMotivator } from './motivation';
 
 /**
  * How much this person cares about his own future, 0-1.
@@ -356,6 +357,11 @@ export function dealAppetite(
   history: readonly InjuryRecord[],
   settings: WorldSettings,
 ): DealAppetite {
+  // Security-motivated wants the cover and the guarantee before anything
+  // else on the table, full stop — not a fear the body has to earn first.
+  // See career/motivation.ts.
+  if (hasMotivator(wrestler, 'security')) return 'insurance';
+
   const frightened =
     careOf(wrestler, settings) +
     history.length * settings.appetiteHistoryWeight +

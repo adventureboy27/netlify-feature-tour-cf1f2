@@ -35,6 +35,7 @@ function week(over: Partial<MoraleContext> = {}): MoraleContext {
     carryingSomethingReal: null,
     outcome: 'won',
     beatenByPopularity: null,
+    opponentPopularity: null,
     weeksIdle: 0,
     beltsHeld: 0,
     showRating: 55,

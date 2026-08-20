@@ -70,6 +70,13 @@ export interface Trait {
   name: string;
   /** One line, written for the booker: what this costs you and what it buys. */
   blurb: string;
+  /**
+   * Shown in the unified motivation icon row on the roster card, alongside
+   * career/motivation.ts's own icons — see that file's ICONIFIED_TRAIT_IDS.
+   * Only set on the handful of traits that are really about what somebody is
+   * chasing; most traits are dispositions, not motivations, and have none.
+   */
+  icon?: string;
   /** Relative draw weight. */
   weight: number;
   /** Never drawn alongside these. */
@@ -146,6 +153,7 @@ export const TRAITS: readonly Trait[] = [
     id: 'gratefulForTheWork',
     name: 'Grateful for the work',
     blurb: 'Wrestling for a living was the whole ambition. Does not need the belt and does not need the main event.',
+    icon: '🙏',
     weight: 12,
     excludes: ['neverSatisfied', 'wantsTheSpotlight'],
     setPointShift: 12,
@@ -161,6 +169,7 @@ export const TRAITS: readonly Trait[] = [
     id: 'inItForTheMoney',
     name: 'In it for the money',
     blurb: 'Will lose to anybody, anywhere, in any order, provided the cheque clears. Underpay them and none of the rest of it helps.',
+    icon: '💰',
     weight: 9,
     excludes: ['wantsTheSpotlight'],
     weighs: { winning: 0.15, spotlight: 0.4, gold: 0.4, money: 2.4 },
@@ -203,12 +212,14 @@ export const TRAITS: readonly Trait[] = [
     id: 'somebodyAtHome',
     name: 'Somebody at home',
     blurb: 'Their partner works somewhere else. Every week apart is a week they are thinking about the drive.',
+    icon: '🏠',
     weight: 7,
   },
   {
     id: 'wantsMoreTimeOff',
     name: 'Wants more time off',
     blurb: 'The road is the problem, not the booking. Rest them and they are fine; run them every week and they are not.',
+    icon: '🛏️',
     weight: 8,
     wantsRest: true,
   },
@@ -223,6 +234,7 @@ export const TRAITS: readonly Trait[] = [
     id: 'lockerRoomLeader',
     name: 'Locker room leader',
     blurb: 'Whatever mood they are in goes round the room. Keep them happy and it is the cheapest thing you will ever buy.',
+    icon: '👥',
     weight: 6,
     excludes: ['poison'],
     spreadsMood: 2.2,

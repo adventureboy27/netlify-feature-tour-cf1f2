@@ -17,6 +17,7 @@ import { billedAs } from '../../engine/generate/nickname';
 import { MoodFace } from './Mood';
 import { MiniStats } from './MiniStats';
 import { PaperDoll } from '../paperdoll/PaperDoll';
+import { motivationLegend } from '../../engine/career/motivation';
 
 const AVAILABILITY_STYLE: Record<Availability['tone'], string> = {
   bad: 'border-rose-900 bg-rose-950/50 text-rose-200',
@@ -154,6 +155,29 @@ export function RowKey() {
           Under each name: what they are for, and in red, the reason you might leave them off. A face against a heel
           draws better than two of the same.
         </p>
+      </div>
+    </details>
+  );
+}
+
+/**
+ * What the icon row under a wrestler's name means, said once at the top of
+ * the roster. Traits and motivators share one row and one key — the player
+ * never needs to know which system an icon came out of, only what it means
+ * for how this person wants to be booked.
+ */
+export function MotivationKey() {
+  const symbols = motivationLegend();
+  return (
+    <details className="mb-2 rounded border border-neutral-800 bg-neutral-950">
+      <summary className="cursor-pointer px-2 py-1.5 text-[11px] text-neutral-500">What the icons mean</summary>
+      <div className="grid grid-cols-1 gap-x-3 gap-y-1 px-2 pb-2 text-[11px] text-neutral-400 sm:grid-cols-2">
+        {symbols.map((s) => (
+          <p key={s.name}>
+            <span className="mr-1">{s.icon}</span>
+            <span className="text-neutral-200">{s.name}.</span> {s.blurb}
+          </p>
+        ))}
       </div>
     </details>
   );

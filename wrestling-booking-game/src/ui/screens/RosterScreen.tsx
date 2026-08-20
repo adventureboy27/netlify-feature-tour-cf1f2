@@ -21,6 +21,8 @@ import { stanceOn, bodyLine } from '../../engine/career/theBody';
 import { leaveStatusLine, shunLine, shunned } from '../../engine/career/onOurWatch';
 import { circleOf, circleSummary } from '../../engine/career/circle';
 import { traitsOf } from '../../engine/career/personality';
+import { motivationSymbolsOf } from '../../engine/career/motivation';
+import { MotivationKey } from '../components/WrestlerRow';
 import { likeabilityLabel, ringcraftLabel } from '../../engine/sim/ringcraft';
 import { injuryWord } from '../../engine/sim/casualties';
 import { assignmentById, assignmentOf } from '../../engine/career/assignment';
@@ -203,6 +205,7 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
       </div>
 
       <TagTeamPanel />
+      <MotivationKey />
 
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         {roster.map((w) => {
@@ -586,6 +589,21 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   <span className="text-sky-400/90">{ringcraftLabel(w, world.settings)}</span>
                   <span className="text-neutral-500">{likeabilityLabel(w, world.settings)}</span>
                 </div>
+
+                {/* What would actually satisfy this person — one to a
+                    handful of icons, traits and motivators together (see
+                    engine/career/motivation.ts). Above the trait tags rather
+                    than folded into them, since a symbol reads faster than a
+                    word when you are scanning thirty of these. */}
+                {motivationSymbolsOf(w).length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1 text-sm" title="What the icons mean, above the roster">
+                    {motivationSymbolsOf(w).map((s) => (
+                      <span key={s.name} title={`${s.name} — ${s.blurb}`}>
+                        {s.icon}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Who they are, and what that means for the booker. The
                     morale system asks everybody the same questions; these

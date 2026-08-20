@@ -171,6 +171,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // Version 50 adds World.pendingConfrontationCall — the decision on a
 // confrontation that goes physical (engine/world/confrontationCall.ts).
 // A version-49 save has no such field.
+//
+// (Wrestler.motivators, added alongside this comment, is NOT a schema bump.
+// It is optional and every reader goes through motivatorsOf/hasMotivator in
+// career/motivation.ts, both of which default a missing array to empty — a
+// version-50 save loads fine and simply shows nobody with a motivator until
+// natural roster turnover generates people who have one. A schema bump
+// exists to stop a crash on old data, and there is no crash here to stop.)
 const SCHEMA_VERSION = 50;
 
 export interface SaveFile {

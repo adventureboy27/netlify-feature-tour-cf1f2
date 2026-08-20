@@ -622,6 +622,18 @@ export function defaultWorldSettings(): WorldSettings {
     moraleSetPointFloor: 22,
     moraleSetPointCeiling: 92,
     traitSecondChance: 0.28,
+    // A bit more generous than traits — the player asked for "one thing to a
+    // handful," and a motivator drawn alone reads thinner than a trait does
+    // since three of the six (fame, creative, competition) only ever speak
+    // up, never shape a negotiation or a lever weight the way a trait can.
+    motivatorSecondChance: 0.32,
+    motivatorThirdChance: 0.15,
+    fameMotivatorNotices: 0.08,
+    fameMotivatorWeight: 5,
+    creativeMotivatorNotices: 0.1,
+    creativeMotivatorWeight: 4,
+    competitionMotivatorNotices: 0.08,
+    competitionMotivatorWeight: 4.5,
     // An In It For The Money notices a tenth either way, and the swing is
     // deliberately large: they are cheap to keep and expensive to shortchange,
     // which is the whole of the character.

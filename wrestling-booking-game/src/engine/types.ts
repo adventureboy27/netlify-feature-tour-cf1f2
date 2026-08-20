@@ -558,6 +558,13 @@ export interface Wrestler {
    */
   traits?: TraitId[];
   /**
+   * What they are actually chasing, drawn once and permanent, one to a
+   * handful. See career/motivation.ts — shown as its own icon row on the
+   * roster card, separate from traits, because this answers "what would
+   * satisfy this person" rather than "what kind of person are they."
+   */
+  motivators?: MotivatorId[];
+  /**
    * Set only for `somebodyAtHome`: the wrestler they are with. Paired up
    * across companies, so the trait has somebody real to be away from.
    */
@@ -797,6 +804,7 @@ import type { Ledger } from './career/ledger';
 import type { DisciplineRecord } from './career/discipline';
 import type { BlamedFor, DeathOnOurWatch, Leave } from './career/onOurWatch';
 import type { TraitId } from './career/personality';
+import type { MotivatorId } from './career/motivation';
 import type { AssignmentChoice } from './career/assignment';
 
 export type ContractType = 'fullTime' | 'partTime' | 'perAppearance' | 'developmental' | 'legends';
@@ -2214,6 +2222,22 @@ export interface WorldSettings {
   moraleSetPointCeiling: number;
   /** Chance somebody is drawn with a second trait rather than one. */
   traitSecondChance: number;
+  // --- career/motivation.ts: what they are actually chasing, separate from
+  // traits and drawn off its own stream so this system could be added
+  // without rerolling a single wrestler already generated ---
+  /** Chance a second motivator is drawn on top of the first. */
+  motivatorSecondChance: number;
+  /** Chance of a third, only rolled once the second has already landed. */
+  motivatorThirdChance: number;
+  /** How close to their career-best popularity before Fame-motivated notices either way. */
+  fameMotivatorNotices: number;
+  fameMotivatorWeight: number;
+  /** How far gimmick freshness has to move off 50 before Creative-motivated notices. */
+  creativeMotivatorNotices: number;
+  creativeMotivatorWeight: number;
+  /** How big an opponent-popularity gap before Competition-motivated notices. */
+  competitionMotivatorNotices: number;
+  competitionMotivatorWeight: number;
   /** How far off the market rate before an In It For The Money notices. */
   traitPayGapNotices: number;
   traitPayGapWeight: number;
