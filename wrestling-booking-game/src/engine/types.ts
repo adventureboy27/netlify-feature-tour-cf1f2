@@ -733,6 +733,8 @@ export interface ProductionAsset {
   effects: ProductionEffects;
   /** Some rigs need a building big enough to hang them in. */
   minVenueCapacity?: number;
+  /** false = never offered in a fire sale — the training facility is a school, not show-night gear. Omit for everything else. */
+  fireSaleEligible?: boolean;
 }
 
 /** Chosen and paid for fresh every show. */
@@ -3535,6 +3537,14 @@ export interface WorldSettings {
   buyoutPriceMultiplierMax: number;
   /** What the rest of the roster feels, once, when several colleagues vanish at once to an unknown company. */
   buyoutTeammateMoraleDelta: number;
+
+  // --- economy/fireSale.ts: selling owned production gear at a distress
+  // discount. Only on the table while an active loan means the promotion is
+  // genuinely struggling — the same gate buyout.ts uses. See
+  // fireSaleEligible() for which owned assets are actually for sale. ---
+  fireSaleEnabled: boolean;
+  /** Sale value = asset cost * current condition effectiveness * this. Deliberately harsh — this is a fire sale, not a fair resale. */
+  fireSaleValueFraction: number;
 
   /** How many tag teams each promotion is formed with. */
   tagTeamsPerPromotion: number;

@@ -19,15 +19,13 @@ than the one already made.
 
 ---
 
-## Bankruptcy rework — three pieces shipped, one is not
+## Bankruptcy rework — four pieces shipped, one is not
 
 Grew out of a long design conversation with the player. The loan, the blind
-bulk-buyout offer, and a struggling rival's own cost-cutting are all built
-(see "Done" below). What's left is a confirmed, agreed design, not a maybe —
-it just hasn't been built yet:
+bulk-buyout offer, a struggling rival's own cost-cutting, and the player's
+own production-gear fire sale are all built (see "Done" below). What's left
+is a confirmed, agreed design, not a maybe — it just hasn't been built yet:
 
-- **Fire sale of the promotion's own production gear**, for a fraction of
-  its value — a genuine last resort, agreed but not scoped in detail yet.
 - **Release stigma reaching ordinary negotiations.** Free agents should get
   wary of signing with a promotion that's been visibly releasing people —
   demanding either a higher `guaranteedPct` or (new) a real signing bonus
@@ -162,6 +160,40 @@ leash the strike system already provides.
   *permanently* shrinks by one, the released wrestler lands in free agency
   and stays there, and the wire item renders correctly on the real newsfeed
   screen.
+
+- **Fire sale of the promotion's own production gear.** The last of the
+  bankruptcy rework's four confirmed pieces. New file
+  `engine/economy/fireSale.ts` — `fireSaleEligible` and `fireSaleValue`, both
+  pure. Only the player owns tracked production gear at all in this engine
+  (`World.ownedAssetIds`/`assetConditions` — rivals don't), so this is
+  necessarily a player-only mechanic, exactly as the backlog note framed it.
+  Two judgment calls, checked with the player rather than assumed: the
+  training facility ($130k, backs `talentGrowth`/`injuryReduction`) is
+  excluded — it's the school, not show-night gear, and selling it would
+  quietly gut a whole other system — via a new optional
+  `ProductionAsset.fireSaleEligible` field (omit = eligible, `false` on just
+  that one entry in `data/production.ts`); and the sale is gated behind
+  `World.activeLoan` being active, the same distress signal `buyout.ts`
+  already uses, so this stays "a genuine last resort" rather than becoming
+  an ordinary way to raise cash. Pricing reuses the existing condition
+  machinery rather than a flat fraction: `fireSaleValue` is
+  `cost * assetEffectiveness(condition) * fireSaleValueFraction` (new
+  setting, default 0.35) — a neglected rig fetches less, same curve
+  `repairCost` already uses, on top of a hard distress discount, so
+  under-maintaining gear costs twice. New `sellProductionAsset` store action
+  (`slices/showAndProduction.ts`) removes the asset from `ownedAssetIds` and
+  `assetConditions`, credits the sale value, and writes a wire item. UI: a
+  "Fire sale · $X" button next to the existing Repair button on
+  `PromotionScreen`, only rendered for an owned, eligible asset while a loan
+  is active. Verified: `tsc --noEmit` clean, full suite 139 files / 2744
+  tests passed (2732 prior + 12 new — 7 pure tests on eligibility and
+  condition-scaled pricing, 5 store-level tests covering the distress gate,
+  the training-facility exclusion, an unowned asset, and the on/off
+  setting), `npm run sim` and `npm run build` both clean, and a real-browser
+  pass forcing an active loan and two owned assets (one ordinary, one the
+  training facility), confirming the sell button only appears for the
+  eligible one, and that clicking it moved the cash, removed the asset, and
+  narrated it on the wire.
 
 - **The dialogue engine's content roughly doubled, and four new sudden-event
   types joined the weather call.** Direct follow-up to the dialogue engine

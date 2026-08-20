@@ -1757,6 +1757,12 @@ export function defaultWorldSettings(): WorldSettings {
     buyoutPriceMultiplierMax: 8,
     buyoutTeammateMoraleDelta: -4,
 
+    // Deliberately harsh — a third of value at best, and only ever while an
+    // active loan means things are genuinely bad. Not a normal way to raise
+    // cash; the last lever after the loan and the buyout offer.
+    fireSaleEnabled: true,
+    fireSaleValueFraction: 0.35,
+
     tagTeamsPerPromotion: 3,
     rivalRosterSizeMin: 8,
     rivalRosterSizeMax: 20,

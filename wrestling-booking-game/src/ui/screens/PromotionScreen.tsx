@@ -25,6 +25,7 @@ import {
   conditionLabel,
   repairCost,
 } from '../../engine/economy/showBudget';
+import { fireSaleEligible, fireSaleValue } from '../../engine/economy/fireSale';
 import { weeklyWageBill } from '../../engine/economy/contracts';
 import { followingOf } from '../../engine/world/territories';
 import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
@@ -51,6 +52,7 @@ export function PromotionScreen() {
   const toggleExtra = useGameStore((s) => s.toggleShowExtra);
   const buyAsset = useGameStore((s) => s.buyProductionAsset);
   const repair = useGameStore((s) => s.repairProductionAsset);
+  const sellAsset = useGameStore((s) => s.sellProductionAsset);
 
   const projection = useMemo(() => {
     if (!world) return null;
@@ -252,6 +254,9 @@ export function PromotionScreen() {
             const tooBig = asset.minVenueCapacity && venue.capacity < asset.minVenueCapacity;
             const condition = world.assetConditions.find((c) => c.assetId === asset.id);
             const fixCost = condition ? repairCost(condition, asset.cost, world.settings) : 0;
+            // Only ever offered mid-crisis — see economy/fireSale.ts.
+            const canSell = owned && Boolean(world.activeLoan) && fireSaleEligible(asset);
+            const saleValue = canSell ? fireSaleValue(asset, condition, world.settings) : 0;
 
             return (
               <div key={asset.id} className="flex flex-col gap-1">
@@ -313,6 +318,17 @@ export function PromotionScreen() {
                   }`}
                 >
                   Repair · <Money amount={fixCost} />
+                </button>
+              )}
+              {canSell && (
+                <button
+                  type="button"
+                  data-testid={`sell-${asset.id}`}
+                  onClick={() => sellAsset(asset.id)}
+                  className="rounded bg-rose-950/60 px-2 py-1 text-[11px] text-rose-300 hover:bg-rose-900/60"
+                  title="Only on the table because the promotion is already borrowing to stay open."
+                >
+                  Fire sale · <Money amount={saleValue} />
                 </button>
               )}
               </div>

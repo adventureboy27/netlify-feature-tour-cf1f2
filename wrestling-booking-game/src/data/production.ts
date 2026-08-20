@@ -99,6 +99,9 @@ export const PRODUCTION_ASSETS: ProductionAsset[] = [
     upkeepPerShow: 400,
     blurb: 'Somewhere for the young talent to actually learn.',
     effects: { injuryReduction: 0.1, talentGrowth: 0.2 },
+    // The school, not show-night gear — stays out of the fire sale even
+    // during a genuine emergency. See engine/economy/fireSale.ts.
+    fireSaleEligible: false,
   },
 ];
 

@@ -786,6 +786,8 @@ export interface GameStore {
   setAssignment: (wrestlerId: Id, choice: AssignmentChoice) => void;
   /** Pay to put a worn rig back to new. */
   repairProductionAsset: (assetId: Id) => void;
+  /** A genuine last resort — only works while an active loan means things are already bad. See economy/fireSale.ts. */
+  sellProductionAsset: (assetId: Id) => void;
   /** Meet a renewal demand in full, or refuse it and risk them walking. */
   answerRenewal: (wrestlerId: Id, accept: boolean) => void;
   /**

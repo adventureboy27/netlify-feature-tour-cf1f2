@@ -25,6 +25,7 @@ import { confrontationById } from '../../data/confrontations';
 import { HAULAGE, haulageById, nextHaulage, ladderStatus } from '../../engine/economy/production';
 import { productionAssetById } from '../../data/production';
 import { newAssetCondition, repairAsset, repairCost } from '../../engine/economy/showBudget';
+import { fireSaleEligible, fireSaleValue } from '../../engine/economy/fireSale';
 
 type ShowAndProductionSlice = Pick<
   GameStore,
@@ -41,6 +42,7 @@ type ShowAndProductionSlice = Pick<
   | 'buyHaulage'
   | 'buyProductionAsset'
   | 'repairProductionAsset'
+  | 'sellProductionAsset'
 >;
 
 export const createShowAndProductionSlice: StateCreator<
@@ -279,6 +281,32 @@ export const createShowAndProductionSlice: StateCreator<
       if (cost <= 0 || world.promotion.bankBalance < cost) return;
       world.promotion.bankBalance -= cost;
       world.assetConditions[index] = repairAsset(world.assetConditions[index]!);
+    });
+  },
+
+  sellProductionAsset: (assetId) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      // A genuine last resort, not a normal way to raise cash — see
+      // economy/fireSale.ts. Only on the table while an active loan means
+      // things are already bad, same gate the buyout offer uses.
+      if (!world.settings.fireSaleEnabled) return;
+      if (!world.activeLoan) return;
+      const asset = productionAssetById(assetId);
+      if (!asset || !world.ownedAssetIds.includes(assetId)) return;
+      if (!fireSaleEligible(asset)) return;
+
+      const index = world.assetConditions.findIndex((c) => c.assetId === assetId);
+      const condition = index >= 0 ? world.assetConditions[index] : undefined;
+      const value = fireSaleValue(asset, condition, world.settings);
+
+      world.promotion.bankBalance += value;
+      world.ownedAssetIds = world.ownedAssetIds.filter((id) => id !== assetId);
+      if (index >= 0) world.assetConditions.splice(index, 1);
+      world.weeklyNews.push(
+        wire('story', `${world.promotion.name} sold off the ${asset.name.toLowerCase()} to keep the lights on.`, world.week, 'minor'),
+      );
     });
   },
 });
