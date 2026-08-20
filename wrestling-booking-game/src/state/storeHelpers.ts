@@ -35,7 +35,7 @@ import { canSign } from '../engine/world/freeAgents';
 import type { EventEffect } from '../engine/events/types';
 import type { World } from './world';
 import type { Rng } from '../engine/rng';
-import { clamp, pick } from '../engine/rng';
+import { clamp, pick, chance, shuffle } from '../engine/rng';
 import type { Manager } from '../engine/sim/ringside';
 import { managerFromWrestler } from '../engine/career/transition';
 import { holidayForWeek, seasonForWeek } from '../engine/world/seasons';
@@ -51,6 +51,7 @@ import { wire, biddingOpenedLine, biddingSettledLine } from '../engine/world/wir
 import { createStandardContract, askingRate, desiredContractWeeks } from '../engine/economy/contracts';
 import { exitTerms, canBeSigned, guaranteedShareFor } from '../engine/economy/termination';
 import { loanTermsFor, buildLoan, loanCooldownCleared, type LoanTier } from '../engine/economy/loan';
+import { rollBuyoutTerms } from '../engine/economy/buyout';
 import { isFired } from '../engine/world/mandates';
 import { StatementBuilder } from '../engine/economy/statement';
 import { runSupershow } from '../engine/world/supershowRun';
@@ -1060,6 +1061,135 @@ export function tickLoan(world: World): void {
   } else {
     world.solventWeeksSinceLastLoan = 0;
   }
+}
+
+// ---------------------------------------------------------------------------
+// The blind bulk buyout
+//
+// See economy/buyout.ts for the reasoning: only while an active loan means
+// the promotion is genuinely drowning, and the booker never chooses who
+// goes. The trigger roll here takes an rng the caller has already isolated
+// (resolveWeek passes a per-week seed — see the CLAUDE.md note on why a
+// weekly roll can never draw from the shared stream, even a gated one).
+// `answerBuyoutOffer` is a player action, so it uses the shared stream, same
+// as every other player-triggered draw in this file.
+
+/** Should a rival make this offer this week? */
+export function maybeOfferBuyout(world: World, rng: Rng): void {
+  if (!world.settings.buyoutEnabled) return;
+  if (!world.activeLoan) return;
+  if (world.pendingBuyoutOffer) return;
+  if (!chance(rng, world.settings.buyoutWeeklyChance)) return;
+
+  const terms = rollBuyoutTerms(
+    rng,
+    payrollOf(world, world.promotion.id),
+    world.promotion.rosterIds.length,
+    world.settings,
+  );
+  // Only a company that can actually pay is a real offer. Skip silently —
+  // there is always another week while the loan is still running.
+  const affording = world.rivals.filter((r) => r.closedWeek === null && r.bankBalance >= terms.price);
+  if (affording.length === 0) return;
+  const buyer = pick(rng, affording);
+
+  world.pendingBuyoutOffer = {
+    openedWeek: world.week,
+    fromPromotionId: buyer.id,
+    fromPromotionName: buyer.name,
+    count: terms.count,
+    price: terms.price,
+  };
+  world.weeklyNews.push(
+    wire(
+      'story',
+      `${buyer.name} has made an offer: ${terms.count} contracts, no names attached, for $${terms.price.toLocaleString()}.`,
+      world.week,
+      'lead',
+    ),
+  );
+}
+
+/** Same one-week grace every other pending decision gets before it lapses. */
+export function expireStaleBuyoutOffer(world: World): void {
+  const offer = world.pendingBuyoutOffer;
+  if (offer && offer.openedWeek < world.week) {
+    world.weeklyNews.push(
+      wire('story', `${offer.fromPromotionName}'s offer went unanswered. It is off the table.`, world.week, 'minor'),
+    );
+    world.pendingBuyoutOffer = null;
+  }
+}
+
+/** The booker says yes or no, before knowing who it costs. */
+export function answerBuyoutOffer(world: World, rng: Rng, accept: boolean): void {
+  const offer = world.pendingBuyoutOffer;
+  if (!offer) return;
+  world.pendingBuyoutOffer = null;
+
+  const buyer = world.rivals.find((r) => r.id === offer.fromPromotionId);
+  if (!accept || !buyer || buyer.closedWeek !== null) {
+    world.weeklyNews.push(
+      wire(
+        'story',
+        `The booker turned down ${offer.fromPromotionName}'s offer. Whatever this roster is worth, it is not for sale sight unseen — not today.`,
+        world.week,
+        'minor',
+      ),
+    );
+    return;
+  }
+
+  world.promotion.bankBalance += offer.price;
+
+  const roster = [...world.promotion.rosterIds];
+  const taken = shuffle(rng, roster).slice(0, Math.min(offer.count, roster.length));
+  const takenSet = new Set(taken);
+  world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => !takenSet.has(id));
+
+  const takenNames: string[] = [];
+  let championsTaken = 0;
+  for (const id of taken) {
+    const w = world.wrestlers[id];
+    if (!w) continue;
+    takenNames.push(w.name);
+
+    // Their title, if any, does not travel with them.
+    for (const title of world.titles) {
+      if (title.promotionId === world.promotion.id && !title.vacant && title.currentHolderIds.includes(id)) {
+        championsTaken += 1;
+        stripTitle(world, title, 'soldOff');
+      }
+    }
+
+    w.promotionId = buyer.id;
+    w.contract = {
+      ...createStandardContract(w, world.settings, world.settings.startingYear, desiredContractWeeks(w, world.settings)),
+      weeklyRate: askingRate(w, world.settings),
+      guaranteedPct: guaranteedShareFor(w.ego, world.settings),
+    };
+    buyer.rosterIds.push(id);
+  }
+
+  // The rest of the room hears about it — several colleagues gone at once,
+  // to a company nobody chose, for a price nobody in the room will ever see.
+  for (const id of world.promotion.rosterIds) {
+    const member = world.wrestlers[id];
+    if (!member || member.deceased) continue;
+    member.morale = clampMorale(member.morale + world.settings.buyoutTeammateMoraleDelta, world.settings);
+  }
+
+  world.weeklyNews.push(
+    wire(
+      'story',
+      `${offer.fromPromotionName} paid $${offer.price.toLocaleString()} for ${taken.length} contracts, sight unseen: ${takenNames.join(', ')}.` +
+        (championsTaken > 0
+          ? ` ${championsTaken === 1 ? 'A championship goes' : `${championsTaken} championships go`} with them.`
+          : ''),
+      world.week,
+      'lead',
+    ),
+  );
 }
 
 /**

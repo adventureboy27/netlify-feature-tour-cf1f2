@@ -266,6 +266,8 @@ export interface World {
   pendingLoanOffer: PendingLoanOffer | null;
   /** The loan currently being paid off, if any. Auto-deducted every week; cannot be deferred. */
   activeLoan: ActiveLoan | null;
+  /** A rival's blind bulk offer for a slice of the roster. See economy/buyout.ts. */
+  pendingBuyoutOffer: PendingBuyoutOffer | null;
   /**
    * Set when somebody on the roster dies. The next show the promotion runs is
    * a tribute — the business does this whether or not the booker feels like
@@ -514,6 +516,16 @@ export interface PendingLoanOffer {
   openedWeek: number;
   /** The payroll the ceiling was sized against — fixed at the moment the offer opened. */
   payrollAtOffer: number;
+}
+
+/** A rival's blind bulk buyout offer waiting on an answer. See economy/buyout.ts. */
+export interface PendingBuyoutOffer {
+  openedWeek: number;
+  fromPromotionId: Id;
+  fromPromotionName: string;
+  /** How many contracts, known up front. Who, not known until accepted. */
+  count: number;
+  price: number;
 }
 
 /** Stable key for a pair of wrestlers, order-independent. */
@@ -1063,6 +1075,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     solventWeeksSinceLastLoan: 0,
     pendingLoanOffer: null,
     activeLoan: null,
+    pendingBuyoutOffer: null,
     pendingMemoriam: null,
     pendingWeatherCall: null,
     pendingNoShowCall: null,

@@ -19,11 +19,12 @@ than the one already made.
 
 ---
 
-## Bankruptcy rework — the loan is shipped, four pieces are not
+## Bankruptcy rework — the loan and the buyout offer are shipped, two pieces are not
 
-Grew out of a long design conversation with the player. The loan itself is
-built (see "Done" below) and everything else discussed in that conversation
-is a confirmed, agreed design, not a maybe — it just hasn't been built yet:
+Grew out of a long design conversation with the player. The loan and the
+blind bulk-buyout offer are both built (see "Done" below) and everything
+else discussed in that conversation is a confirmed, agreed design, not a
+maybe — it just hasn't been built yet:
 
 - **Rivals get the same struggle steps, not the same dollar amounts.**
   Agreed explicitly: rivals should be able to release wrestlers to cut
@@ -31,18 +32,6 @@ is a confirmed, agreed design, not a maybe — it just hasn't been built yet:
   way a player would, using their own numbers rather than identical ones.
   Needs an actual AI policy — rivals currently make zero financial
   decisions, `rivalWeek` is a pure formula with nobody choosing anything.
-- **The blind bulk-buyout offer.** A rival, only while the promotion is
-  genuinely distressed (an active loan repayment), offers a flat lump sum
-  for a *random* slice of the current roster — count generated per offer
-  (15-30% of the roster, clamped 2-8), price anchored to the *selling*
-  promotion's own weekly payroll times a randomized 3-8x multiplier, **not**
-  derived from the specific wrestlers taken (the player explicitly did not
-  want the price reverse-engineerable from summed contract values).
-  Titleholders are not protected — losing a champion in the batch is the
-  drama the player specifically asked for. Reuses the `interestedIn`/
-  bidding-war valuation machinery already in `storeHelpers.ts` where
-  possible, but the count/price randomness needs its own isolated RNG
-  stream, same discipline as everything else in this file.
 - **Fire sale of the promotion's own production gear**, for a fraction of
   its value — a genuine last resort, agreed but not scoped in detail yet.
 - **Release stigma reaching ordinary negotiations.** Free agents should get
@@ -99,6 +88,41 @@ leash the strike system already provides.
   build` both clean, and a real-browser pass taking an actual loan through
   the real dialogue UI and confirming the bank balance, active-loan notice,
   and the existing mandate-strike warning line all updated correctly.
+
+- **The blind bulk-buyout offer.** New file `engine/economy/buyout.ts` — see
+  its doc comment for why this exists at all despite wrestling having no
+  real transfer-fee tradition: the player was skeptical a general "sell a
+  contract" mechanic wouldn't just become sign-cheap-develop-and-flip, a
+  strategy from a different kind of game entirely. Two things close that off
+  by design, not by accident — only fires while `World.activeLoan` is
+  running (nobody signs a prospect hoping to go bankrupt later to unlock
+  this), and the booker never chooses who goes: a rival offers a flat sum
+  for a known *count*, and only picks the actual wrestlers — by uniform
+  shuffle, `answerBuyoutOffer` — once the booker has already said yes. The
+  price is deliberately not derived from who ends up taken, even after the
+  fact: `rollBuyoutTerms` anchors it to the *selling* promotion's own
+  current payroll times a randomized 3-8x multiplier, so there is no formula
+  a player could reverse-engineer into "is this worth it." Titleholders are
+  not protected — `stripTitle(..., 'soldOff')`, a new `TitleReignEndMethod`
+  — since losing a champion in the batch was the specific drama the player
+  asked for ("might get more money but lose their champions"). The rest of
+  the roster feels it too, a flat morale hit reusing the same "the room
+  hears about it" shape `answerApproach` already uses. Weekly trigger
+  (`maybeOfferBuyout`) reads an isolated per-week seed from `resolveWeek`
+  rather than the shared stream — gated behind `activeLoan` or not, this
+  codebase's own history says never risk it (see the RNG note in root
+  CLAUDE.md); `answerBuyoutOffer` itself uses the shared stream since it is
+  a player-triggered action, same convention as every other one-off pick in
+  `storeHelpers.ts`. Schema bumped to 52 (`World.pendingBuyoutOffer` is
+  non-optional and read every week). Verified: `tsc --noEmit` clean, full
+  suite 136 files / 2722 tests passed (2708 prior + 14 new — 4 pricing tests
+  confirming the price tracks payroll rather than roster composition, 10
+  store-level tests covering the distress gate, affordability, the stale
+  lapse, accept/decline, the title vacate, and the teammate morale hit),
+  `npm run sim` and `npm run build` both clean, and a real-browser pass
+  forcing an offer, accepting it through the real dialogue UI, and
+  confirming the bank balance, roster count, and a genuinely random
+  championship loss all landed and were narrated on the wire.
 
 - **The dialogue engine's content roughly doubled, and four new sudden-event
   types joined the weather call.** Direct follow-up to the dialogue engine

@@ -168,7 +168,8 @@ export type TitleReignEndMethod =
   | 'contractExpired'
   | 'died'
   | 'longTermInjury'
-  | 'promotionFolded';
+  | 'promotionFolded'
+  | 'soldOff';
 
 export interface TitleReignRecord {
   titleId: Id;
@@ -3512,6 +3513,23 @@ export interface WorldSettings {
   loanMandateStrikes1st: number;
   loanMandateStrikes2nd: number;
   loanMandateStrikes3rd: number;
+
+  // --- economy/buyout.ts: a rival's blind bulk offer for a slice of the
+  // roster, only while an active loan means the promotion is genuinely
+  // drowning. See the module doc comment for why the count is known but the
+  // names are not, and why the price is never derived from who is taken. ---
+  buyoutEnabled: boolean;
+  /** Rolled once a week while an active loan is running. */
+  buyoutWeeklyChance: number;
+  buyoutCountFractionMin: number;
+  buyoutCountFractionMax: number;
+  buyoutCountMin: number;
+  buyoutCountMax: number;
+  /** The price is weekly payroll times a number in this range — never the value of who is actually taken. */
+  buyoutPriceMultiplierMin: number;
+  buyoutPriceMultiplierMax: number;
+  /** What the rest of the roster feels, once, when several colleagues vanish at once to an unknown company. */
+  buyoutTeammateMoraleDelta: number;
 
   /** How many tag teams each promotion is formed with. */
   tagTeamsPerPromotion: number;

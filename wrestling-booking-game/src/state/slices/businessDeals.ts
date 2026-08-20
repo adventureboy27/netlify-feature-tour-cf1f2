@@ -6,13 +6,20 @@
 
 import type { StateCreator } from 'zustand';
 import { rng, type GameStore } from '../store';
-import { settleBiddingWar, pickFromFoldedRoster, finishFoldPicking, answerLoanOffer } from '../storeHelpers';
+import {
+  settleBiddingWar,
+  pickFromFoldedRoster,
+  finishFoldPicking,
+  answerLoanOffer,
+  answerBuyoutOffer,
+} from '../storeHelpers';
 
 type BusinessDealsSlice = Pick<
   GameStore,
   | 'pickFoldedWrestler'
   | 'finishFoldPicking'
   | 'answerLoanOffer'
+  | 'answerBuyoutOffer'
   | 'answerBroadcastOffer'
   | 'signSponsor'
   | 'dropSponsor'
@@ -39,6 +46,12 @@ export const createBusinessDealsSlice: StateCreator<GameStore, [['zustand/immer'
   answerLoanOffer: (tier) => {
     set((state) => {
       if (state.world) answerLoanOffer(state.world, tier);
+    });
+  },
+
+  answerBuyoutOffer: (accept) => {
+    set((state) => {
+      if (state.world) answerBuyoutOffer(state.world, rng, accept);
     });
   },
 

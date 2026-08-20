@@ -56,6 +56,8 @@ import {
   tickLoan,
   maybeOfferLoan,
   expireStaleLoanOffer,
+  maybeOfferBuyout,
+  expireStaleBuyoutOffer,
 } from './storeHelpers';
 import { createCardBuilderSlice } from './slices/cardBuilder';
 import { createEventsSlice } from './slices/events';
@@ -583,6 +585,8 @@ export interface GameStore {
   finishFoldPicking: () => void;
   /** Take a tier of the pending loan offer, or turn it down with `null`. */
   answerLoanOffer: (tier: LoanTier | null) => void;
+  /** Answer a rival's blind bulk buyout offer — who it costs is not known until this is "yes". */
+  answerBuyoutOffer: (accept: boolean) => void;
   /** Clear the turn-of-the-year summary once it has been read. */
   dismissYearInReview: () => void;
   /** Clear the owner's verdict on the last mandate once it has been read. */
@@ -979,6 +983,9 @@ export const useGameStore = create<GameStore>()(
         // A loan offer nobody answered lapses after a week. The bank does
         // not chase — it just stops waiting.
         expireStaleLoanOffer(world);
+
+        // Same one-week grace for a buyout offer nobody answered.
+        expireStaleBuyoutOffer(world);
 
         // An auction the booker never answered goes ahead without them. The
         // room does not hold a star off the market because somebody did not
@@ -6308,6 +6315,13 @@ export const useGameStore = create<GameStore>()(
         // loanTriggerWeeksInTheRed. A company that just folded this same
         // week has nothing left to offer a loan to.
         if (!world.folded) maybeOfferLoan(world);
+
+        // A rival smelling blood — only possible once a loan is actually
+        // running, and its own isolated seed so a weekly roll gated behind
+        // world state still never touches the shared stream.
+        if (!world.folded) {
+          maybeOfferBuyout(world, rngFromSeed(`${world.settings.seed}-buyout-${world.week}`));
+        }
 
         world.currentCard = createEmptyCard(
           segmentsForShow(

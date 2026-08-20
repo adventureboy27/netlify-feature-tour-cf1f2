@@ -88,6 +88,7 @@ export function OfficeScreen() {
     (world.pendingEvent ? 1 : 0) +
     (world.pendingFoldPicks ? 1 : 0) +
     (world.pendingLoanOffer ? 1 : 0) +
+    (world.pendingBuyoutOffer ? 1 : 0) +
     (world.yearInReview ? 1 : 0) +
     (world.mandate ? 1 : 0) +
     (world.pendingBroadcastOffer ? 1 : 0) +
@@ -272,6 +273,7 @@ function DeskTab() {
       <ConfrontationCallPanel />
       <LoanOfferPanel />
       <ActiveLoanNotice />
+      <BuyoutOfferPanel />
 
       {picture.length > 0 && (
         <section className="mb-3">
@@ -1775,6 +1777,67 @@ function ActiveLoanNotice() {
       <p className="mt-1 text-[10px] leading-snug text-neutral-500">
         Withdrawn automatically. It cannot be deferred, and missing payroll on top of it will not stop it.
       </p>
+    </section>
+  );
+}
+
+/**
+ * A rival's blind bulk offer — a flat sum for a known number of contracts,
+ * identities unknown until the booker says yes. See economy/buyout.ts.
+ */
+function BuyoutOfferPanel() {
+  const world = useGameStore((s) => s.world);
+  const answer = useGameStore((s) => s.answerBuyoutOffer);
+  const [open, setOpen] = useState(false);
+  if (!world?.pendingBuyoutOffer) return null;
+
+  const offer = world.pendingBuyoutOffer;
+
+  return (
+    <section className="mb-3 rounded-lg border border-rose-800 bg-rose-950/20 p-3" data-testid="buyout-offer">
+      <div className="text-xs uppercase tracking-wide text-rose-400">A rival is circling</div>
+      <h2 className="mt-1 text-sm font-semibold">{offer.fromPromotionName} wants {offer.count} contracts</h2>
+      <p className="mt-1 text-[11px] text-neutral-500">
+        <Money amount={offer.price} /> for {offer.count}, no names attached. Could be the bottom of the roster.
+        Could be a champion. This has to be answered before anybody finds out which.
+      </p>
+      <button
+        type="button"
+        data-testid="buyout-offer-talk"
+        onClick={() => setOpen(true)}
+        className="mt-2 rounded bg-rose-800/60 px-3 py-1.5 text-xs font-medium text-rose-100 hover:bg-rose-800"
+      >
+        Hear the offer
+      </button>
+
+      {open && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName={offer.fromPromotionName}
+          body={`We'll take ${offer.count} contracts off your hands — $${offer.price.toLocaleString()}, flat, no negotiation. We choose who once you say yes. Could be five names nobody would miss. Could be your whole main event picture. That's the deal.`}
+          choices={[
+            {
+              id: 'accept',
+              label: 'Take the deal',
+              gains: `$${offer.price.toLocaleString()} now`,
+              costs: `${offer.count} contracts, chosen at random — could include a champion`,
+            },
+            {
+              id: 'decline',
+              label: 'Turn it down',
+              gains: 'The roster stays exactly as it is',
+              costs: 'No money, no matter how badly it is needed',
+            },
+          ]}
+          onChoose={(choiceId) => {
+            answer(choiceId === 'accept');
+            setOpen(false);
+          }}
+          theme={promotionTheme(world.promotion.identity)}
+          promotionName={world.promotion.name}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </section>
   );
 }

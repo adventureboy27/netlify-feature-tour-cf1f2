@@ -1735,6 +1735,20 @@ export function defaultWorldSettings(): WorldSettings {
     loanMandateStrikes2nd: 2,
     loanMandateStrikes3rd: 3,
 
+    // A rare, dramatic offer, not a weekly nuisance — roughly once every two
+    // months of active repayment. The count is 15-30% of the roster, and the
+    // price is payroll times 3-8x — big enough to look tempting mid-crisis,
+    // deliberately disconnected from what actually gets taken.
+    buyoutEnabled: true,
+    buyoutWeeklyChance: 0.12,
+    buyoutCountFractionMin: 0.15,
+    buyoutCountFractionMax: 0.3,
+    buyoutCountMin: 2,
+    buyoutCountMax: 8,
+    buyoutPriceMultiplierMin: 3,
+    buyoutPriceMultiplierMax: 8,
+    buyoutTeammateMoraleDelta: -4,
+
     tagTeamsPerPromotion: 3,
     rivalRosterSizeMin: 8,
     rivalRosterSizeMax: 20,

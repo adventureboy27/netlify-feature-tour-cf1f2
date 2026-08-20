@@ -186,7 +186,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // every tick to decide whether to offer a loan, and a version-50 save has
 // neither, so the comparison would run against undefined and either offer a
 // loan nobody should still qualify for or never offer one again.
-const SCHEMA_VERSION = 51;
+//
+// Version 52 adds World.pendingBuyoutOffer — a rival's blind bulk offer for
+// a slice of the roster while an active loan is running
+// (engine/economy/buyout.ts). A version-51 save has no such field, and
+// resolveWeek dereferences it every week to decide whether to roll a new
+// offer.
+const SCHEMA_VERSION = 52;
 
 export interface SaveFile {
   schema: number;
