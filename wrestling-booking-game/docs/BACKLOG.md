@@ -19,22 +19,12 @@ than the one already made.
 
 ---
 
-## Bankruptcy rework — four pieces shipped, one is not
+## Bankruptcy rework — all five pieces shipped
 
 Grew out of a long design conversation with the player. The loan, the blind
-bulk-buyout offer, a struggling rival's own cost-cutting, and the player's
-own production-gear fire sale are all built (see "Done" below). What's left
-is a confirmed, agreed design, not a maybe — it just hasn't been built yet:
-
-- **Release stigma reaching ordinary negotiations.** Free agents should get
-  wary of signing with a promotion that's been visibly releasing people —
-  demanding either a higher `guaranteedPct` or (new) a real signing bonus
-  before they'll sign, not just inside contested bidding wars where
-  `ContractBid.signingBonus` already exists. The wariness should fade only
-  while the promotion stays solvent, same principle as the loan cooldown.
-  This is distinct from — and does not replace — the new 🛡️
-  security-motivated icon from the motivation system, which is an
-  individual trait, not a company-wide reputation effect.
+bulk-buyout offer, a struggling rival's own cost-cutting, the player's own
+production-gear fire sale, and release stigma reaching ordinary negotiations
+are all built (see "Done" below). Nothing is left open on this one.
 
 Also confirmed but deliberately *not* built as its own system: firing the
 booker for taking a loan. Decided against a standalone mechanism — it
@@ -194,6 +184,132 @@ leash the strike system already provides.
   training facility), confirming the sell button only appears for the
   eligible one, and that clicking it moved the cash, removed the asset, and
   narrated it on the wire.
+
+- **Release stigma reaching ordinary negotiations — the fifth and last piece
+  of the bankruptcy rework.** New file `engine/economy/releaseStigma.ts` —
+  `releaseStigmaActive` (a cooldown check) and `releaseStigmaTerms`, both
+  pure. Same cooldown shape as the loan's own on purpose
+  (`World.solventWeeksSinceLastLoan`): a new `World.solventWeeksSinceLastRelease`
+  resets to 0 the moment any release happens (`letThemGo`, the single choke
+  point both booker-initiated firing and a granted release request already
+  funnel through), and only climbs back up on a genuinely solvent week
+  (`tickReleaseStigma`, called from `resolveWeek` right beside `tickLoan`).
+  Fades faster than the loan's own — 8 weeks by default, versus the loan's
+  multi-attempt escalating cooldown — since this is a lighter,
+  everyday-negotiation tax, not another rescue mechanism. What a wary free
+  agent actually asks for is one or the other, never both: somebody who
+  would already command a guarantee off pure ego asks for a signing bonus
+  instead (the guarantee has nowhere further to go), and somebody who
+  wouldn't otherwise get one gets a flat guaranteed floor instead. Wired
+  into both ordinary signing paths — `signFreeAgent`
+  (`slices/rosterAndContracts.ts`) and the fold-pickup `signPickedWrestler`
+  (`storeHelpers.ts`) — since the wariness is about the *signing
+  promotion's* reputation, not the specific circumstance a wrestler is
+  available under. `FreeAgentsScreen` gets a banner when the stigma is
+  active, matching the existing "what this company did" death-stigma
+  banner's placement and tone. Verified: `tsc --noEmit` clean, full suite
+  141 files / 2756 tests passed (2744 prior + 12 new — 6 pure tests on the
+  cooldown and the guarantee-vs-bonus branch, 6 store-level tests covering
+  both signing paths, the cooldown tick itself, and the on/off setting),
+  `npm run sim` and `npm run build` both clean.
+
+- **Booker-initiated release, the renewal window, and queued contracts — the
+  three-part contract rework confirmed in an earlier planning pass, all
+  built in one session.** Three linked changes, none of them touching
+  natural contract expiry, which stays exactly as cheap and unrestricted as
+  it always was:
+
+  1. **A booker-initiated firing now carries the same ninety-day freeze as a
+     negotiated release.** `economy/termination.ts`'s `exitTerms`, `'fired'`
+     branch: `noCompeteWeeks: 0` → `settings.noCompeteWeeks`. This is an
+     amendment to an on-the-record design decision (the file's own doc
+     comment used to argue the opposite — "you broke it, so you do not also
+     get to keep him off television"); the doc comment now says so
+     explicitly rather than silently reversing itself. Re-expressed, not
+     re-baselined: `termination.test.ts`'s "is the only exit where..." test
+     now asserts firing and a negotiated release carry the *same* wait, and
+     that expiry alone carries none.
+
+  2. **The last `renewalWindowWeeks` (2, new `WorldSettings` field) of any
+     deal opens a real, booker-initiated conversation — not an automatic
+     demand at the buzzer.** New `World.renewalTalks` (schema bump to 54),
+     one entry per wrestler stepping through two stages in place rather
+     than two separate lists: `'askInterest'` (booker speaker — "is the
+     promotion even interested in keeping them?") advancing on "yes" to
+     `'askWrestler'` (the wrestler's own portrait, first person — "so, are
+     we doing this again?"), with three outcomes: negotiate now (reuses
+     `contractDemand`/`answerRenewal`'s existing terms-and-counter flow
+     completely unchanged, just triggered earlier — `answerRenewalWish`'s
+     `'stay'` branch pushes to `pendingRenewals` exactly the way the old
+     automatic trigger did), a clean warm exit (`'leave'`), or throwing it
+     open to the market (`'explore'`, see #3). A "no" on either side — the
+     booker's or the wrestler's — means nothing was ever agreed, and the
+     deal now runs down to a genuinely plain, silent departure at actual
+     expiry: the automatic `contractDemand` that used to fire for
+     *everyone* at the buzzer is gone, replaced by that plain departure as
+     the fallback for "nothing was agreed in time." Two new `DialogueCard`
+     surfaces on `OfficeScreen`'s Contracts tab (`answerRenewalInterest`,
+     `answerRenewalWish`), following the same browsable-list-then-tap
+     pattern release requests already established.
+
+  3. **A renewal auction's winner doesn't take over until the current deal
+     actually runs out — win or lose, the wrestler keeps working the
+     current employer's dates.** New optional `Wrestler.queuedContract`
+     (not schema-bumped — optional, and every read treats a missing field
+     exactly like `null`, same precedent as `motivators`). New
+     `BiddingReason: 'renewalAuction'` in `economy/bidding.ts`, which
+     bypasses `worthAnAuction`'s ordinary star-only gate and drops
+     `minRivals` to 1 — the same reasoning `foldPickup` already established
+     ("the booker already reached for this one specifically"). Reuses
+     `interestedIn`'s existing, untouched "the current employer is in if
+     they can pay" clause, so the wrestler's own current promotion bids
+     against everyone else for their own talent. New
+     `queueRenewalContract` (`storeHelpers.ts`) mirrors `awardContract`
+     exactly except it writes the winning terms into `queuedContract`
+     instead of touching the roster or the live contract — the signing
+     bonus is still real money paid the day the deal is agreed, only the
+     move itself is deferred. The swap-in lives in the same `resolveWeek`
+     pass that already detects expiry (`store.ts`'s `expired` loop),
+     checked first — before the death-stigma and notice-given branches —
+     since a queued contract is a done deal regardless of what else is
+     going on. Handles both outcomes: the wrestler moving to the winning
+     rival (roster membership actually transfers, `'departure'` wire item)
+     and the current employer winning their own auction (nothing changes
+     day to day, `'signing'` wire item saying so plainly).
+
+  New file `state/renewalWindow.store.test.ts` covers the window's exact
+  trigger timing (opens at precisely `renewalWindowWeeks` left, never
+  twice), all three `answerRenewalWish` outcomes, the widened eligibility
+  gate, and the queued-contract swap-in for both a rival win and the
+  current employer re-signing their own talent. One existing test needed
+  re-expression, not re-baselining: `workedHurt.test.ts`'s "charges the man
+  who already works here the same premium as a stranger" used to run every
+  contract down to expiry in one tick and check the *automatically*-created
+  `pendingRenewals` demands; it now walks every deal to the renewal window
+  instead, drives the conversation to `'stay'` for everyone who isn't
+  refusing to work here at all, and then runs the clock the rest of the way
+  for the ones who were — the same claim (a death's premium reaches
+  existing employees, not just strangers), proven against the new trigger
+  point instead of the old one.
+
+  Verified: `tsc --noEmit` clean, full suite 142 files / 2767 tests passed
+  (2756 prior + 11 new — covering the window's trigger timing, all three
+  `answerRenewalWish` outcomes, the widened eligibility gate, and the
+  queued-contract swap-in — plus one re-expressed test, zero regressions),
+  `npm run sim` and `npm run build`
+  both clean, `tools/probe.mjs`'s default 3-seed/104-week run showed no
+  balance drift (roster stayed stocked, all three saves survived, bank and
+  company rating both in a healthy range), and a real-browser pass driving
+  the full conversation end to end — Node 1 "yes" advancing live to Node 2,
+  "stay" opening the real negotiation card with the right premium, and a
+  forced queued contract actually swapping a wrestler onto a rival's roster
+  the week their old deal ran out, narrated correctly on the wire. Caught
+  one real bug in that pass: the booker's "yes" at Node 1 was closing the
+  dialogue back to the list instead of advancing to Node 2, because the
+  UI's `onClose`-on-every-answer pattern (correct for every *other*
+  `DialogueCard` on this tab, which all terminate in one choice) doesn't
+  hold for a conversation that steps through more than one node in place —
+  fixed by only closing on the choices that actually end it.
 
 - **The dialogue engine's content roughly doubled, and four new sudden-event
   types joined the weather call.** Direct follow-up to the dialogue engine

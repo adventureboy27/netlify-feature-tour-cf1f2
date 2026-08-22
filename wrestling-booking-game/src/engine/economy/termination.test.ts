@@ -92,27 +92,27 @@ describe('the three exits', () => {
     expect(terms.noCompeteWeeks).toBe(0);
   });
 
-  it('makes firing cost the guarantee and still let them sign anywhere', () => {
-    // The worst exit on both counts, deliberately: you broke it, so you pay
-    // and you do not also get to keep them off television.
+  it('makes firing cost the guarantee — the worst exit on the money, deliberately', () => {
     const terms = exitTerms(guy(), 'fired', settings, 'CCW');
     expect(terms.severance).toBe(50_000);
-    expect(terms.noCompeteWeeks).toBe(0);
   });
 
-  it('makes a negotiated release cost nothing and cost them ninety days', () => {
+  it('makes a negotiated release cost nothing on the money', () => {
     const terms = exitTerms(guy(), 'negotiatedRelease', settings, 'CCW');
     expect(terms.severance).toBe(0);
-    expect(terms.noCompeteWeeks).toBe(settings.noCompeteWeeks);
   });
 
-  it('is the only exit where the promotion pays and the only one where they wait', () => {
-    // Stated as one assertion because the asymmetry IS the design: the side
-    // that breaks the deal pays, the side that asks out waits.
+  it('is the only exit where the promotion pays, and the only one that carries no wait at all', () => {
+    // Firing and a negotiated release now both carry the same ninety-day
+    // freeze — the asymmetry that remains is on the money, not the wait:
+    // the side that breaks the deal pays, expiry alone owes and costs
+    // nothing at all.
+    const expired = exitTerms(guy(), 'expiry', settings, 'CCW');
     const fired = exitTerms(guy(), 'fired', settings, 'CCW');
     const asked = exitTerms(guy(), 'negotiatedRelease', settings, 'CCW');
-    expect(fired.severance > 0 && fired.noCompeteWeeks === 0).toBe(true);
-    expect(asked.severance === 0 && asked.noCompeteWeeks > 0).toBe(true);
+    expect(expired.severance === 0 && expired.noCompeteWeeks === 0).toBe(true);
+    expect(fired.severance > 0 && fired.noCompeteWeeks === settings.noCompeteWeeks).toBe(true);
+    expect(asked.severance === 0 && asked.noCompeteWeeks === settings.noCompeteWeeks).toBe(true);
   });
 
   it('always says what happened, by name', () => {

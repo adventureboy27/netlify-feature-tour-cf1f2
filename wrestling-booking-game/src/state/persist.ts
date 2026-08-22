@@ -192,7 +192,20 @@ const SLOT_KEY = 'wbg.save.v1';
 // (engine/economy/buyout.ts). A version-51 save has no such field, and
 // resolveWeek dereferences it every week to decide whether to roll a new
 // offer.
-const SCHEMA_VERSION = 52;
+//
+// Version 53 adds World.solventWeeksSinceLastRelease — the cooldown clock
+// for release stigma reaching ordinary negotiations
+// (engine/economy/releaseStigma.ts), same shape as
+// solventWeeksSinceLastLoan above. A version-52 save has no such field, and
+// resolveWeek increments/resets it unconditionally every week.
+//
+// Version 54 adds World.renewalTalks — the renewal-window conversation
+// (state/world.ts's RenewalTalk, opened at WorldSettings.renewalWindowWeeks
+// rather than automatically at expiry). A version-53 save has no such
+// field, and resolveWeek both iterates and pushes to it every week.
+// (Wrestler.queuedContract, added alongside this, is NOT part of the bump —
+// it is optional, and every read treats a missing field exactly like null.)
+const SCHEMA_VERSION = 54;
 
 export interface SaveFile {
   schema: number;

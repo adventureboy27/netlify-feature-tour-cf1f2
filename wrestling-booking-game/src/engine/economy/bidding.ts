@@ -113,7 +113,15 @@ export type BiddingReason =
   /** A school leaver who came out with a professional's tools. */
   | 'phenom'
   /** The booker picked them off a folded promotion's roster and at least one rival wants them too. */
-  | 'foldPickup';
+  | 'foldPickup'
+  /**
+   * The booker asked and the wrestler wanted to test the market, with time
+   * still left on the current deal. The current employer is a bidder like
+   * anybody else — see interestedIn's "current employer is in if they can
+   * pay" clause — and the winner doesn't take over until that deal actually
+   * runs out. See Wrestler.queuedContract.
+   */
+  | 'renewalAuction';
 
 export interface BiddingResult {
   winningPromotionId: Id;
@@ -862,7 +870,9 @@ export function resultLine(war: BiddingWar, result: BiddingResult): string {
       ? `Every company in the business wanted ${war.wrestlerName} out of the school.`
       : war.reason === 'foldPickup'
         ? `${war.wrestlerName} came out of a folded promotion and more than one company wanted them.`
-        : `${war.wrestlerName} hit the open market and the phones did not stop.`;
+        : war.reason === 'renewalAuction'
+          ? `${war.wrestlerName} tested the market with time still left on the current deal.`
+          : `${war.wrestlerName} hit the open market and the phones did not stop.`;
   return `${opener} ${result.winningPromotionName} have signed them, ${field}. ${result.swungIt}`;
 }
 
@@ -878,7 +888,9 @@ export function invitationLine(war: BiddingWar, wrestler: Wrestler, rivalCount: 
       ? `${wrestler.name} came out of the school this week with a professional's tools and a professional's body, at ${wrestler.age}.`
       : war.reason === 'foldPickup'
         ? `${wrestler.name} is loose in the business after their promotion closed its doors.`
-        : `${wrestler.name}'s contract is up.`;
+        : war.reason === 'renewalAuction'
+          ? `${wrestler.name}'s deal still has time on it, but the booker has thrown the last of it open to the market.`
+          : `${wrestler.name}'s contract is up.`;
   const room =
     rivalCount === 1
       ? 'One other company is in for them.'

@@ -23,6 +23,7 @@ import {
   wontWorkForUs,
 } from '../../engine/career/onOurWatch';
 import { noCompeteLabel } from '../../engine/economy/termination';
+import { releaseStigmaActive } from '../../engine/economy/releaseStigma';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { Money } from '../components/display';
 import { WrestlerRow } from '../components/WrestlerRow';
@@ -60,6 +61,12 @@ export function FreeAgentsScreen() {
         <p className="rounded bg-rose-950/50 p-2 text-xs text-rose-300">
           {buried.name} died in this company's ring. The people who look after themselves are not taking the
           call, and the ones who will want paying for it.
+        </p>
+      )}
+      {releaseStigmaActive(world.solventWeeksSinceLastRelease, world.settings) && (
+        <p className="mt-2 rounded bg-amber-950/50 p-2 text-xs text-amber-300">
+          This company has been visibly releasing people lately. Free agents want more up front to sign here — a
+          bigger guarantee, or real money before the ink is dry.
         </p>
       )}
 

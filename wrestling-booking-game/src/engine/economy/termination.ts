@@ -13,10 +13,16 @@
 //   for a rival the next day. The cleanest and cheapest exit, and the one you
 //   get by planning ahead.
 //
-//   FIRING. You end it early, so you pay out whatever was guaranteed. He
-//   walks free the same day — no restriction, because you are the one who
-//   broke it. This is the worst exit on both counts and it is meant to be:
-//   the price of a contract you should not have signed.
+//   FIRING. You end it early, so you pay out whatever was guaranteed, and he
+//   still sits the same ninety days a negotiated release carries before
+//   signing anywhere — including back here. Paying him off does not buy him
+//   back onto television any faster. This is the worst exit on every count
+//   and it is meant to be: the price of a contract you should not have
+//   signed. (Amended: this used to walk free the same day, on the theory
+//   that only the side breaking the deal should pay a price. Confirmed
+//   directly by the player that the freeze belongs here too — a promotion
+//   should not be able to shop somebody who was just let go the moment the
+//   money clears.)
 //
 //   A NEGOTIATED RELEASE. He wants out and offers to walk away from the money
 //   to get it. You pay nothing and he sits ninety days before he can sign
@@ -131,12 +137,13 @@ export function exitTerms(
     return {
       kind,
       severance,
-      // You broke it, so you do not also get to keep him off television.
-      noCompeteWeeks: 0,
+      // Same ninety days a negotiated release carries — see the file doc
+      // comment above for why this changed from a same-day walk.
+      noCompeteWeeks: settings.noCompeteWeeks,
       text:
         severance > 0
-          ? `${promotionName} have released ${wrestler.name} and paid off what was left of the deal. ${wrestler.name} can sign anywhere immediately.`
-          : `${promotionName} have released ${wrestler.name}. There was nothing guaranteed on the deal, so it cost them nothing.`,
+          ? `${promotionName} have released ${wrestler.name} and paid off what was left of the deal. ${wrestler.name} sits out ninety days before signing anywhere, same as anybody else who's let go.`
+          : `${promotionName} have released ${wrestler.name}. There was nothing guaranteed on the deal, so it cost them nothing — but ${wrestler.name} still sits out ninety days before signing anywhere.`,
     };
   }
 

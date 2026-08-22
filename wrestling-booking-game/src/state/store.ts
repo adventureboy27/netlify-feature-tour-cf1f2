@@ -54,6 +54,7 @@ import {
   incidentContextFor,
   couldTurnUp,
   tickLoan,
+  tickReleaseStigma,
   maybeOfferLoan,
   expireStaleLoanOffer,
   maybeOfferBuyout,
@@ -416,7 +417,6 @@ import {
   mostRecentDeath,
   negligenceOf,
   officeShare,
-  ourPrice,
   wasNegligent,
   roomLine,
   roomMoraleCost,
@@ -466,7 +466,6 @@ import {
 import {
   driftEgo,
   targetEgo,
-  contractDemand,
   clauseUpkeep,
   blocksDeckStacking,
 } from '../engine/career/ego';
@@ -790,6 +789,10 @@ export interface GameStore {
   sellProductionAsset: (assetId: Id) => void;
   /** Meet a renewal demand in full, or refuse it and risk them walking. */
   answerRenewal: (wrestlerId: Id, accept: boolean) => void;
+  /** Node 1 of the renewal window: does the promotion even want them back? See RenewalTalk. */
+  answerRenewalInterest: (wrestlerId: Id, interested: boolean) => void;
+  /** Node 2: negotiate, let them play out the string, or throw it open to the market. */
+  answerRenewalWish: (wrestlerId: Id, choice: 'stay' | 'leave' | 'explore') => void;
   /**
    * Offer somebody to a rival. The contract goes with them, which is the
    * whole point — a deal you regret is a thing you can try to make somebody
@@ -5742,6 +5745,20 @@ export const useGameStore = create<GameStore>()(
           );
         }
 
+        // The renewal window — opens once, the moment there's still exactly
+        // renewalWindowWeeks left. A real, booker-initiated conversation
+        // (answerRenewalInterest / answerRenewalWish), not an automatic
+        // demand at the buzzer — see the "A deal that ran down..." block
+        // below, which now only handles what nobody answered in time.
+        // Somebody who already gave notice above has nothing left to ask.
+        for (const id of world.promotion.rosterIds) {
+          const member = world.wrestlers[id];
+          if (!member?.contract || member.noticeGivenWeek != null) continue;
+          if (member.contract.weeksRemaining !== world.settings.renewalWindowWeeks) continue;
+          if (world.renewalTalks.some((t) => t.wrestlerId === id)) continue;
+          world.renewalTalks.push({ wrestlerId: id, stage: 'askInterest', openedWeek: world.week });
+        }
+
         // A deal that ran down comes back as a demand, not as a departure.
         //
         // What the company did is priced here as well as in the free-agent
@@ -5758,6 +5775,49 @@ export const useGameStore = create<GameStore>()(
         for (const id of expired) {
           const member = world.wrestlers[id];
           if (!member || world.pendingRenewals.some((r) => r.wrestlerId === id)) continue;
+
+          // A renewal auction's winner, agreed while this deal still had
+          // time left — win or lose, they kept working these dates, and
+          // today is the day it actually changes. See Wrestler.queuedContract
+          // and economy/bidding.ts's 'renewalAuction' reason.
+          if (member.queuedContract) {
+            const queued = member.queuedContract;
+            member.queuedContract = null;
+            const destination =
+              queued.promotionId === world.promotion.id
+                ? world.promotion
+                : world.rivals.find((r) => r.id === queued.promotionId);
+            if (destination) {
+              world.promotion.rosterIds = world.promotion.rosterIds.filter((x) => x !== id);
+              member.contract = queued.contract;
+              member.promotionId = destination.id;
+              member.noticeGivenWeek = null;
+              if (destination.id === world.promotion.id) {
+                world.promotion.rosterIds.push(id);
+                world.weeklyNews.push(
+                  wire(
+                    'signing',
+                    `${member.name}'s old deal with ${world.promotion.name} has run out, and the new one — agreed weeks ago on the open market — starts today.`,
+                    world.week,
+                    'normal',
+                  ),
+                );
+              } else {
+                destination.rosterIds.push(id);
+                world.weeklyNews.push(
+                  wire(
+                    'departure',
+                    `${member.name}'s deal with ${world.promotion.name} has run out. ${destination.name} won them on the open market weeks ago, and today is the day they actually move.`,
+                    world.week,
+                    'lead',
+                  ),
+                );
+              }
+              continue;
+            }
+            // The destination folded in the meantime — falls through to a
+            // plain departure below, same as if no auction had ever run.
+          }
 
           // If a stranger will not come, the man who watched it happen is not
           // going to stay. He is gone, and the wire says why.
@@ -5798,17 +5858,28 @@ export const useGameStore = create<GameStore>()(
             continue;
           }
 
-          const demand = contractDemand(
-            member,
-            renewalRate(member, world.settings),
-            member.careerStatus,
-            world.settings,
-          );
-          world.pendingRenewals.push({
+          // Nothing was agreed — either the renewal-window conversation
+          // said no on one side, or it never got answered before the clock
+          // ran out. Either way there is no negotiation left to have: a
+          // plain, quiet departure, same as it always was before the
+          // renewal window existed. (Anybody who DID say yes-and-yes is not
+          // here — they already have a pendingRenewals offer, caught by the
+          // continue at the top of this loop, or already re-signed via
+          // answerRenewal before the clock ran out at all.)
+          world.renewalTalks = world.renewalTalks.filter((t) => t.wrestlerId !== id);
+          world.promotion.rosterIds = world.promotion.rosterIds.filter((x) => x !== id);
+          member.promotionId = null;
+          member.contract = null;
+          world.freeAgents.push({
             wrestlerId: id,
-            demand: { ...demand, weeklyRate: ourPrice(demand.weeklyRate, heldAtTheTable, world.settings) },
-            openedWeek: world.week,
+            reason: 'contractExpired',
+            askingRate: askingRate(member, world.settings),
+            wantsWeeks: desiredContractWeeks(member, world.settings),
+            weeksUnsigned: 0,
           });
+          world.weeklyNews.push(
+            wire('signing', `${member.name}'s deal with ${world.promotion.name} has run out.`, world.week),
+          );
         }
 
         // This week's sheet becomes last week's, so the next issue can show
@@ -6301,6 +6372,8 @@ export const useGameStore = create<GameStore>()(
         // purpose — a loan payment that itself tips the promotion into the
         // red is exactly the risk it is supposed to be. See economy/loan.ts.
         tickLoan(world);
+        // Same shape, a lighter thing — see economy/releaseStigma.ts.
+        tickReleaseStigma(world);
 
         // ---- can you still pay for this? -------------------------------
         // The grace period is real: one bad month is survivable, a run of

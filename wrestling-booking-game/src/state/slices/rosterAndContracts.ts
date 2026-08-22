@@ -7,7 +7,7 @@
 
 import type { StateCreator } from 'zustand';
 import { rng, type GameStore } from '../store';
-import { dropFromCard, letThemGo } from '../storeHelpers';
+import { dropFromCard, letThemGo, openBiddingWar } from '../storeHelpers';
 import { clamp, chance } from '../../engine/rng';
 import { clampMorale } from '../../engine/career/morale';
 import { wire } from '../../engine/world/wire';
@@ -15,10 +15,12 @@ import { Cap, pronounsFor } from '../../engine/career/pronouns';
 import { canChangeRole, refereeFromWrestler, managerFromWrestler } from '../../engine/career/transition';
 import { evaluateTrade, tradeLine } from '../../engine/world/trades';
 import { rivalRosterSize } from '../world';
-import { createStandardContract, desiredContractWeeks } from '../../engine/economy/contracts';
+import { createStandardContract, desiredContractWeeks, renewalRate } from '../../engine/economy/contracts';
+import { contractDemand } from '../../engine/career/ego';
 import { canSign, currentAskingRate } from '../../engine/world/freeAgents';
 import { wontWorkForUs, stillHeldAgainstUs, ourPrice } from '../../engine/career/onOurWatch';
 import { exitTerms, guaranteedShareFor, canBeSigned, refusalCost } from '../../engine/economy/termination';
+import { releaseStigmaActive, releaseStigmaTerms } from '../../engine/economy/releaseStigma';
 import {
   canSignSecretly,
   canWalkOut,
@@ -37,6 +39,8 @@ type RosterAndContractsSlice = Pick<
   | 'signFreeAgent'
   | 'setAssignment'
   | 'answerRenewal'
+  | 'answerRenewalInterest'
+  | 'answerRenewalWish'
   | 'releaseWrestler'
   | 'signSecretly'
   | 'revealSecretSigning'
@@ -198,18 +202,29 @@ export const createRosterAndContractsSlice: StateCreator<
       const held = stillHeldAgainstUs(world.promotion.deathsOnOurWatch ?? [], world.week, world.settings);
       if (wontWorkForUs(wrestler, held, world.settings)) return;
 
+      const weeklyRate = ourPrice(currentAskingRate(agent, world.settings), held, world.settings);
+      // Not what a person still holds against us (onOurWatch.ts, above) —
+      // what the market thinks of this promotion's own recent behaviour.
+      // See economy/releaseStigma.ts.
+      const stigma = releaseStigmaTerms(
+        wrestler,
+        weeklyRate,
+        releaseStigmaActive(world.solventWeeksSinceLastRelease, world.settings),
+        world.settings,
+      );
+
       wrestler.promotionId = world.promotion.id;
       wrestler.contract = {
         // The term he advertised in the pool, so the length a booker read on
         // Tuesday is the length he signs on Thursday.
         ...createStandardContract(wrestler, world.settings, world.settings.startingYear, agent.wantsWeeks),
-        weeklyRate: ourPrice(currentAskingRate(agent, world.settings), held, world.settings),
+        weeklyRate,
         // Somebody with a big opinion of themselves demands guarantees to
-        // sign, not only to re-sign. Attaching this at renewal alone meant
-        // a star could sit on the roster for years on a deal you could tear
-        // up for nothing, which is not what signing a star is.
-        guaranteedPct: guaranteedShareFor(wrestler.ego, world.settings),
+        // sign, not only to re-sign — folded together with any release
+        // stigma premium, never stacked on top of it separately.
+        guaranteedPct: stigma.guaranteedPct,
       };
+      world.promotion.bankBalance -= stigma.signingBonus;
       world.promotion.rosterIds.push(wrestlerId);
       world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== wrestlerId);
     });
@@ -267,6 +282,64 @@ export const createRosterAndContractsSlice: StateCreator<
       } else {
         member.contract = createStandardContract(member, world.settings, world.settings.startingYear);
       }
+    });
+  },
+
+  // ---------------------------------------------------------------------
+  // The renewal window — a real, booker-initiated conversation opened by
+  // resolveWeek at renewalWindowWeeks, not an automatic demand at expiry.
+  // Two steps, one conversation: answerRenewalInterest is the booker's own
+  // "do we want them back," answerRenewalWish is what happens once the
+  // answer was yes. See state/world.ts's RenewalTalk.
+
+  answerRenewalInterest: (wrestlerId, interested) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      const talk = world.renewalTalks.find((t) => t.wrestlerId === wrestlerId && t.stage === 'askInterest');
+      if (!talk) return;
+
+      if (!interested) {
+        // The booker does not want them back. Nothing else to ask — the
+        // deal plays out to a plain, quiet expiry when it runs down.
+        world.renewalTalks = world.renewalTalks.filter((t) => t !== talk);
+        return;
+      }
+      talk.stage = 'askWrestler';
+    });
+  },
+
+  answerRenewalWish: (wrestlerId, choice) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      const index = world.renewalTalks.findIndex((t) => t.wrestlerId === wrestlerId && t.stage === 'askWrestler');
+      const talk = world.renewalTalks[index];
+      const member = world.wrestlers[wrestlerId];
+      if (index < 0 || !talk || !member || !member.contract) return;
+      world.renewalTalks.splice(index, 1);
+
+      // Warm exit — same plain expiry as the booker saying no above.
+      if (choice === 'leave') return;
+
+      if (choice === 'explore') {
+        // Player-triggered, one-off — the shared stream, not an isolated
+        // seed. See the RNG note in root CLAUDE.md: that trap is about
+        // resolveWeek's own automatic rolls, not a click the booker made.
+        openBiddingWar(world, rng, member, 'renewalAuction');
+        return;
+      }
+
+      // 'stay' — the same negotiation the game has always run at expiry,
+      // just reached a little earlier than the buzzer. answerRenewal
+      // (above) handles whatever the booker decides from here, unchanged.
+      const heldAtTheTable = stillHeldAgainstUs(world.promotion.deathsOnOurWatch ?? [], world.week, world.settings);
+      const demand = contractDemand(member, renewalRate(member, world.settings), member.careerStatus, world.settings);
+      world.pendingRenewals.push({
+        wrestlerId,
+        demand: { ...demand, weeklyRate: ourPrice(demand.weeklyRate, heldAtTheTable, world.settings) },
+        openedWeek: world.week,
+      });
     });
   },
 

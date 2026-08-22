@@ -503,6 +503,15 @@ export interface Wrestler {
   // Employment
   promotionId: Id | null;
   contract: Contract | null;
+  /**
+   * A renewal auction's winning bid, agreed while the current deal still had
+   * time on it — see economy/bidding.ts's 'renewalAuction' reason. Win or
+   * lose, the current employer keeps them on the current dates; this swaps
+   * into `contract` automatically the week the old one actually runs out
+   * (resolveWeek's expiry pass), never mid-deal. Optional: absent and
+   * undefined mean the same thing as null everywhere this is read.
+   */
+  queuedContract?: { contract: Contract; promotionId: Id } | null;
   role: StaffRole;
   /**
    * When they took the job they are doing now.
@@ -1780,6 +1789,14 @@ export interface WorldSettings {
   noticeMoraleUnder: number;
   noticeLoyaltyWeight: number;
   noticeThreshold: number;
+  /**
+   * Weeks of contract left at which the renewal-window conversation opens —
+   * a real, booker-initiated question, not an automatic demand at expiry.
+   * Deliberately separate from noticeWeeks above: that is the wrestler's own
+   * early warning that he is walking regardless; this is the booker's
+   * chance to ask first. See World.renewalTalks and answerRenewalInterest.
+   */
+  renewalWindowWeeks: number;
   selfPreservationDefault: number;
   bodyLongHistoryCount: number;
   /** How much each past injury teaches somebody caution. */
@@ -1927,8 +1944,10 @@ export interface WorldSettings {
   /** Weeks of wages you must be able to cover before a signing is affordable. */
   contractAffordabilityWeeks: number;
   /**
-   * Weeks a negotiated release keeps somebody off everybody's roster. Ninety
-   * days, in a game that runs in weeks.
+   * Weeks a negotiated release or a booker-initiated firing keeps somebody
+   * off everybody's roster, including the promotion that let them go.
+   * Ninety days, in a game that runs in weeks. Plain expiry carries none of
+   * it — see economy/termination.ts's exitTerms.
    */
   noCompeteWeeks: number;
   /**
@@ -3537,6 +3556,18 @@ export interface WorldSettings {
   buyoutPriceMultiplierMax: number;
   /** What the rest of the roster feels, once, when several colleagues vanish at once to an unknown company. */
   buyoutTeammateMoraleDelta: number;
+
+  // --- economy/releaseStigma.ts: free agents wary of a promotion that has
+  // been visibly releasing people. Company reputation, not a person's own
+  // disposition. Same cooldown shape as the loan above — see
+  // World.solventWeeksSinceLastRelease. ---
+  releaseStigmaEnabled: boolean;
+  /** Consecutive solvent weeks since the last release before the wariness clears. */
+  releaseStigmaCooldownWeeks: number;
+  /** Flat guaranteedPct floor demanded by somebody who would not otherwise get one. */
+  releaseStigmaGuaranteedPct: number;
+  /** Weeks of weeklyRate demanded up front by somebody who already commands a guarantee off ego. */
+  releaseStigmaBonusWeeks: number;
 
   // --- economy/fireSale.ts: selling owned production gear at a distress
   // discount. Only on the table while an active loan means the promotion is

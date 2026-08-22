@@ -97,7 +97,10 @@ export function OfficeScreen() {
     (world.lastMandateOutcome ? 1 : 0) +
     (world.lastEventOutcome ? 1 : 0);
   const inContracts =
-    world.pendingRenewals.length + world.approachOffers.length + world.releaseRequests.length;
+    world.pendingRenewals.length +
+    world.approachOffers.length +
+    world.releaseRequests.length +
+    world.renewalTalks.length;
   // A promotion with nobody in a striped shirt is a promotion where a
   // wrestler counts every fall, so that is worth a badge on its own.
   const officialsNeedYou =
@@ -811,11 +814,14 @@ function ContractsTab() {
   const world = useGameStore((s) => s.world);
 
   const answerRenewal = useGameStore((s) => s.answerRenewal);
+  const answerRenewalInterest = useGameStore((s) => s.answerRenewalInterest);
+  const answerRenewalWish = useGameStore((s) => s.answerRenewalWish);
   const answerApproach = useGameStore((s) => s.answerApproach);
   const [approachNote, setApproachNote] = useState<string | null>(null);
   const answerReleaseRequest = useGameStore((s) => s.answerReleaseRequest);
   const [openReleaseId, setOpenReleaseId] = useState<string | null>(null);
   const [openApproachId, setOpenApproachId] = useState<string | null>(null);
+  const [openRenewalTalkId, setOpenRenewalTalkId] = useState<string | null>(null);
   if (!world) return null;
   const theme = promotionTheme(world.promotion.identity);
 
@@ -836,6 +842,7 @@ function ContractsTab() {
     world.pendingRenewals.length === 0 &&
     world.approachOffers.length === 0 &&
     world.releaseRequests.length === 0 &&
+    world.renewalTalks.length === 0 &&
     departures.length === 0
   ) {
     return (
@@ -945,6 +952,135 @@ function ContractsTab() {
           </ul>
         </section>
       )}
+      {/* The last renewalWindowWeeks of a deal opens this, and only this — a
+          real conversation the booker starts, not an automatic demand once
+          the paper runs out. Say no on either side and it plays out to a
+          plain, quiet expiry; say yes on both and it goes to the same
+          negotiation "Contracts up" below has always run. */}
+      {world.renewalTalks.length > 0 && (
+        <section className="mb-4">
+          <h2 className="mb-2 text-sm font-medium text-neutral-300">Worth keeping?</h2>
+          <div className="flex flex-col gap-2">
+            {world.renewalTalks.map((talk) => {
+              const person = wrestler(talk.wrestlerId);
+              if (!person || !person.contract) return null;
+              return (
+                <article
+                  key={talk.wrestlerId}
+                  data-testid={`renewal-talk-${talk.wrestlerId}`}
+                  className="rounded border border-sky-900/60 bg-neutral-900 p-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <PaperDoll
+                      appearance={person.appearance}
+                      gender={person.gender}
+                      alignment={person.alignment}
+                      size="thumb"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium">{person.name}</div>
+                      <div className="text-[11px] text-neutral-500">
+                        {person.contract.weeksRemaining} weeks left on the deal
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      data-testid={`renewal-talk-open-${talk.wrestlerId}`}
+                      onClick={() => setOpenRenewalTalkId(talk.wrestlerId)}
+                      className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-200 hover:bg-neutral-700"
+                    >
+                      Talk to them
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {world.renewalTalks
+        .filter((talk) => talk.wrestlerId === openRenewalTalkId)
+        .map((talk) => {
+          const person = wrestler(talk.wrestlerId);
+          if (!person) return null;
+          const weeksLeft = person.contract?.weeksRemaining ?? world.settings.renewalWindowWeeks;
+
+          if (talk.stage === 'askInterest') {
+            return (
+              <DialogueCard
+                key={talk.wrestlerId}
+                speaker={{ kind: 'booker' }}
+                speakerName={world.promotion.name}
+                body={`${person.name}'s deal runs out in ${weeksLeft} weeks. Worth trying to keep them?`}
+                choices={[
+                  {
+                    id: 'yes',
+                    label: 'Yes — see where they stand',
+                    gains: 'Keeps the door open',
+                    costs: 'Nothing yet',
+                  },
+                  {
+                    id: 'no',
+                    label: 'No — let it run out',
+                    gains: 'One less deal to manage',
+                    costs: `${person.name} walks free the day it expires`,
+                  },
+                ]}
+                onChoose={(choiceId) => {
+                  answerRenewalInterest(talk.wrestlerId, choiceId === 'yes');
+                  // A "yes" advances this same conversation to the
+                  // wrestler's own choice — stays open so the next render
+                  // picks up the new stage. Only "no" actually ends it.
+                  if (choiceId !== 'yes') setOpenRenewalTalkId(null);
+                }}
+                theme={theme}
+                promotionName={world.promotion.name}
+                onClose={() => setOpenRenewalTalkId(null)}
+              />
+            );
+          }
+
+          return (
+            <DialogueCard
+              key={talk.wrestlerId}
+              speaker={{ kind: 'wrestler', wrestlerId: person.id }}
+              wrestler={person}
+              speakerName={person.name}
+              body="So — are we doing this again?"
+              choices={[
+                {
+                  id: 'stay',
+                  label: "Let's talk terms",
+                  gains: 'Straight into a real negotiation',
+                  costs: 'They will ask for what they think they are worth',
+                },
+                {
+                  id: 'leave',
+                  label: 'Let them play it out',
+                  gains: 'A clean, no-hard-feelings exit',
+                  costs: 'Free agency the day the deal runs out',
+                },
+                {
+                  id: 'explore',
+                  label: 'Test the market first',
+                  gains: 'Every interested company — including this one — has to actually compete',
+                  costs: 'They keep working here until the current deal runs out, whoever wins',
+                },
+              ]}
+              onChoose={(choiceId) => {
+                answerRenewalWish(talk.wrestlerId, choiceId as 'stay' | 'leave' | 'explore');
+                setOpenRenewalTalkId(null);
+              }}
+              theme={theme}
+              promotionName={world.promotion.name}
+              onClose={() => setOpenRenewalTalkId(null)}
+            />
+          );
+        })}
+
       {world.pendingRenewals.length > 0 && (
         <section className="mb-4">
           <h2 className="mb-2 text-sm font-medium text-neutral-300">Contracts up</h2>

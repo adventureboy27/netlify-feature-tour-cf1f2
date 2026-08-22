@@ -217,6 +217,10 @@ export function defaultWorldSettings(): WorldSettings {
     noticeMoraleUnder: 35,
     noticeLoyaltyWeight: 0.45,
     noticeThreshold: 0.6,
+    // Same fortnight as noticeWeeks above, on purpose — but this is the
+    // booker's own chance to ask first, not the wrestler's warning that he
+    // is already leaving.
+    renewalWindowWeeks: 2,
     selfPreservationDefault: 50,
     bodyLongHistoryCount: 4,
     bodyHistoryTeachesCaution: 0.12,
@@ -1756,6 +1760,14 @@ export function defaultWorldSettings(): WorldSettings {
     buyoutPriceMultiplierMin: 3,
     buyoutPriceMultiplierMax: 8,
     buyoutTeammateMoraleDelta: -4,
+
+    // Fades in about two months of clean weeks — noticeably faster than the
+    // loan's own cooldown, since this is a lighter, everyday-negotiation
+    // tax rather than another rescue mechanism.
+    releaseStigmaEnabled: true,
+    releaseStigmaCooldownWeeks: 8,
+    releaseStigmaGuaranteedPct: 0.25,
+    releaseStigmaBonusWeeks: 3,
 
     // Deliberately harsh — a third of value at best, and only ever while an
     // active loan means things are genuinely bad. Not a normal way to raise

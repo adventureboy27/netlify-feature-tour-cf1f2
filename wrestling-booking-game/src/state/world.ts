@@ -241,6 +241,8 @@ export interface World {
   assetConditions: AssetCondition[];
   /** Contract renewals waiting on an answer, opened when a deal runs down. */
   pendingRenewals: RenewalOffer[];
+  /** The renewal-window conversation, opened while there's still time on the deal. See RenewalTalk. */
+  renewalTalks: RenewalTalk[];
   /** How this week's show is being staged. */
   showSetup: ShowSetup;
   /**
@@ -268,6 +270,13 @@ export interface World {
   activeLoan: ActiveLoan | null;
   /** A rival's blind bulk offer for a slice of the roster. See economy/buyout.ts. */
   pendingBuyoutOffer: PendingBuyoutOffer | null;
+  /**
+   * Solvent weeks since the last release, of any kind — same cooldown shape
+   * as solventWeeksSinceLastLoan. Any red week, or any release, resets it to
+   * 0; free agents stay wary of the promotion until it clears. See
+   * economy/releaseStigma.ts.
+   */
+  solventWeeksSinceLastRelease: number;
   /**
    * Set when somebody on the roster dies. The next show the promotion runs is
    * a tribute — the business does this whether or not the booker feels like
@@ -1068,6 +1077,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     grudges: [],
     assetConditions: [],
     pendingRenewals: [],
+    renewalTalks: [],
     showSetup: startingSetup,
     weeksInTheRed: 0,
     folded: null,
@@ -1076,6 +1086,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     pendingLoanOffer: null,
     activeLoan: null,
     pendingBuyoutOffer: null,
+    solventWeeksSinceLastRelease: 0,
     pendingMemoriam: null,
     pendingWeatherCall: null,
     pendingNoShowCall: null,
@@ -1260,6 +1271,20 @@ function seedShootRivalries(roster: Wrestler[]): Rivalry[] {
 export interface RenewalOffer {
   wrestlerId: Id;
   demand: ContractDemand;
+  openedWeek: number;
+}
+
+/**
+ * The renewal-window conversation, opened by resolveWeek once
+ * `renewalWindowWeeks` is left on a deal — one entry per wrestler, stepping
+ * through its own two stages in place rather than two separate lists.
+ * 'askInterest' is the booker deciding whether the promotion wants them
+ * back at all; 'askWrestler' is what happens once the answer was yes. See
+ * answerRenewalInterest / answerRenewalWish.
+ */
+export interface RenewalTalk {
+  wrestlerId: Id;
+  stage: 'askInterest' | 'askWrestler';
   openedWeek: number;
 }
 

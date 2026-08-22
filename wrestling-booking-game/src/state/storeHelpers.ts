@@ -50,6 +50,7 @@ import { recordInjury } from '../engine/career/theBody';
 import { wire, biddingOpenedLine, biddingSettledLine } from '../engine/world/wire';
 import { createStandardContract, askingRate, desiredContractWeeks } from '../engine/economy/contracts';
 import { exitTerms, canBeSigned, guaranteedShareFor } from '../engine/economy/termination';
+import { releaseStigmaActive, releaseStigmaTerms } from '../engine/economy/releaseStigma';
 import { loanTermsFor, buildLoan, loanCooldownCleared, type LoanTier } from '../engine/economy/loan';
 import { rollBuyoutTerms } from '../engine/economy/buyout';
 import { shouldTrimPayroll, cheapestToRelease } from '../engine/world/rivalEconomy';
@@ -397,6 +398,8 @@ export function letThemGo(world: World, wrestler: Wrestler, terms: ReturnType<ty
   wrestler.promotionId = null;
   wrestler.contract = null;
   wrestler.noCompeteWeeks = terms.noCompeteWeeks;
+  // The free agent pool remembers, for a while — see economy/releaseStigma.ts.
+  world.solventWeeksSinceLastRelease = 0;
   // A departure ends any second career too — you cannot referee for a company
   // you no longer work for.
   wrestler.role = 'wrestler';
@@ -543,12 +546,21 @@ function signPickedWrestler(world: World, wrestler: Wrestler): void {
   const held = stillHeldAgainstUs(world.promotion.deathsOnOurWatch ?? [], world.week, world.settings);
   if (wontWorkForUs(wrestler, held, world.settings)) return;
 
+  const weeklyRate = askingRate(wrestler, world.settings);
+  const stigma = releaseStigmaTerms(
+    wrestler,
+    weeklyRate,
+    releaseStigmaActive(world.solventWeeksSinceLastRelease, world.settings),
+    world.settings,
+  );
+
   wrestler.promotionId = world.promotion.id;
   wrestler.contract = {
     ...createStandardContract(wrestler, world.settings, world.settings.startingYear, desiredContractWeeks(wrestler, world.settings)),
-    weeklyRate: askingRate(wrestler, world.settings),
-    guaranteedPct: guaranteedShareFor(wrestler.ego, world.settings),
+    weeklyRate,
+    guaranteedPct: stigma.guaranteedPct,
   };
+  world.promotion.bankBalance -= stigma.signingBonus;
   world.promotion.rosterIds.push(wrestler.id);
 }
 
@@ -741,11 +753,11 @@ export function openBiddingWar(world: World, rng: Rng, wrestler: Wrestler, reaso
   // One at a time. Two open auctions would mean two blocking dialogs and a
   // player choosing between them, which is not the decision this is about.
   if (world.pendingBiddingWar) return false;
-  // A fold pickup earns its place in the room by the booker wanting them and
-  // a rival wanting them too — that is the whole test. The ordinary
-  // star/phenom popularity gate would exclude exactly the mid-card wrestlers
-  // this pass is about surfacing.
-  if (reason !== 'foldPickup' && !worthAnAuction(wrestler, world.settings)) return false;
+  // A fold pickup or a renewal auction earns its place in the room by the
+  // booker wanting them — that is the whole test. The ordinary star/phenom
+  // popularity gate would exclude exactly the mid-card wrestlers both of
+  // these passes are about surfacing.
+  if (reason !== 'foldPickup' && reason !== 'renewalAuction' && !worthAnAuction(wrestler, world.settings)) return false;
 
   // Drawn once, before anybody is asked anything — the number is the thing
   // that decides who is even in the room.
@@ -770,10 +782,11 @@ export function openBiddingWar(world: World, rng: Rng, wrestler: Wrestler, reaso
   const rivals = interested.filter((p) => p.id !== world.promotion.id);
   // Fewer than two other companies in the room and this is a negotiation, not
   // an auction — the ordinary free-agent flow handles that perfectly well.
-  // A fold pickup is different: the booker already reached for this one
-  // specifically, so a single rival also wanting them is the whole contest —
-  // "any that they choose that other companies also want."
-  const minRivals = reason === 'foldPickup' ? 1 : world.settings.biddingMinRivals;
+  // A fold pickup or a renewal auction is different: the booker already
+  // reached for this one specifically, so a single rival also wanting them
+  // is the whole contest — "any that they choose that other companies also
+  // want."
+  const minRivals = reason === 'foldPickup' || reason === 'renewalAuction' ? 1 : world.settings.biddingMinRivals;
   if (rivals.length < minRivals) return false;
 
   world.pendingBiddingWar = {
@@ -826,6 +839,35 @@ export function awardContract(world: World, wrestler: Wrestler, bid: ContractBid
   };
   winner.rosterIds.push(wrestler.id);
   // The bonus is real money and it leaves the bank the day they sign.
+  winner.bankBalance -= bid.signingBonus;
+  if (winner.id === world.promotion.id) books?.spend('payroll', bid.signingBonus);
+}
+
+/**
+ * A renewal auction settles like any other, but the winner does not take
+ * over today — the wrestler keeps working the current employer's dates for
+ * whatever is left of the deal, win or lose. Only Wrestler.queuedContract
+ * is set here; roster membership and the live contract wait for
+ * resolveWeek's expiry pass to swap it in. The bonus is still real money and
+ * still leaves the bank the day the deal is agreed, same as an ordinary
+ * award — only the move itself is deferred.
+ */
+export function queueRenewalContract(world: World, wrestler: Wrestler, bid: ContractBid, promotionId: Id, books?: StatementBuilder): void {
+  const winner =
+    world.promotion.id === promotionId ? world.promotion : world.rivals.find((r) => r.id === promotionId);
+  if (!winner) return;
+
+  wrestler.queuedContract = {
+    promotionId: winner.id,
+    contract: {
+      ...createStandardContract(wrestler, world.settings, world.settings.startingYear + Math.floor(world.week / 52)),
+      weeklyRate: bid.weeklyRate,
+      weeksRemaining: bid.weeks,
+      totalWeeks: bid.weeks,
+      clauses: [...bid.clauses],
+      guaranteedPct: guaranteeFor(bid, world.settings),
+    },
+  };
   winner.bankBalance -= bid.signingBonus;
   if (winner.id === world.promotion.id) books?.spend('payroll', bid.signingBonus);
 }
@@ -900,7 +942,24 @@ export function settleBiddingWar(world: World, rng: Rng, playerBid: ContractBid 
   }
 
   const result = outcome?.kind === 'signed' ? outcome.result : null;
-  if (result) {
+  if (result && war.reason === 'renewalAuction') {
+    // Agreed, not moved — see queueRenewalContract. The current employer
+    // (who is always a bidder here, per interestedIn) can win their own
+    // auction, in which case nothing about day-to-day life changes at all.
+    queueRenewalContract(world, wrestler, result.bid, result.winningPromotionId, books);
+    war.bids = result.allBids;
+    war.result = result;
+    const staying = result.winningPromotionId === wrestler.promotionId;
+    const currentEmployer =
+      wrestler.promotionId === world.promotion.id
+        ? world.promotion
+        : world.rivals.find((r) => r.id === wrestler.promotionId);
+    const base = war.playerIn ? resultLine(war, result) : watchedItLine(war, result);
+    const coda = staying
+      ? 'Nothing changes day to day — the paperwork was just made official early.'
+      : `${wrestler.name} finishes out the current run with ${currentEmployer?.name ?? 'their current promotion'} first — the move takes effect the week that deal actually runs out.`;
+    world.weeklyNews.push(biddingSettledLine(`${base} ${coda}`, world.week));
+  } else if (result) {
     awardContract(world, wrestler, result.bid, result.winningPromotionId, books);
     war.bids = result.allBids;
     war.result = result;
@@ -1061,6 +1120,20 @@ export function tickLoan(world: World): void {
     world.solventWeeksSinceLastLoan += 1;
   } else {
     world.solventWeeksSinceLastLoan = 0;
+  }
+}
+
+/**
+ * Same cooldown shape as tickLoan above, for release stigma
+ * (economy/releaseStigma.ts) — a red week resets it, only a genuinely
+ * solvent one counts back up. The reset-to-zero-on-release side of this
+ * lives at the moment of release itself (letThemGo), not here.
+ */
+export function tickReleaseStigma(world: World): void {
+  if (world.promotion.bankBalance >= 0) {
+    world.solventWeeksSinceLastRelease += 1;
+  } else {
+    world.solventWeeksSinceLastRelease = 0;
   }
 }
 

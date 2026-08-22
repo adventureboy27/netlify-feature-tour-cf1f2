@@ -239,9 +239,12 @@ describe('the renewal table, and the day it stops mattering', () => {
     const world = useGameStore.getState().world!;
     const held = stillHeldAgainstUs(world.promotion.deathsOnOurWatch ?? [], world.week, world.settings);
     expect(held).toBeGreaterThan(0);
+    const windowWeeks = world.settings.renewalWindowWeeks;
 
-    // Run every remaining deal down at once, so this is a property of the
-    // table rather than of one man who happened to be up.
+    // Run every remaining deal down to the renewal window at once, so this
+    // is a property of the table rather than of one man who happened to be
+    // up. +1 because this same tick's own decrement is what lands it
+    // exactly on the window.
     const clean = new Map(
       world.promotion.rosterIds.map((id) => {
         const p = world.wrestlers[id]!;
@@ -251,10 +254,23 @@ describe('the renewal table, and the day it stops mattering', () => {
     useGameStore.setState((state) => {
       for (const id of state.world!.promotion.rosterIds) {
         const c = state.world!.wrestlers[id]!.contract;
-        if (c) c.weeksRemaining = 1;
+        if (c) c.weeksRemaining = windowWeeks + 1;
       }
     });
     runWeek();
+
+    // The renewal window opened for the whole roster. The booker says yes,
+    // and so does everybody except the ones who will not work here at all —
+    // a real booker would not chase somebody who has already made that
+    // clear, so their conversation is left unanswered here, exactly as it
+    // would be left in real play.
+    const atWindow = [...useGameStore.getState().world!.promotion.rosterIds];
+    for (const id of atWindow) {
+      const w = useGameStore.getState().world!.wrestlers[id]!;
+      if (wontWorkForUs(w, held, useGameStore.getState().world!.settings)) continue;
+      useGameStore.getState().answerRenewalInterest(id, true);
+      useGameStore.getState().answerRenewalWish(id, 'stay');
+    }
 
     const after = useGameStore.getState().world!;
     expect(after.pendingRenewals.length).toBeGreaterThan(0);
@@ -262,10 +278,13 @@ describe('the renewal table, and the day it stops mattering', () => {
       expect(offer.demand.weeklyRate).toBeGreaterThan(clean.get(offer.wrestlerId)!);
     }
 
-    // And the ones who look after themselves did not come to the table at
-    // all. They are gone, and the wire says why rather than leaving a hole in
-    // the roster for the player to notice.
-    const walked = after.weeklyNews.filter((n) => n.text.includes('not signing another one'));
+    // And the ones who look after themselves never got asked at all — their
+    // deal just keeps ticking down. Run the clock the rest of the way so it
+    // actually runs out: they are gone, and the wire says why rather than
+    // leaving a hole in the roster for the player to notice.
+    for (let i = 0; i < windowWeeks; i++) runWeek();
+    const settled = useGameStore.getState().world!;
+    const walked = settled.weeklyNews.filter((n) => n.text.includes('not signing another one'));
     expect(walked.length).toBeGreaterThan(0);
     expect(walked[0]!.text).toContain(man!.name);
   });
