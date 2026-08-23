@@ -132,6 +132,24 @@ describe('the exchange', () => {
     expect(out.text).toContain(talker.name);
     expect(out.text).not.toMatch(/\{[abc]\}/);
   });
+
+  it('does not repeat the identical write-up across two confrontations on the same card', () => {
+    // Same bug shape as sim/promo.ts's writeUp: an opener and a twist line
+    // drawn independently per confrontation, from pools of only 3 lines
+    // each — a real risk when a card books more than one on the same
+    // definition and venue.
+    const usedLines = new Set<string>();
+    const texts: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const out = resolveConfrontation(
+        rngFromSeed(`card-${i}`),
+        { definitionId: 'callOut', venue: 'ring', speaker: talker, opposite: mute, existingHeat: 0, settings },
+        usedLines,
+      );
+      if (out) texts.push(out.text);
+    }
+    expect(new Set(texts).size).toBe(texts.length);
+  });
 });
 
 describe('where it happens', () => {

@@ -939,3 +939,54 @@ this one.
   consecutive shows (30 promos total) confirming zero duplicate write-ups
   on any single card, plus a screenshot of the exact scenario the player
   flagged now showing two distinct lines.
+
+- **The same fix, applied everywhere else it applied.** The player's
+  stated principle after the promo fix: "if the frequency of repetition is
+  too high anywhere in the game, we don't have enough variety of words and
+  expressions in that area." Rather than wait for the next place to get
+  caught, a survey of every `pick(rng, ...)` call site that draws from a
+  content pool found two more with the exact same shape — small pool,
+  multiple draws in the same show, zero same-context tracking:
+  - **`sim/confrontation.ts`'s `resolveConfrontation`.** Openers and twist
+    lines (3 each) were drawn independently per confrontation; up to 2
+    confrontations can be booked on one card. Same fix as promo.ts: a new
+    `pickUnused` helper and an optional shared `usedLines` set (defaults
+    to a fresh one), threaded through `resolveConfrontationSlot`
+    (`storeHelpers.ts`) and reusing the *same* `usedPromoLines` set
+    store.ts's promo loop already creates — a confrontation and a promo on
+    the same card now can't collide with each other either, not just
+    within their own kind.
+  - **`sim/narrative.ts`'s `generateBeats`.** `CONTROL_BEATS` carries only
+    2-4 lines per wrestling style (`data/matchBeats.ts`), and several
+    winners on one card sharing a style is routine on a real roster — a
+    real, not edge-case, way to read the identical control-segment
+    sentence in two different match write-ups on the same show.
+    `generateBeats` already had a local `used` set, but it was recreated
+    per match and thrown away; it now takes an optional shared
+    `usedAcrossCard` set (default fresh, so every existing caller — dark
+    matches, rival-booked cards, cup runs — is unaffected) and store.ts's
+    own match-resolution loop creates and threads one across every match
+    on the player's card. `SimulateMatchContext` gained an optional
+    `usedBeats` field to carry it through.
+  - Also expanded content directly, the other half of the player's
+    principle: `CONTROL_BEATS` from 2 to 4 lines per style (all 12 styles)
+    and `TITLE_BEATS` from 3 to 5, so the dedup fallback is rarely needed
+    at all rather than doing all the work alone.
+  - **Surveyed and left alone, on purpose:** `misfortune.ts`,
+    `casualties.ts`, and `referees.ts` have the same small-pool shape but
+    meaningfully lower same-show collision odds (each draw is
+    chance-gated and most weeks/shows produce zero or one hit at all), and
+    `commentary.ts` already has a thorough multi-layer dedup mechanism
+    (`saidTonight`, `usedColour`/`usedThisMatch`, a `leastWorn()`
+    fallback) that was the reference implementation for this whole fix,
+    not a risk. Flagging these three as real but lower-priority rather
+    than silently skipping them — worth the same treatment on a future
+    pass if the player runs into one.
+  - Verified: `tsc --noEmit` clean, full suite 142 files / 2781 tests
+    passed (5 new — cross-card dedup for both confrontations and match
+    beats, plus confirming an unshared/default call stays unaffected in
+    each), `npm run sim` and `npm run build` both clean, and a real-browser
+    pass auto-filling and running 10 consecutive shows checking every
+    match's highlight-reel text for a same-show duplicate — none found
+    across 243 beat lines, and no runtime errors from the new threaded
+    parameters.

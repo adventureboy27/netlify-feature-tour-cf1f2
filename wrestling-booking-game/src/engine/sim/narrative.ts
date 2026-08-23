@@ -88,7 +88,16 @@ function usable(templates: readonly BeatTemplate[], rating: number): BeatTemplat
   );
 }
 
-export function generateBeats(rng: Rng, ctx: NarrativeContext): MatchBeat[] {
+/**
+ * `usedAcrossCard` is every beat line already spent tonight, on any match —
+ * without it, `used` only guarded against a beat repeating inside its own
+ * match, and `CONTROL_BEATS` carries just 2 lines per style. A card with
+ * two matches won by wrestlers of the same style (routine on a real
+ * roster) could and did read the identical control-segment sentence
+ * twice. Defaults to a fresh set so a caller resolving one match in
+ * isolation (a test, a one-off sim) is unaffected.
+ */
+export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: Set<string> = new Set()): MatchBeat[] {
   const winner = ctx.winnerMembers[0];
   const loser = ctx.loserMembers[0];
   const winnerName = winner?.name ?? 'The winner';
@@ -104,7 +113,7 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext): MatchBeat[] {
       .replace(/\{weapon\}/g, pick(rng, WEAPONS));
 
   const beats: MatchBeat[] = [];
-  const used = new Set<string>();
+  const used = usedAcrossCard;
   const push = (kind: MatchBeatKind, templates: readonly BeatTemplate[]): void => {
     const options = usable(templates, ctx.rating).filter((t) => !used.has(t.text));
     if (options.length === 0) return;

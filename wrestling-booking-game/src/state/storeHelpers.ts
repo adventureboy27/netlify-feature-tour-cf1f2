@@ -190,6 +190,8 @@ export function resolveConfrontationSlot(
   rng: Rng,
   /** Where this slot's storyline beat is reported, if it produced one. */
   confrontationBeats: { participantIds: Id[]; kind: StorylineBeatKind; text: string }[],
+  /** Every write-up line already spent tonight — shared with the plain-promo loop, see store.ts. */
+  usedLines: Set<string> = new Set(),
 ): number | null {
   const speaker = slot.promoSpeakerId ? wrestlerById.get(slot.promoSpeakerId) : undefined;
   const opposite = slot.confrontationOppositeId ? wrestlerById.get(slot.confrontationOppositeId) : undefined;
@@ -200,15 +202,19 @@ export function resolveConfrontationSlot(
   }
 
   const rivalry = findRivalry(world.rivalries, [speaker.id, opposite.id]);
-  const outcome = resolveConfrontation(rng, {
-    definitionId: slot.confrontationId,
-    venue: slot.confrontationVenue ?? 'ring',
-    speaker,
-    opposite,
-    third: third ?? null,
-    existingHeat: rivalry?.heat ?? 0,
-    settings: world.settings,
-  });
+  const outcome = resolveConfrontation(
+    rng,
+    {
+      definitionId: slot.confrontationId,
+      venue: slot.confrontationVenue ?? 'ring',
+      speaker,
+      opposite,
+      third: third ?? null,
+      existingHeat: rivalry?.heat ?? 0,
+      settings: world.settings,
+    },
+    usedLines,
+  );
   if (!outcome) {
     slot.confrontationResult = null;
     return null;

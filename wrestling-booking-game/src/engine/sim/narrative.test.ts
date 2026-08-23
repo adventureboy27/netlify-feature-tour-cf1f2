@@ -101,6 +101,41 @@ describe('what the reel talks about', () => {
     expect(finish.text.toLowerCase()).toContain('table');
   });
 
+  it('does not repeat a control-beat line across the same card', () => {
+    // The exact bug: two winners of the same style on one card both
+    // reading the identical CONTROL_BEATS sentence — the pool only
+    // carries a handful of lines per style, so an unguarded draw collides
+    // fast across several matches.
+    const [a] = pair();
+    const powerhouseA = { ...a, style: 'powerhouse' as const };
+    const usedAcrossCard = new Set<string>();
+    const texts: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const [, loser] = pair();
+      const beats = generateBeats(
+        rngFromSeed(`card-${i}`),
+        { winnerMembers: [powerhouseA], loserMembers: [loser], finish: 'cleanPin', stars: 3, rating: 60 },
+        usedAcrossCard,
+      );
+      const control = beats.find((b) => b.kind === 'control');
+      if (control) texts.push(control.text);
+    }
+    expect(new Set(texts).size).toBe(texts.length);
+  });
+
+  it('leaves independent calls with no shared set unaffected', () => {
+    const [a, b] = pair();
+    const winner = { ...a, style: 'powerhouse' as const };
+    const first = generateBeats(rngFromSeed('solo-a'), {
+      winnerMembers: [winner],
+      loserMembers: [b],
+      finish: 'cleanPin',
+      stars: 3,
+      rating: 60,
+    });
+    expect(first.length).toBeGreaterThan(0);
+  });
+
   it('uses the winner’s style for the control beat', () => {
     const [a, b] = pair();
     const highFlyer = { ...a, style: 'highFlyer' as const };

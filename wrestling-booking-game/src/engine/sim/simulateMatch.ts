@@ -68,6 +68,8 @@ export interface SimulateMatchContext {
   overexposurePenalty?: number;
   staleGimmickPenalty?: number;
   signatureStipulationFit?: number;
+  /** Every highlight-reel beat already spent tonight, shared across every match on the card. See narrative.ts's generateBeats. */
+  usedBeats?: Set<string>;
 }
 
 export interface MatchSimResult {
@@ -311,17 +313,21 @@ export function simulateMatch(
       ]
     : [];
 
-  const beats = generateBeats(rng, {
-    winnerMembers,
-    loserMembers,
-    finish,
-    stars,
-    rating,
-    stipulation: ctx.stipulation,
-    titles: ctx.titles,
-    shootHeat: rivalry?.shootHeat ?? 0,
-    isMainEvent: ctx.isMainEvent ?? false,
-  });
+  const beats = generateBeats(
+    rng,
+    {
+      winnerMembers,
+      loserMembers,
+      finish,
+      stars,
+      rating,
+      stipulation: ctx.stipulation,
+      titles: ctx.titles,
+      shootHeat: rivalry?.shootHeat ?? 0,
+      isMainEvent: ctx.isMainEvent ?? false,
+    },
+    ctx.usedBeats,
+  );
 
   // A grudge stipulation settled decisively is the blowoff — the feud ends
   // and the winner banks the heat as popularity (§12.5). A screwjob finish in

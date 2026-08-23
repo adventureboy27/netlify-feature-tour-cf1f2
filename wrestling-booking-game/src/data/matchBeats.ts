@@ -42,55 +42,85 @@ export const OPENING_BEATS: BeatTemplate[] = [
 
 // ------------------------------------------------- how the styles read
 
-/** Control segments, keyed to how the wrestler on top works. */
+/**
+ * Control segments, keyed to how the wrestler on top works. Four lines
+ * apiece rather than two — several matches on one card are routinely won
+ * by wrestlers of the same style, and with only two lines a card of that
+ * shape had a real chance of reading the identical sentence twice, even
+ * with the cross-card dedup in narrative.ts's generateBeats.
+ */
 export const CONTROL_BEATS: Record<string, string[]> = {
   powerhouse: [
     '{winner} threw {loser} around like laundry for a while.',
     '{winner} caught {loser} mid-air and turned it into something ugly.',
+    '{winner} picked {loser} up like it cost nothing and put them down like it should have hurt more.',
+    'Every time {loser} tried to get something going, {winner} just moved them somewhere worse.',
   ],
   technical: [
     '{winner} went to work on a limb and stayed there.',
     '{winner} tied {loser} in a knot the hard way, and the crowd started counting the holds.',
+    '{winner} broke the hold clean, reset, and found a worse one.',
+    'Patient, mean, and precise — {winner} was never in a hurry to finish this.',
   ],
   highFlyer: [
     '{winner} took it to the top rope and the building noticed.',
     '{winner} hit a dive to the floor that nobody was ready for.',
+    '{winner} strung together three moves in the air before {loser} even landed from the first.',
+    'The barrier took as much punishment as {loser} did.',
   ],
   submission: [
     '{winner} hunted the arm for five straight minutes.',
     '{loser} made the ropes with one finger and the place lost it.',
+    '{winner} switched holds twice, and {loser} never got a full breath between them.',
+    'That is not coming off without the referee getting involved, and {loser} knows it.',
   ],
   hardcore: [
     '{winner} introduced {weapon} and the referee gave up asking.',
     'It spilled into the crowd and stayed there for a while.',
+    '{winner} went looking under the ring, and what came back up was somebody else\'s problem now.',
+    'Nobody in the front three rows still had a dry seat.',
   ],
   striker: [
     '{winner} lit {loser} up with strikes until the front row winced.',
     'A kick landed flush and {loser} went a funny colour.',
+    '{winner} worked the body until {loser} stopped bothering to block it.',
+    'You could hear every one of those from the cheap seats.',
   ],
   luchador: [
     '{winner} strung together a sequence nobody in the building could follow.',
     'A rope-walk into an armdrag brought the house down.',
+    '{winner} went to the apron, then the top rope, then somewhere that should not have been possible.',
+    'That exchange looked rehearsed for a month and probably was not.',
   ],
   showman: [
     '{winner} stopped to play to the crowd and got away with it.',
     '{winner} did the pose. The crowd did it back.',
+    '{winner} narrated the whole thing to the front row like {loser} was not even in it.',
+    'That was more entrance than offence, and the building loved every second of it.',
   ],
   giant: [
     '{winner} simply would not go down, and {loser} was running out of ideas.',
     '{winner} put a boot up and {loser} ran straight into it.',
+    'It took three of {loser}\'s best shots just to move {winner} an inch.',
+    '{winner} stood in the middle of the ring and let {loser} come to them. That was the whole plan.',
   ],
   bruiser: [
     '{winner} beat {loser} from one corner to the other.',
     'It stopped being wrestling and started being a fight.',
+    '{winner} did not bother with a hold. Just hands.',
+    'The referee\'s warnings stopped meaning anything after the second one.',
   ],
   oldSchool: [
     '{winner} worked a headlock for four minutes and had them hanging on every twitch.',
     'Clean breaks, hard chops, and not a wasted motion.',
+    'A methodical, old-fashioned beating, and the building was right there for it.',
+    '{winner} did not need thirty moves. Six good ones did the job.',
   ],
   allRounder: [
     '{winner} had an answer for everything {loser} tried.',
     'Whatever {loser} went to, {winner} had already scouted it.',
+    '{winner} matched {loser} strike for strike, hold for hold, and still had more in reserve.',
+    'There was no obvious game plan to beat, because {winner} did not have just one.',
   ],
 };
 
@@ -126,6 +156,8 @@ export const TITLE_BEATS: BeatTemplate[] = [
   { text: 'You could feel what the {title} meant to both of them.' },
   { text: '{loser} went after the {title} like it was the last one they would get.' },
   { text: 'The referee held the {title} up and the building went quiet for a second.' },
+  { text: 'Every near-fall in this one meant more with the {title} on the line.' },
+  { text: '{winner} kept looking at the {title} between exchanges, like it was the only thing in the building.' },
 ];
 
 export const GRUDGE_BEATS: BeatTemplate[] = [

@@ -96,7 +96,26 @@ function drawTwist(rng: Rng, candidates: ConfrontationTwist[], venue: Confrontat
   return candidates[candidates.length - 1]!;
 }
 
-export function resolveConfrontation(rng: Rng, ctx: ConfrontationContext): ConfrontationOutcome | null {
+/**
+ * Same fix as `sim/promo.ts`'s `writeUp`, and the same reason: an opener or
+ * a twist line drawn independently per confrontation can repeat itself
+ * word-for-word when two confrontations land on the same card, and each
+ * pool only carries 3 lines. Prefer an unused line in the given pool;
+ * once that pool is spent, allow a repeat rather than fail — nobody is
+ * choosing the twist itself for its prose.
+ */
+function pickUnused(rng: Rng, pool: readonly string[], used: Set<string>): string {
+  const fresh = pool.filter((line) => !used.has(line));
+  const chosen = pick(rng, fresh.length > 0 ? fresh : pool);
+  used.add(chosen);
+  return chosen;
+}
+
+export function resolveConfrontation(
+  rng: Rng,
+  ctx: ConfrontationContext,
+  usedLines: Set<string> = new Set(),
+): ConfrontationOutcome | null {
   const definition = confrontationById(ctx.definitionId);
   if (!definition) return null;
   const s = ctx.settings;
@@ -166,7 +185,7 @@ export function resolveConfrontation(rng: Rng, ctx: ConfrontationContext): Confr
   return {
     quality,
     wonBy,
-    text: `${cast(pick(rng, definition.openers))} ${cast(pick(rng, twist.lines))}`,
+    text: `${cast(pickUnused(rng, definition.openers, usedLines))} ${cast(pickUnused(rng, twist.lines, usedLines))}`,
     twistId: twist.id,
     twistLabel: twist.label,
     heat: Math.round((definition.heat + twist.heat) * venueScale),

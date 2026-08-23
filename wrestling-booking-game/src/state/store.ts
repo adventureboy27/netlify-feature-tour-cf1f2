@@ -1572,6 +1572,11 @@ export const useGameStore = create<GameStore>()(
           winnerIds: Id[];
         }[] = [];
 
+        // Shared across every match on tonight's card so two winners of the
+        // same style (routine on a real roster — CONTROL_BEATS only carries
+        // 2 lines per style) cannot read the identical control-segment
+        // sentence twice. See narrative.ts's generateBeats doc comment.
+        const usedBeats = new Set<string>();
         if (!night.cancelled) world.currentCard.forEach((segment, i) => {
           const sides = new Set(segment.participants.map((p) => p.side));
           if (segment.participants.length < 2 || sides.size < 2) {
@@ -1777,6 +1782,7 @@ export const useGameStore = create<GameStore>()(
             // the house rates a little higher here than it would anywhere
             // else, and a card full of people who don't rates a little lower.
             houseStyleFit: houseStyleRatingBonus(participantWrestlers, world.promotion.identity, world.settings),
+            usedBeats,
             titles: titlesOnTheLine,
             isMainEvent: i === world.currentCard.length - 1,
             isOpener: i === 0,
@@ -2768,15 +2774,16 @@ export const useGameStore = create<GameStore>()(
         // they are resolved here, after the matches, and contribute to the
         // show on their own smaller scale.
         let promoRating = 0;
-        // Shared across every promo slot tonight so two segments on the same
-        // card cannot write up as the identical line — see promo.ts's
-        // writeUp doc comment.
+        // Shared across every talking slot tonight — promo or confrontation
+        // alike — so two segments on the same card cannot write up as the
+        // identical line. See promo.ts's writeUp / confrontation.ts's
+        // pickUnused doc comments.
         const usedPromoLines = new Set<string>();
         for (const slot of world.currentPromos) {
           // A talking slot can be a promo or a confrontation. The budget is
           // shared on purpose — time on the microphone is finite.
           if (slot.kind === 'confrontation') {
-            const outcome = resolveConfrontationSlot(world, slot, wrestlerById, rng, tonightsBeats);
+            const outcome = resolveConfrontationSlot(world, slot, wrestlerById, rng, tonightsBeats, usedPromoLines);
             if (outcome !== null) promoRating += outcome;
             continue;
           }
