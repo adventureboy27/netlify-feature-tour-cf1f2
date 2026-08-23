@@ -41,6 +41,37 @@ describe('house style fit', () => {
   it('gives nothing either way for an empty match', () => {
     expect(houseStyleRatingBonus([], 'territory', settings)).toBe(0);
   });
+
+  it('leaves the identity-only bonus untouched when no taste is passed', () => {
+    // Every caller before fan taste existed keeps behaving byte-for-byte
+    // the same — this is the whole reason currentTaste is optional.
+    const withTaste = houseStyleRatingBonus(
+      [worker('hardcore')],
+      'hardcore',
+      settings,
+      { hardcore: 50 },
+    );
+    const without = houseStyleRatingBonus([worker('hardcore')], 'hardcore', settings);
+    expect(withTaste).toBe(without);
+  });
+
+  it('rewards a style the crowd has genuinely come to love, on top of identity', () => {
+    const loved = houseStyleRatingBonus([worker('luchador')], 'hardcore', settings, { luchador: 95 });
+    const neutralTaste = houseStyleRatingBonus([worker('luchador')], 'hardcore', settings, { luchador: 50 });
+    expect(loved).toBeGreaterThan(neutralTaste);
+  });
+
+  it('costs a style the crowd has genuinely gone cold on', () => {
+    const cold = houseStyleRatingBonus([worker('hardcore')], 'hardcore', settings, { hardcore: 5 });
+    const neutralTaste = houseStyleRatingBonus([worker('hardcore')], 'hardcore', settings, { hardcore: 50 });
+    expect(cold).toBeLessThan(neutralTaste);
+  });
+
+  it('treats a style missing from the taste record as neutral, not zero', () => {
+    const missing = houseStyleRatingBonus([worker('giant')], 'territory', settings, {});
+    const explicitNeutral = houseStyleRatingBonus([worker('giant')], 'territory', settings, { giant: 50 });
+    expect(missing).toBe(explicitNeutral);
+  });
 });
 
 describe('violence tolerance', () => {

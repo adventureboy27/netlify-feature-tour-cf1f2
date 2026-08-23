@@ -1686,6 +1686,15 @@ export function defaultWorldSettings(): WorldSettings {
     houseStyleRatingWeight: 4,
     houseStyleViolencePenalty: 10,
 
+    // Fan taste. Deliberately slower and smaller than house style itself —
+    // this is the crowd catching up to what you've actually been showing
+    // them, not a second identity system.
+    fanTasteNeutral: 50,
+    fanTasteShareScale: 300,
+    fanTasteDriftRate: 0.05,
+    fanTasteRatingWeight: 2,
+    fanTasteNoticeGap: 15,
+
     // World. You start as a territory: a small room, regulars who know the
     // card, and belts named after the town rather than the world.
     promotionName: 'Southside Championship Wrestling',

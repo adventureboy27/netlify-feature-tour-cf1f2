@@ -1008,3 +1008,85 @@ this one.
     clean, and a real-browser pass auto-filling and running shows across
     both rounds of this fix (25 consecutive shows total) with no runtime
     errors from any of the newly threaded parameters.
+
+---
+
+## Fan taste — a crowd's preference that actually drifts with booking history
+
+Came out of a design conversation prompted by an outside take on wrestling
+booker sims ("dynamically evolve fan taste based on booking history"). The
+promotion identity system (`data/promotionIdentity.ts`) already gave every
+company a fixed, declared house style — what the marquee says. This adds a
+second, dynamic layer: what the crowd has *actually* come to want, which can
+drift away from the declared identity if the booker keeps giving them
+something else.
+
+- **`engine/world/fanTaste.ts`, new file.** `FanTaste = Record<WrestlingStyle,
+  number>`, one 0-100 value per style, 50 neutral. `defaultFanTaste(archetype)`
+  seeds a mild lean toward the declared identity for a brand-new promotion.
+  `styleRunShare(styles)` turns a night's competitor list into a per-style
+  fraction of the card. `driftFanTaste(taste, runShare, settings)` moves
+  taste toward a target set by how far above or below its "fair share" (1/12
+  of the card) a style ran that week — reuses the exact drift-toward-a-target
+  shape `sim/freshness.ts`'s `ageGimmick` already uses for gimmick heat, for
+  the same reason: evidence should accumulate over a season, not snap to one
+  night. Mutates in place, same contract as `ageGimmick`. A style that never
+  runs at all drifts gently toward mildly cold rather than pinning at zero or
+  staying frozen at neutral forever — flagged with a `// DESIGN:` comment
+  since it's a genuine judgment call, not a forced conclusion. `fanTasteHighlights`
+  turns the numbers into words for the player — a style only gets named as
+  "loved" or "gone cold" once it's crossed a real gap from neutral.
+- **`sim/houseStyle.ts`'s `houseStyleRatingBonus`** gained an optional
+  trailing `currentTaste` parameter. Omitted (every caller before this),
+  behavior is byte-identical to before. Passed, it adds a second, fully
+  additive rating term off the same participants — a match can be rewarded
+  for suiting the declared house, for suiting what the crowd currently
+  wants, both, or neither. Deliberately smaller than the identity term
+  (`fanTasteRatingWeight: 2` vs. `houseStyleRatingWeight: 4`) — a thumb on
+  the thumb, not a second identity system.
+- **`Promotion.fanTaste`**, a new required field, initialized at all four
+  real construction sites (`newPromotions.ts`'s `foundPromotion`,
+  `state/world.ts`'s player/rival/mid-save-founding paths — `cupRun.ts`'s
+  `hardcoreSaturation: 0` turned out to belong to `SimulateMatchContext`,
+  not a `Promotion`, so it needed no change). Bumped the save schema to 58.
+- **Wired into the player's own week** (`state/store.ts`): a `tonightsStyles`
+  accumulator declared alongside the existing `violenceLevels` (same
+  push-during-the-match-loop, consume-after-the-card-resolves shape that
+  already feeds `hardcoreSaturation`), drifted right after that
+  `hardcoreSaturation` update, and `world.promotion.fanTaste` passed into
+  the `houseStyleRatingBonus` call.
+- **Wired into every rival, too** — the tradeoff flagged and accepted before
+  building: `runRivalShow` (`engine/world/rivalBooking.ts`) only ever reads
+  `ctx.promotion`, never mutates it (confirmed by grep before touching it —
+  every other promotion-level counter, including `hardcoreSaturation`
+  itself, follows the same read-only convention there and turned out to
+  never actually get updated for rivals as a result, a pre-existing gap
+  this deliberately did not also leave fan taste in). Rather than break that
+  convention, `RivalShow` gained a `styles: WrestlingStyle[]` field —
+  tallied inside `runRivalShow`, returned rather than applied — and
+  store.ts's `rivalShows` loop calls `driftFanTaste` on `rival.fanTaste`
+  itself once a show comes back, the same way it already applies every
+  other rival-show effect.
+- **A small UI surface**, words not numbers, per §0: a new paragraph in
+  `PromotionScreen.tsx`'s "Who you are" panel, right under the declared
+  identity's `knownFor` line, reading e.g. "Lately the crowd has taken to
+  technical and showman wrestling — and gone cold on bruiser." Only appears
+  once `fanTasteHighlights` actually has something to say, same "only speak
+  at the ends" rule `fitLabel`/`hypeLabel` already follow. New
+  `STYLE_LABEL` map in `data/styles.ts` turns the raw camelCase style ids
+  (`highFlyer`, `oldSchool`) into words that read as a sentence rather than
+  a tag, since this is prose rather than a compact stat chip.
+- Verified: `tsc --noEmit` clean, full suite 143 files / 2803 tests passed
+  (19 new — starting taste, run-share reading, the drift's climb/settle/hold/
+  bounds/mutate/cancelled-night behavior, the highlight labeling, and
+  `houseStyleRatingBonus`'s taste-aware path including the byte-identical
+  no-taste-passed case), `npm run build` clean, `npm run sim` clean, and —
+  because this touches match rating, `npm run sim` alone doesn't cover it —
+  `node tools/probe.mjs --report shows --seeds 6 --weeks 104` against the
+  documented baseline: mean show rating 50.5 against the baseline's 50.6, no
+  measurable shift. A real-browser pass ran 20 consecutive auto-filled
+  weeks from a fresh save, confirmed `Promotion.fanTaste` moved
+  independently per style based on actual booking (not frozen, not moving
+  in lockstep) with zero runtime errors, and screenshotted the "Lately the
+  crowd has taken to technical and showman wrestling" line rendering live
+  on the Promotion screen.

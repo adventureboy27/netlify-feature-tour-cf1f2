@@ -1458,6 +1458,13 @@ export interface Promotion {
   /** §11.4 weapons model: 0-100, accrues with booked violence and decays weekly. */
   hardcoreSaturation: number;
   /**
+   * What this crowd has actually come to want, by wrestling style — 0-100
+   * each, 50 neutral. Starts leaning toward the declared identity
+   * (data/promotionIdentity.ts) and drifts weekly toward whatever the card
+   * actually ran. See engine/world/fanTaste.ts.
+   */
+  fanTaste: Record<WrestlingStyle, number>;
+  /**
    * Running average of recent show ratings, 0-100. The main driver of how
    * many people turn up next week — put on shows and they come back.
    */
@@ -3512,6 +3519,19 @@ export interface WorldSettings {
   houseStyleRatingWeight: number;
   /** Rating points a card loses for running past what this audience will take. */
   houseStyleViolencePenalty: number;
+
+  // Fan taste — engine/world/fanTaste.ts. What the crowd has actually come
+  // to want, as distinct from the identity the booker declared at signing.
+  /** The resting value for a style nobody has an opinion on either way, 0-100. */
+  fanTasteNeutral: number;
+  /** How far a single week's run-share can pull the week's *target* from neutral. */
+  fanTasteShareScale: number;
+  /** How fast actual taste chases that target per week — small, so it reads as a season-long drift. */
+  fanTasteDriftRate: number;
+  /** Rating points current taste can add or cost a match, on top of houseStyleFit. */
+  fanTasteRatingWeight: number;
+  /** How far from neutral a style has to sit before it is worth naming as loved or gone cold. */
+  fanTasteNoticeGap: number;
 
   // World
   /** What the player's company is called. Its belts are named from it. */

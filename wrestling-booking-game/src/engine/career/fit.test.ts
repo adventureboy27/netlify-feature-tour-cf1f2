@@ -9,6 +9,7 @@ import { generateWrestler } from '../generate/wrestler';
 import { computeAftermath } from '../sim/aftermath';
 import { keenness } from '../economy/bidding';
 import { PROMOTION_ARCHETYPES, styleProfileFor } from '../../data/promotionIdentity';
+import { defaultFanTaste } from '../world/fanTaste';
 import type { Promotion, Wrestler } from '../types';
 import { chemistry, fitLabel, fitsBetterThan, legibleFit, overnessIn, promotionFit } from './fit';
 
@@ -34,6 +35,7 @@ function company(id: string, identity: Promotion['identity']): Promotion {
     bookingCredibility: 50,
     reputation: 50,
     hardcoreSaturation: 0,
+    fanTaste: defaultFanTaste(identity),
     recentShowQuality: 50,
     weeksInTheRed: 0,
     closedWeek: null,

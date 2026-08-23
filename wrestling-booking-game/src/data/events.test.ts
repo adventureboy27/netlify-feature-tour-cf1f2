@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { CREATIVE_EVENTS, eventById } from './events';
 import { defaultWorldSettings } from '../engine/world/settings';
+import { defaultFanTaste } from '../engine/world/fanTaste';
 import { generateWrestler } from '../engine/generate/wrestler';
 import { rngFromSeed } from '../engine/rng';
 import type { CreativeEvent, EventEffect, EventOption, EventSubjects } from '../engine/events/types';
@@ -27,6 +28,7 @@ function subjects(): EventSubjects {
     isPlayer: true,
     rating: 55,
     bankBalance: 75000,
+    fanTaste: defaultFanTaste('territory'),
     rosterIds: ['p1', 'p2'],
     titleIds: [],
     ownedTerritoryIds: [],

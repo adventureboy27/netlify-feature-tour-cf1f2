@@ -6,6 +6,7 @@ import { rngFromSeed } from '../rng';
 import { defaultWorldSettings } from '../world/settings';
 import { generateWrestler } from '../generate/wrestler';
 import { styleProfileFor, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
+import { defaultFanTaste } from '../world/fanTaste';
 import type { CardStatus, Promotion, Wrestler } from '../types';
 import { overnessIn } from './fit';
 import {
@@ -32,7 +33,7 @@ function company(id: string, identity: Promotion['identity'] = 'sportsEntertainm
     id, name: id, identity, isPlayer: false, rating: 55, bankBalance: 1e6,
     rosterIds: [], titleIds: [], ownedTerritoryIds: [], homeTerritoryId: 't1',
     styleProfile: styleProfileFor(identity), bookingCredibility: 50, reputation: 50,
-    hardcoreSaturation: 0, recentShowQuality: 50, weeksInTheRed: 0, closedWeek: null,
+    hardcoreSaturation: 0, fanTaste: defaultFanTaste(identity), recentShowQuality: 50, weeksInTheRed: 0, closedWeek: null,
     ownerId: 'o', ownerPersonality: 'traditionalist', ppvCalendar: [],
   };
 }

@@ -17,6 +17,22 @@ export const WRESTLING_STYLES: WrestlingStyle[] = [
   'oldSchool',
 ];
 
+/** A style's raw id, in words, for prose that has to read as a sentence rather than a tag. */
+export const STYLE_LABEL: Record<WrestlingStyle, string> = {
+  bruiser: 'bruiser',
+  technical: 'technical',
+  highFlyer: 'high-flying',
+  powerhouse: 'powerhouse',
+  striker: 'striker',
+  luchador: 'lucha',
+  submission: 'submission',
+  hardcore: 'hardcore',
+  showman: 'showman',
+  giant: 'giant',
+  allRounder: 'all-round',
+  oldSchool: 'old-school',
+};
+
 // The matrix as given in §3.5 only covers 11 of the 12 styles — 'allRounder'
 // is deliberately excluded there ("adaptable, no strong preference").
 // DESIGN: allRounder meshes at a flat, moderately positive score against

@@ -74,6 +74,7 @@ import { hasTrait } from '../engine/career/personality';
 import { createStartingTitles, awardTitle } from '../data/titles';
 import { styleProfileFor, PROMOTION_ARCHETYPES } from '../data/promotionIdentity';
 import type { PromotionArchetype } from '../data/promotionIdentity';
+import { defaultFanTaste } from '../engine/world/fanTaste';
 import { applyRosterEntry, type RosterEntry } from '../engine/world/roster-io';
 import { seedRelationships } from '../engine/career/relationships';
 import type { SupershowBooking, SupershowOffer, SupershowResult } from '../engine/world/supershowRun';
@@ -759,6 +760,7 @@ function buildPlannedPromotion(
     bookingCredibility: 50,
     reputation: settings.startingCompanyRating,
     hardcoreSaturation: 0,
+    fanTaste: defaultFanTaste(archetype),
     recentShowQuality: settings.startingCompanyRating,
     weeksInTheRed: 0,
     closedWeek: null,
@@ -895,6 +897,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
       bookingCredibility: 50,
       reputation: 50,
       hardcoreSaturation: 0,
+      fanTaste: defaultFanTaste(settings.promotionArchetype),
       // A new promotion has no track record; its first show sets the bar.
       recentShowQuality: settings.startingCompanyRating,
       weeksInTheRed: 0,
@@ -1246,6 +1249,7 @@ function createRivalPromotions(rng: Rng, settings: WorldSettings): Promotion[] {
       bookingCredibility: 50,
       reputation: rating,
       hardcoreSaturation: 0,
+      fanTaste: defaultFanTaste(archetype),
       recentShowQuality: rating,
       weeksInTheRed: 0,
       closedWeek: null,

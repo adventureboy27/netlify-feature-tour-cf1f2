@@ -3,6 +3,7 @@ import { rivalWeek, shouldFold, foldRisk, shouldTrimPayroll, cheapestToRelease }
 import { defaultWorldSettings } from './settings';
 import { rngFromSeed } from '../rng';
 import { generateWrestlers } from '../generate/wrestler';
+import { defaultFanTaste } from './fanTaste';
 import type { Promotion, Wrestler } from '../types';
 
 const settings = defaultWorldSettings();
@@ -12,6 +13,7 @@ function promotion(overrides: Partial<Promotion> = {}): Promotion {
     id: 'rival-0',
     name: 'Atlas Pro',
     identity: 'athletic',
+    fanTaste: defaultFanTaste('athletic'),
     isPlayer: false,
     rating: 60,
     bankBalance: 1_000_000,

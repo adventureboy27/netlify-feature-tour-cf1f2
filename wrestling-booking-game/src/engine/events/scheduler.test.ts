@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { rollWeeklyEvent, recordFired, emptyEventHistory, eligibleEvents, dampedWeight, globalGapSatisfied } from './scheduler';
 import { CREATIVE_EVENTS } from '../../data/events';
 import { defaultWorldSettings } from '../world/settings';
+import { defaultFanTaste } from '../world/fanTaste';
 import { generateWrestlers } from '../generate/wrestler';
 import { deriveCareerStatus } from '../career/status';
 import { rngFromSeed } from '../rng';
@@ -33,6 +34,7 @@ function world(seed = 'sched') {
     bookingCredibility: 50,
     reputation: 50,
     hardcoreSaturation: 0,
+    fanTaste: defaultFanTaste('territory'),
     recentShowQuality: 55,
     ownerId: 'o',
     ownerPersonality: 'showman' as const,

@@ -25,6 +25,7 @@ import type {
   RefereeMissRecord,
   TitleBlueprint,
   WorldSettings,
+  WrestlingStyle,
 } from '../engine/types';
 import {
   createInitialWorld,
@@ -340,6 +341,7 @@ import { defaultWorldSettings } from '../engine/world/settings';
 import { stipulationById, stipulationRequirementsMet } from '../data/stipulations';
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
 import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
+import { driftFanTaste, styleRunShare } from '../engine/world/fanTaste';
 import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/aftermath';
 import { resolveDarkMatch } from '../engine/sim/darkMatch';
 import { runRivalShow, canWork, type RivalShow } from '../engine/world/rivalBooking';
@@ -1084,6 +1086,11 @@ export const useGameStore = create<GameStore>()(
         const refereeMissesTonight = new Map<Id, number>();
         const segmentPopAvgs: { stars: number; avgPopularity: number }[] = [];
         const violenceLevels: number[] = [];
+        // Every competitor's style tonight, one entry per appearance — what
+        // engine/world/fanTaste.ts's driftFanTaste needs to know what the
+        // crowd was actually shown. Consumed after the card resolves, same
+        // pattern as violenceLevels feeding hardcoreSaturation below.
+        const tonightsStyles: WrestlingStyle[] = [];
         let ringsideCost = 0;
         let payroll = 0; // set below from the wage bill
 
@@ -1616,6 +1623,7 @@ export const useGameStore = create<GameStore>()(
           const simParticipants: SimParticipant[] = segment.participants.map((p) => ({ wrestlerId: p.wrestlerId, side: p.side }));
 
           violenceLevels.push(stipulation?.violenceLevel ?? 0);
+          for (const w of participantWrestlers) tonightsStyles.push(w.style);
 
           // Belts booked into this match. A champion whose title is not here
           // is working a non-title match and cannot lose it tonight.
@@ -1788,7 +1796,12 @@ export const useGameStore = create<GameStore>()(
             // What the company is known for. A card full of people who suit
             // the house rates a little higher here than it would anywhere
             // else, and a card full of people who don't rates a little lower.
-            houseStyleFit: houseStyleRatingBonus(participantWrestlers, world.promotion.identity, world.settings),
+            houseStyleFit: houseStyleRatingBonus(
+              participantWrestlers,
+              world.promotion.identity,
+              world.settings,
+              world.promotion.fanTaste,
+            ),
             usedBeats,
             titles: titlesOnTheLine,
             isMainEvent: i === world.currentCard.length - 1,
@@ -3478,6 +3491,12 @@ export const useGameStore = create<GameStore>()(
           world.settings.hardcoreSaturationDecayPerWeek,
         );
 
+        // The crowd's own taste moves toward whatever they were actually
+        // shown tonight — see engine/world/fanTaste.ts. A cancelled night
+        // leaves tonightsStyles empty, which correctly nudges everything
+        // very slightly toward neutral rather than doing nothing at all.
+        driftFanTaste(world.promotion.fanTaste, styleRunShare(tonightsStyles), world.settings);
+
         // ---- what the night did to the map ------------------------------
         // Following is earned here and nowhere else. Everything the player
         // does in a town — the card, the price, the building — comes out as
@@ -3713,6 +3732,9 @@ export const useGameStore = create<GameStore>()(
           }
 
           rivalShows.set(rival.id, show);
+          // Same drift the player's own show gets, off what this rival
+          // actually ran tonight — see fanTaste.ts and RivalShow.styles.
+          driftFanTaste(rival.fanTaste, styleRunShare(show.styles), world.settings);
 
           // Rivals' locker rooms are locker rooms too. Without this the only
           // people in the business who ever made a friend or an enemy were the

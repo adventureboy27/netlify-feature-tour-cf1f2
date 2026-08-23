@@ -10,7 +10,7 @@
 // around a technician, it just costs you something every week until the crowd
 // comes around.
 
-import type { PromotionArchetype, WorldSettings, Wrestler } from '../types';
+import type { PromotionArchetype, WorldSettings, Wrestler, WrestlingStyle } from '../types';
 import { identityOf, styleFit } from '../../data/promotionIdentity';
 
 /**
@@ -18,11 +18,20 @@ import { identityOf, styleFit } from '../../data/promotionIdentity';
  * that does not. Averaged across everybody in the match, so one out-of-place
  * worker in a six-man is barely felt and a singles match between two of them
  * is felt fully.
+ *
+ * `currentTaste` is optional and additive — the promotion's *actual* current
+ * fan taste (engine/world/fanTaste.ts), as distinct from the fixed identity
+ * above. Omitting it (every existing caller before this) leaves the
+ * identity-only bonus completely unchanged; passing it adds a second, purely
+ * additive term off the same participants so a match can be rewarded for
+ * suiting the house, for suiting what the crowd currently wants, both, or
+ * neither.
  */
 export function houseStyleRatingBonus(
   participants: readonly Pick<Wrestler, 'style' | 'secondaryStyle'>[],
   archetype: PromotionArchetype,
   settings: WorldSettings,
+  currentTaste?: Partial<Record<WrestlingStyle, number>>,
 ): number {
   if (participants.length === 0) return 0;
   const identity = identityOf(archetype);
@@ -36,7 +45,19 @@ export function houseStyleRatingBonus(
     return sum + Math.max(primary, Math.min(primary + secondary, 1));
   }, 0);
 
-  return (total / participants.length) * settings.houseStyleRatingWeight;
+  const identityBonus = (total / participants.length) * settings.houseStyleRatingWeight;
+  if (!currentTaste) return identityBonus;
+
+  const lean = (style: WrestlingStyle): number =>
+    ((currentTaste[style] ?? settings.fanTasteNeutral) - settings.fanTasteNeutral) / settings.fanTasteNeutral;
+
+  const tasteTotal = participants.reduce((sum, w) => {
+    const primary = lean(w.style);
+    const secondary = w.secondaryStyle ? lean(w.secondaryStyle) * 0.5 : 0;
+    return sum + primary + secondary;
+  }, 0);
+
+  return identityBonus + (tasteTotal / participants.length) * settings.fanTasteRatingWeight;
 }
 
 /**

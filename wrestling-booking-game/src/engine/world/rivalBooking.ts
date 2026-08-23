@@ -19,7 +19,7 @@
 import type { Rng } from '../rng';
 import { isSuspended } from '../career/discipline';
 import { chance, clamp, randInt } from '../rng';
-import type { FinishType, Id, MatchRules, Promotion, Segment, Stable, Title, Wrestler, WorldSettings } from '../types';
+import type { FinishType, Id, MatchRules, Promotion, Segment, Stable, Title, Wrestler, WorldSettings, WrestlingStyle } from '../types';
 import { availableTeams } from './tagTeams';
 import { simulateMatch, type SimParticipant } from '../sim/simulateMatch';
 import { computeShowRating, ratingToStars, TV_SLOT_WEIGHTS } from '../economy/showRating';
@@ -144,6 +144,14 @@ export interface RivalShow {
   promos: RivalPromo[];
   showRating: number;
   showStars: number;
+  /**
+   * Every competitor's style tonight, one entry per appearance — what the
+   * caller needs to drift this rival's own fan taste afterwards. Returned
+   * rather than applied here because `runRivalShow` only reads `ctx.promotion`
+   * (see `houseStyleFit` above); every mutation to a promotion happens in
+   * the caller, same as hardcoreSaturation and everything else.
+   */
+  styles: WrestlingStyle[];
 }
 
 export interface RivalBookingContext {
@@ -380,6 +388,9 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
   const byId = new Map(ctx.available.map((w) => [w.id, w]));
   const matches: RivalMatch[] = [];
   const ratings: (number | null)[] = [];
+  // Returned as RivalShow.styles rather than drifted here — see that field's
+  // doc comment on why runRivalShow stays read-only on ctx.promotion.
+  const tonightsStyles: WrestlingStyle[] = [];
 
   card.matches.forEach((booked, slot) => {
     const isMainEvent = slot === card.matches.length - 1;
@@ -396,6 +407,8 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
       members.map((w) => ({ wrestlerId: w.id, side })),
     );
 
+    for (const w of everyone) tonightsStyles.push(w.style);
+
     const result = simulateMatch(rng, participants, byId, {
       rules: RIVAL_MATCH_RULES,
       stipulation,
@@ -405,7 +418,7 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
       settings: ctx.settings,
       hardcoreSaturation: ctx.promotion.hardcoreSaturation,
       titlePrestige: matchTitlePrestige(titles, ctx.settings),
-      houseStyleFit: houseStyleRatingBonus(everyone, ctx.promotion.identity, ctx.settings),
+      houseStyleFit: houseStyleRatingBonus(everyone, ctx.promotion.identity, ctx.settings, ctx.promotion.fanTaste),
       // Rivals pay for overexposure on the same terms the player does.
       // Charging only the player would quietly hand every AI company a rating
       // bonus for booking lazily, which is the opposite of the point. Their
@@ -505,5 +518,6 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
     promos,
     showRating,
     showStars: ratingToStars(showRating),
+    styles: tonightsStyles,
   };
 }

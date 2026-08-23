@@ -27,6 +27,7 @@ import { chance, pick, randInt } from '../rng';
 import type { Id, Promotion, PromotionArchetype, Wrestler, WorldSettings } from '../types';
 import { isFinished } from '../career/status';
 import { PROMOTION_ARCHETYPES, styleProfileFor } from '../../data/promotionIdentity';
+import { defaultFanTaste } from './fanTaste';
 import { scheduleForRival } from './schedule';
 
 export interface OpeningContext {
@@ -134,6 +135,7 @@ export function foundPromotion(
     bookingCredibility: 50,
     reputation: rating,
     hardcoreSaturation: 0,
+    fanTaste: defaultFanTaste(archetype),
     recentShowQuality: rating,
     weeksInTheRed: 0,
     closedWeek: null,

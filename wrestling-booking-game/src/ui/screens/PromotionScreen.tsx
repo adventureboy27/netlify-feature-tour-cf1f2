@@ -29,6 +29,8 @@ import { fireSaleEligible, fireSaleValue } from '../../engine/economy/fireSale';
 import { weeklyWageBill } from '../../engine/economy/contracts';
 import { followingOf } from '../../engine/world/territories';
 import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
+import { fanTasteHighlights } from '../../engine/world/fanTaste';
+import { STYLE_LABEL } from '../../data/styles';
 import { titlesOf } from '../../data/titles';
 import { stipulationById } from '../../data/stipulations';
 import { Money } from '../components/display';
@@ -405,6 +407,25 @@ function IdentityPanel() {
       </div>
 
       <p className="mb-2 text-[11px] text-neutral-400">{identity.knownFor}.</p>
+
+      {/* What the house style says on the marquee (above) is not always what
+          the room has actually developed a taste for lately — see
+          engine/world/fanTaste.ts. Only speaks when there is genuinely
+          something to say, same rule fitLabel and hypeLabel play by. */}
+      {(() => {
+        const { loved, cold } = fanTasteHighlights(world.promotion.fanTaste, world.settings);
+        if (loved.length === 0 && cold.length === 0) return null;
+        const join = (styles: typeof loved) =>
+          styles.map((s) => STYLE_LABEL[s]).join(styles.length > 2 ? ', ' : ' and ');
+        const parts: string[] = [];
+        if (loved.length > 0) parts.push(`taken to ${join(loved)} wrestling`);
+        if (cold.length > 0) parts.push(`gone cold on ${join(cold)}`);
+        return (
+          <p className="mb-2 text-[11px] text-sky-400/80">
+            Lately the crowd has {parts.join(' — and ')}.
+          </p>
+        );
+      })()}
 
       <ul className="flex flex-col gap-1">
         {belts.map((belt) => {

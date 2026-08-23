@@ -223,7 +223,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // (engine/world/fanReaction.ts's GimmickReactionSubject) and drained the
 // next time the player's own show runs. A version-56 save has no such
 // field, and resolveWeek both reads and clears it every show.
-const SCHEMA_VERSION = 57;
+//
+// Version 58 adds Promotion.fanTaste — what each promotion's crowd has
+// actually come to want, by wrestling style (engine/world/fanTaste.ts),
+// distinct from the fixed identity chosen at signing. A version-57 save's
+// promotions have no such field, and resolveWeek both reads and drifts it
+// for the player and every rival, every week.
+const SCHEMA_VERSION = 58;
 
 export interface SaveFile {
   schema: number;
