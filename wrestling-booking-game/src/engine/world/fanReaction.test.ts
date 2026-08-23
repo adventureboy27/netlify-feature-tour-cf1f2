@@ -117,6 +117,63 @@ describe('what they talk about', () => {
   });
 });
 
+describe('what they make of a gimmick decision', () => {
+  it('leads with a debut', () => {
+    const tweets = feed({
+      showRating: 60,
+      gimmickReactions: [{ kind: 'debut', name: 'Marshal Ellis', gimmickName: 'Trashman' }],
+    });
+    const opener = tweets.slice(0, 2).map((t) => t.text).join(' ');
+    expect(/Marshal Ellis|Trashman/.test(opener)).toBe(true);
+  });
+
+  it('reacts to a new tag team or faction by name, not by member', () => {
+    const tweets = feed({
+      showRating: 60,
+      gimmickReactions: [{ kind: 'pairing', name: 'The Wrecking Crew', gimmickName: 'The Wrecking Crew' }],
+    });
+    const opener = tweets.slice(0, 2).map((t) => t.text).join(' ');
+    expect(opener).toContain('The Wrecking Crew');
+  });
+
+  it('reacts to a cold-meeting relaunch', () => {
+    const tweets = feed({
+      showRating: 60,
+      gimmickReactions: [{ kind: 'relaunch', name: 'Judge Tamsin', gimmickName: 'Rockstar' }],
+    });
+    const opener = tweets.slice(0, 2).map((t) => t.text).join(' ');
+    expect(/Judge Tamsin|Rockstar/.test(opener)).toBe(true);
+  });
+
+  it('fills every placeholder for all three kinds', () => {
+    const kinds = ['debut', 'pairing', 'relaunch'] as const;
+    for (const kind of kinds) {
+      for (let i = 0; i < 15; i++) {
+        const tweets = feed(
+          { gimmickReactions: [{ kind, name: 'Someone', gimmickName: 'Something' }] },
+          `${kind}-${i}`,
+        );
+        for (const tweet of tweets) expect(tweet.text).not.toMatch(/\{[a-z]+\}/);
+      }
+    }
+  });
+
+  it('stays inside the requested count, same as a title change', () => {
+    const tweets = feed({
+      showRating: 60,
+      gimmickReactions: [{ kind: 'debut', name: 'Marshal Ellis', gimmickName: 'Trashman' }],
+    });
+    expect(tweets.length).toBeLessThanOrEqual(settings.fanTweetsPerShow + 1);
+  });
+
+  it('says nothing about a gimmick decision when none happened', () => {
+    const tweets = feed({ gimmickReactions: [] }, 'no-reaction');
+    for (const tweet of tweets) {
+      expect(tweet.text).not.toMatch(/debut|relaunch/i);
+    }
+  });
+});
+
 describe('the verdict line', () => {
   it('reads the room', () => {
     expect(crowdVerdict(95)).toContain('lost its mind');

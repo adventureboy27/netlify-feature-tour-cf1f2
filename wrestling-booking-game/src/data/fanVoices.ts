@@ -15,6 +15,9 @@
 //     player think about next week.
 //
 // Placeholders: {winner} {loser} {best} {worst} {champ} {title} {promotion}
+// {name} {gimmick} (the last two are gimmick-reaction tweets only — a
+// debut, a new tag team/faction, or a cold-meeting relaunch; {name} is the
+// wrestler or, for a pairing, the group's shared identity)
 
 export type TweetTone = 'praise' | 'criticism' | 'joke' | 'demand' | 'contrarian';
 
@@ -125,6 +128,50 @@ export const TITLE_CHANGE_TWEETS: TweetTemplate[] = [
   { text: 'about time. {champ} should have had that two years ago.', tone: 'praise' },
   { text: 'so we are just changing the {title} on a random tuesday now', tone: 'criticism' },
   { text: 'my {title} prediction was wrong and i have never been happier', tone: 'joke' },
+];
+
+/**
+ * A new signee's debut gimmick — {name} the wrestler, {gimmick} the
+ * character the booker gave them.
+ */
+export const GIMMICK_DEBUT_TWEETS: TweetTemplate[] = [
+  { text: 'okay {name} as {gimmick} is actually really good', tone: 'praise' },
+  { text: '{gimmick}?? say less. i am so in.', tone: 'praise' },
+  { text: 'new signing {name} debuting as {gimmick} and i am already invested', tone: 'praise' },
+  { text: '{name} deserved better than {gimmick}', tone: 'criticism' },
+  { text: '{gimmick} is not going to work and i do not know why nobody told them', tone: 'criticism' },
+  { text: 'not {name} coming in as {gimmick} like it is 1987', tone: 'joke' },
+  { text: '{gimmick} really said sir this is a wendy\'s', tone: 'joke' },
+  { text: 'give {gimmick} six months before you scrap it, i am begging', tone: 'demand' },
+  { text: 'everybody hating on {gimmick} and i think it slaps', tone: 'contrarian' },
+];
+
+/**
+ * A new tag team or faction from the signing meeting — {name} is the
+ * group's shared identity, not a person.
+ */
+export const GIMMICK_PAIRING_TWEETS: TweetTemplate[] = [
+  { text: '{name} is going to run this whole division', tone: 'praise' },
+  { text: 'finally a tag team that actually makes sense together: {name}', tone: 'praise' },
+  { text: '{name} feels rushed. give it time i guess', tone: 'criticism' },
+  { text: 'not sure {name} needed to happen but here we are', tone: 'criticism' },
+  { text: '{name} coordinated outfits already?? they are not playing', tone: 'joke' },
+  { text: 'run {name} straight for the titles', tone: 'demand' },
+  { text: '{name} is fine, everyone calm down', tone: 'contrarian' },
+];
+
+/**
+ * A relaunch out of the forced cold-meeting — {name} the wrestler,
+ * {gimmick} the new direction.
+ */
+export const GIMMICK_RELAUNCH_TWEETS: TweetTemplate[] = [
+  { text: '{name} as {gimmick} is the reset they needed', tone: 'praise' },
+  { text: 'okay the {gimmick} relaunch actually works', tone: 'praise' },
+  { text: '{gimmick} is not fixing whatever the real problem was with {name}', tone: 'criticism' },
+  { text: 'another repackage. groundbreaking.', tone: 'criticism' },
+  { text: '{name} has had more gimmicks than i have had hot dinners', tone: 'joke' },
+  { text: 'commit to {gimmick} for real this time. do not give up in three weeks.', tone: 'demand' },
+  { text: 'i kind of miss the old {name} honestly', tone: 'contrarian' },
 ];
 
 /** Tone words for the summary line above the feed. */

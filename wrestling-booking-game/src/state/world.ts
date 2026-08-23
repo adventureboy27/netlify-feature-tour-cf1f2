@@ -44,7 +44,7 @@ import type { Storyline } from '../engine/world/storyline';
 import { emptyYearRecord } from '../engine/career/awards';
 import type { RivalShow } from '../engine/world/rivalBooking';
 import type { PublicationPositions } from '../engine/world/publication';
-import type { Tweet } from '../engine/world/fanReaction';
+import type { GimmickReactionSubject, Tweet } from '../engine/world/fanReaction';
 import type { PoachingOffer } from '../engine/world/poaching';
 import type { FreeAgent } from '../engine/world/freeAgents';
 import { generateFreeAgentPool } from '../engine/world/freeAgents';
@@ -247,6 +247,13 @@ export interface World {
   signingTalks: SigningTalk[];
   /** The forced cold-meeting, opened once an act has been ice cold too long. See ColdMeeting. */
   coldMeetings: ColdMeeting[];
+  /**
+   * Gimmick decisions waiting for the crowd's reaction — a debut, a new
+   * pairing, a relaunch — queued the moment the booker makes the call and
+   * drained into the fan-tweet feed the next time the player's own show
+   * actually runs. See engine/world/fanReaction.ts's GimmickReactionSubject.
+   */
+  pendingGimmickReactions: GimmickReactionSubject[];
   /** How this week's show is being staged. */
   showSetup: ShowSetup;
   /**
@@ -1084,6 +1091,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     renewalTalks: [],
     signingTalks: [],
     coldMeetings: [],
+    pendingGimmickReactions: [],
     showSetup: startingSetup,
     weeksInTheRed: 0,
     folded: null,

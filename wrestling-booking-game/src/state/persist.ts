@@ -217,7 +217,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // (state/world.ts's ColdMeeting), opened once an act has sat ice cold for
 // coldMeetingTriggerWeeks running. A version-55 save has no such field,
 // and resolveWeek both iterates and pushes to it every week.
-const SCHEMA_VERSION = 56;
+//
+// Version 57 adds World.pendingGimmickReactions — gimmick decisions
+// (a debut, a pairing, a relaunch) queued for the fan-tweet feed
+// (engine/world/fanReaction.ts's GimmickReactionSubject) and drained the
+// next time the player's own show runs. A version-56 save has no such
+// field, and resolveWeek both reads and clears it every show.
+const SCHEMA_VERSION = 57;
 
 export interface SaveFile {
   schema: number;

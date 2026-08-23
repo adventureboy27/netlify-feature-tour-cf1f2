@@ -3637,9 +3637,14 @@ export const useGameStore = create<GameStore>()(
               bestMatch: describe(byRating[0]),
               worstMatch: describe(byRating[byRating.length - 1]),
               titleChanges,
+              gimmickReactions: world.pendingGimmickReactions,
               settings: world.settings,
             }),
           };
+          // Drained, not cleared unconditionally — a week with no show at
+          // all leaves the queue standing for the next one that actually
+          // runs, rather than losing a reaction nobody was ever shown.
+          world.pendingGimmickReactions = [];
         }
 
         // ---- the rest of the business runs its week --------------------

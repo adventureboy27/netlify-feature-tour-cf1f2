@@ -22,6 +22,9 @@ import {
   SHOW_TWEETS,
   MATCH_TWEETS,
   TITLE_CHANGE_TWEETS,
+  GIMMICK_DEBUT_TWEETS,
+  GIMMICK_PAIRING_TWEETS,
+  GIMMICK_RELAUNCH_TWEETS,
   CROWD_VERDICTS,
   type TweetTemplate,
   type TweetTone,
@@ -35,6 +38,21 @@ export interface Tweet {
   likes: number;
 }
 
+/**
+ * A debut, a new tag team/faction, or a cold-meeting relaunch waiting to
+ * hit the wire — queued on `World.pendingGimmickReactions` from whichever
+ * store action just made the decision (`chooseSigningGimmick`,
+ * `formSigningGroup`, `chooseColdMeetingGimmick`), and drained into the
+ * next show's feed. `name` is the wrestler for 'debut'/'relaunch', or the
+ * group's own shared identity for 'pairing' — there's no single person to
+ * name a pairing after.
+ */
+export interface GimmickReactionSubject {
+  kind: 'debut' | 'pairing' | 'relaunch';
+  name: string;
+  gimmickName: string;
+}
+
 export interface FanReactionContext {
   showRating: number;
   promotionName: string;
@@ -43,6 +61,8 @@ export interface FanReactionContext {
   worstMatch?: { rating: number; winnerName: string; loserName: string } | null;
   /** Belts that changed hands tonight. */
   titleChanges?: { titleName: string; championName: string }[];
+  /** Gimmick decisions waiting for the crowd's reaction. See GimmickReactionSubject. */
+  gimmickReactions?: GimmickReactionSubject[];
   settings: WorldSettings;
 }
 
@@ -120,6 +140,31 @@ export function generateFanReaction(rng: Rng, ctx: FanReactionContext): Tweet[] 
       text: template.text.replace(/\{champ\}/g, change.championName).replace(/\{title\}/g, change.titleName),
       tone: template.tone,
       likes: Math.round(1 + rng.next() * ctx.settings.fanTweetLikesScale * 1.5),
+    });
+  }
+
+  // A gimmick decision the booker made is real news too, once the crowd
+  // has actually had a chance to see it — same "leads, but stays inside
+  // the count" treatment as a title change above.
+  const GIMMICK_REACTION_POOL: Record<GimmickReactionSubject['kind'], TweetTemplate[]> = {
+    debut: GIMMICK_DEBUT_TWEETS,
+    pairing: GIMMICK_PAIRING_TWEETS,
+    relaunch: GIMMICK_RELAUNCH_TWEETS,
+  };
+  for (const reaction of ctx.gimmickReactions ?? []) {
+    if (tweets.length >= count) break;
+    const options = GIMMICK_REACTION_POOL[reaction.kind].filter((t) => !usedText.has(t.text));
+    if (options.length === 0 || handles.length === 0) continue;
+    const template = pick(rng, options);
+    usedText.add(template.text);
+    const handle = handles.splice(Math.floor(rng.next() * handles.length), 1)[0] ?? 'wrestlingfan';
+    tweets.push({
+      handle,
+      text: template.text.replace(/\{name\}/g, reaction.name).replace(/\{gimmick\}/g, reaction.gimmickName),
+      tone: template.tone,
+      likes: Math.round(
+        (template.tone === 'contrarian' ? 0.25 : 1) * (1 + rng.next() * ctx.settings.fanTweetLikesScale),
+      ),
     });
   }
 

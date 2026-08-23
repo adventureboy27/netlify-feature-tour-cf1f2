@@ -383,6 +383,7 @@ export const createRosterAndContractsSlice: StateCreator<
       // this is the moment the character actually locks in, so it is the
       // first real news anybody gets about the new arrival.
       world.weeklyNews.push(wire('debut', `${wrestler.name} debuts as ${gimmick.name}.`, world.week, 'minor'));
+      world.pendingGimmickReactions.push({ kind: 'debut', name: wrestler.name, gimmickName: gimmick.name });
     });
   },
 
@@ -420,6 +421,7 @@ export const createRosterAndContractsSlice: StateCreator<
 
       world.stables.push(formGroupGimmickStable(members, group, world.week, `stable-${world.nextId++}`));
       world.signingTalks.splice(talkIndex, 1);
+      world.pendingGimmickReactions.push({ kind: 'pairing', name: group.name, gimmickName: group.name });
       world.weeklyNews.push(
         wire('team', `${group.name} debuts tonight — ${members.map((m) => m.name).join(', ')}.`, world.week, 'normal'),
       );
@@ -473,6 +475,7 @@ export const createRosterAndContractsSlice: StateCreator<
       wrestler.gimmickFreshness = 100;
       wrestler.weeksIceCold = 0;
       world.coldMeetings.splice(index, 1);
+      world.pendingGimmickReactions.push({ kind: 'relaunch', name: wrestler.name, gimmickName: gimmick.name });
       world.weeklyNews.push(
         wire(
           'debut',
