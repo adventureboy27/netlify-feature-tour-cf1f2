@@ -41,6 +41,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       "{ref} counted three with {victim}'s boot plainly on the bottom rope. The whole building saw it. The official did not.",
       "{victim} had a foot on the rope from the moment the cover went in. {ref} counted anyway and never looked.",
+      "{victim}'s toe was on the rope for a full second before {ref} even started counting. Nobody stopped it.",
+      "{ref} was looking at the wrong side of the ring entirely when {victim} reached the ropes.",
     ],
     needsVictim: true,
     context: 'any',
@@ -52,6 +54,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       "{victim} got the shoulder up somewhere between two and three. {ref} brought a hand down anyway.",
       '{ref} counted three on a cover {victim} had already kicked out of, and had to be shown the replay to believe it.',
+      "{victim}'s shoulder was clearly off the mat and {ref} counted straight through it.",
+      "{victim} kicked out with time to spare, but {ref} had already started swinging the hand down.",
     ],
     needsVictim: true,
     context: 'any',
@@ -63,6 +67,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       '{ref} was busy with the corner when {victim} got kicked square below the belt. The official turned round to a cover and counted it.',
       'A low blow in full view of everybody except {ref}, who was looking at the timekeeper. {victim} never recovered.',
+      "{victim} took a shot that had nothing to do with wrestling, and {ref} somehow missed the whole thing.",
+      "The crowd groaned in sympathy for {victim} a full second before {ref} even turned around.",
     ],
     needsVictim: true,
     context: 'any',
@@ -74,6 +80,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       'Something metal came out of the tights and went back in before {ref} turned round. {victim} was out cold by then.',
       '{ref} never saw the object, never saw it leave, and counted the pin it produced. {victim} is still asking what hit them.',
+      "Whatever hit {victim} was gone by the time {ref} looked over, and the pin already counted.",
+      "{ref} checked the tights on {victim}'s opponent afterward and found nothing, which is exactly the problem — it was already back out of sight.",
     ],
     needsVictim: true,
     context: 'any',
@@ -85,6 +93,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       "{ref} waved off a tag the hard camera caught cleanly and sent {victim}'s partner back to the apron.",
       '{ref} lost track of who was legal, and by the time that was straight {victim} had been worked over for another two minutes.',
+      "{victim}'s tag was clean and {ref} simply did not see it happen.",
+      "{ref} was still counting a pin attempt on the other side of the ring when {victim}'s tag came in clean.",
     ],
     needsVictim: true,
     context: 'tag',
@@ -96,6 +106,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       '{ref} counted the fall while {victim} was the legal one on the apron, screaming and getting nowhere.',
       'Two men in the ring, neither of them legal, and {ref} counting {victim} down anyway. It stood.',
+      "{victim} was tagged in and standing right there, and {ref} counted the other man's pin anyway.",
+      "By the time {ref} sorted out who was actually legal, {victim} had already been counted out of a fall that should never have happened.",
     ],
     needsVictim: true,
     context: 'tag',
@@ -107,6 +119,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       '{ref} was on the floor sorting out the corner when it happened, then climbed back in, saw a cover, and counted it. {victim} had no idea what had hit them.',
       "The interference came and went while {ref} had their back turned. {victim}'s protests went nowhere.",
+      "Somebody who was never supposed to be out there got involved against {victim}, and {ref} counted the pin it produced without blinking.",
+      "{victim} was still trying to explain what had just happened to them when {ref} raised the other man's hand.",
     ],
     needsVictim: true,
     context: 'interference',
@@ -118,6 +132,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       '{ref} was late getting down on two covers and slow getting up from both. It took the air out of every near fall in the match.',
       'The counting was so laboured that the crowd started doing it faster than {ref} was.',
+      "Every count from {ref} tonight ran half a second behind where it should have been.",
+      "{ref} looked like they were counting through wet cement all night.",
     ],
     needsVictim: false,
     context: 'any',
@@ -129,6 +145,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       '{ref} spent the match on the wrong side of everything and got flattened twice getting there.',
       'Wherever the action was, {ref} was somewhere else. Twice the official had to be moved bodily out of a spot.',
+      "{ref} was always a beat and a half from wherever the cover actually happened.",
+      "Somebody had to physically steer {ref} into position more than once tonight.",
     ],
     needsVictim: false,
     context: 'any',
@@ -140,6 +158,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       '{ref} started the count on the floor, got distracted, and started it again from one. Nobody knew where they were.',
       'The ring count from {ref} went one, two, three, three, four. The crowd noticed before the official did.',
+      "{ref} lost the thread of the count entirely and had to be reminded by the timekeeper where it stood.",
+      "Nobody in the building could tell you what number {ref} was actually on by the end of it.",
     ],
     needsVictim: false,
     context: 'any',
@@ -151,6 +171,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       '{victim} was gone and {ref} let it run another minute before anybody in stripes saw it.',
       '{ref} should have stopped it long before the bell came. {victim} took a lot of unnecessary punishment in the meantime.',
+      "{victim} had nothing left to give and {ref} did not call it until well after everyone else in the building already had.",
+      "It was over the moment {victim} stopped answering back, and {ref} let it go on regardless.",
     ],
     needsVictim: true,
     context: 'any',
@@ -162,6 +184,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     lines: [
       '{ref} called for the bell early and had to talk the timekeeper out of it. The finish limped home from there.',
       'Whatever {ref} thought was there, the bell was called and the whole thing had to be restarted in front of a confused building.',
+      "{ref} raised the wrong hand for a second before the correction came, and the moment never quite recovered.",
+      "The bell rang on {ref}'s call a beat too early, and the finish that should have landed clean instead landed confused.",
     ],
     needsVictim: false,
     context: 'any',

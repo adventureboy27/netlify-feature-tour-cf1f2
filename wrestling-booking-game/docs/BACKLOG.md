@@ -972,21 +972,39 @@ this one.
     principle: `CONTROL_BEATS` from 2 to 4 lines per style (all 12 styles)
     and `TITLE_BEATS` from 3 to 5, so the dedup fallback is rarely needed
     at all rather than doing all the work alone.
-  - **Surveyed and left alone, on purpose:** `misfortune.ts`,
-    `casualties.ts`, and `referees.ts` have the same small-pool shape but
-    meaningfully lower same-show collision odds (each draw is
-    chance-gated and most weeks/shows produce zero or one hit at all), and
-    `commentary.ts` already has a thorough multi-layer dedup mechanism
-    (`saidTonight`, `usedColour`/`usedThisMatch`, a `leastWorn()`
-    fallback) that was the reference implementation for this whole fix,
-    not a risk. Flagging these three as real but lower-priority rather
-    than silently skipping them — worth the same treatment on a future
-    pass if the player runs into one.
-  - Verified: `tsc --noEmit` clean, full suite 142 files / 2781 tests
-    passed (5 new — cross-card dedup for both confrontations and match
-    beats, plus confirming an unshared/default call stays unaffected in
-    each), `npm run sim` and `npm run build` both clean, and a real-browser
-    pass auto-filling and running 10 consecutive shows checking every
-    match's highlight-reel text for a same-show duplicate — none found
-    across 243 beat lines, and no runtime errors from the new threaded
-    parameters.
+  - Originally flagged `misfortune.ts` and `referees.ts` as real but
+    lower-priority (chance-gated, most weeks/shows produce zero or one
+    hit) rather than urgent — the player asked for them checked properly
+    anyway, so both got the same treatment as a follow-up:
+    - **`misfortune.ts`'s `rollMisfortune`.** Each of the 17 misfortune
+      definitions carried only 2-3 lines, and a large roster can draw the
+      *same* definition for two different people in one week — reading
+      "the car died in a petrol station car park" for two different
+      wrestlers in the same week's news is thin even though the names
+      differ. Now takes an optional shared `usedLines` set, defaulting
+      fresh; only dedupes within one definition's own pool (a fallback
+      into a different definition would describe the wrong kind of
+      misfortune entirely — a gym-accident line under a car-wreck heading
+      makes no sense), threaded through store.ts's weekly roster loop.
+      Every one of the 17 definitions expanded from 2-3 lines to 4.
+    - **`referees.ts`'s `rollRefereeMiss`.** Same shape: 12 miss types at
+      2 lines each, drawn once per match with several matches per card.
+      Same fix — optional shared `usedLines`, dedupe within one miss
+      type's own pool only, threaded through store.ts's match loop
+      (reusing the same `usedBeats`-adjacent pattern, its own
+      `usedRefereeMissLines` set). All 12 miss types expanded from 2 to 4
+      lines, catching and fixing one real content bug along the way: two
+      of the new lines were missing the `{victim}` placeholder the
+      existing data-integrity test requires on every victim-needing miss.
+    - `casualties.ts` remains flagged but genuinely lower priority even
+      on a second look — a collision there needs two *different* people
+      to both actually get hurt, draw the same cause, and draw the same
+      line, a compound low-probability event rather than the near-certain
+      shape the other four had.
+  - Verified: `tsc --noEmit` clean, full suite 142 files / 2784 tests
+    passed (7 new — cross-card dedup for confrontations, match beats,
+    misfortunes, and referee misses, plus confirming an unshared/default
+    call stays unaffected in each), `npm run sim` and `npm run build` both
+    clean, and a real-browser pass auto-filling and running shows across
+    both rounds of this fix (25 consecutive shows total) with no runtime
+    errors from any of the newly threaded parameters.

@@ -254,7 +254,21 @@ export function missChance(referee: Referee, settings: WorldSettings): number {
   );
 }
 
-export function rollRefereeMiss(rng: Rng, ctx: MissContext): RefereeMissRecord | null {
+/**
+ * `usedLines` is every miss line already spent tonight — several matches
+ * on one card can draw the same miss type (only 3-4 lines each), and two
+ * different officials blowing the *same* call in the identical words
+ * reads as thin even though the names differ. Only dedupes within one
+ * miss's own pool — falling back to a different miss's lines would
+ * describe the wrong mistake entirely (a "low blow" sentence under a
+ * "missed tag" heading makes no sense), so a repeat is allowed once that
+ * miss's own lines are spent rather than borrowed from elsewhere.
+ */
+export function rollRefereeMiss(
+  rng: Rng,
+  ctx: MissContext,
+  usedLines: Set<string> = new Set(),
+): RefereeMissRecord | null {
   if (!chance(rng, missChance(ctx.referee, ctx.settings))) return null;
 
   const options = missesFor(ctx.hasTags, ctx.hadInterference).filter(
@@ -265,12 +279,16 @@ export function rollRefereeMiss(rng: Rng, ctx: MissContext): RefereeMissRecord |
   const miss = pick(rng, options);
   const victimId = miss.needsVictim && ctx.competitorIds.length > 0 ? pick(rng, ctx.competitorIds) : null;
 
+  const fresh = miss.lines.filter((line) => !usedLines.has(line));
+  const template = pick(rng, fresh.length > 0 ? fresh : miss.lines);
+  usedLines.add(template);
+
   return {
     refereeId: ctx.referee.id,
     refereeName: ctx.referee.name,
     missId: miss.id,
     // {victim} stays a placeholder until the caller resolves the id to a name.
-    text: pick(rng, miss.lines).replace(/\{ref\}/g, ctx.referee.name),
+    text: template.replace(/\{ref\}/g, ctx.referee.name),
     victimId,
   };
 }

@@ -58,7 +58,24 @@ function drawDefinition(rng: Rng, candidates: MisfortuneDefinition[]): Misfortun
  * is much likelier than the first, which is the honest shape of it — the
  * dangerous time for an injury is while you still have one.
  */
-export function rollMisfortune(rng: Rng, wrestler: Wrestler, settings: WorldSettings): Misfortune | null {
+/**
+ * `usedLines` is every misfortune line already spent this week — on a
+ * large roster, two different people can independently draw the *same*
+ * definition (most only carry 2-3 lines apiece), and reading "the car
+ * died in a petrol station car park" for two different wrestlers in one
+ * week's news reads as thin even though the names differ. Only dedupes
+ * within a definition's own pool — a fallback into a different
+ * definition's lines would describe the wrong kind of misfortune
+ * entirely (a gym-accident line under a car-wreck heading makes no
+ * sense), so once a definition's own pool is spent a repeat is allowed
+ * rather than borrowed from somewhere it wouldn't fit.
+ */
+export function rollMisfortune(
+  rng: Rng,
+  wrestler: Wrestler,
+  settings: WorldSettings,
+  usedLines: Set<string> = new Set(),
+): Misfortune | null {
   if (wrestler.deceased || wrestler.careerStatus === 'retired') return null;
 
   const hurt = Boolean(wrestler.injury);
@@ -73,13 +90,17 @@ export function rollMisfortune(rng: Rng, wrestler: Wrestler, settings: WorldSett
     ? randInt(rng, definition.weeks[0], definition.weeks[1])
     : null;
 
+  const fresh = definition.lines.filter((line) => !usedLines.has(line));
+  const template = pick(rng, fresh.length > 0 ? fresh : definition.lines);
+  usedLines.add(template);
+
   return {
     wrestlerId: wrestler.id,
     wrestlerName: wrestler.name,
     definitionId: definition.id,
     kind: definition.kind,
     label: definition.label,
-    text: pick(rng, definition.lines).replace(/\{name\}/g, wrestler.name),
+    text: template.replace(/\{name\}/g, wrestler.name),
     weeks,
     attacked: Boolean(definition.impliesAttacker),
   };

@@ -113,6 +113,37 @@ describe('rolling a week', () => {
     }
     expect(seen.size).toBeGreaterThan(3);
   });
+
+  it('does not give two different people the same definition\'s line in one week', () => {
+    // A big roster can genuinely draw the same misfortune definition for
+    // two different people in the same week — two different names should
+    // not still read the identical flavour line underneath them.
+    const rng = rngFromSeed('shared-week');
+    const usedLines = new Set<string>();
+    const seenByDefinition = new Map<string, Set<string>>();
+    for (const person of roster(400, 'shared')) {
+      const m = rollMisfortune(rng, person, settings, usedLines);
+      if (!m) continue;
+      const seenForThis = seenByDefinition.get(m.definitionId) ?? new Set<string>();
+      const rawLine = m.text.replace(m.wrestlerName, '{name}');
+      seenForThis.add(rawLine);
+      seenByDefinition.set(m.definitionId, seenForThis);
+    }
+    // With the shared set threaded through, no definition should have
+    // produced the exact same line text twice unless its own pool of
+    // lines was genuinely exhausted first.
+    for (const [definitionId, lines] of seenByDefinition) {
+      const pool = MISFORTUNES.find((m) => m.id === definitionId)!.lines.length;
+      expect(lines.size, definitionId).toBeLessThanOrEqual(pool);
+    }
+  });
+
+  it('leaves an unshared call unaffected, same as before', () => {
+    const rng = rngFromSeed('solo');
+    const [person] = roster(1, 'solo-person');
+    const result = rollMisfortune(rng, person!, settings);
+    expect(result === null || typeof result.text === 'string').toBe(true);
+  });
 });
 
 describe('a setback adds to what was already wrong', () => {

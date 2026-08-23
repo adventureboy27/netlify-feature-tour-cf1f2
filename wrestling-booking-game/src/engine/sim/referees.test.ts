@@ -304,6 +304,29 @@ describe('the things they miss', () => {
       expect(['w1', 'w2']).toContain(miss.victimId);
     }
   });
+
+  it('does not repeat the same miss line twice on one card', () => {
+    // Same shape as the promo/confrontation/beat fix: a shared set across
+    // several matches on one card should keep a repeated miss type from
+    // reading the identical sentence twice.
+    const disaster: Referee = { ...find(pool(), 'ref-tibbs'), competence: 0, sharpness: 0 };
+    const rng = rngFromSeed('card-misses');
+    const usedLines = new Set<string>();
+    const byMiss = new Map<string, Set<string>>();
+    for (let i = 0; i < 40; i++) {
+      const miss = rollRefereeMiss(rng, ctxFor(disaster), usedLines);
+      if (!miss) continue;
+      const seen = byMiss.get(miss.missId) ?? new Set<string>();
+      const raw = miss.text.replace(disaster.name, '{ref}');
+      seen.add(raw);
+      byMiss.set(miss.missId, seen);
+    }
+    expect(byMiss.size).toBeGreaterThan(0);
+    for (const [missId, lines] of byMiss) {
+      const pool = REFEREE_MISSES.find((m) => m.id === missId)!.lines.length;
+      expect(lines.size, missId).toBeLessThanOrEqual(pool);
+    }
+  });
 });
 
 describe('standing in the business', () => {

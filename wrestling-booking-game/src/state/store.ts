@@ -1264,9 +1264,13 @@ export const useGameStore = create<GameStore>()(
         // actually in the building. Most weeks this is empty.
         const misfortunes: Misfortune[] = [];
         const misfortuneNews: { text: string; lead: boolean }[] = [];
+        // Shared across the whole roster this week so two people who draw
+        // the same misfortune definition don't also read the identical
+        // flavour line — see misfortune.ts's rollMisfortune doc comment.
+        const usedMisfortuneLines = new Set<string>();
         for (const person of world.promotion.rosterIds.map((id) => world.wrestlers[id])) {
           if (!person) continue;
-          const misfortune = rollMisfortune(rng, person, world.settings);
+          const misfortune = rollMisfortune(rng, person, world.settings, usedMisfortuneLines);
           if (!misfortune) continue;
           misfortunes.push(misfortune);
 
@@ -1577,6 +1581,9 @@ export const useGameStore = create<GameStore>()(
         // 2 lines per style) cannot read the identical control-segment
         // sentence twice. See narrative.ts's generateBeats doc comment.
         const usedBeats = new Set<string>();
+        // Same reasoning, for a blown call — see referees.ts's
+        // rollRefereeMiss doc comment.
+        const usedRefereeMissLines = new Set<string>();
         if (!night.cancelled) world.currentCard.forEach((segment, i) => {
           const sides = new Set(segment.participants.map((p) => p.side));
           if (segment.participants.length < 2 || sides.size < 2) {
@@ -1864,13 +1871,17 @@ export const useGameStore = create<GameStore>()(
             const sideSizes = new Map<number, number>();
             for (const p of segment.participants) sideSizes.set(p.side, (sideSizes.get(p.side) ?? 0) + 1);
 
-            const miss = rollRefereeMiss(rng, {
-              referee: assignedReferee,
-              competitorIds: participantIds,
-              hasTags: [...sideSizes.values()].some((n) => n > 1),
-              hadInterference: result.finish === 'interference' || result.finish === 'disqualification',
-              settings: world.settings,
-            });
+            const miss = rollRefereeMiss(
+              rng,
+              {
+                referee: assignedReferee,
+                competitorIds: participantIds,
+                hasTags: [...sideSizes.values()].some((n) => n > 1),
+                hadInterference: result.finish === 'interference' || result.finish === 'disqualification',
+                settings: world.settings,
+              },
+              usedRefereeMissLines,
+            );
 
             if (miss) {
               const victim = miss.victimId ? wrestlerById.get(miss.victimId) : null;
