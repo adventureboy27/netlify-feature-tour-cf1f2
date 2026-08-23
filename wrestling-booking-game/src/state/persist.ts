@@ -205,7 +205,14 @@ const SLOT_KEY = 'wbg.save.v1';
 // field, and resolveWeek both iterates and pushes to it every week.
 // (Wrestler.queuedContract, added alongside this, is NOT part of the bump —
 // it is optional, and every read treats a missing field exactly like null.)
-const SCHEMA_VERSION = 54;
+//
+// Version 55 adds World.signingTalks — the "meet the booker" signing
+// conversation (state/world.ts's SigningTalk), opened once per new signee.
+// A version-54 save has no such field, and it is read unconditionally by
+// the Office screen. (Wrestler.weeksIceCold, added alongside this for the
+// forced cold-meeting flow, is NOT part of the bump — it is optional, and
+// every read treats a missing field the same as 0.)
+const SCHEMA_VERSION = 55;
 
 export interface SaveFile {
   schema: number;

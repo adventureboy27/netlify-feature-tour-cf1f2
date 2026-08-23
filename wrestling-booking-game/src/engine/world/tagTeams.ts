@@ -15,7 +15,7 @@ import type { Rng } from '../rng';
 import { clamp } from '../rng';
 import type { WorldSettings } from '../types';
 import { pick } from '../rng';
-import type { Id, Stable, Wrestler } from '../types';
+import type { GroupGimmick, Id, Stable, Wrestler } from '../types';
 import { TEAM_NAMES, WOMENS_TEAM_NAMES, surnamePair } from '../../data/teamNames';
 import { stableColorsFrom } from '../generate/gimmickLook';
 
@@ -195,6 +195,63 @@ export function availableTeams(
 /** The team somebody is in, if any. */
 export function teamOf(stables: readonly Stable[], wrestlerId: Id): Stable | undefined {
   return stables.find((s) => s.kind === 'tagTeam' && s.disbandedWeek === null && s.memberIds.includes(wrestlerId));
+}
+
+/** The team OR faction somebody is in, if any — `teamOf` widened to both kinds. */
+export function groupOf(stables: readonly Stable[], wrestlerId: Id): Stable | undefined {
+  return stables.find((s) => s.disbandedWeek === null && s.memberIds.includes(wrestlerId));
+}
+
+/**
+ * `canFormTeam` generalized to any group size — the signing meeting's
+ * GroupGimmick pairing needs to check a tag team (2) or a faction (3+) the
+ * same way. Same rules as a two-person team: everybody on the roster,
+ * everybody the same division, nobody already spoken for, the name is free.
+ */
+export function canFormGroup(
+  members: readonly (Wrestler | undefined)[],
+  stables: readonly Stable[],
+  rosterIds: ReadonlySet<Id>,
+  name: string,
+): TeamFormationCheck {
+  const fail = (problem: TeamFormationProblem): TeamFormationCheck => ({ ok: false, problem });
+
+  if (members.some((m) => !m)) return fail('notOnYourRoster');
+  const real = members as Wrestler[];
+  if (new Set(real.map((m) => m.id)).size !== real.length) return fail('samePerson');
+  if (real.some((m) => !rosterIds.has(m.id))) return fail('notOnYourRoster');
+  if (real.some((m) => m.gender !== real[0]!.gender)) return fail('differentDivisions');
+  if (real.some((m) => groupOf(stables, m.id))) return fail('alreadyInATeam');
+
+  const wanted = name.trim();
+  if (wanted && stables.some((s) => s.disbandedWeek === null && s.name.toLowerCase() === wanted.toLowerCase())) {
+    return fail('nameTaken');
+  }
+
+  return { ok: true, problem: null };
+}
+
+/**
+ * Put a group together under a `GroupGimmick`'s shared identity — the
+ * signing-meeting pairing. Unlike `createTeam`, the name and `kind` come
+ * from the gimmick itself rather than being generated, and it covers both
+ * a two-person team and a full faction with the same call. The caller has
+ * already checked `canFormGroup`.
+ */
+export function formGroupGimmickStable(members: readonly Wrestler[], group: GroupGimmick, week: number, id: Id): Stable {
+  const leader = members.reduce((best, w) => (w.popularity > best.popularity ? w : best), members[0]!);
+  return {
+    id,
+    name: group.name,
+    kind: group.kind,
+    memberIds: members.map((w) => w.id),
+    leaderId: leader.id,
+    colors: stableColorsFrom(leader),
+    unifiedLook: true,
+    formedWeek: week,
+    disbandedWeek: null,
+    record: { wins: 0, losses: 0, draws: 0 },
+  };
 }
 
 /** Record a tag result against the team, not just the two wrestlers. */

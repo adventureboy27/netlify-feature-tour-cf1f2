@@ -42,6 +42,9 @@ import { RIVAL_MOVE_OPTIONS, type RivalMoveChoiceId } from '../../engine/world/r
 import { CONFRONTATION_CALL_OPTIONS, type ConfrontationCallChoiceId } from '../../engine/world/confrontationCall';
 import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
+import { GIMMICKS, gimmickCategories } from '../../data/gimmicks';
+import { GROUP_GIMMICKS, tagTeamGimmicks, factionGimmicks } from '../../data/groupGimmicks';
+import { canFormGroup, groupOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Money } from '../components/display';
 import { promotionTheme } from '../components/chrome';
@@ -100,7 +103,8 @@ export function OfficeScreen() {
     world.pendingRenewals.length +
     world.approachOffers.length +
     world.releaseRequests.length +
-    world.renewalTalks.length;
+    world.renewalTalks.length +
+    world.signingTalks.length;
   // A promotion with nobody in a striped shirt is a promotion where a
   // wrestler counts every fall, so that is worth a badge on its own.
   const officialsNeedYou =
@@ -822,6 +826,13 @@ function ContractsTab() {
   const [openReleaseId, setOpenReleaseId] = useState<string | null>(null);
   const [openApproachId, setOpenApproachId] = useState<string | null>(null);
   const [openRenewalTalkId, setOpenRenewalTalkId] = useState<string | null>(null);
+  const chooseSigningGimmick = useGameStore((s) => s.chooseSigningGimmick);
+  const declineSigningPairing = useGameStore((s) => s.declineSigningPairing);
+  const formSigningGroup = useGameStore((s) => s.formSigningGroup);
+  const [openSigningTalkId, setOpenSigningTalkId] = useState<string | null>(null);
+  const [pickedGimmickId, setPickedGimmickId] = useState('');
+  const [pickedGroupId, setPickedGroupId] = useState('');
+  const [pickedPartnerIds, setPickedPartnerIds] = useState<string[]>([]);
   if (!world) return null;
   const theme = promotionTheme(world.promotion.identity);
 
@@ -843,6 +854,7 @@ function ContractsTab() {
     world.approachOffers.length === 0 &&
     world.releaseRequests.length === 0 &&
     world.renewalTalks.length === 0 &&
+    world.signingTalks.length === 0 &&
     departures.length === 0
   ) {
     return (
@@ -952,6 +964,233 @@ function ContractsTab() {
           </ul>
         </section>
       )}
+      {/* "Meet the booker" — opened once per new signee (signFreeAgent, a
+          folded-roster pickup, or winning a bidding war). Every generated
+          wrestler already has a random gimmick; this is the booker actually
+          deciding instead of living with the roll, and optionally pairing
+          them into a tag team or faction. See state/world.ts's SigningTalk. */}
+      {world.signingTalks.length > 0 && (
+        <section className="mb-4">
+          <h2 className="mb-2 text-sm font-medium text-neutral-300">New arrivals</h2>
+          <div className="flex flex-col gap-2">
+            {world.signingTalks.map((talk) => {
+              const person = wrestler(talk.wrestlerId);
+              if (!person) return null;
+              return (
+                <article
+                  key={talk.wrestlerId}
+                  data-testid={`signing-talk-${talk.wrestlerId}`}
+                  className="rounded border border-emerald-900/60 bg-neutral-900 p-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <PaperDoll
+                      appearance={person.appearance}
+                      gender={person.gender}
+                      alignment={person.alignment}
+                      size="thumb"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium">{person.name}</div>
+                      <div className="text-[11px] text-neutral-500">
+                        {talk.stage === 'pickGimmick' ? 'Just signed — meet them' : 'Anybody to put them with?'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      data-testid={`signing-talk-open-${talk.wrestlerId}`}
+                      onClick={() => {
+                        setPickedGimmickId(person.gimmick.id);
+                        setPickedGroupId('');
+                        setPickedPartnerIds([]);
+                        setOpenSigningTalkId(talk.wrestlerId);
+                      }}
+                      className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-200 hover:bg-neutral-700"
+                    >
+                      Talk to them
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {world.signingTalks
+        .filter((talk) => talk.wrestlerId === openSigningTalkId)
+        .map((talk) => {
+          const person = wrestler(talk.wrestlerId);
+          if (!person) return null;
+
+          if (talk.stage === 'pickGimmick') {
+            const selected = GIMMICKS.find((g) => g.id === pickedGimmickId) ?? person.gimmick;
+            return (
+              <DialogueCard
+                key={`${talk.wrestlerId}-gimmick`}
+                speaker={{ kind: 'booker' }}
+                speakerName={world.promotion.name}
+                body={`Glad to have ${person.name} in the building. What's the character?`}
+                subtext={selected.concept}
+                beforeChoices={
+                  <select
+                    aria-label="Pick a gimmick"
+                    data-testid="signing-gimmick-pick"
+                    value={pickedGimmickId}
+                    onChange={(e) => setPickedGimmickId(e.target.value)}
+                    className="w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs text-neutral-100"
+                  >
+                    {gimmickCategories().map((category) => (
+                      <optgroup key={category} label={category}>
+                        {GIMMICKS.filter((g) => g.category === category).map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                }
+                choices={[
+                  {
+                    id: 'confirm',
+                    label: pickedGimmickId === person.gimmick.id ? 'Keep it as-is' : `Go with ${selected.name}`,
+                    gains: 'A settled character to build the debut around',
+                    costs: 'Nothing — this is free at signing',
+                  },
+                ]}
+                onChoose={() => chooseSigningGimmick(talk.wrestlerId, pickedGimmickId || person.gimmick.id)}
+                theme={theme}
+                promotionName={world.promotion.name}
+                onClose={() => setOpenSigningTalkId(null)}
+              />
+            );
+          }
+
+          const eligiblePartners = world.promotion.rosterIds
+            .map((id) => world.wrestlers[id])
+            .filter(
+              (w): w is NonNullable<typeof w> =>
+                Boolean(w) && w!.id !== person.id && w!.gender === person.gender && !groupOf(world.stables, w!.id),
+            );
+          const selectedGroup = GROUP_GIMMICKS.find((g) => g.id === pickedGroupId);
+          const wantedCount = selectedGroup?.kind === 'tagTeam' ? 1 : 2;
+          const countOk = selectedGroup
+            ? selectedGroup.kind === 'tagTeam'
+              ? pickedPartnerIds.length === 1
+              : pickedPartnerIds.length >= wantedCount
+            : false;
+          const members = selectedGroup ? [person, ...pickedPartnerIds.map((id) => world.wrestlers[id])] : [];
+          const check =
+            selectedGroup && countOk
+              ? canFormGroup(members, world.stables, new Set(world.promotion.rosterIds), selectedGroup.name)
+              : null;
+          const canForm = Boolean(selectedGroup) && countOk && check?.ok === true;
+
+          return (
+            <DialogueCard
+              key={`${talk.wrestlerId}-pairing`}
+              speaker={{ kind: 'booker' }}
+              speakerName={world.promotion.name}
+              body={`Anybody you want to put ${person.name} together with — a tag team, a faction?`}
+              subtext={selectedGroup?.concept}
+              beforeChoices={
+                <div className="flex flex-col gap-2">
+                  <select
+                    aria-label="Pick a shared identity"
+                    data-testid="signing-group-pick"
+                    value={pickedGroupId}
+                    onChange={(e) => {
+                      setPickedGroupId(e.target.value);
+                      setPickedPartnerIds([]);
+                    }}
+                    className="w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs text-neutral-100"
+                  >
+                    <option value="">Keep them solo…</option>
+                    <optgroup label="Tag teams">
+                      {tagTeamGimmicks().map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Factions">
+                      {factionGimmicks().map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+
+                  {selectedGroup && eligiblePartners.length === 0 && (
+                    <p className="text-[11px] text-rose-400">Nobody on the roster fits — same division, not already spoken for.</p>
+                  )}
+
+                  {selectedGroup && eligiblePartners.length > 0 && (
+                    <div className="flex flex-col gap-1 rounded border border-neutral-800 bg-neutral-950 p-2">
+                      <p className="text-[11px] text-neutral-500">
+                        {selectedGroup.kind === 'tagTeam' ? 'Pick one partner.' : 'Pick at least two.'}
+                      </p>
+                      {eligiblePartners.map((w) => {
+                        const checked = pickedPartnerIds.includes(w.id);
+                        return (
+                          <label key={w.id} className="flex items-center gap-2 text-xs text-neutral-200">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                if (checked) {
+                                  setPickedPartnerIds(pickedPartnerIds.filter((id) => id !== w.id));
+                                } else if (selectedGroup.kind === 'tagTeam') {
+                                  setPickedPartnerIds([w.id]);
+                                } else {
+                                  setPickedPartnerIds([...pickedPartnerIds, w.id]);
+                                }
+                              }}
+                            />
+                            {w.name}
+                          </label>
+                        );
+                      })}
+                      {selectedGroup && countOk && check && !check.ok && (
+                        <p className="text-[11px] text-rose-400">{TEAM_PROBLEM_TEXT[check.problem!]}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              }
+              choices={[
+                {
+                  id: 'form',
+                  label: selectedGroup ? `Form ${selectedGroup.name}` : 'Form the group',
+                  gains: 'A shared identity from night one',
+                  costs: 'Splits focus across everyone in it',
+                  disabled: !canForm,
+                },
+                {
+                  id: 'solo',
+                  label: 'Keep them solo',
+                  gains: 'Nothing complicated',
+                  costs: 'No shared spotlight to lean on early',
+                },
+              ]}
+              onChoose={(choiceId) => {
+                if (choiceId === 'form' && selectedGroup) {
+                  formSigningGroup(talk.wrestlerId, selectedGroup.id, pickedPartnerIds);
+                } else {
+                  declineSigningPairing(talk.wrestlerId);
+                }
+                setOpenSigningTalkId(null);
+              }}
+              theme={theme}
+              promotionName={world.promotion.name}
+              onClose={() => setOpenSigningTalkId(null)}
+            />
+          );
+        })}
+
       {/* The last renewalWindowWeeks of a deal opens this, and only this — a
           real conversation the booker starts, not an automatic demand once
           the paper runs out. Say no on either side and it plays out to a

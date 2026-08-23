@@ -243,6 +243,8 @@ export interface World {
   pendingRenewals: RenewalOffer[];
   /** The renewal-window conversation, opened while there's still time on the deal. See RenewalTalk. */
   renewalTalks: RenewalTalk[];
+  /** The "meet the booker" signing conversation, opened once per new signee. See SigningTalk. */
+  signingTalks: SigningTalk[];
   /** How this week's show is being staged. */
   showSetup: ShowSetup;
   /**
@@ -1078,6 +1080,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     assetConditions: [],
     pendingRenewals: [],
     renewalTalks: [],
+    signingTalks: [],
     showSetup: startingSetup,
     weeksInTheRed: 0,
     folded: null,
@@ -1285,6 +1288,20 @@ export interface RenewalOffer {
 export interface RenewalTalk {
   wrestlerId: Id;
   stage: 'askInterest' | 'askWrestler';
+  openedWeek: number;
+}
+
+/**
+ * The "meet the booker" signing conversation — same shape as `RenewalTalk`,
+ * stepping through its own stages in place. Opened once a new signee lands
+ * on the roster (`signFreeAgent`, a folded-roster pickup, or winning a
+ * bidding war). Every generated wrestler already has *a* gimmick — this is
+ * the booker actually deciding instead of living with the roll. See
+ * chooseSigningGimmick / declineSigningPairing / formSigningGroup.
+ */
+export interface SigningTalk {
+  wrestlerId: Id;
+  stage: 'pickGimmick' | 'offerPairing';
   openedWeek: number;
 }
 

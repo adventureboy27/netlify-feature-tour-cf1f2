@@ -60,6 +60,7 @@ import {
   maybeOfferBuyout,
   expireStaleBuyoutOffer,
   maybeTrimRivalPayroll,
+  openSigningTalk,
 } from './storeHelpers';
 import { createCardBuilderSlice } from './slices/cardBuilder';
 import { createEventsSlice } from './slices/events';
@@ -793,6 +794,12 @@ export interface GameStore {
   answerRenewalInterest: (wrestlerId: Id, interested: boolean) => void;
   /** Node 2: negotiate, let them play out the string, or throw it open to the market. */
   answerRenewalWish: (wrestlerId: Id, choice: 'stay' | 'leave' | 'explore') => void;
+  /** Node 1 of the signing meeting: the booker picks (or keeps) the new signee's gimmick. See SigningTalk. */
+  chooseSigningGimmick: (wrestlerId: Id, gimmickId: Id) => void;
+  /** Node 2, "no": keep them solo, closing the signing meeting without a pairing. */
+  declineSigningPairing: (wrestlerId: Id) => void;
+  /** Node 2, "yes": form a tag team or faction under a GroupGimmick's shared identity. */
+  formSigningGroup: (wrestlerId: Id, groupGimmickId: Id, partnerIds: Id[]) => void;
   /**
    * Offer somebody to a rival. The contract goes with them, which is the
    * whole point — a deal you regret is a thing you can try to make somebody
@@ -5794,6 +5801,7 @@ export const useGameStore = create<GameStore>()(
               member.noticeGivenWeek = null;
               if (destination.id === world.promotion.id) {
                 world.promotion.rosterIds.push(id);
+                openSigningTalk(world, id);
                 world.weeklyNews.push(
                   wire(
                     'signing',

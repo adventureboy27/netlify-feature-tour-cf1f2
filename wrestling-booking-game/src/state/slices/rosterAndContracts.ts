@@ -7,7 +7,7 @@
 
 import type { StateCreator } from 'zustand';
 import { rng, type GameStore } from '../store';
-import { dropFromCard, letThemGo, openBiddingWar } from '../storeHelpers';
+import { dropFromCard, letThemGo, openBiddingWar, openSigningTalk } from '../storeHelpers';
 import { clamp, chance } from '../../engine/rng';
 import { clampMorale } from '../../engine/career/morale';
 import { wire } from '../../engine/world/wire';
@@ -31,6 +31,10 @@ import {
   weeksUntilFree,
 } from '../../engine/world/secretSigning';
 import { responseOutcome } from '../../engine/world/poaching';
+import { gimmickById } from '../../data/gimmicks';
+import { groupGimmickById } from '../../data/groupGimmicks';
+import { applyGimmickLook } from '../../engine/generate/gimmickLook';
+import { canFormGroup, formGroupGimmickStable } from '../../engine/world/tagTeams';
 
 type RosterAndContractsSlice = Pick<
   GameStore,
@@ -41,6 +45,9 @@ type RosterAndContractsSlice = Pick<
   | 'answerRenewal'
   | 'answerRenewalInterest'
   | 'answerRenewalWish'
+  | 'chooseSigningGimmick'
+  | 'declineSigningPairing'
+  | 'formSigningGroup'
   | 'releaseWrestler'
   | 'signSecretly'
   | 'revealSecretSigning'
@@ -227,6 +234,7 @@ export const createRosterAndContractsSlice: StateCreator<
       world.promotion.bankBalance -= stigma.signingBonus;
       world.promotion.rosterIds.push(wrestlerId);
       world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== wrestlerId);
+      openSigningTalk(world, wrestlerId);
     });
   },
 
@@ -340,6 +348,72 @@ export const createRosterAndContractsSlice: StateCreator<
         demand: { ...demand, weeklyRate: ourPrice(demand.weeklyRate, heldAtTheTable, world.settings) },
         openedWeek: world.week,
       });
+    });
+  },
+
+  // ---------------------------------------------------------------------
+  // The signing meeting — a real, booker-initiated "meet the booker"
+  // conversation opened right after somebody lands on the roster (see
+  // openSigningTalk in storeHelpers.ts). Two steps, same in-place-stage
+  // pattern as the renewal window above: chooseSigningGimmick is the
+  // booker deciding the character, formSigningGroup/declineSigningPairing
+  // is whatever happens next. See state/world.ts's SigningTalk.
+
+  chooseSigningGimmick: (wrestlerId, gimmickId) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      const talk = world.signingTalks.find((t) => t.wrestlerId === wrestlerId && t.stage === 'pickGimmick');
+      const wrestler = world.wrestlers[wrestlerId];
+      const gimmick = gimmickById(gimmickId);
+      if (!talk || !wrestler || !gimmick) return;
+
+      // Every generated wrestler already has *a* gimmick — only actually
+      // restyle them if the booker picked something different, same as
+      // the gimmickRequest event's own gimmickChange handler.
+      if (gimmick.id !== wrestler.gimmick.id) {
+        wrestler.gimmick = gimmick;
+        wrestler.appearance = applyGimmickLook(wrestler.appearance, gimmick, rng);
+        wrestler.gimmickFreshness = 100;
+      }
+      talk.stage = 'offerPairing';
+    });
+  },
+
+  declineSigningPairing: (wrestlerId) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      world.signingTalks = world.signingTalks.filter(
+        (t) => !(t.wrestlerId === wrestlerId && t.stage === 'offerPairing'),
+      );
+    });
+  },
+
+  formSigningGroup: (wrestlerId, groupGimmickId, partnerIds) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      const talkIndex = world.signingTalks.findIndex(
+        (t) => t.wrestlerId === wrestlerId && t.stage === 'offerPairing',
+      );
+      const wrestler = world.wrestlers[wrestlerId];
+      const group = groupGimmickById(groupGimmickId);
+      if (talkIndex < 0 || !wrestler || !group) return;
+
+      const partners = partnerIds.map((id) => world.wrestlers[id]);
+      if (partners.some((p) => !p)) return;
+      const members = [wrestler, ...partners.filter((p): p is NonNullable<typeof p> => Boolean(p))];
+
+      const wantedSize = group.kind === 'tagTeam' ? 2 : 3;
+      if (members.length < wantedSize || (group.kind === 'tagTeam' && members.length !== 2)) return;
+
+      const rosterIds = new Set(world.promotion.rosterIds);
+      const check = canFormGroup(members, world.stables, rosterIds, group.name);
+      if (!check.ok) return;
+
+      world.stables.push(formGroupGimmickStable(members, group, world.week, `stable-${world.nextId++}`));
+      world.signingTalks.splice(talkIndex, 1);
     });
   },
 

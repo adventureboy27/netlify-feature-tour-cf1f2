@@ -539,6 +539,19 @@ export function pickFromFoldedRoster(world: World, rng: Rng, wrestlerId: Id): vo
   }
 }
 
+/**
+ * Open the "meet the booker" signing conversation — every generated
+ * wrestler already has a random gimmick (generate/wrestler.ts), and this is
+ * the booker's chance to actually decide instead of living with the roll.
+ * Called once from every codepath that lands somebody on the *player's*
+ * roster; a rival winning a bidding war never opens one — the player only
+ * meets talent that works for them.
+ */
+export function openSigningTalk(world: World, wrestlerId: Id): void {
+  if (world.signingTalks.some((t) => t.wrestlerId === wrestlerId)) return;
+  world.signingTalks.push({ wrestlerId, stage: 'pickGimmick', openedWeek: world.week });
+}
+
 /** Sign a folded-roster pick straight onto the roster, same guardrails as an ordinary free-agent signing. */
 function signPickedWrestler(world: World, wrestler: Wrestler): void {
   if (!canSign(wrestler, world.promotion.bankBalance, world.settings)) return;
@@ -562,6 +575,7 @@ function signPickedWrestler(world: World, wrestler: Wrestler): void {
   };
   world.promotion.bankBalance -= stigma.signingBonus;
   world.promotion.rosterIds.push(wrestler.id);
+  openSigningTalk(world, wrestler.id);
 }
 
 /**
@@ -840,7 +854,10 @@ export function awardContract(world: World, wrestler: Wrestler, bid: ContractBid
   winner.rosterIds.push(wrestler.id);
   // The bonus is real money and it leaves the bank the day they sign.
   winner.bankBalance -= bid.signingBonus;
-  if (winner.id === world.promotion.id) books?.spend('payroll', bid.signingBonus);
+  if (winner.id === world.promotion.id) {
+    books?.spend('payroll', bid.signingBonus);
+    openSigningTalk(world, wrestler.id);
+  }
 }
 
 /**
