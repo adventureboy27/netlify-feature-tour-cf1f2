@@ -915,3 +915,27 @@ this one.
   inspection that the queue populated before the show and drained after,
   with the debut tweet landing in the real feed alongside the ordinary
   show reactions.
+
+- **Bug fix: two promos on the same card could write up as the identical
+  line.** The player spotted it directly — two separate "on the
+  microphone" segments both read "Sharp, mean, and over. {name} made
+  their point." `sim/promo.ts`'s `writeUp` picked independently per promo
+  with no memory of what had already been said that night, and each
+  quality band only carried 3 lines, so a repeat on any card with two or
+  more promos was common rather than rare. `resolvePromo` now takes an
+  optional shared `usedLines` set (defaults to a fresh one, so every
+  existing caller and test is unaffected); `writeUp` prefers an unused
+  line in the right quality band, then reaches into every other band
+  before ever repeating one outright. Threaded through both places that
+  resolve more than one promo per card in a loop — the player's own show
+  (`state/store.ts`) and a rival's AI-booked card
+  (`engine/world/rivalBooking.ts`). Also expanded `PROMO_LINES` from 3 to
+  6 lines per band (`data/promoTopics.ts`) so the fallback is rarely
+  needed at all. Verified: `tsc --noEmit` clean, full suite 142 files /
+  2778 tests passed (3 new — no-repeat-within-a-card, graceful behaviour
+  once a card genuinely exhausts every line, and independent calls with
+  no shared set staying unaffected), `npm run sim` and `npm run build`
+  both clean, and a real-browser pass auto-filling and running 15
+  consecutive shows (30 promos total) confirming zero duplicate write-ups
+  on any single card, plus a screenshot of the exact scenario the player
+  flagged now showing two distinct lines.

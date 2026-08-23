@@ -70,9 +70,22 @@ export function promoQuality(ctx: PromoContext, rng: Rng): number {
   return clamp(base + heat + morale + luck, 0, 100);
 }
 
-function writeUp(quality: number, speakerName: string, rng: Rng): string {
+/**
+ * `used` is every write-up line already spent tonight — several promos can
+ * land in the same quality band on the same card, and with only a handful
+ * of lines per band an unguarded pick repeats itself far more often than a
+ * real broadcast ever would (this exact bug: two promos on one card both
+ * writing up as "Sharp, mean, and over"). Prefer an unused line in the
+ * right band; if the band is spent, reach into every other band before
+ * ever repeating a line outright.
+ */
+function writeUp(quality: number, speakerName: string, rng: Rng, used: Set<string>): string {
   const band = PROMO_LINES.find((entry) => quality >= entry.minQuality) ?? PROMO_LINES[PROMO_LINES.length - 1]!;
-  return pick(rng, band.lines).replace(/\{speaker\}/g, speakerName);
+  const fresh = band.lines.filter((line) => !used.has(line));
+  const pool = fresh.length > 0 ? fresh : PROMO_LINES.flatMap((b) => b.lines).filter((line) => !used.has(line));
+  const chosen = pick(rng, pool.length > 0 ? pool : band.lines);
+  used.add(chosen);
+  return chosen.replace(/\{speaker\}/g, speakerName);
 }
 
 /**
@@ -112,7 +125,7 @@ export function jabAt(
  * the crowd does almost nothing, which is what makes casting it a decision
  * rather than a free heat button.
  */
-export function resolvePromo(rng: Rng, ctx: PromoContext): PromoResult {
+export function resolvePromo(rng: Rng, ctx: PromoContext, usedLines: Set<string> = new Set()): PromoResult {
   const s = ctx.settings;
   const quality = promoQuality(ctx, rng);
   // Everything below scales on this. A 40 is half the promo an 80 is.
@@ -183,7 +196,7 @@ export function resolvePromo(rng: Rng, ctx: PromoContext): PromoResult {
     });
   }
 
-  const text = writeUp(quality, ctx.speaker.name, rng);
+  const text = writeUp(quality, ctx.speaker.name, rng, usedLines);
   return { quality, text: jab ? `${text} ${jab}` : text, effects };
 }
 

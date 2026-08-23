@@ -113,7 +113,12 @@ export function promoTopicById(id: string): PromoTopic | undefined {
   return PROMO_TOPICS.find((t) => t.id === id);
 }
 
-/** How a promo is written up afterwards, by how well it went. */
+/**
+ * How a promo is written up afterwards, by how well it went. Several
+ * promos can land in the same band on one card, so each band carries
+ * enough lines that a full show rarely has to reach for `writeUp`'s
+ * cross-band fallback, let alone repeat one outright.
+ */
 export const PROMO_LINES: { minQuality: number; lines: string[] }[] = [
   {
     minQuality: 80,
@@ -121,6 +126,9 @@ export const PROMO_LINES: { minQuality: number; lines: string[] }[] = [
       '{speaker} had the building in the palm of their hand and would not let go.',
       'Nobody moved for the whole thing. {speaker} does not miss.',
       'That is the promo they will play in the video package for years.',
+      '{speaker} said it once, said it right, and let it sit there.',
+      'The whole building was leaning in by the end of it. {speaker} knows exactly what they are doing.',
+      'That is a masterclass. {speaker} could sell a rematch to an empty room.',
     ],
   },
   {
@@ -129,6 +137,9 @@ export const PROMO_LINES: { minQuality: number; lines: string[] }[] = [
       '{speaker} said exactly what they needed to and got out.',
       'Sharp, mean, and over. {speaker} made their point.',
       '{speaker} got the reaction they were after.',
+      'Clean, confident, no wasted words. {speaker} knows how to close a segment.',
+      'That landed. {speaker} had the room and used it well.',
+      '{speaker} did not need long. Said it, meant it, walked off.',
     ],
   },
   {
@@ -137,6 +148,9 @@ export const PROMO_LINES: { minQuality: number; lines: string[] }[] = [
       '{speaker} got through it. The crowd stayed with them, mostly.',
       'Serviceable. {speaker} is not going to be remembered for talking.',
       'It did the job and it did not do much more.',
+      '{speaker} hit the points that mattered and rushed the rest.',
+      'Fine. Nobody is buying a ticket off the back of that, but fine.',
+      '{speaker} was clearly reciting it. It still worked, mostly.',
     ],
   },
   {
@@ -145,6 +159,9 @@ export const PROMO_LINES: { minQuality: number; lines: string[] }[] = [
       '{speaker} lost the crowd inside a minute and never got them back.',
       'Long, loud, and about nothing. You could hear people leaving for the concourse.',
       '{speaker} should not be handed a microphone again in a hurry.',
+      'That went nowhere and took its time getting there.',
+      '{speaker} froze twice and covered neither of them.',
+      'The house lights might as well have come up. Dead air in a live building.',
     ],
   },
 ];

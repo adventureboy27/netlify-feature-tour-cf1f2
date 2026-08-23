@@ -465,6 +465,9 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
   // company had, which is a permanent advantage nobody earned.
   const promos: RivalPromo[] = [];
   const spoken = new Set<Id>();
+  // Shared across every promo slot on this card, same reason store.ts's own
+  // resolution loop shares one — see promo.ts's writeUp doc comment.
+  const usedPromoLines = new Set<string>();
   const mouths = [...ctx.available].sort((a, b) => b.charisma - a.charisma);
   for (let i = 0; i < ctx.settings.promoSlotsPerCard; i++) {
     const speaker = mouths.find((w) => !spoken.has(w.id));
@@ -481,7 +484,7 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
       topicId: opponent ? 'continueFeud' : 'callOutLockerRoom',
       existingHeat: 0,
       settings: ctx.settings,
-    });
+    }, usedPromoLines);
     promos.push({
       speakerId: speaker.id,
       targetId: opponent?.id ?? null,

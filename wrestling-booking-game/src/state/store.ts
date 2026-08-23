@@ -2768,6 +2768,10 @@ export const useGameStore = create<GameStore>()(
         // they are resolved here, after the matches, and contribute to the
         // show on their own smaller scale.
         let promoRating = 0;
+        // Shared across every promo slot tonight so two segments on the same
+        // card cannot write up as the identical line — see promo.ts's
+        // writeUp doc comment.
+        const usedPromoLines = new Set<string>();
         for (const slot of world.currentPromos) {
           // A talking slot can be a promo or a confrontation. The budget is
           // shared on purpose — time on the microphone is finite.
@@ -2803,7 +2807,7 @@ export const useGameStore = create<GameStore>()(
             topicId,
             existingHeat: rivalry?.heat ?? 0,
             settings: world.settings,
-          });
+          }, usedPromoLines);
 
           applyEffects(world, rng, promo.effects, books);
           promoRating += promoShowContribution(promo.quality, world.settings);

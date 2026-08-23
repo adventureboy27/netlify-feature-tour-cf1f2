@@ -134,6 +134,44 @@ describe('what a promo does', () => {
     }
   });
 
+  it('does not repeat a write-up line across the same card', () => {
+    // The exact bug this guards: two promos landing in the same quality
+    // band on one show both writing up with the identical line.
+    const usedLines = new Set<string>();
+    const speaker = person({ charisma: 65, popularity: 65, morale: 50 });
+    const texts = new Set<string>();
+    for (let i = 0; i < 6; i++) {
+      const result = resolvePromo(
+        rngFromSeed(`card-${i}`),
+        ctxFor({ speaker, existingHeat: 0 }),
+        usedLines,
+      );
+      texts.add(result.text);
+    }
+    expect(texts.size).toBe(6);
+  });
+
+  it('still writes a real line once a card genuinely exhausts every band', () => {
+    // Contrived: fewer total lines exist than draws requested, so a repeat
+    // is unavoidable — it should never crash or fall back to a placeholder.
+    const usedLines = new Set<string>();
+    const speaker = person({ charisma: 65, popularity: 65, morale: 50 });
+    for (let i = 0; i < 40; i++) {
+      const result = resolvePromo(rngFromSeed(`flood-${i}`), ctxFor({ speaker, existingHeat: 0 }), usedLines);
+      expect(result.text.length).toBeGreaterThan(10);
+      expect(result.text).not.toMatch(/\{[a-z]+\}/i);
+    }
+  });
+
+  it('keeps a fresh set of lines by default, so unrelated calls do not collide with each other', () => {
+    // Two independent resolve() calls with no shared set behave as
+    // before — each starts from a clean slate.
+    const a = resolve({}, 'independent-a');
+    const b = resolve({}, 'independent-b');
+    expect(typeof a.text).toBe('string');
+    expect(typeof b.text).toBe('string');
+  });
+
   it('gives every topic something to do', () => {
     for (const topic of PROMO_TOPICS) {
       const result = resolve({ topicId: topic.id, speaker: person({ charisma: 80 }) }, `does-${topic.id}`);
