@@ -286,7 +286,15 @@ export interface GimmickLook {
 export interface Gimmick {
   id: Id;
   name: string;
+  /** Loose grouping for filtering the signing-meeting picker — not read by any sim logic. */
+  category: string;
   alignmentLean: AlignmentLean;
+  /** One line: what they are, played straight. Shown at the signing meeting. */
+  concept: string;
+  /** What they'd actually say on the mic. 1-3 lines. */
+  promoLines: string[];
+  /** What they carry to the ring, if anything — a hook for hardcore/No-DQ weapon flavor. */
+  prop?: string;
   popularityCeiling: number; // 0-100
   growthRateMultiplier: number; // applied to popularity gains while fresh
   territoryFit: Partial<Record<Id, number>>; // territoryId -> affinity weight, -1..1
@@ -319,6 +327,22 @@ export interface Stable {
   formedWeek: number;
   disbandedWeek: number | null;
   record: WinLossRecord;
+}
+
+/**
+ * A shared identity for a tag team or stable, offered at the signing
+ * meeting alongside solo `Gimmick`s — see data/groupGimmicks.ts. Deliberately
+ * separate from `Gimmick`: a group identity has no popularity ceiling or
+ * growth rate of its own, since those still belong to the individual
+ * members wearing it.
+ */
+export interface GroupGimmick {
+  id: Id;
+  name: string;
+  kind: 'tagTeam' | 'stable';
+  alignmentLean: AlignmentLean;
+  concept: string;
+  promoLines: string[];
 }
 
 // ============================================================================
@@ -469,7 +493,14 @@ export interface Wrestler {
   // DESIGN: gimmick freshness (§3.4) and fatigue debt / consecutive weeks
   // (§12.5 "Fatigue and burnout") are per-wrestler dynamic state the spec
   // describes in prose but omits from the Wrestler interface. Added here.
-  gimmickFreshness: number; // 0-100, decays ~0.8/week
+  gimmickFreshness: number; // 0-100, reaction-driven — see sim/freshness.ts's heatTarget
+  /**
+   * Consecutive weeks spent at or below settings.iceColdThreshold — the
+   * clock for a forced booker meeting. Optional: absent and 0 mean the
+   * same thing everywhere this is read. Resets the moment freshness climbs
+   * back out of the cold band, or the moment a meeting actually happens.
+   */
+  weeksIceCold?: number;
   fatigueDebt: number; // 0-100
   consecutiveWeeksWorked: number;
 
@@ -3090,10 +3121,27 @@ export interface WorldSettings {
   overexposureAppearancePenalty: number;
   /** Most a match can lose to overexposure alone. */
   overexposureAppearanceCap: number;
-  /** Freshness lost every week, worked or not. */
-  gimmickFreshnessDecayPerWeek: number;
-  /** Extra freshness lost by working. Exposure wears an act out, not time. */
-  gimmickFreshnessWorkedDecay: number;
+  // Heat — reaction-driven, not a flat clock. Freshness drifts toward a
+  // target implied by the wrestler's own momentum (the crowd's current
+  // opinion, already tracked): a genuinely hot act can hold or climb, a
+  // merely-tolerated one settles low even while it keeps working, and a
+  // hated one crashes. "No reaction" is itself a verdict, on purpose — see
+  // the player's own framing: not everyone needs the best reaction, but
+  // nobody gets to be background noise forever.
+  /** Momentum this game calls "neutral" — the resting point drift is measured against. */
+  gimmickHeatNeutralMomentum: number;
+  /** Freshness a neutral (no real reaction either way) act settles toward. Below staleGimmickThreshold on purpose. */
+  gimmickHeatNeutralTarget: number;
+  /** How far the target moves per point of momentum above/below neutral. */
+  gimmickHeatMomentumScale: number;
+  /** Share of the gap to the target closed per week while actually worked — reaction only registers when the crowd is seeing them. */
+  gimmickHeatWorkedDriftRate: number;
+  /** Share of the gap closed per week while idle — slower; nothing new to react to. */
+  gimmickHeatIdleDriftRate: number;
+  /** Below this, an act reads as genuinely ice cold — see weeksIceCold / the forced cold-meeting. */
+  iceColdThreshold: number;
+  /** Consecutive weeks at or under iceColdThreshold before the booker is forced into a meeting. */
+  coldMeetingTriggerWeeks: number;
   /** Below this an act reads as stale, and the repackage event can fire. */
   staleGimmickThreshold: number;
   /** Most a completely worn-out act can cost a match. */

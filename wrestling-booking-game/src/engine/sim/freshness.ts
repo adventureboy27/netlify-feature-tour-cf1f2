@@ -23,6 +23,7 @@ import type { Pronouns } from '../career/pronouns';
 // what it has already been shown.
 
 import type { Id, Segment, Show, Wrestler, WorldSettings } from '../types';
+import { clamp } from '../rng';
 
 /**
  * What the crowd has been shown lately.
@@ -171,23 +172,48 @@ export function staleGimmickPenalty(participants: readonly Wrestler[], settings:
 }
 
 /**
- * A week passes and the act ages.
+ * What the crowd's current opinion — momentum, already tracked, already
+ * reaction-driven via wins/losses/feuds — implies freshness should be
+ * heading toward. Neutral momentum (no real reaction either way) implies a
+ * low target on purpose: an act nobody has an opinion about does not get
+ * to coast, it drifts toward "wearing thin" same as a genuinely disliked
+ * one drifts toward ice cold. Only real heat, well above neutral, sustains
+ * a number that reads as fresh.
+ */
+export function heatTarget(momentum: number, settings: WorldSettings): number {
+  const delta = momentum - settings.gimmickHeatNeutralMomentum;
+  return clamp(settings.gimmickHeatNeutralTarget + delta * settings.gimmickHeatMomentumScale, 0, 100);
+}
+
+/**
+ * A week passes and the act's heat moves toward whatever the crowd
+ * currently thinks of them.
  *
- * Exposure rather than time is what wears a character out, so somebody who
- * worked this week loses more than somebody who sat at home — which makes
- * resting a stale act a real, cheap alternative to repackaging them, and
- * gives the deep roster a second reason to exist.
+ * Not a flat clock — the old version decayed by exposure alone, which
+ * meant a genuinely over character wore out at the identical rate as one
+ * nobody cared for, and there was no way to actually earn heat back short
+ * of a full repackage. Now: drift toward `heatTarget`, faster while
+ * actually being worked (the crowd only updates its opinion when it's
+ * watching), slower while idle. Being seen and genuinely loved can hold or
+ * climb; being seen and merely tolerated still wears thin, same shape as
+ * before.
  *
  * Mutates, matching generate/repackage.ts which resets the same field.
  */
 export function ageGimmick(wrestler: Wrestler, worked: boolean, settings: WorldSettings): void {
-  const loss = settings.gimmickFreshnessDecayPerWeek + (worked ? settings.gimmickFreshnessWorkedDecay : 0);
-  wrestler.gimmickFreshness = Math.max(0, wrestler.gimmickFreshness - loss);
+  const target = heatTarget(wrestler.momentum, settings);
+  const rate = worked ? settings.gimmickHeatWorkedDriftRate : settings.gimmickHeatIdleDriftRate;
+  wrestler.gimmickFreshness = clamp(wrestler.gimmickFreshness + (target - wrestler.gimmickFreshness) * rate, 0, 100);
 }
 
 /** Whether an act has gone stale enough that the player should hear about it. */
 export function isStale(wrestler: Wrestler, settings: WorldSettings): boolean {
   return wrestler.gimmickFreshness < settings.staleGimmickThreshold;
+}
+
+/** Genuinely ice cold — past "stale" and into forced-meeting territory. See weeksIceCold. */
+export function isIceCold(wrestler: Wrestler, settings: WorldSettings): boolean {
+  return wrestler.gimmickFreshness <= settings.iceColdThreshold;
 }
 
 /**
@@ -208,7 +234,29 @@ export function freshnessLabel(wrestler: Wrestler, settings: WorldSettings): Fre
   return 'Nobody is buying it';
 }
 
+/**
+ * The same read as `freshnessLabel`, as a fire-to-ice icon — the "long
+ * line, 🔥 on one end and ❄️ on the other" the player asked for. A separate
+ * function rather than folding the icon into `freshnessLabel` itself: the
+ * label is read by `RosterScreen`'s existing tag, the icon is read by the
+ * motivation-style icon row (see career/motivation.ts's MotivationSymbol
+ * shape, which this deliberately matches) — two different surfaces, same
+ * underlying number.
+ */
+export function heatIcon(wrestler: Wrestler, settings: WorldSettings): string {
+  const f = wrestler.gimmickFreshness;
+  if (f >= settings.staleGimmickThreshold + (100 - settings.staleGimmickThreshold) / 2) return '🔥';
+  if (f >= settings.staleGimmickThreshold) return '🙂';
+  if (f > settings.iceColdThreshold) return '🥶';
+  return '❄️';
+}
+
 /** The week it tips over, said once, rather than a status nobody looks at. */
 export function goneStaleLine(name: string, who: Pronouns): string {
   return `${name}'s act has stopped working. The crowd has seen it, and it is costing every match ${who.they} is in until somebody freshens it up or ${who.they} gets a run off.`;
+}
+
+/** Said once, the week an act crosses into genuinely ice cold. */
+export function goneIceColdLine(name: string, who: Pronouns): string {
+  return `${name} is getting nothing back from the crowd — no heat, no heel heat, nothing. Somebody at the top needs to sit ${who.them} down about it.`;
 }

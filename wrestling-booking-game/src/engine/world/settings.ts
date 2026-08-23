@@ -1362,8 +1362,17 @@ export function defaultWorldSettings(): WorldSettings {
     overexposureFreeWeeks: 4,
     overexposureAppearancePenalty: 2.5,
     overexposureAppearanceCap: 12,
-    gimmickFreshnessDecayPerWeek: 0.5,
-    gimmickFreshnessWorkedDecay: 0.9,
+    gimmickHeatNeutralMomentum: 50,
+    // Neutral sits inside "Wearing thin" on purpose — an act with no real
+    // reaction either way is already costing something, not waiting at a
+    // comfortable middle. Real heat (well above neutral momentum) is what
+    // keeps a character fresh; real rejection crashes it toward ice cold.
+    gimmickHeatNeutralTarget: 40,
+    gimmickHeatMomentumScale: 1.0,
+    gimmickHeatWorkedDriftRate: 0.03,
+    gimmickHeatIdleDriftRate: 0.01,
+    iceColdThreshold: 20,
+    coldMeetingTriggerWeeks: 6,
     staleGimmickThreshold: 60,
     staleGimmickPenaltyMax: 8,
     bookerRestWeight: 22,

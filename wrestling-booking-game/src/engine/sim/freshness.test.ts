@@ -3,6 +3,7 @@ import {
   ageGimmick,
   freshnessLabel,
   goneStaleLine,
+  heatTarget,
   isStale,
   overexposurePenalty,
   pairingsIn,
@@ -191,10 +192,36 @@ describe('an act wearing out', () => {
     expect(weeks).toBeLessThan(60);
   });
 
-  it('never goes below zero', () => {
-    const w = someone({ gimmickFreshness: 0.2 });
+  it('stays in bounds even when the crowd has genuinely turned', () => {
+    // Re-expressed: heat used to be a one-way clock (this exact test used
+    // to assert a neutral-momentum wrestler starting near zero stayed
+    // pinned at zero). That is no longer generally true — reaction-driven
+    // heat can climb back — so the meaningful claim now is the bounds
+    // themselves, checked against genuine rejection (momentum well under
+    // neutral), where the target really is close to zero.
+    const w = someone({ gimmickFreshness: 0.2, momentum: 0 });
     ageGimmick(w, true, settings);
-    expect(w.gimmickFreshness).toBe(0);
+    expect(w.gimmickFreshness).toBeGreaterThanOrEqual(0);
+    expect(w.gimmickFreshness).toBeLessThan(1);
+  });
+
+  it('holds or climbs for a genuinely hot act, not just decays slower', () => {
+    // The whole point of the rework: a wrestler the crowd actually loves
+    // should not wear out at the same clock as one nobody cares about.
+    const hot = someone({ gimmickFreshness: 70, momentum: 95 });
+    ageGimmick(hot, true, settings);
+    expect(hot.gimmickFreshness).toBeGreaterThanOrEqual(70);
+  });
+
+  it('settles low for a merely-tolerated act even while it keeps working', () => {
+    // "Not everyone needs the best reaction, but no reaction at all still
+    // needs to be looked at" — neutral momentum should not read as safe.
+    const w = someone({ gimmickFreshness: 100, momentum: settings.gimmickHeatNeutralMomentum });
+    // Exponential decay toward the target — 60 steps at the worked drift rate
+    // only closes ~84% of the gap, so give it enough weeks to actually settle.
+    for (let i = 0; i < 300; i++) ageGimmick(w, true, settings);
+    expect(w.gimmickFreshness).toBeLessThan(settings.staleGimmickThreshold);
+    expect(w.gimmickFreshness).toBeCloseTo(heatTarget(settings.gimmickHeatNeutralMomentum, settings), 0);
   });
 
   it('costs a match nothing until it is genuinely stale', () => {

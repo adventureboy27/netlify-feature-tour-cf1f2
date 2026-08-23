@@ -551,7 +551,7 @@ two solo gimmicks glued side by side — the point is a unit identity.
   - "We fight each other worse than we're about to fight you."
 - **The Deep Freeze** — heel. Cold, silent, methodical duo — zero
   showmanship, maximum menace, built for a slow, suffocating match style.
-  - (Rarely speaks. When they do:) "This ends quietly."
+  - "This ends quietly."
 - **Roughhouse** — face. Bar-brawl-style duo, genuinely enjoy the fight
   more than the win.
   - "We didn't come here for a wrestling match. We came for a bar fight."
@@ -832,7 +832,7 @@ in-fiction, a single visual tell, a reputation rather than a script.
   - "If nothing matters, there's nothing stopping me."
 - **Deep Space** — either. Isolation-themed, long-silence-then-violence
   pacing, minimal promo work.
-  - (Rarely speaks. When he does:) "It's quiet out there. I like it quiet."
+  - "It's quiet out there. I like it quiet."
 - **Sector Seven** — heel. Shadowy-agency theming, refuses to explain who
   he "really" works for, paranoia-inducing mystique.
   - "You don't need clearance to know this is happening."
