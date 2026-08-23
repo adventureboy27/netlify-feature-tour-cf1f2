@@ -62,6 +62,7 @@ import {
   expireStaleBuyoutOffer,
   maybeTrimRivalPayroll,
   openSigningTalk,
+  letThemGo,
 } from './storeHelpers';
 import { createCardBuilderSlice } from './slices/cardBuilder';
 import { createEventsSlice } from './slices/events';
@@ -237,6 +238,7 @@ import {
   wantsOut,
   canBeSigned,
   refusalCost,
+  exitTerms,
 } from '../engine/economy/termination';
 
 /**
@@ -338,7 +340,13 @@ import { CREATIVE_EVENTS } from '../data/events';
 import type { Passing, Wrestler } from '../engine/types';
 import { clamp, pick, chance, randInt } from '../engine/rng';
 import { defaultWorldSettings } from '../engine/world/settings';
-import { stipulationById, stipulationRequirementsMet } from '../data/stipulations';
+import {
+  stipulationById,
+  stipulationRequirementsMet,
+  stipulationConsequence,
+  stipulationConsequenceLine,
+} from '../data/stipulations';
+import { isNonDecisiveFinish } from '../engine/sim/finish';
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
 import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
 import { driftFanTaste, styleRunShare } from '../engine/world/fanTaste';
@@ -2332,6 +2340,19 @@ export const useGameStore = create<GameStore>()(
             .filter((p) => p.side !== 0)
             .map((p) => wrestlerById.get(p.wrestlerId)!)
             .filter(Boolean);
+          // commentary.ts's whole vocabulary — {sideA}/{sideB}, two-corner
+          // framing — is built around exactly two corners. Flattening every
+          // side past 0 into "sideB" was correct for a 1v1 or tag match, but
+          // wrong for a genuine multi-way: it called a fatal 4-way or battle
+          // royal like a tag match against a phantom team. A real N-way
+          // announcer system is a separate project (new placeholder
+          // vocabulary, new fact-gating, every OPENERS/beat line rewritten);
+          // here, a genuine multi-way just gets no live call and leans on
+          // the highlight beats instead — same as every rival-show match
+          // already does.
+          const competitorSideCount = new Set(
+            segment.participants.filter((p) => p.role === 'competitor').map((p) => p.side),
+          ).size;
           const winnerProbability =
             result.winnerSide === null ? 1 : (result.winProbabilitiesBySide[result.winnerSide] ?? 1);
 
@@ -2374,7 +2395,11 @@ export const useGameStore = create<GameStore>()(
                 ) ?? 0)
               : 0;
           const call =
-            world.settings.commentaryEnabled && world.promotion.commentaryTeam && sideAMembers.length > 0 && sideBMembers.length > 0
+            world.settings.commentaryEnabled &&
+            world.promotion.commentaryTeam &&
+            sideAMembers.length > 0 &&
+            sideBMembers.length > 0 &&
+            competitorSideCount === 2
               ? callTheMatch(rngFromSeed(`${world.settings.seed}-call-${world.week}-${i}`), {
                   team: world.promotion.commentaryTeam,
                   sideA: sideAMembers,
@@ -2461,6 +2486,37 @@ export const useGameStore = create<GameStore>()(
             incident,
             commentary: call,
           };
+
+          // The blowoff stipulations' real stake. isBlowoff alone only ever
+          // ended the rivalry — this is what actually happens to the loser:
+          // the hair comes off, the mask comes off, or they are off the
+          // roster, exactly as advertised. Decisive-only, same test the
+          // rivalry system uses for whether a grudge stipulation settled
+          // anything — a screwjob finish pays off nothing.
+          const consequence = stipulationConsequence(stipulation?.id ?? null);
+          if (consequence && result.winnerSide !== null && result.winnerWrestlerIds.length > 0 && !isNonDecisiveFinish(result.finish)) {
+            const losers = participantWrestlers.filter((w) => !result.winnerWrestlerIds.includes(w.id));
+            // Seeded off the segment rather than the shared stream — this
+            // resolves mid-resolveWeek, and a shared-stream draw here would
+            // shift every seeded roll after it.
+            const lineRng = rngFromSeed(`stipulationConsequence:${segment.slot}:${world.week}`);
+            for (const loser of losers) {
+              if (consequence === 'shaveHead') {
+                loser.appearance.hairStyle = 0;
+              } else if (consequence === 'unmask') {
+                loser.appearance.mask = 0;
+              } else {
+                const terms = exitTerms(loser, 'fired', world.settings, world.promotion.name);
+                world.promotion.bankBalance -= terms.severance;
+                letThemGo(world, loser, terms);
+              }
+              segment.result.beats.push({
+                kind: 'finish',
+                significant: true,
+                text: stipulationConsequenceLine(consequence, lineRng, loser.name),
+              });
+            }
+          }
 
           // Did this settle a story? The same test the rivalry system uses —
           // a grudge stipulation with a decisive finish — so the two can

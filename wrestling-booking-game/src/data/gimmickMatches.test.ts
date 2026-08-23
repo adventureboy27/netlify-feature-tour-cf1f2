@@ -196,7 +196,17 @@ describe('finishFlavor — the write-up is the only place the player sees it hap
   });
 
   it('falls back to the generic line when the stipulation has no flavor for that finish', () => {
-    expect(finishLineFor('hairVsHair', 'knockout')).toContain('out cold');
+    // squash carries no finishFlavor at all by design (an ordinary one-sided
+    // match has no special win condition to describe), so it's the real
+    // remaining example of the fallback path — hairVsHair used to be one
+    // too, before it got its own knockout line below.
+    expect(finishLineFor('squash', 'knockout')).toContain('out cold');
     expect(finishLineFor(null, 'knockout')).toContain('out cold');
+  });
+
+  it('names the stake on a hair vs hair knockout, not a generic finish', () => {
+    const line = finishLineFor('hairVsHair', 'knockout');
+    expect(line).not.toContain('out cold');
+    expect(line).toContain('Blaze Lambert');
   });
 });

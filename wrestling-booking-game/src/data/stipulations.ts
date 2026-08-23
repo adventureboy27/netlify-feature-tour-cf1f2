@@ -15,6 +15,8 @@
 // promotion's 100, against a counter that only sheds 8 a week.
 
 import type { Stipulation, Wrestler } from '../engine/types';
+import type { Rng } from '../engine/rng';
+import { pick } from '../engine/rng';
 
 export const STIPULATIONS: Stipulation[] = [
   {
@@ -26,8 +28,14 @@ export const STIPULATIONS: Stipulation[] = [
     injuryMult: 1.4,
     heatRequirement: 40,
     archetypeFit: [],
-    impliedRules: { countOuts: 'none' },
-    finishWeights: { countOut: 0, disqualification: 0.4 },
+    impliedRules: { countOuts: 'none', aim: 'escape' },
+    finishWeights: { countOut: 0, disqualification: 0.4, escape: 3 },
+    finishFlavor: {
+      cleanPin: 'planted {loser} for the three count with that cage still rattling on its hinges',
+      submission: 'folded {loser} up in the corner of that cage and cranked the hold until the tap came',
+      knockout: 'hammered {loser} into the chain-link until there was nothing left to give',
+      escape: 'beat {loser} to the door and hit that arena floor first for the escape',
+    },
   },
   {
     id: 'ladder',
@@ -40,6 +48,10 @@ export const STIPULATIONS: Stipulation[] = [
     archetypeFit: ['highFlyer'],
     impliedRules: { ruleStrictness: 'none' },
     finishWeights: { knockout: 2.2, submission: 0.2 },
+    finishFlavor: {
+      knockout: 'beat {loser} up the ladder and ripped the prize down off the hook to steal it',
+      submission: 'caught {loser} at the peak of the ladder and simply would not let them come back down',
+    },
   },
   {
     id: 'noDQ',
@@ -56,6 +68,12 @@ export const STIPULATIONS: Stipulation[] = [
     archetypeFit: [],
     impliedRules: { ruleStrictness: 'none', countOuts: 'none' },
     finishWeights: { disqualification: 0, countOut: 0, interference: 2.5 },
+    finishFlavor: {
+      interference: 'let the cavalry run wild — {loser} never saw the finish coming through the pier-six brawl at ringside',
+      knockout: 'found the opening No Disqualification promised and put {loser} away for good',
+      cleanPin: 'cut through every excuse this stipulation offers and pinned {loser} clean anyway',
+      submission: 'wrenched the hold on with no referee left to save {loser} from it',
+    },
     // No rules to break, so no protection from breaking them.
     titleChangesOnDQ: true,
   },
@@ -69,6 +87,10 @@ export const STIPULATIONS: Stipulation[] = [
     archetypeFit: ['brawler'],
     impliedRules: { ruleStrictness: 'none', countOuts: 'none', falls: 'anyMeans' },
     finishWeights: { disqualification: 0, countOut: 0, knockout: 2.4, submission: 0.3 },
+    finishFlavor: {
+      knockout: 'found a {weapon} when the moment called for it and put {loser} down for the count',
+      submission: 'grabbed whatever was closest to force the tap out of {loser}',
+    },
     // No rules to break, so no protection from breaking them.
     titleChangesOnDQ: true,
   },
@@ -83,6 +105,9 @@ export const STIPULATIONS: Stipulation[] = [
     archetypeFit: ['brawler'],
     impliedRules: { ruleStrictness: 'none', countOuts: 'none' },
     finishWeights: { disqualification: 0, countOut: 0, knockout: 1.8 },
+    finishFlavor: {
+      knockout: 'dropped {loser} with a {weapon} that had no business anywhere near a wrestling ring',
+    },
     // No rules to break, so no protection from breaking them.
     titleChangesOnDQ: true,
   },
@@ -178,6 +203,10 @@ export const STIPULATIONS: Stipulation[] = [
     archetypeFit: ['powerhouse'],
     impliedRules: { ruleStrictness: 'none', falls: 'knockout', aim: 'lastStanding', countOuts: 'none' },
     finishWeights: { knockout: 5, cleanPin: 0, rollup: 0, submission: 0.2, disqualification: 0, countOut: 0 },
+    finishFlavor: {
+      knockout: 'left {loser} flat on the canvas as the referee counted all the way to ten with no answer',
+      submission: 'battered the tap out of {loser} rather than wait on the count — same result, less patience',
+    },
   },
   {
     id: 'ironMan',
@@ -192,6 +221,17 @@ export const STIPULATIONS: Stipulation[] = [
     archetypeFit: ['technician'],
     impliedRules: { aim: 'ironMan' },
     finishWeights: { timeLimitDraw: 2.5 },
+    finishFlavor: {
+      // A genuine timeLimitDraw finish here really is a tie — winnerSide
+      // stays null, same as any other draw. This only replaces the
+      // GENERIC line ("the bell rang with both still standing"), which
+      // reads like a standstill nobody was tracking. Iron Man's whole
+      // premise is a running scorecard, so the draw gets described in
+      // those terms instead — still honestly a tie, framed correctly.
+      timeLimitDraw: 'battled {loser} dead even on the scorecard, and the final bell beat them both to a winner',
+      cleanPin: 'banked the deciding fall on {loser} with time still on the board',
+      submission: 'forced the deciding tap out of {loser} to seal the count',
+    },
   },
   {
     id: 'submissionMatch',
@@ -204,6 +244,10 @@ export const STIPULATIONS: Stipulation[] = [
     archetypeFit: ['technician'],
     impliedRules: { falls: 'subsOnly', aim: 'submissionOnly' },
     finishWeights: { submission: 6, cleanPin: 0, rollup: 0, knockout: 0.4 },
+    finishFlavor: {
+      submission: 'buried the hold on {loser} until there was no answer left but the tap',
+      knockout: 'wrenched {loser} clean past consciousness before the tap ever came — the referee had no call to make but one',
+    },
   },
   {
     id: 'hairVsHair',
@@ -214,6 +258,11 @@ export const STIPULATIONS: Stipulation[] = [
     injuryMult: 1.2,
     heatRequirement: 75,
     archetypeFit: [],
+    finishFlavor: {
+      cleanPin: 'pinned {loser} flat, and the clippers are already on their way to the ring',
+      knockout: 'put {loser} away cold — the barber does not need them conscious for this part',
+      submission: 'dragged the tap out of {loser} knowing exactly what is waiting at ringside',
+    },
     isBlowoff: true,
   },
   {
@@ -227,6 +276,11 @@ export const STIPULATIONS: Stipulation[] = [
     injuryMult: 1.2,
     heatRequirement: 75,
     archetypeFit: [],
+    finishFlavor: {
+      cleanPin: 'pinned {loser} to the mat — and by the terms of the match, that mask comes off tonight',
+      knockout: 'put {loser} down for good, and the unmasking starts the second the referee\'s hand hits three',
+      submission: 'dragged the tap out of {loser}, and the mask goes with it',
+    },
     isBlowoff: true,
   },
   {
@@ -238,6 +292,11 @@ export const STIPULATIONS: Stipulation[] = [
     injuryMult: 1.3,
     heatRequirement: 80,
     archetypeFit: [],
+    finishFlavor: {
+      cleanPin: 'pinned {loser} for the three count that ends their run here for good',
+      knockout: 'put {loser} away cold — and by the stipulation, out the door right behind them',
+      submission: 'forced the tap that sends {loser} out of the promotion for good',
+    },
     isBlowoff: true,
   },
   {
@@ -250,6 +309,9 @@ export const STIPULATIONS: Stipulation[] = [
     minParticipants: 8,
     archetypeFit: [],
     finishWeights: { knockout: 2, submission: 0, timeLimitDraw: 0 },
+    finishFlavor: {
+      knockout: 'tossed {loser} over the top rope and out to the floor to end it',
+    },
   },
   {
     id: 'squash',
@@ -305,4 +367,52 @@ export function stipulationRequirementsMet(stipulation: Stipulation, ctx: Stipul
 /** A stipulation's rules layered over the segment's, without mutating either (§9). */
 export function effectiveRules<T extends object>(baseRules: T, stipulation: Stipulation | null): T {
   return stipulation?.impliedRules ? { ...baseRules, ...stipulation.impliedRules } : baseRules;
+}
+
+export type StipulationConsequence = 'shaveHead' | 'unmask' | 'release';
+
+/**
+ * What a blowoff stipulation actually costs the loser, beyond ending the
+ * feud. `isBlowoff` alone only ever resolved the rivalry — nobody's hair
+ * came off, no mask came off, nobody actually left. The caller applies this
+ * to the loser only once, and only on a decisive finish (the same test
+ * simulateMatch.ts already runs to decide whether a grudge stipulation
+ * settled the story).
+ */
+export function stipulationConsequence(stipulationId: string | null): StipulationConsequence | null {
+  switch (stipulationId) {
+    case 'hairVsHair':
+      return 'shaveHead';
+    case 'maskVsMask':
+      return 'unmask';
+    case 'loserLeaves':
+      return 'release';
+    default:
+      return null;
+  }
+}
+
+const SHAVE_HEAD_LINES = [
+  'The clippers came out ringside, and {name} sat there and took it — bald, on national television, exactly as advertised.',
+  "There is no getting out of it now: {name}'s head is shaved clean, right there in the middle of that ring.",
+  "{name} put the hair on the line and lost it — every last bit of it, gone under the clippers before the crowd even sat back down.",
+];
+
+const UNMASK_LINES = [
+  'The mask comes off — {name} stands revealed in the middle of that ring, for the first time anybody in this business has ever seen it.',
+  '{name} loses the mask for good tonight, and whatever face was underneath it is the only one this business gets from here on out.',
+  'That mask is gone — {name} unmasks right there on the mat, and there is no putting it back on after tonight.',
+];
+
+const RELEASE_LINES = [
+  '{name} loses this one and, by the letter of the stipulation, loses their spot on the roster with it — released, effective tonight.',
+  'That is it for {name} around here. The terms were the terms, and the office is honoring them: gone, as of tonight.',
+  '{name} paid the stipulation in full — out the door tonight, no matter what anybody in the front office might have wanted.',
+];
+
+/** The follow-through beat for a blowoff stipulation's real stake, once `stipulationConsequence` has fired. */
+export function stipulationConsequenceLine(consequence: StipulationConsequence, rng: Rng, name: string): string {
+  const pool =
+    consequence === 'shaveHead' ? SHAVE_HEAD_LINES : consequence === 'unmask' ? UNMASK_LINES : RELEASE_LINES;
+  return pick(rng, pool).replace(/\{name\}/g, name);
 }

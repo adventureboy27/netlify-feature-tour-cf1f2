@@ -1249,7 +1249,9 @@ export type FinishType =
   | 'doubleKO'
   | 'refereeStoppage'
   /** Somebody got hurt and it had to be stopped. Nobody goes home happy. */
-  | 'injuryStoppage';
+  | 'injuryStoppage'
+  /** Steel Cage only: over the wall or out the door before anybody's shoulders hit the mat. */
+  | 'escape';
 
 export interface RatingBreakdownEntry {
   label: string;

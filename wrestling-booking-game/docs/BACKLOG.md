@@ -1144,3 +1144,129 @@ same bug rather than a milder one.
   text came from the already-expanded `misfortune.ts` pool (confirming the
   whole pipeline wires together end-to-end, not just unit-tested in
   isolation), and zero page errors.
+
+---
+
+## Match types played straight — Phase 1 of 2
+
+An audit of every stipulation (asked directly: "are we familiar with all
+match types... it has to flow correctly and know how to create drama and
+win in multiple fashion") found the win-probability math genuinely correct
+for multi-way matches, but the storytelling layer on top thin in five
+specific, fixable ways. The user confirmed these needed fixing for real —
+"these must play out properly or risk jeopardizing the game," not a
+cosmetic pass. This is Phase 1 (mechanics) of a two-phase plan; Phase 2 (a
+full hyped-up wrestling-reporter voice rewrite across the whole game, plus
+an Americanization pass on some British vocabulary that had leaked into the
+setting) is scoped separately and not started here.
+
+- **Finish-flavor text for the 12 stipulations that had none.**
+  `Stipulation.finishFlavor` (`data/stipulations.ts`) previously existed
+  only on `tables`/`flamingTables`/`casket` — every other gimmick match
+  (Steel Cage, Ladder, No-DQ, Hardcore, Street Fight, Last Man Standing,
+  Iron Man, Submission, Hair vs Hair, Mask vs Mask, Loser Leaves, Battle
+  Royal) fell back to the generic pin/knockout/submission line, so a Ladder
+  match's finish read with zero mention of a ladder. All 12 now have their
+  own finish text. Along the way, `sim/narrative.ts`'s finish-line assembly
+  was routed through the same `fill()` every other beat uses (it previously
+  only substituted `{winner}`/`{loser}` by hand), so a stipulation's finish
+  line can now use `{weapon}`/`{finisher}`/`{title}` too — hardcore's
+  knockout line names a real weapon off the existing `WEAPONS` pool.
+- **A real Steel Cage escape.** `FinishType` gained `'escape'`
+  (`engine/types.ts`); `sim/kayfabe.ts` biases toward agility/stamina for
+  it, same shape as the existing `'ironMan'`/`'submissionOnly'` aim biases;
+  `sim/finish.ts`'s `rollFinish` gained an `escape` entry gated to zero for
+  every stipulation except Steel Cage, which now sets `aim: 'escape'` and a
+  real `finishWeights.escape`, so a cage match can end by pin, submission,
+  *or* escaping, same as real cage matches. Confirmed via `rules.aim`'s only
+  other consumer (`kayfabe.ts`) that this is fully additive — no other
+  system reads `.aim`.
+  - Iron Man's existing `finishWeights: { timeLimitDraw: 2.5 }` turned out
+    *not* to force a draw on inspection (base pin/submission/knockout
+    weights stay live; this just raises the odds) — but when it does land
+    on `timeLimitDraw`, the generic "both still standing" line read like an
+    ordinary stalemate. Caught and fixed a real correctness trap while
+    writing this: the first draft of Iron Man's `timeLimitDraw` flavor text
+    claimed a winner "led on the scorecard," which would have contradicted
+    the actual mechanical result (`isDrawFinish('timeLimitDraw')` still
+    nulls `winnerSide` — no title change, no popularity transfer, rivalry
+    heat unmoved). Rewritten to honestly describe a tie framed in Iron Man's
+    own vocabulary ("battled dead even on the scorecard... the bell beat
+    them both to a winner") instead of asserting a decision that never
+    happened in the surrounding systems.
+- **The three blowoff stipulations with a real stake now pay it.** `hairVsHair`/
+  `maskVsMask`/`loserLeaves` carried `isBlowoff: true`, which only ever
+  resolved the rivalry — nobody's hair actually came off, no mask actually
+  came off, nobody actually left the roster. New pure `stipulationConsequence`
+  (`data/stipulations.ts`, colocated with `stipulationRequirementsMet`/
+  `effectiveRules`) maps a stipulation id to `'shaveHead' | 'unmask' |
+  'release' | null`; `state/store.ts`'s match-resolution block applies it to
+  the loser only on a decisive finish (same test the rivalry system already
+  uses) — `appearance.hairStyle = 0` (confirmed 0 is bald), `appearance.mask
+  = 0` (confirmed 0 is none), or the exact existing release pipeline
+  `releaseWrestler` already uses (`exitTerms(loser, 'fired', ...)` then
+  `letThemGo`) — no new release mechanics invented. Each fires a new,
+  varied `stipulationConsequenceLine` beat naming what just happened, in the
+  hype voice, seeded off the segment+week rather than the shared stream
+  (this resolves mid-`resolveWeek`).
+- **Battle royal gets a real trickle of eliminations.** Previously every
+  multi-way match — triple threat, fatal 4-way, battle royal — resolved as
+  one instant `weightedPick` across all sides, so a battle royal didn't
+  *feel* different from a fatal 4-way. New pure `engine/sim/battleRoyal.ts`
+  (`orderEliminations`) builds a full elimination order by
+  weighted-sampling-without-replacement from the sides not yet eliminated,
+  weighted by *inverse* win probability — weaker sides tend to go out
+  first — until only the pre-decided `winnerSide` remains, appended last.
+  This is ordering dressing on a decision already made: it reuses
+  `winProbabilitiesBySide` `simulateMatch` already computed and never
+  overrides `winnerSide`, so the win/loss math is provably unchanged (no
+  balance-probe run needed — noted explicitly so the omission reads as a
+  decision, not an oversight). Two new beat pools in `data/matchBeats.ts`
+  (`BATTLE_ROYAL_MIDDLE_BEATS`, `BATTLE_ROYAL_FINAL_BEATS`) name a
+  mid-field elimination and a "down to the final two" moment — placed
+  *ahead* of the rating-gated hopeSpot/nearFall/bigSpot beats in
+  `narrative.ts`'s budget, not after, since a first draft put them after
+  and a real test run showed the beat budget getting exhausted by the
+  optional flavor beats before ever reaching the elimination beats on an
+  ordinary-rated card.
+- **Multi-man live commentary stopped mislabeling the field.** `store.ts`'s
+  commentary-call setup flattened every side past 0 into one "sideB" group
+  — correct for a 1v1 or tag match, wrong for a genuine multi-way, where it
+  called a fatal 4-way or battle royal like a tag match against a phantom
+  team. `commentary.ts`'s whole vocabulary (`{sideA}`/`{sideB}`, two-corner
+  framing) is built around exactly two corners by design; reworking it to
+  be N-way aware is a real, separate project, not attempted here. Scoped
+  fix: the live two-voice call is now gated to exactly two competitor
+  sides — a genuine multi-way gets no live call (same as every rival-show
+  match already has) and leans on the now-much-better highlight beats
+  instead.
+- Verified: `tsc --noEmit` clean; new tests in `stipulations.test.ts` (12,
+  including one that every gimmick match but squash now carries its own
+  finish text) and `engine/sim/battleRoyal.test.ts` (4, including a
+  weighted-elimination-order statistical check); `narrative.test.ts` grew 6
+  new cases (escape finish text, `{weapon}` resolving through finishFlavor,
+  the Iron Man draw framing, the battle-royal elimination/final-two beats
+  firing, and confirming they're absent from an ordinary match). Caught and
+  fixed two real regressions in the full suite: a pre-existing
+  `gimmickMatches.test.ts` case had assumed hairVsHair had no finish text
+  (re-expressed per CLAUDE.md rather than deleted — it now tests the
+  fallback path against `squash`, the one stipulation still carrying none,
+  and gained a sibling case locking in hairVsHair's new line), and one new
+  battle-royal beat line used the idiom "that was all she wrote," caught by
+  the pronoun-neutrality guard and rewritten. Full suite: 145 files / 2825
+  tests passing. `npm run build` and `npm run sim` both clean. A real
+  in-app pass (via the live store, not a mock) forced a card with a battle
+  royal, a Hair vs Hair, a Mask vs Mask, a Loser Leaves, a Steel Cage, and
+  an ordinary 1v1, then called the real `resolveWeek()` across several
+  seeds: confirmed the battle royal produced a genuine mid-field
+  elimination beat and a final-two beat with no live commentary generated;
+  the Hair vs Hair loser's `appearance.hairStyle` actually flipped to bald
+  in world state; the Mask vs Mask loser's `appearance.mask` actually
+  zeroed; the Loser Leaves loser was actually removed from the roster and
+  landed in the free-agent pool on a decisive finish, and — confirmed on a
+  separate seed — correctly did *not* fire when that match rolled a
+  non-decisive double-KO draw instead, proving the decisive-only gate
+  works both ways; a Steel Cage match rolled a genuine `escape` finish on
+  one seed; and the ordinary 1v1 still generated a full live commentary
+  call, confirming no regression to the normal two-side path. Zero runtime
+  errors across every run.

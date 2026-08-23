@@ -34,6 +34,11 @@ export function ruleAdjustedWeights(rules: MatchRules, isLadderOrHighSpot: boole
     w.strength *= 1.6;
     w.popularity *= 0.7;
   }
+  if (rules.aim === 'escape') {
+    w.agility *= 1.7;
+    w.stamina *= 1.3;
+    w.strength *= 0.8;
+  }
   if (isLadderOrHighSpot) {
     w.agility *= 1.9;
   }

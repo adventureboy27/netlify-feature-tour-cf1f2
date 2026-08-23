@@ -22,6 +22,7 @@ import { injuryProneness } from '../career/personality';
 import type { RingsideTotals } from './ringside';
 import { ruleAdjustedWeights, kayfabeScore } from './kayfabe';
 import { pairWinProbability, multiManWinProbabilities } from './winProbability';
+import { orderEliminations } from './battleRoyal';
 import { rollFinish, isDrawFinish, isNonDecisiveFinish } from './finish';
 import { computeMatchRating } from './matchRating';
 import { paceEffect } from './pacing';
@@ -208,6 +209,17 @@ export function simulateMatch(
   const loserMembers = sides.filter((s) => s !== winnerSide).flatMap((s) => sideMembers.get(s)!);
   const winnerIsTechnician = winnerMembers.some((w) => w.archetype === 'technician');
 
+  // Battle royal only: ordering dressing on the winner already decided
+  // above — never overrides winnerSide, only decides what order everybody
+  // else went out in, so the highlight reel can read like a battle royal
+  // instead of an instant multi-way roll with extra bodies in it. See
+  // sim/battleRoyal.ts.
+  const eliminationOrder =
+    isMultiMan && ctx.stipulation?.id === 'battleRoyal'
+      ? orderEliminations(rng, sides, winnerSide, winProbabilitiesBySide)
+      : null;
+  const eliminatedInOrder = eliminationOrder?.slice(0, -1).map((s) => sideMembers.get(s)!.map((w) => w.name)) ?? undefined;
+
   // What the pace is worth here, and what it costs. Worked out once and used
   // by the finish roll, the rating and the aftermath — the same call has to
   // move all three or it is not a real lever.
@@ -325,6 +337,7 @@ export function simulateMatch(
       titles: ctx.titles,
       shootHeat: rivalry?.shootHeat ?? 0,
       isMainEvent: ctx.isMainEvent ?? false,
+      eliminatedInOrder,
     },
     ctx.usedBeats,
   );

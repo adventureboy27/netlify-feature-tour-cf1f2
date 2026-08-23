@@ -12,6 +12,7 @@
 //   {finisher}                 the winner's finishing move
 //   {title}                    the belt on the line
 //   {weapon}                   something to hit somebody with
+//   {eliminated}               BATTLE_ROYAL_MIDDLE_BEATS only — whoever just went out
 //
 // Every line here has to read as a *highlight* — the bit somebody would tell
 // you about afterwards — not as play-by-play. "They locked up" is not a
@@ -175,6 +176,28 @@ export const AFTERMATH_BEATS: BeatTemplate[] = [
   { text: '{loser} sat in the middle of the ring for a long time afterwards.', minRating: 60 },
   { text: 'Half the building was already in the concourse before the bell.', maxRating: 30 },
   { text: 'The announcers moved on quickly.', maxRating: 25 },
+];
+
+/**
+ * Battle royal only — the trickle of eliminations that makes a battle royal
+ * read like a battle royal instead of an instant fatal-4-way roll with extra
+ * bodies in it. MIDDLE names one elimination from partway through the field;
+ * FINAL frames the last two before the finish beat takes over. See
+ * engine/sim/battleRoyal.ts's orderEliminations for how the order itself is
+ * decided — this pool only narrates it.
+ */
+export const BATTLE_ROYAL_MIDDLE_BEATS: BeatTemplate[] = [
+  { text: '{eliminated} never saw it coming — hoisted up and heaved over the top rope, gone, and the field just got a whole lot more dangerous.' },
+  { text: 'Two of them ganged up on {eliminated} at the ropes, and that was the whole story — over and out.' },
+  { text: '{eliminated} tried fighting off three sets of hands at once. Nobody wins that math. Over the top and gone.' },
+  { text: 'The floor is where {eliminated} landed, and the roar that followed said this crowd was not expecting that one so soon.' },
+];
+
+export const BATTLE_ROYAL_FINAL_BEATS: BeatTemplate[] = [
+  { text: 'Down to the final two now, and this ring feels a whole lot bigger than it did twenty minutes ago.' },
+  { text: 'Everybody else is on the floor. It comes down to these two, right here, right now.' },
+  { text: 'The rest of the field is gone. Whatever happens from here decides the whole night.' },
+  { text: 'Two left standing, and every soul in this building is up out of their seat for it.' },
 ];
 
 /** Things to hit somebody with, for the hardcore lines. */

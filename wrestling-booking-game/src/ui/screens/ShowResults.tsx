@@ -40,6 +40,7 @@ const FINISH_TEXT: Record<FinishType, string> = {
   doubleKO: 'double knockout',
   refereeStoppage: 'referee stoppage',
   injuryStoppage: 'stopped through injury',
+  escape: 'by escape',
 };
 
 export function ShowResults({ show, onContinue }: { show: Show; onContinue: () => void }) {

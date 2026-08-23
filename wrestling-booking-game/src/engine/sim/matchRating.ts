@@ -102,6 +102,9 @@ const FINISH_SATISFACTION: Record<FinishType, number> = {
   timeLimitDraw: -4.5,
   doubleKO: -4,
   injuryStoppage: -9,
+  // A Steel Cage escape is its own kind of decisive finish — the crowd sees
+  // the whole climb, not just a cover. Rated with the other clean finishes.
+  escape: 3.5,
 };
 
 function mean(values: number[]): number {

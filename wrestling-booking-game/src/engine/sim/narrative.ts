@@ -24,6 +24,8 @@ import {
   TITLE_BEATS,
   GRUDGE_BEATS,
   AFTERMATH_BEATS,
+  BATTLE_ROYAL_MIDDLE_BEATS,
+  BATTLE_ROYAL_FINAL_BEATS,
   WEAPONS,
   type BeatTemplate,
 } from '../../data/matchBeats';
@@ -40,6 +42,7 @@ const FINISH_LINES: Record<FinishType, (winner: string, loser: string) => string
   doubleKO: (w, l) => `${w} and ${l} went down together. No winner tonight.`,
   refereeStoppage: (w, l) => `The referee waved it off — ${w} wins by stoppage over ${l}.`,
   injuryStoppage: (_w, l) => `${l} went down badly and did not get up. The match was stopped and the room went quiet.`,
+  escape: (w, l) => `${w} hit the floor first and left ${l} still climbing — a Steel Cage win by escape.`,
 };
 
 export interface NarrativeContext {
@@ -62,6 +65,12 @@ export interface NarrativeContext {
   shootHeat?: number;
   /** True for the last match on the card. */
   isMainEvent?: boolean;
+  /**
+   * Battle royal only — every eliminated side's member names, in the order
+   * they went out (winner excluded; the finish beat already covers them).
+   * See engine/sim/battleRoyal.ts. Undefined for every other match.
+   */
+  eliminatedInOrder?: string[][];
 }
 
 /**
@@ -114,12 +123,18 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
 
   const beats: MatchBeat[] = [];
   const used = usedAcrossCard;
-  const push = (kind: MatchBeatKind, templates: readonly BeatTemplate[]): void => {
+  /** `extra` runs after fill(), for placeholders (like battle royal's {eliminated}) that vary per beat rather than per match. */
+  const pushCustom = (kind: MatchBeatKind, templates: readonly BeatTemplate[], extra?: (text: string) => string): boolean => {
     const options = usable(templates, ctx.rating).filter((t) => !used.has(t.text));
-    if (options.length === 0) return;
+    if (options.length === 0) return false;
     const template = pick(rng, options);
     used.add(template.text);
-    beats.push({ kind, text: fill(template.text), significant: true });
+    const text = extra ? extra(fill(template.text)) : fill(template.text);
+    beats.push({ kind, text, significant: true });
+    return true;
+  };
+  const push = (kind: MatchBeatKind, templates: readonly BeatTemplate[]): void => {
+    pushCustom(kind, templates);
   };
 
   // The opening is always there.
@@ -142,17 +157,31 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
     if (styled.length > 0) push('control', styled);
   }
 
+  // Battle royal only: a name from partway through the field going over the
+  // top, then the field narrowing to its final two. Placed ahead of the
+  // rating-gated hopeSpot/nearFall/bigSpot below and not rating-gated
+  // themselves — eliminations are structural to this match type, not a
+  // bonus only a great one earns, so they claim the beat budget first.
+  if (room() && ctx.eliminatedInOrder && ctx.eliminatedInOrder.length > 0) {
+    const middleName = ctx.eliminatedInOrder[Math.floor(ctx.eliminatedInOrder.length / 2)]?.[0];
+    if (middleName) pushCustom('control', BATTLE_ROYAL_MIDDLE_BEATS, (t) => t.replace(/\{eliminated\}/g, middleName));
+  }
+  if (room() && ctx.eliminatedInOrder && ctx.eliminatedInOrder.length > 1) {
+    pushCustom('control', BATTLE_ROYAL_FINAL_BEATS);
+  }
+
   // The other one gets their moment back — only in a match good enough to
   // have had one.
   if (room() && ctx.rating >= 45) push('hopeSpot', HOPE_SPOT_BEATS);
   if (room() && ctx.rating >= 50) push('nearFall', NEAR_FALL_BEATS);
   if (room() && ctx.rating >= 60) push('signature', BIG_SPOT_BEATS);
 
-  // The finish, always.
+  // The finish, always. Flavor text runs through the same fill() as every
+  // other beat, so a stipulation's finish line can use {weapon}/{finisher}/
+  // {title} too, not just {winner}/{loser} — no reason a hardcore finish
+  // couldn't name the weapon just because the pool line beside it can.
   const flavor = ctx.stipulation?.finishFlavor?.[ctx.finish];
-  const finishLine = flavor
-    ? `${winnerName} ${flavor.replace('{loser}', loserName).replace('{winner}', winnerName)}.`
-    : FINISH_LINES[ctx.finish](winnerName, loserName);
+  const finishLine = flavor ? `${winnerName} ${fill(flavor)}.` : FINISH_LINES[ctx.finish](winnerName, loserName);
   beats.push({ kind: 'finish', text: finishLine, significant: true });
 
   // And how the room felt about it, if there is anything left to say.

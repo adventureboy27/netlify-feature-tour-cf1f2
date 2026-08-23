@@ -4,6 +4,7 @@ import { rngFromSeed } from '../rng';
 import { generateWrestlers } from '../generate/wrestler';
 import { createStartingTitles } from '../../data/titles';
 import { stipulationById } from '../../data/stipulations';
+import { BATTLE_ROYAL_MIDDLE_BEATS, BATTLE_ROYAL_FINAL_BEATS } from '../../data/matchBeats';
 import type { Wrestler } from '../types';
 
 function pair(): [Wrestler, Wrestler] {
@@ -99,6 +100,47 @@ describe('what the reel talks about', () => {
     const beats = reel({ rating: 60, finish: 'knockout', stipulation: stipulationById('tables') ?? null });
     const finish = beats.find((b) => b.kind === 'finish')!;
     expect(finish.text.toLowerCase()).toContain('table');
+  });
+
+  it('describes a Steel Cage escape by name, not a generic finish', () => {
+    const beats = reel({ rating: 60, finish: 'escape', stipulation: stipulationById('steelCage') ?? null });
+    const finish = beats.find((b) => b.kind === 'finish')!;
+    expect(finish.text.toLowerCase()).toContain('escape');
+  });
+
+  it('lets finishFlavor use the full placeholder vocabulary, not just winner/loser', () => {
+    // hardcore's knockout flavor names {weapon} — this only resolves at all
+    // if finishFlavor text runs through the same fill() every other beat does.
+    const beats = reel({ rating: 60, finish: 'knockout', stipulation: stipulationById('hardcore') ?? null });
+    const finish = beats.find((b) => b.kind === 'finish')!;
+    expect(finish.text).not.toMatch(/\{[a-z]+\}/i);
+  });
+
+  it('an Iron Man time-limit draw reads as a tie on the scorecard, not a generic draw', () => {
+    const beats = reel({ rating: 60, finish: 'timeLimitDraw', stipulation: stipulationById('ironMan') ?? null });
+    const finish = beats.find((b) => b.kind === 'finish')!;
+    expect(finish.text.toLowerCase()).toContain('scorecard');
+  });
+
+  it('names an eliminated wrestler and reaches a final-two beat for a battle royal', () => {
+    const [a, b] = pair();
+    const beats = reel({
+      rating: 60,
+      isMainEvent: true,
+      eliminatedInOrder: [['Third Wheel'], ['Fourth Wheel'], ['Fifth Wheel']],
+      winnerMembers: [a],
+      loserMembers: [b],
+    });
+    const text = beats.map((beat) => beat.text).join(' ');
+    expect(text).toContain('Fourth Wheel');
+    const finalBeatTexts = BATTLE_ROYAL_FINAL_BEATS.map((t) => t.text);
+    expect(beats.some((b) => finalBeatTexts.includes(b.text))).toBe(true);
+  });
+
+  it('skips battle royal beats entirely for an ordinary match', () => {
+    const beats = reel({ rating: 60, eliminatedInOrder: undefined });
+    const battleRoyalTexts = [...BATTLE_ROYAL_MIDDLE_BEATS, ...BATTLE_ROYAL_FINAL_BEATS].map((t) => t.text);
+    expect(beats.some((b) => battleRoyalTexts.includes(b.text))).toBe(false);
   });
 
   it('does not repeat a control-beat line across the same card', () => {

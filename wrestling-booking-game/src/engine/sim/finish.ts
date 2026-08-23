@@ -70,6 +70,12 @@ export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
   if (ctx.violenceLevel >= 4) doubleKO *= 2;
   entries.push(['doubleKO', doubleKO]);
 
+  // Steel Cage only — climbing over or walking out the door, before either
+  // side's shoulders ever hit the mat. Zero for every other stipulation, so
+  // this can never surface anywhere it wasn't explicitly booked.
+  const escape = ctx.rules.aim === 'escape' ? 5 : 0;
+  entries.push(['escape', escape]);
+
   // Somebody has to make the call. With nobody in the shirt there is no
   // stoppage available, however badly one is needed.
   const refereeStoppage =
