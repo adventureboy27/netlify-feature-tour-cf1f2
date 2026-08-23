@@ -37,29 +37,16 @@ leash the strike system already provides.
 
 ---
 
-## Gimmick module — mechanics shipped, tweets not
+## Gimmick module — all pieces shipped
 
 Grew out of a long design conversation with the player about a gimmick
 selection system: the booker picks a new signee's direction, gimmicks
 evolve or get relaunched, and a hot/cold meter tracks whether the crowd is
-actually buying it. All of that is built (see "Done" below — the content
-library, the reaction-driven heat rework, the signing-time dialogue, and
-the forced cold-meeting).
-
-**Not built: a dedicated fan-tweet category for gimmick/heat state.** The
-player separately asked for "stories, tweets, play by play, reactions...
-intertwined" and "booker decisions need to reflect real life debacles."
-Wire-feed coverage for this is real — a debut announces the chosen
-gimmick, a pairing announces the new team/faction, a relaunch announces
-itself with the "this had gone cold enough that the office finally had to
-do something about it" framing, and going ice cold in the first place gets
-its own lead item (`goneIceColdLine`) — see `state/slices/rosterAndContracts.ts`.
-What's still missing is `engine/world/fanReaction.ts`'s tweet layer:
-no `TweetTemplate`/`TweetTone` category reacts to a fresh gimmick, a
-newly-formed stable, or a wrestler visibly going cold, the way fans
-already react to match results. That's a real, scoped follow-up — a new
-`FanReactionContext` field plus a template category, not a redesign — just
-not started here.
+actually buying it. All of that is built, including the fan-tweet category
+that closed the last open piece of it (see "Done" below — the content
+library, the reaction-driven heat rework, the signing-time dialogue, the
+forced cold-meeting, and the tweet reactions). Nothing is left open on
+this one.
 
 ---
 
@@ -906,3 +893,25 @@ not started here.
   the dialogue instead of advancing it to the relaunch picker, the same
   class of mistake the renewal-talk precedent's own in-place-stage pattern
   exists to avoid.
+
+  **Follow-up: the fan-tweet category for gimmick reactions.** The wire
+  feed already covered a debut, a pairing, and a relaunch; what was still
+  missing was `engine/world/fanReaction.ts`'s tweet layer reacting to any
+  of it. Three new template pools (`GIMMICK_DEBUT_TWEETS`,
+  `GIMMICK_PAIRING_TWEETS`, `GIMMICK_RELAUNCH_TWEETS` in
+  `data/fanVoices.ts`) and a `GimmickReactionSubject` type. Because a
+  gimmick decision happens on a booker's own schedule and not tied to a
+  show resolving, it queues onto `World.pendingGimmickReactions` the
+  moment the decision is made (same three call sites as the wire items)
+  and drains into the feed the next time the player's own show actually
+  runs — genuinely mixed into the ordinary reactions, not a separate box,
+  following the exact leads-but-stays-inside-the-count pattern the
+  existing title-change tweets use. Bumped the save schema to 57 for the
+  new field. Verified: `tsc --noEmit` clean, the full 142-file /
+  2775-test suite passing (6 new tests, zero regressions — the queue is
+  empty for every existing scenario), `npm run sim` and `npm run build`
+  both clean, and a real-browser pass signing a free agent, confirming a
+  gimmick, and running the actual show — confirmed via direct store
+  inspection that the queue populated before the show and drained after,
+  with the debut tweet landing in the real feed alongside the ordinary
+  show reactions.
