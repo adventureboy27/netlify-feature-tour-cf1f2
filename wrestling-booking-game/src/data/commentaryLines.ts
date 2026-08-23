@@ -159,7 +159,7 @@ export const OPENERS: readonly ColourTemplate[] = [
   },
   { text: '{sideA} and {sideB}. Referee {ref} calls for the bell.', needs: ['referee'] },
   {
-    text: 'Live from {town} — and it is {sideA} against {sideB}.',
+    text: 'Live from {town} tonight — {sideA} squaring off against {sideB}.',
     needs: [],
   },
   {
@@ -178,8 +178,8 @@ export const OPENERS: readonly ColourTemplate[] = [
     text: 'That name should sound familiar — {secondGen}, and yes, that is {secondGenParent}\u2019s kid.',
     needs: ['secondGeneration'],
   },
-  { text: 'Next up: {sideA} taking on {sideB}.', needs: [] },
-  { text: 'The bell rings. {sideA} and {sideB} in the middle of the ring.', needs: [] },
+  { text: 'Up next: {sideA} taking on {sideB}, right here.', needs: [] },
+  { text: 'The bell rings — {sideA} and {sideB}, right in the middle of this ring.', needs: [] },
 ];
 
 // ---------------------------------------------------------------------------

@@ -1340,3 +1340,69 @@ to `'Honors'`.
   editing rather than assuming); `npm run build` and `npm run sim` both
   clean; a real in-app pass starting a fresh game confirmed zero runtime
   errors from the edited pools actually rendering.
+
+---
+
+## The hype-reporter voice — Phase 2b, the match/broadcast cluster
+
+Second sub-pass of the reporter-voice rewrite: swapping the game's
+deliberately spare, understated match prose for a vivid, idiomatic,
+superlative-heavy American sports-reporter voice — the register the user
+actually asked for ("write from the standpoint of a wrestling reporter...
+use some flair"). Scoped to the cluster Phase 1's mechanics work already
+touched, so this content only gets written in its final voice once, not
+written spare and rewritten later.
+
+- **`data/matchBeats.ts`** — every beat pool rewritten: all 10 `OPENING_BEATS`,
+  all 48 lines across the 12 `CONTROL_BEATS` styles (powerhouse through
+  allRounder), all 4 `HOPE_SPOT_BEATS`, all 5 `NEAR_FALL_BEATS`, all 5
+  `BIG_SPOT_BEATS`, all 5 `TITLE_BEATS`, all 4 `GRUDGE_BEATS`, all 5
+  `AFTERMATH_BEATS`. `BATTLE_ROYAL_MIDDLE_BEATS`/`BATTLE_ROYAL_FINAL_BEATS`
+  needed no rewrite — they were authored directly in this target voice
+  during Phase 1, exactly per the plan's intent that new content added
+  alongside the mechanics work skip the spare-then-rewrite round-trip.
+  `WEAPONS` (a bare noun list, not prose) left untouched.
+- **`data/stipulations.ts`**'s 16 `blurb` fields (the marquee-style
+  one-liner shown per stipulation, distinct from the `finishFlavor` text
+  Phase 1 already wrote in this voice) — all rewritten with more color
+  while staying short enough to work as poster copy, not paragraph prose.
+- **`data/refereeMisses.ts`** — all 48 lines across the 12 miss types
+  rewritten. Verified against `referees.test.ts`'s two real data-integrity
+  constraints before and after: every line still contains the literal
+  `{ref}` placeholder, and every `needsVictim: true` miss's every line
+  still contains `{victim}` — both checked by the existing test suite, not
+  just eyeballed.
+- **`data/casualties.ts`** — all 22 lines across the 11 injury causes
+  rewritten. One incidental fix along the way: the `cut` cause's second
+  line used to end on "was grey by the end of it" — replaced with "looked
+  like a ghost by the final bell," which is both more vivid and sidesteps
+  the grey/gray spelling question entirely rather than picking a side.
+- **`data/commentaryLines.ts`** — read in full (895 lines, ~209 templates)
+  and deliberately given a lighter touch than the other four files, for a
+  specific reason: this file was already the closest thing in the codebase
+  to the target voice before this pass started (real present-tense hype
+  calling — "ONE, TWO — no! How is {lowThey} still in this?", "ONE, TWO,
+  THREE — {winner} has done it!"), and it carries far more structural risk
+  than the others — a dense custom placeholder vocabulary
+  (`{Top}`/`{topThey}`/`{topTheir}`/`{lowThem}`/`{Win}`/`{loseThem}`, all
+  grammatical-agreement tokens with real substitution logic behind them in
+  `engine/sim/commentary.ts`) plus a `needs`-fact-gating contract that a
+  careless rewrite could silently violate. Punched up only the handful of
+  genuinely flat, no-conditions fallback lines in `OPENERS` (the ones that
+  have to work for literally any match, so they were written deliberately
+  plain) without touching any placeholder token, `needs` array, or other
+  structural field anywhere in the file. Flagging this explicitly as a
+  scoped, deliberate decision rather than an oversight — the file was
+  already carrying the tone the user asked for.
+- Verified: `tsc --noEmit` clean throughout (checked after each file);
+  `referees.test.ts` (50 tests) and `casualties.test.ts` (29 tests) both
+  passed unchanged against the rewritten content, confirming the rewrite
+  didn't quietly break either file's placeholder contract; `commentary.test.ts`
+  (49 tests) passed unchanged; full suite 145 files / 2825 tests passing
+  with zero test edits needed anywhere in this pass; `npm run build` and
+  `npm run sim` both clean; a real in-app pass forcing a battle royal, a
+  Hair vs Hair, a Mask vs Mask, a Loser Leaves, a Steel Cage, and an
+  ordinary 1v1 through the live store (same harness Phase 1 used) confirmed
+  the new hype-voice text renders correctly end-to-end with real wrestler
+  names substituted in, live commentary still generates for the ordinary
+  match, and zero runtime errors.

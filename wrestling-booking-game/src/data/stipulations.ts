@@ -22,7 +22,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'steelCage',
     name: 'Steel Cage',
-    blurb: 'Walls up. No way out but through them.',
+    blurb: 'The walls go up and the door locks. Nobody leaves until somebody climbs out.',
     ratingBonus: 6,
     violenceLevel: 2,
     injuryMult: 1.4,
@@ -40,7 +40,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'ladder',
     name: 'Ladder Match',
-    blurb: 'Whatever hangs above the ring settles it.',
+    blurb: 'Climb for it. Whatever is hanging up there settles the whole thing.',
     ratingBonus: 9,
     violenceLevel: 3,
     injuryMult: 2.0,
@@ -56,7 +56,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'noDQ',
     name: 'No Disqualification',
-    blurb: 'The rulebook goes out. Nothing else changes.',
+    blurb: 'Throw the rulebook out the window. Everything else stays exactly the same.',
     // DESIGN: split out of the old combined "Hardcore / No-DQ" entry. They
     // are different bookings — No-DQ removes a rule, hardcore promises
     // weapons. Fused, a booker who wanted a clean grudge match with no
@@ -80,7 +80,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'hardcore',
     name: 'Hardcore',
-    blurb: 'Weapons legal. Everywhere is the ring.',
+    blurb: 'Weapons legal, everywhere. The whole building is the ring tonight.',
     ratingBonus: 7,
     violenceLevel: 4,
     injuryMult: 1.9,
@@ -97,7 +97,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'streetFight',
     name: 'Street Fight',
-    blurb: 'They came dressed to fight, not to wrestle.',
+    blurb: 'Forget wrestling — these two came dressed to fight.',
     ratingBonus: 6,
     violenceLevel: 4,
     injuryMult: 1.8,
@@ -114,7 +114,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'tables',
     name: 'Tables Match',
-    blurb: 'You lose when you go through one.',
+    blurb: 'Simple as it sounds: go through a table, and this one is over.',
     ratingBonus: 6,
     violenceLevel: 3,
     injuryMult: 1.7,
@@ -140,7 +140,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'flamingTables',
     name: 'Flaming Tables',
-    blurb: 'The table is on fire. Someone still goes through it.',
+    blurb: 'The table is already on fire, and somebody is still going through it tonight.',
     // The most violent thing the game will book. Rated highest, and the
     // saturation cost is deliberately punishing: 30 points against a counter
     // that sheds 8 a week makes this a once-a-month card-topper, not a
@@ -170,7 +170,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'casket',
     name: 'Casket Match',
-    blurb: 'Win by shutting your opponent in and closing the lid.',
+    blurb: 'Shut the lid on your opponent and that is the whole match, right there.',
     ratingBonus: 8,
     violenceLevel: 2,
     injuryMult: 1.3,
@@ -195,7 +195,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'lastManStanding',
     name: 'Last Man Standing',
-    blurb: 'Ten count, no pins. Stay down and it is over.',
+    blurb: 'No pins, no submissions — just a ten count. Stay down and you lose.',
     ratingBonus: 8,
     violenceLevel: 4,
     injuryMult: 2.1,
@@ -211,7 +211,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'ironMan',
     name: 'Iron Man',
-    blurb: 'Most falls before the clock runs out.',
+    blurb: 'Whoever is ahead on falls when that clock hits zero wins it.',
     // DESIGN: Iron Man's second requirement (time >= 30) lives on MatchRules,
     // not Stipulation — checked separately in stipulationRequirementsMet().
     ratingBonus: 10,
@@ -236,7 +236,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'submissionMatch',
     name: 'Submission Match',
-    blurb: 'Tap or pass out. Nothing else counts.',
+    blurb: 'Tap out or pass out — there is no other way this one ends.',
     ratingBonus: 5,
     violenceLevel: 1,
     injuryMult: 1.3,
@@ -252,7 +252,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'hairVsHair',
     name: 'Hair vs Hair',
-    blurb: 'The loser is shaved bald in the ring.',
+    blurb: 'Lose, and the clippers come out right there in the ring.',
     ratingBonus: 11,
     violenceLevel: 2,
     injuryMult: 1.2,
@@ -268,7 +268,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'maskVsMask',
     name: 'Mask vs Mask',
-    blurb: 'The loser unmasks and never wears it again.',
+    blurb: 'Lose, and that mask comes off for good tonight.',
     // DESIGN: Mask vs Mask's "both masked" requirement isn't expressible as a
     // Stipulation field — checked separately in stipulationRequirementsMet().
     ratingBonus: 12,
@@ -286,7 +286,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'loserLeaves',
     name: 'Loser Leaves',
-    blurb: 'The loser is off television.',
+    blurb: 'Lose, and you are off this television for good.',
     ratingBonus: 11,
     violenceLevel: 2,
     injuryMult: 1.3,
@@ -302,7 +302,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'battleRoyal',
     name: 'Battle Royal',
-    blurb: 'Over the top rope, both feet on the floor.',
+    blurb: 'Over the top and both feet hit the floor. Last one in the ring wins it.',
     ratingBonus: 4,
     violenceLevel: 2,
     injuryMult: 1.5,
@@ -316,7 +316,7 @@ export const STIPULATIONS: Stipulation[] = [
   {
     id: 'squash',
     name: 'Squash',
-    blurb: 'One-sided by design. Makes the winner, buries the loser.',
+    blurb: 'One-sided on purpose — built to make a star and bury an opponent.',
     ratingBonus: -6,
     violenceLevel: 1,
     injuryMult: 0.8,

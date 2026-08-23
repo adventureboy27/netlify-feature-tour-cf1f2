@@ -33,8 +33,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     roles: ['competitor'],
     weeks: 14,
     lines: [
-      '{name} came down badly off the top and the knee went. They did not get up on their own.',
-      "{name}'s knee buckled on a simple landing. Everybody in the building heard the noise.",
+      '{name} came down wrong off the top and that knee just gave out — did not get up under their own power.',
+      "{name}'s knee buckled on what should have been a routine landing, and this entire building heard the pop.",
     ],
   },
   {
@@ -43,8 +43,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     roles: ['competitor'],
     weeks: 9,
     lines: [
-      '{name} landed on the point of the shoulder and could not lift the arm afterwards.',
-      "{name}'s shoulder came out of the socket on a whip into the corner.",
+      '{name} landed square on the point of the shoulder and could not lift that arm for the rest of the night.',
+      "{name}'s shoulder popped clean out of the socket on a whip into the corner — you could see it happen.",
     ],
   },
   {
@@ -53,8 +53,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     roles: ['competitor', 'guestReferee', 'referee'],
     weeks: 6,
     lines: [
-      '{name} took a knee to the head and spent the rest of it not knowing where they were.',
-      '{name} was out on their feet long before the finish and should not have been allowed to continue.',
+      '{name} took a knee square to the head and spent the rest of this match not knowing where they were.',
+      '{name} was out on their feet a long time before the finish, and honestly, should never have been allowed to keep going.',
     ],
   },
   {
@@ -63,8 +63,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     roles: ['competitor', 'guestReferee'],
     weeks: 5,
     lines: [
-      '{name} got folded in half and could not draw a breath after it.',
-      "Something gave in {name}'s ribs and they worked the last five minutes on one lung.",
+      '{name} got folded clean in half and could not draw a full breath for the rest of the match.',
+      "Something gave way in {name}'s ribs, and they worked the last five minutes of this thing on one lung.",
     ],
   },
   {
@@ -73,8 +73,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     roles: ['competitor'],
     weeks: 11,
     lines: [
-      '{name} was dropped on the back of the neck and stayed down a long time.',
-      "{name}'s back locked up completely and they had to be helped to the back.",
+      '{name} got dropped right on the back of the neck and stayed down a long, long time.',
+      "{name}'s back locked up solid, and they had to be helped out of this building.",
     ],
   },
   {
@@ -83,8 +83,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     roles: ['competitor', 'referee', 'guestReferee'],
     weeks: 4,
     lines: [
-      '{name} caught a foot in the ropes and the ankle turned the wrong way.',
-      '{name} rolled the ankle on the floor and could not put weight on it.',
+      '{name} caught a foot in the ropes and that ankle turned a way it was never supposed to turn.',
+      '{name} rolled the ankle out on the floor and could not put a single ounce of weight on it afterward.',
     ],
   },
 
@@ -96,8 +96,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     weeks: 2,
     minViolence: 3,
     lines: [
-      '{name} was opened up early and the doctor spent the finish trying to get to them.',
-      '{name} lost a lot of blood and was grey by the end of it.',
+      '{name} got busted open early, and the ringside doctor spent the entire finish just trying to get a look at it.',
+      '{name} lost a lot of blood out there tonight and looked like a ghost by the final bell.',
     ],
   },
   {
@@ -107,8 +107,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     weeks: 8,
     minViolence: 5,
     lines: [
-      '{name} did not get clear of it and the burns are worse than anybody wants to say.',
-      'Whatever that spot was meant to look like, {name} is the one wearing it.',
+      '{name} did not get clear in time, and the burns are worse than anybody around here wants to admit.',
+      'Whatever that spot was supposed to look like, {name} is the one who is actually wearing it now.',
     ],
   },
 
@@ -119,8 +119,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     roles: ['referee', 'guestReferee'],
     weeks: 3,
     lines: [
-      '{name} took the full force of it and was still down when the finish came.',
-      '{name} got flattened trying to separate them and did not get up quickly.',
+      '{name} took the full brunt of it and was still down on the mat when the finish came.',
+      '{name} got absolutely flattened trying to pull these two apart, and was slow getting back up.',
     ],
   },
   {
@@ -129,8 +129,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     roles: ['referee', 'manager', 'guestReferee'],
     weeks: 4,
     lines: [
-      '{name} was on the apron in the wrong place at the wrong time and paid for it.',
-      '{name} got dragged into something they had no business being in.',
+      '{name} was standing on that apron in the wrong place at the worst possible time, and paid for it.',
+      '{name} got dragged into something that had absolutely nothing to do with them.',
     ],
   },
   {
@@ -139,8 +139,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     roles: ['manager', 'referee', 'guestReferee'],
     weeks: 3,
     lines: [
-      '{name} was thrown over the top and landed on the floor badly.',
-      'Somebody had had enough of {name} and made the point by putting them over the top rope.',
+      '{name} got thrown clean over the top rope and landed on that floor hard.',
+      'Somebody had had enough of {name} tonight, and made the point by putting them over the top rope.',
     ],
   },
   {
@@ -150,8 +150,8 @@ export const INJURY_CAUSES: InjuryCause[] = [
     weeks: 5,
     minViolence: 3,
     lines: [
-      '{name} took a chair meant for somebody else and went down hard.',
-      '{name} stepped in to protect their man and wore it instead.',
+      '{name} took a chair shot that was meant for somebody else entirely, and went down hard for it.',
+      '{name} stepped in to protect their client — and wore the whole thing instead.',
     ],
   },
 ];
