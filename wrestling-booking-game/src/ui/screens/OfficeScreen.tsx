@@ -104,7 +104,8 @@ export function OfficeScreen() {
     world.approachOffers.length +
     world.releaseRequests.length +
     world.renewalTalks.length +
-    world.signingTalks.length;
+    world.signingTalks.length +
+    world.coldMeetings.length;
   // A promotion with nobody in a striped shirt is a promotion where a
   // wrestler counts every fall, so that is worth a badge on its own.
   const officialsNeedYou =
@@ -833,6 +834,10 @@ function ContractsTab() {
   const [pickedGimmickId, setPickedGimmickId] = useState('');
   const [pickedGroupId, setPickedGroupId] = useState('');
   const [pickedPartnerIds, setPickedPartnerIds] = useState<string[]>([]);
+  const answerColdMeeting = useGameStore((s) => s.answerColdMeeting);
+  const chooseColdMeetingGimmick = useGameStore((s) => s.chooseColdMeetingGimmick);
+  const [openColdMeetingId, setOpenColdMeetingId] = useState<string | null>(null);
+  const [pickedColdGimmickId, setPickedColdGimmickId] = useState('');
   if (!world) return null;
   const theme = promotionTheme(world.promotion.identity);
 
@@ -855,6 +860,7 @@ function ContractsTab() {
     world.releaseRequests.length === 0 &&
     world.renewalTalks.length === 0 &&
     world.signingTalks.length === 0 &&
+    world.coldMeetings.length === 0 &&
     departures.length === 0
   ) {
     return (
@@ -964,6 +970,145 @@ function ContractsTab() {
           </ul>
         </section>
       )}
+      {/* The forced cold-meeting — an act has sat ice cold for
+          coldMeetingTriggerWeeks running (resolveWeek's weeksIceCold
+          clock, engine/sim/freshness.ts). Exactly two ways out: relaunch
+          the character, or cut them loose. See state/world.ts's
+          ColdMeeting. Listed above "New arrivals" — this is the one that
+          actually needs the booker's attention this week. */}
+      {world.coldMeetings.length > 0 && (
+        <section className="mb-4">
+          <h2 className="mb-2 text-sm font-medium text-rose-400">Nobody's buying it anymore</h2>
+          <div className="flex flex-col gap-2">
+            {world.coldMeetings.map((meeting) => {
+              const person = wrestler(meeting.wrestlerId);
+              if (!person) return null;
+              return (
+                <article
+                  key={meeting.wrestlerId}
+                  data-testid={`cold-meeting-${meeting.wrestlerId}`}
+                  className="rounded border border-rose-900/60 bg-neutral-900 p-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <PaperDoll
+                      appearance={person.appearance}
+                      gender={person.gender}
+                      alignment={person.alignment}
+                      size="thumb"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium">{person.name}</div>
+                      <div className="text-[11px] text-rose-400">Getting nothing back from the crowd — a decision is due</div>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      data-testid={`cold-meeting-open-${meeting.wrestlerId}`}
+                      onClick={() => {
+                        setPickedColdGimmickId(person.gimmick.id);
+                        setOpenColdMeetingId(meeting.wrestlerId);
+                      }}
+                      className="rounded bg-neutral-800 px-3 py-1 text-[11px] text-neutral-200 hover:bg-neutral-700"
+                    >
+                      Talk to them
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {world.coldMeetings
+        .filter((meeting) => meeting.wrestlerId === openColdMeetingId)
+        .map((meeting) => {
+          const person = wrestler(meeting.wrestlerId);
+          if (!person) return null;
+
+          if (meeting.stage === 'decide') {
+            return (
+              <DialogueCard
+                key={`${meeting.wrestlerId}-decide`}
+                speaker={{ kind: 'wrestler', wrestlerId: person.id }}
+                wrestler={person}
+                speakerName={person.name}
+                body="I don't know what I'm supposed to be out there anymore. The crowd's not with me and it hasn't been for weeks. What are we doing about this?"
+                choices={[
+                  {
+                    id: 'regimmick',
+                    label: 'Try a new direction',
+                    gains: 'A real relaunch — a clean slate on the gimmick',
+                    costs: 'No guarantee it catches on any better than the last one',
+                  },
+                  {
+                    id: 'release',
+                    label: 'Cut them loose',
+                    gains: 'One less cold act dragging the card',
+                    costs: 'Same terms as any other release',
+                  },
+                ]}
+                onChoose={(choiceId) => {
+                  answerColdMeeting(meeting.wrestlerId, choiceId as 'regimmick' | 'release');
+                  // "Try a new direction" advances this same conversation to
+                  // the relaunch picker — stays open so the next render
+                  // picks up the new stage. Only "release" actually ends it.
+                  if (choiceId !== 'regimmick') setOpenColdMeetingId(null);
+                }}
+                theme={theme}
+                promotionName={world.promotion.name}
+                onClose={() => setOpenColdMeetingId(null)}
+              />
+            );
+          }
+
+          const selected = GIMMICKS.find((g) => g.id === pickedColdGimmickId) ?? person.gimmick;
+          return (
+            <DialogueCard
+              key={`${meeting.wrestlerId}-relaunch`}
+              speaker={{ kind: 'booker' }}
+              speakerName={world.promotion.name}
+              body={`A real relaunch for ${person.name} — what's the new direction?`}
+              subtext={selected.concept}
+              beforeChoices={
+                <select
+                  aria-label="Pick a new gimmick"
+                  data-testid="cold-meeting-gimmick-pick"
+                  value={pickedColdGimmickId}
+                  onChange={(e) => setPickedColdGimmickId(e.target.value)}
+                  className="w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs text-neutral-100"
+                >
+                  {gimmickCategories().map((category) => (
+                    <optgroup key={category} label={category}>
+                      {GIMMICKS.filter((g) => g.category === category).map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              }
+              choices={[
+                {
+                  id: 'confirm',
+                  label: pickedColdGimmickId === person.gimmick.id ? 'Relaunch it as-is' : `Relaunch as ${selected.name}`,
+                  gains: 'A clean slate on the gimmick meter, starting tonight',
+                  costs: 'Nothing — this is what the meeting was for',
+                },
+              ]}
+              onChoose={() => {
+                chooseColdMeetingGimmick(meeting.wrestlerId, pickedColdGimmickId || person.gimmick.id);
+                setOpenColdMeetingId(null);
+              }}
+              theme={theme}
+              promotionName={world.promotion.name}
+              onClose={() => setOpenColdMeetingId(null)}
+            />
+          );
+        })}
+
       {/* "Meet the booker" — opened once per new signee (signFreeAgent, a
           folded-roster pickup, or winning a bidding war). Every generated
           wrestler already has a random gimmick; this is the booker actually

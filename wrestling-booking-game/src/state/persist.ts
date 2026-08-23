@@ -212,7 +212,12 @@ const SLOT_KEY = 'wbg.save.v1';
 // the Office screen. (Wrestler.weeksIceCold, added alongside this for the
 // forced cold-meeting flow, is NOT part of the bump — it is optional, and
 // every read treats a missing field the same as 0.)
-const SCHEMA_VERSION = 55;
+//
+// Version 56 adds World.coldMeetings — the forced cold-meeting
+// (state/world.ts's ColdMeeting), opened once an act has sat ice cold for
+// coldMeetingTriggerWeeks running. A version-55 save has no such field,
+// and resolveWeek both iterates and pushes to it every week.
+const SCHEMA_VERSION = 56;
 
 export interface SaveFile {
   schema: number;

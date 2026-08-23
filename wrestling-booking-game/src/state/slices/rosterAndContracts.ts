@@ -48,6 +48,8 @@ type RosterAndContractsSlice = Pick<
   | 'chooseSigningGimmick'
   | 'declineSigningPairing'
   | 'formSigningGroup'
+  | 'answerColdMeeting'
+  | 'chooseColdMeetingGimmick'
   | 'releaseWrestler'
   | 'signSecretly'
   | 'revealSecretSigning'
@@ -61,7 +63,7 @@ export const createRosterAndContractsSlice: StateCreator<
   [['zustand/immer', never]],
   [],
   RosterAndContractsSlice
-> = (set) => ({
+> = (set, get) => ({
   changeRole: (wrestlerId, role) => {
     let outcome: { ok: boolean; reason: string | null } = { ok: false, reason: 'No game in progress.' };
     set((state) => {
@@ -414,6 +416,56 @@ export const createRosterAndContractsSlice: StateCreator<
 
       world.stables.push(formGroupGimmickStable(members, group, world.week, `stable-${world.nextId++}`));
       world.signingTalks.splice(talkIndex, 1);
+    });
+  },
+
+  // ---------------------------------------------------------------------
+  // The forced cold-meeting — an act has sat ice cold too long
+  // (World.coldMeetings, opened by resolveWeek's weeksIceCold clock). The
+  // booker has exactly two ways out: relaunch the character, or cut them
+  // loose. See CLAUDE.md's gimmick module design.
+
+  answerColdMeeting: (wrestlerId, choice) => {
+    if (choice === 'release') {
+      set((state) => {
+        const world = state.world;
+        if (!world) return;
+        world.coldMeetings = world.coldMeetings.filter((m) => m.wrestlerId !== wrestlerId);
+      });
+      // Same release everybody else gets — this is not a special, cheaper
+      // exit, just the same door opened from the other side of the desk.
+      get().releaseWrestler(wrestlerId);
+      return;
+    }
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      const meeting = world.coldMeetings.find((m) => m.wrestlerId === wrestlerId && m.stage === 'decide');
+      if (!meeting) return;
+      meeting.stage = 'pickGimmick';
+    });
+  },
+
+  chooseColdMeetingGimmick: (wrestlerId, gimmickId) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      const index = world.coldMeetings.findIndex((m) => m.wrestlerId === wrestlerId && m.stage === 'pickGimmick');
+      const wrestler = world.wrestlers[wrestlerId];
+      const gimmick = gimmickById(gimmickId);
+      if (index < 0 || !wrestler || !gimmick) return;
+
+      // A relaunch, whether or not the character itself actually changed —
+      // same "clean slate" the repackage event has always granted. Picking
+      // the identical gimmick again is a real choice ("this can still work,
+      // give it a real push") and earns the same reset, not a smaller one.
+      if (gimmick.id !== wrestler.gimmick.id) {
+        wrestler.gimmick = gimmick;
+        wrestler.appearance = applyGimmickLook(wrestler.appearance, gimmick, rng);
+      }
+      wrestler.gimmickFreshness = 100;
+      wrestler.weeksIceCold = 0;
+      world.coldMeetings.splice(index, 1);
     });
   },
 

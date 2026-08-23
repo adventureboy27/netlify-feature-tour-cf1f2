@@ -245,6 +245,8 @@ export interface World {
   renewalTalks: RenewalTalk[];
   /** The "meet the booker" signing conversation, opened once per new signee. See SigningTalk. */
   signingTalks: SigningTalk[];
+  /** The forced cold-meeting, opened once an act has been ice cold too long. See ColdMeeting. */
+  coldMeetings: ColdMeeting[];
   /** How this week's show is being staged. */
   showSetup: ShowSetup;
   /**
@@ -1081,6 +1083,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     pendingRenewals: [],
     renewalTalks: [],
     signingTalks: [],
+    coldMeetings: [],
     showSetup: startingSetup,
     weeksInTheRed: 0,
     folded: null,
@@ -1302,6 +1305,20 @@ export interface RenewalTalk {
 export interface SigningTalk {
   wrestlerId: Id;
   stage: 'pickGimmick' | 'offerPairing';
+  openedWeek: number;
+}
+
+/**
+ * The forced cold-meeting — an act has sat at or under `iceColdThreshold`
+ * for `coldMeetingTriggerWeeks` running (`Wrestler.weeksIceCold`), and the
+ * booker has to actually do something about it. 'decide' is the booker
+ * choosing a direction; 'pickGimmick' only exists once "try a new
+ * direction" was chosen — releasing ends the meeting immediately instead.
+ * See answerColdMeeting / chooseColdMeetingGimmick.
+ */
+export interface ColdMeeting {
+  wrestlerId: Id;
+  stage: 'decide' | 'pickGimmick';
   openedWeek: number;
 }
 

@@ -143,7 +143,9 @@ import {
 } from '../engine/world/misfortune';
 import {
   ageGimmick,
+  goneIceColdLine,
   goneStaleLine,
+  isIceCold,
   isStale,
   memoryFromRoster,
   overexposurePenalty,
@@ -800,6 +802,10 @@ export interface GameStore {
   declineSigningPairing: (wrestlerId: Id) => void;
   /** Node 2, "yes": form a tag team or faction under a GroupGimmick's shared identity. */
   formSigningGroup: (wrestlerId: Id, groupGimmickId: Id, partnerIds: Id[]) => void;
+  /** The forced cold-meeting's first node: try a new direction, or cut them loose. See ColdMeeting. */
+  answerColdMeeting: (wrestlerId: Id, choice: 'regimmick' | 'release') => void;
+  /** Node 2, only reached via "try a new direction": the relaunch, same picker as the signing meeting. */
+  chooseColdMeetingGimmick: (wrestlerId: Id, gimmickId: Id) => void;
   /**
    * Offer somebody to a rival. The contract goes with them, which is the
    * whole point — a deal you regret is a thing you can try to make somebody
@@ -5016,6 +5022,26 @@ export const useGameStore = create<GameStore>()(
           // the player looks — the penalty was live and the diagnosis was not.
           const wasFresh = !isStale(person, world.settings);
           ageGimmick(person, workedThisWeek.has(person.id), world.settings);
+
+          // The forced cold-meeting clock — a harder threshold than the
+          // stale warning above, and its own escalating consequence.
+          // Tracked for everybody so a released-and-resigned wrestler
+          // doesn't inherit a stale counter from nowhere, but only the
+          // player's own roster can actually trigger the meeting — a
+          // rival's cold act is their problem, same as the stale line.
+          const cold = isIceCold(person, world.settings);
+          person.weeksIceCold = cold ? (person.weeksIceCold ?? 0) + 1 : 0;
+          if (
+            cold &&
+            person.weeksIceCold >= world.settings.coldMeetingTriggerWeeks &&
+            world.promotion.rosterIds.includes(person.id) &&
+            !world.coldMeetings.some((m) => m.wrestlerId === person.id)
+          ) {
+            world.coldMeetings.push({ wrestlerId: person.id, stage: 'decide', openedWeek: world.week });
+            world.weeklyNews.push(
+              wire('misfortune', goneIceColdLine(person.name, pronounsFor(person)), world.week, 'lead'),
+            );
+          }
 
           // What they did with the week, if we did not book them for one —
           // for whichever promotion signs them. See career/assignment.ts.
