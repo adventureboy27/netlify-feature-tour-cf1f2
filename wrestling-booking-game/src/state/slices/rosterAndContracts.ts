@@ -379,6 +379,10 @@ export const createRosterAndContractsSlice: StateCreator<
         wrestler.gimmickFreshness = 100;
       }
       talk.stage = 'offerPairing';
+      // A plain free-agent signing has never carried its own wire line —
+      // this is the moment the character actually locks in, so it is the
+      // first real news anybody gets about the new arrival.
+      world.weeklyNews.push(wire('debut', `${wrestler.name} debuts as ${gimmick.name}.`, world.week, 'minor'));
     });
   },
 
@@ -416,6 +420,9 @@ export const createRosterAndContractsSlice: StateCreator<
 
       world.stables.push(formGroupGimmickStable(members, group, world.week, `stable-${world.nextId++}`));
       world.signingTalks.splice(talkIndex, 1);
+      world.weeklyNews.push(
+        wire('team', `${group.name} debuts tonight — ${members.map((m) => m.name).join(', ')}.`, world.week, 'normal'),
+      );
     });
   },
 
@@ -466,6 +473,14 @@ export const createRosterAndContractsSlice: StateCreator<
       wrestler.gimmickFreshness = 100;
       wrestler.weeksIceCold = 0;
       world.coldMeetings.splice(index, 1);
+      world.weeklyNews.push(
+        wire(
+          'debut',
+          `${wrestler.name} relaunches as ${gimmick.name} — the old character had gone cold enough that the office finally had to do something about it.`,
+          world.week,
+          'normal',
+        ),
+      );
     });
   },
 

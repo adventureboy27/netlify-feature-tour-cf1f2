@@ -37,6 +37,32 @@ leash the strike system already provides.
 
 ---
 
+## Gimmick module — mechanics shipped, tweets not
+
+Grew out of a long design conversation with the player about a gimmick
+selection system: the booker picks a new signee's direction, gimmicks
+evolve or get relaunched, and a hot/cold meter tracks whether the crowd is
+actually buying it. All of that is built (see "Done" below — the content
+library, the reaction-driven heat rework, the signing-time dialogue, and
+the forced cold-meeting).
+
+**Not built: a dedicated fan-tweet category for gimmick/heat state.** The
+player separately asked for "stories, tweets, play by play, reactions...
+intertwined" and "booker decisions need to reflect real life debacles."
+Wire-feed coverage for this is real — a debut announces the chosen
+gimmick, a pairing announces the new team/faction, a relaunch announces
+itself with the "this had gone cold enough that the office finally had to
+do something about it" framing, and going ice cold in the first place gets
+its own lead item (`goneIceColdLine`) — see `state/slices/rosterAndContracts.ts`.
+What's still missing is `engine/world/fanReaction.ts`'s tweet layer:
+no `TweetTemplate`/`TweetTone` category reacts to a fresh gimmick, a
+newly-formed stable, or a wrestler visibly going cold, the way fans
+already react to match results. That's a real, scoped follow-up — a new
+`FanReactionContext` field plus a template category, not a redesign — just
+not started here.
+
+---
+
 ## Done and worth not re-litigating
 
 - **The player's bankruptcy lifeline: a loan, sized against the promotion's
@@ -789,3 +815,94 @@ leash the strike system already provides.
   competition-motivated rendered as an ambiguous X in the test environment's
   font, so it became a boxing glove (🥊) instead — safer across whatever
   emoji font a real device actually has.
+
+- **The gimmick selection module — a real content library, reaction-driven
+  heat, and two new booker conversations.** Grew out of a long design
+  conversation: gimmicks should be real, specific characters (not just an
+  abstract intensity tier), a wrestler's heat should track whether the crowd
+  actually cares (not just win/loss), and going cold long enough should
+  force the booker's hand. Four pieces, all shipped:
+
+  - **The library.** `src/data/gimmicks.ts` — 190 solo gimmicks (the
+    original 28-entry "Classic" set plus 162 drafted from real territorial-
+    wrestling history, see `docs/gimmicks-catalog-draft.md`), authored as
+    `GimmickSeed`s (id/name/category/alignmentLean/concept/promoLines/prop
+    only) run through `engine/generate/gimmickDefaults.ts`'s
+    `deriveGimmickDefaults`, which fills in every mechanical number and a
+    default look off the category, deterministically seeded off the
+    gimmick's own id (`rngFromSeed`) so nobody hand-tunes a popularity
+    ceiling for entry #187 and the numbers never reroll on load. Adding a
+    gimmick is one more array entry, per CLAUDE.md's "content lives in
+    data/" rule and the player's explicit "leaving it easy to add more
+    gimmicks down the road" ask. A late `Minor tweak` category covers the
+    other end of the brief — wrestlers who don't need a full character at
+    all: earned nicknames, a single visual tell, or just being genuinely
+    serious (`Straight Shooter`) or loosened all the way up (`Good Times`).
+    `src/data/groupGimmicks.ts` adds 36 shared identities (21 tag teams, 15
+    factions) for the pairing step below.
+  - **Reaction-driven heat.** `gimmickFreshness` used to be a one-way clock
+    (`engine/sim/freshness.ts`'s `ageGimmick`) — it decayed no matter what,
+    with no way to earn it back short of a full reset. Now it drifts toward
+    a target set by the wrestler's existing `momentum` stat
+    (`heatTarget`): a genuinely hot act holds or climbs, a merely-tolerated
+    one still settles low even while it keeps working, matching "not every
+    wrestler needs the best reaction, but no reaction at all still needs to
+    be looked at." The roster card now shows this as a persistent ice-to-
+    fire meter (`GimmickHeatMeter`, `ui/components/display.tsx`) — a
+    position on a spectrum, not a fill bar — always visible rather than
+    only once an act has already gone stale.
+  - **The signing-time "meet the booker" dialogue.** Every generated
+    wrestler already had a random gimmick with no way for the booker to
+    actually decide. `World.signingTalks` (same in-place-stage pattern as
+    the existing `RenewalTalk`) opens once a wrestler lands on the player's
+    roster — a free agent, a folded-roster pickup, a bidding-war win, or a
+    renewal auction's deferred swap-in. Node 1 picks the gimmick via a
+    category-grouped `<select>`; node 2 optionally pairs them into a tag
+    team or faction under a `GroupGimmick`'s shared identity, checking
+    eligible same-division roster partners not already spoken for
+    (`engine/world/tagTeams.ts` gained `canFormGroup`/
+    `formGroupGimmickStable`/`groupOf`, generalizing the existing two-person
+    `canFormTeam`/`createTeam` to any group size).
+  - **The forced cold-meeting.** An act sitting at or under
+    `iceColdThreshold` for `coldMeetingTriggerWeeks` running
+    (`Wrestler.weeksIceCold`, tracked in `resolveWeek` alongside the
+    existing `ageGimmick` call) now forces a real decision instead of
+    quietly dragging every match it's in — `World.coldMeetings` opens, the
+    ice-cold trigger gets its own lead wire item (`goneIceColdLine`), and
+    the booker gets exactly two ways out: relaunch (the same gimmick
+    picker, always resetting the heat meter to a clean 100 — a real
+    repackage, matching `generate/repackage.ts`'s own reset, whether or not
+    the gimmick id actually changed) or release (the same `releaseWrestler`
+    action and terms as any other release, called via `get()` rather than
+    duplicated).
+
+  All three narrative moments — a debut, a pairing, a relaunch — now write
+  their own wire item too (`state/slices/rosterAndContracts.ts`), which
+  incidentally closed a real pre-existing gap: a plain free-agent signing
+  had never carried its own wire line at all. See the "Gimmick module"
+  section above the "Done" list for what's still open on the narrative side
+  (a dedicated fan-tweet category).
+
+  Bumped the save schema twice — 55 for `World.signingTalks`, 56 for
+  `World.coldMeetings` — both new, unconditionally-read array fields.
+  `Wrestler.weeksIceCold` is optional and not part of either bump, same
+  treatment as every other "missing means zero" field this session.
+
+  Verified across three passes (the content/heat rework, the signing
+  dialogue, and the cold-meeting): `tsc --noEmit` clean throughout, the full
+  142-file / 2769-test suite passing after every change (21 new/re-expressed
+  tests in `freshness.test.ts`, zero regressions elsewhere — including a
+  guard test, `career/pronouns.test.ts`, that caught 37 gendered pronouns in
+  the hand-authored gimmick concepts/promo lines and forced a genuine
+  content fix, not a test change), `npm run sim` and `npm run build` both
+  clean throughout. Real-browser passes: signed a free agent, picked
+  "Trashman" over their generated gimmick, paired them into "The Wrecking
+  Crew" tag team, and confirmed it on the roster screen; forced both
+  cold-meeting branches via `useGameStore.setState` (natural triggering
+  takes six-plus in-game weeks) and confirmed a relaunch (gimmick changed,
+  freshness and `weeksIceCold` reset, meeting closed) and a release
+  (dropped from the roster, meeting closed) both landed correctly — this
+  pass caught and fixed a real bug where "try a new direction" was closing
+  the dialogue instead of advancing it to the relaunch picker, the same
+  class of mistake the renewal-talk precedent's own in-place-stage pattern
+  exists to avoid.
