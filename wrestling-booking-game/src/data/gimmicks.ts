@@ -217,6 +217,20 @@ const GIMMICK_SEEDS: GimmickSeed[] = [
   { id: 'gdetention', name: 'Detention', category: 'School and education', alignmentLean: 'heel', concept: 'A kept-back-a-grade gimmick, older and meaner than everyone in their "class," genuine chip on their shoulder.', promoLines: ['I\'ve been held back so many times I might as well own the building.'] },
   { id: 'gtheBetaTest', name: 'The Beta Test', category: 'Tech and modern', alignmentLean: 'heel', concept: 'Insists opponents are just an early, broken version of what\'s coming — condescending tech-bro energy.', promoLines: ['You\'re the version before the good one. That\'s still me.'] },
   { id: 'gpatchNotes', name: 'Patch Notes', category: 'Tech and modern', alignmentLean: 'face', concept: 'A gamer gimmick distinct from Respawn above — obsessed with "fixing bugs," treats losses as issues to patch out permanently.', promoLines: ['Every weakness gets patched eventually. Watch me fix mine live.'] },
+
+  // ---- Minor tweak — not everyone needs a costume and a catchphrase.
+  // Regular names, ordinary looks, a light-touch persona hook or none at
+  // all — including a wrestler who's simply serious about the work, or one
+  // who's simply loosened all the way up. See docs/gimmicks-catalog-draft.md
+  // "Minor tweaks" section. ----
+  { id: 'gironGrip', name: 'Iron Grip', category: 'Minor tweak', alignmentLean: 'either', concept: 'A submission specialist\'s earned nickname — no costume, no catchphrase, just a moniker that sticks after enough matches end the same way.', promoLines: [] },
+  { id: 'gbellToBell', name: 'Bell to Bell', category: 'Minor tweak', alignmentLean: 'face', concept: 'A reputation nickname for someone who has simply never once quit early; zero theatrics, all in-ring credibility.', promoLines: [] },
+  { id: 'goldReliable', name: 'Old Reliable', category: 'Minor tweak', alignmentLean: 'face', concept: 'A veteran nickname earned through plain consistency — the crowd trusts them precisely because nothing about them ever changes.', promoLines: [] },
+  { id: 'gsecondGear', name: 'Second Gear', category: 'Minor tweak', alignmentLean: 'either', concept: 'A nickname for a wrestler known for slow starts and hot finishes — describes a real in-ring pattern rather than inventing a persona.', promoLines: [] },
+  { id: 'gtheQuietType', name: 'The Quiet Type', category: 'Minor tweak', alignmentLean: 'either', concept: 'An anti-gimmick: deliberately no promos, no catchphrases, lets the matches do all the talking. Its own kind of character precisely by refusing one.', promoLines: [] },
+  { id: 'gstraightShooter', name: 'Straight Shooter', category: 'Minor tweak', alignmentLean: 'face', concept: 'No theatrics at all — just a serious competitor who shows up, does the job, and talks about the match instead of a character.', promoLines: ['There\'s nothing to sell here. I show up, I work, I win. That\'s the whole pitch.'] },
+  { id: 'ggoodTimes', name: 'Good Times', category: 'Minor tweak', alignmentLean: 'face', concept: 'Loosened all the way up — genuinely having fun out there, treats the whole card like a good night out instead of a grudge match.', promoLines: ['I\'m not even mad at you. I\'m just going to enjoy beating you.'] },
+  { id: 'glocalFavorite', name: 'Local Favorite', category: 'Minor tweak', alignmentLean: 'face', concept: 'A hometown tag with no character behind it beyond genuine local support — the crowd just likes having somebody from around here to cheer for.', promoLines: [] },
 ];
 
 export const GIMMICKS: Gimmick[] = GIMMICK_SEEDS.map(deriveGimmickDefaults);

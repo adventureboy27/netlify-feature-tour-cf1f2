@@ -11,9 +11,10 @@
 // §11.5 makes it non-negotiable that the player can see exactly why a match
 // got the stars it got.
 
-import type { RatingBreakdownEntry } from '../../engine/types';
+import type { RatingBreakdownEntry, Wrestler, WorldSettings } from '../../engine/types';
 import { oddsLabel } from '../../engine/sim/oddsLabel';
 import { heatLabel, shootLabel } from '../../engine/sim/rivalry';
+import { freshnessLabel, heatIcon, isStale } from '../../engine/sim/freshness';
 
 export function StatBar({ label, value, tone = 'neutral' }: { label: string; value: number; tone?: 'neutral' | 'health' }) {
   const pct = Math.max(0, Math.min(100, value));
@@ -100,6 +101,32 @@ export function BreakdownPanel({ breakdown, rating }: { breakdown: RatingBreakdo
           </tr>
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * The gimmick's hot/cold meter — "a long line, 🔥 on one end and ❄️ on the
+ * other," as asked for. A marker on a fixed ice-to-fire gradient rather than
+ * a fill bar: this is a position on a spectrum (where the crowd's opinion
+ * currently sits), not a depleting resource, so `StatBar`'s "how much is
+ * left" semantics would misread it.
+ */
+export function GimmickHeatMeter({ wrestler, settings }: { wrestler: Wrestler; settings: WorldSettings }) {
+  const pct = Math.max(0, Math.min(100, wrestler.gimmickFreshness));
+  return (
+    <div className="flex items-center gap-1.5" title={freshnessLabel(wrestler, settings)}>
+      <span className="text-[11px] leading-none">❄️</span>
+      <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-gradient-to-r from-sky-500 via-neutral-700 to-orange-500">
+        <div
+          className="absolute top-1/2 h-2.5 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow"
+          style={{ left: `${pct}%` }}
+        />
+      </div>
+      <span className="text-[11px] leading-none">🔥</span>
+      <span className={`w-24 shrink-0 truncate text-[10px] ${isStale(wrestler, settings) ? 'text-amber-400' : 'text-neutral-500'}`}>
+        {heatIcon(wrestler, settings)} {freshnessLabel(wrestler, settings)}
+      </span>
     </div>
   );
 }

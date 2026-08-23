@@ -53,7 +53,7 @@ import { bookLine, clientCutLine, representativeOf, wearLabel } from '../../engi
 import { recordLabel } from '../../engine/career/discipline';
 import { PERKS } from '../../data/perks';
 import { PaperDoll } from '../paperdoll/PaperDoll';
-import { HeatBadge, Money } from '../components/display';
+import { GimmickHeatMeter, HeatBadge, Money } from '../components/display';
 import { CareerLedger } from '../components/CareerLedger';
 import { scout } from '../../engine/career/scouting';
 import type { Wrestler, WorldSettings } from '../../engine/types';
@@ -407,6 +407,13 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   {hypeLabel(w, world.settings) && (
                     <span className="ml-1 text-sky-400">· {hypeLabel(w, world.settings)}</span>
                   )}
+                </div>
+
+                {/* The hot/cold meter: where the crowd's opinion of this
+                    gimmick currently sits, always visible rather than only
+                    once it has already gone stale. */}
+                <div className="mt-1">
+                  <GimmickHeatMeter wrestler={w} settings={world.settings} />
                 </div>
 
                 {/* Whether this room is the right room for them. Its own line

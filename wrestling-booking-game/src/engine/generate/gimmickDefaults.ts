@@ -39,6 +39,7 @@ const CATEGORY_LOOK: Record<string, GimmickLook> = {
   'More combat sports': { attire: 'athletic', palette: 'bright' },
   'More rural and agricultural': { attire: 'brawler', palette: 'earthy' },
   'More corporate and pop culture': { attire: 'formal', palette: 'gold' },
+  'Minor tweak': { attire: 'plain', palette: 'earthy' },
 };
 
 const FALLBACK_LOOK: GimmickLook = { attire: 'plain', palette: 'earthy' };
