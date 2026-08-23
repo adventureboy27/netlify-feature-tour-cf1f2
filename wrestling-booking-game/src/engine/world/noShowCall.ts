@@ -25,24 +25,24 @@ const NO_SHOW_LINES = MISFORTUNES.filter((m) => m.kind === 'absence').flatMap((m
  * over, and every single one would read identically.
  */
 const PULL_SEGMENT_LINES = [
-  '{name} never made the building. Rather than throw a match together, the office pulled it from the card.',
-  'No sign of {name} by bell time. Rather than force it, the segment came off the card entirely.',
-  '{name} was a no-show and there was nothing worth building around it. The spot just disappeared from the card.',
-  'The office waited as long as it could for {name}. When nothing came, the segment went with it.',
+  '{name} never made it to the building tonight, and rather than throw together something half-baked, the office pulled the whole segment from the card.',
+  'Still no sign of {name} by bell time, and rather than force a match that was not there, the segment came off the card entirely.',
+  '{name} was a flat-out no-show tonight, and there was nothing worth salvaging out of it. The spot simply vanished off the card.',
+  'The office held out as long as it possibly could for {name}. When nothing came through that door, the segment went right along with it.',
 ];
 
 const HANDICAP_LINES = [
-  '{name} never made the building. Rather than scratch the whole match, the office sent the other side out alone against the field.',
-  'With no sign of {name}, the match went on anyway — the other side against the field, uneven and worse for it.',
-  '{name} was a no-show, so the segment ran anyway, minus the one name it needed.',
-  'The office chose not to scratch the whole thing over {name}. The other side worked it alone instead.',
+  '{name} never made the building tonight, and rather than scrap the match outright, the office sent the other side out alone against the whole field.',
+  'With no sign of {name} anywhere, the match went on regardless — the other side against the entire field, badly uneven and worse for it.',
+  '{name} was a no-show tonight, so the segment ran anyway — minus the one name it actually needed.',
+  'The office made the call not to scratch the whole thing over {name}. The other side simply worked it alone instead.',
 ];
 
 const MYSTERY_OPPONENT_LINES = [
-  '{name} never made the building. {replacement} got the call an hour before bell time and the crowd had no idea what they were about to see.',
-  'No sign of {name} all night. {replacement} was pulled off catering duty and thrown into the spot instead.',
-  '{name} was a no-show, and {replacement} found out they were wrestling tonight about the same time the crowd did.',
-  'With {name} nowhere to be found, {replacement} got the surprise call — and gave the building one right back.',
+  '{name} never made the building tonight, and {replacement} got the call barely an hour before bell time — this crowd had absolutely no idea what they were about to see.',
+  'No sign of {name} anywhere all night. {replacement} got pulled straight off catering duty and thrown into the spot instead.',
+  '{name} was a no-show tonight, and {replacement} found out they were wrestling about the same moment this crowd did.',
+  'With {name} nowhere to be found, {replacement} got the surprise call of a lifetime — and gave this building a surprise right back.',
 ];
 
 export interface NoShowCall {

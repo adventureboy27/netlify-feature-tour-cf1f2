@@ -52,10 +52,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     weight: 30,
     requires: 'healthy',
     lines: [
-      '{name} is on the shoulder ninety miles out with the hood up.',
-      "{name}'s car died in a gas station parking lot and the tow truck is two hours away.",
-      '{name} blew a tire on the interstate and there is no spare in the trunk.',
-      "{name}'s car overheated on the on-ramp and nothing is moving.",
+      '{name} is stuck on the shoulder ninety miles out, hood up, going nowhere fast.',
+      "{name}'s car gave up the ghost in a gas station parking lot, and the tow truck is a good two hours out.",
+      '{name} blew a tire wide open on the interstate, and there is no spare waiting in the trunk.',
+      "{name}'s car cooked itself right there on the on-ramp, and traffic is not moving an inch.",
     ],
   },
   {
@@ -65,10 +65,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     weight: 26,
     requires: 'healthy',
     lines: [
-      '{name} is sitting in an airport four states away watching the departures board.',
-      "{name}'s connection was canceled and there is nothing else out tonight.",
-      '{name} got as far as the gate and the gate closed.',
-      "{name}'s flight was grounded on the tarmac for two hours and never made the window.",
+      '{name} is parked in an airport four states away, staring down a departures board that will not budge.',
+      "{name}'s connection got canceled outright, and there is nothing else flying out tonight.",
+      '{name} made it all the way to the gate — and watched it close anyway.',
+      "{name}'s flight sat grounded on the tarmac for two straight hours and blew right through the window.",
     ],
   },
   {
@@ -78,10 +78,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     weight: 18,
     requires: 'healthy',
     lines: [
-      '{name} is snowed in and the roads out are closed.',
-      '{name} spent six hours in standstill traffic behind an overturned truck and never got close.',
-      'The whole county is under a storm warning and {name} never left the hotel.',
-      "{name}'s road out of town is underwater and has been since this morning.",
+      '{name} is completely snowed in tonight, and every road out of town is closed.',
+      '{name} sat six hours in dead-stopped traffic behind an overturned truck and never got within a hundred miles.',
+      'The whole county is under a storm warning tonight, and {name} never even left the hotel room.',
+      "{name}'s only road out of town has been underwater since this morning.",
     ],
   },
   {
@@ -91,10 +91,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     weight: 14,
     requires: 'healthy',
     lines: [
-      '{name} has been in the hotel bathroom since lunchtime and is not leaving it.',
-      '{name} ate at the same place as everybody else and was the only one it got.',
-      "{name} has been on a drip in a hospital bed since this morning.",
-      "Whatever was in that gas-station sandwich, {name} is paying for it now.",
+      '{name} has not left the hotel bathroom since lunchtime, and is not about to start now.',
+      '{name} ate at the exact same place as everybody else on the roster — and somehow was the only one it got.',
+      "{name} has been flat on a hospital bed hooked to an IV since this morning.",
+      "Whatever was in that gas-station sandwich, {name} is paying for it in full tonight.",
     ],
   },
   {
@@ -104,10 +104,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     weight: 12,
     requires: 'healthy',
     lines: [
-      '{name} slept through the alarm, the wake-up call and four phones going off.',
-      "Nobody has been able to raise {name} all day. The hotel says the room is still made up.",
-      "{name} got in at five this morning and never woke back up.",
-      "{name} set an alarm for the wrong time zone and found out three hours too late.",
+      '{name} slept clean through the alarm, the wake-up call, and four different phones going off.',
+      "Nobody has been able to raise {name} all day long. The hotel says the room has not even been touched.",
+      "{name} rolled in at five this morning and simply never woke back up.",
+      "{name} set the alarm for the wrong time zone entirely, and found out about it three hours too late.",
     ],
   },
   {
@@ -117,10 +117,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     weight: 10,
     requires: 'healthy',
     lines: [
-      '{name} got a phone call at six this morning and drove the other way.',
-      '{name} is at a hospital bedside and it is not theirs.',
-      '{name} is on a plane home for something nobody in the office is asking about out loud.',
-      "{name} left a message that just said 'family thing, I'll explain later' and turned the phone off.",
+      '{name} took a phone call at six this morning and turned the car around without a second thought.',
+      '{name} is sitting at a hospital bedside tonight, and it is not their own.',
+      '{name} is on a plane home right now, for a reason nobody in this office is willing to ask about out loud.',
+      "{name} left a message that just said 'family thing, I'll explain later,' and switched the phone off cold.",
     ],
   },
   {
@@ -130,10 +130,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     weight: 7,
     requires: 'healthy',
     lines: [
-      '{name} is being held at the border over paperwork nobody checked.',
-      "{name}'s visa did not come through and the promoter found out this morning.",
-      "{name}'s work permit expired last week and nobody on the booking side noticed.",
-      'Customs pulled {name} aside for a random check and it has not been quick.',
+      '{name} is sitting at the border tonight over paperwork nobody bothered to check.',
+      "{name}'s visa never came through, and the promoter only found out about it this morning.",
+      "{name}'s work permit quietly expired last week, and nobody on the booking side caught it.",
+      'Customs pulled {name} aside for a random check, and this is turning into anything but quick.',
     ],
   },
   {
@@ -143,10 +143,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     weight: 4,
     requires: 'healthy',
     lines: [
-      '{name} spent the night in a cell over something that started in a hotel bar.',
-      '{name} was picked up on the way to the building and has not been released.',
-      '{name} is out on bail and the lawyer is telling everyone to stop asking questions.',
-      'Whatever happened at the bar last night, {name} is explaining it to a desk sergeant right now.',
+      '{name} is spending tonight in a holding cell over something that started, of all places, in a hotel bar.',
+      '{name} got picked up on the way to the building tonight and has not been released since.',
+      '{name} is out on bail as of tonight, and the lawyer is telling everybody in the building to stop asking questions.',
+      'Whatever happened at that bar last night, {name} is explaining it to a desk sergeant as we speak.',
     ],
   },
   {
@@ -157,10 +157,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'healthy',
     impliesAttacker: true,
     lines: [
-      '{name} was found laid out by the production cases twenty minutes before the doors opened.',
-      '{name} got jumped in the corridor outside the locker room and nobody saw who.',
-      '{name} was attacked in the parking lot walking in. There are no cameras out there.',
-      '{name} was found in a stairwell nobody uses, and nobody is saying who found them there.',
+      '{name} was found flat out by the production cases just twenty minutes before the doors opened tonight.',
+      '{name} got jumped cold in the corridor outside the locker room, and not one soul in this building saw who did it.',
+      '{name} was attacked walking in through the parking lot tonight, and there are no cameras out there to say who.',
+      '{name} turned up in a stairwell nobody uses, and nobody backstage is saying a word about who found them there.',
     ],
   },
 
@@ -173,10 +173,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'healthy',
     weeks: [2, 5],
     lines: [
-      '{name} tore something under a bar in the gym with nobody spotting.',
-      '{name} went up for a weight they have done a hundred times and something let go.',
-      '{name} rolled an ankle on the last rep of the last set and did not walk it off.',
-      'A machine {name} has used a thousand times finally caught them wrong.',
+      '{name} tore something loose under a bar in the gym tonight — no spotter anywhere in sight.',
+      '{name} went up for a weight they have hit a hundred times before, and this time something gave way for good.',
+      '{name} rolled an ankle on the very last rep of the very last set, and this one did not walk off.',
+      'A machine {name} has used a thousand times without incident finally caught them the wrong way.',
     ],
   },
   {
@@ -187,10 +187,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'healthy',
     weeks: [1, 4],
     lines: [
-      '{name} came down the stairs at home wrong and heard the ankle go.',
-      '{name} slipped getting out of a shower and put a hand through a glass door.',
-      '{name} caught a foot on a rug at two in the morning and went down hard.',
-      'Moving a couch, of all things, is what finally got {name}.',
+      '{name} came down the stairs at home wrong tonight and heard that ankle go clean.',
+      '{name} slipped stepping out of the shower and put a hand straight through a glass door.',
+      '{name} caught a foot on a rug at two in the morning and went down hard on the way to the kitchen.',
+      'Moving a couch — a couch, of all things — is what finally took {name} down.',
     ],
   },
   {
@@ -201,10 +201,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'healthy',
     weeks: [1, 4],
     lines: [
-      '{name} got into it with somebody in a bar who did not know the difference.',
-      '{name} broke a hand on a face that was not part of the show.',
-      'Somebody recognized {name} at the wrong bar and would not let it go.',
-      '{name} got pulled into somebody else\'s fight and came out worse for it.',
+      '{name} got into it with some guy in a bar who had absolutely no idea who they were picking a fight with.',
+      '{name} broke a hand on a face that had absolutely nothing to do with the show.',
+      'Somebody recognized {name} at exactly the wrong bar tonight and simply would not let it go.',
+      '{name} got dragged into a fight that was not even theirs, and came out of it a lot worse for it.',
     ],
   },
   {
@@ -216,10 +216,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     weeks: [2, 6],
     impliesAttacker: true,
     lines: [
-      '{name} was put through a production case backstage and did not see it coming.',
-      '{name} was jumped in the locker room and came out of it needing stitches.',
-      '{name} was blindsided in the parking lot on the way to the car and it was not a work.',
-      'Somebody caught {name} alone by the trucks, and nobody backstage will say who.',
+      '{name} got put straight through a production case backstage tonight and never saw it coming.',
+      '{name} got jumped in that locker room and came out needing stitches for the trouble.',
+      '{name} got blindsided in the parking lot on the way to the car tonight, and this one was not a work.',
+      'Somebody caught {name} alone out by the trucks tonight, and nobody backstage is saying a word about who.',
     ],
   },
   {
@@ -230,10 +230,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'healthy',
     weeks: [6, 20],
     lines: [
-      '{name} was cut up on the interstate at seventy and put the car into the barrier.',
-      "{name}'s car was hit side-on at a junction by somebody who ran the light.",
-      '{name} fell asleep at the wheel after a four-hundred-mile drive and woke up in a ditch.',
-      "{name} hydroplaned on the highway in the rain and rolled the car twice.",
+      '{name} got cut off on the interstate doing seventy and put the car straight into the barrier.',
+      "{name}'s car took a broadside hit at an intersection from somebody who blew straight through the light.",
+      '{name} fell asleep at the wheel after a four-hundred-mile haul and woke up flat in a ditch.',
+      "{name} hydroplaned on the highway in the rain tonight and rolled that car twice before it stopped.",
     ],
   },
 
@@ -246,10 +246,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'injured',
     weeks: [2, 5],
     lines: [
-      'The knee gave out under {name} on a flight of stairs. It is worse than it was.',
-      '{name} felt it go again reaching for something on a shelf.',
-      'It gave out on {name} getting out of the car, of all things, and it is worse for it.',
-      'A wrong step off a curb is all it took to undo weeks of {name}\'s recovery.',
+      'The knee gave out under {name} on nothing more than a flight of stairs, and now it is worse than it ever was.',
+      '{name} felt it go again reaching for nothing more than something on a shelf.',
+      'It gave out on {name} climbing out of a car, of all things, and the whole recovery is worse for it now.',
+      'One wrong step off a curb is all it took to undo weeks of {name}\'s recovery, gone just like that.',
     ],
   },
   {
@@ -260,10 +260,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'injured',
     weeks: [3, 8],
     lines: [
-      '{name} has been training on it against advice and has set the whole thing back.',
-      '{name} was told to rest it and did not, and the scan today was worse than the last one.',
-      '{name} pushed through a training session that should have been a rest day, and it showed.',
-      'Nobody could talk {name} into taking the extra week off, and now it is two extra weeks.',
+      '{name} has been training on it against every bit of medical advice, and has set the whole recovery back.',
+      '{name} was told flat out to rest it and did not, and today\'s scan came back worse than the last one.',
+      '{name} pushed through a training session that should have been a full rest day, and it showed today.',
+      'Nobody in this building could talk {name} into taking one extra week off, and now it is two.',
     ],
   },
   {
@@ -274,10 +274,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'injured',
     weeks: [4, 10],
     lines: [
-      'The wound {name} has been working around got infected and they are in hospital on a drip.',
-      '{name} went in for a routine look at it and came out booked for another operation.',
-      'What was supposed to be healing on {name} is doing the opposite, and the doctors do not love it.',
-      '{name} ignored the fever for two days too long and it caught up all at once.',
+      'The wound {name} has been quietly working around got infected, and now it is a hospital bed and an IV.',
+      '{name} went in for what was supposed to be a routine look, and came out booked for another operation entirely.',
+      'What was supposed to be healing on {name} is doing the exact opposite, and the doctors are not loving what they are seeing.',
+      '{name} ignored that fever two full days too long, and it caught up with them all at once.',
     ],
   },
 ];
@@ -290,16 +290,16 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
  * {name} is the rival promotion.
  */
 export const RIVAL_WEATHER_CATASTROPHE_LINES = [
-  "{name}'s show ran straight into a night nobody wanted to be out in. They ran it anyway and ate the risk.",
-  '{name} ran their card through weather that should have called it off. The building was half empty by the main event.',
-  'Whatever hit the building {name} was running in, they decided to push through it rather than pull the plug.',
-  '{name} gambled on the forecast and lost. The show went on anyway.',
+  "{name}'s show ran headlong into a night nobody in their right mind wanted to be out in — and they ran it anyway, risk and all.",
+  '{name} pushed their card through weather that should have shut the whole thing down. The building was half empty by the main event.',
+  'Whatever hit the building {name} was running in that night, the call was to push through rather than pull the plug.',
+  '{name} gambled on the forecast and lost that bet outright. The show went on regardless.',
 ];
 
 export const RIVAL_NO_SHOW_CATASTROPHE_LINES = [
-  '{name} had somebody booked never turn up tonight. The office over there scrambled a replacement and the show went on.',
-  'Somebody on {name}\'s card simply never made the building. They patched the hole and kept moving.',
-  '{name} lost a name off their card at the last minute and had to think on their feet.',
-  'A no-show threw {name}\'s night into chaos. They got through it, one way or another.',
+  '{name} had a name on the card who simply never turned up. Their office scrambled a replacement in a hurry and the show went on.',
+  'Somebody on {name}\'s card never made the building at all tonight. They patched the hole on the fly and kept the night moving.',
+  '{name} lost a name off their card at the last possible minute and had to think fast on their feet.',
+  'A no-show threw {name}\'s whole night into chaos. Somehow, some way, they got through it.',
 ];
 

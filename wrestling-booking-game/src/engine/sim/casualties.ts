@@ -230,8 +230,8 @@ export function aggravate(existingGrade: number, freshGrade: number, settings: W
 
 /** What the write-up says when somebody goes out on it and it gives way. */
 export function aggravationLine(name: string, before: InjurySeverity, after: InjurySeverity): string {
-  if (before === after) return `${name} went out there hurt and came back worse for it.`;
-  return `${name} should not have been out there. What was ${SEVERITY_WORDS[before]} is ${SEVERITY_WORDS[after]} now.`;
+  if (before === after) return `${name} went out there hurt, plain and simple, and came back a whole lot worse for it.`;
+  return `${name} never should have been anywhere near that ring tonight. What was ${SEVERITY_WORDS[before]} is ${SEVERITY_WORDS[after]} now.`;
 }
 
 const SEVERITY_WORDS: Record<InjurySeverity, string> = {

@@ -106,8 +106,8 @@ export const createShowAndProductionSlice: StateCreator<
       world.weeklyNews.push(
         wire(
           'signing',
-          `${world.promotion.name} has taken the ${home.name} in ${home.town} for ${term.label.toLowerCase()}. ` +
-            `${exposureLine(world.residency)} The trucks stay in the yard.`,
+          `${world.promotion.name} has officially locked down the ${home.name} in ${home.town} for ${term.label.toLowerCase()}. ` +
+            `${exposureLine(world.residency)} The trucks are staying parked in the yard.`,
           world.week,
         ),
       );
@@ -126,7 +126,7 @@ export const createShowAndProductionSlice: StateCreator<
       world.weeklyNews.push(
         wire(
           'signing',
-          `${world.promotion.name} has bought its way out of the ${homeName} in ${town}. It cost $${owed.toLocaleString()} to be allowed to leave.`,
+          `${world.promotion.name} has bought its way clean out of the ${homeName} in ${town} — cost a hard $${owed.toLocaleString()} just to be let out the door.`,
           world.week,
         ),
       );
@@ -230,7 +230,7 @@ export const createShowAndProductionSlice: StateCreator<
       world.weeklyNews.push(
         wire(
           'story',
-          `${world.promotion.name} bought a ${here.rung.name.toLowerCase()}. ${here.rung.blurb}`,
+          `${world.promotion.name} just pulled the trigger on a ${here.rung.name.toLowerCase()}. ${here.rung.blurb}`,
           world.week,
           'minor',
         ),
@@ -251,7 +251,7 @@ export const createShowAndProductionSlice: StateCreator<
       world.promotion.bankBalance -= next.cost;
       world.haulageId = next.id;
       world.weeklyNews.push(
-        wire('story', `${world.promotion.name} are hauling on a ${next.name.toLowerCase()} now. ${next.blurb}`, world.week, 'minor'),
+        wire('story', `${world.promotion.name} are rolling on a brand-new ${next.name.toLowerCase()} now. ${next.blurb}`, world.week, 'minor'),
       );
     });
   },
@@ -305,7 +305,7 @@ export const createShowAndProductionSlice: StateCreator<
       world.ownedAssetIds = world.ownedAssetIds.filter((id) => id !== assetId);
       if (index >= 0) world.assetConditions.splice(index, 1);
       world.weeklyNews.push(
-        wire('story', `${world.promotion.name} sold off the ${asset.name.toLowerCase()} to keep the lights on.`, world.week, 'minor'),
+        wire('story', `${world.promotion.name} sold off the ${asset.name.toLowerCase()} just to keep the lights on — a hard call, but a necessary one.`, world.week, 'minor'),
       );
     });
   },

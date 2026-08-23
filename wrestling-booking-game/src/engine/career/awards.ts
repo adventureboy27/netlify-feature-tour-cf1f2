@@ -45,49 +45,49 @@ export const AWARDS: AwardDefinition[] = [
   {
     id: 'wrestlerOfTheYear',
     name: 'Wrestler of the Year',
-    blurb: 'The one everybody had to talk about.',
+    blurb: 'The name that owned this business, twelve straight months, wire to wire.',
     good: true,
   },
   {
     id: 'matchOfTheYear',
     name: 'Match of the Year',
-    blurb: 'The one people will still be arguing about next year.',
+    blurb: 'The one nobody in that building has stopped talking about since.',
     good: true,
   },
   {
     id: 'comebackOfTheYear',
     name: 'Comeback of the Year',
-    blurb: 'Written off, and then not.',
+    blurb: 'Left for dead, and came back swinging anyway.',
     good: true,
   },
   {
     id: 'mostImproved',
     name: 'Most Improved',
-    blurb: 'Walked in a nobody and walked out somebody.',
+    blurb: 'Walked in an afterthought and walked out a whole different story.',
     good: true,
   },
   {
     id: 'tagTeamOfTheYear',
     name: 'Tag Team of the Year',
-    blurb: 'The team that carried a division.',
+    blurb: 'The pairing that carried an entire division on its back.',
     good: true,
   },
   {
     id: 'worstMatchOfTheYear',
     name: 'Worst Match of the Year',
-    blurb: 'Somebody has to win this one.',
+    blurb: 'Somebody has to take home this one, and this year, it is them.',
     good: false,
   },
   {
     id: 'downfallOfTheYear',
     name: 'Downfall of the Year',
-    blurb: 'The furthest anybody fell in twelve months.',
+    blurb: 'The single furthest anybody fell in twelve brutal months.',
     good: false,
   },
   {
     id: 'biggestDisappointment',
     name: 'Biggest Disappointment',
-    blurb: 'Everything in place, and it went nowhere.',
+    blurb: 'Every piece in place, and somehow it all went nowhere.',
     good: false,
   },
 ];
@@ -220,8 +220,8 @@ export function decideAwards(ctx: AwardContext): AwardWinner[] {
       'wrestlerOfTheYear',
       [best.w.id],
       climb > 0
-        ? `Carried the business for twelve months, and finished the year bigger than they started it.`
-        : `Nobody drew more eyes this year.`,
+        ? `Carried this entire business for twelve straight months and finished the year even bigger than they started it — an unbelievable run.`
+        : `Nobody, and we mean nobody, drew more eyeballs to this business all year long.`,
     );
     claimed.add(best.w.id);
   }
@@ -233,7 +233,7 @@ export function decideAwards(ctx: AwardContext): AwardWinner[] {
     say(
       'matchOfTheYear',
       bestMatch.wrestlerIds,
-      `${versus(bestMatch.wrestlerIds)} in ${bestMatch.promotionName}. Nobody got near it.`,
+      `${versus(bestMatch.wrestlerIds)} in ${bestMatch.promotionName}. Nothing else all year came within a mile of it.`,
     );
   }
   const worstMatch = ctx.record.worstMatch;
@@ -241,7 +241,7 @@ export function decideAwards(ctx: AwardContext): AwardWinner[] {
     say(
       'worstMatchOfTheYear',
       worstMatch.wrestlerIds,
-      `${versus(worstMatch.wrestlerIds)}. Everybody involved would like it forgotten.`,
+      `${versus(worstMatch.wrestlerIds)}. Every single person involved would love for this one to be forgotten.`,
     );
   }
 
@@ -253,7 +253,7 @@ export function decideAwards(ctx: AwardContext): AwardWinner[] {
     .map((w) => ({ w, gain: yearMovement(w, ctx.record) }))
     .sort((a, b) => b.gain - a.gain)[0];
   if (comeback && comeback.gain >= ctx.settings.awardComebackGain) {
-    say('comebackOfTheYear', [comeback.w.id], `Written off in January. Not written off now.`);
+    say('comebackOfTheYear', [comeback.w.id], `Written off completely back in January. Nobody is writing them off now.`);
     claimed.add(comeback.w.id);
   }
 
@@ -264,7 +264,7 @@ export function decideAwards(ctx: AwardContext): AwardWinner[] {
     .map((w) => ({ w, gain: yearMovement(w, ctx.record) }))
     .sort((a, b) => b.gain - a.gain)[0];
   if (improved && improved.gain >= ctx.settings.awardImprovementGain) {
-    say('mostImproved', [improved.w.id], `Not the same wrestler they were twelve months ago.`);
+    say('mostImproved', [improved.w.id], `Simply not the same wrestler they were twelve months ago — night and day.`);
     claimed.add(improved.w.id);
   }
 
@@ -281,7 +281,7 @@ export function decideAwards(ctx: AwardContext): AwardWinner[] {
     say(
       'tagTeamOfTheYear',
       teamRow.team.memberIds,
-      `${teamRow.team.name} went ${teamRow.wins}-${teamRow.losses} and held the division up.`,
+      `${teamRow.team.name} went ${teamRow.wins}-${teamRow.losses} and carried an entire division on their backs.`,
     );
   }
 
@@ -291,7 +291,7 @@ export function decideAwards(ctx: AwardContext): AwardWinner[] {
     .map((w) => ({ w, drop: -yearMovement(w, ctx.record) }))
     .sort((a, b) => b.drop - a.drop)[0];
   if (downfall && downfall.drop >= ctx.settings.awardDownfallDrop) {
-    say('downfallOfTheYear', [downfall.w.id], `A long way down in a short year.`);
+    say('downfallOfTheYear', [downfall.w.id], `A long, hard way down in a very short year.`);
     claimed.add(downfall.w.id);
   }
 
@@ -323,7 +323,7 @@ export function decideAwards(ctx: AwardContext): AwardWinner[] {
   // not" is a fact about the scale, not about them.
   const disappointment = contenders.find((c) => c.room >= median);
   if (disappointment && median - disappointment.movement >= ctx.settings.awardDisappointmentDrop) {
-    say('biggestDisappointment', [disappointment.w.id], `Everything in place, and a year spent going backwards.`);
+    say('biggestDisappointment', [disappointment.w.id], `Every piece was in place, and it was a year spent going backwards anyway.`);
   }
 
   return winners;

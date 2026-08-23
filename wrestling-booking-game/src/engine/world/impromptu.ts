@@ -103,7 +103,7 @@ export function memorialShow(
     day: spareNight(takenNights, rng),
     forWrestlerId,
     forName,
-    announcement: `${promotionName} have added a show this week for ${forName}. Ten bells, everybody on the card who can stand, and the gate to ${forName}'s family.`,
+    announcement: `${promotionName} are adding a show to this week's schedule in honor of ${forName} — ten bells to open it, everybody on the roster who can stand there for it, and every dollar at the door going straight to ${forName}'s family.`,
   };
 }
 
@@ -128,7 +128,7 @@ export function rollCharityNight(
     day: spareNight(ctx.takenNights, rng),
     forWrestlerId: null,
     forName: null,
-    announcement: `${ctx.promotionName} have put on a benefit night in ${ctx.townName} for ${cause}. Nobody is getting paid for it.`,
+    announcement: `${ctx.promotionName} are putting on a benefit night in ${ctx.townName} for ${cause} — nobody is getting paid for it, and nobody backstage is complaining about that either.`,
   };
 }
 
@@ -239,15 +239,15 @@ export function scaleForGenerosity(base: number, generosity: number, settings: W
 /** How the paper reports it afterwards. */
 export function afterLine(show: ImpromptuShow): string {
   if (show.kind === 'memorial') {
-    return `The building was full for ${show.forName ?? 'them'} and nobody left early.`;
+    return `This building was packed to the rafters for ${show.forName ?? 'them'} tonight, and not one soul left early.`;
   }
-  return `${show.name} drew a decent house for a night nobody was paid for.`;
+  return `${show.name} pulled a real house for a night where not a single person on that card took home a dime.`;
 }
 
 /** And what the family got, which is the point of the night. */
 export function familyLine(forName: string, settled: MemorialSettlement): string {
   if (settled.toTheFamily <= 0) {
-    return `The house for ${forName} did not cover the building. The company paid for the night and there was nothing left to send on.`;
+    return `The house for ${forName} did not come close to covering the cost of the building. The company footed the whole night, and there was nothing left to send on.`;
   }
-  return `Every penny above the cost of the night — ${Math.round(settled.toTheFamily).toLocaleString()} — went to ${forName}'s family.`;
+  return `Every single dollar above the cost of the night — ${Math.round(settled.toTheFamily).toLocaleString()} of it — went straight to ${forName}'s family.`;
 }

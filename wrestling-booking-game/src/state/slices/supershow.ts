@@ -64,8 +64,8 @@ export const createSupershowSlice: StateCreator<GameStore, [['zustand/immer', ne
           wire(
             'story',
             reply.publicly
-              ? `${partner.name} turned down a joint show with ${world.promotion.name}, and made sure it was heard. ${reply.because}`
-              : `${partner.name} passed on a joint show. ${reply.because}`,
+              ? `${partner.name} turned down a joint show with ${world.promotion.name} — and made absolutely sure everybody heard about it. ${reply.because}`
+              : `${partner.name} quietly passed on a joint show. ${reply.because}`,
             world.week,
             reply.publicly ? 'lead' : 'minor',
           ),
@@ -88,7 +88,7 @@ export const createSupershowSlice: StateCreator<GameStore, [['zustand/immer', ne
         pitch:
           reply.kind === 'countered'
             ? reply.because
-            : `${partner.name} are in. Their terms are your terms.`,
+            : `${partner.name} are all in. Whatever terms you set, that is exactly what they are signing up for.`,
         estimatedNet: estimate.playerNet,
         expiresWeek: world.week + world.settings.supershowOfferWeeks,
       };
@@ -96,8 +96,8 @@ export const createSupershowSlice: StateCreator<GameStore, [['zustand/immer', ne
         wire(
           'story',
           reply.kind === 'countered'
-            ? `${partner.name} will run with you, on their own terms. ${reply.because}`
-            : `${partner.name} have agreed to a joint pay-per-view.`,
+            ? `${partner.name} will run with you, strictly on their own terms. ${reply.because}`
+            : `${partner.name} have officially agreed to a joint pay-per-view — this one is really happening.`,
           world.week,
           'lead',
         ),
@@ -115,7 +115,7 @@ export const createSupershowSlice: StateCreator<GameStore, [['zustand/immer', ne
       if (!accept) {
         // Turning down a joint show is remembered. They asked once.
         world.weeklyNews.push(
-          wire('story', `${world.promotion.name} passed on the joint show with ${offer.partnerName}.`, world.week, 'minor'),
+          wire('story', `${world.promotion.name} passed on the joint show with ${offer.partnerName}. Do not expect that offer to come around twice.`, world.week, 'minor'),
         );
         return;
       }
@@ -148,8 +148,8 @@ export const createSupershowSlice: StateCreator<GameStore, [['zustand/immer', ne
         wire(
           'story',
           theirs > 0
-            ? `${partner.name} signed the joint show and sent a card back with ${theirs} of your matches crossed off.`
-            : `${partner.name} signed the joint show and took the card as it was written.`,
+            ? `${partner.name} signed off on the joint show, but sent the card back with ${theirs} of your matches crossed clean off it.`
+            : `${partner.name} signed off on the joint show and took the card exactly as written, no notes.`,
           world.week,
           'lead',
         ),

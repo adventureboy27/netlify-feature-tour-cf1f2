@@ -253,10 +253,10 @@ export function heatIcon(wrestler: Wrestler, settings: WorldSettings): string {
 
 /** The week it tips over, said once, rather than a status nobody looks at. */
 export function goneStaleLine(name: string, who: Pronouns): string {
-  return `${name}'s act has stopped working. The crowd has seen it, and it is costing every match ${who.they} is in until somebody freshens it up or ${who.they} gets a run off.`;
+  return `${name}'s act has flat-out stopped working. This crowd has seen it all before, and it is costing every match ${who.they} is in until somebody freshens it up or ${who.they} gets a real run off.`;
 }
 
 /** Said once, the week an act crosses into genuinely ice cold. */
 export function goneIceColdLine(name: string, who: Pronouns): string {
-  return `${name} is getting nothing back from the crowd — no heat, no heel heat, nothing. Somebody at the top needs to sit ${who.them} down about it.`;
+  return `${name} is getting absolutely nothing back from this crowd — no heat, no heel heat, dead silence. Somebody at the top needs to sit ${who.them} down about it before it gets any worse.`;
 }

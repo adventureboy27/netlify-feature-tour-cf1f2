@@ -52,7 +52,7 @@ export const createStorylinesSlice: StateCreator<GameStore, [['zustand/immer', n
       world.weeklyNews.push(
         wire(
           'story',
-          `${world.promotion.name} are running the ${names} problem as an angle. The crowd is going to get the real thing, and neither man is any happier for it being on television.`,
+          `${world.promotion.name} are putting the ${names} problem right out there on television as an angle. This crowd is about to get the real thing, and neither man is one bit happier about the world watching it play out.`,
           world.week,
           'lead',
         ),
@@ -146,7 +146,7 @@ export const createStorylinesSlice: StateCreator<GameStore, [['zustand/immer', n
       story.resolvedWeek = world.week;
       story.payoff = 'Dropped. Whatever it was going to be, it is not going to be it.';
       world.weeklyNews.push(
-        wire('story', `${story.name} has been quietly dropped.`, world.week, 'minor'),
+        wire('story', `${story.name} has been quietly dropped — whatever it was building to, it is never getting there now.`, world.week, 'minor'),
       );
     });
   },

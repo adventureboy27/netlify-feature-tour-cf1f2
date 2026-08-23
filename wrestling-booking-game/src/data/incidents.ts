@@ -78,9 +78,9 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'partnerTurn',
         headline: pick(rng, [
-          `${nameOf(turncoat)} turned on ${nameOf(betrayed)} in front of everybody. ${group.name} is finished.`,
-          `It fell apart in the ring. ${nameOf(turncoat)} left ${nameOf(betrayed)} lying and walked out alone — there is no ${group.name} any more.`,
-          `${nameOf(betrayed)} never saw it coming from ${nameOf(turncoat)}, and half the building was on their feet before they understood what they were watching.`,
+          `${nameOf(turncoat)} turned on ${nameOf(betrayed)} right there in front of everybody, and just like that, ${group.name} is finished.`,
+          `It came apart right there in the ring. ${nameOf(turncoat)} left ${nameOf(betrayed)} laid out and walked away alone — there is no more ${group.name}, not after that.`,
+          `${nameOf(betrayed)} never saw it coming from ${nameOf(turncoat)}, and half this building was up out of its seats before it even understood what it had just watched.`,
         ]),
         involvedIds: [turncoat.id, betrayed.id],
         effects: [
@@ -106,9 +106,9 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'championSnaps',
         headline: pick(rng, [
-          `${nameOf(formerChampion)} attacked ${nameOf(newChampion)} with the belt they had just lost, and had to be pulled off.`,
-          `${nameOf(formerChampion)} would not hand the belt over. When they finally did, it was across ${nameOf(newChampion)}'s head.`,
-          `Losing it broke something in ${nameOf(formerChampion)}. ${nameOf(newChampion)} was still celebrating when it started.`,
+          `${nameOf(formerChampion)} attacked ${nameOf(newChampion)} with the very belt they had just lost, and had to be dragged off by half the roster.`,
+          `${nameOf(formerChampion)} would not hand that belt over. When it finally came, it came across ${nameOf(newChampion)}'s head.`,
+          `Losing that title broke something in ${nameOf(formerChampion)} tonight. ${nameOf(newChampion)} was still celebrating when it all started.`,
         ]),
         involvedIds: [formerChampion.id, newChampion.id],
         effects: [
@@ -150,9 +150,9 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'managerCostThem',
         headline: pick(rng, [
-          `${manager.name} climbed on the apron and cost ${nameOf(client)} ${what}. They were still arguing about it in the aisle.`,
-          `${manager.name} got involved, got it wrong, and ${nameOf(client)} lost ${what} because of it.`,
-          `Whatever ${manager.name} was trying at ringside, it ended with ${nameOf(client)} beaten and the two of them shouting at each other on the way back.`,
+          `${manager.name} climbed right up on that apron and cost ${nameOf(client)} ${what} outright. The two of them were still going at it in the aisle on the way out.`,
+          `${manager.name} got involved, got it completely wrong, and ${nameOf(client)} paid for it with ${what}.`,
+          `Whatever ${manager.name} was trying to pull off at ringside, it ended with ${nameOf(client)} beaten and the two of them screaming at each other all the way to the back.`,
         ]),
         involvedIds: [client.id],
         effects: [
@@ -177,9 +177,9 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'refBump',
         headline: pick(rng, [
-          `The referee got flattened and spent the finish flat on the mat. Nobody in the building agreed on what they had just seen.`,
-          `There was no official conscious for the finish, and the two of them will be arguing about it for months.`,
-          `The referee took the worst bump of the night and missed everything that mattered. Nobody left satisfied.`,
+          `The referee got absolutely flattened and spent the whole finish laid out flat on that mat. Nobody in this building could agree on what they had just watched.`,
+          `There was not a conscious official anywhere in sight for that finish, and these two will be arguing about it for months to come.`,
+          `The referee took the single worst bump of the night and missed every bit of it that mattered. Nobody walked out of this building satisfied.`,
         ]),
         involvedIds: [a.wrestler.id, b.wrestler.id],
         effects: [
@@ -208,9 +208,9 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'postMatchBeatdown',
         headline: pick(rng, [
-          `${nameOf(aggressor)} kept going long after the bell. ${nameOf(victim)} left on a stretcher to a building full of boos.`,
-          `The bell meant nothing to ${nameOf(aggressor)}. It took three referees to get them off ${nameOf(victim)}.`,
-          `${nameOf(aggressor)} made a point of it afterwards, slowly, while ${nameOf(victim)} had nothing left to stop them with.`,
+          `${nameOf(aggressor)} kept right on going long after that bell rang. ${nameOf(victim)} left on a stretcher to a building full of boos raining down.`,
+          `That bell meant absolutely nothing to ${nameOf(aggressor)} tonight. It took three separate referees just to pull them off ${nameOf(victim)}.`,
+          `${nameOf(aggressor)} made a point of it afterward — slowly, deliberately — while ${nameOf(victim)} had absolutely nothing left to stop it with.`,
         ]),
         involvedIds: [aggressor.id, victim.id],
         effects: [
@@ -237,9 +237,9 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'runIn',
         headline: pick(rng, [
-          `${nameOf(returning)} came through the crowd and stood over ${nameOf(target)}. The place came apart.`,
-          `Nobody knew ${nameOf(returning)} was in the building until they were in the ring, and ${nameOf(target)} had their back turned.`,
-          `${nameOf(returning)} had unfinished business and picked tonight to say so. ${nameOf(target)} never got to enjoy the win.`,
+          `${nameOf(returning)} came straight through this crowd and stood right over ${nameOf(target)}. This place came apart at the seams.`,
+          `Nobody in this building knew ${nameOf(returning)} was even here until they were standing in that ring, and ${nameOf(target)} never saw it coming with their back turned.`,
+          `${nameOf(returning)} had unfinished business, and picked tonight of all nights to say so. ${nameOf(target)} never got one second to enjoy that win.`,
         ]),
         involvedIds: [returning.id, target.id],
         effects: [
@@ -263,9 +263,9 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'itWentReal',
         headline: pick(rng, [
-          `That stopped being a wrestling match somewhere in the middle. ${nameOf(hurt)} did not walk out under their own power, and ${nameOf(other)} did not look sorry.`,
-          `Whatever was between ${nameOf(other)} and ${nameOf(hurt)} came out in the ring tonight, and it was not pretty to watch.`,
-          `${nameOf(other)} stopped pulling anything. ${nameOf(hurt)} is going to be off for a while, and the locker room knows exactly why.`,
+          `That stopped being a wrestling match somewhere in the middle of it. ${nameOf(hurt)} did not walk out of there under their own power, and ${nameOf(other)} did not look one bit sorry about it.`,
+          `Whatever bad blood was between ${nameOf(other)} and ${nameOf(hurt)} came pouring out in that ring tonight, and it was ugly to watch from start to finish.`,
+          `${nameOf(other)} stopped pulling a single thing out there. ${nameOf(hurt)} is going to be off television for a while, and this entire locker room knows exactly why.`,
         ]),
         involvedIds: [hurt.id, other.id],
         effects: [
@@ -291,9 +291,9 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'enemiesInTheRing',
         headline: pick(rng, [
-          `${nameOf(a)} and ${nameOf(b)} have never got on, and tonight everybody watching could tell. The stiffness was not a work.`,
-          `Somebody put ${nameOf(a)} in the ring with ${nameOf(b)}. Whoever it was will hear about it.`,
-          `Every exchange between ${nameOf(a)} and ${nameOf(b)} landed a little harder than it needed to.`,
+          `${nameOf(a)} and ${nameOf(b)} have never gotten along, and tonight every single person watching could tell. That stiffness out there was not a work.`,
+          `Somebody in this office put ${nameOf(a)} in a ring with ${nameOf(b)} tonight. Whoever made that call is going to hear about it.`,
+          `Every single exchange between ${nameOf(a)} and ${nameOf(b)} tonight landed a whole lot harder than it ever needed to.`,
         ]),
         involvedIds: [a.id, b.id],
         effects: [
@@ -326,9 +326,9 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'starIsBorn',
         headline: pick(rng, [
-          `Nobody came to see ${nameOf(winner)} and everybody left talking about them. Beating ${nameOf(beaten)} like that changes what they are.`,
-          `${nameOf(winner)} was not supposed to be able to do that to ${nameOf(beaten)}, and the building knew it before the count of three.`,
-          `Whatever ${nameOf(winner)} was before tonight, they are not it any more.`,
+          `Nobody in this building came to see ${nameOf(winner)}, and every last one of them left talking about nobody else. Beating ${nameOf(beaten)} like that changes everything about who they are.`,
+          `${nameOf(winner)} was not supposed to be able to do a single thing to ${nameOf(beaten)} tonight, and this building knew it before the referee's hand even hit three.`,
+          `Whatever ${nameOf(winner)} was walking in here tonight, they are not that anymore — not after this.`,
         ]),
         involvedIds: [winner.id, beaten.id],
         effects: [
@@ -362,9 +362,9 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'torchPassed',
         headline: pick(rng, [
-          `${nameOf(beaten)} lost clean and then raised ${nameOf(winner)}'s hand. Everybody in the building understood what they had just watched.`,
-          `${nameOf(beaten)} did the job in the middle of the ring for ${nameOf(winner)} and took their time leaving. That was on purpose.`,
-          `There was no shortcut and no excuse. ${nameOf(beaten)} gave ${nameOf(winner)} the whole thing.`,
+          `${nameOf(beaten)} lost clean, then raised ${nameOf(winner)}'s hand up high themselves. Everybody in this building understood exactly what they had just witnessed.`,
+          `${nameOf(beaten)} did business right there in the middle of the ring for ${nameOf(winner)} and took their sweet time leaving. That was no accident.`,
+          `There was no shortcut here and no excuse needed. ${nameOf(beaten)} gave ${nameOf(winner)} the entire thing, clean.`,
         ]),
         involvedIds: [winner.id, beaten.id],
         effects: [
@@ -384,9 +384,9 @@ export const INCIDENTS: IncidentDefinition[] = [
     build: (ctx, rng) => ({
       id: 'standingOvation',
       headline: pick(rng, [
-        `Neither of them could leave. The building would not let them, and stayed on their feet until the lights came up.`,
-        `The crowd would not sit down and would not stop. They were still on their feet when the ring crew came out.`,
-        `Nobody moved for the next match. That is the only review that one needed.`,
+        `Neither one of them could even leave the ring. This building would not let them go, staying up on its feet until the house lights finally came up.`,
+        `This crowd would not sit down and would not stop, not for anything. They were still up on their feet when the ring crew came out to reset.`,
+        `Nobody in this building moved a muscle for the next match. That right there is the only review that one ever needed.`,
       ]),
       involvedIds: everyone(ctx),
       effects: [
@@ -410,9 +410,9 @@ export const INCIDENTS: IncidentDefinition[] = [
     build: (ctx, rng) => ({
       id: 'crowdHijack',
       headline: pick(rng, [
-        `The crowd gave up on this one early and spent the second half entertaining themselves. You could hear the beach ball.`,
-        `By the halfway point the loudest thing in the building was a chant about something else entirely.`,
-        `You could hear individual conversations in the back rows. That is never a good sign.`,
+        `This crowd gave up on that one early and spent the whole second half entertaining itself instead. You could hear that beach ball bouncing around from ringside.`,
+        `By the halfway mark, the loudest thing anywhere in this building was a chant about something that had nothing to do with the match.`,
+        `You could pick out individual conversations happening in the back rows tonight. That is never, ever a good sign.`,
       ]),
       involvedIds: everyone(ctx),
       effects: [
@@ -441,9 +441,9 @@ export const INCIDENTS: IncidentDefinition[] = [
       return {
         id: 'cheapRetain',
         headline: pick(rng, [
-          `${nameOf(champion)} kept ${belt} without ever really beating ${nameOf(challenger)}, and got booed out of the building for it.`,
-          `${belt} did not change hands, but nobody watching thinks ${nameOf(champion)} beat ${nameOf(challenger)} tonight.`,
-          `${nameOf(champion)} walked out still holding ${belt} and could not get out of the building fast enough.`,
+          `${nameOf(champion)} walked out still holding ${belt} without ever really beating ${nameOf(challenger)}, and got booed straight out of this building for it.`,
+          `${belt} did not change hands tonight, but not one soul watching believes ${nameOf(champion)} actually beat ${nameOf(challenger)}.`,
+          `${nameOf(champion)} left still holding ${belt} tonight, and could not get out of this building fast enough.`,
         ]),
         involvedIds: [champion.id, challenger.id],
         effects: [

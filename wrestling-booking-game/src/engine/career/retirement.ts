@@ -24,10 +24,10 @@ export interface RetirementContext {
 export type RetirementReason = 'age' | 'body' | 'nobodyIsBooking' | 'onTop';
 
 export const RETIREMENT_REASON_TEXT: Record<RetirementReason, string> = {
-  age: 'called it a career',
-  body: 'retired on doctor’s advice',
-  nobodyIsBooking: 'quietly stopped taking bookings',
-  onTop: 'walked away on top',
+  age: 'Called it a career, right on schedule and right on their own terms.',
+  body: "The doctors made the call the body had already made. This ring wasn't in the cards anymore.",
+  nobodyIsBooking: 'The phone stopped ringing, and the waiting stopped right along with it.',
+  onTop: 'Walked away at the absolute peak, not one step past it — a mic-drop exit if this business has ever seen one.',
 };
 
 export interface RetirementCall {

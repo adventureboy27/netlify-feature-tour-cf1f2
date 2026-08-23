@@ -42,7 +42,7 @@ export const createTitlesSlice: StateCreator<GameStore, [['zustand/immer', never
       world.titles.push(belt);
       world.promotion.titleIds.push(belt.id);
       world.weeklyNews.push(
-        wire('title', `${world.promotion.name} has introduced the ${belt.name}. It is vacant.`, world.week, 'lead'),
+        wire('title', `${world.promotion.name} has officially introduced the ${belt.name} — brand new hardware, and it is vacant.`, world.week, 'lead'),
       );
     });
   },
@@ -71,8 +71,8 @@ export const createTitlesSlice: StateCreator<GameStore, [['zustand/immer', never
         wire(
           'title',
           holders
-            ? `The ${title.name} has been retired. ${holders} was the last to hold it.`
-            : `The ${title.name} has been retired.`,
+            ? `The ${title.name} has been retired for good. ${holders} goes down as the last one to ever hold it.`
+            : `The ${title.name} has been retired for good.`,
           world.week,
           'lead',
         ),
@@ -89,7 +89,7 @@ export const createTitlesSlice: StateCreator<GameStore, [['zustand/immer', never
       const renamed = patch.name?.trim();
       if (renamed && renamed !== title.name) {
         world.weeklyNews.push(
-          wire('title', `The ${title.name} is now the ${renamed}.`, world.week, 'normal'),
+          wire('title', `Mark it down — the ${title.name} is now officially the ${renamed}.`, world.week, 'normal'),
         );
         title.name = renamed;
       }
@@ -119,8 +119,8 @@ export const createTitlesSlice: StateCreator<GameStore, [['zustand/immer', never
         wire(
           'title',
           lastHolder
-            ? `The ${title.name} is back. It has not been defended since ${lastHolder} held it, and it is vacant.`
-            : `The ${title.name} is back, and vacant.`,
+            ? `The ${title.name} is back in play. It has not been defended since ${lastHolder} last held it, and it goes back on the line vacant.`
+            : `The ${title.name} is back in play, and it goes back on the line vacant.`,
           world.week,
           'lead',
         ),
@@ -149,7 +149,7 @@ export const createTitlesSlice: StateCreator<GameStore, [['zustand/immer', never
         world.weeklyNews.push(
           wire(
             'title',
-            `The ${title.name} is vacant. ${call.championName} could not defend it and the company would not let it sit.`,
+            `The ${title.name} is officially vacant. ${call.championName} could not go, and the company was not about to let the belt just sit there.`,
             world.week,
             'lead',
           ),
@@ -166,7 +166,7 @@ export const createTitlesSlice: StateCreator<GameStore, [['zustand/immer', never
         world.weeklyNews.push(
           wire(
             'title',
-            `${call.championName} will defend the ${title.name} hurt. ${call.injuryText}, and the company is letting it happen.`,
+            `${call.championName} is going to defend the ${title.name} hurt, full stop. ${call.injuryText}, and the company is letting it happen anyway.`,
             world.week,
             'lead',
           ),
@@ -192,7 +192,7 @@ export const createTitlesSlice: StateCreator<GameStore, [['zustand/immer', never
         world.weeklyNews.push(
           wire(
             'title',
-            `${interim.name} is the interim ${title.name}. ${call.championName} keeps the real one, and when they are fit the two of them settle it in one match.`,
+            `${interim.name} is your new interim ${title.name}. ${call.championName} keeps the real belt on the shelf, and the moment they are fit, these two settle it in the ring, one match, winner take all.`,
             world.week,
             'lead',
           ),

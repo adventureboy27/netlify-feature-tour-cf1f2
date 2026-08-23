@@ -2841,8 +2841,8 @@ export const useGameStore = create<GameStore>()(
               wire(
                 'houseShow',
                 winnerNames && loserNames
-                  ? `Dark match, never aired: ${winnerNames} beat ${loserNames} in front of tonight's crowd.`
-                  : `A dark match closed out the crowd's night. It never aired.`,
+                  ? `Dark match, never made air: ${winnerNames} put away ${loserNames} in front of a crowd that had no idea they were even seeing it.`
+                  : `A dark match sent tonight's crowd home happy. Cameras were already off — nobody outside that building will ever see it.`,
                 world.week + 1,
                 'minor',
               ),
@@ -3496,8 +3496,8 @@ export const useGameStore = create<GameStore>()(
             wire(
               'houseShow',
               houseShows.length === 1
-                ? `${houseShows[0]!.name} ran on the road this week. $${houseGate.toLocaleString()} through the door, and a roster that has now worked twice.`
-                : `${houseShows.length} house shows on the road this week — ${houseShows.map((s) => s.name).join(', ')}. $${houseGate.toLocaleString()} through the door, and everybody has the miles to show for it.`,
+                ? `${houseShows[0]!.name} hit the road this week and delivered — $${houseGate.toLocaleString()} through the door, and a roster that has now worked twice in the same stretch.`
+                : `${houseShows.length} house shows hit the road this week — ${houseShows.map((s) => s.name).join(', ')}. $${houseGate.toLocaleString()} through the door, and every single one of them has the miles to prove it.`,
               world.week + 1,
               'minor',
             ),
@@ -3986,7 +3986,7 @@ export const useGameStore = create<GameStore>()(
             // below (see the CLAUDE.md note on wire items stamped too early
             // vanishing under the post-increment filter).
             world.weeklyNews.push(
-              wire('story', `${rival.name} took on emergency investment to keep the doors open.`, world.week + 1, 'minor'),
+              wire('story', `${rival.name} took on emergency investment just to keep the lights on and the doors open.`, world.week + 1, 'minor'),
             );
           } else {
             // Same struggle the player faces, not the same numbers — see
@@ -4064,7 +4064,7 @@ export const useGameStore = create<GameStore>()(
           member.leave = tickLeave(member.leave);
           if (!member.leave) {
             world.weeklyNews.push(
-              wire('injury', `${member.name} is back on the roster and available to book.`, world.week, 'normal'),
+              wire('injury', `${member.name} is officially back on the roster and cleared to book.`, world.week, 'normal'),
             );
           }
         }
@@ -4084,8 +4084,8 @@ export const useGameStore = create<GameStore>()(
             wire(
               'official',
               counted.length === 1
-                ? `There was no official fit to work, so ${counted[0]} counted in a shirt they had to borrow. Nobody in those matches was happy about it.`
-                : `There was no official fit to work. ${counted.slice(0, -1).join(', ')} and ${counted[counted.length - 1]} counted their own matches, and the room noticed who was not on the payroll.`,
+                ? `There was not one official fit to work tonight, so ${counted[0]} counted their own matches in a borrowed shirt — and nobody in that ring was thrilled about it.`
+                : `There was not one official fit to work tonight. ${counted.slice(0, -1).join(', ')} and ${counted[counted.length - 1]} counted their own matches, and this room knew exactly who was not on the payroll.`,
               world.week,
               'lead',
             ),
@@ -4365,7 +4365,7 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 wire(
                   'story',
-                  `${story.name} is as hot as it is going to get. Whatever happens next had better settle it.`,
+                  `${story.name} is boiling over — this thing is as hot as it is ever going to get, and whatever comes next had better settle it once and for all.`,
                   world.week,
                   'normal',
                 ),
@@ -4428,7 +4428,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'story',
-                `${story.name} has quietly died. Nobody has done anything with it in ${story.neglectedWeeks} weeks and the crowd has moved on.`,
+                `${story.name} has quietly flatlined. Nobody has touched it in ${story.neglectedWeeks} weeks, and this crowd has already moved on to something else.`,
                 world.week,
                 'normal',
               ),
@@ -4568,7 +4568,7 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 wire(
                   'departure',
-                  `${member.name} has stopped asking to be let go. ${Cap(pronounsFor(member).they)} did not get an answer and is not going to ask again.`,
+                  `${member.name} has stopped asking to be let go. ${Cap(pronounsFor(member).they)} never got an answer, and is not about to ask twice.`,
                   world.week,
                 ),
               );
@@ -4596,7 +4596,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'departure',
-                `${member.name} has asked to be let out of ${pronounsFor(member).their} contract, and says ${pronounsFor(member).they} will walk away from the money.`,
+                `${member.name} has formally asked out of ${pronounsFor(member).their} contract, and says outright ${pronounsFor(member).they} will walk away from the money to get it.`,
                 world.week,
               ),
             );
@@ -4617,7 +4617,7 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 wire(
                   'departure',
-                  `${person.name} is out of ${pronounsFor(person).their} ninety days and can sign anywhere.`,
+                  `${person.name} has cleared ${pronounsFor(person).their} ninety-day freeze and is officially free to sign anywhere in this business.`,
                   world.week,
                   'minor',
                 ),
@@ -4642,7 +4642,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'title',
-                `The ${title.name} has been stripped from ${names || 'its champion'}. It went undefended too long and the company took it back. It is vacant.`,
+                `The ${title.name} has been stripped right off ${names || 'its champion'} — sat undefended too long, and the company took it back. That belt is officially vacant.`,
                 world.week,
                 'lead',
               ),
@@ -4651,7 +4651,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'title',
-                `The ${title.name} has to be defended this week or the company vacates it.`,
+                `The clock has run out — the ${title.name} gets defended this week, or the company vacates it outright.`,
                 world.week,
                 'lead',
               ),
@@ -4669,7 +4669,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'title',
-                `Nobody made a call on the ${title.name} while ${call.championName} sat hurt, so the company vacated it.`,
+                `Nobody up top made a call on the ${title.name} while ${call.championName} sat hurt, so the company took matters into its own hands and vacated it.`,
                 world.week,
                 'lead',
               ),
@@ -4787,7 +4787,7 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 wire(
                   'team',
-                  `${joining.name} has thrown in with ${faction.name}. ${wanted.reason}`,
+                  `${joining.name} has officially thrown in with ${faction.name}. ${wanted.reason}`,
                   world.week,
                   'lead',
                 ),
@@ -4826,7 +4826,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'team',
-                `${member.name} has walked out on ${faction.name}. It stopped being worth being in.`,
+                `${member.name} has walked clean out on ${faction.name} — it simply stopped being worth the trouble of staying.`,
                 world.week,
                 'lead',
               ),
@@ -4975,7 +4975,7 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 wire(
                   'signing',
-                  `${signing.fromPromotionName} have tied ${person.name} down to a new deal. Somebody there heard ${pronounsFor(person).they} had been talking to people and got in first.`,
+                  `${signing.fromPromotionName} moved fast and locked ${person.name} down to a brand-new deal — somebody over there heard ${pronounsFor(person).they} had been shopping around and beat everybody else to the punch.`,
                   world.week,
                   'normal',
                 ),
@@ -5017,7 +5017,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'signing',
-                `The sheets have worked out where ${person.name} went. ${Cap(pronounsFor(person).they)} has not been on a ${signing.fromPromotionName} show since that deal ran out and somebody finally asked why. Whatever you were saving ${pronounsFor(person).them} for, it is not a surprise now.`,
+                `The sheets have finally worked out exactly where ${person.name} went. ${Cap(pronounsFor(person).they)} has not set foot on a ${signing.fromPromotionName} show since that deal ran out, and somebody finally asked the obvious question. Whatever big surprise you were saving ${pronounsFor(person).them} for, the cat is out of the bag now.`,
                 world.week,
                 'lead',
               ),
@@ -5341,7 +5341,7 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 wire(
                   'story',
-                  `The Crucible is taking entries. ${likely.length} ${likely.length === 1 ? 'company has' : 'companies have'} already paid.`,
+                  `The Crucible is officially taking entries. ${likely.length} ${likely.length === 1 ? 'company has' : 'companies have'} already paid up and thrown their hat in.`,
                   world.week,
                   'lead',
                 ),
@@ -5364,7 +5364,7 @@ export const useGameStore = create<GameStore>()(
           world.weeklyNews.push(
             wire(
               'story',
-              `${world.pendingSupershow.partnerName} have moved on. The joint show is off the table.`,
+              `${world.pendingSupershow.partnerName} have moved on. The joint show is dead and off the table entirely.`,
               world.week,
               'minor',
             ),
@@ -5451,7 +5451,7 @@ export const useGameStore = create<GameStore>()(
               world.weeklyNews.push(
                 wire(
                   'story',
-                  `${partner.name} want to run a joint pay-per-view. ${world.pendingSupershow.pitch}`,
+                  `${partner.name} are pitching a joint pay-per-view, and it is a big one. ${world.pendingSupershow.pitch}`,
                   world.week,
                   'lead',
                 ),
@@ -5735,7 +5735,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'signing',
-                `${agent.name} is speaking for ${target.name} now, for ${Math.round(cut * 100)}% of ${pronounsFor(target).their} purse.`,
+                `${agent.name} is officially speaking for ${target.name} now, for a cut of ${Math.round(cut * 100)}% right off the top of ${pronounsFor(target).their} purse.`,
                 world.week,
                 'minor',
               ),
@@ -5944,7 +5944,7 @@ export const useGameStore = create<GameStore>()(
                 world.weeklyNews.push(
                   wire(
                     'signing',
-                    `${member.name}'s old deal with ${world.promotion.name} has run out, and the new one — agreed weeks ago on the open market — starts today.`,
+                    `${member.name}'s old deal with ${world.promotion.name} has run its course, and the new one — agreed weeks back on the open market — kicks in today.`,
                     world.week,
                     'normal',
                   ),
@@ -5954,7 +5954,7 @@ export const useGameStore = create<GameStore>()(
                 world.weeklyNews.push(
                   wire(
                     'departure',
-                    `${member.name}'s deal with ${world.promotion.name} has run out. ${destination.name} won them on the open market weeks ago, and today is the day they actually move.`,
+                    `${member.name}'s deal with ${world.promotion.name} has finally run out. ${destination.name} won them on the open market weeks ago, and today is the day the move actually happens.`,
                     world.week,
                     'lead',
                   ),
@@ -6199,8 +6199,8 @@ export const useGameStore = create<GameStore>()(
               wire(
                 'debut',
                 newManagers.wrestlers.length === 1
-                  ? `${newManagers.wrestlers[0]!.name} is looking for somebody to speak for.`
-                  : `${newManagers.wrestlers.map((w) => w.name).join(' and ')} are looking for somebody to speak for.`,
+                  ? `${newManagers.wrestlers[0]!.name} is on the market and looking for a client worth speaking for.`
+                  : `${newManagers.wrestlers.map((w) => w.name).join(' and ')} are on the market and looking for a client worth speaking for.`,
                 world.week,
                 'minor',
               ),
@@ -6449,7 +6449,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'signing',
-                `${rival.name} came for ${target.name} and ${pronounsFor(target).they} stayed. Nobody from this office said a word to ${pronounsFor(target).them} about it.`,
+                `${rival.name} came calling for ${target.name} — and ${pronounsFor(target).they} stayed put anyway. Nobody from this office ever even said a word to ${pronounsFor(target).them} about it.`,
                 world.week,
               ),
             );
@@ -6466,7 +6466,7 @@ export const useGameStore = create<GameStore>()(
           world.weeklyNews.push(
             wire(
               'departure',
-              `${target.name} has gone to ${rival.name}. They were talking to ${pronounsFor(target).them} for weeks and this office never answered.`,
+              `${target.name} is gone — off to ${rival.name}. They had been talking to ${pronounsFor(target).them} for weeks and this office never answered.`,
               world.week,
               'lead',
             ),
@@ -6585,7 +6585,7 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire(
                 'signing',
-                `The run at the ${deal.homeName} is over. ${deal.showsRun} shows in ${deal.town}, in front of the same faces, and from next week the trucks go back out.`,
+                `The residency at the ${deal.homeName} is officially over. ${deal.showsRun} shows in ${deal.town}, in front of the same faithful faces every time, and starting next week the trucks are rolling out again.`,
                 world.week,
               ),
             );

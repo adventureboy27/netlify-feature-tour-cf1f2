@@ -382,7 +382,7 @@ export const createRosterAndContractsSlice: StateCreator<
       // A plain free-agent signing has never carried its own wire line —
       // this is the moment the character actually locks in, so it is the
       // first real news anybody gets about the new arrival.
-      world.weeklyNews.push(wire('debut', `${wrestler.name} debuts as ${gimmick.name}.`, world.week, 'minor'));
+      world.weeklyNews.push(wire('debut', `${wrestler.name} debuts tonight as ${gimmick.name} — a brand-new name for this crowd to learn.`, world.week, 'minor'));
       world.pendingGimmickReactions.push({ kind: 'debut', name: wrestler.name, gimmickName: gimmick.name });
     });
   },
@@ -423,7 +423,7 @@ export const createRosterAndContractsSlice: StateCreator<
       world.signingTalks.splice(talkIndex, 1);
       world.pendingGimmickReactions.push({ kind: 'pairing', name: group.name, gimmickName: group.name });
       world.weeklyNews.push(
-        wire('team', `${group.name} debuts tonight — ${members.map((m) => m.name).join(', ')}.`, world.week, 'normal'),
+        wire('team', `${group.name} debuts tonight, and this crowd better be paying attention — ${members.map((m) => m.name).join(', ')}.`, world.week, 'normal'),
       );
     });
   },
@@ -479,7 +479,7 @@ export const createRosterAndContractsSlice: StateCreator<
       world.weeklyNews.push(
         wire(
           'debut',
-          `${wrestler.name} relaunches as ${gimmick.name} — the old character had gone cold enough that the office finally had to do something about it.`,
+          `${wrestler.name} relaunches tonight as ${gimmick.name} — the old character had gone stone cold, and the office finally pulled the trigger on something new.`,
           world.week,
           'normal',
         ),
@@ -616,10 +616,10 @@ export const createRosterAndContractsSlice: StateCreator<
         wire(
           'signing',
           !wasSecret
-            ? `${person.name} finally turned up for ${world.promotion.name}. The sheets had already placed ${pronounsFor(person).them}, which took most of it away.`
+            ? `${person.name} finally turned up for ${world.promotion.name} tonight. The sheets had already called it, though, which took most of the surprise right out of it.`
             : sinceFree <= 1
-              ? `${person.name} walked out on ${world.promotion.name}'s show tonight. ${Cap(pronounsFor(person).they)} worked ${pronounsFor(person).their} last date for ${signing.fromPromotionName} on the final day of that contract and signed here before the week was out. Nobody had time to catch on.`
-              : `${person.name} walked out on ${world.promotion.name}'s show tonight. Everybody in the building still had ${pronounsFor(person).them} down at ${signing.fromPromotionName}. That deal quietly ran out ${sinceFree} weeks ago and ${pronounsFor(person).they} has been signed here ever since.`,
+              ? `${person.name} walked right out on ${world.promotion.name}'s show tonight, and this one nobody saw coming. ${Cap(pronounsFor(person).they)} worked ${pronounsFor(person).their} last date for ${signing.fromPromotionName} on the very last day of that contract and had already signed here before the week was even out.`
+              : `${person.name} walked right out on ${world.promotion.name}'s show tonight. Every soul in that building still had ${pronounsFor(person).them} penciled in at ${signing.fromPromotionName}. That deal quietly expired ${sinceFree} weeks ago, and ${pronounsFor(person).they} has been signed here the entire time.`,
           world.week,
           'lead',
         ),
@@ -709,7 +709,7 @@ export const createRosterAndContractsSlice: StateCreator<
         world.weeklyNews.push(
           wire(
             'departure',
-            `${wrestler.name} asked for a release. ${Cap(pronounsFor(wrestler).they)} was told no, and is still on the roster.`,
+            `${wrestler.name} asked for a release, straight up. ${Cap(pronounsFor(wrestler).they)} was told no in no uncertain terms, and stays right on this roster.`,
             world.week,
           ),
         );

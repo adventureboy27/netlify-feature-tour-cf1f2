@@ -100,8 +100,8 @@ export const createCupSlice: StateCreator<GameStore, [['zustand/immer', never]],
           wire(
             'misfortune',
             worn.length === 1
-              ? `${worn[0]} went to the well more than once in one night at ${CUP_NAME}, and is feeling every bit of it.`
-              : `${worn.slice(0, -1).join(', ')} and ${worn[worn.length - 1]} all worked more than once in a night at ${CUP_NAME}. That is a week of ice baths.`,
+              ? `${worn[0]} went back to the well more than once in one night at ${CUP_NAME}, and is feeling every last bit of it this morning.`
+              : `${worn.slice(0, -1).join(', ')} and ${worn[worn.length - 1]} all went more than once in a single night at ${CUP_NAME}. That is a week of ice baths coming for every one of them.`,
             world.week,
             'normal',
           ),
@@ -169,7 +169,7 @@ export const createCupSlice: StateCreator<GameStore, [['zustand/immer', never]],
         world.weeklyNews.push(
           wire(
             'story',
-            `${result.winnerName} has now won ${CUP_NAME} ${crowns} times.`,
+            `${result.winnerName} has now won ${CUP_NAME} an incredible ${crowns} times — a name that belongs in the history books.`,
             world.week,
             'lead',
           ),
@@ -183,8 +183,8 @@ export const createCupSlice: StateCreator<GameStore, [['zustand/immer', never]],
       world.weeklyNews.push(
         wire(
           'story',
-          `${result.winnerName} takes $${result.purse.wrestlerShare.toLocaleString()} and ${CUP_TROPHY} for the year. ` +
-            `${result.winnerPromotionName} take the other $${result.purse.companyShare.toLocaleString()}.`,
+          `${result.winnerName} walks away with $${result.purse.wrestlerShare.toLocaleString()} and ${CUP_TROPHY} for the year. ` +
+            `${result.winnerPromotionName} pockets the other $${result.purse.companyShare.toLocaleString()} right along with it.`,
           world.week,
           'lead',
         ),

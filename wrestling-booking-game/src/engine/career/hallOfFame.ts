@@ -60,15 +60,15 @@ export function citationFor(w: Wrestler, ctx: HallOfFameContext): string {
   const weeks = weeksAsChampion(w, ctx.currentWeek);
 
   if (w.titleReigns.length >= ctx.settings.hofReignsForFullCredit) {
-    return `${w.titleReigns.length}-time champion across ${years} years in the business`;
+    return `A ${w.titleReigns.length}-time champion across ${years} unforgettable years in this business — a first-ballot lock if there ever was one`;
   }
   if (weeks >= ctx.settings.hofChampionWeeksForFullCredit) {
-    return `Carried a championship for ${weeks} weeks`;
+    return `Carried a championship for a staggering ${weeks} weeks — that is a legacy, not just a stat line`;
   }
   if (w.careerHighPopularity >= ctx.settings.mainEventPopularity) {
-    return `Drew money everywhere, for ${years} years`;
+    return `Drew money in every building that would have them, for ${years} years running`;
   }
-  return `${years} years in the business, and every one of them earned`;
+  return `${years} years in this business, and every last one of them earned the hard way`;
 }
 
 /**

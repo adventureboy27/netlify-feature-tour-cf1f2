@@ -1406,3 +1406,80 @@ written spare and rewritten later.
   the new hype-voice text renders correctly end-to-end with real wrestler
   names substituted in, live commentary still generates for the ordinary
   match, and zero runtime errors.
+
+## Phase 2c: misfortune / incident / wire cluster in hype-reporter voice
+
+Continuing the voice pass (2a Americanization, 2b match/broadcast) into the
+next cluster: everything that reports the stuff that happens to people
+between shows, and the ~20 inline newsfeed strings written directly inside
+`state/store.ts` and `state/slices/*.ts` rather than pulled from a `data/`
+pool.
+
+- **`data/misfortunes.ts`** — all 17 `MisfortuneDefinition.lines` arrays
+  rewritten (car trouble through infection setbacks), plus
+  `RIVAL_WEATHER_CATASTROPHE_LINES`/`RIVAL_NO_SHOW_CATASTROPHE_LINES`. One
+  gendered-pronoun slip caught by `pronouns.test.ts` on the first full-suite
+  run (`barFight`'s "he was picking a fight with") and fixed to "they were."
+- **`engine/world/noShowCall.ts`** — `PULL_SEGMENT_LINES`, `HANDICAP_LINES`,
+  `MYSTERY_OPPONENT_LINES` all rewritten, four lines apiece.
+- **`data/incidents.ts`** — all 13 incident definitions' three-headline
+  pools rewritten, every `${nameOf(x)}`/`${group.name}`/`${manager.name}`/
+  `${belt}` interpolation preserved exactly.
+- **`engine/world/impromptu.ts`** — the memorial and charity `announcement`
+  templates, `afterLine()`, and `familyLine()` rewritten.
+- **`engine/career/retirement.ts`** — `RETIREMENT_REASON_TEXT`'s four
+  clauses rewritten. Incidentally fixed a pre-existing grammar bug while
+  doing it: the clauses follow `${name} has retired. ${reason}`
+  (`engine/world/wire.ts`'s `retirementLine`) but started lowercase, reading
+  as a sentence fragment after a full stop — the new text is capitalized.
+- **`engine/career/hallOfFame.ts`** — `citationFor`'s four citation lines
+  given a moderate hype touch (an induction is a celebration, not a
+  eulogy, even for the rare posthumous inductee).
+- **`engine/career/awards.ts`** — the full end-of-year awards voice: all 8
+  `AWARDS` blurbs and every inline citation string in `decideAwards`
+  rewritten. This one leans hardest into the hype register of anything in
+  the cluster — it's the one system in the game explicitly modeled on an
+  actual awards broadcast.
+- **`engine/career/mortality.ts` and `engine/career/epitaph.ts` —
+  deliberately left untouched.** CLAUDE.md states deaths are "Handled
+  soberly: no gore, no spectacle, no in-ring deaths" — `mortality.ts`'s
+  `DEATH_CAUSE_TEXT` and `epitaph.ts`'s `whoTheyWere`/`whatTheyLeave`/
+  `howTheyWent` (which literally embeds `DEATH_CAUSE_TEXT` and is shared
+  between the memorial wall and the Hall of Fame board) are already
+  correct by design, not a gap the tone pass should close. Same exception
+  class as `gimmicks.ts` (first-person) and `fanVoices.ts` (tweet
+  register) getting different treatment — flagged explicitly rather than
+  silently skipped. The same solemnity call was applied to the handful of
+  title-memorial wire lines in `state/slices/titles.ts` that fire in the
+  direct wake of a champion's death (`answerTitleMemorial`'s three
+  outcomes) — left in the existing plain register rather than hyped up.
+- **~25 inline `wire(...)` template strings across `state/store.ts` and
+  `state/slices/{titles,showAndProduction,storylines,supershow,
+  rosterAndContracts,cup}.ts`** rewritten in place — residency deals,
+  title strips/vacates/renames, faction joins/departures, contract
+  expiries and poaching, house-show and dark-match recaps, story
+  heat/death, Crucible tournament recaps, and more. Two of these needed a
+  second pass after the full suite caught them: `poaching.store.test.ts`
+  and `renewalWindow.store.test.ts` both assert on an exact substring
+  (`'never answered'`, `'won them on the open market'`) inside a wire
+  line's text, and the first hype rewrite of those two lines lost the
+  literal phrase the tests were checking for — re-expressed to keep the
+  hype color while preserving the exact matched substrings, per CLAUDE.md's
+  re-express-don't-re-baseline rule (the tests were right; the rewrite was
+  wrong).
+- Also touched two engine helper functions that generate wire text outside
+  any `data/` pool: `engine/sim/freshness.ts`'s `goneStaleLine`/
+  `goneIceColdLine` (gimmick heat going cold/dead) and
+  `engine/sim/casualties.ts`'s `aggravationLine` (working hurt and making
+  it worse) — same cluster in spirit even though they're not in the
+  original file inventory.
+- **Explicitly deferred, not in this pass:** `career/discipline.ts`'s
+  sanction notes (`sanction.note`, `suspensionLine`) referenced from two
+  spots in `store.ts`, and the `fieldLine`/`result.line` helpers backing
+  the Crucible tournament recap in `state/slices/cup.ts` — both generate
+  text from a data/logic file outside the originally inventoried list and
+  were left as a follow-up rather than scope-creeping this pass further.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests
+  passing (two failures found and fixed on the first full run, both
+  substring-match regressions described above, plus the one gendered-
+  pronoun catch); `npm run build` and `npm run sim` both clean.
