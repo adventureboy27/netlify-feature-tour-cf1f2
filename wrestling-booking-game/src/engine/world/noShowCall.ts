@@ -10,12 +10,40 @@
 // resolve into consequences the store applies.
 
 import type { Rng } from '../rng';
-import { pick } from '../rng';
+import { pick, rngFromSeed } from '../rng';
 import type { Id, Wrestler, WorldSettings } from '../types';
 import { MISFORTUNES } from '../../data/misfortunes';
 import { pickReplacement } from './misfortune';
 
 const NO_SHOW_LINES = MISFORTUNES.filter((m) => m.kind === 'absence').flatMap((m) => m.lines);
+
+/**
+ * How each choice gets written up. Several lines apiece rather than one
+ * fixed sentence per choice — this event is rare enough in a single save
+ * (a couple of times a year, business-wide) that a hand-tuned draw could
+ * plausibly get away with one line, but a long save sees it many times
+ * over, and every single one would read identically.
+ */
+const PULL_SEGMENT_LINES = [
+  '{name} never made the building. Rather than throw a match together, the office pulled it from the card.',
+  'No sign of {name} by bell time. Rather than force it, the segment came off the card entirely.',
+  '{name} was a no-show and there was nothing worth building around it. The spot just disappeared from the card.',
+  'The office waited as long as it could for {name}. When nothing came, the segment went with it.',
+];
+
+const HANDICAP_LINES = [
+  '{name} never made the building. Rather than scratch the whole match, the office sent the other side out alone against the field.',
+  'With no sign of {name}, the match went on anyway — the other side against the field, uneven and worse for it.',
+  '{name} was a no-show, so the segment ran anyway, minus the one name it needed.',
+  'The office chose not to scratch the whole thing over {name}. The other side worked it alone instead.',
+];
+
+const MYSTERY_OPPONENT_LINES = [
+  '{name} never made the building. {replacement} got the call an hour before bell time and the crowd had no idea what they were about to see.',
+  'No sign of {name} all night. {replacement} was pulled off catering duty and thrown into the spot instead.',
+  '{name} was a no-show, and {replacement} found out they were wrestling tonight about the same time the crowd did.',
+  'With {name} nowhere to be found, {replacement} got the surprise call — and gave the building one right back.',
+];
 
 export interface NoShowCall {
   week: number;
@@ -92,6 +120,17 @@ export interface NoShowOutcome {
   line: string;
 }
 
+/**
+ * Seeded from the call itself rather than drawn from the shared stream —
+ * this resolves mid-`resolveWeek`, after the booker has answered, and a
+ * shared-stream draw here would shift every seeded roll after it (the
+ * documented trap). Stable and replay-safe: the same call and choice
+ * always writes up the same way.
+ */
+function outcomeRng(call: NoShowCall, choice: NoShowChoiceId): Rng {
+  return rngFromSeed(`noShowOutcome:${call.absentId}:${call.week}:${choice}`);
+}
+
 export function resolveNoShowCall(call: NoShowCall, choice: NoShowChoiceId, settings: WorldSettings): NoShowOutcome {
   if (choice === 'pullSegment') {
     return {
@@ -99,7 +138,7 @@ export function resolveNoShowCall(call: NoShowCall, choice: NoShowChoiceId, sett
       pullSegment: true,
       following: settings.calledOffWronglyFollowing,
       extraCost: 0,
-      line: `${call.absentName} never made the building. Rather than throw a match together, the office pulled it from the card.`,
+      line: pick(outcomeRng(call, choice), PULL_SEGMENT_LINES).replace(/\{name\}/g, call.absentName),
     };
   }
 
@@ -109,7 +148,7 @@ export function resolveNoShowCall(call: NoShowCall, choice: NoShowChoiceId, sett
       pullSegment: false,
       following: settings.movedShowFollowing,
       extraCost: settings.movedShowScrambleCost,
-      line: `${call.absentName} never made the building. Rather than scratch the whole match, the office sent the other side out alone against the field.`,
+      line: pick(outcomeRng(call, choice), HANDICAP_LINES).replace(/\{name\}/g, call.absentName),
     };
   }
 
@@ -118,6 +157,8 @@ export function resolveNoShowCall(call: NoShowCall, choice: NoShowChoiceId, sett
     pullSegment: false,
     following: settings.ranThroughItFollowing,
     extraCost: settings.movedShowScrambleCost,
-    line: `${call.absentName} never made the building. ${call.suggestedReplacementName} got the call an hour before bell time and the crowd had no idea what they were about to see.`,
+    line: pick(outcomeRng(call, choice), MYSTERY_OPPONENT_LINES)
+      .replace(/\{name\}/g, call.absentName)
+      .replace(/\{replacement\}/g, call.suggestedReplacementName ?? 'somebody'),
   };
 }

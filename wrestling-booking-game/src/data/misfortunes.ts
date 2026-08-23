@@ -282,3 +282,24 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
   },
 ];
 
+/**
+ * How the wire narrates a business-wide catastrophe (engine/world/
+ * catastrophe.ts) landing on a rival rather than the player — the player
+ * never sees the decision, only the aftermath, so it needs its own short
+ * write-up rather than reusing the per-wrestler misfortune lines above.
+ * {name} is the rival promotion.
+ */
+export const RIVAL_WEATHER_CATASTROPHE_LINES = [
+  "{name}'s show ran straight into a night nobody wanted to be out in. They ran it anyway and ate the risk.",
+  '{name} ran their card through weather that should have called it off. The building was half empty by the main event.',
+  'Whatever hit the building {name} was running in, they decided to push through it rather than pull the plug.',
+  '{name} gambled on the forecast and lost. The show went on anyway.',
+];
+
+export const RIVAL_NO_SHOW_CATASTROPHE_LINES = [
+  '{name} had somebody booked never turn up tonight. The office over there scrambled a replacement and the show went on.',
+  'Somebody on {name}\'s card simply never made the building. They patched the hole and kept moving.',
+  '{name} lost a name off their card at the last minute and had to think on their feet.',
+  'A no-show threw {name}\'s night into chaos. They got through it, one way or another.',
+];
+

@@ -491,6 +491,7 @@ import {
 } from '../engine/world/weatherCall';
 import { rollCatastrophe, forcedSevereWeatherRoll } from '../engine/world/catastrophe';
 import { noShowCallFrom, resolveNoShowCall, type NoShowChoiceId } from '../engine/world/noShowCall';
+import { RIVAL_WEATHER_CATASTROPHE_LINES, RIVAL_NO_SHOW_CATASTROPHE_LINES } from '../data/misfortunes';
 import type { TitleMemorialChoiceId } from '../engine/world/titleMemorial';
 import type { RivalMoveChoiceId } from '../engine/world/rivalMove';
 import type { ConfrontationCallChoiceId } from '../engine/world/confrontationCall';
@@ -3724,10 +3725,17 @@ export const useGameStore = create<GameStore>()(
           if (catastrophe && catastrophe.targetPromotionId === rival.id) {
             show.showRating = clamp(show.showRating - world.settings.catastropheRivalRatingDip, 0, 100);
             show.showStars = Math.max(0, show.showStars - 1);
-            const line =
-              catastrophe.kind === 'weather'
-                ? `${rival.name}'s show ran straight into a night nobody wanted to be out in. They ran it anyway and ate the risk.`
-                : `${rival.name} had somebody booked never turn up tonight. The office over there scrambled a replacement and the show went on.`;
+            // Seeded from the rival and week rather than the shared stream —
+            // this sits well inside resolveWeek's deterministic sequence, and
+            // a shared-stream draw here would shift every seeded roll after
+            // it (the documented trap). A pool rather than a fixed sentence:
+            // every rival's catastrophe, for the whole business, for the
+            // whole save, otherwise reads as the identical line forever.
+            const lineRng = rngFromSeed(`rivalCatastropheLine:${rival.id}:${world.week}`);
+            const line = pick(
+              lineRng,
+              catastrophe.kind === 'weather' ? RIVAL_WEATHER_CATASTROPHE_LINES : RIVAL_NO_SHOW_CATASTROPHE_LINES,
+            ).replace(/\{name\}/g, rival.name);
             world.weeklyNews.push(wire('misfortune', line, world.week + 1, 'normal'));
           }
 

@@ -1090,3 +1090,57 @@ something else.
   in lockstep) with zero runtime errors, and screenshotted the "Lately the
   crowd has taken to technical and showman wrestling" line rendering live
   on the Promotion screen.
+
+---
+
+## Repetition audit, round three — the no-show call and its rival sibling
+
+Return to the repetition theme ("check misfortune-driven no-shows too") after
+the earlier round covered `promo.ts`, `confrontation.ts`, `narrative.ts`,
+`misfortune.ts`, and `referees.ts`. This round found a worse variant of the
+same bug rather than a milder one.
+
+- **`engine/world/noShowCall.ts`'s `resolveNoShowCall`** had three outcome
+  branches (`pullSegment`, `handicapMatch`, `mysteryOpponent`), each writing
+  a single, completely fixed template sentence — not "small pool, might
+  repeat," but zero pool, guaranteed identical, forever, across the whole
+  save. Fixed by adding a 4-line pool per branch (`PULL_SEGMENT_LINES`,
+  `HANDICAP_LINES`, `MYSTERY_OPPONENT_LINES`) and a private `outcomeRng(call,
+  choice)` helper that derives a seeded RNG off `absentId:week:choice` rather
+  than drawing from the shared stream — this resolves mid-`resolveWeek`,
+  after the booker has answered, so a shared-stream draw here would shift
+  every seeded roll after it (the documented trap). Stable and replay-safe:
+  the same call and choice always writes up the same way.
+- **`state/store.ts`'s rival-catastrophe wire line** had the identical shape
+  one level up: a fixed ternary between one "weather" sentence and one
+  "no-show" sentence for narrating a catastrophe landing on a rival instead
+  of the player. Fixed the same way — two new 4-line pools in
+  `data/misfortunes.ts` (`RIVAL_WEATHER_CATASTROPHE_LINES`,
+  `RIVAL_NO_SHOW_CATASTROPHE_LINES`), picked via a seeded
+  `rngFromSeed(\`rivalCatastropheLine:${rival.id}:${world.week}\`)` for the
+  same reason — this sits inside `resolveWeek`'s deterministic sequence too.
+- Deliberately left alone: `noShowCallFrom`'s own excuse-line draw (the
+  `warning` field) already pulls from the full, already-expanded `misfortune.ts`
+  absence pool — no separate fix needed there. Considered and declined
+  threading a dedup set across the call: it's a rare, chance-gated,
+  business-wide roll (a couple of times a year per the catastrophe system),
+  and the same-week collision risk against an unrelated wrestler's ordinary
+  `rollMisfortune` draw is low enough that the complexity of bridging a
+  declaration-order gap in `resolveWeek` (the no-show call resolves earlier
+  than `usedMisfortuneLines` is declared) wasn't worth it — consistent with
+  the earlier round's finding that chance-gated, at-most-weekly draws are
+  lower priority than the "always identical" bug class this round actually
+  found.
+- Verified: `tsc --noEmit` clean, new `engine/world/noShowCall.test.ts` (7
+  tests — placeholder-free output on all three choices, more than one
+  distinct phrasing per choice across 30 simulated weeks, replacement name
+  present on the mystery-opponent line, replay-identical for the same call
+  and choice, and the segment drops from the card only when pulled), full
+  suite 144 files / 2810 tests passed (2803 + 7 new, zero regressions),
+  `npm run build` and `npm run sim` both clean, and a real-browser pass:
+  forced a `NoShowCall` directly into `world.pendingNoShowCall` to bypass the
+  rare weekly roll, confirmed the full-screen dialogue overlay renders
+  correctly with all three choices and their gains/costs, that its warning
+  text came from the already-expanded `misfortune.ts` pool (confirming the
+  whole pipeline wires together end-to-end, not just unit-tested in
+  isolation), and zero page errors.
