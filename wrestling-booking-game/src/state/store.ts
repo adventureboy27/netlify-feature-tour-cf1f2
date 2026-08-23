@@ -616,7 +616,7 @@ export interface GameStore {
   /** Stock a merch line or open a concession stand for the show. */
   toggleStand: (standId: Id) => void;
   /**
-   * Take a room for a season. Cheaper rent, no travel, no lorry, and a town
+   * Take a room for a season. Cheaper rent, no travel, no truck, and a town
    * that tires of you. See engine/economy/residency.ts.
    */
   signResidency: (homeId: Id, weeks: number) => void;
@@ -1316,7 +1316,7 @@ export const useGameStore = create<GameStore>()(
         }
 
         // Anybody who will not be in the building tonight. A fresh injury
-        // keeps you out just as surely as a blown tyre does.
+        // keeps you out just as surely as a blown tire does.
         const missingTonight = new Map(
           misfortunes.filter((m) => m.kind !== 'aggravation').map((m) => [m.wrestlerId, m]),
         );
@@ -3231,7 +3231,7 @@ export const useGameStore = create<GameStore>()(
           const rep = representativeOf(world.representations, member.id);
           const takenByAgent = rep ? cutOf(gross, rep) : 0;
           // ...and what it cost him to get there. The promotion's travel line
-          // is the trucks and the crew; this is the man's own petrol, and
+          // is the trucks and the crew; this is the man's own gas money, and
           // `travelCovered` is what buys him out of it. Without this the
           // clause charged the company extra to spare a wrestler a cost he
           // never had. See career/representation.ts.
@@ -3346,7 +3346,7 @@ export const useGameStore = create<GameStore>()(
         // Only what was hauled in and switched on. A video wall that stayed on
         // the trailer costs nothing to run.
         const rig = productionUpkeepPerShow(rigInRoom) * Math.max(1, houseShows.length + 1);
-        // A resident promotion has no lorry: the gear lives in the building.
+        // A resident promotion has no truck: the gear lives in the building.
         const truck = residencyHaulageCost(world.residency, haulageById(world.haulageId)?.upkeepPerWeek ?? 0);
         world.promotion.bankBalance -= rig + truck;
         books.spend('production', rig);

@@ -83,7 +83,7 @@ export const CONTROL_BEATS: Record<string, string[]> = {
   ],
   striker: [
     '{winner} lit {loser} up with strikes until the front row winced.',
-    'A kick landed flush and {loser} went a funny colour.',
+    'A kick landed flush and {loser} went a funny color.',
     '{winner} worked the body until {loser} stopped bothering to block it.',
     'You could hear every one of those from the cheap seats.',
   ],

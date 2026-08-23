@@ -138,7 +138,7 @@ export const CONCESSIONS: Stand[] = [
     perHead: 0.5,
     fit: 'none',
     needsBarRights: true,
-    blurb: 'Cans and crisps, sold by somebody’s cousin.',
+    blurb: 'Cans and chips, sold by somebody’s cousin.',
   },
   {
     id: 'snackBar',
@@ -147,7 +147,7 @@ export const CONCESSIONS: Stand[] = [
     perHead: 1.6,
     fit: 'none',
     needsBarRights: true,
-    blurb: 'Hot dogs, popcorn and a queue that misses the opener.',
+    blurb: 'Hot dogs, popcorn and a line that misses the opener.',
   },
   {
     id: 'fullBar',
@@ -156,7 +156,7 @@ export const CONCESSIONS: Stand[] = [
     perHead: 3.4,
     fit: 'none',
     needsBarRights: true,
-    blurb: 'The single best line of business in wrestling, and it needs a licence.',
+    blurb: 'The single best line of business in wrestling, and it needs a license.',
   },
   {
     id: 'foodTrucks',

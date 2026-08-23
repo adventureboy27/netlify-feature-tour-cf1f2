@@ -82,7 +82,7 @@ export function negotiatingLeverage(wrestler: Wrestler, settings: WorldSettings)
 export function leverageLine(leverage: number, settings: WorldSettings): string {
   if (leverage >= settings.leverageStrongAt) return 'Can ask for whatever they like and get it.';
   if (leverage >= settings.leverageFairAt) return 'Knows what they are worth, and so does everybody else.';
-  if (leverage >= settings.leverageWeakAt) return 'There is not a queue for them any more.';
+  if (leverage >= settings.leverageWeakAt) return 'There is not a line for them any more.';
   return 'They need this more than you do.';
 }
 

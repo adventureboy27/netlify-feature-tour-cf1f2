@@ -6,7 +6,7 @@
 // people miss shows for reasons that have nothing to do with wrestling.
 //
 // The dice are weighted hard toward nothing at all, and within "something",
-// hard toward the cheap end: a blown tyre is common, being jumped in the
+// hard toward the cheap end: a blown tire is common, being jumped in the
 // parking lot is rare, a car wreck is rarer still. Most weeks this function
 // returns null for everybody on the roster.
 //
@@ -62,7 +62,7 @@ function drawDefinition(rng: Rng, candidates: MisfortuneDefinition[]): Misfortun
  * `usedLines` is every misfortune line already spent this week — on a
  * large roster, two different people can independently draw the *same*
  * definition (most only carry 2-3 lines apiece), and reading "the car
- * died in a petrol station car park" for two different wrestlers in one
+ * died in a gas station parking lot" for two different wrestlers in one
  * week's news reads as thin even though the names differ. Only dedupes
  * within a definition's own pool — a fallback into a different
  * definition's lines would describe the wrong kind of misfortune

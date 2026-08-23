@@ -215,7 +215,7 @@ export function TitleBuilder({
 
             <button
               type="button"
-              aria-label={`Choose colours for ${belt.suffix}`}
+              aria-label={`Choose colors for ${belt.suffix}`}
               data-testid={`belt-colors-${index}`}
               onClick={() => setColorPickerIndex(index)}
               className="shrink-0 flex items-center gap-1.5 rounded border border-neutral-800 px-2 py-1.5 text-xs text-neutral-300 hover:border-neutral-500"
@@ -225,7 +225,7 @@ export function TitleBuilder({
                 style={{ backgroundColor: belt.colorway?.plate ?? DEFAULT_PLATE }}
                 aria-hidden
               />
-              Colours
+              Colors
             </button>
           </div>
         );

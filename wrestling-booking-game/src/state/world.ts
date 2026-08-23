@@ -230,7 +230,7 @@ export interface World {
   statements: WeeklyStatement[];
   /**
    * A season signed for one room, or null while the company tours. Cheaper
-   * rent, no travel and no lorry, and a town that tires of you.
+   * rent, no travel and no truck, and a town that tires of you.
    */
   residency: Residency | null;
   /**

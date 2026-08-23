@@ -45,7 +45,7 @@ export const WEATHER_CALL_OPTIONS: WeatherCallOption[] = [
     gains:
       'Nobody drives, nobody climbs a ladder in a gale, and whatever happens to that building tonight happens without your name on it.',
     costs:
-      'The deposit is gone whatever the sky does, every ticket goes back, and the regulars find out you were the promotion that cancelled on them.',
+      'The deposit is gone whatever the sky does, every ticket goes back, and the regulars find out you were the promotion that canceled on them.',
   },
   {
     id: 'moveIt',
@@ -145,7 +145,7 @@ export const WEATHER_CALL_LINES: Record<Id, WeatherCallOutcomeLines> = {
   },
   powerCut: {
     ranAndHit:
-      'The grid went down over {town} and stayed down. They ran the card off the generator, lit like a car park, and the crowd sang through the dark spots.',
+      'The grid went down over {town} and stayed down. They ran the card off the generator, lit like a parking lot, and the crowd sang through the dark spots.',
     ranAndMissed:
       'The power held in {town} after all. The generator sat outside all night doing nothing and the show ran normally.',
     offAndHit:

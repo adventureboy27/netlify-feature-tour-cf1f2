@@ -1,7 +1,7 @@
 // The Crucible's permanent record.
 //
 // Year, company, and who carried the Iron Crown — the three things anybody
-// would want off a roll of honour, oldest at the bottom the way a plaque reads.
+// would want off a roll of honor, oldest at the bottom the way a plaque reads.
 // Multiple winners get counted, because winning it twice is a different kind of
 // career from winning it once.
 
@@ -77,7 +77,7 @@ export function CrucibleScreen() {
 
       <section className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
         <h2 className="mb-2 text-sm font-medium text-neutral-200">
-          Roll of honour — {world.cupHistory.length}
+          Roll of honor — {world.cupHistory.length}
         </h2>
         {history.length === 0 ? (
           <p className="text-xs text-neutral-500">

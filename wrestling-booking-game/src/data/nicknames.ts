@@ -112,7 +112,7 @@ export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
     'The Common Man',
     'The One They Came to See',
     'The Heart of the Company',
-    'The Favourite Son',
+    'The Favorite Son',
   ],
   veteran: [
     'The Old Lion',

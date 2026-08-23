@@ -226,7 +226,7 @@ export function wearLabel(
 //
 // Travel was a cost the *promotion* paid — per head, per show — and there was
 // a `travelCovered` clause that charged the company extra for it. Which meant
-// the clause bought a wrestler nothing: he was never paying for petrol in the
+// the clause bought a wrestler nothing: he was never paying for gas in the
 // first place, so having somebody else not pay it either was worth precisely
 // zero to him.
 //

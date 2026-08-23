@@ -198,7 +198,7 @@ export const PROMOTION_IDENTITIES: Record<PromotionArchetype, PromotionIdentity>
     secondaryBeltTier: 'secondary',
     signatureBelt: {
       qualifier: 'Ladder',
-      blurb: 'Hung above the ring at every defence. Climb or hand it over.',
+      blurb: 'Hung above the ring at every defense. Climb or hand it over.',
       tier: 'tertiary',
       prestige: 48,
       stipulationId: 'ladder',

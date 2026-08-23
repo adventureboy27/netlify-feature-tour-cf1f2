@@ -64,7 +64,7 @@ export const WIRE_KIND_LABELS: Record<WireKind, string> = {
   comeback: 'Comeback',
   team: 'Teams',
   official: 'Officials',
-  honour: 'Honours',
+  honour: 'Honors',
   debut: 'Debut',
   title: 'Title',
   weather: 'The road',

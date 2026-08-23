@@ -114,7 +114,7 @@ export const OWNER_PROFILES: OwnerProfile[] = [
     greetings: [
       'Nobody buys a ticket to see a roster.',
       'Who is our guy? Name one.',
-      'I want a face on the poster people recognise.',
+      'I want a face on the poster people recognize.',
     ],
   },
 ];

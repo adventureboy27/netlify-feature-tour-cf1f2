@@ -60,7 +60,7 @@ export const SHOW_TWEETS: TweetTemplate[] = [
   // --- jokes, any night
   { text: 'somebody just asked why i am yelling at people in trunks. i had no answer.', tone: 'joke' },
   { text: 'the referee counted so slowly i aged', tone: 'joke' },
-  { text: 'popcorn was £4. the show was worth less than the popcorn.', tone: 'joke', maxRating: 45 },
+  { text: 'popcorn was $4. the show was worth less than the popcorn.', tone: 'joke', maxRating: 45 },
   { text: 'guy behind me shouted “BORING” at the national anthem. legend.', tone: 'joke' },
   { text: 'my nephew asked if it was real and i had to sit them down', tone: 'joke' },
   { text: 'i have watched this company for 20 years and i still cannot explain why', tone: 'joke' },
@@ -111,7 +111,7 @@ export const MATCH_TWEETS: TweetTemplate[] = [
   { text: 'leave {worst} alone, they are trying their best out there', tone: 'contrarian' },
 
   // --- more mid-range so the feed does not run dry on an average night
-  { text: '{winner} needed that win more than people realise', tone: 'praise', minRating: 40 },
+  { text: '{winner} needed that win more than people realize', tone: 'praise', minRating: 40 },
   { text: '{loser} is being wasted and it is starting to annoy me', tone: 'criticism', maxRating: 72 },
   { text: 'i need {winner} and {loser} to never wrestle each other again', tone: 'demand', maxRating: 55 },
   { text: 'book {best} against somebody who can actually go', tone: 'demand', minRating: 45 },

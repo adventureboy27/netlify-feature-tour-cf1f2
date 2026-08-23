@@ -59,8 +59,8 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     name: 'A clear night',
     lines: [
       'Not a cloud over {town}. Nobody had an excuse to stay home.',
-      'A still, clear evening in {town}. You could hear the ring from the car park.',
-      'Nothing at all happening with the weather in {town}, which the crew took as a personal favour.',
+      'A still, clear evening in {town}. You could hear the ring from the parking lot.',
+      'Nothing at all happening with the weather in {town}, which the crew took as a personal favor.',
     ],
     seasons: 'any',
     climates: 'any',
@@ -103,7 +103,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   },
   {
     id: 'mudLot',
-    name: 'The car park was a swamp',
+    name: 'The parking lot was a swamp',
     lines: ['It had rained on {town} all week and the overflow parking was six inches of mud. Two cars had to be towed out.'],
     seasons: ['spring', 'autumn'],
     climates: 'any',
@@ -154,7 +154,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'firstFrost',
     name: 'First frost',
-    lines: ['First real frost of the year in {town}. The car park was a skating rink and everybody came anyway.'],
+    lines: ['First real frost of the year in {town}. The parking lot was a skating rink and everybody came anyway.'],
     seasons: ['autumn', 'winter'],
     climates: ['northern', 'mountain', 'temperate', 'plains'],
     severity: 'flavour',
@@ -174,7 +174,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'seaFog',
     name: 'Sea fog',
-    lines: ['Fog came in off the water and sat on {town} all evening. You could not see the far side of the car park.'],
+    lines: ['Fog came in off the water and sat on {town} all evening. You could not see the far side of the parking lot.'],
     seasons: ['spring', 'autumn', 'winter'],
     climates: ['coastal'],
     severity: 'flavour',
@@ -395,7 +395,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     weight: 20,
     warnings: [
       "The whole of {town}'s county is under a watch box from four in the afternoon.",
-      'There is a line of cells building west of {town} and the air has gone that colour.',
+      'There is a line of cells building west of {town} and the air has gone that color.',
     ],
   },
   {

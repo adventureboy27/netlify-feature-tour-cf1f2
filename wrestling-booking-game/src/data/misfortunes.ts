@@ -8,7 +8,7 @@
 // with wrestling at all.
 //
 // The dice are heavily weighted toward the boring end, which is the whole
-// point: most weeks nothing happens to anybody. A blown tyre comes up often;
+// point: most weeks nothing happens to anybody. A blown tire comes up often;
 // somebody getting jumped in the parking lot is rare, and being hit by a car
 // is rarer still. A lot of sides of the die are small.
 //
@@ -52,9 +52,9 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     weight: 30,
     requires: 'healthy',
     lines: [
-      '{name} is on the hard shoulder ninety miles out with the bonnet up.',
-      "{name}'s car died in a petrol station car park and the tow truck is two hours away.",
-      '{name} blew a tyre on the interstate and there is no spare in the boot.',
+      '{name} is on the shoulder ninety miles out with the hood up.',
+      "{name}'s car died in a gas station parking lot and the tow truck is two hours away.",
+      '{name} blew a tire on the interstate and there is no spare in the trunk.',
       "{name}'s car overheated on the on-ramp and nothing is moving.",
     ],
   },
@@ -66,7 +66,7 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'healthy',
     lines: [
       '{name} is sitting in an airport four states away watching the departures board.',
-      "{name}'s connection was cancelled and there is nothing else out tonight.",
+      "{name}'s connection was canceled and there is nothing else out tonight.",
       '{name} got as far as the gate and the gate closed.',
       "{name}'s flight was grounded on the tarmac for two hours and never made the window.",
     ],
@@ -79,7 +79,7 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'healthy',
     lines: [
       '{name} is snowed in and the roads out are closed.',
-      '{name} spent six hours in standstill traffic behind an overturned lorry and never got close.',
+      '{name} spent six hours in standstill traffic behind an overturned truck and never got close.',
       'The whole county is under a storm warning and {name} never left the hotel.',
       "{name}'s road out of town is underwater and has been since this morning.",
     ],
@@ -159,7 +159,7 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     lines: [
       '{name} was found laid out by the production cases twenty minutes before the doors opened.',
       '{name} got jumped in the corridor outside the locker room and nobody saw who.',
-      '{name} was attacked in the parking lot walking in. The car park has no cameras.',
+      '{name} was attacked in the parking lot walking in. There are no cameras out there.',
       '{name} was found in a stairwell nobody uses, and nobody is saying who found them there.',
     ],
   },
@@ -203,7 +203,7 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     lines: [
       '{name} got into it with somebody in a bar who did not know the difference.',
       '{name} broke a hand on a face that was not part of the show.',
-      'Somebody recognised {name} at the wrong bar and would not let it go.',
+      'Somebody recognized {name} at the wrong bar and would not let it go.',
       '{name} got pulled into somebody else\'s fight and came out worse for it.',
     ],
   },

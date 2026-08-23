@@ -231,7 +231,7 @@ export const REFEREE_BLURBS = {
   ],
   crooked: [
     'Available, for a number.',
-    'Has done favours before and will do them again.',
+    'Has done favors before and will do them again.',
     'Counts as fast or as slow as the situation requires.',
   ],
 } as const;

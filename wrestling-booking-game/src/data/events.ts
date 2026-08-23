@@ -347,7 +347,7 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} and {secondary} want to form a group',
     speaker: 'narrator',
     body: [
-      'They have been travelling together for months and they have it all worked out — name, colours, the lot.',
+      'They have been traveling together for months and they have it all worked out — name, colors, the lot.',
       'Two acts that are not going anywhere alone think they would go somewhere together.',
       'They pitched it as a faction. They already have matching gear made.',
     ],
@@ -361,7 +361,7 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     options: [
       {
         id: 'form',
-        label: 'Form the group, matching colours and all',
+        label: 'Form the group, matching colors and all',
         gains: 'Two mid-card acts become one thing worth caring about',
         costs: 'Neither of them can be built as a singles act while it lasts',
         effects: ({ primary, secondary }) => [
@@ -394,7 +394,7 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     speaker: 'primary',
     body: [
       "I've done everything you've asked for two years. I want the top of the card, not just a good spot on it.",
-      "I'm not asking for a favour. I'm telling you I'm ready.",
+      "I'm not asking for a favor. I'm telling you I'm ready.",
       "Every time I ask, it's 'not yet.' I want to know what 'yet' actually means.",
     ],
     weight: 11,

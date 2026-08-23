@@ -10,9 +10,9 @@
 // data/residencies.ts for the buildings. What signing buys:
 //
 //   - flat, cheap, weekly rent with no percentage and no load-in;
-//   - no travel bill, because nobody is travelling;
+//   - no travel bill, because nobody is traveling;
 //   - no haulage bill, because the rig lives in the building — which means a
-//     resident promotion does not need a lorry at all, and can climb the
+//     resident promotion does not need a truck at all, and can climb the
 //     production ladder without the truck that normally gates it.
 //
 // And what it costs, which is most of this file:
@@ -189,7 +189,7 @@ export function residencyTravelCost(residency: Residency | null, touringCost: nu
   return residency ? 0 : touringCost;
 }
 
-/** Same for the lorry. The gear lives in the building; there is no lorry. */
+/** Same for the truck. The gear lives in the building; there is no truck. */
 export function residencyHaulageCost(residency: Residency | null, touringCost: number): number {
   return residency ? 0 : touringCost;
 }

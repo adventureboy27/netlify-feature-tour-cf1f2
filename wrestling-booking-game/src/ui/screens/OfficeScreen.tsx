@@ -941,7 +941,7 @@ function ContractsTab() {
                 },
                 {
                   id: 'refuse',
-                  label: 'They honour the deal',
+                  label: 'They honor the deal',
                   gains: 'You keep them on the roster',
                   costs: 'They resent it, and they remember',
                 },

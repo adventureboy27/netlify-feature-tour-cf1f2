@@ -1270,3 +1270,73 @@ setting) is scoped separately and not started here.
   one seed; and the ordinary 1v1 still generated a full live commentary
   call, confirming no regression to the normal two-side path. Zero runtime
   errors across every run.
+
+---
+
+## Americanizing the game's vocabulary — Phase 2a of the reporter-voice rewrite
+
+First sub-pass of the "write it like a hyped-up American wrestling reporter"
+rewrite (Phase 2 of the plan started alongside the match-type work above).
+Before touching tone, the plan called for a mechanical pass fixing British
+vocabulary/spelling that had leaked into an otherwise American-coded
+setting — interstate, gas stations, dollar amounts sitting next to tyre,
+bonnet, petrol, £, lorry, colour, favour, honour, licence, recognise,
+realise. Scoped strictly to text the player actually reads: data-file
+content strings (`text`/`blurb`/`label`/`name`/nickname/tweet pools) and
+real UI copy (headings, button labels, aria-labels). Internal identifiers,
+type fields, and code comments were deliberately left alone — `favouredStyles`
+the field, `ColourTemplate` the type, `centre` the React prop, the
+`'colour'`/`'flavour'` internal enum values — none of these are ever
+rendered as literal text to the player (confirmed for each before leaving
+it: no UI file references `VenueKind`'s `'theatre'` or the commentary
+`Speaker` union as raw display text), so renaming them would be pure
+internal churn with no player-facing benefit and real risk of missing a
+call site. The one internal spot that *did* need a fix: `WIRE_KIND_LABELS`
+in `engine/world/wire.ts` maps the internal `'honour'` kind to a real
+displayed newsfeed badge — the key stayed, the label went from `'Honours'`
+to `'Honors'`.
+
+- **Vehicle/roadside vocabulary**: `misfortunes.ts`'s car-trouble pool
+  (tyre→tire, bonnet→hood, boot→trunk, petrol station→gas station, hard
+  shoulder→shoulder, overturned lorry→overturned truck), plus every other
+  `car park` across `misfortunes.ts`, `weather.ts` (four separate weather
+  events, including one event's own display `name`), and `weatherCalls.ts`
+  → `parking lot`. `ResidencyDeal.tsx`'s two player-visible "no lorry"
+  lines → "no hauling"/"no truck", with the matching engine comments in
+  `economy/residency.ts` updated for consistency.
+- **-our/-ise/-ence/-ence spellings in real content**: `colour`→`color`
+  (`matchBeats.ts`, `weather.ts`, `commentaryLines.ts`'s one non-placeholder
+  instance), `favour(ing)`→`favor(ing)` (`refereePool.ts`, `weather.ts`,
+  `events.ts`, `commentaryLines.ts`), `honour`→`honor`
+  (`CrucibleScreen.tsx`'s "Roll of honor" heading, `OfficeScreen.tsx`'s
+  "They honor the deal" option label), `recognise`/`realise`→
+  `recognize`/`realize` (`misfortunes.ts`, `owners.ts`, `fanVoices.ts`),
+  `licence`→`license` (`stands.ts`), `defence`→`defense`
+  (`promotionIdentity.ts`'s ladder-belt blurb), `cancelled`→`canceled`
+  (`misfortunes.ts`, `weatherCalls.ts`), `travelling`→`traveling`
+  (`events.ts`), `Favourite`→`Favorite` (a nickname in `nicknames.ts`),
+  `queue`→`line` (`stands.ts`'s concession blurb, `leverage.ts`'s
+  negotiating-screen leverage line — the genuine "line of interested
+  parties" sense; every other `queue` hit in the codebase is the unrelated
+  CS data-structure term and was correctly left alone), `crisps`→`chips`
+  (`stands.ts`).
+- **`TitleBuilder.tsx`**: both the aria-label and the visible "Colours"
+  button label → "Colors" — this one also fixed an existing internal
+  inconsistency, since the component's own `data-testid` already said
+  `belt-colors-*` in American spelling while the rendered text didn't.
+- Deliberately NOT touched, and why: `data/fanVoices.ts`'s lowercase tweet
+  register (already Americanized separately, e.g. `£4`→`$4`, but kept its
+  deliberate casual/lowercase conceit — that's fan voice, not reporter
+  voice, per the plan). `data/gimmicks.ts`'s first-person promo lines
+  weren't touched by this pass at all — first-person character voice is a
+  separate treatment, scoped for a later Phase 2 sub-pass. `grey` (used
+  once, in `casualties.ts`) was left alone — unlike `colour`/`favour`,
+  both `grey` and `gray` are genuinely current American spellings, so
+  changing it wouldn't fix anything a player would notice.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests passing
+  with zero changes needed anywhere (every edit was either inside a data
+  pool with no test pinned to its exact wording, or a UI label with no
+  test asserting the old text — checked each one individually before
+  editing rather than assuming); `npm run build` and `npm run sim` both
+  clean; a real in-app pass starting a fresh game confirmed zero runtime
+  errors from the edited pools actually rendering.

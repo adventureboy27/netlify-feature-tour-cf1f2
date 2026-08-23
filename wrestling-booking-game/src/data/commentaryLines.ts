@@ -515,7 +515,7 @@ export const COLOUR: readonly ColourTemplate[] = [
     after: ['control'],
   },
   {
-    text: 'That is the leg {hurtComingIn} has been favouring all month. This is deliberate.',
+    text: 'That is the leg {hurtComingIn} has been favoring all month. This is deliberate.',
     needs: ['carryingInjury'],
     after: ['control', 'signature'],
     leaning: 'analyst',

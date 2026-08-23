@@ -43,7 +43,7 @@ describe('the library', () => {
 
   it('weights the cheap end heavily — most sides of the die are small', () => {
     // The user's rule for the whole chaos layer: common things common, the
-    // roof collapsing rare. A car wreck must not be as likely as a flat tyre.
+    // roof collapsing rare. A car wreck must not be as likely as a flat tire.
     const flat = MISFORTUNES.find((m) => m.id === 'carTrouble')!;
     const wreck = MISFORTUNES.find((m) => m.id === 'carWreck')!;
     expect(flat.weight).toBeGreaterThan(wreck.weight * 5);
