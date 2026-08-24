@@ -2154,3 +2154,56 @@ wiring rather than duplicating it.
   re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; the live balance
   pass above. No UI changed in this phase either — the new content flows through the same
   write-up pipeline every other injury already uses.
+
+---
+
+## Equipment economy, continued — Phase E: pyro can burn somebody on the way to the ring
+
+Fifth phase of the expanded plan. Pyro's upside (rating, attendance) was already real; this phase
+gives it the downside half the player explicitly asked for — "pyro could burn a wrestler on the way
+to the ring... just because it's PG rated doesn't mean things don't happen." Modeled directly on
+`sim/ringcraft.ts`'s `rollBotch()`, the established template for a per-match roll with its own risk
+formula, its own line, and a flag the caller folds into the general injury chain.
+
+- **New file `engine/sim/pyro.ts`**: `rollPyroBurn(rng, workers, pyroActive, equipmentInjuryReduction,
+  settings)` — returns `null` outright unless `pyroActive` is true, so a promotion that never fires
+  pyro never rolls this at all, ever. When it can fire, the odds are `settings.pyroBurnChance * (1 -
+  equipmentInjuryReduction)` — reusing Phase C's plumbing rather than inventing a separate pyro-gear
+  tier, the same honest-simplification call made in Phase C and D. A random participant catches it,
+  a PG line says so, and a separate roll (`pyroBurnInjuryShare`) decides whether it also leaves a real
+  mark or was just a scare — deliberately rare and deliberately minor when it lands, "a scorch, not a
+  catastrophe" per the file's own framing.
+- **`engine/types.ts`**: `MatchBeatKind` gets a new `'pyroBurn'` case, its own kind for the same
+  reason `'botch'` has one — the write-up needs to be able to tell "a spot went wrong" from "the
+  production gear went wrong." Four new `WorldSettings` fields: `pyroBurnChance` (0.015 base),
+  `pyroBurnInjuryShare` (0.35 — most pyro mishaps are just a scare), `pyroBurnRatingCost` (3, smaller
+  than a botch's 5, since this is an entrance mishap rather than a blown spot in the match itself),
+  `pyroBurnInjuryMultiplier` (2.5, smaller than a botch's 3.5).
+- **`engine/sim/simulateMatch.ts`**: new optional `pyroActive?: boolean` on `SimulateMatchContext`.
+  `rollPyroBurn` is rolled in the same place and the same way `rollBotch` already is — after the
+  finish is decided, so it only ever affects the *final* rating and injury multiplier, never the
+  injury-stoppage odds that decided the finish itself. Its beat slots in next to `botchBeat` in the
+  beats array; its rating cost stacks with a botch's the same way two real things happening in one
+  match should.
+- **`state/store.ts`**: the player's `simulateMatch` call now computes `pyroActive` from either
+  production system — `world.productionRungs.includes('pyro')` (System B's rung, a standing purchase
+  that fires every show once owned) or `world.showSetup.extraIds.includes('pyroCharges')` (System A's
+  per-show charges, bought fresh each time). Either one means tonight's entrances have real fire in
+  them.
+- **Tests**: new `engine/sim/pyro.test.ts` (6 tests, same shape as `ringcraft.test.ts`'s botch
+  coverage: never fires without `pyroActive`, never fires with nobody in the match, fires sometimes
+  and rarely when active, better equipment cuts the rate without ever erasing it, names who caught it
+  with no leftover `{who}`, leaves a real mark sometimes and just a scare the rest of the time).
+  `engine/sim/simulateMatch.test.ts` gets 2 more: never produces a `pyroBurn` beat without
+  `pyroActive` (including the omitted-field case), and reliably can produce one — with real
+  text — when it's true.
+- **Verified live, not just at the pure-function level** (CLAUDE.md: measure in a played save): bought
+  the whole production ladder up to the pyro rung on a fresh save and played 121 weeks. 8 real
+  pyro-burn beats appeared in the actual show write-ups, e.g. *"Judge Junie did not get clear of the
+  pyro in time on the way to that ring, and everybody in the building saw it happen."* and *"A charge
+  went off closer to the entrance than it should have, and Toxic Stormfront caught more of that heat
+  than anybody wanted."* — real names, real PG-toned lines, exactly as asked.
+- Verified: `tsc --noEmit` clean; full suite 148 files / 2,878 tests passing (8 new, zero
+  re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; the live
+  playthrough above. No UI changed in this phase — pyro was already purchasable before this; this
+  phase only gives what's already bought a real downside.

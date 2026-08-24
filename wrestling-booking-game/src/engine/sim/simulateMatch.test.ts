@@ -224,4 +224,46 @@ describe('simulateMatch', () => {
     expect(equipped.injuryMultiplier).toBeLessThan(bare.injuryMultiplier);
     expect(equipped.injuryMultiplier).toBeGreaterThan(0);
   });
+
+  it('never fires the entrance pyro unless the show actually fired it', () => {
+    const roster = makeRoster(10, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    for (let i = 0; i < 300; i++) {
+      const result = simulateMatch(
+        rngFromSeed(`no-pyro-${i}`),
+        participants,
+        byId,
+        baseContext({ pyroActive: false }),
+      );
+      expect(result.beats.some((b) => b.kind === 'pyroBurn')).toBe(false);
+    }
+    // Omitting it entirely behaves the same as explicitly false.
+    const omitted = simulateMatch(rngFromSeed('pyro-omitted'), participants, byId, baseContext());
+    expect(omitted.beats.some((b) => b.kind === 'pyroBurn')).toBe(false);
+  });
+
+  it('can fire the entrance pyro when the show fired it, and names who it caught', () => {
+    const roster = makeRoster(11, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const beat = Array.from({ length: 2000 }, (_, i) =>
+      simulateMatch(
+        rngFromSeed(`pyro-${i}`),
+        participants,
+        byId,
+        baseContext({ pyroActive: true, equipmentInjuryReduction: 0 }),
+      ),
+    )
+      .flatMap((r) => r.beats)
+      .find((b) => b.kind === 'pyroBurn');
+    expect(beat).toBeTruthy();
+    expect(beat!.text.length).toBeGreaterThan(15);
+  });
 });

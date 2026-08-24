@@ -17,6 +17,7 @@ import type {
 } from '../types';
 import { shootRatingBonus, shootInjuryMultiplier, heatFromMatch, type HeatChange } from './rivalry';
 import { rollBotch } from './ringcraft';
+import { rollPyroBurn } from './pyro';
 import { ratingToStars } from '../economy/showRating';
 import { injuryProneness } from '../career/personality';
 import type { RingsideTotals } from './ringside';
@@ -55,6 +56,11 @@ export interface SimulateMatchContext {
    * finally being read by something.
    */
   equipmentInjuryReduction?: number;
+  /**
+   * Did tonight's show fire pyro at all — the pyro rung or the pyro-charges
+   * show extra. Nothing rolls unless this is true; see sim/pyro.ts.
+   */
+  pyroActive?: boolean;
   titlePrestige?: number | null;
   /** The rivalry these two are in, if any — drives heat, bad blood, and injury risk. */
   rivalry?: Rivalry | null;
@@ -319,7 +325,22 @@ export function simulateMatch(
   const botchBeat: MatchBeat[] = botch
     ? [{ kind: 'botch' as const, significant: true, text: botch.text }]
     : [];
-  const finalRating = clamp(rating - (botch?.ratingCost ?? 0), 3, 100);
+
+  // The entrance pyro, if this show fired any. Same shape as a botch — its
+  // own roll, its own line, and it only ever fires at all when the show
+  // actually lit the fuse. See sim/pyro.ts.
+  const pyroBurn = rollPyroBurn(
+    rng,
+    allParticipants,
+    ctx.pyroActive ?? false,
+    ctx.equipmentInjuryReduction ?? 0,
+    ctx.settings,
+  );
+  const pyroBurnBeat: MatchBeat[] = pyroBurn
+    ? [{ kind: 'pyroBurn' as const, significant: true, text: pyroBurn.text }]
+    : [];
+
+  const finalRating = clamp(rating - (botch?.ratingCost ?? 0) - (pyroBurn?.ratingCost ?? 0), 3, 100);
   const finalStars = ratingToStars(finalRating);
 
   // §0: a result that flipped with no sentence explaining it reads as the sim
@@ -380,7 +401,7 @@ export function simulateMatch(
     rating: finalRating,
     stars: finalStars,
     ratingBreakdown: breakdown,
-    beats: [...cornerBeat, ...distractionBeat, ...botchBeat, ...beats],
+    beats: [...cornerBeat, ...distractionBeat, ...botchBeat, ...pyroBurnBeat, ...beats],
     /** Who blew a spot, if anybody did. The caller decides what it costs them. */
     botchedById: botch?.workerId ?? null,
     caughtManagerId,
@@ -393,6 +414,8 @@ export function simulateMatch(
       pace.injuryMultiplier *
       // A spot that went wrong badly enough to hurt somebody.
       (botch?.hurtSomebody ? ctx.settings.botchInjuryMultiplier : 1) *
+      // The pyro caught somebody badly enough to leave a mark.
+      (pyroBurn?.hurtSomebody ? ctx.settings.pyroBurnInjuryMultiplier : 1) *
       // And some bodies simply break more than others. See the Made Of Glass
       // trait in career/personality.ts — this is where it has teeth.
       Math.max(...allParticipants.map((p) => injuryProneness(p))) *

@@ -589,6 +589,13 @@ export function defaultWorldSettings(): WorldSettings {
     botchRatingCost: 5,
     botchBadOneMultiplier: 2.2,
     botchInjuryMultiplier: 3.5,
+    // Rare, and minor when it lands — a scorch, not a catastrophe. Smaller
+    // rating cost and injury multiplier than a botch on purpose: this is an
+    // entrance mishap, not a blown spot in the match itself.
+    pyroBurnChance: 0.015,
+    pyroBurnInjuryShare: 0.35,
+    pyroBurnRatingCost: 3,
+    pyroBurnInjuryMultiplier: 2.5,
     ringcraftGeneralAt: 78,
     ringcraftSafeAt: 58,
     ringcraftGreenAt: 35,

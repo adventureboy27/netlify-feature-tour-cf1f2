@@ -1813,6 +1813,11 @@ export const useGameStore = create<GameStore>()(
               world.productionRungs,
               world.showSetup.extraIds,
             ).injuryReduction,
+            // The pyro rung is a standing purchase that fires every show it's
+            // owned; pyroCharges is bought fresh, per show. Either one means
+            // tonight's entrances have real fire in them. See sim/pyro.ts.
+            pyroActive:
+              world.productionRungs.includes('pyro') || world.showSetup.extraIds.includes('pyroCharges'),
             // Saturation is read at the level the promotion carried into the
             // show, so every segment on one card is judged against the same
             // number rather than each match penalising the next.

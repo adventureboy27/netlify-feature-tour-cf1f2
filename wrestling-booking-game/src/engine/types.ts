@@ -1277,6 +1277,10 @@ export type MatchBeatKind =
   // because the write-up and the incident system both need to tell the
   // difference between a move and a mistake. See sim/ringcraft.ts.
   | 'botch'
+  // The entrance pyro caught somebody. Its own kind for the same reason
+  // 'botch' is — the write-up needs to be able to tell "a spot went wrong"
+  // from "the production gear went wrong". See sim/pyro.ts.
+  | 'pyroBurn'
   | 'finish';
 
 export interface MatchBeat {
@@ -2258,6 +2262,14 @@ export interface WorldSettings {
   botchBadOneMultiplier: number;
   /** How much a botch that hurt somebody raises the injury roll. */
   botchInjuryMultiplier: number;
+  // --- the entrance pyro (sim/pyro.ts) ---
+  /** Base chance a fired-up show's pyro catches somebody, before equipment safety. */
+  pyroBurnChance: number;
+  /** Share of pyro burns that leave a real mark rather than just a scare. */
+  pyroBurnInjuryShare: number;
+  pyroBurnRatingCost: number;
+  /** How much a pyro burn that left a mark raises the injury roll. */
+  pyroBurnInjuryMultiplier: number;
   /** Where the words for ring IQ change. */
   ringcraftGeneralAt: number;
   ringcraftSafeAt: number;
