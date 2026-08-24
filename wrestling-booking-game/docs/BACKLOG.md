@@ -1653,3 +1653,33 @@ voice rather than converting it to third-person reporter narration.
   passing with zero test changes needed; `npm run sim` clean (300-name
   roster generation, distributions unaffected — gimmick prose has no
   mechanical weight); `npm run build` clean.
+
+## Phase 2g: fan-voice cluster, lowercase tweet register kept
+
+`data/fanVoices.ts` is the other deliberate carve-out in the voice plan —
+simulated fan tweets, not narrator prose or in-character dialogue. Kept
+the lowercase/casual tweet conceit throughout; punched up the energy
+*within* that register (added intensifiers, repeated words for emphasis,
+occasional all-caps for shouted lines, more idiomatic phrasing) rather
+than converting it to reporter voice or capitalizing it into normal prose.
+
+- All of `SHOW_TWEETS`, `MATCH_TWEETS`, `TITLE_CHANGE_TWEETS`,
+  `GIMMICK_DEBUT_TWEETS`, `GIMMICK_PAIRING_TWEETS`, and
+  `GIMMICK_RELAUNCH_TWEETS` rewritten. `FAN_HANDLES` untouched — those are
+  identifiers, not prose. All placeholders (`{winner}` `{loser}` `{best}`
+  `{worst}` `{champ}` `{title}` `{promotion}` `{name}` `{gimmick}`)
+  preserved.
+- Caught a genuine Phase 2a Americanization miss in the same pass:
+  `'apologising'` → `'apologizing'` in one contrarian-tone tweet.
+- `CROWD_VERDICTS` rewritten, with one exception:
+  `fanReaction.test.ts`'s `'reads the room'` test asserts
+  `crowdVerdict(75)` with an exact `toBe('They loved it.')` — the initial
+  rewrite changed that string and broke the test, caught immediately on
+  the first suite run. Per the standing "re-express tests, never
+  re-baseline them" rule, the fix was to restore the literal string,
+  not touch the test — the other four `CROWD_VERDICTS` entries and every
+  tweet pool were free to change since nothing else in the suite
+  constrains exact fan-voice text.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests
+  passing after the one-line revert above; `npm run sim` and
+  `npm run build` both clean.
