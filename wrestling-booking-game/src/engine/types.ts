@@ -1646,6 +1646,17 @@ export interface WorldSettings {
 
   // Roster and talent
   startingRosterSize: number;
+  /**
+   * How many of that opening roster arrive already signed, for the player
+   * specifically. Unset everywhere except backyard, which sets it well
+   * below startingRosterSize: a promotion that cannot pay for a roster
+   * should not be handed one — see state/world.ts's two roster-generation
+   * paths and engine/world/freeAgents.ts's generateFreeAgentPool, which
+   * still exists at its full size and is where the rest of the cast lives,
+   * cheap and hireable, from turn one. Rivals are unaffected — they size
+   * off rivalRosterSize(), not this field.
+   */
+  startingPlayerRosterSize?: number;
   targetRosterSize: number;
   freeAgentPoolSize: number;
   talentQualityCurve: number; // -2..+2

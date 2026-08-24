@@ -56,9 +56,9 @@ export const WORLD_PRESET_INFO: WorldPresetInfo[] = [
   {
     id: 'backyard',
     label: 'Backyard',
-    blurb: 'Ten of you, a tarp over plywood in somebody’s yard, and a folding table standing in for an apron.',
+    blurb: 'Just you and one other name signed, a tarp over plywood in somebody’s yard, and a folding table standing in for an apron.',
     theSqueeze:
-      'This is not a promotion with a bad ring, it is a bad ring with a promotion attached. Everything you own is worse than it should be until you buy your way out of it, and nobody outside the block has heard of you yet.',
+      'Nobody hands you a locker room here — the rest of the cast is a free-agent pool full of people working for almost nothing, and hiring them is the first real decision you make. Everything you own is worse than it should be until you buy your way out of it, and nobody outside the block has heard of you yet.',
   },
 ];
 

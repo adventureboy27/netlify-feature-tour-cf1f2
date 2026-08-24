@@ -2287,9 +2287,23 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
     promotionArchetype: 'hardcore',
     // The actual floor. Below Territory Days' 25k on purpose — this is not a
     // hard promotion to run, it is barely a promotion yet. One folding table,
-    // a tarp over plywood, and whatever the ten of you can split.
+    // a tarp over plywood, and a bank account that could not pay a full
+    // roster even if it wanted to.
     startingCash: 8_000,
+    // Not who you open with — who's out there to hire. Two people arrive
+    // signed (startingPlayerRosterSize, below); this is the shape of the
+    // free-agent pool you build the rest of the promotion out of, and the
+    // womensDivisionFloor/tagTeamsMin lines below are still tuned against
+    // it, just against generateFreeAgentPool's settings.freeAgentPoolSize
+    // (24) rather than this exact number now.
     startingRosterSize: 10,
+    // Two, full stop. Nobody hands a backyard promotion a locker room —
+    // everybody else is a name in the free-agent pool at whatever they'll
+    // actually work for, and hiring them is the opening move. See
+    // state/world.ts's two roster-generation paths and
+    // engine/world/freeAgents.ts's generateFreeAgentPool, which is
+    // unaffected by this and still runs at full size.
+    startingPlayerRosterSize: 2,
     womensRosterShare: 0.5,
     // divisionSplit(10, 0.5, floor) only produces an exact 5/5 split when the
     // floor itself is <= 5 — the default of 6 fights the split at this size.
@@ -2313,6 +2327,16 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
     // much smaller numbers. See contracts.ts's askingRate.
     contractBaseWeeklyRate: 15,
     contractRateRange: 300,
+    // Same problem, one door over: seedManagerTalent prices a mouthpiece's
+    // weekly wage off `feePerShow * managerTalentFeeToWage` — a flat,
+    // preset-blind per-show fee ($300-$1,400 in data/ringsidePool.ts) that
+    // does not shrink with the rest of this economy. Left at the default
+    // 0.9, a backyard promotion's free-agent pool put a $1,275/wk manager
+    // next to $50/wk wrestlers — found live, playing a fresh save, not in
+    // a test. Cut proportionally to the wrestler wage curve above so a
+    // top-end mouthpiece reads as expensive *for backyard* (right around
+    // what a genuine standout wrestler costs) rather than a flat outlier.
+    managerTalentFeeToWage: 0.15,
     // An owner who is also your neighbor gives you a lot of rope.
     mandateStrikesBeforeFiring: 5,
     // Barely anybody else is running shows this small yet.

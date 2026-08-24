@@ -5,9 +5,10 @@ import { bestFittingVenue, venueById } from './venues';
 import { divisionSplit } from '../engine/generate/wrestler';
 import { tagTeamCountFor } from '../engine/world/tagTeams';
 import { computeDemand, potentialAudience, fairTicketPrice } from '../engine/economy/showBudget';
-import { defaultShowSetup } from '../state/world';
+import { defaultShowSetup, createInitialWorld } from '../state/world';
 import { askingRate } from '../engine/economy/contracts';
 import { generateWrestlers } from '../engine/generate/wrestler';
+import { generateFreeAgentPool } from '../engine/world/freeAgents';
 import { rngFromSeed } from '../engine/rng';
 
 const IDS = ['territoryDays', 'standard', 'bigMoney', 'sinkOrSwim'] as const;
@@ -137,17 +138,55 @@ describe('the presets actually differ', () => {
 describe('the backyard preset', () => {
   const s = worldSettingsFromPreset('backyard');
 
-  it('starts exactly ten wrestlers, five and five', () => {
-    expect(s.startingRosterSize).toBe(10);
-    const women = divisionSplit(s.startingRosterSize, s.womensRosterShare, s.womensDivisionFloor).filter(
+  it('hands the player almost nobody — two, signed, and split one and one', () => {
+    // Nobody is handed a locker room here. Two arrive signed (enough for
+    // crownOpeningChampions to have somebody to crown), and everybody else
+    // the player described — the hopeful teenager, the fifty-something
+    // doing this in the evenings, the washed-up one, the one nobody else
+    // hires — lives in the free-agent pool, not on the payroll.
+    expect(s.startingPlayerRosterSize).toBe(2);
+    const women = divisionSplit(s.startingPlayerRosterSize!, s.womensRosterShare, s.womensDivisionFloor).filter(
       (g) => g === 'f',
     ).length;
-    expect(women).toBe(5);
-    expect(s.startingRosterSize - women).toBe(5);
+    expect(women).toBe(1);
+    expect(s.startingPlayerRosterSize! - women).toBe(1);
   });
 
-  it('still fields a tag division at that size', () => {
-    expect(tagTeamCountFor(s.startingRosterSize, s)).toBe(3);
+  it('the free-agent pool, not the signed roster, is where the real cast lives', () => {
+    // generateFreeAgentPool runs at its full, un-overridden size
+    // (settings.freeAgentPoolSize) regardless of startingPlayerRosterSize —
+    // this is the claim the old "ten wrestlers, five and five" test used to
+    // make about the signed roster, re-expressed against what's actually
+    // still true: a real, tag-capable, roughly even split, just in the pool
+    // you hire from rather than the roster you're handed.
+    const { wrestlers } = generateFreeAgentPool(rngFromSeed('backyard-pool-shape'), s);
+    expect(wrestlers.length).toBe(s.freeAgentPoolSize);
+    expect(wrestlers.length).toBeGreaterThanOrEqual(10);
+    const women = wrestlers.filter((w) => w.gender === 'f').length;
+    expect(women).toBeGreaterThanOrEqual(5);
+    expect(wrestlers.length - women).toBeGreaterThanOrEqual(5);
+    expect(tagTeamCountFor(wrestlers.length, s)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('prices a manager off the same shrunk curve as everybody else', () => {
+    // Found live, playing a fresh save: seedManagerTalent prices a
+    // mouthpiece's wage off `feePerShow * managerTalentFeeToWage`, a flat,
+    // per-show fee (data/ringsidePool.ts, $300-$1,400) that does not shrink
+    // with the rest of this economy — left at the default 0.9, a top-tier
+    // manager priced at $1,275/wk sat right next to $50/wk wrestlers.
+    // managerTalentFeeToWage on the preset fixes it; this locks that a
+    // manager in the pool never asks for wildly more than the most
+    // expensive wrestler in it, not a specific number.
+    const world = createInitialWorld(rngFromSeed(s.seed), s);
+    const isManager = (fa: (typeof world.freeAgents)[number]) => world.wrestlers[fa.wrestlerId]?.role === 'manager';
+    const managerAgents = world.freeAgents.filter(isManager);
+    const wrestlerAgents = world.freeAgents.filter((fa) => !isManager(fa));
+    expect(managerAgents.length).toBeGreaterThan(0);
+    expect(wrestlerAgents.length).toBeGreaterThan(0);
+    const maxWrestlerAsk = Math.max(...wrestlerAgents.map((fa) => fa.askingRate));
+    for (const agent of managerAgents) {
+      expect(agent.askingRate, agent.wrestlerId).toBeLessThanOrEqual(maxWrestlerAsk * 1.5);
+    }
   });
 
   it('opens in the backyard, not wherever the algorithm would have picked', () => {

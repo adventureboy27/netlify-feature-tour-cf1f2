@@ -1916,3 +1916,55 @@ than being a free lunch.
   instead."* — flowing through the existing mystery-opponent replacement system exactly as intended.
 - Verified: `tsc --noEmit` clean; full suite 145 files / 2,838 tests passing (9 new, zero re-expressed,
   zero baselines touched); `npm run sim` clean; `npm run build` clean; the live playtest above.
+
+---
+
+## Equipment economy, continued — Phase A: the hiring loop
+
+First phase of an expanded plan (`/root/.claude/plans/synthetic-plotting-planet.md`) growing out of two
+more follow-up conversations: card size should be its own purchase, decoupled from venue and gear, and
+every purchase in this whole system needs a real upside *and* every cheap tier a real, occasionally-visible
+downside — not a number moving quietly, an actual thing that happens and gets its own sentence in the
+write-up. This phase is the roster-side half: `backyard` stops auto-signing a full ten-person roster and
+instead hands the player almost nothing, making the actual hiring the first real decision.
+
+- **`engine/types.ts`**: new optional `WorldSettings` field, `startingPlayerRosterSize?: number` —
+  unset for every preset except `backyard` (`2`). Every other preset is byte-for-byte unaffected;
+  rivals are untouched, since they've always sized off the separate `rivalRosterSize()` function.
+- **`state/world.ts`**: both roster-generation paths (the plan-based `buildPlannedPromotion` and the
+  plain single-promotion procedural path — confirmed via research that the common "Surprise me,
+  one promotion" flow actually runs the *procedural* path, not the planned one, so both genuinely
+  needed the same fix) now read `settings.startingPlayerRosterSize ?? settings.startingRosterSize`
+  for the player. `crownOpeningChampions`/`formTeams` were confirmed tolerant of a tiny 2-person
+  roster before relying on it — both already degrade gracefully (fewer champions crowned, zero tag
+  teams formed) rather than crashing; a 2-person, 1-and-1 divisionSplit roster plays fine from
+  week one.
+- **`engine/world/settings.ts`**: `backyard`'s `startingRosterSize: 10` is kept as the shape the
+  *free-agent pool* is still tuned against (`womensDivisionFloor`, `tagTeamsMin`), now genuinely
+  read through `generateFreeAgentPool` instead of the signed roster.
+- **A real bug found live, not in a test**: with the seed roster this small, a fresh backyard
+  free-agent pool put a **$1,275/wk manager next to $50/wk wrestlers**. Root cause:
+  `engine/world/managerTalent.ts`'s `seedManagerTalent` prices a manager's weekly ask off
+  `archetype.feePerShow * settings.managerTalentFeeToWage` — a flat, per-show fee
+  ($300-$1,400 in `data/ringsidePool.ts`) that doesn't shrink with the rest of this economy the way
+  `contractBaseWeeklyRate`/`contractRateRange` now do for ordinary wrestlers. Fixed the same way:
+  `managerTalentFeeToWage: 0.15` added to the `backyard` preset (default stays 0.9 everywhere
+  else), bringing the whole pool into a coherent $25-$250/wk range, confirmed live and locked with a
+  new test comparing every manager's ask against the pool's most expensive wrestler.
+- **`data/worldPresets.ts`**: `backyard`'s blurb/squeeze rewritten around hiring from a free-agent
+  pool rather than "ten of you."
+- **`ui/screens/NewGameScreen.tsx`**: the preset picker's "$X · N on the payroll" line now reads
+  `startingPlayerRosterSize ?? startingRosterSize` — it would otherwise have kept claiming "10 on
+  the payroll" for a preset that now hands you 2.
+- **Tests, re-expressed rather than weakened**: `worldPresets.test.ts`'s old "starts exactly ten
+  wrestlers, five and five" and "still fields a tag division" tests asserted against the *signed*
+  roster, which is now deliberately tiny — per CLAUDE.md, re-expressed rather than deleted: one new
+  test locks the signed seed (exactly 2, split 1 and 1), a second locks that the underlying claim is
+  still true of the *free-agent pool* instead (real size, a real even-ish split, still tag-capable),
+  plus the new manager-pricing regression test above.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2,839 tests passing (re-expressed as
+  described, zero baselines lowered); `npm run sim` clean; `npm run build` clean; a live
+  dev-server + Playwright pass confirming the seed roster is 2, the free-agent pool reads as a
+  coherent $25-$250/wk spread with real age/persona variety (a 20-year-old fresh out of the school,
+  a 36-year-old journeyman, a 55-year-old "near the end, every night costs her"), and the game plays
+  from week one without a crash on the tiny opening roster.

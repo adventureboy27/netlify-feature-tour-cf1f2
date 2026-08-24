@@ -240,7 +240,8 @@ export function NewGameScreen() {
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-sm font-medium">{option.label}</span>
                       <span className="shrink-0 font-mono text-[10px] text-neutral-500">
-                        ${s.startingCash.toLocaleString()} · {s.startingRosterSize} on the payroll
+                        ${s.startingCash.toLocaleString()} ·{' '}
+                        {s.startingPlayerRosterSize ?? s.startingRosterSize} on the payroll
                       </span>
                     </div>
                     <div className={`text-[11px] ${chosen ? 'text-neutral-200' : 'text-neutral-400'}`}>{option.blurb}</div>

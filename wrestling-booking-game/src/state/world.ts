@@ -678,7 +678,7 @@ function buildPlannedPromotion(
   let roster: Wrestler[];
   if (slot.roster === 'generate') {
     const size = ctx.isPlayer
-      ? settings.startingRosterSize
+      ? (settings.startingPlayerRosterSize ?? settings.startingRosterSize)
       : rivalRosterSize(settings.startingCompanyRating, settings);
     roster = generateWrestlers(rng, size, {
       settings,
@@ -841,7 +841,9 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     roster = promotion.rosterIds.map((id) => wrestlers[id]!);
     buildSupportPool(roster);
   } else {
-    roster = generateWrestlers(rng, settings.startingRosterSize, {
+    // Always the player — the procedural path only ever runs for a single,
+    // generated promotion (no plan means no rivals-at-creation slots).
+    roster = generateWrestlers(rng, settings.startingPlayerRosterSize ?? settings.startingRosterSize, {
       // Rolls what the business believes about them, as against what is true.
       settings,
       homeTerritoryIds: territoryIds,
