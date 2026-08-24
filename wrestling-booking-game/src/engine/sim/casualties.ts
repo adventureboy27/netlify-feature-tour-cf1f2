@@ -54,6 +54,8 @@ export interface CasualtyContext {
   /** Tougher people are hurt less often and less badly. */
   toughness: number;
   settings: WorldSettings;
+  /** The stipulation this match is under, if any — gates hardware-specific causes. */
+  stipulationId?: string | null;
 }
 
 /**
@@ -111,7 +113,7 @@ export function rollCasualty(rng: Rng, ctx: CasualtyContext): Casualty | null {
   const odds = base * ctx.injuryMultiplier * (1 - ctx.toughness / 200);
   if (!chance(rng, Math.min(s.casualtyChanceCap, odds))) return null;
 
-  const options = causesFor(ctx.role, ctx.violenceLevel);
+  const options = causesFor(ctx.role, ctx.violenceLevel, ctx.stipulationId);
   if (options.length === 0) return null;
   const cause = pick(rng, options);
 
@@ -273,7 +275,7 @@ export function injuryFrom(casualty: Casualty, week: number): Injury {
  * mystery.
  */
 export function stoppageCasualty(rng: Rng, ctx: CasualtyContext): Casualty {
-  const options = causesFor(ctx.role, ctx.violenceLevel);
+  const options = causesFor(ctx.role, ctx.violenceLevel, ctx.stipulationId);
   const cause = options.length > 0 ? pick(rng, options) : injuryCauseById('concussion')!;
   const weeks = weeksOut(rng, cause, ctx.injuryMultiplier, ctx.settings);
   const grade = gradeFromLength(weeks, ctx.settings);

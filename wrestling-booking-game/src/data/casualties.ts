@@ -23,6 +23,12 @@ export interface InjuryCause {
   weeks: number;
   /** Needs a violent match to be plausible. */
   minViolence?: number;
+  /**
+   * Restricts this cause to specific stipulation ids — "the ladder buckled"
+   * makes no sense outside a ladder match. Undefined means always eligible,
+   * same as before this field existed.
+   */
+  stipulationIds?: string[];
 }
 
 export const INJURY_CAUSES: InjuryCause[] = [
@@ -112,6 +118,48 @@ export const INJURY_CAUSES: InjuryCause[] = [
     ],
   },
 
+  // ------------------------------------------ the gear finally gave out
+  //
+  // Themed hardware failure, gated to the stipulation it belongs to — see
+  // data/stipulations.ts's hardwareGearSensitive. A promotion running these
+  // on the bottom of the production ladder is meant to feel it.
+  {
+    id: 'ladderGaveWay',
+    label: 'Bad fall off the ladder',
+    roles: ['competitor'],
+    weeks: 10,
+    minViolence: 3,
+    stipulationIds: ['ladder'],
+    lines: [
+      '{name} felt a rung give out underfoot at the top of that ladder and came down with nothing to grab on the way.',
+      "That ladder had no business being in this building — {name} rode the whole thing down and it landed on top of them.",
+    ],
+  },
+  {
+    id: 'cageGaveWay',
+    label: 'Cage came apart',
+    roles: ['competitor'],
+    weeks: 9,
+    minViolence: 2,
+    stipulationIds: ['steelCage'],
+    lines: [
+      "A panel worked loose right where {name} put their weight on it, and the whole side of that cage came away in their hands.",
+      '{name} got driven into the chain-link at the exact spot with the loose hinge, and it did not hold.',
+    ],
+  },
+  {
+    id: 'tableNoBreak',
+    label: "Table didn't break",
+    roles: ['competitor'],
+    weeks: 8,
+    minViolence: 3,
+    stipulationIds: ['tables', 'flamingTables'],
+    lines: [
+      'That table did not break clean — it ate the impact instead, and {name} took the whole thing on the way down.',
+      "{name} went through where the table was supposed to give, and for a long second it just did not.",
+    ],
+  },
+
   // ------------------------------------------------ caught in the middle
   {
     id: 'refBump',
@@ -161,8 +209,11 @@ export function injuryCauseById(id: string): InjuryCause | undefined {
 }
 
 /** Everything that could plausibly happen to this person in this match. */
-export function causesFor(role: CasualtyRole, violenceLevel: number): InjuryCause[] {
+export function causesFor(role: CasualtyRole, violenceLevel: number, stipulationId?: string | null): InjuryCause[] {
   return INJURY_CAUSES.filter(
-    (cause) => cause.roles.includes(role) && violenceLevel >= (cause.minViolence ?? 0),
+    (cause) =>
+      cause.roles.includes(role) &&
+      violenceLevel >= (cause.minViolence ?? 0) &&
+      (!cause.stipulationIds || (stipulationId != null && cause.stipulationIds.includes(stipulationId))),
   );
 }

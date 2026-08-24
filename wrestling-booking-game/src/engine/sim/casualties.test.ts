@@ -72,6 +72,36 @@ describe('the catalogue', () => {
     expect(clean).not.toContain('cut');
     expect(causesFor('competitor', 6).map((c) => c.id)).toContain('burn');
   });
+
+  it('keeps the hardware-specific causes out of every match except the stipulation they belong to', () => {
+    // "The ladder buckled" makes no sense outside a ladder match — see
+    // stipulationIds on data/casualties.ts's ladderGaveWay/cageGaveWay/tableNoBreak.
+    const noStip = causesFor('competitor', 6).map((c) => c.id);
+    expect(noStip).not.toContain('ladderGaveWay');
+    expect(noStip).not.toContain('cageGaveWay');
+    expect(noStip).not.toContain('tableNoBreak');
+
+    const wrongStip = causesFor('competitor', 6, 'noDQ').map((c) => c.id);
+    expect(wrongStip).not.toContain('ladderGaveWay');
+    expect(wrongStip).not.toContain('cageGaveWay');
+    expect(wrongStip).not.toContain('tableNoBreak');
+
+    const ladder = causesFor('competitor', 6, 'ladder').map((c) => c.id);
+    expect(ladder).toContain('ladderGaveWay');
+    expect(ladder).not.toContain('cageGaveWay');
+    expect(ladder).not.toContain('tableNoBreak');
+
+    const cage = causesFor('competitor', 6, 'steelCage').map((c) => c.id);
+    expect(cage).toContain('cageGaveWay');
+    expect(cage).not.toContain('ladderGaveWay');
+
+    for (const stip of ['tables', 'flamingTables']) {
+      const tables = causesFor('competitor', 6, stip).map((c) => c.id);
+      expect(tables).toContain('tableNoBreak');
+      expect(tables).not.toContain('ladderGaveWay');
+      expect(tables).not.toContain('cageGaveWay');
+    }
+  });
 });
 
 describe('every injury can say how it happened', () => {
@@ -92,6 +122,25 @@ describe('every injury can say how it happened', () => {
     const injury = injuryFrom(casualty, 40);
     expect(injury.description).not.toBe('Injured');
     expect(injury.description).toBe(injuryCauseById(casualty.causeId)!.label);
+  });
+
+  it('actually reaches a ladder-match cause when a ladder match rolls one, not just when asked directly', () => {
+    // End-to-end through rollCasualty/stoppageCasualty, not just causesFor.
+    const rng = rngFromSeed('ladder-thread');
+    const causeIds = new Set<string>();
+    for (let i = 0; i < 3000; i++) {
+      const casualty = rollCasualty(rng, ctxFor({ violenceLevel: 6, stipulationId: 'ladder' }));
+      if (casualty) causeIds.add(casualty.causeId);
+    }
+    expect(causeIds.has('ladderGaveWay')).toBe(true);
+  });
+
+  it('never reaches a ladder-match cause outside a ladder match', () => {
+    const rng = rngFromSeed('no-ladder-thread');
+    for (let i = 0; i < 3000; i++) {
+      const casualty = rollCasualty(rng, ctxFor({ violenceLevel: 6, stipulationId: 'steelCage' }));
+      expect(casualty?.causeId).not.toBe('ladderGaveWay');
+    }
   });
 
   it('always explains a match that was stopped', () => {

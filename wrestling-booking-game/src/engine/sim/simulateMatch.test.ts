@@ -3,7 +3,19 @@ import { mulberry32, rngFromSeed } from '../rng';
 import { generateWrestler } from '../generate/wrestler';
 import { defaultWorldSettings } from '../world/settings';
 import { simulateMatch, type SimParticipant, type SimulateMatchContext } from './simulateMatch';
-import type { MatchRules, Wrestler } from '../types';
+import type { MatchRules, Stipulation, Wrestler } from '../types';
+
+function stipWith(overrides: Partial<Stipulation> = {}): Stipulation {
+  return {
+    id: 'test-stip',
+    name: 'Test Stipulation',
+    ratingBonus: 0,
+    violenceLevel: 0,
+    injuryMult: 1,
+    archetypeFit: [],
+    ...overrides,
+  };
+}
 
 function baseRules(overrides: Partial<MatchRules> = {}): MatchRules {
   return {
@@ -163,5 +175,53 @@ describe('simulateMatch', () => {
       baseContext({ equipmentInjuryReduction: 0 }),
     );
     expect(omitted.injuryMultiplier).toBe(explicitZero.injuryMultiplier);
+  });
+
+  it('a hardware-sensitive stipulation is riskier than an identical one that is not, on bare gear', () => {
+    // Ladder, cage, and tables matches lean on real hardware the rest of the
+    // card doesn't — see data/stipulations.ts's hardwareGearSensitive.
+    const roster = makeRoster(8, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const settings = defaultWorldSettings();
+    const plain = simulateMatch(
+      rngFromSeed('hardware-seed'),
+      participants,
+      byId,
+      baseContext({ stipulation: stipWith(), equipmentInjuryReduction: 0 }),
+    );
+    const hardware = simulateMatch(
+      rngFromSeed('hardware-seed'),
+      participants,
+      byId,
+      baseContext({ stipulation: stipWith({ hardwareGearSensitive: true }), equipmentInjuryReduction: 0 }),
+    );
+    expect(hardware.injuryMultiplier).toBeCloseTo(plain.injuryMultiplier * (1 + settings.hardwareGearRiskAtWorst), 5);
+  });
+
+  it('better equipment shrinks that extra hardware risk, but never erases it', () => {
+    const roster = makeRoster(9, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const bare = simulateMatch(
+      rngFromSeed('hardware-equip-seed'),
+      participants,
+      byId,
+      baseContext({ stipulation: stipWith({ hardwareGearSensitive: true }), equipmentInjuryReduction: 0 }),
+    );
+    const equipped = simulateMatch(
+      rngFromSeed('hardware-equip-seed'),
+      participants,
+      byId,
+      baseContext({ stipulation: stipWith({ hardwareGearSensitive: true }), equipmentInjuryReduction: 0.5 }),
+    );
+    expect(equipped.injuryMultiplier).toBeLessThan(bare.injuryMultiplier);
+    expect(equipped.injuryMultiplier).toBeGreaterThan(0);
   });
 });

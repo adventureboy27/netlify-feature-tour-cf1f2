@@ -2024,6 +2024,7 @@ export const useGameStore = create<GameStore>()(
                   injuryMultiplier: result.injuryMultiplier,
                   toughness: hurt.toughness,
                   settings: world.settings,
+                  stipulationId: stipulation?.id ?? null,
                 }),
               );
             }
@@ -2064,6 +2065,7 @@ export const useGameStore = create<GameStore>()(
                 (1 - (ringside.injuryShield?.[person.id] ?? 0)),
               toughness: person.toughness,
               settings: world.settings,
+              stipulationId: stipulation?.id ?? null,
             });
             if (casualty) {
               putOut(casualty);
@@ -2123,6 +2125,7 @@ export const useGameStore = create<GameStore>()(
               injuryMultiplier: result.injuryMultiplier,
               toughness: officiatingWrestler.toughness,
               settings: world.settings,
+              stipulationId: stipulation?.id ?? null,
             });
             if (casualty) putOut(casualty);
           }
@@ -2140,6 +2143,7 @@ export const useGameStore = create<GameStore>()(
               injuryMultiplier: result.injuryMultiplier,
               toughness: assignedReferee.toughness,
               settings: world.settings,
+              stipulationId: stipulation?.id ?? null,
             });
             if (casualty) {
               assignedReferee.injury = injuryFrom(casualty, world.week);
@@ -2195,6 +2199,7 @@ export const useGameStore = create<GameStore>()(
               injuryMultiplier: result.injuryMultiplier,
               toughness: 40,
               settings: world.settings,
+              stipulationId: stipulation?.id ?? null,
             });
             if (casualty) hurtTonight.push(casualty);
           }

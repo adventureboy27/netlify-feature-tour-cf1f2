@@ -134,6 +134,14 @@ export function simulateMatch(
   const rules = effectiveRules(ctx.rules, ctx.stipulation);
   const rivalry = ctx.rivalry ?? null;
 
+  // A ladder, a cage, a table are hardware, and cheap hardware is real risk
+  // on top of the stipulation's own flat injuryMult — see data/stipulations.ts's
+  // hardwareGearSensitive. Scales down as equipmentInjuryReduction climbs,
+  // same as everything else in this stack, and never quite to nothing.
+  const hardwareGearRisk = ctx.stipulation?.hardwareGearSensitive
+    ? 1 + (1 - (ctx.equipmentInjuryReduction ?? 0)) * ctx.settings.hardwareGearRiskAtWorst
+    : 1;
+
   const weights = ruleAdjustedWeights(rules, isLadderOrHighSpot, isMultiMan);
 
   const sideMembers = new Map<number, Wrestler[]>();
@@ -259,7 +267,9 @@ export function simulateMatch(
       // And what the booker asked them to go out and do.
       pace.injuryMultiplier *
       // A better ring is a safer ring, for everyone in it.
-      (1 - (ctx.equipmentInjuryReduction ?? 0)),
+      (1 - (ctx.equipmentInjuryReduction ?? 0)) *
+      // The ladder itself, the cage itself, the table itself.
+      hardwareGearRisk,
     // A crooked or incompetent official makes a screwy finish likelier; a
     // manager at ringside makes interference likelier still.
     ringsideWeights: ctx.ringside
@@ -387,7 +397,9 @@ export function simulateMatch(
       // trait in career/personality.ts — this is where it has teeth.
       Math.max(...allParticipants.map((p) => injuryProneness(p))) *
       // A better ring is a safer ring, for everyone in it.
-      (1 - (ctx.equipmentInjuryReduction ?? 0)),
+      (1 - (ctx.equipmentInjuryReduction ?? 0)) *
+      // The ladder itself, the cage itself, the table itself.
+      hardwareGearRisk,
     // What the night takes out of them, and how numb the crowd now is to
     // being shown this.
     healthCostMultiplier: pace.healthCostMultiplier,

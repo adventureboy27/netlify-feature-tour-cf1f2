@@ -2092,3 +2092,65 @@ D, E, and F all reference this wiring rather than duplicating it.
 - Verified: `tsc --noEmit` clean; full suite 147 files / 2,865 tests passing (13 new, zero
   re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; the live balance
   pass above. No UI changed in this phase, so no separate UI playtest was needed on top of it.
+
+---
+
+## Equipment economy, continued — Phase D: the hardware gives out
+
+Fourth phase of the expanded plan. Before this, `data/casualties.ts`'s injury pool was generic —
+knees, ribs, concussions — and a Ladder Match's flat `injuryMult: 2.0` carried none of the specific
+thing that makes a ladder match dangerous: the ladder itself. This phase gives the ring's actual
+hardware its own voice, and makes the *quality* of that hardware — not just whether the stipulation
+was booked at all — a real, felt risk, building directly on Phase C's `equipmentInjuryReduction`
+wiring rather than duplicating it.
+
+- **`data/casualties.ts`**: `InjuryCause` gets a new optional `stipulationIds?: string[]` — undefined
+  means always eligible (every existing cause, unchanged), a list restricts a cause to specific
+  stipulations, because "the ladder buckled" makes no sense outside a ladder match. Three new causes:
+  `ladderGaveWay` (gated to `ladder`), `cageGaveWay` (gated to `steelCage`), `tableNoBreak` (gated to
+  `tables`/`flamingTables`) — each with two PG-toned lines describing the actual gear failing, not a
+  generic injury that happened to occur in that match type. `causesFor()` takes an optional
+  `stipulationId` parameter and filters on it.
+- **`engine/sim/casualties.ts`**: `CasualtyContext` gets a matching optional `stipulationId?: string |
+  null`, threaded into both `causesFor()` calls (`rollCasualty`, `stoppageCasualty`).
+- **`engine/types.ts`**: `Stipulation` gets a new optional `hardwareGearSensitive?: boolean`, set on
+  `steelCage`, `ladder`, `tables`, and `flamingTables` in `data/stipulations.ts` — data-driven rather
+  than a hardcoded id list buried in the sim, matching CLAUDE.md's own "no magic numbers in engine/"
+  rule.
+- **`engine/sim/simulateMatch.ts`**: new `hardwareGearRisk` term — `1 + (1 -
+  equipmentInjuryReduction) * settings.hardwareGearRiskAtWorst` when the booked stipulation is
+  `hardwareGearSensitive`, `1` otherwise — folded into both `injuryMultiplier` assemblies alongside
+  Phase C's equipment term. This is deliberately *on top of* the general ring/mat safety Phase C
+  already wired in, not a replacement for it: a promotion with the best gear still carries real
+  extra risk in a ladder/cage/tables match (per CLAUDE.md's own "never fully safe" rule, and TAW's
+  own non-negotiable #1 that a system that can hurt somebody never gets switched off entirely), while
+  a promotion on the bottom of the production ladder carries a lot more.
+- **`state/store.ts`**: all five `rollCasualty`/`stoppageCasualty` call sites (competitor, guest
+  referee, referee, manager, and the injury-stoppage roll) now pass `stipulationId: stipulation?.id ??
+  null` — the same `stipulation` variable already in scope from the segment's own resolution, so
+  every hardware-gated cause is reachable from every role that could plausibly suffer one.
+  `engine/sim/darkMatch.ts`'s two casualty calls were checked and deliberately left unchanged — dark
+  matches carry `stipulation: null` by design (no stipulation ever runs there), so they were already
+  correctly excluded from hardware-gated causes without needing an edit.
+- **`engine/world/settings.ts`**: new `hardwareGearRiskAtWorst: 0.5` — at zero equipment safety, a
+  hardware-sensitive stipulation is half again as dangerous as its flat `injuryMult` alone says;
+  shrinks toward (never to) nothing as the production ladder climbs.
+- **Tests**: `engine/sim/casualties.test.ts` gets a gating test (the three new causes never surface
+  outside their own stipulation, including under an *unrelated* stipulation, and each surfaces
+  correctly under its own) plus two end-to-end tests threading a real `stipulationId` through
+  `rollCasualty` itself rather than only `causesFor` directly (3,000-roll Monte Carlo: a ladder match
+  eventually reaches `ladderGaveWay`; a steel cage match never does). The pre-existing "gives every
+  cause a name and more than one way to say it" test already covers the three new causes' line
+  variety and PG tone, since it iterates the whole `INJURY_CAUSES` array. `engine/sim/
+  simulateMatch.test.ts` gets two: a hardware-sensitive stipulation is measurably riskier than an
+  identical non-hardware one on bare gear (exact ratio locked to `1 + hardwareGearRiskAtWorst`), and
+  better equipment shrinks that gap without ever erasing it.
+- **Verified live, not just at the pure-function level** (CLAUDE.md: measure in a played save): a
+  probe forcing the opening slot into a Ladder Match every single week (`setSegmentStipulation`), same
+  8 seeds × 40 weeks played twice — once bare, once fully equipped. 320 ladder matches either way:
+  somebody got hurt in that match 19.1% of the time bare, 5.0% of the time fully equipped — a real,
+  large, felt difference from owning better gear, not a number moving quietly in a table nobody reads.
+- Verified: `tsc --noEmit` clean; full suite 147 files / 2,870 tests passing (5 new, zero
+  re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; the live balance
+  pass above. No UI changed in this phase either — the new content flows through the same
+  write-up pipeline every other injury already uses.

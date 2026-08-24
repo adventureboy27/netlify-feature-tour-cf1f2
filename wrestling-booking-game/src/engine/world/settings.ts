@@ -1655,6 +1655,11 @@ export function defaultWorldSettings(): WorldSettings {
     // that a long career will meet one.
     casualtyCatastrophicChance: 0.025,
     casualtyCatastrophicMultiplier: 4,
+    // At zero equipment safety, a ladder/cage/tables match is half again as
+    // dangerous as its flat injuryMult alone says. Shrinks toward nothing as
+    // the production ladder climbs, same as everything else in this stack —
+    // never reaching zero, same "never fully safe" rule as everywhere else.
+    hardwareGearRiskAtWorst: 0.5,
     // Severity as a number. 30 weeks out is the top of the scale, so grade is
     // just "weeks, as a percentage of thirty".
     //

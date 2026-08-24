@@ -1158,6 +1158,14 @@ export interface Stipulation {
    * sense — there is nothing to be disqualified from.
    */
   titleChangesOnDQ?: boolean;
+  /**
+   * True for stipulations that lean on physical hardware to work — a ladder,
+   * a cage, a table. Cheap gear makes these riskier than the stipulation's
+   * flat injuryMult alone says; see simulateMatch.ts's hardwareGearRisk,
+   * scaled by the same equipmentInjuryReduction a good ring/mat already
+   * earns everyone else.
+   */
+  hardwareGearSensitive?: boolean;
 }
 
 // ============================================================================
@@ -3538,6 +3546,15 @@ export interface WorldSettings {
   /** How often an injury is the bad one, independent of how rough the match was. */
   casualtyCatastrophicChance: number;
   casualtyCatastrophicMultiplier: number;
+  /**
+   * Extra injury risk a hardwareGearSensitive stipulation (ladder, cage,
+   * tables) carries on the worst gear a promotion could own — a ladder
+   * match run on the bottom of the production ladder should read as
+   * visibly riskier than one run on the top of it. Scales down to nothing
+   * as equipmentInjuryReduction climbs, same shape as everything else that
+   * stacks toward safer but never certain.
+   */
+  hardwareGearRiskAtWorst: number;
   // --- how bad an injury is, as a number (sim/casualties.ts) ---
   /** Where the severity labels sit on the 0-100 grade scale. */
   gradeModerate: number;
