@@ -6,8 +6,12 @@
 // and no network — which the game already required of itself (§0: fully
 // offline, no network calls anywhere), so nothing is lost by doing it.
 //
-// The sprite atlas is already inlined as data URIs by Vite's `?inline`, so
-// there is nothing else to gather.
+// The sprite atlas and the title logo are already inlined as data URIs by
+// Vite's raised `assetsInlineLimit` (vite.config.ts), so there is nothing
+// else to gather. `?inline` alone does not force this in the installed Vite
+// version — confirmed the hard way when the title logo shipped as a real
+// /assets/... URL that a file:// page cannot resolve; assetsInlineLimit is
+// the actual mechanism, for every asset under the threshold.
 //
 //   npm run play    # build, bundle, and print the path
 
@@ -40,7 +44,7 @@ const html = `<!doctype html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>TAW — Wrestling Booker</title>
+    <title>Rival Promotions — Wrestling Booker Edition</title>
     <style>
 ${css}
     </style>

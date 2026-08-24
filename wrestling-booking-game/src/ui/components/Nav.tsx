@@ -32,6 +32,7 @@ export type Screen =
   | 'editor'
   | 'secrets'
   | 'rivalRosters'
+  | 'settings'
   | 'more';
 
 // ---------------------------------------------------------------------------
@@ -208,6 +209,7 @@ const MORE: { id: Screen; label: string; blurb: string }[] = [
     blurb: 'Whose deal is running out at a competitor, and being the one holding the pen the second it does.',
   },
   { id: 'editor', label: 'Editor', blurb: 'Rename anybody, repackage them completely, or build somebody brand new from scratch.' },
+  { id: 'settings', label: 'Settings', blurb: 'Export or load a save, erase one, and turn the screen transitions off if they are not your thing.' },
 ];
 
 export function MoreScreen({ onNavigate }: { onNavigate: (screen: Screen) => void }) {

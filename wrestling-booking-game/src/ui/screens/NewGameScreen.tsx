@@ -182,7 +182,12 @@ export function NewGameScreen() {
   const step2Error = readyForStep3();
 
   return (
-    <div className="mx-auto max-w-2xl p-4 text-neutral-100">
+    // Rendered before a world exists, so — like TitleScreen and
+    // SettingsScreen — this has no App-level wrapper above it to supply a
+    // background. Without its own, the heading was near-invisible pale text
+    // on the browser's white default.
+    <div className="min-h-screen bg-neutral-950 p-4 text-neutral-100">
+      <div className="mx-auto max-w-2xl">
       <h1 className="text-lg font-semibold">Take over a wrestling promotion</h1>
       <p className="mb-4 text-xs text-neutral-500">
         You are the booker, plain and simple. You will never wrestle a single match — you decide exactly who is on
@@ -537,6 +542,7 @@ export function NewGameScreen() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

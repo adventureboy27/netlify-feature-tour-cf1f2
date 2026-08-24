@@ -1723,3 +1723,51 @@ This closes out the full hype-reporter voice project (Phases 2a-2h). The two del
 original plan stand as documented in their own phases: `data/gimmicks.ts`/`data/groupGimmicks.ts` stay
 first-person in-character voice (Phase 2f), and `data/fanVoices.ts` stays in its lowercase tweet register
 (Phase 2g). Death-adjacent content across the whole codebase stays in the sober register it started in.
+
+## Named the game, and gave it a real front door
+
+The game had no name and booted straight into the three-step new-game wizard — no branding, no way to turn
+motion off, nowhere to manage a save without already being mid-game. Fixed all three, plus a real bug found
+along the way.
+
+- **Named it**: Rival Promotions — Wrestling Booker Edition. `index.html`'s `<title>` and the single-file
+  build script's hardcoded (and stale — leftover "TAW") title both updated.
+- **`src/ui/screens/TitleScreen.tsx`** (new) — the actual entry point now. Shows the logo (user-supplied art;
+  vetted for trademark issues before use — an earlier draft reproduced WWE's championship-belt logo elements
+  and was rejected and regenerated), then `Continue` (only when `savedGameSummary()` finds a save, showing the
+  promotion name and week), `New Promotion`, and `Settings`. The logo is framed as a deliberate plaque
+  (rounded corners, hairline gold border, shadow) rather than trying to fake transparency against its flat
+  charcoal source background — a mask-based fade was tried first and just made the hard edge fuzzy instead of
+  gone.
+- **`src/ui/screens/SettingsScreen.tsx`** (new) — reachable from the title screen before a save exists, and
+  from the in-game More list once one is running. Same component either way; the save-file import/export
+  section (`FileTransfer`) simply doesn't render without a `world`. Covers: reduce-motion toggle, erase-save
+  (with a confirm and no undo), and an about/credits block.
+- **`src/ui/reducedMotion.ts`** (new) — localStorage-backed override on top of the OS
+  `prefers-reduced-motion` signal, read by both `TitleScreen` and `App.tsx` before applying the settle-in
+  animation added in the design-system pass.
+- **`App.tsx`** — pre-world routing is now a small local state machine (`title` / `newGame` / `settings`)
+  instead of a bare `if (!world) return <NewGameScreen />`. `settings` added to `Nav.tsx`'s `Screen` union and
+  `MORE` list so it's reachable mid-game too.
+- **Real bug found and fixed, pre-existing and not introduced by this pass**: `NewGameScreen.tsx`'s root
+  div had no background color. It happened to be invisible before because nothing else rendered before a
+  world existed except this screen — but it meant the heading and body copy were pale text on the browser's
+  white default the entire time, not the dark background every screenshot of it seemed to show once other
+  dark UI elements filled most of the viewport. Caught via a direct Playwright screenshot + a
+  `getComputedStyle` check on `body`/`html` (both transparent) while verifying the new `SettingsScreen`, which
+  had the identical bug from being written the same way. Both now set `min-h-screen bg-neutral-950` on their
+  root, the same as `TitleScreen`.
+- **Asset-inlining bug found and fixed**: the title logo (a ~360KB JPEG) was imported with a `?inline` query
+  suffix, following the sprite atlas's apparent convention — but `?inline` does not actually force base64
+  inlining in the installed Vite version (5.4.21). Every atlas sheet inlines only because each one happens to
+  sit under Vite's default 4KB auto-inline threshold; `?inline` on an asset above that threshold instead
+  leaves a real `/assets/...jpg?inline` URL — hosted-fine (servers ignore the stray query string) but
+  completely broken in the `npm run play` single-file output, which has no server to resolve that URL
+  against. Fixed properly by raising `build.assetsInlineLimit` to 1MB in `vite.config.ts`, confirmed by
+  grepping the built bundle for `data:image/jpeg;base64` (0 → 1 occurrence) and for a lingering `/assets/`
+  reference (1 → 0) before and after. `scripts/single-file.mjs`'s comment, which incorrectly credited
+  `?inline` for the atlas's inlining, corrected to name the real mechanism.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests passing with zero test changes needed;
+  `npm run sim`, `npm run build`, and `npm run play` all clean; a live dev-server + Playwright pass covering
+  the title screen with and without a save, the full new-game flow, Settings from both entry points, and a
+  page reload to confirm `Continue` correctly picks up a save written in a prior session.

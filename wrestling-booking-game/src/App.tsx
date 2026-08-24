@@ -15,6 +15,8 @@ import { ShowResults } from './ui/screens/ShowResults';
 import { ContactSheet } from './ui/screens/ContactSheet';
 import { WrestlerEditor } from './ui/screens/WrestlerEditor';
 import { NewGameScreen } from './ui/screens/NewGameScreen';
+import { TitleScreen } from './ui/screens/TitleScreen';
+import { SettingsScreen } from './ui/screens/SettingsScreen';
 import { LegacyScreen } from './ui/screens/LegacyScreen';
 import { CrucibleScreen } from './ui/screens/CrucibleScreen';
 import { FinanceScreen } from './ui/screens/FinanceScreen';
@@ -26,6 +28,10 @@ import { SecretsScreen } from './ui/screens/SecretsScreen';
 import { Money } from './ui/components/display';
 import { promotionTheme } from './ui/components/chrome';
 import { BottomNav, MoreScreen, BEHIND_MORE, type Screen } from './ui/components/Nav';
+import { getReducedMotionPreference } from './ui/reducedMotion';
+
+/** Before a world exists, the app is a much smaller state machine — the title screen and its two doors. */
+type PreGameView = 'title' | 'newGame' | 'settings';
 
 export default function App() {
   const world = useGameStore((s) => s.world);
@@ -34,6 +40,8 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('booking');
   /** Who the editor is currently repackaging, if anybody. */
   const [repackaging, setRepackaging] = useState<string | null>(null);
+  const [preGameView, setPreGameView] = useState<PreGameView>('title');
+  const reduceMotion = getReducedMotionPreference();
 
   // Autosave. The world is plain data, so this is cheap; debounced so that
   // typing in a text field does not write a save on every keystroke.
@@ -43,7 +51,11 @@ export default function App() {
     return () => clearTimeout(handle);
   }, [world, saveNow]);
 
-  if (!world) return <NewGameScreen />;
+  if (!world) {
+    if (preGameView === 'newGame') return <NewGameScreen />;
+    if (preGameView === 'settings') return <SettingsScreen onBack={() => setPreGameView('title')} />;
+    return <TitleScreen onNewGame={() => setPreGameView('newGame')} onSettings={() => setPreGameView('settings')} />;
+  }
 
   const lastShow = world.showHistory[world.showHistory.length - 1] ?? null;
 
@@ -112,8 +124,9 @@ export default function App() {
           than sitting underneath it. Keyed by screen so every navigation is a
           quiet settle-in rather than a hard cut — the same beat a broadcast
           uses between segments. */}
-      <main key={screen} className="pb-16 animate-rise-in">
+      <main key={screen} className={`pb-16 ${reduceMotion ? '' : 'animate-rise-in'}`}>
         {screen === 'more' && <MoreScreen onNavigate={navigate} />}
+        {screen === 'settings' && <SettingsScreen onBack={() => navigate('more')} />}
         {screen === 'office' && <OfficeScreen />}
         {screen === 'booking' && <BookingScreen onRunShow={runShow} />}
         {screen === 'promotion' && <PromotionScreen />}
