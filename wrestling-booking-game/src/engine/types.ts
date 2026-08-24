@@ -3098,6 +3098,23 @@ export interface WorldSettings {
    */
   misfortuneChanceInjured: number;
   /**
+   * Below this total weekly ask (retainer plus per-appearance, added
+   * together), wrestling is not paying this person's bills — they still
+   * have somewhere else to be. Ordinary promotion pay is comfortably above
+   * this; it only bites for a roster genuinely working for the love of it.
+   */
+  dayJobWageThreshold: number;
+  /**
+   * Odds per week that a below-threshold wrestler's actual job wins out —
+   * held late at the register, couldn't get the shift covered, and so on.
+   * A separate gate from misfortuneChanceHealthy on purpose: this is not
+   * bad luck, it is a standing fact about how they are being paid, and it
+   * should read as a real, recurring cost of underpaying somebody rather
+   * than competing with car trouble and food poisoning for a sliver of an
+   * already-rare roll.
+   */
+  dayJobAbsenceChance: number;
+  /**
    * Floor on how likely an unlikely replacement is. The office reaches for
    * somebody near the missing wrestler's level, but the whole appeal of a
    * mystery opponent is that it might be anybody, so nobody's weight is zero.

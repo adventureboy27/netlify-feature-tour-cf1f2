@@ -6,6 +6,9 @@ import { divisionSplit } from '../engine/generate/wrestler';
 import { tagTeamCountFor } from '../engine/world/tagTeams';
 import { computeDemand, potentialAudience, fairTicketPrice } from '../engine/economy/showBudget';
 import { defaultShowSetup } from '../state/world';
+import { askingRate } from '../engine/economy/contracts';
+import { generateWrestlers } from '../engine/generate/wrestler';
+import { rngFromSeed } from '../engine/rng';
 
 const IDS = ['territoryDays', 'standard', 'bigMoney', 'sinkOrSwim'] as const;
 
@@ -166,5 +169,24 @@ describe('the backyard preset', () => {
     }
     expect(s.startingCompanyRating).toBeLessThan(base.startingCompanyRating);
     expect(s.startingTerritoryFollowing).toBeLessThan(base.startingTerritoryFollowing);
+  });
+
+  it('pays a typical roster in pocket change, not a wage', () => {
+    // Nobody here is making a living at this — see contractBaseWeeklyRate
+    // and contractRateRange on the preset itself, and dayJobWageThreshold
+    // in defaultWorldSettings. Checked against the *other* four presets'
+    // own settings, not a hardcoded number, so this stays honest if either
+    // curve is retuned later.
+    const roster = generateWrestlers(rngFromSeed('backyard-pay-check'), 200);
+    const backyardAsks = roster.map((wr) => askingRate(wr, s));
+    const standardAsks = roster.map((wr) => askingRate(wr, worldSettingsFromPreset('standard')));
+    const mean = (xs: number[]) => xs.reduce((a, x) => a + x, 0) / xs.length;
+    expect(mean(backyardAsks)).toBeLessThan(mean(standardAsks) / 4);
+
+    // And the point of pricing it this low: most of a typical backyard
+    // roster actually clears into day-job territory (see misfortune.ts's
+    // rollDayJobAbsence), where a normal promotion's roster never would.
+    const belowThreshold = backyardAsks.filter((ask) => ask < s.dayJobWageThreshold).length;
+    expect(belowThreshold).toBeGreaterThan(roster.length * 0.5);
   });
 });

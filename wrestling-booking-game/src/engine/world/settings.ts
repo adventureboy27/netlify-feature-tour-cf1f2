@@ -1351,6 +1351,12 @@ export function defaultWorldSettings(): WorldSettings {
     // quiet. Measured in misfortune.test.ts.
     misfortuneChanceHealthy: 0.012,
     misfortuneChanceInjured: 0.06,
+    // $150/wk all-in clears ordinary promotion pay by a wide margin — this
+    // only ever bites a roster genuinely working for nothing.
+    dayJobWageThreshold: 150,
+    // About one week in twenty, per underpaid wrestler — noticeable over a
+    // season without turning every card into a scramble.
+    dayJobAbsenceChance: 0.05,
     mysteryOpponentLongShotWeight: 18,
     // Tuned against the measurement in freshness.test.ts: rotating a deep
     // roster has to beat running the same twelve people every week, or the
@@ -2298,6 +2304,15 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
     startingTerritoryFollowing: 10,
     startingVenueId: 'backyardRing',
     startingTerritoryId: 'brambleHollow',
+    // Nobody here is making a living at this yet. The default curve
+    // (base 60, range 2200) prices an average wrestler in the hundreds a
+    // week purely off the floor and the curve — there is no version of that
+    // floor that reads as "doing it for love." Cut both down hard: an
+    // average draw now asks for pocket change, and a genuine standout still
+    // asks for visibly more than everybody else, the curve just operates on
+    // much smaller numbers. See contracts.ts's askingRate.
+    contractBaseWeeklyRate: 15,
+    contractRateRange: 300,
     // An owner who is also your neighbor gives you a lot of rope.
     mandateStrikesBeforeFiring: 5,
     // Barely anybody else is running shows this small yet.

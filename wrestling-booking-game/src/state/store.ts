@@ -139,6 +139,7 @@ import {
 import {
   injuryFromMisfortune,
   pickReplacement,
+  rollDayJobAbsence,
   rollMisfortune,
   type Misfortune,
   type Replacement,
@@ -1286,7 +1287,11 @@ export const useGameStore = create<GameStore>()(
         const usedMisfortuneLines = new Set<string>();
         for (const person of world.promotion.rosterIds.map((id) => world.wrestlers[id])) {
           if (!person) continue;
-          const misfortune = rollMisfortune(rng, person, world.settings, usedMisfortuneLines);
+          // Ordinary bad luck first; the day job only gets a look if nothing
+          // else already took this person out of the building tonight.
+          const misfortune =
+            rollMisfortune(rng, person, world.settings, usedMisfortuneLines) ??
+            rollDayJobAbsence(person, world.week, world.settings, usedMisfortuneLines);
           if (!misfortune) continue;
           misfortunes.push(misfortune);
 

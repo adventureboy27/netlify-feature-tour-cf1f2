@@ -1,12 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { injuryFromMisfortune, pickReplacement, rollMisfortune } from './misfortune';
+import { injuryFromMisfortune, pickReplacement, rollDayJobAbsence, rollMisfortune } from './misfortune';
 import { MISFORTUNES } from '../../data/misfortunes';
 import { defaultWorldSettings } from './settings';
 import { generateWrestlers } from '../generate/wrestler';
 import { rngFromSeed } from '../rng';
-import type { Injury, Wrestler } from '../types';
+import type { Contract, Injury, Wrestler } from '../types';
 
 const settings = defaultWorldSettings();
+
+function dealAt(weeklyRate: number, perAppearance = 0): Contract {
+  return {
+    guaranteedPct: 0,
+    type: 'fullTime',
+    weeklyRate,
+    perAppearance,
+    weeksRemaining: 52,
+    totalWeeks: 52,
+    clauses: [],
+    signedYear: 2026,
+  };
+}
 
 const hurt = (weeks = 6): Injury => ({
   severity: 'moderate',
@@ -54,6 +67,13 @@ describe('the library', () => {
       if (entry.kind === 'aggravation') expect(entry.requires, entry.id).toBe('injured');
       if (entry.kind === 'absence') expect(entry.requires, entry.id).toBe('healthy');
     }
+  });
+
+  it('only marks absences as dayJob, never an injury or a setback', () => {
+    for (const entry of MISFORTUNES) {
+      if (entry.dayJob) expect(entry.kind, entry.id).toBe('absence');
+    }
+    expect(MISFORTUNES.some((m) => m.dayJob)).toBe(true);
   });
 });
 
@@ -219,5 +239,70 @@ describe('the mystery opponent', () => {
     }
     // Not just the three closest names in popularity.
     expect(chosen.size).toBeGreaterThan(8);
+  });
+});
+
+describe('the day job', () => {
+  it('never touches anybody on a real wage', () => {
+    for (const person of roster(50, 'well-paid')) {
+      const paid = { ...person, contract: dealAt(600, 400) };
+      for (let week = 0; week < 100; week++) {
+        expect(rollDayJobAbsence(paid, week, settings)).toBeNull();
+      }
+    }
+  });
+
+  it('never touches anybody with no contract at all', () => {
+    const [person] = roster(1, 'unsigned');
+    for (let week = 0; week < 100; week++) {
+      expect(rollDayJobAbsence({ ...person!, contract: null }, week, settings)).toBeNull();
+    }
+  });
+
+  it('leaves an already-injured wrestler alone — that is not this kind of trouble', () => {
+    const [person] = roster(1, 'hurt-cheap');
+    const cheap = { ...person!, contract: dealAt(10, 10), injury: hurt() };
+    for (let week = 0; week < 200; week++) {
+      expect(rollDayJobAbsence(cheap, week, settings)).toBeNull();
+    }
+  });
+
+  it('is a real, occasional cost for somebody working for nothing', () => {
+    const people = roster(20, 'underpaid').map((w) => ({ ...w, contract: dealAt(10, 10) }));
+    let hits = 0;
+    for (let week = 0; week < 52; week++) {
+      for (const person of people) if (rollDayJobAbsence(person, week, settings)) hits++;
+    }
+    // 20 people * 52 weeks * 5% ~= 52 expected hits. Wide bounds — this is
+    // checking "actually happens sometimes," not pinning the exact rate.
+    expect(hits).toBeGreaterThan(10);
+    expect(hits).toBeLessThan(150);
+  });
+
+  it('is stable for the same wrestler and week — no reliance on call order', () => {
+    const [person] = roster(1, 'stable');
+    const cheap = { ...person!, contract: dealAt(20, 0) };
+    const results = new Set<string>();
+    for (let i = 0; i < 5; i++) {
+      results.add(String(rollDayJobAbsence(cheap, 7, settings)?.text ?? null));
+    }
+    expect(results.size).toBe(1);
+  });
+
+  it('produces variety across weeks rather than one line forever', () => {
+    const [person] = roster(1, 'variety-weeks');
+    const cheap = { ...person!, contract: dealAt(10, 10) };
+    const seen = new Set<string>();
+    for (let week = 0; week < 300; week++) {
+      const m = rollDayJobAbsence(cheap, week, settings);
+      if (m) seen.add(m.text);
+    }
+    expect(seen.size).toBeGreaterThan(2);
+  });
+
+  it('leaves the dead and the retired alone, however little they are paid', () => {
+    const [base] = roster(1, 'gone-cheap');
+    const retired = { ...base!, contract: dealAt(5, 5), careerStatus: 'retired' as const };
+    for (let week = 0; week < 200; week++) expect(rollDayJobAbsence(retired, week, settings)).toBeNull();
   });
 });

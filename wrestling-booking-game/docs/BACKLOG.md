@@ -1845,3 +1845,74 @@ improve on.
   a live dev-server + Playwright pass through the full new-game flow on `backyard` confirming the
   default selection, the roster size and split, the pinned venue and territory, and a full first show
   resolving end to end.
+
+---
+
+## Equipment economy, Phase 1 follow-up — real starter wages, and the day job that comes with them
+
+Player follow-up on the Backyard preset above: "maybe the starting 10 should be paid much less...
+no stars....just do what they love. maybe they have normal jobs and that could phase into some
+problems? had to stay at work late, etc? but pay them very little but they get the promotion going."
+This also happened to fix a real balance problem the live playtest in the entry above surfaced —
+payroll for a full ten-person roster (~$8,800/wk) dwarfing anything a 60-seat yard could gross, which
+was surviving on the "player must triage the roster" escape hatch alone. Real starter wages close most
+of that gap directly, and the day-job wrinkle gives the underpaying itself a mechanical cost rather
+than being a free lunch.
+
+- **`engine/economy/contracts.ts`'s `askingRate`** was already fully driven by `WorldSettings`
+  (`contractBaseWeeklyRate`, `contractRateRange`, `contractRateCurve`, `contractDrawWeight`,
+  `contractCraftWeight`) — no new mechanism needed, just a preset that actually uses the knob. Added
+  `contractBaseWeeklyRate: 15` and `contractRateRange: 300` to the `backyard` preset (defaults: 60 and
+  2,200). A typical wrestler now asks for pocket change instead of several hundred a week, and the one
+  genuine standout on a generated roster still visibly costs more than everybody else — the curve just
+  now operates on much smaller numbers, so the relative signal ("this one might actually be worth
+  something") survives even though the absolute numbers don't read as anybody's living.
+- **`engine/types.ts` / `engine/world/settings.ts`**: two new `WorldSettings` fields,
+  `dayJobWageThreshold` (150, default) and `dayJobAbsenceChance` (0.05/week, default) — global, not
+  backyard-specific, so any future cheap signing anywhere in the game inherits the same rule rather than
+  this being a preset flag bolted on the side.
+- **`data/misfortunes.ts`**: `MisfortuneDefinition` gets an optional `dayJob?: boolean` field, and four
+  new `kind: 'absence'` entries tagged with it — held late at the register, nobody could cover the
+  shift, a called-in-sick cover story falling apart, out of PTO. Same voice, same shape as the existing
+  absence pool (car trouble, missed flights, family emergencies), reusing 100% of the existing
+  `MisfortuneDefinition`/weighted-draw/line-variety machinery rather than inventing a parallel one.
+- **`engine/world/misfortune.ts`**: new `rollDayJobAbsence(wrestler, week, settings, usedLines)` —
+  eligible only for a wrestler whose whole weekly ask (`contract.weeklyRate + contract.perAppearance`)
+  sits under `dayJobWageThreshold`; anyone above it, or with no contract at all, returns `null` before
+  anything is rolled. A deliberately *separate* gate from the existing `rollMisfortune`'s
+  `misfortuneChanceHealthy` roll rather than one more entry competing for a slice of that already-rare
+  pool — being underpaid is a standing fact about how somebody is paid, not bad luck, and CLAUDE.md's
+  own precedent (`misfortuneChanceHealthy` vs `misfortuneChanceInjured` are already "two separate gates,
+  because they are separate risks") argues for the same shape here, a third one.
+  - **RNG-safety, the trap CLAUDE.md calls out by name**: seeded per-wrestler-per-week
+    (`rngFromSeed(\`dayJob:${wrestler.id}:${week}\`)`) rather than drawn off the shared stream `rng`
+    parameter every other roll in `resolveWeek` shares. The eligibility check runs *before* any roll —
+    for the four existing presets, essentially every generated wrestler clears $150/wk, so the function
+    returns `null` without ever touching randomness, shared or otherwise, and nothing about their
+    behavior changes at all. But a stray cheap rookie could theoretically clear the bar even under
+    default settings, and drawing from the shared stream in that case would have silently shifted every
+    seeded roll downstream of them — confirmed this is not hypothetical, since even the *default* wage
+    curve prices a genuinely weak rookie under $80/wk. Seeding from the entity instead makes the whole
+    question moot.
+- **`state/store.ts`**: wired into the same per-person weekly loop as the existing misfortune roll —
+  `rollMisfortune(...) ?? rollDayJobAbsence(...)`, so the day job only gets a look when nothing else
+  already took someone out of the building that week, and everything downstream (the newsfeed line, the
+  mystery-opponent/no-show handling, the wire) is the exact same code path absences already went
+  through — no new UI, no new consumer, a pure content addition to a pipeline that already existed.
+- **Tests**: `misfortune.test.ts` gets a full `describe('the day job', …)` block (never fires above the
+  wage threshold, never fires with no contract, never fires on top of an existing injury, fires at a
+  real-but-bounded rate for an underpaid roster over a season, stable for the same wrestler/week pair,
+  varies its line across weeks, leaves the dead and retired alone) plus one addition to the existing
+  library-shape checks (every `dayJob` entry is an `absence`, and at least one exists).
+  `worldPresets.test.ts`'s `backyard` block gets one more test: a 200-wrestler sample's mean
+  `backyard` ask is under a quarter of the same sample's mean `standard` ask, and more than half of it
+  actually clears into day-job territory — checked against the *other* preset's own live settings, not
+  a hardcoded number, so it stays honest if either curve is retuned later.
+- **Verified live, not just in tests** (CLAUDE.md: measure in a played save): a fresh backyard roster's
+  weekly wage bill dropped from $8,835/wk (the number in the entry above) to $620/wk — individual rates
+  ranged $15-215/wk. Played 20 simulated weeks through the actual UI (fill card, run show, repeat) and
+  the day-job absence fired and read correctly in the write-up: *"Tex Zane's manager would not let the
+  shift end on time, and there was no getting to the building after that. Delilah Duvall went out there
+  instead."* — flowing through the existing mystery-opponent replacement system exactly as intended.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2,838 tests passing (9 new, zero re-expressed,
+  zero baselines touched); `npm run sim` clean; `npm run build` clean; the live playtest above.

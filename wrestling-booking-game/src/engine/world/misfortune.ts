@@ -19,7 +19,7 @@
 // off-screen, and every one of these says how.
 
 import type { Rng } from '../rng';
-import { chance, pick, randInt } from '../rng';
+import { chance, pick, randInt, rngFromSeed } from '../rng';
 import { MISFORTUNES, type MisfortuneDefinition, type MisfortuneKind } from '../../data/misfortunes';
 import type { Id, Injury, Wrestler, WorldSettings } from '../types';
 import { aggravate, gradeFromLength, severityOf } from '../sim/casualties';
@@ -103,6 +103,59 @@ export function rollMisfortune(
     text: template.replace(/\{name\}/g, wrestler.name),
     weeks,
     attacked: Boolean(definition.impliesAttacker),
+  };
+}
+
+/**
+ * The day job wins. A second, separate roll from rollMisfortune above — not
+ * bad luck, but a standing fact about how this person is being paid, so it
+ * gets its own gate rather than one more slice of the ordinary, rare pool.
+ *
+ * Only ever eligible for a wrestler whose whole weekly ask (retainer plus
+ * per-appearance, the two halves splitRate hands out) sits under
+ * settings.dayJobWageThreshold — comfortably below what an ordinary
+ * promotion pays anybody, so a normal roster never touches this at all.
+ *
+ * Seeded from the wrestler and the week rather than drawn off the shared
+ * rng stream on purpose (see the RNG note in the root CLAUDE.md): most
+ * promotions' rosters clear the wage threshold and this returns before
+ * drawing anything, but a stray cheap rookie elsewhere must not be able to
+ * shift every seeded roll that comes after them just by existing.
+ */
+export function rollDayJobAbsence(
+  wrestler: Wrestler,
+  week: number,
+  settings: WorldSettings,
+  usedLines: Set<string> = new Set(),
+): Misfortune | null {
+  if (wrestler.deceased || wrestler.careerStatus === 'retired') return null;
+  if (wrestler.injury) return null; // that is not the kind of trouble this is
+
+  const contract = wrestler.contract;
+  if (!contract) return null;
+  const ask = contract.weeklyRate + contract.perAppearance;
+  if (ask >= settings.dayJobWageThreshold) return null;
+
+  const rng = rngFromSeed(`dayJob:${wrestler.id}:${week}`);
+  if (!chance(rng, settings.dayJobAbsenceChance)) return null;
+
+  const candidates = MISFORTUNES.filter((m) => m.kind === 'absence' && m.dayJob);
+  const definition = drawDefinition(rng, candidates);
+  if (!definition) return null;
+
+  const fresh = definition.lines.filter((line) => !usedLines.has(line));
+  const template = pick(rng, fresh.length > 0 ? fresh : definition.lines);
+  usedLines.add(template);
+
+  return {
+    wrestlerId: wrestler.id,
+    wrestlerName: wrestler.name,
+    definitionId: definition.id,
+    kind: definition.kind,
+    label: definition.label,
+    text: template.replace(/\{name\}/g, wrestler.name),
+    weeks: null,
+    attacked: false,
   };
 }
 

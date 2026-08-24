@@ -41,6 +41,13 @@ export interface MisfortuneDefinition {
    * is how a night nobody booked becomes a feud.
    */
   impliesAttacker?: boolean;
+  /**
+   * Only drawn for a wrestler whose whole weekly ask sits under
+   * settings.dayJobWageThreshold — see world/misfortune.ts's
+   * rollDayJobAbsence, a separate roll from the ordinary one below. Nobody
+   * on real money ever draws from this pool.
+   */
+  dayJob?: boolean;
 }
 
 export const MISFORTUNES: MisfortuneDefinition[] = [
@@ -161,6 +168,63 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
       '{name} got jumped cold in the corridor outside the locker room, and not one soul in this building saw who did it.',
       '{name} was attacked walking in through the parking lot tonight, and there are no cameras out there to say who.',
       '{name} turned up in a stairwell nobody uses, and nobody backstage is saying a word about who found them there.',
+    ],
+  },
+
+  // --- The day job wins. Only ever drawn for wrestlers who are not making a
+  // living at this — see rollDayJobAbsence and settings.dayJobWageThreshold.
+  {
+    id: 'heldLateAtWork',
+    kind: 'absence',
+    label: 'No-show',
+    weight: 24,
+    requires: 'healthy',
+    dayJob: true,
+    lines: [
+      "{name}'s manager would not let the shift end on time, and there was no getting to the building after that.",
+      '{name} got asked to close again tonight, and a promise to a boss beats a promise to a promoter.',
+      "{name} is still behind the register three hours after they were supposed to clock out.",
+      '{name} begged off the closing shift and got told no. The rent gets paid either way.',
+    ],
+  },
+  {
+    id: 'noOneToCoverTheShift',
+    kind: 'absence',
+    label: 'No-show',
+    weight: 20,
+    requires: 'healthy',
+    dayJob: true,
+    lines: [
+      "Nobody could cover {name}'s shift tonight, and a no-call, no-show at the day job was not a risk worth taking.",
+      '{name} tried every single person on that schedule and could not find one soul to swap with.',
+      "{name}'s day job does not know wrestling exists, and tonight it did not care to find out.",
+      'The schedule went up short-handed, and {name} could not be the one who left it that way.',
+    ],
+  },
+  {
+    id: 'calledInSickBackfired',
+    kind: 'absence',
+    label: 'No-show',
+    weight: 10,
+    requires: 'healthy',
+    dayJob: true,
+    lines: [
+      '{name} called in sick to make the show and got caught out — the boss saw the flyer online an hour later.',
+      "{name}'s cover story fell apart the second a coworker mentioned seeing the same flyer {name} was supposedly too sick to see.",
+      'The sick day {name} took to be here tonight just became a very awkward conversation for tomorrow — and a missed show either way.',
+    ],
+  },
+  {
+    id: 'noPtoLeftForThis',
+    kind: 'absence',
+    label: 'No-show',
+    weight: 12,
+    requires: 'healthy',
+    dayJob: true,
+    lines: [
+      "{name} is flat out of time off, and a promotion this size does not pay enough to burn a real day's wage on it.",
+      'The math did not work out tonight — {name} needs the hours from the day job a lot more than the payoff from this one.',
+      "{name} asked for the night off weeks ago and only found out today it never actually got approved.",
     ],
   },
 
