@@ -37,7 +37,7 @@ export function CupPanel() {
           {result.line}
         </h2>
         <p className="mt-1 text-[11px] text-neutral-400">
-          {result.winnerName} carries {CUP_TROPHY} until somebody takes it off them.
+          {result.winnerName} carries {CUP_TROPHY} until somebody out there is good enough to take it off them.
         </p>
 
         <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
@@ -101,8 +101,8 @@ export function CupPanel() {
       </div>
 
       <p className="mt-2 text-[11px] text-neutral-400">
-        Half the pot to the winner, half to the company that owns them. The whole card is the
-        bracket and no titles are on it. The more companies buy in, the fewer names each of them
+        Half the pot goes straight to the winner, half to the company that owns them. The entire card is the
+        bracket, and not one title is on the line. The more companies buy in, the fewer names each of them
         brings.
       </p>
 

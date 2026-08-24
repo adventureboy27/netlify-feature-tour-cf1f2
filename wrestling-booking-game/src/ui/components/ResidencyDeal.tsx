@@ -46,8 +46,8 @@ export function ResidencyDeal() {
         </p>
         <p className="mt-1 text-[11px] leading-snug text-neutral-400">{exposureLine(world.residency)}</p>
         <p className="mt-1 text-[11px] text-neutral-500">
-          <Money amount={world.residency.rentPerWeek} /> a week, flat. No travel and no hauling. About{' '}
-          {ceiling.toLocaleString()} people will turn up, however good the card is.
+          <Money amount={world.residency.rentPerWeek} /> a week, flat, no surprises. No travel and no hauling
+          gear. About {ceiling.toLocaleString()} people will turn up, no matter how good that card is.
         </p>
         <button
           type="button"
@@ -69,9 +69,9 @@ export function ResidencyDeal() {
         <span className="shrink-0 text-neutral-600">{open ? '−' : '+'}</span>
       </button>
       <p className="mt-0.5 text-[11px] leading-snug text-neutral-500">
-        One small building in one small town, every week. Cheap flat rent, nothing spent on travel, and no truck to
-        keep. You will not sell it out, you cannot charge much, merch barely moves, and nobody outside that town will
-        have heard of anybody on your roster.
+        One small building, one small town, every single week. Cheap flat rent, nothing spent on travel, and no
+        truck to keep running. You will not sell it out, you cannot charge much, merch barely moves, and not one
+        soul outside that town has ever heard of anybody on your roster.
       </p>
 
       {open && (

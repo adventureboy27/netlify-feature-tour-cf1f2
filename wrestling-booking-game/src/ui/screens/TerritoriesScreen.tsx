@@ -57,7 +57,7 @@ export function TerritoriesScreen() {
     <div className="p-3 pb-24 text-neutral-100">
       <h1 className="mb-1 text-base font-semibold">The territories</h1>
       <p className="mb-2 text-[11px] text-neutral-500">
-        Every town remembers you separately, and forgets you a little every week you are not there.
+        Every single town remembers you separately, and forgets you a little more every week you are not there.
       </p>
 
       <TerritoryMap

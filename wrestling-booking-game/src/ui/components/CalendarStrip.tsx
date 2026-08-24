@@ -108,8 +108,8 @@ export function CalendarStrip({ months = 2 }: { months?: number }) {
       ))}
 
       <p className="text-[10px] text-neutral-600">
-        Tap a night to run a show on that weekday, or to drop one. The televised night cannot be
-        dropped — move it instead, below.
+        Tap a night to run a show that weekday, or to drop one entirely. The televised night cannot be dropped —
+        move it instead, right below.
       </p>
     </div>
   );

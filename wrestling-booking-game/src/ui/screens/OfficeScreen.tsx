@@ -185,7 +185,8 @@ function StatusStrip() {
         <p className="mt-1 text-sm">{world.fired.reason}</p>
         <p className="mt-1 text-xs text-neutral-400">
           You were let go in week {world.fired.week}, after {world.mandateStrikes} missed mandates.{' '}
-          {world.promotion.name} carries on without you. What you built is on the Legacy and Records screens.
+          {world.promotion.name} carries on without you — but every bit of what you built lives on right there on
+          the Legacy and Records screens.
         </p>
       </section>
     );
@@ -197,8 +198,8 @@ function StatusStrip() {
         <div className="text-xs uppercase tracking-wide text-rose-400">Out of business</div>
         <p className="mt-1 text-sm">{world.folded.reason}</p>
         <p className="mt-1 text-xs text-neutral-400">
-          {world.promotion.name} closed in week {world.folded.week}. The roster is loose in the business and the record
-          of what you built is on the Legacy and Rankings screens.
+          {world.promotion.name} closed its doors in week {world.folded.week}. That whole roster is loose in the
+          business now, and the full record of what you built lives on the Legacy and Rankings screens.
         </p>
       </section>
     );
@@ -360,9 +361,9 @@ function DeskTab() {
           <div className="text-xs uppercase tracking-wide text-sky-400">A promotion has closed</div>
           <h2 className="mt-1 text-sm font-semibold">{world.pendingFoldPicks.fromPromotionName} is gone</h2>
           <p className="mt-1 text-xs text-neutral-300">
-            {world.pendingFoldPicks.wrestlerIds.length} of their wrestlers are loose in the business. Pick
-            anybody you want — if a rival wants them too, it goes to a bidding war. Whoever is left when
-            you are done goes to free agency.
+            {world.pendingFoldPicks.wrestlerIds.length} of their wrestlers are loose in the business right now.
+            Pick anybody you want — if a rival wants them too, it goes straight to a bidding war. Whoever is left
+            standing when you are done goes to free agency.
           </p>
           {world.foldBidQueue.length > 0 && (
             <p className="mt-1 text-[11px] text-amber-300">
@@ -442,7 +443,7 @@ function DeskTab() {
         </article>
       ) : (
         <p className="rounded border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-500">
-          Quiet week. Nobody is at your door.
+          Dead quiet week around the office. Not a single soul at your door.
         </p>
       )}
 
@@ -865,7 +866,7 @@ function ContractsTab() {
   ) {
     return (
       <p className="rounded border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-500">
-        Every deal is signed and nobody is being courted. Enjoy it.
+        Every single deal is signed and nobody out there is being courted. Enjoy the quiet while it lasts.
       </p>
     );
   }
@@ -1270,7 +1271,7 @@ function ContractsTab() {
                   </select>
 
                   {selectedGroup && eligiblePartners.length === 0 && (
-                    <p className="text-[11px] text-rose-400">Nobody on the roster fits — same division, not already spoken for.</p>
+                    <p className="text-[11px] text-rose-400">Nobody on this roster fits — needs the same division, and not already spoken for.</p>
                   )}
 
                   {selectedGroup && eligiblePartners.length > 0 && (
@@ -1689,8 +1690,8 @@ function OfficialsTab() {
 
         {crew.length === 0 ? (
           <p className="rounded border border-amber-900/60 bg-neutral-900 p-3 text-[11px] text-amber-300">
-            You have nobody in a striped shirt. Every match will be counted by one of the boys, and every
-            one of them has an opinion about who should win.
+            You have not one soul in a striped shirt. Every match gets counted by one of the boys instead, and
+            every single one of them has an opinion about who should be winning.
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -1721,7 +1722,7 @@ function OfficialsTab() {
                     {referee.recentMatches > 0 && (
                       <div className="text-[10px] text-neutral-600">
                         {referee.recentMisses === 0
-                          ? 'Has not missed a thing lately.'
+                          ? 'Has not missed a single thing lately.'
                           : `Blown calls lately: ${referee.recentMisses} in ${referee.recentMatches} matches.`}
                       </div>
                     )}
@@ -1858,8 +1859,8 @@ function TradesTab() {
       <section className="mb-4">
         <h2 className="mb-1 text-sm font-medium text-neutral-300">Who you are offering</h2>
         <p className="mb-2 text-[11px] text-neutral-500">
-          Their contract goes with them. What somebody is worth here is what they draw, less what they are
-          owed.
+          Their contract goes right along with them. What somebody is genuinely worth here is what they draw at
+          the gate, minus every dollar they are still owed.
         </p>
         <div className="flex flex-wrap gap-1">
           {mine.map((w) => (
@@ -1892,7 +1893,7 @@ function TradesTab() {
         <h2 className="mb-2 text-sm font-medium text-neutral-300">Who you are calling</h2>
         {partners.length === 0 ? (
           <p className="text-[11px] text-amber-400">
-            Nobody is taking your calls this week. Everybody you asked has already said no.
+            Nobody is taking your calls this week — every single person you asked has already said no.
           </p>
         ) : (
           <div className="flex flex-wrap gap-1">
@@ -1993,7 +1994,7 @@ function TelevisionTab() {
   if (!latestChart) {
     return (
       <p className="rounded border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-500">
-        Nothing has aired yet. Run a show.
+        Not one thing has aired yet. Get out there and run a show.
       </p>
     );
   }
@@ -2102,8 +2103,8 @@ function ChampionCallPanel() {
       </h2>
       <p className="mt-1 text-[11px] text-neutral-500">
         {weeksLeft <= 1
-          ? 'Decide this week, or the company vacates it for you.'
-          : `${weeksLeft} weeks to decide before the company vacates it for you.`}
+          ? 'Decide this week, or the company vacates that belt for you — no more waiting.'
+          : `${weeksLeft} weeks left to decide before the company vacates that belt for you.`}
       </p>
       <button
         type="button"
@@ -2235,7 +2236,8 @@ function LoanOfferPanel() {
         {offer.attemptNumber === 1 ? 'A loan is on the table' : `The ${ordinal} loan is on the table`}
       </h2>
       <p className="mt-1 text-[11px] text-neutral-500">
-        Sized against payroll — cannot be renegotiated once taken, and cannot be deferred once running.
+        Sized against your payroll. Cannot be renegotiated once you take it, and cannot be deferred once it starts
+        running — no exceptions.
       </p>
       <button
         type="button"
@@ -2252,8 +2254,8 @@ function LoanOfferPanel() {
           speakerName="The bank"
           body={
             offer.attemptNumber === 1
-              ? "The promotion is bleeding money. A loan would buy real time — but every dollar comes back with interest, on a fixed weekly bill that can't be deferred, and the owner is going to hear about it either way."
-              : `This isn't the first time. The bank remembers the last one, and this offer is smaller and harsher for it — nothing about needing a ${ordinal} loan reads well to the owner.`
+              ? "This promotion is bleeding money, plain and simple. A loan buys you real time — but every single dollar comes back with interest, on a fixed weekly bill that absolutely cannot be deferred, and the owner is going to hear about it either way."
+              : `This is not the first time, and the bank remembers the last one just fine. This offer is smaller and harsher for it — nothing about needing a ${ordinal} loan reads well to the owner, not one bit.`
           }
           choices={[
             tierChoice('small'),
@@ -2295,7 +2297,8 @@ function ActiveLoanNotice() {
         </span>
       </div>
       <p className="mt-1 text-[10px] leading-snug text-neutral-500">
-        Withdrawn automatically. It cannot be deferred, and missing payroll on top of it will not stop it.
+        Withdrawn automatically, every single time. It cannot be deferred, and missing payroll on top of it will
+        not stop it.
       </p>
     </section>
   );
@@ -2318,8 +2321,8 @@ function BuyoutOfferPanel() {
       <div className="text-xs uppercase tracking-wide text-rose-400">A rival is circling</div>
       <h2 className="mt-1 text-sm font-semibold">{offer.fromPromotionName} wants {offer.count} contracts</h2>
       <p className="mt-1 text-[11px] text-neutral-500">
-        <Money amount={offer.price} /> for {offer.count}, no names attached. Could be the bottom of the roster.
-        Could be a champion. This has to be answered before anybody finds out which.
+        <Money amount={offer.price} /> for {offer.count}, no names attached whatsoever. Could be the bottom of the
+        roster. Could genuinely be a champion. This gets answered before a single soul finds out which.
       </p>
       <button
         type="button"
@@ -2334,7 +2337,7 @@ function BuyoutOfferPanel() {
         <DialogueCard
           speaker={{ kind: 'narrator' }}
           speakerName={offer.fromPromotionName}
-          body={`We'll take ${offer.count} contracts off your hands — $${offer.price.toLocaleString()}, flat, no negotiation. We choose who once you say yes. Could be five names nobody would miss. Could be your whole main event picture. That's the deal.`}
+          body={`We will take ${offer.count} contracts clean off your hands — $${offer.price.toLocaleString()}, flat, absolutely no negotiation. We choose who the second you say yes. Could be five names nobody would ever miss. Could be your entire main event picture, gone. That is the whole deal.`}
           choices={[
             {
               id: 'accept',
@@ -2376,7 +2379,7 @@ function RivalMovePanel() {
       <h2 className="mt-1 text-sm font-semibold">
         {move.rivalName} signed {move.wrestlerName}
       </h2>
-      <p className="mt-1 text-[11px] text-neutral-500">Worth an answer, or worth ignoring — your call.</p>
+      <p className="mt-1 text-[11px] text-neutral-500">Worth firing back at, or worth ignoring completely — your call.</p>
       <button
         type="button"
         data-testid="rival-move-talk"
@@ -2390,7 +2393,7 @@ function RivalMovePanel() {
         <DialogueCard
           speaker={{ kind: 'narrator' }}
           speakerName={`${move.rivalName} signs ${move.wrestlerName}`}
-          body={`${move.rivalName} just signed ${move.wrestlerName}. It's already the talk of the locker room. How do you want to answer it?`}
+          body={`${move.rivalName} just signed ${move.wrestlerName}, and it is already the talk of the entire locker room. How do you want to answer it?`}
           choices={RIVAL_MOVE_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
           onChoose={(optionId) => {
             answer(optionId as RivalMoveChoiceId);
@@ -2419,7 +2422,7 @@ function ConfrontationCallPanel() {
       <h2 className="mt-1 text-sm font-semibold">
         {call.wrestlerName} and {call.otherName}
       </h2>
-      <p className="mt-1 text-[11px] text-neutral-500">{call.twistLabel}. The office has not said what happens next.</p>
+      <p className="mt-1 text-[11px] text-neutral-500">{call.twistLabel}. The office has not said one word about what happens next.</p>
       <button
         type="button"
         data-testid="confrontation-call-talk"
@@ -2433,7 +2436,7 @@ function ConfrontationCallPanel() {
         <DialogueCard
           speaker={{ kind: 'narrator' }}
           speakerName={`${call.wrestlerName} and ${call.otherName}`}
-          body={`${call.wrestlerName} and ${call.otherName} went past words tonight — ${call.twistLabel.toLowerCase()}. The office can let it happen or pull them apart.`}
+          body={`${call.wrestlerName} and ${call.otherName} went completely past words tonight — ${call.twistLabel.toLowerCase()}. The office can let it play out or pull them apart right now.`}
           choices={CONFRONTATION_CALL_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
           onChoose={(optionId) => {
             answer(optionId as ConfrontationCallChoiceId);
@@ -2473,9 +2476,9 @@ function ScheduleTab() {
   const nextBig = bigShowName(world.week + weeksOut, schedule, world.settings);
 
   const cadences: { id: PPVCadence; label: string; blurb: string }[] = [
-    { id: 'monthly', label: 'Every month', blurb: 'Twelve a year. Something to build to, always.' },
-    { id: 'biMonthly', label: 'Every other month', blurb: 'Six a year, and each one is a bigger deal for being rarer.' },
-    { id: 'annual', label: 'Once a year', blurb: 'One night the whole year points at.' },
+    { id: 'monthly', label: 'Every month', blurb: 'Twelve of them a year. Always something huge to build toward.' },
+    { id: 'biMonthly', label: 'Every other month', blurb: 'Six a year, and every single one is a bigger deal for being rarer.' },
+    { id: 'annual', label: 'Once a year', blurb: 'One massive night the whole entire year points straight at.' },
   ];
 
   return (
@@ -2483,7 +2486,8 @@ function ScheduleTab() {
       <section className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
         <h2 className="mb-1 text-sm font-semibold">The months ahead</h2>
         <p className="mb-2 text-xs text-neutral-500">
-          Every night of every week. Joint shows in May and November, the Crucible in August.
+          Every single night of every single week. Joint shows land in May and November, and the Crucible hits in
+          August.
         </p>
         <CalendarStrip months={2} />
       </section>
@@ -2509,7 +2513,7 @@ function ScheduleTab() {
         <p className="mt-2 text-[11px] text-neutral-600">
           {off.length > 0
             ? `Dark on ${off.join(', ')}.`
-            : 'Nobody in this company has a night off.'}
+            : 'Not one single person in this company gets a night off.'}
         </p>
       </section>
 
@@ -2528,7 +2532,7 @@ function ScheduleTab() {
                 {show.televised && (
                   <span
                     className="shrink-0 rounded bg-sky-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300"
-                    title="The one the cameras are at, and the only one you book. Everything else is a house show the office runs."
+                    title="The one the cameras are actually at, and the only one you book. Everything else is a house show the office runs on its own."
                   >
                     TV
                   </span>
@@ -2577,8 +2581,8 @@ function ScheduleTab() {
         </div>
         <p className="mt-2 text-[11px] text-neutral-600">
           {weeksOut === 0
-            ? `${nextBig ?? 'The big one'} is this week.`
-            : `${nextBig ?? 'The next one'} in ${weeksOut} ${weeksOut === 1 ? 'week' : 'weeks'}. It replaces the television that week rather than being added to it.`}
+            ? `${nextBig ?? 'The big one'} is THIS week.`
+            : `${nextBig ?? 'The next one'} lands in ${weeksOut} ${weeksOut === 1 ? 'week' : 'weeks'}. It completely replaces the television that week rather than getting added on top of it.`}
         </p>
       </section>
     </div>
@@ -2610,19 +2614,20 @@ function JointShowsTab() {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-[11px] text-neutral-400">
-        One card, both rosters, and the belts stay where they are. It is the most money anybody
-        makes all year — and the sim picks the winners, on their half of the card as much as yours.
+        One card, both rosters, and every belt stays exactly where it is. This is the single biggest money night
+        anybody makes all year — and the sim picks the winners on their half of the card just as ruthlessly as
+        yours.
       </p>
 
       {busy && (
         <p className="rounded border border-neutral-700 bg-neutral-900 p-2 text-[11px] text-neutral-400">
-          There is already a joint show on the table. Deal with that one first.
+          There is already a joint show sitting on the table. Deal with that one first.
         </p>
       )}
       {!busy && waiting > 0 && (
         <p className="rounded border border-neutral-700 bg-neutral-900 p-2 text-[11px] text-neutral-400">
-          You have been round the houses recently. {waiting} {waiting === 1 ? 'week' : 'weeks'}{' '}
-          before anybody will take another call.
+          You have been making the rounds a lot lately. {waiting} {waiting === 1 ? 'week' : 'weeks'}{' '}
+          before anybody out there will even take another call.
         </p>
       )}
 

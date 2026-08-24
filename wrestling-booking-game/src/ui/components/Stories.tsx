@@ -117,7 +117,7 @@ function Arc({ story }: { story: Storyline }) {
             </li>
           ))}
           {story.beats.length === 0 && (
-            <li className="text-[11px] italic text-neutral-600">Nothing has happened in it yet.</li>
+            <li className="text-[11px] italic text-neutral-600">Not one thing has happened in this one yet.</li>
           )}
         </ol>
       )}
@@ -180,7 +180,7 @@ export function Stories() {
                 const result = leanIn(rivalry.id);
                 setNote(
                   result.ok
-                    ? `${names} is on television now, exactly as it is.`
+                    ? `${names} is live on television now, exactly as it really is.`
                     : result.reason,
                 );
               }}
@@ -191,8 +191,8 @@ export function Stories() {
                 <HeatBadge heat={rivalry.heat} shootHeat={rivalry.shootHeat} />
               </div>
               <p className="mt-1 text-[11px] leading-snug text-neutral-500">
-                This one is not worked. Put a camera on it and the crowd gets the real thing —
-                which draws, and which does not calm anybody down.
+                This one is not worked — it is genuinely real. Put a camera on it and the crowd gets the actual
+                thing, which draws serious money and settles absolutely nothing down.
               </p>
               <span className="mt-1 inline-block text-[10px] font-semibold uppercase tracking-wide text-rose-400">
                 Run it as an angle
@@ -213,13 +213,14 @@ export function Stories() {
               data-testid={`name-it-${rivalry.id}`}
               onClick={() => {
                 const result = start(rivalry.participantIds);
-                setNote(result.ok ? `${names} is a story now. Go and tell it.` : result.reason);
+                setNote(result.ok ? `${names} is officially a story now. Go tell it.` : result.reason);
               }}
               className="rounded-lg border border-dashed border-neutral-700 p-2.5 text-left transition hover:border-sky-700"
             >
               <div className="text-sm font-semibold text-neutral-200">{names}</div>
               <p className="mt-0.5 text-[11px] leading-snug text-neutral-500">
-                The crowd has decided these two do not like each other. Nobody has given it a name.
+                The crowd has already decided these two genuinely do not like each other. Nobody in the office has
+                given it a name yet.
               </p>
               <span className="mt-1 inline-block text-[10px] font-semibold uppercase tracking-wide text-sky-400">
                 Make it a story

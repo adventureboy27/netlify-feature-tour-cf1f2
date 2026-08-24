@@ -181,18 +181,19 @@ export function BiddingWarPanel() {
             <h2 className="text-sm font-semibold text-amber-200">{subject.name}</h2>
             <p className="mt-1 text-sm text-amber-100">
               {war.reason === 'phenom'
-                ? `${subject.age} years old, out of the school this week, and already able to work. ${war.rivalIds.length} other companies want them.`
+                ? `${subject.age} years old, fresh out of the school this week, and already able to flat-out work. ${war.rivalIds.length} other companies want them badly.`
                 : war.reason === 'foldPickup'
-                  ? `${subject.name}'s promotion just closed its doors. ${war.rivalIds.length} other ${war.rivalIds.length === 1 ? 'company wants' : 'companies want'} them as much as you do.`
-                  : `${subject.name}'s deal is up and they are not re-signing quietly. ${war.rivalIds.length} other companies are in.`}
+                  ? `${subject.name}'s promotion just closed its doors for good. ${war.rivalIds.length} other ${war.rivalIds.length === 1 ? 'company wants' : 'companies want'} them exactly as much as you do.`
+                  : `${subject.name}'s deal is up and they are absolutely not re-signing quietly. ${war.rivalIds.length} other companies are already in on this.`}
             </p>
             <p className="mt-2 text-sm font-medium text-amber-200">
-              Their people have named a number: nothing under {money(war.minimum)} a week gets read.
+              Their people have named a number, loud and clear: nothing under {money(war.minimum)} a week even
+              gets read.
             </p>
             <p className="mt-1 text-xs text-amber-300/90">
-              How you get there — the rate, money up front, what else you put on the table — is up to
-              you. Everybody submits one offer, nobody sees anybody else&apos;s, and they pick. If you
-              stay out of this, you are out.
+              How you get there — the rate, money up front, whatever else you put on the table — is entirely up
+              to you. Everybody submits one offer, nobody sees anybody else&apos;s, and they pick. Stay out of
+              this and you are out, full stop.
             </p>
           </div>
         </div>
@@ -394,7 +395,7 @@ export function BiddingWarPanel() {
         Submit it
       </button>
       <p className="mt-1 text-center text-[10px] text-neutral-500">
-        One shot. You will find out at the same time everybody else does.
+        One shot, no do-overs. You find out right along with everybody else.
       </p>
     </section>
   );

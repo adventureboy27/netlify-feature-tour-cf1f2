@@ -27,8 +27,9 @@ export function CrucibleScreen() {
       <section className="rounded-lg border border-emerald-800 bg-emerald-950/20 p-3">
         <h2 className="text-sm font-semibold text-emerald-300">{CUP_NAME}</h2>
         <p className="mt-1 text-xs text-neutral-400">
-          Every August, every company that can afford the entry, one bracket and one winner. The
-          winner carries {CUP_TROPHY} for the year and half the pot goes in their own pocket.
+          Every August, every company that can afford the entry fee throws their hat in — one bracket, one
+          winner, no exceptions. That winner carries {CUP_TROPHY} for the entire year and walks away with half
+          the pot in their own pocket.
         </p>
       </section>
 
@@ -81,7 +82,7 @@ export function CrucibleScreen() {
         </h2>
         {history.length === 0 ? (
           <p className="text-xs text-neutral-500">
-            Nobody has won it yet. The first one is in August.
+            Nobody has won it yet — that first crown is still up for grabs in August.
           </p>
         ) : (
           <div className="flex flex-col">

@@ -52,7 +52,7 @@ export function SupershowPanel() {
         </div>
 
         <p className="mt-2 text-[11px] text-neutral-400">
-          {Object.keys(result.payouts).length} people were paid, winners and losers both. No titles
+          {Object.keys(result.payouts).length} people got paid tonight, winners and losers alike. Not one title
           changed hands — they never do on a card like this.
           {result.matchesRun < result.agreedSize && (
             <>
@@ -109,7 +109,7 @@ export function SupershowPanel() {
       </div>
 
       <p className="mt-2 text-[11px] text-neutral-400">
-        Both rosters, one card, and the belts stay where they are. They are on the table for{' '}
+        Both rosters, one card, and every belt stays exactly where it is. This offer is on the table for{' '}
         {weeksLeft} more {weeksLeft === 1 ? 'week' : 'weeks'}.
       </p>
 
@@ -217,7 +217,7 @@ function JointCardPanel() {
         Run it
       </button>
       <p className="mt-1 text-center text-[10px] text-neutral-500">
-        The building is booked. If the week turns first, it runs as it stands.
+        The building is locked in. If the week turns first, it runs exactly as it stands.
       </p>
     </div>
   );

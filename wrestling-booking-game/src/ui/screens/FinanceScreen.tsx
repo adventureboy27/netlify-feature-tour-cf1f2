@@ -59,7 +59,7 @@ function Books() {
   if (!latest) {
     return (
       <p className="rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-xs text-neutral-500">
-        Nothing has been through the books yet. Run a show.
+        Not one dollar has been through the books yet. Get out there and run a show.
       </p>
     );
   }

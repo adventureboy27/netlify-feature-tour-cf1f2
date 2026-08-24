@@ -29,29 +29,29 @@ export const WORLD_PRESET_INFO: WorldPresetInfo[] = [
   {
     id: 'territoryDays',
     label: 'Territory days',
-    blurb: 'An institution in one town and a rumour everywhere else.',
+    blurb: 'A legend in one town, and a whisper everywhere else — for now.',
     theSqueeze:
-      'You sell out the armoury every week and it still is not quite enough. Getting known outside your own county is the whole job.',
+      'You sell out that armory every single week and it is still not quite enough. Getting your name known outside your own county is the entire job.',
   },
   {
     id: 'standard',
     label: 'Standard',
-    blurb: 'A going concern with room in the building and money in the bank.',
-    theSqueeze: 'Nothing is urgent, which means every mistake is one you chose to make.',
+    blurb: 'A real going concern — room in the building, and real money sitting in the bank.',
+    theSqueeze: 'Nothing here is urgent, which means every single mistake is one you flat-out chose to make.',
   },
   {
     id: 'bigMoney',
     label: 'Big money',
-    blurb: 'You have inherited a real company: forty on the payroll and an arena to fill.',
+    blurb: 'You have inherited a genuine powerhouse company: forty names on the payroll and an arena to fill.',
     theSqueeze:
-      'The money is not the problem and never will be. The owner already thinks the company is big, and has almost no patience left for a booker who cannot keep it that way.',
+      'The money was never the problem and never will be. The owner already believes this company is big-time, and has zero patience left for a booker who cannot keep it that way.',
   },
   {
     id: 'sinkOrSwim',
     label: 'Sink or swim',
-    blurb: 'Fourteen wrestlers, a hall that holds nine hundred, and one month of rent.',
+    blurb: 'Fourteen wrestlers, a hall that holds nine hundred souls, and exactly one month of rent.',
     theSqueeze:
-      'Opening night roughly breaks even. There is no cushion at all, so one bad card or one injury to the wrong person is the whole promotion.',
+      'Opening night roughly breaks even, no more. There is zero cushion here, so one bad card or one injury to the wrong person is the whole promotion, gone.',
   },
 ];
 

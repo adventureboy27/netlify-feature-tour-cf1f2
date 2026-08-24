@@ -284,8 +284,8 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
         </div>
         {crew.length === 0 ? (
           <p className="text-[11px] text-amber-400">
-            Nobody is under contract. One of the boys will have to count every match, and they all have
-            their own ideas about who should win. Sign an official in the office.
+            Not one official is under contract. One of the boys will have to count every single match, and every
+            last one of them has their own idea about who should win. Sign an official in the office.
           </p>
         ) : (
           <div className="flex flex-wrap gap-1">
@@ -708,7 +708,7 @@ function SegmentEditor({
           ))}
           {available.length === 0 && (
             <p className="py-3 text-center text-[11px] text-neutral-600">
-              Nobody left who is not already on this match.
+              Nobody left standing who is not already booked on this match.
             </p>
           )}
         </div>
@@ -719,7 +719,8 @@ function SegmentEditor({
         <div className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">On the line</div>
         {bookableTitles.length === 0 ? (
           <p className="text-[11px] text-neutral-600">
-            No championship fits this match — a belt can only be defended by its champion, in its own division.
+            No championship fits this match — a belt can only ever be defended by its own champion, in its own
+            division.
           </p>
         ) : (
           <>
@@ -750,10 +751,10 @@ function SegmentEditor({
             </div>
             <p className="mt-1 text-[10px] text-neutral-600">
               {segment.titleIds.length === 0
-                ? 'Nothing on the line. A champion can wrestle without defending.'
+                ? 'Nothing on the line here. A champion can absolutely wrestle without defending.'
                 : segment.titleIds.length > 1
-                  ? 'Title for title — the winner leaves with all of them.'
-                  : 'The belt does not change hands on a disqualification or a count-out.'}
+                  ? 'Title for title — the winner walks out with every single one of them.'
+                  : 'That belt does not change hands on a disqualification or a count-out. Never has.'}
             </p>
           </>
         )}

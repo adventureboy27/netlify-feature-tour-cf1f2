@@ -152,13 +152,13 @@ export function PromotionScreen() {
         </dl>
         {projection.turnedAway > 0 && (
           <p className="mt-2 text-[11px] text-amber-400">
-            {projection.turnedAway.toLocaleString()} more people want in than this building holds. You are leaving money
-            on the table.
+            {projection.turnedAway.toLocaleString()} more people want in than this building can even hold. You are
+            leaving real money on the table.
           </p>
         )}
         {projection.net < 0 && (
           <p className="mt-2 text-[11px] text-rose-400">
-            This show loses money. Rent is committed whether they turn up or not.
+            This show flat-out loses money. That rent is committed whether a single soul turns up or not.
           </p>
         )}
       </section>
@@ -328,7 +328,7 @@ export function PromotionScreen() {
                   data-testid={`sell-${asset.id}`}
                   onClick={() => sellAsset(asset.id)}
                   className="rounded bg-rose-950/60 px-2 py-1 text-[11px] text-rose-300 hover:bg-rose-900/60"
-                  title="Only on the table because the promotion is already borrowing to stay open."
+                  title="Only on the table because this promotion is already borrowing hard just to stay open."
                 >
                   Fire sale · <Money amount={saleValue} />
                 </button>
@@ -696,8 +696,8 @@ function BroadcastPanel() {
 
       {!deal && sponsors.length === 0 ? (
         <p className="text-xs text-neutral-500">
-          Nobody is paying you to be on television and nobody wants their name on the banner. Both come with a company
-          rating.
+          Nobody is paying you to be on television and not one sponsor wants their name on the banner. Both come
+          with a company rating high enough to matter.
         </p>
       ) : (
         <div className="flex flex-col gap-1.5">

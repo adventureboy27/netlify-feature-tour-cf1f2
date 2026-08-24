@@ -185,8 +185,8 @@ export function NewGameScreen() {
     <div className="mx-auto max-w-2xl p-4 text-neutral-100">
       <h1 className="text-lg font-semibold">Take over a wrestling promotion</h1>
       <p className="mb-4 text-xs text-neutral-500">
-        You are the booker. You will never wrestle a match — you decide who is on the card, and the business decides the
-        rest.
+        You are the booker, plain and simple. You will never wrestle a single match — you decide exactly who is on
+        the card, and this business decides absolutely everything else.
       </p>
 
       {saved && (
@@ -264,7 +264,8 @@ export function NewGameScreen() {
               ))}
             </select>
             <p className="mt-1 text-[10px] text-neutral-600">
-              One is just you. More than one means the rest are real, running rival companies from week one.
+              One means it is just you out there. More than one means every other slot is a real, running rival
+              company from week one.
             </p>
           </section>
 
@@ -284,9 +285,9 @@ export function NewGameScreen() {
           <section className="mb-4">
             <div className="mb-1 text-xs uppercase tracking-wide text-neutral-500">Name every promotion</div>
             <p className="mb-2 text-[11px] text-neutral-500">
-              Generate builds a full roster for you. Import fills that promotion from a roster file below — either
-              tag wrestlers with a <code>company</code> matching the name typed here, or leave a file untagged and
-              it's divided evenly across whichever promotions here are set to Import.
+              Generate builds you a full roster right on the spot. Import fills that promotion straight from a
+              roster file below — either tag wrestlers with a <code>company</code> matching the name typed here, or
+              leave a file untagged and it gets divided evenly across whichever promotions here are set to Import.
             </p>
             <div className="flex flex-col gap-2">
               {slots.map((slot, i) => (
@@ -468,7 +469,7 @@ export function NewGameScreen() {
                   )}
                 </div>
                 <p className="mb-2 text-[11px] text-neutral-500">
-                  Name them what you want. These are what every card you ever book will be built toward.
+                  Name them whatever you want. These are what every single card you ever book is built toward.
                 </p>
                 <label className="mb-2 block text-[10px] uppercase tracking-wider text-neutral-500">
                   How many championships?
@@ -493,8 +494,8 @@ export function NewGameScreen() {
             </>
           ) : (
             <p className="mb-5 text-xs text-neutral-500">
-              Your roster is coming straight from the file — the house style and belts follow whatever that company
-              was.
+              Your roster is coming straight off the file — the house style and every belt follow exactly what
+              that company already was.
             </p>
           )}
 

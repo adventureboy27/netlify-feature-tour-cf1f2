@@ -232,7 +232,7 @@ export function TitleBuilder({
       })}
 
       {belts.length === 0 && (
-        <p className="text-[11px] text-neutral-600">No belts. The card has nothing to build toward.</p>
+        <p className="text-[11px] text-neutral-600">No belts at all. This card has nothing to build toward.</p>
       )}
 
       {editing && colorPickerIndex !== null && (

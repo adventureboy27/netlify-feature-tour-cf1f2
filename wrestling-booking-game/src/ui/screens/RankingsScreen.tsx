@@ -225,7 +225,9 @@ export function RankingsScreen() {
               );
             })}
             {lists.contenders.length === 0 && (
-              <p className="text-xs text-neutral-500">Nobody available. Your whole roster is hurt or gone.</p>
+              <p className="text-xs text-neutral-500">
+                Nobody available. Your entire roster is banged up or out the door.
+              </p>
             )}
           </div>
         </>

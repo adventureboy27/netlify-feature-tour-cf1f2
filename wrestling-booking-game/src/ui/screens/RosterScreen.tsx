@@ -149,7 +149,7 @@ function PerkRow({ wrestler }: { wrestler: Wrestler }) {
                 </div>
                 <div className="text-[10px] text-neutral-500">{perk.blurb}</div>
                 {perk.lockerRoomCost >= 0.2 && (
-                  <div className="text-[10px] text-amber-400/80">The rest of the room will notice.</div>
+                  <div className="text-[10px] text-amber-400/80">The rest of that locker room is going to notice, guaranteed.</div>
                 )}
               </button>
             );
@@ -321,7 +321,7 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     because a fortnight of warning is the whole value of it. */}
                 {w.noticeGivenWeek != null && (
                   <div className="mt-0.5 text-[10px] font-semibold text-rose-300">
-                    Not re-signing. Working out the deal and then gone.
+                    Not re-signing. Working out the string on this deal, and then they are gone for good.
                   </div>
                 )}
 
@@ -330,7 +330,7 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                     anywhere the player could see. Words, never the number. */}
                 {isStale(w, world.settings) && (
                   <div className="mt-0.5 text-[10px] font-medium text-amber-400">
-                    {freshnessLabel(w, world.settings)} — the act is costing every match it is in.
+                    {freshnessLabel(w, world.settings)} — this act is costing them every single match it is in.
                   </div>
                 )}
 
@@ -433,7 +433,7 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                   const rep = representativeOf(world.representations ?? [], w.id);
                   const line = clientCutLine(rep, rep ? world.wrestlers[rep.managerId]?.name : undefined);
                   return line ? (
-                    <div className="mt-0.5 truncate text-[10px] text-amber-400/80" title="The manager's percentage. It comes out of what they earn, not out of your budget — but they remember it at renewal.">
+                    <div className="mt-0.5 truncate text-[10px] text-amber-400/80" title="The manager's cut. It comes straight out of what they earn, not out of your budget — but they will absolutely remember it come renewal.">
                       {line}
                     </div>
                   ) : null;
@@ -442,7 +442,7 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                 {/* Their own book, if they are the one taking a percentage. */}
                 {w.role === 'manager' && wearLabel(w, world.settings) && (
                   <div className="mt-0.5 truncate text-[10px] text-orange-400">
-                    {wearLabel(w, world.settings)} — too many people to be everywhere for
+                    {wearLabel(w, world.settings)} — flat-out too many people to be everywhere for
                   </div>
                 )}
                 {w.role === 'manager' && (
@@ -471,7 +471,7 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
                         ? 'text-rose-400/80'
                         : 'text-emerald-400/80'
                     }`}
-                    title="How over this person can get in this company in particular. Somewhere else they would be worth something different — and half of why is nothing anybody can put their finger on."
+                    title="How over this person can genuinely get in this company specifically. Put them somewhere else and they are worth something completely different — and half of the reason why is nothing anybody can actually put their finger on."
                   >
                     {fitLabel(w, world.promotion, world.settings)}
                   </div>
@@ -909,7 +909,7 @@ function TagTeamPanel() {
             data-testid="team-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Team name — leave blank and the announcers will pick one"
+            placeholder="Team name — leave it blank and the announcers will absolutely handle it"
             className="mt-1 w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs placeholder:text-neutral-600"
           />
 
@@ -932,7 +932,7 @@ function TagTeamPanel() {
 
           {unattached.length < 2 && (
             <p className="mt-2 text-[11px] text-neutral-600">
-              Everybody on the roster is already in a team.
+              Every single body on this roster is already spoken for on a team.
             </p>
           )}
         </div>

@@ -41,8 +41,8 @@ export function RivalRosterScreen() {
     <div className="p-3 pb-24 text-neutral-100">
       <h1 className="text-lg font-bold">The competition</h1>
       <p className="mb-3 text-[11px] leading-snug text-neutral-500">
-        Every company still running, and everybody on their roster — who they are, what they carry, and
-        where they worked before this.
+        Every company still standing, and every single body on their roster — who they are, what they carry, and
+        exactly where they worked before this.
       </p>
 
       {rivals.length === 0 ? (

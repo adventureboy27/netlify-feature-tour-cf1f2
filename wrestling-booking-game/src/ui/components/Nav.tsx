@@ -178,35 +178,35 @@ export function BottomNav({
  * said what any screen was for.
  */
 const MORE: { id: Screen; label: string; blurb: string }[] = [
-  { id: 'freeAgents', label: 'Free agents', blurb: 'Who is out of contract, what they want, and what they would bring.' },
-  { id: 'promotion', label: 'Promotion', blurb: 'Your belts, your teams, your house style, and what the owner expects.' },
+  { id: 'freeAgents', label: 'Free agents', blurb: 'Who is out of contract right now, what they genuinely want, and what they actually bring to the table.' },
+  { id: 'promotion', label: 'Promotion', blurb: 'Your belts, your teams, your house style, and exactly what the owner expects from you this year.' },
   {
     id: 'finance',
     label: 'Finance',
-    blurb: 'Where last week went, and the ring, rig and truck you are working towards.',
+    blurb: 'Where every last dollar of last week went, and the ring, rig, and truck you are grinding toward.',
   },
-  { id: 'territories', label: 'Territories', blurb: 'The towns you can run, the venues in them, and what a ticket costs.' },
-  { id: 'rankings', label: 'Rankings', blurb: 'Where your company sits against every other one in the business.' },
+  { id: 'territories', label: 'Territories', blurb: 'Every town you can run, the venues waiting in them, and what a ticket is actually worth there.' },
+  { id: 'rankings', label: 'Rankings', blurb: 'Exactly where your company stands against every other one in this business.' },
   {
     id: 'rivalRosters',
     label: 'The competition',
-    blurb: "Every other company's full roster, and the career that got each of them there.",
+    blurb: "Every other company's full roster, and the career that got each and every one of them there.",
   },
-  { id: 'sheet', label: 'The Sheet', blurb: "The dirtsheet's weekly lists — who is hot, who is buried, who is leaving." },
-  { id: 'records', label: 'Records', blurb: 'Win-loss records, title histories, and the longest reigns.' },
-  { id: 'legacy', label: 'Legacy', blurb: 'The Hall of Fame, the retired, and the ones who are gone.' },
+  { id: 'sheet', label: 'The Sheet', blurb: "The dirtsheet's weekly lists — who is red-hot, who is buried, who is walking out the door." },
+  { id: 'records', label: 'Records', blurb: 'Win-loss records, title histories, and the longest reigns this business has ever seen.' },
+  { id: 'legacy', label: 'Legacy', blurb: 'The Hall of Fame, the retired, and the ones who are gone for good.' },
   {
     id: 'crucible',
     label: 'The Crucible',
-    blurb: 'Every winner of the Iron Crown, the year they took it, and who they took it for.',
+    blurb: 'Every single winner of the Iron Crown, the year they took it, and exactly who they took it from.',
   },
-  { id: 'contactSheet', label: 'Contact sheet', blurb: 'Every face in the game on one screen.' },
+  { id: 'contactSheet', label: 'Contact sheet', blurb: 'Every single face in this entire game, right there on one screen.' },
   {
     id: 'secrets',
     label: 'The quiet business',
-    blurb: 'Whose deal is running out at a competitor, and being the one holding a pen when it does.',
+    blurb: 'Whose deal is running out at a competitor, and being the one holding the pen the second it does.',
   },
-  { id: 'editor', label: 'Editor', blurb: 'Rename anybody, repackage them, or build somebody from scratch.' },
+  { id: 'editor', label: 'Editor', blurb: 'Rename anybody, repackage them completely, or build somebody brand new from scratch.' },
 ];
 
 export function MoreScreen({ onNavigate }: { onNavigate: (screen: Screen) => void }) {

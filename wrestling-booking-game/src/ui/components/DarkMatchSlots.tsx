@@ -31,9 +31,10 @@ export function DarkMatchSlots() {
     <section className="mt-4">
       <h2 className="mb-1 text-sm font-medium text-neutral-300">Dark matches</h2>
       <p className="mb-2 text-[11px] text-neutral-500">
-        Optional. These never air and never move the TV rating — but the crowd in the building sees them, the
-        people in them develop the same as anybody on the card, and it is a real match: it can go well, it can go
-        badly, and it can hurt somebody.
+        Optional. These never air and never move the TV rating one bit — but the crowd in the building sees every
+        second of them, the people in them develop exactly the same as anybody on the card, and it is a genuinely
+        real match: it can go great, it can go horribly wrong, and it can hurt somebody just as badly as anything
+        else on the night.
       </p>
 
       <div className="flex flex-col gap-2">

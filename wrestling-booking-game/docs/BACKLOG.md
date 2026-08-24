@@ -1683,3 +1683,43 @@ than converting it to reporter voice or capitalizing it into normal prose.
 - Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests
   passing after the one-line revert above; `npm run sim` and
   `npm run build` both clean.
+
+## Phase 2h: UI-layer prose, hype-reporter voice
+
+The last sweep of the voice project — full-sentence empty states, tooltips, and onboarding copy hardcoded
+directly in `src/ui/screens/*.tsx` and shared components, done last so it matches the register the data-file
+passes had already locked in.
+
+- Swept every screen and shared component under `src/ui/` for hardcoded full-sentence prose (grepped for
+  long quoted sentences and `<p className>` blocks, then manually triaged each hit). Rewrote genuine narrator
+  prose — empty states, tooltips, dialogue-panel copy, onboarding text — in the hype voice across
+  `LegacyScreen.tsx`, `RankingsScreen.tsx`, `Stories.tsx`, `RosterScreen.tsx`, `OfficeScreen.tsx` (by far the
+  largest single file, ~30 separate strings), `PromotionScreen.tsx`, `BiddingWar.tsx`, `BookingScreen.tsx`,
+  `Nav.tsx`'s `MORE` screen blurbs, `NewGameScreen.tsx`, `SecretsScreen.tsx`, `FileTransfer.tsx`,
+  `FreeAgentsScreen.tsx`, `RivalRosterScreen.tsx`, `CrucibleScreen.tsx`, `DarkMatchSlots.tsx`,
+  `Supershow.tsx`, `FinanceScreen.tsx`, `Cup.tsx`, `ResidencyDeal.tsx`, `TitleBuilder.tsx`,
+  `TerritoriesScreen.tsx`, `SheetScreen.tsx`, `RecordsScreen.tsx`, `WrestlerEditor.tsx`, `PromoSlots.tsx`,
+  `CalendarStrip.tsx`.
+- Left alone, per the plan's explicit scope line ("Short UI chrome... stays out of scope"): button labels,
+  stat names, short instructional fragments ("Pick one partner."), and every field already sourced from a
+  `data/*.ts` file rewritten in an earlier sub-phase (venue/perk/production blurbs rendered as-is by these
+  screens needed no second touch).
+- Left alone deliberately, on the same solemnity exception as Phase 2c: the two death-adjacent lines in
+  `OfficeScreen.tsx` (the title-memorial panel) and `FreeAgentsScreen.tsx` ("died in this company's ring") —
+  same class as `mortality.ts`/`epitaph.ts`.
+- **Found and fixed a genuine gap from earlier phases**: `data/worldPresets.ts` — the four starting-scenario
+  blurbs shown on the very first screen of the game — was never in the original file inventory for Phase 2a
+  or 2e, so it was still carrying both the old spare voice and two literal British spellings (`armoury`,
+  `rumour`) that Phase 2a's sweep should have caught. Rewritten in full: hype voice plus the Americanization
+  fix, discovered via a live-app screenshot during this phase's verification pass rather than a grep, which is
+  the reason a browser pass earns its place in the verification bar even for a "just prose" phase.
+  `worldPresets.test.ts` only asserts string lengths, not exact content, so this was a zero-test-risk fix.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests passing with zero test changes needed;
+  `npm run sim` and `npm run build` both clean; a live dev-server + Playwright pass through the new-game flow
+  (all three steps) and into the Booking and Roster screens confirmed every rewritten string renders without
+  truncation or layout breakage, and is what caught the `worldPresets.ts` miss above.
+
+This closes out the full hype-reporter voice project (Phases 2a-2h). The two deliberate carve-outs from the
+original plan stand as documented in their own phases: `data/gimmicks.ts`/`data/groupGimmicks.ts` stay
+first-person in-character voice (Phase 2f), and `data/fanVoices.ts` stays in its lowercase tweet register
+(Phase 2g). Death-adjacent content across the whole codebase stays in the sober register it started in.

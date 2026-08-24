@@ -30,8 +30,8 @@ export function PromoSlots() {
     <section className="mt-4">
       <h2 className="mb-1 text-sm font-medium text-neutral-300">On the microphone</h2>
       <p className="mb-2 text-[11px] text-neutral-500">
-        Talking does not use a match spot. It is the only way to start a feud on purpose — and a confrontation
-        is the only segment where somebody else gets to answer back.
+        Talking does not use up a match spot. It is the only way to start a feud on purpose — and a confrontation
+        is the one and only segment where somebody else actually gets to answer back.
       </p>
 
       <div className="flex flex-col gap-2">

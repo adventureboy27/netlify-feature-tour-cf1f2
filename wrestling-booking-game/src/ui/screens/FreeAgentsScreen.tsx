@@ -65,8 +65,8 @@ export function FreeAgentsScreen() {
       )}
       {releaseStigmaActive(world.solventWeeksSinceLastRelease, world.settings) && (
         <p className="mt-2 rounded bg-amber-950/50 p-2 text-xs text-amber-300">
-          This company has been visibly releasing people lately. Free agents want more up front to sign here — a
-          bigger guarantee, or real money before the ink is dry.
+          This company has been visibly cutting people loose lately, and word travels. Free agents want more up
+          front to sign here now — a bigger guarantee, or real money before the ink is even dry.
         </p>
       )}
 
@@ -173,7 +173,7 @@ export function FreeAgentsScreen() {
 
       {ranked.length === 0 && (
         <p className="rounded border border-neutral-800 bg-neutral-900 p-6 text-center text-sm text-neutral-500">
-          Nobody is available. Everyone in the business is signed somewhere.
+          Nobody is available right now. Every single person in this business is already signed somewhere.
         </p>
       )}
     </div>

@@ -93,9 +93,9 @@ export function SecretsScreen() {
     <div className="p-3 pb-24 text-neutral-100">
       <h1 className="text-lg font-bold">The quiet business</h1>
       <p className="mb-3 text-[11px] leading-snug text-neutral-500">
-        Nobody works for two companies. What you can do is find somebody whose deal is nearly up,
-        agree something neither of you ever wrote down, and have them signed the hour it lapses — then
-        walk them out before anybody works out where they went.
+        Nobody works for two companies at once, not really. What you can do is find somebody whose deal is nearly
+        up, agree to something neither of you ever writes down, and have them signed the very hour it lapses —
+        then walk them right out the door before anybody even figures out where they went.
       </p>
 
       {note && <p className="mb-3 rounded-lg border border-amber-900 bg-amber-950/30 p-2 text-xs text-amber-200">{note}</p>}
@@ -186,8 +186,8 @@ export function SecretsScreen() {
                         tearUp(signing.wrestlerId);
                         setNote(
                           walkable
-                            ? `${person.name} released. A free agent, and nobody knows it was ever anything else.`
-                            : `Whatever you had agreed with ${person.name} is off.`,
+                            ? `${person.name} released, clean and simple. A free agent now, and nobody out there is ever the wiser.`
+                            : `Whatever you had agreed with ${person.name} is completely off the table.`,
                         );
                       }}
                       className="rounded-lg border border-neutral-800 px-3 py-2 text-xs text-neutral-400 hover:border-rose-800 hover:text-rose-400"
@@ -247,7 +247,7 @@ export function SecretsScreen() {
                     const result = signSecretly(person.id);
                     setNote(
                       result.ok
-                        ? `${person.name} shook on it. Nothing is written down and nothing is owed until that deal runs out.`
+                        ? `${person.name} shook on it, right there. Not one word gets written down and not one dollar is owed until that deal finally runs out.`
                         : result.reason,
                     );
                   }}
@@ -260,14 +260,15 @@ export function SecretsScreen() {
           })}
           {targets.length === 0 && (
             <p className="text-xs text-neutral-500">
-              Nobody in the business is close enough to the end of a deal to talk to. Come back in a few weeks.
+              Not one person in this business is close enough to the end of a deal to talk to right now. Come back
+              in a few weeks.
             </p>
           )}
         </div>
       ) : (
         <p className="text-[11px] text-neutral-600">
-          Somebody with a year left to run has nothing to discuss. Approaching one who does and being
-          turned down means they know you asked, and so, eventually, does their office.
+          Somebody with a full year left to run has nothing to discuss. Approach one who does and get turned down,
+          and they absolutely know you asked — and eventually, so does their entire office.
         </p>
       )}
     </div>

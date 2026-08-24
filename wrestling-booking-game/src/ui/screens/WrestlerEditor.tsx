@@ -411,8 +411,8 @@ export function WrestlerEditor({ wrestlerId, onDone }: { wrestlerId?: Id; onDone
           <fieldset className="rounded border border-neutral-800 p-3">
             <legend className="px-1 text-sm font-medium text-neutral-300">Other traits</legend>
             <p className="pb-2 text-xs text-neutral-500">
-              Editable and saved, but the current atlas cuts no cells for them — these need new frames from the sprite
-              generator before they change the sprite.
+              Editable and saved, but the current atlas cuts zero cells for them — these need brand-new frames from
+              the sprite generator before they change the sprite at all.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               {UNRENDERED_TRAITS.map((traitKey) => (

@@ -40,8 +40,8 @@ export function FileTransfer() {
     <section className="mb-4">
       <h2 className="mb-1 text-sm font-medium text-neutral-300">Files</h2>
       <p className="mb-2 text-[11px] text-neutral-500">
-        Everything stays on this device. A save is the whole promotion; a roster is just the people, and can be dropped
-        into any game.
+        Everything stays right on this device. A save is the entire promotion; a roster is just the people, and it
+        can be dropped straight into any game.
       </p>
 
       <div className="grid grid-cols-2 gap-2">

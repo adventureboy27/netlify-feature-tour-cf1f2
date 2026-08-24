@@ -73,7 +73,7 @@ export function SheetScreen() {
         <span className="text-[10px] uppercase tracking-widest text-neutral-600">Week {sheets.current.week}</span>
       </div>
       <p className="mb-3 text-[11px] text-neutral-500">
-        Every promotion, every belt, every week. Movement is against last week&apos;s issue.
+        Every promotion, every belt, every single week. Movement is measured against last week&apos;s issue.
       </p>
 
       <div className="mb-3 flex gap-1">

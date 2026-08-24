@@ -39,7 +39,8 @@ export function LegacyScreen() {
         <h2 className="mb-2 text-sm font-medium text-amber-400">Hall of Fame — {world.hallOfFame.length}</h2>
         {world.hallOfFame.length === 0 ? (
           <p className="text-xs text-neutral-500">
-            Nobody yet. The hall takes finished careers, and only the ones that were worth finishing.
+            Nobody in there yet. The hall only opens its doors for a finished career — and only the ones worth
+            finishing.
           </p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
@@ -74,7 +75,7 @@ export function LegacyScreen() {
       <section className="mb-5">
         <h2 className="mb-2 text-sm font-medium text-neutral-300">In memoriam — {world.memoriam.length}</h2>
         {world.memoriam.length === 0 ? (
-          <p className="text-xs text-neutral-500">Nobody, so far.</p>
+          <p className="text-xs text-neutral-500">Nobody yet — and long may that last.</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {[...world.memoriam].reverse().map((passing) => {
@@ -131,7 +132,8 @@ export function LegacyScreen() {
         <h2 className="mb-2 text-sm font-medium text-neutral-300">Awards</h2>
         {world.awardHistory.length === 0 ? (
           <p className="text-xs text-neutral-500">
-            The first awards go out at the end of the year. Some of them are ones nobody wants.
+            The envelopes get opened at the end of the year. Fair warning — not every award on that stage is one
+            anybody wants to win.
           </p>
         ) : (
           <div className="flex flex-col gap-3">
@@ -176,7 +178,7 @@ export function LegacyScreen() {
       <section>
         <h2 className="mb-2 text-sm font-medium text-neutral-300">Retired — {retired.length}</h2>
         {retired.length === 0 ? (
-          <p className="text-xs text-neutral-500">Everybody is still working.</p>
+          <p className="text-xs text-neutral-500">Every single name on this roster is still out there working.</p>
         ) : (
           <div className="flex flex-wrap gap-1">
             {retired.map((w) => (

@@ -81,7 +81,7 @@ export function RecordsScreen() {
         <span className="text-[10px] uppercase tracking-widest text-neutral-600">Week {world.week}</span>
       </div>
       <p className="mb-3 text-[11px] text-neutral-500">
-        Every promotion, living and dead, since week one.
+        Every promotion, living and dead, all the way back to week one.
       </p>
 
       <div className="mb-3 flex flex-wrap gap-1">
