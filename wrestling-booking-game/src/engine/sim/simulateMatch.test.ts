@@ -123,4 +123,45 @@ describe('simulateMatch', () => {
     expect(result.beats[0]!.kind).toBe('openingExchange');
     expect(result.beats[result.beats.length - 1]!.kind).toBe('finish');
   });
+
+  it('a better ring cuts the injury multiplier for real — the field this test locks in', () => {
+    // See engine/economy/production.ts's equipmentSafetyEffects: this is the
+    // consumer that field never had before.
+    const roster = makeRoster(6, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const bareRing = simulateMatch(
+      rngFromSeed('equip-seed'),
+      participants,
+      byId,
+      baseContext({ equipmentInjuryReduction: 0 }),
+    );
+    const goodRing = simulateMatch(
+      rngFromSeed('equip-seed'),
+      participants,
+      byId,
+      baseContext({ equipmentInjuryReduction: 0.5 }),
+    );
+    expect(goodRing.injuryMultiplier).toBeCloseTo(bareRing.injuryMultiplier * 0.5, 5);
+  });
+
+  it('omitting equipmentInjuryReduction behaves exactly like passing 0', () => {
+    const roster = makeRoster(7, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const omitted = simulateMatch(rngFromSeed('omit-seed'), participants, byId, baseContext());
+    const explicitZero = simulateMatch(
+      rngFromSeed('omit-seed'),
+      participants,
+      byId,
+      baseContext({ equipmentInjuryReduction: 0 }),
+    );
+    expect(omitted.injuryMultiplier).toBe(explicitZero.injuryMultiplier);
+  });
 });

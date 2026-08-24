@@ -373,6 +373,7 @@ import {
   haulageById,
   productionEffects,
   productionUpkeepPerShow,
+  equipmentSafetyEffects,
 } from '../engine/economy/production';
 import { StatementBuilder } from '../engine/economy/statement';
 import { SUPERSHOW_SEASONS } from '../engine/world/supershow';
@@ -1803,6 +1804,15 @@ export const useGameStore = create<GameStore>()(
             isPPV,
             matchLengthMinutes: lengthMinutes,
             settings: world.settings,
+            // A real ring is a real ring whoever is standing in it — see
+            // sim/simulateMatch.ts's own comment on the field. Pure and
+            // cheap; recomputed per match rather than hoisted so this stays
+            // a small, local change next to the roll it feeds.
+            equipmentInjuryReduction: equipmentSafetyEffects(
+              world.ownedAssetIds,
+              world.productionRungs,
+              world.showSetup.extraIds,
+            ).injuryReduction,
             // Saturation is read at the level the promotion carried into the
             // show, so every segment on one card is judged against the same
             // number rather than each match penalising the next.
@@ -2309,6 +2319,14 @@ export const useGameStore = create<GameStore>()(
               isMainEvent: i === world.currentCard.length - 1,
               titleIds: titlesOnTheLine.map((t) => t.id),
               titleChanged,
+              // Steel barricades, professional security — whichever's
+              // owned/booked tonight. Only the player's own show; a rival's
+              // incident roll below is never handed this.
+              incidentReduction: equipmentSafetyEffects(
+                world.ownedAssetIds,
+                world.productionRungs,
+                world.showSetup.extraIds,
+              ).incidentReduction,
               managers: (segment.managerIds ?? [])
                 .map((m) => ({ manager: findManager(world, m.managerId), forSide: m.forSide }))
                 .filter((m): m is { manager: NonNullable<typeof m.manager>; forSide: number } => Boolean(m.manager))
@@ -4009,7 +4027,16 @@ export const useGameStore = create<GameStore>()(
         // was fine, and a promotion in decline stops being a threat.
         const tvResults = computeTvRatings(
           [
-            { promotionId: world.promotion.id, showRating, companyRating: world.promotion.rating, broadcast: true },
+            {
+              promotionId: world.promotion.id,
+              showRating,
+              companyRating: world.promotion.rating,
+              broadcast: true,
+              // Cameras, a production truck, advertising, guest talent,
+              // streaming — every tvRating field owned production declares,
+              // finally read by something. See tvRatings.ts's own comment.
+              tvRatingBonus: sumEffect(production, 'tvRating'),
+            },
             ...world.rivals.map((rival) => ({
               promotionId: rival.id,
               showRating: rivalShows.get(rival.id)?.showRating ?? 0,

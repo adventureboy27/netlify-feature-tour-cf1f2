@@ -2018,3 +2018,77 @@ this is a clean, additive ladder, not a refactor.
   dev-server + Playwright pass confirming `backyard` opens with a real 4-slot card, buying up to
   Regional Card on a cash-flush save correctly charges the price and updates "tonight's card," and
   the new slot count only takes hold starting the *following* week's card, not the one already dealt.
+
+---
+
+## Equipment economy, continued — Phase C: wiring the dead safety fields into the real math
+
+Third phase of the expanded plan, and the foundational one D-F build on. Research at planning time
+found three fields that were fully computed and never consumed anywhere: `ProductionRung.effects
+.injuryReduction` (and the same field on System A's `ringUpgrade`/`trainingFacility` assets and the
+`medicalStaff` show extra), `incidentReduction` (`steelBarricades`, `security`), and `tvRating`
+(`cameras`, `productionTruck`). A better ring bought nothing safer; steel barricades stopped nothing;
+a better camera did nothing to the number it claimed to improve. This phase makes all three real,
+with no new content — it is pure plumbing, and the highest-leverage change in the whole plan because
+D, E, and F all reference this wiring rather than duplicating it.
+
+- **`engine/economy/production.ts`**: new exported `equipmentSafetyEffects(ownedAssetIds,
+  productionRungs, extraIds)` — a small, side-effect-free aggregator that reads *both* production
+  systems at once (System A's one-time asset shop and System B's ordered ladder, still unresolved as
+  two parallel systems per the original research, but both readable by one consumer now) and folds
+  every `injuryReduction`/`incidentReduction` it finds into two multiplicative stacks, same shape as
+  the existing "shields stack but never reach certainty" rule (`1 - (1-a)(1-b)`, never 1). Deliberately
+  built as its own minimal function rather than hoisting the existing ~50-line wear/venue-fit-filtered
+  `ownedAssets` computation in `store.ts`, because that block runs *after* match simulation in
+  `resolveWeek`'s execution order and this needs to run before it — an honest, documented
+  simplification (unworn effect values) rather than a bigger refactor the phase didn't need.
+- **`engine/sim/simulateMatch.ts`**: new optional `equipmentInjuryReduction` field on
+  `SimulateMatchContext`, folded into both places `injuryMultiplier` is assembled (the finish roll and
+  the returned result — confirmed via direct grep that `rollCasualty` is called from *four* places in
+  `store.ts` — competitor, guest referee, referee, manager — and only the competitor one layered on
+  extra terms of its own; inserting here reaches all four in one change instead of four separate ones).
+- **`engine/sim/incidents.ts`**: new optional `incidentReduction` on `IncidentContext`, multiplied
+  straight into the incident-roll odds.
+- **`engine/world/tvRatings.ts`**: new optional `tvRatingBonus` on `RatingEntrant`, added into the
+  rating computation before the existing ceiling/floor clamp — so `cameras`/`productionTruck`'s bonus
+  can push a rating up but never past `tvRatingCeiling` or below zero.
+- **`state/store.ts`**: the player's per-segment `simulateMatch` call, incident roll, and
+  `computeTvRatings` call all now feed the real computed values in. A rival promotion's own incident
+  roll (a separate call site, main-event only) is deliberately left untouched — a rival's odds are
+  never reduced by the *player's* barricades or security, which the original draft of this change
+  got wrong before it was caught and fixed pre-test-run (see below).
+- **`state/storeHelpers.ts`**: `incidentContextFor`'s `match` parameter gains an optional
+  `incidentReduction?: number`, computed at each call site rather than inside the helper itself —
+  the helper is shared by both the player's call and the rival's, and computing it unconditionally
+  inside would have leaked the player's equipment into the rival's roll.
+- **A bug caught before it ever reached a test run**: the first draft of the `storeHelpers.ts` change
+  computed `incidentReduction` unconditionally from `world.ownedAssetIds` inside `incidentContextFor`
+  itself. Since that helper backs *both* the player's and a rival's incident roll, it would have
+  quietly given every rival promotion the player's own barricades and security. Caught on review of
+  the two call sites before running anything, and fixed by moving the computation out to the call
+  site and defaulting the new field to 0 — the rival's call site is untouched, exactly as before this
+  field existed.
+- **Also found while finishing the read of `SHOW_EXTRAS`**: `medicalStaff` declares an
+  `injuryReduction` of its own, not just the `incidentReduction` the initial plan assumed was its only
+  effect — added to the injury stack alongside the incident one rather than left dead a second time.
+- **Tests**: `engine/economy/production.test.ts` gets a new `equipmentSafetyEffects` describe block (7
+  tests: zero-zero baseline, folds the ladder the same as `productionEffects` alone, System A's assets
+  stack on top, `steelBarricades`/`security` both feed `incidentReduction` and stack without reaching
+  1, `medicalStaff` feeds `injuryReduction`, everything stacked together still never reaches certainty,
+  unrecognized ids are ignored). `engine/sim/simulateMatch.test.ts` gets 2 (a 50% reduction halves
+  `injuryMultiplier` exactly; omitting the field behaves identically to passing 0).
+  `engine/sim/incidents.test.ts` gets 2 (a 2,000-iteration Monte Carlo comparison showing
+  `incidentReduction` measurably cuts the roll rate; omitting it matches passing 0 in lockstep on the
+  same seed). New file `engine/world/tvRatings.test.ts` (7 tests, since none existed before: empty
+  when nobody's broadcasting, `tvRatingBonus` is genuinely additive, never pushes past the ceiling or
+  below zero, share still sums to ~100 across broadcasters, a better show and a bigger name still earn
+  a bigger share).
+- **Verified live, not just at the pure-function level** (CLAUDE.md: measure in a played save): a
+  `tools/probe.mjs`-style balance pass, same seeds played twice — once with nothing bought, once with
+  the whole production ladder, top-tier haulage, every System A safety asset, and every safety show
+  extra bought before week one. 8 seeds × 40 weeks, 1,872 matches either way: injuries per match fell
+  from 3.79% bare to 1.34% fully equipped (a 64.8% reduction), and incidents fell from 14 to 4 across
+  the same run. The dead fields are no longer dead.
+- Verified: `tsc --noEmit` clean; full suite 147 files / 2,865 tests passing (13 new, zero
+  re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; the live balance
+  pass above. No UI changed in this phase, so no separate UI playtest was needed on top of it.

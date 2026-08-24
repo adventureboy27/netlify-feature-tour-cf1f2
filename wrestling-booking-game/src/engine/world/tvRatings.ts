@@ -22,6 +22,16 @@ export interface RatingEntrant {
   companyRating: number;
   /** Do they broadcast at all this week? */
   broadcast: boolean;
+  /**
+   * Flat rating points from owned production — cameras, a production truck,
+   * advertising, guest talent, streaming. A camera crew makes the broadcast
+   * itself better, on top of whatever the wrestling was worth; unlike
+   * showRating, it never touches the audience split, only the number this
+   * entrant's own broadcast prints. See data/production.ts and
+   * engine/economy/production.ts's PRODUCTION_LADDER — every tvRating field
+   * they declare summed into this at the call site.
+   */
+  tvRatingBonus?: number;
 }
 
 export interface RatingResult {
@@ -60,7 +70,7 @@ export function computeTvRatings(entrants: readonly RatingEntrant[], settings: W
     // the pie instead of only splitting it.
     const marketStrength = totalDraw / Math.max(onAir.length, 1);
     const rating = clamp(
-      settings.tvRatingBase * (share / 100) * onAir.length * (0.6 + marketStrength),
+      settings.tvRatingBase * (share / 100) * onAir.length * (0.6 + marketStrength) + (entrant.tvRatingBonus ?? 0),
       0,
       settings.tvRatingCeiling,
     );

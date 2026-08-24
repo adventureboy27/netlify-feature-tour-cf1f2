@@ -19,6 +19,7 @@ import {
   productionEffects,
   productionUpkeepPerShow,
   productionLabel,
+  equipmentSafetyEffects,
 } from './production';
 
 const settings = defaultWorldSettings();
@@ -205,6 +206,53 @@ describe('the shape of the ladder', () => {
     const total = PRODUCTION_LADDER.reduce((s, r) => s + r.cost, 0);
     const trucks = HAULAGE.reduce((s, h) => s + h.cost, 0);
     expect(total + trucks).toBeGreaterThan(1_000_000);
+  });
+});
+
+describe('equipmentSafetyEffects — both systems, finally read by something', () => {
+  it('is zero-zero with nothing owned', () => {
+    expect(equipmentSafetyEffects([], [], [])).toEqual({ injuryReduction: 0, incidentReduction: 0 });
+  });
+
+  it('folds in the ladder rungs, same as productionEffects alone', () => {
+    const ladderOnly = productionEffects(['matRopes', 'ring']).injuryReduction;
+    expect(equipmentSafetyEffects([], ['matRopes', 'ring'], []).injuryReduction).toBeCloseTo(ladderOnly);
+  });
+
+  it('adds the older one-time asset shop on top — ringUpgrade and trainingFacility', () => {
+    const ladderOnly = equipmentSafetyEffects([], ['matRopes'], []).injuryReduction;
+    const withAssets = equipmentSafetyEffects(['ringUpgrade', 'trainingFacility'], ['matRopes'], []).injuryReduction;
+    expect(withAssets).toBeGreaterThan(ladderOnly);
+  });
+
+  it('reads steel barricades and professional security for incidentReduction', () => {
+    expect(equipmentSafetyEffects(['steelBarricades'], [], []).incidentReduction).toBeGreaterThan(0);
+    expect(equipmentSafetyEffects([], [], ['security']).incidentReduction).toBeGreaterThan(0);
+    // Both at once stacks, but never to certainty.
+    const both = equipmentSafetyEffects(['steelBarricades'], [], ['security']).incidentReduction;
+    expect(both).toBeGreaterThan(equipmentSafetyEffects(['steelBarricades'], [], []).incidentReduction);
+    expect(both).toBeLessThan(1);
+  });
+
+  it('reads ringside medical for injuryReduction, since it is chosen fresh not owned', () => {
+    expect(equipmentSafetyEffects([], [], ['medicalStaff']).injuryReduction).toBeGreaterThan(0);
+  });
+
+  it('never reaches certainty, however much is stacked', () => {
+    const everythingSafe = equipmentSafetyEffects(
+      ['ringUpgrade', 'trainingFacility', 'steelBarricades'],
+      PRODUCTION_LADDER.map((r) => r.id),
+      ['medicalStaff', 'security'],
+    );
+    expect(everythingSafe.injuryReduction).toBeLessThan(1);
+    expect(everythingSafe.incidentReduction).toBeLessThan(1);
+  });
+
+  it('ignores anything it does not recognise', () => {
+    expect(equipmentSafetyEffects(['nonsense'], ['nonsense'], ['nonsense'])).toEqual({
+      injuryReduction: 0,
+      incidentReduction: 0,
+    });
   });
 });
 

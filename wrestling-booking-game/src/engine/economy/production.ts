@@ -19,6 +19,7 @@
 // truck that comes after it.
 
 import type { Id, WorldSettings } from '../types';
+import { productionAssetById, showExtraById } from '../../data/production';
 
 // ---------------------------------------------------------------- haulage
 
@@ -309,6 +310,54 @@ export function productionEffects(owned: readonly Id[]): {
   }
 
   return { showRating, tvRating, attendanceMultiplier, merchMultiplier, injuryReduction };
+}
+
+/**
+ * Both systems' safety gear, combined, for whoever needs to know how
+ * protected tonight actually is — this ladder's own rungs (matRopes, ring)
+ * plus the older one-time asset shop's (ringUpgrade, trainingFacility,
+ * steelBarricades) and the security show extra, all of which declare
+ * injuryReduction/incidentReduction and none of which, before this
+ * function existed, ever had anything read them. Deliberately not
+ * wear-scaled — the fuller, per-show wear/venue-fit pass store.ts already
+ * runs for revenue purposes is not duplicated here, so a badly worn asset
+ * protects slightly more here than its true effectiveness. A known,
+ * accepted simplification rather than an oversight; see the two-systems
+ * note in docs/BACKLOG.md.
+ */
+export function equipmentSafetyEffects(
+  ownedAssetIds: readonly Id[],
+  productionRungs: readonly Id[],
+  extraIds: readonly Id[] = [],
+): { injuryReduction: number; incidentReduction: number } {
+  let injuryReduction = productionEffects(productionRungs).injuryReduction;
+  let incidentReduction = 0;
+
+  const stack = (value: number | undefined) => {
+    if (!value) return;
+    injuryReduction = 1 - (1 - injuryReduction) * (1 - value);
+  };
+  const stackIncident = (value: number | undefined) => {
+    if (!value) return;
+    incidentReduction = 1 - (1 - incidentReduction) * (1 - value);
+  };
+
+  for (const id of ownedAssetIds) {
+    const asset = productionAssetById(id);
+    if (!asset) continue;
+    stack(asset.effects.injuryReduction);
+    stackIncident(asset.effects.incidentReduction);
+  }
+  for (const id of extraIds) {
+    const extra = showExtraById(id);
+    if (!extra) continue;
+    // Ringside medical is chosen fresh every show, not owned — it declares
+    // injuryReduction too (0.3), not just security's incidentReduction.
+    stack(extra.effects.injuryReduction);
+    stackIncident(extra.effects.incidentReduction);
+  }
+
+  return { injuryReduction, incidentReduction };
 }
 
 /** What the kit costs to put on, per show. */

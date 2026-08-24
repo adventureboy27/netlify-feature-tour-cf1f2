@@ -68,6 +68,14 @@ export interface IncidentContext {
    */
   availableReturns: Wrestler[];
   settings: WorldSettings;
+  /**
+   * 0-1. What owned crowd-control gear (steel barricades, security) cuts off
+   * the odds of a crowd/backstage incident tonight — see
+   * data/production.ts's steelBarricades and the security show extra, both
+   * declaring incidentReduction and neither, until now, having anything
+   * read it.
+   */
+  incidentReduction?: number;
 }
 
 /** Something that happened that nobody booked. */
@@ -120,7 +128,8 @@ export function rollIncident(rng: Rng, ctx: IncidentContext): Incident | null {
   const odds =
     ctx.settings.incidentChance *
     (ctx.isMainEvent ? ctx.settings.incidentMainEventMultiplier : 1) *
-    (ctx.titleOnTheLine ? ctx.settings.incidentTitleMultiplier : 1);
+    (ctx.titleOnTheLine ? ctx.settings.incidentTitleMultiplier : 1) *
+    (1 - (ctx.incidentReduction ?? 0));
   if (!chance(rng, Math.min(ctx.settings.incidentChanceCap, odds))) return null;
 
   const definition = weightedPick(

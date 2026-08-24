@@ -46,6 +46,15 @@ export interface SimulateMatchContext {
   deckStackingShiftsBySide?: Record<number, number>;
   /** Managers, referee and any guest referee at ringside (§10). */
   ringside?: RingsideTotals;
+  /**
+   * 0-1. What the owned ring/mat cuts off the odds of getting hurt tonight —
+   * a real ring is a safer ring for everyone standing in it, not just the
+   * two people wrestling, which is why this lives here rather than only in
+   * store.ts's competitor-specific injury roll. See
+   * engine/economy/production.ts's productionEffects().injuryReduction,
+   * finally being read by something.
+   */
+  equipmentInjuryReduction?: number;
   titlePrestige?: number | null;
   /** The rivalry these two are in, if any — drives heat, bad blood, and injury risk. */
   rivalry?: Rivalry | null;
@@ -248,7 +257,9 @@ export function simulateMatch(
       // Nobody to stop it when it goes wrong.
       (ctx.ringside?.injuryMultiplier ?? 1) *
       // And what the booker asked them to go out and do.
-      pace.injuryMultiplier,
+      pace.injuryMultiplier *
+      // A better ring is a safer ring, for everyone in it.
+      (1 - (ctx.equipmentInjuryReduction ?? 0)),
     // A crooked or incompetent official makes a screwy finish likelier; a
     // manager at ringside makes interference likelier still.
     ringsideWeights: ctx.ringside
@@ -374,7 +385,9 @@ export function simulateMatch(
       (botch?.hurtSomebody ? ctx.settings.botchInjuryMultiplier : 1) *
       // And some bodies simply break more than others. See the Made Of Glass
       // trait in career/personality.ts — this is where it has teeth.
-      Math.max(...allParticipants.map((p) => injuryProneness(p))),
+      Math.max(...allParticipants.map((p) => injuryProneness(p))) *
+      // A better ring is a safer ring, for everyone in it.
+      (1 - (ctx.equipmentInjuryReduction ?? 0)),
     // What the night takes out of them, and how numb the crowd now is to
     // being shown this.
     healthCostMultiplier: pace.healthCostMultiplier,

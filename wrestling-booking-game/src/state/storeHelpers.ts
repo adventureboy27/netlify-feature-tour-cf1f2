@@ -1590,6 +1590,14 @@ export function incidentContextFor(
     managers?: { id: Id; name: string; forSide: number }[];
     hasReferee?: boolean;
     availableReturns?: Wrestler[];
+    /**
+     * 0-1. Only the player's own show should ever pass this — see
+     * engine/economy/production.ts's equipmentSafetyEffects, computed at the
+     * call site from world.ownedAssetIds/productionRungs. A rival's incident
+     * odds are never reduced by the player's own barricades; omitted here
+     * defaults to 0, same as before this field existed.
+     */
+    incidentReduction?: number;
   },
 ): IncidentContext {
   const inMatch = new Set(match.competitors.map((c) => c.wrestler.id));
@@ -1621,6 +1629,7 @@ export function incidentContextFor(
     shootHeat: rivalry?.shootHeat ?? 0,
     availableReturns: match.availableReturns ?? [],
     settings: world.settings,
+    incidentReduction: match.incidentReduction ?? 0,
   };
 }
 

@@ -290,4 +290,35 @@ describe('how often they happen', () => {
     // And no single match is ever close to a coin flip.
     expect(titleMain).toBeLessThanOrEqual(settings.incidentChanceCap + 0.03);
   });
+
+  it('cuts the odds when steel barricades or security are on the books', () => {
+    // See engine/economy/production.ts's equipmentSafetyEffects — this is
+    // the consumer that field never had before.
+    const eligibleEverywhere = { rating: 92, availableReturns: [person()], hasReferee: false, isMainEvent: true };
+    const count = (incidentReduction: number, seed: string) => {
+      const rng = rngFromSeed(seed);
+      const ctx = ctxFor({ ...eligibleEverywhere, incidentReduction });
+      let n = 0;
+      for (let i = 0; i < 2000; i++) if (rollIncident(rng, ctx)) n += 1;
+      return n / 2000;
+    };
+
+    const bare = count(0, 'bare-rope');
+    const guarded = count(0.5, 'guarded');
+    expect(guarded).toBeLessThan(bare);
+  });
+
+  it('leaves the odds alone with nothing owned — the field is optional', () => {
+    const ctx = ctxFor({ rating: 92, availableReturns: [person()], hasReferee: false, isMainEvent: true });
+    const withZero = ctxFor({ ...ctx, incidentReduction: 0 });
+    const rng1 = rngFromSeed('same-seed');
+    const rng2 = rngFromSeed('same-seed');
+    let a = 0;
+    let b = 0;
+    for (let i = 0; i < 500; i++) {
+      if (rollIncident(rng1, ctx)) a += 1;
+      if (rollIncident(rng2, withZero)) b += 1;
+    }
+    expect(a).toBe(b);
+  });
 });
