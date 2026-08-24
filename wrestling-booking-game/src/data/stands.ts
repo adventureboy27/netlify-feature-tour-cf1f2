@@ -56,17 +56,17 @@ export const MERCH_LINES: Stand[] = [
     costPerShow: 220,
     perHead: 1.9,
     fit: 'gimmick',
-    blurb: 'A trestle table and four designs. The thing every promotion sells.',
+    blurb: 'A folding table and four designs. The one thing every single promotion sells.',
   },
   {
     id: 'programmes',
-    name: 'Programmes',
+    name: 'Programs',
     // The cheapest thing on the table on purpose: the first merch decision a
     // booker makes should be a viable one in the room he actually starts in.
     costPerShow: 60,
     perHead: 0.55,
     fit: 'none',
-    blurb: 'Printed the morning of the show. Cheap, and everybody buys one.',
+    blurb: 'Printed fresh the morning of the show. Dirt cheap, and everybody grabs one on the way in.',
   },
   {
     id: 'foamHands',
@@ -74,7 +74,7 @@ export const MERCH_LINES: Stand[] = [
     costPerShow: 130,
     perHead: 0.7,
     fit: 'family',
-    blurb: 'Sells to children, and children come with somebody holding a wallet.',
+    blurb: 'Sells straight to the kids, and every kid comes with somebody holding a wallet.',
   },
   {
     id: 'masks',
@@ -82,7 +82,7 @@ export const MERCH_LINES: Stand[] = [
     costPerShow: 340,
     perHead: 1.7,
     fit: 'gimmick',
-    blurb: 'Only worth the stall if there is somebody on the card wearing one.',
+    blurb: 'Only worth setting up the stall if somebody on that card is actually wearing one.',
   },
   {
     id: 'photos',
@@ -90,7 +90,7 @@ export const MERCH_LINES: Stand[] = [
     costPerShow: 180,
     perHead: 1.1,
     fit: 'gimmick',
-    blurb: 'Eight by tens and a marker pen. Somebody has to stand there all night.',
+    blurb: 'Eight-by-tens and a marker pen. Somebody has to stand there signing all night long.',
   },
   {
     id: 'plush',
@@ -98,7 +98,7 @@ export const MERCH_LINES: Stand[] = [
     costPerShow: 520,
     perHead: 1.5,
     fit: 'family',
-    blurb: 'Does nothing at all in front of a room that came to see somebody bleed.',
+    blurb: 'Does absolutely nothing in front of a room that came here to see somebody bleed.',
   },
   {
     id: 'weaponsMerch',
@@ -106,7 +106,7 @@ export const MERCH_LINES: Stand[] = [
     costPerShow: 260,
     perHead: 1.4,
     fit: 'hardcore',
-    blurb: 'Signed, taped, and sold to the people who cheered when it broke.',
+    blurb: 'Signed, taped up, and sold straight to the people who cheered loudest when it broke.',
   },
   {
     id: 'tapes',
@@ -116,7 +116,7 @@ export const MERCH_LINES: Stand[] = [
     fit: 'prestige',
     // You cannot sell a recording of a show nobody filmed.
     requiresRung: 'cameras',
-    blurb: 'Last month’s card, sold at this month’s. Needs somebody filming it.',
+    blurb: 'Last month’s card, sold right here at this month’s show. Needs somebody actually filming it first.',
   },
   {
     id: 'replicaBelts',
@@ -124,7 +124,7 @@ export const MERCH_LINES: Stand[] = [
     costPerShow: 2_400,
     perHead: 3.6,
     fit: 'prestige',
-    blurb: 'Expensive to stock and worth nothing at all in a small hall.',
+    blurb: 'Expensive to stock, and worth absolutely nothing in a small hall.',
   },
 ];
 
@@ -138,7 +138,7 @@ export const CONCESSIONS: Stand[] = [
     perHead: 0.5,
     fit: 'none',
     needsBarRights: true,
-    blurb: 'Cans and chips, sold by somebody’s cousin.',
+    blurb: 'Cans and chips, sold by somebody’s cousin who showed up early.',
   },
   {
     id: 'snackBar',
@@ -147,7 +147,7 @@ export const CONCESSIONS: Stand[] = [
     perHead: 1.6,
     fit: 'none',
     needsBarRights: true,
-    blurb: 'Hot dogs, popcorn and a line that misses the opener.',
+    blurb: 'Hot dogs, popcorn, and a line so long it misses the entire opener.',
   },
   {
     id: 'fullBar',
@@ -156,7 +156,7 @@ export const CONCESSIONS: Stand[] = [
     perHead: 3.4,
     fit: 'none',
     needsBarRights: true,
-    blurb: 'The single best line of business in wrestling, and it needs a license.',
+    blurb: 'The single best line of business in this entire industry, and it needs a real license to run.',
   },
   {
     id: 'foodTrucks',
@@ -166,7 +166,7 @@ export const CONCESSIONS: Stand[] = [
     fit: 'none',
     needsBarRights: true,
     outdoorOnly: true,
-    blurb: 'Four of them along the fence. Only works where there is a fence.',
+    blurb: 'Four of them lined up along the fence. Only works where there is actually a fence to line them up on.',
   },
 ];
 

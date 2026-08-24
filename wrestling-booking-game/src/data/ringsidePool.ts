@@ -29,7 +29,7 @@ export const MANAGERS: Manager[] = [
     protection: 0,
     feePerShow: 1400,
     age: 71,
-    blurb: 'Old money, silk handkerchief, and a client list going back decades.',
+    blurb: 'Old money, a silk handkerchief, and a client list stretching back decades in this business.',
   },
   {
     id: 'mgr-mama',
@@ -41,7 +41,7 @@ export const MANAGERS: Manager[] = [
     protection: 0,
     feePerShow: 1300,
     age: 58,
-    blurb: 'Nobody in the building will boo her. Everybody will boo whoever she brought.',
+    blurb: 'Nobody in this building will ever boo her. Everybody boos whoever she happens to bring with her.',
   },
   {
     id: 'mgr-slick',
@@ -53,7 +53,7 @@ export const MANAGERS: Manager[] = [
     protection: 15,
     feePerShow: 1100,
     age: 64,
-    blurb: 'Has never seen a rulebook he could not misplace.',
+    blurb: 'Has never once seen a rulebook he could not conveniently misplace.',
   },
   {
     id: 'mgr-doctor',
@@ -65,7 +65,7 @@ export const MANAGERS: Manager[] = [
     protection: 85,
     feePerShow: 1250,
     age: 49,
-    blurb: 'Speaks entirely in threats delivered very calmly.',
+    blurb: 'Speaks almost entirely in threats, delivered dead calm every single time.',
   },
   {
     id: 'mgr-sarge',
@@ -77,7 +77,7 @@ export const MANAGERS: Manager[] = [
     protection: 0,
     feePerShow: 850,
     age: 52,
-    blurb: 'Shouts. Salutes. Has a folding chair and strong opinions.',
+    blurb: 'Shouts. Salutes. Carries a folding chair and even stronger opinions.',
   },
   {
     id: 'mgr-duchess',
@@ -89,7 +89,7 @@ export const MANAGERS: Manager[] = [
     protection: 10,
     feePerShow: 1150,
     age: 55,
-    blurb: 'Says almost nothing and takes up the entire frame.',
+    blurb: 'Says almost nothing at all, and somehow still takes up the entire frame.',
   },
   {
     id: 'mgr-percy',
@@ -101,7 +101,7 @@ export const MANAGERS: Manager[] = [
     protection: 70,
     feePerShow: 950,
     age: 67,
-    blurb: 'Insufferable, well-spoken, and generates heat by existing.',
+    blurb: 'Insufferable, whip-smart, and generates real heat just by walking down the ramp.',
   },
   {
     id: 'mgr-bruiser',
@@ -113,7 +113,7 @@ export const MANAGERS: Manager[] = [
     protection: 90,
     feePerShow: 700,
     age: 47,
-    blurb: 'A former wrestler the size of a door. Not a talker.',
+    blurb: 'A former wrestler built like a door. Does not say much, and does not need to.',
   },
   {
     id: 'mgr-oracle',
@@ -125,7 +125,7 @@ export const MANAGERS: Manager[] = [
     protection: 0,
     feePerShow: 1000,
     age: 61,
-    blurb: 'Speaks in prophecy. Half the crowd is genuinely unsettled.',
+    blurb: 'Speaks entirely in prophecy. Half this crowd is genuinely unsettled by it.',
   },
   {
     id: 'mgr-agent',
@@ -137,7 +137,7 @@ export const MANAGERS: Manager[] = [
     protection: 25,
     feePerShow: 600,
     age: 63,
-    blurb: 'Waves contracts. Files complaints. Always at ringside for the finish.',
+    blurb: 'Waves contracts around. Files complaints on everybody. Always right there at ringside for the finish.',
   },
   {
     id: 'mgr-queen',
@@ -149,7 +149,7 @@ export const MANAGERS: Manager[] = [
     protection: 0,
     feePerShow: 1350,
     age: 46,
-    blurb: 'Runs her clients like a stable and everyone else like an obstacle.',
+    blurb: 'Runs her own clients like a stable and treats everybody else like an obstacle in her way.',
   },
   {
     id: 'mgr-rook',
@@ -161,7 +161,7 @@ export const MANAGERS: Manager[] = [
     protection: 60,
     feePerShow: 300,
     age: 74,
-    blurb: 'Cheap, keen, and has not managed anybody who mattered yet.',
+    blurb: 'Cheap, hungry, and has not managed a single soul who mattered yet — give it time.',
   },
 ];
 

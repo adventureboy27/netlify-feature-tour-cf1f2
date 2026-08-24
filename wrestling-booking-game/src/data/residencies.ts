@@ -86,7 +86,7 @@ export const RESIDENCY_HOMES: ResidencyHome[] = [
     merchMultiplier: 0.45,
     productionCapacity: 7,
     atmosphere: 5,
-    blurb: 'A mill town with nothing else on a Thursday. Six hundred of them, week in and week out.',
+    blurb: 'A mill town with absolutely nothing else going on a Thursday. Six hundred of them, week in and week out, like clockwork.',
   },
   {
     id: 'legionHall',
@@ -99,7 +99,7 @@ export const RESIDENCY_HOMES: ResidencyHome[] = [
     merchMultiplier: 0.4,
     productionCapacity: 5,
     atmosphere: 7,
-    blurb: 'Rows of folding chairs, a bar at the back, and the same men in the same seats.',
+    blurb: 'Rows of folding chairs, a bar at the back, and the exact same faces in the exact same seats, every single week.',
   },
   {
     id: 'oldCinema',
@@ -113,7 +113,7 @@ export const RESIDENCY_HOMES: ResidencyHome[] = [
     // A cinema has a screen where the stage would go and no room to hang anything.
     productionCapacity: 4,
     atmosphere: 8,
-    blurb: 'A picture house that stopped showing pictures. Sloped floor, red seats, wonderful sound.',
+    blurb: 'An old movie house that stopped showing movies years ago. Sloped floor, red seats, and genuinely wonderful sound.',
   },
   {
     id: 'grangeHall',
@@ -126,7 +126,7 @@ export const RESIDENCY_HOMES: ResidencyHome[] = [
     merchMultiplier: 0.35,
     productionCapacity: 4,
     atmosphere: 6,
-    blurb: 'The cheapest room in the business. Bare boards, a woodstove, and four hundred regulars.',
+    blurb: 'The single cheapest room in the whole business. Bare boards, a woodstove, and four hundred dead-loyal regulars.',
   },
   {
     id: 'ballroom',
@@ -139,7 +139,7 @@ export const RESIDENCY_HOMES: ResidencyHome[] = [
     merchMultiplier: 0.6,
     productionCapacity: 9,
     atmosphere: 4,
-    blurb: 'A dance hall in a town with an actual downtown. The biggest room that will do this.',
+    blurb: 'A real dance hall in a town with an actual downtown. The biggest room in this whole business that will do this.',
   },
   {
     id: 'stockBarn',
@@ -153,7 +153,7 @@ export const RESIDENCY_HOMES: ResidencyHome[] = [
     productionCapacity: 11,
     // Concrete, corrugated iron, and cattle three days a week.
     atmosphere: 1,
-    blurb: 'Rodeo the rest of the year. Enormous, freezing, and it smells like it sounds.',
+    blurb: 'Rodeo the rest of the year. Absolutely enormous, freezing cold, and it smells exactly like it sounds.',
   },
   {
     id: 'seasideHall',
@@ -167,7 +167,7 @@ export const RESIDENCY_HOMES: ResidencyHome[] = [
     merchMultiplier: 0.75,
     productionCapacity: 6,
     atmosphere: 6,
-    blurb: 'A holiday town out of season. Fewer people than anywhere, and they spend.',
+    blurb: 'A vacation town completely out of season. Fewer people than anywhere else on this list, and they actually spend.',
   },
   {
     id: 'unionSocial',
@@ -180,7 +180,7 @@ export const RESIDENCY_HOMES: ResidencyHome[] = [
     merchMultiplier: 0.4,
     productionCapacity: 6,
     atmosphere: 9,
-    blurb: 'The loudest six hundred people you will ever work in front of.',
+    blurb: 'The single loudest six hundred people you will ever work in front of, no contest.',
   },
 ];
 

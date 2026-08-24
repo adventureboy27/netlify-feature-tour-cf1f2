@@ -68,8 +68,8 @@ export const BROADCASTERS: Broadcaster[] = [
     requiresRating: 55,
     weeklyFee: 6_000,
     expectedRating: 2.2,
-    demands: [{ kind: 'showsPerMonth', value: 4, text: 'Four shows a month. Every month.' }],
-    blurb: 'A public-access slot after the fishing programme. It is television, technically.',
+    demands: [{ kind: 'showsPerMonth', value: 4, text: 'Four shows a month, every single month, no exceptions.' }],
+    blurb: 'A public-access slot right after the fishing program. It is television, technically speaking.',
   },
   {
     id: 'regionalCable',
@@ -79,10 +79,10 @@ export const BROADCASTERS: Broadcaster[] = [
     weeklyFee: 22_000,
     expectedRating: 2.8,
     demands: [
-      { kind: 'maintainRating', value: 65, text: 'Stay at a 65. They signed a company, not a promise.' },
-      { kind: 'maintainTvRating', value: 1.9, text: 'Do a 1.9 in the slot, or they will find somebody who can.' },
+      { kind: 'maintainRating', value: 65, text: 'Stay at a 65, no less. They signed a company, not just a promise.' },
+      { kind: 'maintainTvRating', value: 1.9, text: 'Deliver a 1.9 in that slot, or they will find somebody who can.' },
     ],
-    blurb: 'Three states and a timeslot nobody else wanted, which is three states more than you had.',
+    blurb: 'Three states and a timeslot nobody else wanted — which is three whole states more than you had before.',
   },
   {
     id: 'nationalNetwork',
@@ -92,11 +92,11 @@ export const BROADCASTERS: Broadcaster[] = [
     weeklyFee: 70_000,
     expectedRating: 3.6,
     demands: [
-      { kind: 'maintainRating', value: 75, text: 'Stay at a 75.' },
-      { kind: 'maintainTvRating', value: 2.7, text: 'A 2.7 in the slot. That is what the sales team sold.' },
-      { kind: 'hardcoreCeiling', value: 45, text: 'Nothing that frightens the advertisers.' },
+      { kind: 'maintainRating', value: 75, text: 'Stay at a 75. That number is not negotiable.' },
+      { kind: 'maintainTvRating', value: 2.7, text: 'A 2.7 in that slot, full stop. That is exactly what the sales team promised.' },
+      { kind: 'hardcoreCeiling', value: 45, text: 'Nothing out there that frightens the advertisers off.' },
     ],
-    blurb: 'Standards and practices now has an opinion about your main event.',
+    blurb: 'Standards and practices now has a strong opinion about your main event, whether you like it or not.',
   },
   {
     id: 'premiumGlobal',
@@ -106,11 +106,11 @@ export const BROADCASTERS: Broadcaster[] = [
     weeklyFee: 180_000,
     expectedRating: 4.8,
     demands: [
-      { kind: 'maintainRating', value: 88, text: 'Stay at an 88. There is no grace here.' },
-      { kind: 'maintainTvRating', value: 3.6, text: 'A 3.6, every week. There is no grace here either.' },
-      { kind: 'ppvPerQuarter', value: 1, text: 'A pay-per-view every quarter, minimum.' },
+      { kind: 'maintainRating', value: 88, text: 'Stay at an 88. There is absolutely no grace period here.' },
+      { kind: 'maintainTvRating', value: 3.6, text: 'A 3.6, every single week, without fail. No grace here either.' },
+      { kind: 'ppvPerQuarter', value: 1, text: 'One full pay-per-view every quarter, minimum, no excuses.' },
     ],
-    blurb: 'The kind of money that changes what a wrestling company is, and the kind of scrutiny that comes with it.',
+    blurb: 'The kind of money that changes what a wrestling company actually is, and the kind of scrutiny that comes riding right along with it.',
   },
 ];
 

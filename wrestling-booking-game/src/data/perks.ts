@@ -100,8 +100,8 @@ export const PERKS: readonly Perk[] = [
   {
     id: 'privateJet',
     name: 'Private jet',
-    blurb: 'They stop living on a bus. Everybody finds out within a week.',
-    cost: 'Ruinous, and the locker room will talk about nothing else.',
+    blurb: 'They stop living on a bus for good. Everybody in the building finds out inside a week.',
+    cost: 'Absolutely ruinous, and this locker room will talk about nothing else for weeks.',
     weeklyCost: 2200,
     // The one perk that is genuinely only for the top of the business. A
     // twenty-six-year-old upper-carder does not get a plane.
@@ -119,8 +119,8 @@ export const PERKS: readonly Perk[] = [
   {
     id: 'roadCrew',
     name: 'Own road crew',
-    blurb: 'Somebody else drives, carries the bags, and books the rooms.',
-    cost: 'A small payroll of its own, quietly.',
+    blurb: 'Somebody else drives, carries every bag, and books every room from here on out.',
+    cost: 'A small payroll all its own, added quietly to the books.',
     weeklyCost: 700,
     minAge: 28,
     minYearsPro: 6,
@@ -136,8 +136,8 @@ export const PERKS: readonly Perk[] = [
   {
     id: 'companyApartment',
     name: 'Company apartment',
-    blurb: 'Somewhere to live that is not a motel off the interstate.',
-    cost: 'Rent, every week, in a town they might not stay in.',
+    blurb: 'Somewhere real to live that is not a motel off the interstate for once.',
+    cost: 'Rent, every single week, in a town they might not even stay in.',
     weeklyCost: 450,
     minAge: 23,
     minYearsPro: 2,
@@ -154,8 +154,8 @@ export const PERKS: readonly Perk[] = [
   {
     id: 'familyOnTheRoad',
     name: 'Family travel',
-    blurb: 'Their people come with them instead of waving them off.',
-    cost: 'Every trip costs what several trips used to.',
+    blurb: 'Their people come right along with them now, instead of waving them off at the door.',
+    cost: 'Every single trip now costs what several trips used to cost.',
     weeklyCost: 600,
     minAge: 26,
     minYearsPro: 4,
@@ -171,8 +171,8 @@ export const PERKS: readonly Perk[] = [
   {
     id: 'privateLockerRoom',
     name: 'Private locker room',
-    blurb: 'A door that shuts. Cheap to give and enormously loud.',
-    cost: 'Almost nothing in money. Everybody else notices immediately.',
+    blurb: 'A door that actually shuts. Cheap to give, and it makes an enormous amount of noise in that room.',
+    cost: 'Almost nothing in real money. Everybody else in that locker room notices immediately.',
     // The cheapest thing on this list and the most expensive one to give.
     weeklyCost: 120,
     minAge: 27,
@@ -191,8 +191,8 @@ export const PERKS: readonly Perk[] = [
   {
     id: 'personalTrainer',
     name: 'Personal trainer',
-    blurb: 'Somebody whose whole job is keeping this one body working.',
-    cost: 'A wage for somebody who never appears on a card.',
+    blurb: 'One person whose entire job is keeping this one body working, full stop.',
+    cost: 'A real wage for somebody who never once appears on a card.',
     weeklyCost: 550,
     minAge: 25,
     minYearsPro: 3,
@@ -208,8 +208,8 @@ export const PERKS: readonly Perk[] = [
   {
     id: 'personalChef',
     name: 'Nutritionist',
-    blurb: 'They stop eating gas station food four nights a week.',
-    cost: 'Modest, and it buys a body that lasts longer.',
+    blurb: 'They finally stop eating gas station food four nights a week.',
+    cost: 'Modest money, and it buys a body that genuinely lasts longer out there.',
     weeklyCost: 320,
     minAge: 24,
     minYearsPro: 2,
@@ -225,8 +225,8 @@ export const PERKS: readonly Perk[] = [
   {
     id: 'documentaryCrew',
     name: 'Documentary crew',
-    blurb: 'A camera follows them everywhere. It gets them over. It also grates.',
-    cost: 'A crew on the payroll, and a locker room being filmed all year.',
+    blurb: 'A camera follows them absolutely everywhere. It gets them over big. It also wears on the room.',
+    cost: 'A whole crew added to the payroll, and a locker room getting filmed all year long.',
     weeklyCost: 800,
     minAge: 25,
     minYearsPro: 4,

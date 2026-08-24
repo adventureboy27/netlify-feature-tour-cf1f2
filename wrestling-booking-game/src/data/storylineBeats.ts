@@ -74,9 +74,9 @@ export const STORYLINE_NAME_PATTERNS: readonly string[] = [
  * sequence and nothing here touches the simulation's random stream.
  */
 export const MATCH_BEAT_LINES: readonly string[] = [
-  '{who} met in the ring.',
-  '{who} went at it again, and neither one backed off.',
-  'They put {who} back out there and it was rougher than the last one.',
-  '{who} fought once more, and the crowd was louder for it this time.',
-  'Another one between {who}. Nobody is settling this quietly.',
+  '{who} met right there in the ring, and this crowd knew exactly what it was watching.',
+  '{who} went at it again, and neither one backed off an inch.',
+  'They put {who} back out there, and it was rougher than the last one by a mile.',
+  '{who} fought once more, and this crowd was louder for it than ever before.',
+  'Another one between {who}. Nobody in this business is settling this quietly.',
 ];

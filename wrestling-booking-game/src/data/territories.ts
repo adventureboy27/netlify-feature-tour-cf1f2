@@ -51,7 +51,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 2400,
     revenueMult: 0.8,
     preferenceWeights: { faces: 0.6, hardcore: 0.4, technical: -0.3, starPower: -0.2 },
-    blurb: 'Steel town. They want a hero who bleeds and they can smell a phoney.',
+    blurb: 'A real steel town. They want a hero who genuinely bleeds, and they can smell a phony from a mile off.',
   },
   {
     id: 'crescentPort',
@@ -62,7 +62,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 5200,
     revenueMult: 1.1,
     preferenceWeights: { heels: 0.5, starPower: 0.4, longMatches: -0.3 },
-    blurb: 'Dock money and short tempers. The villain is the draw here.',
+    blurb: 'Dock money and even shorter tempers. The villain is the real draw in this town.',
   },
   {
     id: 'graniteFalls',
@@ -73,7 +73,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 3100,
     revenueMult: 0.9,
     preferenceWeights: { technical: 0.7, longMatches: 0.5, hardcore: -0.6 },
-    blurb: 'Old wrestling country. They will sit through an hour of chain wrestling and complain it was rushed.',
+    blurb: 'Old wrestling country, through and through. They will sit through a full hour of chain wrestling and still complain it was rushed.',
   },
   {
     id: 'sunKingCounty',
@@ -84,7 +84,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 8000,
     revenueMult: 1.2,
     preferenceWeights: { starPower: 0.7, highFlying: 0.3, technical: -0.2, longMatches: -0.2 },
-    blurb: 'Money, sunshine, and no patience. Give them somebody famous.',
+    blurb: 'Money, sunshine, and absolutely no patience. Give this town somebody genuinely famous.',
   },
   {
     id: 'lowlandParish',
@@ -95,7 +95,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 4400,
     revenueMult: 0.95,
     preferenceWeights: { hardcore: 0.8, heels: 0.3, technical: -0.4 },
-    blurb: 'They came to see somebody go through a table and they will not be talked out of it.',
+    blurb: 'They came here to see somebody go through a table, and nobody is talking them out of it.',
   },
   {
     id: 'northRidge',
@@ -106,7 +106,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 6600,
     revenueMult: 1.05,
     preferenceWeights: { womensWrestling: 0.7, highFlying: 0.4, hardcore: -0.3 },
-    blurb: 'The women’s division outdraws the men here and everybody knows it but the bookers.',
+    blurb: 'The women’s division outdraws the men in this town, and every single person here knows it except the bookers.',
   },
   {
     id: 'ironbeltCity',
@@ -117,7 +117,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 26000,
     revenueMult: 1.3,
     preferenceWeights: { starPower: 0.6, heels: 0.3, faces: 0.3, hardcore: -0.25 },
-    blurb: 'The big one. Everybody wants it, almost nobody can fill it, and it thinks deathmatches are bush league.',
+    blurb: 'The big one. Every promotion wants it, almost nobody can actually fill it, and it thinks deathmatches are strictly bush league.',
   },
   {
     id: 'brambleHollow',
@@ -128,7 +128,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 2000,
     revenueMult: 0.8,
     preferenceWeights: { faces: 0.7, longMatches: 0.3, starPower: -0.4, highFlying: -0.2 },
-    blurb: 'Small, loyal, and suspicious of anybody with a television deal.',
+    blurb: 'Small, dead loyal, and deeply suspicious of anybody carrying a television deal.',
   },
   {
     id: 'saltMarketPlains',
@@ -139,7 +139,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 5800,
     revenueMult: 1.0,
     preferenceWeights: { highFlying: 0.8, technical: 0.3, hardcore: -0.2 },
-    blurb: 'They will forgive anything if somebody goes over the top rope.',
+    blurb: 'They will forgive absolutely anything if somebody goes flying over that top rope.',
   },
   {
     id: 'ashfordHeights',
@@ -150,7 +150,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 9500,
     revenueMult: 1.15,
     preferenceWeights: { technical: 0.5, womensWrestling: 0.4, longMatches: 0.4, starPower: -0.3 },
-    blurb: 'A college town that read the newsletter and has opinions about workrate.',
+    blurb: 'A college town that read the newsletter cover to cover and has genuine opinions about workrate.',
   },
   {
     id: 'copperGulch',
@@ -161,7 +161,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 3600,
     revenueMult: 0.85,
     preferenceWeights: { hardcore: 0.5, faces: 0.4, womensWrestling: -0.3, highFlying: -0.2 },
-    blurb: 'Mining money on a Friday. Nothing subtle survives here.',
+    blurb: 'Mining money hits the bar every Friday. Nothing subtle survives one week in this town.',
   },
   {
     id: 'harborlineMetro',
@@ -172,7 +172,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 52000,
     revenueMult: 1.4,
     preferenceWeights: { starPower: 0.8, highFlying: 0.3, longMatches: -0.4, hardcore: -0.3 },
-    blurb: 'The biggest building in the world and the shortest attention span.',
+    blurb: 'The biggest building in this entire business, and by far the shortest attention span to match it.',
   },
 ];
 

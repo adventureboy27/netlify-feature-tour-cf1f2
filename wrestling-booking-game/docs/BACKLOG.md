@@ -1530,3 +1530,70 @@ surface.
   a pure string-literal change to fields the existing structural test suite
   already covers exhaustively and no logic, effect, or branching field was
   touched.
+
+## Phase 2e: world-flavor cluster in hype-reporter voice
+
+The broadest sub-phase by file count: everything that gives the game world
+its texture — venues, weather, ownership, championships, production,
+concessions, broadcasters, sponsors, residencies, the ringside/referee
+pools, and the world's taste-geography systems.
+
+- **`data/venues.ts`** — all 25 venue `blurb` fields rewritten.
+- **`data/weather.ts`** — all 33 `WEATHER_EVENTS`' `lines` and `warnings`
+  rewritten (flavour/minor/notable/severe/catastrophe tiers), `{town}`
+  preserved throughout.
+- **`data/weatherCalls.ts`** — `WEATHER_CALL_OPTIONS` gains/costs,
+  `FORECAST_LINES` (kept free of digits and `%`, per
+  `weatherCall.test.ts`'s constraint), and all 25 `WEATHER_CALL_LINES`
+  outcome strings across the 5 severe events rewritten.
+- **`data/owners.ts`** — all 5 owner `blurb`s (narrator voice) and
+  `greetings` (first-person, more color within character) rewritten, plus
+  every `MANDATE_TEXT` entry, `{target}`/`{value}` preserved.
+- **`data/titles.ts`** — all 28 title blurbs across `startingBlueprints`
+  and `TITLE_PRESETS` rewritten (several are literal duplicates shared
+  between the two, caught and rewritten consistently via `replace_all`).
+- **`data/promotionIdentity.ts`** — every archetype's `knownFor`,
+  `topBeltBlurb`, `secondaryBeltBlurb`, and `signatureBelt.blurb`
+  rewritten (8 archetypes × 4 fields). Caught a real Americanization miss
+  from Phase 2a along the way: `knownFor: 'Armouries...'` and a matching
+  comment — fixed to "Armories" as part of this pass.
+  `favouredStyles`/`preferredStyles` (internal field/prop names) left
+  alone per the established "only touch player-visible text" rule.
+- **`data/production.ts`** — all 10 `PRODUCTION_ASSETS` and all 12
+  `SHOW_EXTRAS` blurbs rewritten.
+- **`data/stands.ts`** — all 9 `MERCH_LINES` and 4 `CONCESSIONS` blurbs
+  rewritten. Also caught and fixed a Phase 2a miss: `'Programmes'` (the
+  displayed name) → `'Programs'` — the internal id `programmes` was left
+  alone as an identifier, not player-facing text.
+- **`data/broadcasters.ts`** — all 4 `BROADCASTERS` blurbs and all 9
+  `BroadcastDemand.text` lines rewritten; fixed `'the fishing programme'` →
+  `'the fishing program'` in the same pass.
+- **`data/sponsors.ts`** — all 5 `SPONSORS` blurbs and 4 condition `text`
+  lines rewritten; fixed `'cheque'` → `'check'` along the way.
+- **`data/residencies.ts`** — all 8 `RESIDENCY_HOMES` blurbs rewritten;
+  fixed `'holiday town'` → `'vacation town'`.
+- **`data/ringsidePool.ts`** — all 12 named managers' blurbs rewritten.
+- **`data/refereePool.ts`** — all 12 named referees' blurbs plus all 12
+  `REFEREE_BLURBS` (excellent/decent/poor/crooked × 3) rewritten; fixed
+  `'rumours'` → `'rumors'`.
+- **`data/circuits.ts`** — all 4 `CIRCUITS`' `blurb` and `hardSell` fields
+  rewritten; fixed `'phoney'` → `'phony'`.
+- **`data/territories.ts`** — all 12 `TERRITORIES` blurbs rewritten;
+  fixed a second `'phoney'` → `'phony'` instance here too.
+- **`data/perks.ts`** — all 8 `PERKS`' `blurb` and `cost` fields rewritten.
+- **`data/biddingTemperaments.ts`** — reviewed; contains only short
+  mechanical `label` fields (e.g. "chases names", "pays for grit"), same
+  treatment as twist/award labels elsewhere — deliberately left as-is,
+  not a gap.
+- **`data/storylineBeats.ts`** — `MATCH_BEAT_LINES` (the most-read text in
+  the storyline system) rewritten, `{who}` preserved.
+  `STORYLINE_NAME_PATTERNS` left alone — short generated titles, same
+  precedent as event titles and twist labels.
+- Several genuine Phase 2a Americanization misses were caught and fixed
+  incidentally while rewriting adjacent prose in this pass (armouries,
+  programmes/programme, cheque, holiday town, rumours, phoney×2) — noted
+  here rather than filed as a separate pass since they were touched
+  in-line with content already being edited.
+- Verified: `tsc --noEmit` clean after every file; full suite 145 files /
+  2825 tests passing with zero test changes needed; `npm run build` and
+  `npm run sim` both clean.

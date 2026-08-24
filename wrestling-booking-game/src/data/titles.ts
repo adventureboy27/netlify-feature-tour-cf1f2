@@ -115,7 +115,7 @@ export function startingBlueprints(archetype: PromotionArchetype): TitleBlueprin
     },
     {
       suffix: `Women's ${word}`,
-      blurb: 'The top of the women’s division, and its whole reason to exist.',
+      blurb: 'The undisputed top of the women’s division, and its entire reason to exist.',
       tier: 'world',
       division: 'womens',
       weightClass: 'open',
@@ -123,7 +123,7 @@ export function startingBlueprints(archetype: PromotionArchetype): TitleBlueprin
     },
     {
       suffix: `Tag Team ${word}`,
-      blurb: 'Two people who trust each other beat two who are better. Usually.',
+      blurb: 'Two people who trust each other beat two who are flat-out better. Usually, anyway.',
       tier: 'tag',
       division: 'open',
       weightClass: 'open',
@@ -233,7 +233,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Championships',
     suffix: 'World Heavyweight Championship',
-    blurb: 'The top of the mountain. Everything on the card is built toward it.',
+    blurb: 'The top of the mountain, plain and simple. Everything on this card is built toward carrying this belt one day.',
     tier: 'world',
     division: 'mens',
     weightClass: 'heavyweight',
@@ -242,7 +242,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Championships',
     suffix: 'Undisputed Championship',
-    blurb: 'One belt, no arguments, nobody with a claim to a different one.',
+    blurb: 'One belt, no arguments, and nobody left with a claim to a different one.',
     tier: 'world',
     division: 'open',
     weightClass: 'open',
@@ -251,7 +251,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Championships',
     suffix: 'National Championship',
-    blurb: 'The belt that says this company is bigger than the towns it runs.',
+    blurb: 'The belt that says, loud and clear, this company is bigger than the towns it runs in.',
     tier: 'secondary',
     division: 'open',
     weightClass: 'open',
@@ -260,7 +260,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Championships',
     suffix: 'Television Championship',
-    blurb: 'Defended every week on the show, whether it suits anybody or not.',
+    blurb: 'Defended every single week right there on the show, whether it suits anybody or not.',
     tier: 'television',
     division: 'open',
     weightClass: 'open',
@@ -278,7 +278,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Championships',
     suffix: 'Six-Man Tag Championship',
-    blurb: 'Three a side, and twice the argument about who takes the fall.',
+    blurb: 'Three a side, and double the argument backstage about who takes the fall.',
     tier: 'trios',
     division: 'open',
     weightClass: 'open',
@@ -289,7 +289,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Trophies and crowns',
     suffix: 'Cup',
-    blurb: 'Won in a tournament and carried for a year. Silver, not leather.',
+    blurb: 'Won in a real tournament and carried for a full year. Silver, not leather.',
     tier: 'secondary',
     division: 'open',
     weightClass: 'open',
@@ -298,7 +298,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Trophies and crowns',
     suffix: 'Crown',
-    blurb: 'A king, and everybody else on the roster is not.',
+    blurb: 'One king, and every last person else on this roster is not.',
     tier: 'secondary',
     division: 'open',
     weightClass: 'open',
@@ -307,7 +307,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Trophies and crowns',
     suffix: 'Trophy',
-    blurb: 'It goes in a case, not around a waist, and it still gets fought over.',
+    blurb: 'It goes in a case, not around a waist, and people still fight tooth and nail over it.',
     tier: 'tertiary',
     division: 'open',
     weightClass: 'open',
@@ -316,7 +316,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Trophies and crowns',
     suffix: 'Gold Medal',
-    blurb: 'For the one who can genuinely wrestle, and everybody knows which one that is.',
+    blurb: 'For the one who can genuinely go in that ring, and everybody in this business knows exactly which one that is.',
     tier: 'tertiary',
     division: 'open',
     weightClass: 'open',
@@ -325,7 +325,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Trophies and crowns',
     suffix: 'Ring',
-    blurb: 'Small, expensive, and worn where everybody can see it.',
+    blurb: 'Small, expensive, and worn right where every single camera can see it.',
     tier: 'tertiary',
     division: 'open',
     weightClass: 'open',
@@ -334,7 +334,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Trophies and crowns',
     suffix: 'Briefcase',
-    blurb: 'A shot at the top, carried around until whoever holds it decides to use it.',
+    blurb: 'A guaranteed shot at the top, carried around until whoever holds it finally decides to cash it in.',
     tier: 'tertiary',
     division: 'open',
     weightClass: 'open',
@@ -354,7 +354,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Divisions',
     suffix: "Women's Tag Team Championship",
-    blurb: 'Two of them, and a division deep enough to mean it.',
+    blurb: 'Two of them, side by side, and a division finally deep enough to make it mean something.',
     tier: 'tag',
     division: 'womens',
     weightClass: 'open',
@@ -363,7 +363,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Divisions',
     suffix: 'Cruiserweight Championship',
-    blurb: 'For the ones who move. Nobody heavy is getting near it.',
+    blurb: 'For the ones who can really move. Nobody heavy is getting anywhere near this one.',
     tier: 'cruiserweight',
     division: 'open',
     weightClass: 'juniorHeavy',
@@ -372,7 +372,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Divisions',
     suffix: 'Junior Heavyweight Championship',
-    blurb: 'The division where the wrestling happens and everybody knows it.',
+    blurb: 'The division where the real wrestling happens, and everybody in this business knows it.',
     tier: 'cruiserweight',
     division: 'mens',
     weightClass: 'juniorHeavy',
@@ -381,7 +381,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Divisions',
     suffix: 'Openweight Championship',
-    blurb: 'No divisions, no excuses. Anybody can challenge for it.',
+    blurb: 'No divisions, no excuses, no way around it. Anybody in this building can step up and challenge for it.',
     tier: 'secondary',
     division: 'open',
     weightClass: 'open',
@@ -390,7 +390,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Divisions',
     suffix: 'Rookie Championship',
-    blurb: 'For the people who have not done anything yet. Somebody has to be first.',
+    blurb: 'For the ones who have not done a single thing yet. Somebody has to be first, and here is their shot.',
     tier: 'tertiary',
     division: 'open',
     weightClass: 'open',
@@ -401,7 +401,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Specialist',
     suffix: 'Hardcore Championship',
-    blurb: 'No count-outs, no disqualifications, and no shortage of challengers.',
+    blurb: 'No count-outs, no disqualifications, and absolutely no shortage of people lining up to challenge for it.',
     tier: 'hardcore',
     division: 'open',
     weightClass: 'open',
@@ -410,7 +410,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Specialist',
     suffix: 'Deathmatch Championship',
-    blurb: 'They know what they signed for and they came anyway.',
+    blurb: 'They knew exactly what they signed up for, and every single one of them came anyway.',
     tier: 'hardcore',
     division: 'open',
     weightClass: 'open',
@@ -419,7 +419,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Specialist',
     suffix: 'Iron Man Championship',
-    blurb: 'Sixty minutes, most falls wins, and nobody argues with the result.',
+    blurb: 'Sixty full minutes, most falls wins, and not one single soul argues with the result.',
     tier: 'secondary',
     division: 'open',
     weightClass: 'open',
@@ -428,7 +428,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Specialist',
     suffix: 'Submission Championship',
-    blurb: 'You do not pin anybody for this. They give up or they do not.',
+    blurb: 'You do not pin anybody for this belt. They tap out, or they simply do not.',
     tier: 'secondary',
     division: 'open',
     weightClass: 'open',
@@ -437,7 +437,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Specialist',
     suffix: 'Street Championship',
-    blurb: 'Defended wherever it gets challenged for, and it usually is not in the ring.',
+    blurb: 'Defended wherever a challenge comes for it, and it is usually nowhere near an actual ring.',
     tier: 'hardcore',
     division: 'open',
     weightClass: 'open',
@@ -446,7 +446,7 @@ export const TITLE_PRESETS: TitlePreset[] = [
   {
     family: 'Specialist',
     suffix: 'Cage Championship',
-    blurb: 'Won and lost inside the steel, and nobody has ever walked out of it happy.',
+    blurb: 'Won and lost inside that steel, and nobody has ever once walked out of it happy.',
     tier: 'secondary',
     division: 'open',
     weightClass: 'open',

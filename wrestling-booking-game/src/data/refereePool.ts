@@ -35,7 +35,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 55,
     age: 58,
     experience: 31,
-    blurb: 'Thirty years, never missed a count, never been in the wrong place.',
+    blurb: 'Thirty years in that shirt, never once missed a count, never once in the wrong place.',
   },
   {
     id: 'ref-dawkins',
@@ -45,7 +45,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 50,
     age: 44,
     experience: 17,
-    blurb: 'Solid, unglamorous, gets out of the way.',
+    blurb: 'Solid, unglamorous, and always gets out of the way when it counts.',
   },
   {
     id: 'ref-mcnally',
@@ -55,7 +55,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 48,
     age: 39,
     experience: 12,
-    blurb: 'Good hand. Occasionally looks the other way if the money is right.',
+    blurb: 'A good hand. Occasionally looks the other way when the money is right.',
   },
   {
     id: 'ref-birch',
@@ -65,7 +65,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 42,
     age: 51,
     experience: 22,
-    blurb: 'Everybody has heard the rumours. Nobody has proved anything.',
+    blurb: 'Everybody in this business has heard the rumors. Nobody has ever proved a single thing.',
   },
   {
     id: 'ref-cade',
@@ -75,7 +75,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 40,
     age: 47,
     experience: 19,
-    blurb: 'Expensive for a referee, and worth it if you want a specific finish.',
+    blurb: 'Expensive for an official, but worth every dollar if you need a very specific finish.',
   },
   {
     id: 'ref-tibbs',
@@ -85,7 +85,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 30,
     age: 63,
     experience: 28,
-    blurb: 'Slow, half-blind, and cheap. It shows, every single week.',
+    blurb: 'Slow, half-blind, and dirt cheap. And it shows, every single week.',
   },
   {
     id: 'ref-grady',
@@ -95,7 +95,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 62,
     age: 41,
     experience: 15,
-    blurb: 'Fast count when it should be fast. Never when it should not.',
+    blurb: 'A fast count when it needs to be fast. Never once when it should not be.',
   },
   {
     id: 'ref-poole',
@@ -105,7 +105,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 45,
     age: 36,
     experience: 9,
-    blurb: 'Perfectly competent and entirely purchasable.',
+    blurb: 'Perfectly competent, and entirely, unmistakably purchasable.',
   },
   {
     id: 'ref-santos',
@@ -115,7 +115,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 58,
     age: 45,
     experience: 20,
-    blurb: 'Came up in the lucha system. Sees everything.',
+    blurb: 'Came up through the lucha system, and he sees absolutely everything out there.',
   },
   {
     id: 'ref-whitfield',
@@ -125,7 +125,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 35,
     age: 49,
     experience: 11,
-    blurb: 'Bad at the job and available to the highest bidder.',
+    blurb: 'Flat-out bad at the job, and available to whoever bids the highest.',
   },
   {
     id: 'ref-locke',
@@ -135,7 +135,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 52,
     age: 34,
     experience: 8,
-    blurb: 'Will throw a match out rather than let it get silly.',
+    blurb: 'Will throw a match out cold rather than let it get out of hand.',
   },
   {
     id: 'ref-boyd',
@@ -145,7 +145,7 @@ export const REFEREE_SEEDS: RefereeSeed[] = [
     toughness: 68,
     age: 29,
     experience: 3,
-    blurb: 'Enthusiastic, green, and frequently in the wrong place at the wrong time.',
+    blurb: 'Enthusiastic, green as they come, and frequently in the wrong place at exactly the wrong time.',
   },
 ];
 
@@ -215,23 +215,23 @@ export const REFEREE_LAST_NAMES = [
  */
 export const REFEREE_BLURBS = {
   excellent: [
-    'Quiet, quick, and always exactly where the finish is.',
-    'Has never had a match get away from him.',
-    'Trained under somebody good and it shows in the counts.',
+    'Quiet, quick, and always exactly where the finish needs him to be.',
+    'Has never once had a match get away from him.',
+    'Trained under somebody genuinely good, and it shows in every count.',
   ],
   decent: [
     'Reliable. Nobody has ever complained about him twice.',
-    'Knows the job, works it the same way every night.',
-    'Unremarkable in the way an official is supposed to be.',
+    'Knows the job cold and works it the exact same way every single night.',
+    'Unremarkable in exactly the way a good official is supposed to be.',
   ],
   poor: [
-    'Means well. Gets there late.',
-    'Learning on the job, in front of paying customers.',
-    'Has a habit of watching the wrong corner.',
+    'Means well. Just gets there a beat too late.',
+    'Learning on the job, live, in front of paying customers.',
+    'Has a real habit of watching the wrong corner at the worst moment.',
   ],
   crooked: [
-    'Available, for a number.',
-    'Has done favors before and will do them again.',
-    'Counts as fast or as slow as the situation requires.',
+    'Available, for the right number.',
+    'Has done favors before and will gladly do them again.',
+    'Counts as fast or as slow as the situation happens to require.',
   ],
 } as const;

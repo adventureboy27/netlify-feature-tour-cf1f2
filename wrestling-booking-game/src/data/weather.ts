@@ -58,9 +58,9 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     id: 'clearNight',
     name: 'A clear night',
     lines: [
-      'Not a cloud over {town}. Nobody had an excuse to stay home.',
-      'A still, clear evening in {town}. You could hear the ring from the parking lot.',
-      'Nothing at all happening with the weather in {town}, which the crew took as a personal favor.',
+      'Not one cloud over {town} tonight. Nobody had a single excuse to stay home.',
+      'A still, clear evening in {town} — you could hear that ring all the way from the parking lot.',
+      'Absolutely nothing happening with the weather in {town} tonight, and the crew took that as a personal favor.',
     ],
     seasons: 'any',
     climates: 'any',
@@ -72,8 +72,8 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     id: 'lateBus',
     name: 'The bus was late',
     lines: [
-      'The bus out of {town} sat in traffic for an hour and half the undercard got to the building in their gear.',
-      'Two of the boys missed the turn into {town} entirely and arrived during the second match.',
+      'The bus out of {town} sat dead in traffic for a full hour, and half the undercard rolled into the building already in their gear.',
+      'Two of the boys missed the turn into {town} entirely and did not show up until the second match was already underway.',
     ],
     seasons: 'any',
     climates: 'any',
@@ -84,7 +84,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'brokenAir',
     name: 'The air conditioning gave up',
-    lines: ['The air handling in the {town} building packed in at six and nobody could find whoever had the key.'],
+    lines: ['The air handling in the {town} building packed in flat at six o’clock, and nobody could track down whoever was holding the key.'],
     seasons: ['summer', 'spring'],
     climates: 'any',
     severity: 'flavour',
@@ -94,7 +94,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'localPaper',
     name: 'The local paper came',
-    lines: ['The {town} paper sent somebody who spent the whole night asking whether it was real.'],
+    lines: ['The {town} paper sent somebody down who spent the entire night asking whether any of it was real.'],
     seasons: 'any',
     climates: 'any',
     severity: 'flavour',
@@ -104,7 +104,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'mudLot',
     name: 'The parking lot was a swamp',
-    lines: ['It had rained on {town} all week and the overflow parking was six inches of mud. Two cars had to be towed out.'],
+    lines: ['It had rained on {town} all week straight, and the overflow parking turned to six full inches of mud. Two cars had to be towed clean out.'],
     seasons: ['spring', 'autumn'],
     climates: 'any',
     severity: 'flavour',
@@ -114,7 +114,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'longNight',
     name: 'Light until ten',
-    lines: ['Still light at ten in {town}. Half the crowd stood outside afterwards rather than go home.'],
+    lines: ['Still bright out at ten in {town}. Half this crowd stood around outside afterward rather than head home.'],
     seasons: ['summer'],
     climates: ['northern', 'mountain', 'temperate', 'plains'],
     severity: 'flavour',
@@ -124,7 +124,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'darkByFive',
     name: 'Dark by five',
-    lines: ['Dark by five in {town} and freezing by six. Everybody came straight from work and kept their coats on.'],
+    lines: ['Dark by five in {town} and flat-out freezing by six. Everybody came straight from work and never once took their coats off.'],
     seasons: ['winter'],
     climates: 'any',
     severity: 'flavour',
@@ -134,7 +134,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'windyNight',
     name: 'Wind off the flats',
-    lines: ['The wind came across {town} hard enough to move the merchandise table twice.'],
+    lines: ['The wind came ripping across {town} hard enough to move the merchandise table clean off its spot, twice.'],
     seasons: ['autumn', 'winter', 'spring'],
     climates: ['plains', 'coastal', 'desert'],
     severity: 'flavour',
@@ -144,7 +144,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'coldSnapDesert',
     name: 'Cold once the sun went',
-    lines: ['{town} was ninety at four and forty at nine, and nobody who came out in shirtsleeves was ready for it.'],
+    lines: ['{town} was ninety degrees at four and forty by nine, and nobody who came out in shirtsleeves was ready for that swing.'],
     seasons: ['autumn', 'spring', 'winter'],
     climates: ['desert'],
     severity: 'flavour',
@@ -154,7 +154,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'firstFrost',
     name: 'First frost',
-    lines: ['First real frost of the year in {town}. The parking lot was a skating rink and everybody came anyway.'],
+    lines: ['First real frost of the year hit {town}. The parking lot turned into a skating rink and every single person came anyway.'],
     seasons: ['autumn', 'winter'],
     climates: ['northern', 'mountain', 'temperate', 'plains'],
     severity: 'flavour',
@@ -164,7 +164,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'muggy',
     name: 'Close and muggy',
-    lines: ['The air in {town} did not move all night. Everyone in the building was soaked by the third match.'],
+    lines: ['The air in {town} did not move one bit all night. Everybody in that building was soaked clean through by the third match.'],
     seasons: ['summer'],
     climates: ['coastal', 'temperate', 'plains'],
     severity: 'flavour',
@@ -174,7 +174,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'seaFog',
     name: 'Sea fog',
-    lines: ['Fog came in off the water and sat on {town} all evening. You could not see the far side of the parking lot.'],
+    lines: ['Fog rolled in off the water and sat right on top of {town} all evening. You could not see across the parking lot.'],
     seasons: ['spring', 'autumn', 'winter'],
     climates: ['coastal'],
     severity: 'flavour',
@@ -184,7 +184,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'dustDevils',
     name: 'Dust in the air',
-    lines: ['Dust blowing through {town} all day. Everything in the building had a film on it by bell time.'],
+    lines: ['Dust blowing straight through {town} all day long. Everything inside that building had a film on it by bell time.'],
     seasons: ['summer', 'spring'],
     climates: ['desert', 'plains'],
     severity: 'flavour',
@@ -194,7 +194,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'indianSummer',
     name: 'A late warm spell',
-    lines: ['{town} got one more warm week than it had any right to. People came in shirtsleeves in October.'],
+    lines: ['{town} got one more warm week than it had any right to. People walked in wearing shirtsleeves in October.'],
     seasons: ['autumn'],
     climates: 'any',
     severity: 'flavour',
@@ -206,7 +206,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'steadyRain',
     name: 'Steady rain',
-    lines: ['It rained on {town} from lunchtime onward. A few of the walk-ups decided against it.'],
+    lines: ['It rained on {town} steady from lunchtime onward. A few of the walk-ups thought better of it.'],
     seasons: ['spring', 'autumn', 'winter'],
     climates: 'any',
     severity: 'minor',
@@ -216,7 +216,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'perfectEvening',
     name: 'A perfect evening',
-    lines: ['One of those evenings in {town} where people go looking for something to do. The walk-up was a gift.'],
+    lines: ['One of those perfect evenings in {town} where people go out looking for something, anything, to do. The walk-up was an absolute gift.'],
     seasons: ['spring', 'summer', 'autumn'],
     climates: 'any',
     severity: 'minor',
@@ -226,7 +226,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'coldSnap',
     name: 'Cold snap',
-    lines: ['A cold snap hit {town} and the older regulars stayed by the fire.'],
+    lines: ['A cold snap hit {town} hard, and the older regulars stayed home by the fire instead.'],
     seasons: ['winter', 'autumn'],
     climates: ['northern', 'mountain', 'plains', 'temperate'],
     severity: 'minor',
@@ -236,7 +236,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'heatwave',
     name: 'Heatwave',
-    lines: ['{town} spent the week over a hundred. Nobody wanted to sit in a hall with no air moving.'],
+    lines: ['{town} spent the entire week over a hundred degrees. Nobody wanted to sit in a hall with no air moving through it.'],
     seasons: ['summer'],
     climates: ['desert', 'plains', 'temperate'],
     severity: 'minor',
@@ -246,7 +246,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'roadworks',
     name: 'The road in was shut',
-    lines: ['They closed the main road into {town} for resurfacing and never told anybody. Half the crowd was late.'],
+    lines: ['They closed the main road into {town} for resurfacing and never told a soul about it. Half this crowd showed up late.'],
     seasons: 'any',
     climates: 'any',
     severity: 'minor',
@@ -256,7 +256,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'localFixture',
     name: 'The local side were at home',
-    lines: ['The local side were at home in {town} the same night. You cannot compete with that and should not try.'],
+    lines: ['The local side were playing at home in {town} that same night. You cannot compete with that, and you should not even try.'],
     seasons: ['autumn', 'winter', 'spring'],
     climates: 'any',
     severity: 'minor',
@@ -266,7 +266,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'townFestival',
     name: 'The town was already out',
-    lines: ['{town} had a festival on and the whole place was already in the street looking for a reason to stay out.'],
+    lines: ['{town} had a festival going on, and the whole place was already out in the street looking for one more reason to stay out.'],
     seasons: ['summer', 'autumn'],
     climates: 'any',
     severity: 'minor',
@@ -279,8 +279,8 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     id: 'heavySnow',
     name: 'Heavy snow',
     lines: [
-      'Snow came down on {town} through the afternoon and did not stop. Anyone out of town stayed out of town.',
-      '{town} took eight inches of snow before the doors even opened.',
+      'Snow came down on {town} straight through the afternoon and never let up. Anyone out of town stayed put and stayed home.',
+      '{town} took a full eight inches of snow before the doors had even opened.',
     ],
     seasons: ['winter'],
     climates: ['northern', 'mountain'],
@@ -291,7 +291,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'thunderstorm',
     name: 'Thunderstorms',
-    lines: ['Storms rolled over {town} all evening. The lights flickered twice and the crowd cheered both times.'],
+    lines: ['Storms rolled right over {town} all evening long. The lights flickered twice, and this crowd cheered both times like it was part of the show.'],
     seasons: ['spring', 'summer'],
     climates: ['plains', 'temperate', 'coastal'],
     severity: 'notable',
@@ -301,7 +301,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'flooding',
     name: 'Flooded roads',
-    lines: ['The low roads into {town} were under water. A lot of people turned round and went home.'],
+    lines: ['The low roads into {town} went straight under water. A whole lot of people turned right around and headed home.'],
     seasons: ['spring', 'autumn'],
     climates: ['coastal', 'temperate', 'plains'],
     severity: 'notable',
@@ -311,7 +311,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'iceStorm',
     name: 'Ice storm',
-    lines: ['Freezing rain glazed {town} an hour before the doors. The ones who made it deserved a better show.'],
+    lines: ['Freezing rain glazed the whole town of {town} an hour before the doors. The ones who braved it in deserved a whole lot better show than most nights.'],
     seasons: ['winter'],
     climates: ['northern', 'mountain', 'plains'],
     severity: 'notable',
@@ -321,7 +321,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'wildfireSmoke',
     name: 'Smoke in the air',
-    lines: ['Smoke from the fires up the valley sat over {town} all week. You could taste it in the building.'],
+    lines: ['Smoke from the fires up the valley sat heavy over {town} all week long. You could taste it right there in the building.'],
     seasons: ['summer', 'autumn'],
     climates: ['desert', 'mountain'],
     severity: 'notable',
@@ -331,7 +331,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'transitStrike',
     name: 'The buses stopped',
-    lines: ['The drivers in {town} walked out at six. If you did not have a car you did not have a show.'],
+    lines: ['The drivers in {town} walked off the job at six sharp. If you did not have a car, you flat-out did not have a show.'],
     seasons: 'any',
     climates: 'any',
     severity: 'notable',
@@ -341,7 +341,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'bigWeekend',
     name: 'The town was packed',
-    lines: ['{town} was full for the long weekend and every one of them was looking for a ticket to something.'],
+    lines: ['{town} was packed wall to wall for the long weekend, and every single one of them was hunting for a ticket to something.'],
     seasons: ['summer'],
     climates: 'any',
     severity: 'notable',
@@ -354,8 +354,8 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     id: 'blizzard',
     name: 'Blizzard',
     lines: [
-      'A blizzard shut {town} down. The people who got there could have all sat in the first three rows.',
-      'They were plowing the road to the building in {town} while the ring was going up.',
+      'A full-on blizzard shut {town} down cold. Everybody who actually made it could have sat together in the first three rows.',
+      'They were still plowing the road to the building in {town} while the ring was going up backstage.',
     ],
     seasons: ['winter'],
     climates: ['northern', 'mountain'],
@@ -363,30 +363,30 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     draw: 0.4,
     weight: 22,
     warnings: [
-      'The service has {town} under a blizzard watch from noon. They are talking about feet, not inches.',
-      'There is a system coming down on {town} that has already buried three counties north of it.',
+      'The weather service has {town} under a blizzard watch starting at noon. They are talking feet now, not inches.',
+      'There is a system barreling down on {town} that has already buried three counties north of it.',
     ],
   },
   {
     id: 'tropicalStorm',
     name: 'Tropical storm',
-    lines: ['A storm came up the coast into {town} and the whole seaboard was told to stay indoors.'],
+    lines: ['A tropical storm came barreling up the coast right into {town}, and the whole seaboard was told to stay indoors.'],
     seasons: ['summer', 'autumn'],
     climates: ['coastal'],
     severity: 'severe',
     draw: 0.35,
     weight: 20,
     warnings: [
-      'The storm is tracking up the coast and {town} is inside the cone.',
-      'They have started boarding up the front on the seaward side of {town}.',
+      'The storm is tracking straight up the coast, and {town} sits right inside the cone.',
+      'They have already started boarding up the front on the seaward side of {town}.',
     ],
   },
   {
     id: 'tornadoWarning',
     name: 'Tornado warning',
     lines: [
-      'Sirens went off across {town} two hours before the doors. The building filled up with people who were not there for wrestling.',
-      'A tornado touched down twenty miles from {town} and nobody in the county went anywhere that night.',
+      'Sirens went off clean across {town} two hours before the doors. That building filled right up with people who were not there for wrestling at all.',
+      'A tornado touched down twenty miles from {town}, and nobody in the whole county went anywhere that night.',
     ],
     seasons: ['spring', 'summer'],
     climates: ['plains'],
@@ -394,36 +394,36 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     draw: 0.32,
     weight: 20,
     warnings: [
-      "The whole of {town}'s county is under a watch box from four in the afternoon.",
-      'There is a line of cells building west of {town} and the air has gone that color.',
+      "The whole of {town}'s county is under a watch box starting at four in the afternoon.",
+      'There is a line of cells building west of {town}, and the sky has already gone that color.',
     ],
   },
   {
     id: 'powerCut',
     name: 'The grid went down',
-    lines: ['Half of {town} lost power at five. The building ran off a generator and looked it.'],
+    lines: ['Half of {town} lost power dead at five. That building ran off a generator all night, and it showed.'],
     seasons: 'any',
     climates: 'any',
     severity: 'severe',
     draw: 0.45,
     weight: 14,
     warnings: [
-      'The grid over {town} has been browning out all week and the utility is not promising anything.',
-      '{town} is on rolling outages and nobody will say which block goes dark when.',
+      'The grid over {town} has been browning out all week, and the utility is not promising anybody anything.',
+      '{town} is on rolling outages, and nobody is saying which block goes dark next.',
     ],
   },
   {
     id: 'floodWarning',
     name: 'The river came up',
-    lines: ['The river came up through {town} and took the bottom end of the town with it. Nobody was thinking about a wrestling show.'],
+    lines: ['The river came up right through {town} and took the bottom end of town clean with it. Nobody there was thinking about a wrestling show that night.'],
     seasons: ['spring'],
     climates: ['coastal', 'temperate', 'plains'],
     severity: 'severe',
     draw: 0.38,
     weight: 12,
     warnings: [
-      'The river through {town} is a foot off the top and it has been raining upstream for three days.',
-      'They have sandbags on the low road into {town} and they did not put them there for fun.',
+      'The river through {town} is sitting a foot off the top, and it has been raining upstream for three straight days.',
+      'They have sandbags stacked on the low road into {town}, and they sure did not put them there for fun.',
     ],
   },
 
@@ -432,8 +432,8 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
     id: 'roofCollapse',
     name: 'The roof came in',
     lines: [
-      'The roof of the building in {town} came down under the weight of the snow the night before the show. Nobody was inside. It was very close to being the other thing.',
-      'Structural engineers condemned the roof in {town} the morning of the show and put a fence round the whole block.',
+      'The roof of the building in {town} came down under the weight of the snow the night before the show. Nobody was inside — but this was a very close call, and everybody knows it.',
+      'Structural engineers condemned the roof in {town} the very morning of the show and put a fence around the entire block.',
     ],
     seasons: ['winter'],
     climates: ['northern', 'mountain'],
@@ -444,7 +444,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'hurricane',
     name: 'Hurricane',
-    lines: ['{town} was evacuated ahead of the storm. The trucks turned round on the highway and went home.'],
+    lines: ['{town} was evacuated ahead of the hurricane. The trucks turned right around on the highway and headed home.'],
     seasons: ['autumn'],
     climates: ['coastal'],
     severity: 'catastrophe',
@@ -454,7 +454,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'tornadoHit',
     name: 'A tornado went through',
-    lines: ['A tornado went through {town} in the afternoon. The building is still standing. Plenty either side of it is not.'],
+    lines: ['A tornado tore right through {town} in the afternoon. The building is still standing — plenty on either side of it is not.'],
     seasons: ['spring', 'summer'],
     climates: ['plains'],
     severity: 'catastrophe',
@@ -464,7 +464,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'buildingFire',
     name: 'Fire in the building',
-    lines: ['A fire in the plant room in {town} put the building out of use with four hours to go. No show, and the rent is not coming back.'],
+    lines: ['A fire in the plant room in {town} put the whole building out of use with four hours to go. No show tonight, and that rent is never coming back.'],
     seasons: 'any',
     climates: 'any',
     severity: 'catastrophe',
@@ -474,7 +474,7 @@ export const WEATHER_EVENTS: WeatherEvent[] = [
   {
     id: 'quarantine',
     name: 'Public gatherings suspended',
-    lines: ['The county health board suspended public gatherings in {town} on the Thursday. There was no arguing with it.'],
+    lines: ['The county health board suspended public gatherings in {town} right on Thursday. There was absolutely no arguing with it.'],
     seasons: 'any',
     climates: 'any',
     severity: 'catastrophe',

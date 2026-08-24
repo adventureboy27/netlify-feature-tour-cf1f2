@@ -36,7 +36,7 @@ export const SPONSORS: Sponsor[] = [
     requiresRating: 45,
     weeklyFee: 2_500,
     conditions: [],
-    blurb: 'A banner over the entrance and somebody who wants their name said on the microphone.',
+    blurb: 'A banner over the entrance, and somebody who really wants their name said out loud on the microphone.',
   },
   {
     id: 'regionalBrand',
@@ -44,10 +44,10 @@ export const SPONSORS: Sponsor[] = [
     requiresRating: 62,
     weeklyFee: 12_000,
     conditions: [
-      { kind: 'minAttendance', value: 2_000, text: 'Two thousand people, or it is not worth the banner.' },
-      { kind: 'hardcoreCeiling', value: 60, text: 'Keep it out of the gutter.' },
+      { kind: 'minAttendance', value: 2_000, text: 'Two thousand people in that building, or it is not worth the banner to us.' },
+      { kind: 'hardcoreCeiling', value: 60, text: 'Keep it out of the gutter, plain and simple.' },
     ],
-    blurb: 'Regional, respectable, and reads the newspaper before renewing.',
+    blurb: 'Regional, respectable, and reads every word of the newspaper before renewing.',
   },
   {
     id: 'nationalBrand',
@@ -55,9 +55,9 @@ export const SPONSORS: Sponsor[] = [
     requiresRating: 78,
     weeklyFee: 45_000,
     conditions: [
-      { kind: 'hardcoreCeiling', value: 25, text: 'Family viewing. No blood, no weapons, none of it.' },
+      { kind: 'hardcoreCeiling', value: 25, text: 'Family viewing, full stop. No blood, no weapons, none of it, ever.' },
     ],
-    blurb: 'The biggest cheque on the board, and the one with the shortest leash.',
+    blurb: 'The single biggest check on the board, and the one with by far the shortest leash.',
   },
   {
     id: 'beerBrand',
@@ -65,9 +65,9 @@ export const SPONSORS: Sponsor[] = [
     requiresRating: 70,
     weeklyFee: 38_000,
     conditions: [
-      { kind: 'hardcoreFloor', value: 35, text: 'Our customers are not watching this for the chain wrestling.' },
+      { kind: 'hardcoreFloor', value: 35, text: 'Our customers are not tuning in for a bunch of chain wrestling, that much we know.' },
     ],
-    blurb: 'Wants it loud, wants it rough, and will leave the moment you go family-friendly.',
+    blurb: 'Wants it loud, wants it rough, and walks the second you go family-friendly on them.',
   },
   {
     id: 'apparelBrand',
@@ -75,9 +75,9 @@ export const SPONSORS: Sponsor[] = [
     requiresRating: 74,
     weeklyFee: 30_000,
     conditions: [
-      { kind: 'marketableStar', value: 75, text: 'We need somebody worth putting on a shirt.' },
+      { kind: 'marketableStar', value: 75, text: 'We need one real somebody worth putting on a shirt.' },
     ],
-    blurb: 'Does not care how you book as long as there is a face worth printing.',
+    blurb: 'Does not care one bit how you book, as long as there is a face out there worth printing.',
   },
 ];
 
