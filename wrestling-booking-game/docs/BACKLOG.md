@@ -1731,7 +1731,7 @@ motion off, nowhere to manage a save without already being mid-game. Fixed all t
 along the way.
 
 - **Named it**: Rival Promotions — Wrestling Booker Edition. `index.html`'s `<title>` and the single-file
-  build script's hardcoded (and stale — leftover "TAW") title both updated.
+  build script's hardcoded (and stale — leftover "TAW") title both updated. *(Renamed again, see below.)*
 - **`src/ui/screens/TitleScreen.tsx`** (new) — the actual entry point now. Shows the logo (user-supplied art;
   vetted for trademark issues before use — an earlier draft reproduced WWE's championship-belt logo elements
   and was rejected and regenerated), then `Continue` (only when `savedGameSummary()` finds a save, showing the
@@ -2435,3 +2435,34 @@ adds a new, parallel system rather than bending either existing one to fit.
   (`CatastropheKind = 'gearFailure'`, needs a genuinely-missing single "effective owned gear tonight"
   value the five current call sites each read independently); equipment can hurt somebody backstage,
   routed through the already-built, cause-agnostic `NoShowCall` mechanism.
+
+---
+
+## Renamed again: Pro Wrestling: Rival Booker Battle
+
+Player supplied a new logo (a gold championship-belt mark reading "Pro Wrestling / Rival Booker
+Battle") and asked for the name to change to match. Same four spots the original naming pass
+(`docs/BACKLOG.md`'s "Named the game, and gave it a real front door") identified as the game's only
+player-facing name surfaces, all updated together so nothing lagged behind:
+
+- **`src/ui/assets/title-logo.jpg`** — swapped for the new art. Same flat dark background as the
+  previous logo, so the existing "plaque" framing in `TitleScreen.tsx` (hairline gold border, rounded
+  corners, shadow) needed no changes to still read correctly — confirmed with a live screenshot rather
+  than assumed.
+- **`src/ui/screens/TitleScreen.tsx`** — the logo `<img>`'s `alt` text updated to "Pro Wrestling: Rival
+  Booker Battle".
+- **`src/ui/screens/SettingsScreen.tsx`** — the About panel's name/badge pair updated from "Rival
+  Promotions" / "Wrestling Booker Edition" to "Rival Booker Battle" / "Pro Wrestling", keeping the same
+  name-plus-genre-badge layout the panel already used.
+- **`index.html`** and **`scripts/single-file.mjs`** — both hardcoded `<title>` tags updated to "Pro
+  Wrestling: Rival Booker Battle" (the single-file script's copy is a separate literal string, not
+  generated from `index.html`, so it needs its own edit every time — same trap the original naming pass
+  flagged when it found this one stale with a leftover "TAW" title).
+- `package.json`'s `"name": "wrestling-booking-game"` deliberately left alone — an internal package
+  slug, never shown to a player, not part of the original naming pass either.
+- Verified: `tsc --noEmit` clean; `npm run build` clean, and grepping the built bundle confirms the new
+  (larger) logo still inlines as a single `data:image/jpeg;base64` occurrence with zero lingering
+  `/assets/title-logo` URL — the exact asset-inlining bug the original naming pass hit and fixed, re-
+  checked here since the new file is a different size; `npm run play` clean, its `<title>` confirmed
+  correct in the built single-file output. Live screenshots of both the title screen and Settings screen
+  confirm the new logo renders correctly in its frame and both text surfaces read the new name.

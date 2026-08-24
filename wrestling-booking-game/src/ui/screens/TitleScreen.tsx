@@ -23,7 +23,7 @@ function Logo() {
     // at transparency: a hairline gold border echoing the belt's own trim,
     // rounded corners, and a shadow that lifts it off the page.
     <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-amber-700/40 shadow-hero">
-      <img src={titleLogoUrl} alt="Rival Promotions — Wrestling Booker Edition" className="block w-full select-none" />
+      <img src={titleLogoUrl} alt="Pro Wrestling: Rival Booker Battle" className="block w-full select-none" />
     </div>
   );
 }

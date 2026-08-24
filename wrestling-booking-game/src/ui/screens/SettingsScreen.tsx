@@ -107,8 +107,8 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         <SectionHead>About</SectionHead>
         <Panel className="p-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold">Rival Promotions</span>
-            <Badge tone="info">Wrestling Booker Edition</Badge>
+            <span className="text-sm font-bold">Rival Booker Battle</span>
+            <Badge tone="info">Pro Wrestling</Badge>
           </div>
           <p className="mt-1 text-[11px] text-neutral-500">
             Fully offline. Nothing here is ever sent anywhere — your save lives only in this browser unless you
