@@ -44,6 +44,30 @@
 import type { Venue } from '../engine/types';
 
 export const VENUES: Venue[] = [
+  // ---------------------------------------------------------------------- the floor
+  {
+    id: 'backyardRing',
+    name: "Somebody's Backyard",
+    kind: 'openAir',
+    capacity: 60,
+    // Not rented. Borrowed. There is no landlord to bill you.
+    rentalCost: 0,
+    prestige: 1,
+    minCompanyRating: 0,
+    blurb: 'A chain-link fence, a folding table standing in for an apron, and however many neighbors show up before somebody calls the cops.',
+    houseCut: 0,
+    // A cooler of warm soda, honor system.
+    concessionsPerHead: 0.1,
+    merchCut: 0,
+    // Barely room for a boombox, let alone a rig.
+    productionCapacity: 2,
+    atmosphere: -2,
+    loadIn: 0,
+    // A yard has a sky over it same as anywhere else — the weather does not
+    // care that the rent was free.
+    outdoor: true,
+  },
+
   // ---------------------------------------------------------------- open to all
   {
     id: 'schoolGym',
@@ -187,6 +211,25 @@ export const VENUES: Venue[] = [
     loadIn: 450,
     // The first real gamble on the list: seven times the armory's seats for
     // less than its rent, and a sky over all of them.
+    outdoor: true,
+  },
+  {
+    id: 'festivalGrounds',
+    name: 'Riverside Festival Field',
+    kind: 'openAir',
+    capacity: 4_200,
+    rentalCost: 2_800,
+    prestige: 19,
+    minCompanyRating: 26,
+    blurb: 'A whole festival worth of foot traffic already walking past, and a stage rigged for a headliner who is not you tonight.',
+    // A booth among a hundred other booths. The festival owns the gate, the
+    // food trucks, and a piece of whatever you sell too.
+    houseCut: 0.06,
+    concessionsPerHead: 0.6,
+    merchCut: 0.1,
+    productionCapacity: 16,
+    atmosphere: 5,
+    loadIn: 500,
     outdoor: true,
   },
 

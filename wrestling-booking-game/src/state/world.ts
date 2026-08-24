@@ -95,7 +95,7 @@ export interface CupInvitation {
   expiresWeek: number;
 }
 import { formTeams, teamIdFactory, tagTeamCountFor } from '../engine/world/tagTeams';
-import { bestFittingVenue } from '../data/venues';
+import { bestFittingVenue, venueById } from '../data/venues';
 import { computeDemand, fairTicketPrice, potentialAudience } from '../engine/economy/showBudget';
 import { TERRITORIES, createTerritories } from '../data/territories';
 import { OWNER_PROFILES } from '../data/owners';
@@ -1352,8 +1352,15 @@ export function defaultShowSetup(settings: WorldSettings): ShowSetup {
     settings,
     settings.startingTerritoryFollowing,
   );
-  const venue = bestFittingVenue(settings.startingCompanyRating, potentialAudience(openingDemand, settings));
+  // A preset can pin exactly where it opens instead of leaving it to the
+  // algorithm below — the backyard start needs to open in a literal
+  // backyard, which bestFittingVenue would never pick on its own (it is
+  // indoor-only by design, and a yard is not indoors). Every other preset
+  // leaves both unset and gets the derived pick, unchanged.
+  const venue = (settings.startingVenueId && venueById(settings.startingVenueId)) ||
+    bestFittingVenue(settings.startingCompanyRating, potentialAudience(openingDemand, settings));
   const home =
+    (settings.startingTerritoryId ? TERRITORIES.find((t) => t.id === settings.startingTerritoryId) : undefined) ??
     [...TERRITORIES].sort((a, b) => a.capacity - b.capacity).find((t) => t.capacity >= venue.capacity) ??
     [...TERRITORIES].sort((a, b) => b.capacity - a.capacity)[0]!;
   return {

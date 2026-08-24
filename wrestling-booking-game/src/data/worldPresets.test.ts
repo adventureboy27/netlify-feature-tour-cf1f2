@@ -5,6 +5,7 @@ import { bestFittingVenue, venueById } from './venues';
 import { divisionSplit } from '../engine/generate/wrestler';
 import { tagTeamCountFor } from '../engine/world/tagTeams';
 import { computeDemand, potentialAudience, fairTicketPrice } from '../engine/economy/showBudget';
+import { defaultShowSetup } from '../state/world';
 
 const IDS = ['territoryDays', 'standard', 'bigMoney', 'sinkOrSwim'] as const;
 
@@ -120,5 +121,50 @@ describe('the presets actually differ', () => {
     const base = defaultWorldSettings();
     expect(big.mandateStrikesBeforeFiring).toBeLessThan(base.mandateStrikesBeforeFiring);
     expect(territory.mandateStrikesBeforeFiring).toBeGreaterThan(base.mandateStrikesBeforeFiring);
+  });
+});
+
+// Backyard is a genuinely different shape of preset from the other four — a
+// ten-person roster fails several of the assertions above outright (it is
+// smaller than "a roster the reference genre would recognise" demands, and
+// it opens in a venue none of the other four would ever be routed to). Per
+// CLAUDE.md, that means re-expressing what's actually true of a deliberately
+// tiny start in its own block, not lowering the bar the other four are held
+// to. IDS above is left untouched on purpose.
+describe('the backyard preset', () => {
+  const s = worldSettingsFromPreset('backyard');
+
+  it('starts exactly ten wrestlers, five and five', () => {
+    expect(s.startingRosterSize).toBe(10);
+    const women = divisionSplit(s.startingRosterSize, s.womensRosterShare, s.womensDivisionFloor).filter(
+      (g) => g === 'f',
+    ).length;
+    expect(women).toBe(5);
+    expect(s.startingRosterSize - women).toBe(5);
+  });
+
+  it('still fields a tag division at that size', () => {
+    expect(tagTeamCountFor(s.startingRosterSize, s)).toBe(3);
+  });
+
+  it('opens in the backyard, not wherever the algorithm would have picked', () => {
+    const setup = defaultShowSetup(s);
+    expect(setup.venueId).toBe('backyardRing');
+    const venue = venueById(setup.venueId)!;
+    expect(venue.capacity).toBeLessThan(bestFittingVenue(s.startingCompanyRating, 1).capacity);
+  });
+
+  it('is the lowest-cash, least-known, most-chaotic start of the five', () => {
+    // Not a claim about how many weeks that cash actually lasts — CLAUDE.md
+    // is explicit that balance claims like that get measured in a played
+    // save (tools/probe.mjs), not baked into a unit test as a brittle
+    // formula. This just locks the structural fact every other assertion in
+    // this block depends on: backyard is genuinely the bottom of the ladder.
+    const base = defaultWorldSettings();
+    for (const other of ['territoryDays', 'standard', 'bigMoney', 'sinkOrSwim'] as const) {
+      expect(s.startingCash, other).toBeLessThan(worldSettingsFromPreset(other).startingCash);
+    }
+    expect(s.startingCompanyRating).toBeLessThan(base.startingCompanyRating);
+    expect(s.startingTerritoryFollowing).toBeLessThan(base.startingTerritoryFollowing);
   });
 });

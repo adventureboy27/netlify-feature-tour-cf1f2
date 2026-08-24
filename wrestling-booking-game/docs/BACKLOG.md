@@ -1771,3 +1771,77 @@ along the way.
   `npm run sim`, `npm run build`, and `npm run play` all clean; a live dev-server + Playwright pass covering
   the title screen with and without a save, the full new-game flow, Settings from both entry points, and a
   page reload to confirm `Continue` correctly picks up a save written in a prior session.
+
+---
+
+## Equipment economy, Phase 1 of 5 — the Backyard start, and Festival as a venue
+
+Player asked for a genuinely lowest starting point (ten wrestlers, five and five, almost no money,
+a bad ring in a backyard) plus a much deeper equipment economy — ring tiers, barricade tiers, camera
+tiers, truck upkeep, equipment-gated match types — building out from that floor. Full 5-phase plan
+at the top of this session; this ships phase 1 alone, which the plan calls out as the one to land
+before anything else, since later phases only matter once there is a genuinely bad starting ring to
+improve on.
+
+- **`engine/types.ts`**: `WorldPresetName` widened to add `'backyard'`. `WorldSettings` gets two new
+  optional fields, `startingVenueId?: Id` and `startingTerritoryId?: Id` — unset for every existing
+  preset, so nothing about the other four changes.
+- **`data/venues.ts`**: two new venues. `backyardRing` — capacity 60, `rentalCost: 0`, `outdoor: true`,
+  the worst production capacity and atmosphere in the list — is the actual floor `backyard` opens on.
+  `festivalGrounds` — capacity 4,200, `outdoor: true`, a real mid-tier venue the player grows into by
+  choice later through the ordinary venue picker, not a starting point for anyone.
+- **`state/world.ts`**: `defaultShowSetup()` now checks `settings.startingVenueId`/`startingTerritoryId`
+  first and only falls back to the existing algorithmic venue/territory derivation when either is unset
+  — every existing preset takes the exact same path it always did. `backyardRing` is genuinely
+  `outdoor: true` (a backyard has a sky over it) rather than faking it indoor to slip through
+  `bestFittingVenue`'s indoor-only filter, since the new override makes that workaround unnecessary — a
+  deliberate improvement on the plan's original literal suggestion.
+- **`engine/world/settings.ts`**: the `backyard` `WORLD_PRESETS` entry — $8,000 cash (below Territory
+  Days' $25,000, the new floor), 10-wrestler roster at an exact 5/5 split (`womensDivisionFloor: 5`,
+  the max `divisionSplit` can support at this size), `tagTeamsMin: 3` so a real tag division still
+  fits, rating 12 and following 10 (nobody outside the block has heard of you), pinned to
+  `backyardRing` in `brambleHollow` (the smallest, most locally-loyal territory on the map),
+  `chaosLevel` at the top of the scale.
+- **`data/worldPresets.ts`**: matching `WORLD_PRESET_INFO` entry, plus a real stale-data bug fixed
+  while touching the file — `sinkOrSwim`'s blurb said "Fourteen wrestlers" when the setting has always
+  read 24.
+- **`ui/screens/NewGameScreen.tsx`**: default preset selection changed from `standard` to `backyard`,
+  per the player's explicit ask ("I want the default selection to be at the bottom") — `backyard` sits
+  last in the picker (`WORLD_PRESET_INFO` is rendered in array order) and is now also the one selected
+  on load.
+- **Tests, re-expressed rather than weakened**: `backyard` cannot clear several of the existing
+  cross-preset assertions in `worldPresets.test.ts` (`startingRosterSize >= 24` chief among them) —
+  those assertions are real and correct for the other four presets, so per CLAUDE.md `backyard` gets
+  its own `describe` block with its own re-expressed claims (exact roster size and split, exact tag
+  team count, opens in `backyardRing`, is the lowest-cash/least-known/most-chaotic of the five)
+  instead. The hardcoded `IDS` array and the existing four-preset tests are untouched. Two pre-existing
+  tests broke from the new venue and needed re-expressing, not weakening: `venues.test.ts`'s
+  `bestFittingVenue` fallback check assumed the first entry in `availableVenues()` was always the
+  smallest *indoor* room, which stopped being true the moment an outdoor `backyardRing` sorted first —
+  fixed to explicitly filter to indoor rooms, matching what `bestFittingVenue` itself actually falls
+  back to. `residency.test.ts` compared residency rent against the cheapest venue's rental cost, which
+  broke outright once that cheapest venue was free — fixed to compare against the cheapest *rentable*
+  room, since a backyard nobody charges rent on was never "a room you could tour" in the sense that
+  test meant.
+- **Balance, checked live rather than asserted in a test** (CLAUDE.md: measure in a played save):
+  played a full backyard opening through the actual UI. Ten wrestlers generated 5/5 as expected, the
+  card required real triage to fill (`"Only 10 can work — not enough for a card of 6"`), and the first
+  show ran live from Bramble Hollow with a starting rating of 12 exactly as configured. The auto-filled,
+  no-roster-triage run went $867 into the red in week one — payroll for a full ten-person roster
+  (~$8,800/wk) dwarfing anything a 60-seat yard can gross is real and expected, not a bug: wage
+  generation isn't scaled to company rating anywhere in the codebase, for any preset, so the entire
+  point of this starting position is that the player cannot actually afford the roster they opened
+  with. Confirmed this is a real decision and not a guaranteed-loss cutscene by reading the fold logic
+  in `store.ts`: `weeksInTheRed` only counts *consecutive* red weeks, resets to 0 the instant a week
+  closes non-negative, the default grace period is 4 weeks, releasing an over-guaranteed contract
+  costs real severance but plenty of the opening roster generates as "Free to cut," and the bank offers
+  a loan before the grace period actually runs out. A player who triages the roster in week one or two
+  can flip a week positive and reset the clock indefinitely; a player who does nothing folds inside a
+  month — exactly the kind of harder, more interesting decision CLAUDE.md's own tie-break rule asks
+  for, not the "twelve wrestlers on 8k, folded by week nine even playing perfectly" cutscene pattern it
+  warns against.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2,829 tests passing (2 pre-existing tests
+  re-expressed as described above, zero baselines lowered); `npm run sim` clean; `npm run build` clean;
+  a live dev-server + Playwright pass through the full new-game flow on `backyard` confirming the
+  default selection, the roster size and split, the pinned venue and territory, and a full first show
+  resolving end to end.

@@ -98,7 +98,12 @@ describe('bestFittingVenue', () => {
     for (const rating of [0, 30, 50, 70, 90]) {
       for (const audience of [80, 400, 1200, 5000, 20000]) {
         const venue = bestFittingVenue(rating, audience);
-        const smallest = availableVenues(rating)[0]!;
+        // bestFittingVenue is indoor-only (see its own doc comment), so the
+        // fallback it can actually land on is the smallest *indoor* room, not
+        // availableVenues(rating)[0] — that list also carries outdoor rooms
+        // like the backyard, which bestFittingVenue would never return.
+        const indoor = availableVenues(rating).filter((v) => !v.outdoor);
+        const smallest = indoor.reduce((a, b) => (b.capacity < a.capacity ? b : a));
         if (venue.id === smallest.id) continue; // nothing fit; falling back is allowed
         expect(audience).toBeGreaterThanOrEqual(venue.capacity * VENUE_COMFORTABLE_FILL);
       }

@@ -97,7 +97,11 @@ describe('these are not the touring rooms', () => {
   });
 
   it('rents for less a week than the cheapest room you could tour', () => {
-    const cheapest = Math.min(...VENUES.map((v) => v.rentalCost));
+    // Free venues (the backyard lot — nobody is charging rent on somebody's
+    // yard) are not "a room you could tour" in the sense this test means;
+    // they would zero out the comparison for every residency. The cheapest
+    // *rentable* room is the real floor to compare against.
+    const cheapest = Math.min(...VENUES.filter((v) => v.rentalCost > 0).map((v) => v.rentalCost));
     for (const h of RESIDENCY_HOMES) expect(h.rentPerWeek).toBeLessThanOrEqual(cheapest * 2.5);
   });
 

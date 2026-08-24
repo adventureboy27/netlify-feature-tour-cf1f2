@@ -2276,6 +2276,35 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
     rivalPromotionCount: 8,
     chaosLevel: 3,
   },
+  backyard: {
+    promotionName: 'Backlot Wrestling',
+    promotionArchetype: 'hardcore',
+    // The actual floor. Below Territory Days' 25k on purpose — this is not a
+    // hard promotion to run, it is barely a promotion yet. One folding table,
+    // a tarp over plywood, and whatever the ten of you can split.
+    startingCash: 8_000,
+    startingRosterSize: 10,
+    womensRosterShare: 0.5,
+    // divisionSplit(10, 0.5, floor) only produces an exact 5/5 split when the
+    // floor itself is <= 5 — the default of 6 fights the split at this size.
+    womensDivisionFloor: 5,
+    // tagTeamCountFor rounds rosterSize/wrestlersPerTagTeam and clamps to
+    // [tagTeamsMin, tagTeamsMax]. At 10 wrestlers that rounds to 1, so the
+    // floor has to do the work; 3 is the target because formTeams only pairs
+    // same-gender wrestlers, and a 5/5 split can't support more than 4 teams.
+    tagTeamsMin: 3,
+    // Nobody outside the block has heard of you yet.
+    startingCompanyRating: 12,
+    startingTerritoryFollowing: 10,
+    startingVenueId: 'backyardRing',
+    startingTerritoryId: 'brambleHollow',
+    // An owner who is also your neighbor gives you a lot of rope.
+    mandateStrikesBeforeFiring: 5,
+    // Barely anybody else is running shows this small yet.
+    rivalPromotionCount: 3,
+    // The least controlled start there is.
+    chaosLevel: 3,
+  },
 };
 
 export function worldSettingsFromPreset(preset: Exclude<WorldPresetName, 'custom'>): WorldSettings {

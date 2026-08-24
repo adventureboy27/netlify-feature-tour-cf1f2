@@ -3306,6 +3306,15 @@ export interface WorldSettings {
   rivalHouseShare: number;
   /** How over a new promotion already is in the town it comes from. */
   startingTerritoryFollowing: number;
+  /**
+   * Pin the opening venue/territory instead of deriving them from
+   * startingCompanyRating. Unset for every preset except the ones that
+   * genuinely need to start somewhere specific — defaultShowSetup() falls
+   * back to the algorithmic pick when either is absent, so this is
+   * opt-in and changes nothing for a preset that doesn't set it.
+   */
+  startingVenueId?: Id;
+  startingTerritoryId?: Id;
 
   // Owner mandates — §17. LOCKED: three failures ends the run.
   ownerMandatesEveryWeeks: number;
@@ -3947,7 +3956,7 @@ export interface WorldSettings {
   hallOfFameEnabled: boolean;
 }
 
-export type WorldPresetName = 'territoryDays' | 'standard' | 'bigMoney' | 'sinkOrSwim' | 'custom';
+export type WorldPresetName = 'territoryDays' | 'standard' | 'bigMoney' | 'sinkOrSwim' | 'backyard' | 'custom';
 
 // ============================================================================
 // §17 — Owner and mandates (types only; system lands in M5)

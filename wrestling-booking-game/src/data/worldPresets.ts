@@ -1,4 +1,4 @@
-// The four ways to start a career.
+// The five ways to start a career.
 //
 // WORLD_PRESETS in engine/world/settings.ts carries the numbers; this carries
 // what the player is told about them. Split because the numbers are engine
@@ -49,9 +49,16 @@ export const WORLD_PRESET_INFO: WorldPresetInfo[] = [
   {
     id: 'sinkOrSwim',
     label: 'Sink or swim',
-    blurb: 'Fourteen wrestlers, a hall that holds nine hundred souls, and exactly one month of rent.',
+    blurb: 'Twenty-four wrestlers, a hall that holds nine hundred souls, and exactly one month of rent.',
     theSqueeze:
       'Opening night roughly breaks even, no more. There is zero cushion here, so one bad card or one injury to the wrong person is the whole promotion, gone.',
+  },
+  {
+    id: 'backyard',
+    label: 'Backyard',
+    blurb: 'Ten of you, a tarp over plywood in somebody’s yard, and a folding table standing in for an apron.',
+    theSqueeze:
+      'This is not a promotion with a bad ring, it is a bad ring with a promotion attached. Everything you own is worse than it should be until you buy your way out of it, and nobody outside the block has heard of you yet.',
   },
 ];
 

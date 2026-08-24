@@ -52,7 +52,7 @@ export function NewGameScreen() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  const [preset, setPreset] = useState<Exclude<WorldPresetName, 'custom'>>('standard');
+  const [preset, setPreset] = useState<Exclude<WorldPresetName, 'custom'>>('backyard');
   const defaults = worldSettingsFromPreset(preset);
   const [promotionCount, setPromotionCount] = useState(1);
 
