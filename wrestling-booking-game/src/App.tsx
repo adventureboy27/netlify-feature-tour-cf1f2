@@ -74,18 +74,24 @@ export default function App() {
     <div className="min-h-screen bg-neutral-950">
       {/* The status bar: who you are, what week it is, and what is in the
           bank. The promotion's own name appeared nowhere in the shell, which
-          for a game about building one is an odd thing to leave out. */}
-      <header className="sticky top-0 z-10 border-b border-neutral-800 bg-neutral-900/95 backdrop-blur">
-        <div className="flex items-center justify-between gap-3 px-3 py-2">
+          for a game about building one is an odd thing to leave out. A
+          hairline wash of the house color says whose save this is before a
+          single word is read. */}
+      <header
+        className={`sticky top-0 z-10 border-b border-neutral-800/80 bg-gradient-to-b ${theme.wash} to-neutral-950/95 bg-neutral-950/95 backdrop-blur-md`}
+      >
+        <div className="flex items-center justify-between gap-3 px-3.5 py-3">
           <div className="min-w-0">
-            <div className={`truncate text-sm font-bold leading-tight ${theme.ink}`}>{world.promotion.name}</div>
-            <div className="text-[11px] leading-tight text-neutral-500">
+            <div className={`truncate text-base font-black leading-tight tracking-tight ${theme.ink}`}>
+              {world.promotion.name}
+            </div>
+            <div className="mt-0.5 text-[11px] leading-tight text-neutral-500">
               {/* No dates, ever. A promotion thinks in "the week before the
                   pay-per-view", not in the fourteenth of March — so the shell
                   says the month and which week of it. See engine/world/calendar.ts. */}
               {weekLine(world.week, world.settings)}
-              <span className="mx-1 text-neutral-700">·</span>
-              company rating {Math.round(world.promotion.rating)}
+              <span className="mx-1.5 text-neutral-700">·</span>
+              <span className="text-neutral-400">rating {Math.round(world.promotion.rating)}</span>
               {world.promotion.hardcoreSaturation > 25 && (
                 <span className="ml-1.5 text-amber-500" title="Booked violence is wearing the audience down">
                   crowd desensitised
@@ -93,9 +99,9 @@ export default function App() {
               )}
             </div>
           </div>
-          <div className="shrink-0 text-right">
-            <div className="text-[10px] uppercase tracking-wider text-neutral-600">Bank</div>
-            <div className="text-sm font-semibold tabular-nums">
+          <div className="shrink-0 rounded-lg border border-neutral-800 bg-neutral-900/80 px-2.5 py-1.5 text-right shadow-panel">
+            <div className="text-[9px] font-semibold uppercase tracking-wider text-neutral-500">Bank</div>
+            <div className="text-sm font-bold tabular-nums text-neutral-50">
               <Money amount={world.promotion.bankBalance} />
             </div>
           </div>
@@ -103,8 +109,10 @@ export default function App() {
       </header>
 
       {/* Room for the bar, so the last row of any screen is reachable rather
-          than sitting underneath it. */}
-      <main className="pb-16">
+          than sitting underneath it. Keyed by screen so every navigation is a
+          quiet settle-in rather than a hard cut — the same beat a broadcast
+          uses between segments. */}
+      <main key={screen} className="pb-16 animate-rise-in">
         {screen === 'more' && <MoreScreen onNavigate={navigate} />}
         {screen === 'office' && <OfficeScreen />}
         {screen === 'booking' && <BookingScreen onRunShow={runShow} />}

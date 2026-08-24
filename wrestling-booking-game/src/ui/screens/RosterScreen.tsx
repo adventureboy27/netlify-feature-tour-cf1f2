@@ -183,21 +183,27 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">Roster — {roster.length}</h1>
-        <span className="text-xs text-neutral-500">
+      <div className="mb-3 flex items-end justify-between gap-2">
+        <h1 className="text-xl font-black tracking-tight">
+          Roster <span className="text-neutral-500">— {roster.length}</span>
+        </h1>
+        <span className="rounded-md border border-neutral-800 bg-neutral-900 px-2 py-1 text-[11px] font-medium text-neutral-400">
           wages <Money amount={roster.reduce((sum, w) => sum + (w.contract?.weeklyRate ?? 0), 0)} />
-          /wk
+          <span className="text-neutral-600">/wk</span>
         </span>
       </div>
 
-      <div className="mb-3 flex flex-wrap gap-1">
+      <div className="mb-3 flex flex-wrap gap-1.5">
         {(Object.keys(SORTS) as SortKey[]).map((key) => (
           <button
             key={key}
             type="button"
             onClick={() => setSort(key)}
-            className={`rounded px-2 py-1 text-[11px] ${sort === key ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}`}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all duration-150 active:scale-95 ${
+              sort === key
+                ? 'bg-emerald-600 text-white shadow-[0_0_0_1px_rgb(5,150,105),0_0_12px_-2px_rgb(5,150,105)]'
+                : 'bg-neutral-900 text-neutral-400 ring-1 ring-inset ring-neutral-800 hover:text-neutral-200'
+            }`}
           >
             {SORTS[key].label}
           </button>
@@ -207,7 +213,7 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
       <TagTeamPanel />
       <MotivationKey />
 
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
         {roster.map((w) => {
           const rivalries = activeRivalriesFor(world.rivalries, [w.id]);
           const belts = titlesHeldBy(world.titles, w.id);
@@ -227,11 +233,13 @@ export function RosterScreen({ onRepackage }: { onRepackage?: (wrestlerId: strin
             <article
               key={w.id}
               data-testid={`roster-${w.id}`}
-              className="relative flex gap-2 overflow-hidden rounded border border-neutral-800 bg-neutral-900 p-2"
+              className="relative flex gap-2 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 p-2.5 shadow-panel transition-colors hover:border-neutral-700"
             >
-              {/* Health consumes the plate from the right, §21. */}
+              {/* Health consumes the plate from the right, §21 — now a
+                  gradient rather than a flat wash, so it reads as a meter
+                  draining rather than a stain spreading. */}
               <div
-                className="pointer-events-none absolute inset-y-0 right-0 bg-rose-950/40"
+                className="pointer-events-none absolute inset-y-0 right-0 bg-gradient-to-l from-rose-950/60 to-transparent"
                 style={{ width: `${100 - w.health}%` }}
                 aria-hidden
               />

@@ -107,24 +107,110 @@ export type Elevation = 'sunken' | 'raised' | 'hero';
 
 const SURFACE: Record<Elevation, string> = {
   sunken: 'border border-neutral-900 bg-neutral-950',
-  raised: 'border border-neutral-800 bg-neutral-900',
-  hero: 'border border-neutral-700 bg-neutral-900 shadow-lg shadow-black/40',
+  raised: 'border border-neutral-800 bg-neutral-900 shadow-panel',
+  hero: 'border border-neutral-700 bg-neutral-900 shadow-hero',
 };
 
 export function Panel({
   children,
   elevation = 'raised',
   className = '',
+  animate = false,
   ...rest
 }: {
   children: React.ReactNode;
   elevation?: Elevation;
   className?: string;
+  /** A quiet settle-in on mount — for the one or two panels a screen actually wants to draw the eye to, not every card in a list. */
+  animate?: boolean;
 } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`rounded-lg ${SURFACE[elevation]} ${className}`} {...rest}>
+    <div className={`rounded-xl ${SURFACE[elevation]} ${animate ? 'animate-rise-in' : ''} ${className}`} {...rest}>
       {children}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tabs
+// ---------------------------------------------------------------------------
+
+/**
+ * A segmented control, themed to the promotion.
+ *
+ * Every screen with more than one view of its data (Rankings, Promotion,
+ * Finance) was rolling its own row of `flex-1 rounded px-2 py-1` buttons —
+ * same idea, five slightly different implementations, none of them sharing
+ * an active state. One component, so "which tab is active" always looks and
+ * feels the same everywhere it appears.
+ */
+export function Tabs<T extends string>({
+  options,
+  active,
+  onChange,
+  theme,
+  testIdPrefix,
+}: {
+  options: readonly { id: T; label: string }[];
+  active: T;
+  onChange: (id: T) => void;
+  theme: PromotionTheme;
+  testIdPrefix?: string;
+}) {
+  return (
+    <div className="flex gap-1 rounded-lg border border-neutral-800 bg-neutral-950 p-1" role="tablist">
+      {options.map((option) => {
+        const isActive = option.id === active;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            data-testid={testIdPrefix ? `${testIdPrefix}-${option.id}` : undefined}
+            onClick={() => onChange(option.id)}
+            className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all duration-150 active:scale-[0.97] ${
+              isActive ? `${theme.action} text-white shadow-panel` : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200'
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Badge
+// ---------------------------------------------------------------------------
+
+export type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
+
+const BADGE_TONE: Record<BadgeTone, string> = {
+  neutral: 'bg-neutral-800 text-neutral-300',
+  success: 'bg-emerald-900/60 text-emerald-300 ring-1 ring-inset ring-emerald-700/50',
+  warning: 'bg-amber-900/50 text-amber-300 ring-1 ring-inset ring-amber-700/50',
+  danger: 'bg-rose-900/50 text-rose-300 ring-1 ring-inset ring-rose-700/50',
+  info: 'bg-sky-900/50 text-sky-300 ring-1 ring-inset ring-sky-700/50',
+};
+
+/** A small, consistent pill for status/tags — instead of every screen inventing its own `rounded px-1 py-px text-[10px]` combination. */
+export function Badge({
+  children,
+  tone = 'neutral',
+  className = '',
+}: {
+  children: React.ReactNode;
+  tone?: BadgeTone;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${BADGE_TONE[tone]} ${className}`}
+    >
+      {children}
+    </span>
   );
 }
 

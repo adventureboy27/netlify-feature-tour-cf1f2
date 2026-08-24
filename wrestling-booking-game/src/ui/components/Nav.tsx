@@ -135,10 +135,10 @@ export function BottomNav({
 }) {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-800 bg-neutral-950/95 backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-800/80 bg-neutral-950/90 shadow-nav backdrop-blur-md"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <div className="mx-auto flex max-w-lg">
+      <div className="mx-auto flex max-w-lg gap-1 px-1.5 py-1.5">
         {PRIMARY.map((tab) => {
           const active = screen === tab.id || (tab.id === 'more' && moreBadge);
           return (
@@ -147,16 +147,17 @@ export function BottomNav({
               type="button"
               onClick={() => onNavigate(tab.id)}
               aria-current={active ? 'page' : undefined}
-              className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition ${
-                active ? theme.ink : 'text-neutral-500'
+              className={`relative flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold transition-all duration-150 active:scale-95 ${
+                active ? `${theme.ink} bg-neutral-900/80` : 'text-neutral-500 hover:text-neutral-300'
               }`}
             >
-              {ICONS[ICON_KEY[tab.id]!]}
+              <span className={active ? 'scale-110 transition-transform duration-150' : 'transition-transform duration-150'}>
+                {ICONS[ICON_KEY[tab.id]!]}
+              </span>
               {tab.label}
               {tab.id === 'office' && officeBadge && (
-                <span className="absolute right-1/2 top-1.5 -mr-3 h-2 w-2 rounded-full bg-amber-400" />
+                <span className="absolute right-1/2 top-1 -mr-3.5 h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_6px_1px_rgba(251,191,36,0.7)]" />
               )}
-              {active && <span className={`absolute inset-x-4 top-0 h-0.5 rounded-b ${theme.action.split(' ')[0]}`} />}
             </button>
           );
         })}

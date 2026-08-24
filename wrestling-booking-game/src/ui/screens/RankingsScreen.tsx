@@ -26,14 +26,15 @@ import { identityOf } from '../../data/promotionIdentity';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { effectiveAppearance } from '../../engine/generate/gimmickLook';
 import { StatBar } from '../components/display';
+import { Tabs, promotionTheme } from '../components/chrome';
 
 type Tab = 'contenders' | 'world' | 'circuits';
 
-const TAB_LABELS: Record<Tab, string> = {
-  contenders: 'Your contenders',
-  world: 'The business',
-  circuits: 'The circuits',
-};
+const TAB_OPTIONS: { id: Tab; label: string }[] = [
+  { id: 'contenders', label: 'Your contenders' },
+  { id: 'world', label: 'The business' },
+  { id: 'circuits', label: 'The circuits' },
+];
 
 export function RankingsScreen() {
   const world = useGameStore((s) => s.world);
@@ -59,25 +60,14 @@ export function RankingsScreen() {
 
   const myChampions = titlesOf(world.titles, world.promotion.id).filter((t) => !t.vacant);
   const selectedCircuit = CIRCUITS.find((c) => c.id === circuitId);
+  const theme = promotionTheme(world.promotion.identity);
 
   return (
     <div className="p-3 pb-24 text-neutral-100">
-      <h1 className="mb-3 text-base font-semibold">Rankings</h1>
+      <h1 className="mb-3 text-xl font-black tracking-tight">Rankings</h1>
 
-      <div className="mb-3 flex gap-1">
-        {(['contenders', 'world', 'circuits'] as Tab[]).map((option) => (
-          <button
-            key={option}
-            type="button"
-            data-testid={`rankings-${option}`}
-            onClick={() => setTab(option)}
-            className={`flex-1 rounded px-2 py-1 text-xs ${
-              tab === option ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-            }`}
-          >
-            {TAB_LABELS[option]}
-          </button>
-        ))}
+      <div className="mb-3">
+        <Tabs options={TAB_OPTIONS} active={tab} onChange={setTab} theme={theme} testIdPrefix="rankings" />
       </div>
 
       {tab === 'circuits' ? (
