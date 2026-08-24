@@ -181,7 +181,7 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'healthy',
     dayJob: true,
     lines: [
-      "{name}'s manager would not let the shift end on time, and there was no getting to the building after that.",
+      "{name}'s shift boss would not let them clock out on time, and there was no getting to the building after that.",
       '{name} got asked to close again tonight, and a promise to a boss beats a promise to a promoter.',
       "{name} is still behind the register three hours after they were supposed to clock out.",
       '{name} begged off the closing shift and got told no. The rent gets paid either way.',
