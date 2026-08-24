@@ -16,6 +16,7 @@ import {
   haulUsed,
   productionLabel,
 } from '../../engine/economy/production';
+import { CARD_SIZE_TIERS, cardSizeTierById, nextCardSizeTier } from '../../data/cardSize';
 import { statementLine, runningNet, weeksOfRunway } from '../../engine/economy/statement';
 
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
@@ -26,14 +27,15 @@ export function FinanceScreen() {
   const world = useGameStore((s) => s.world);
   const buyRung = useGameStore((s) => s.buyRung);
   const buyHaulage = useGameStore((s) => s.buyHaulage);
-  const [tab, setTab] = useState<'books' | 'ladder'>('books');
+  const buyCardSizeTier = useGameStore((s) => s.buyCardSizeTier);
+  const [tab, setTab] = useState<'books' | 'ladder' | 'cardSize'>('books');
   if (!world) return null;
 
   return (
     <div className="space-y-3 p-3 pb-24 text-neutral-100">
       <h1 className="text-base font-semibold">Finance</h1>
       <div className="flex gap-1">
-        {(['books', 'ladder'] as const).map((id) => (
+        {(['books', 'ladder', 'cardSize'] as const).map((id) => (
           <button
             key={id}
             type="button"
@@ -42,11 +44,17 @@ export function FinanceScreen() {
               tab === id ? 'bg-emerald-700 text-white' : 'bg-neutral-800 text-neutral-300'
             }`}
           >
-            {id === 'books' ? 'The books' : 'Production'}
+            {id === 'books' ? 'The books' : id === 'ladder' ? 'Production' : 'Card size'}
           </button>
         ))}
       </div>
-      {tab === 'books' ? <Books /> : <Ladder buyRung={buyRung} buyHaulage={buyHaulage} />}
+      {tab === 'books' ? (
+        <Books />
+      ) : tab === 'ladder' ? (
+        <Ladder buyRung={buyRung} buyHaulage={buyHaulage} />
+      ) : (
+        <CardSizeLadder buyCardSizeTier={buyCardSizeTier} />
+      )}
     </div>
   );
 }
@@ -227,6 +235,83 @@ function Ladder({
               )}
             </div>
           ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CardSizeLadder({ buyCardSizeTier }: { buyCardSizeTier: (id: string) => void }) {
+  const world = useGameStore((s) => s.world)!;
+  const current = cardSizeTierById(world.cardSizeTierId) ?? CARD_SIZE_TIERS[0]!;
+  const next = nextCardSizeTier(current.id);
+
+  return (
+    <div className="space-y-3">
+      <section className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+        <div className="text-[10px] uppercase tracking-wide text-neutral-500">Tonight's card</div>
+        <p className="text-sm font-semibold text-neutral-100">
+          {current.name} — {current.slots} matches
+        </p>
+        <p className="mt-0.5 text-[11px] text-neutral-400">{current.blurb}</p>
+        <p className="mt-1 text-[10px] text-neutral-500">
+          Unrelated to the room you're renting or the gear you own — this is purely how many matches
+          the show has room for.
+        </p>
+      </section>
+
+      <section className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+        <h2 className="mb-2 text-sm font-medium text-neutral-200">The ladder</h2>
+        <div className="flex flex-col gap-1.5">
+          {CARD_SIZE_TIERS.map((tier, index) => {
+            const currentIndex = CARD_SIZE_TIERS.findIndex((t) => t.id === current.id);
+            const have = index <= currentIndex;
+            const buyable = next?.id === tier.id;
+            const affordable = world.promotion.bankBalance >= tier.cost;
+            return (
+              <div
+                key={tier.id}
+                className={`rounded border p-2 ${
+                  have
+                    ? 'border-emerald-800 bg-emerald-950/20'
+                    : buyable
+                      ? 'border-amber-700 bg-amber-950/20'
+                      : 'border-neutral-800 bg-neutral-950'
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span
+                    className={`truncate text-xs font-medium ${
+                      have ? 'text-emerald-300' : buyable ? 'text-amber-200' : 'text-neutral-400'
+                    }`}
+                  >
+                    {tier.name} — {tier.slots} matches
+                  </span>
+                  <span className="shrink-0 text-[10px] text-neutral-500">
+                    {have ? 'Owned' : tier.cost === 0 ? 'Free' : money(tier.cost)}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[10px] text-neutral-500">{tier.blurb}</p>
+                {!have && buyable && (
+                  <button
+                    type="button"
+                    disabled={!affordable}
+                    onClick={() => buyCardSizeTier(tier.id)}
+                    className={`mt-1.5 w-full rounded px-3 py-1.5 text-xs font-semibold ${
+                      affordable ? 'bg-amber-600 text-black' : 'bg-neutral-800 text-neutral-600'
+                    }`}
+                  >
+                    Buy it
+                  </button>
+                )}
+                {!have && !buyable && (
+                  <p className="mt-0.5 text-[10px] text-neutral-500">
+                    Needs {CARD_SIZE_TIERS[index - 1]?.name ?? current.name} first.
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
     </div>

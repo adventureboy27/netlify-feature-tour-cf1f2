@@ -21,6 +21,7 @@ import { coopAppetite, moodFor, moodLine } from '../../engine/world/supershow';
 import { grudgeAgainst, grudgeLine } from '../../engine/world/grudges';
 import { leverageReason } from '../../engine/career/leverage';
 import { useGameStore } from '../../state/store';
+import { cardSizeFor } from '../../state/world';
 import { tvVerdict, wonTheNight, playerChartPosition } from '../../engine/world/tvRatings';
 import { temptationLabel, approachLine, responseOutcome, type PoachingResponse } from '../../engine/world/poaching';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
@@ -208,7 +209,8 @@ function StatusStrip() {
   const healthyRoster = world.promotion.rosterIds
     .map((id) => world.wrestlers[id])
     .filter((w) => w && !w.injury && w.health >= world.settings.rivalMinHealthToBook).length;
-  const thin = healthyRoster < world.settings.segmentsPerTV * 2;
+  const cardSize = cardSizeFor('television', world);
+  const thin = healthyRoster < cardSize * 2;
 
   if (world.weeksInTheRed === 0 && !thin) return null;
 
@@ -228,7 +230,7 @@ function StatusStrip() {
           className="rounded border border-amber-900 bg-amber-950/30 px-2 py-1 text-[11px] text-amber-300"
           data-testid="roster-thin"
         >
-          Only {healthyRoster} can work — not enough for a card of {world.settings.segmentsPerTV}
+          Only {healthyRoster} can work — not enough for a card of {cardSize}
         </span>
       )}
     </div>

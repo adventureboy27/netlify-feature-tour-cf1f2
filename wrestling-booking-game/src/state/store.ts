@@ -32,6 +32,7 @@ import {
   createEmptyCard,
   createEmptyPromoSlots,
   createEmptyDarkMatches,
+  cardSizeFor,
   pairKey,
   rivalRosterSize,
   type World,
@@ -296,7 +297,6 @@ import {
   isBigShowWeek,
   recoveryMultiplier,
   scheduleOf,
-  segmentsForShow,
   showsThisWeek,
   type PPVCadence,
 } from '../engine/world/schedule';
@@ -629,6 +629,8 @@ export interface GameStore {
   buyRung: (rungId: Id) => void;
   /** Trade up to the next truck. One at a time, upwards only. */
   buyHaulage: (haulageId: Id) => void;
+  /** Trade up to the next card-size tier. One at a time, upwards only. */
+  buyCardSizeTier: (tierId: Id) => void;
   setTicketPrice: (price: number) => void;
   toggleShowExtra: (extraId: Id) => void;
   buyProductionAsset: (assetId: Id) => void;
@@ -3455,7 +3457,7 @@ export const useGameStore = create<GameStore>()(
           // wrestler exactly as fast as its main eventer, so signing more
           // people bought nothing and the only lever on the road was to stop
           // going on it.
-          const needed = world.settings.segmentsPerTV * 2;
+          const needed = cardSizeFor('television', world) * 2;
           const fit = world.promotion.rosterIds
             .map((id) => world.wrestlers[id])
             .filter((member): member is Wrestler => Boolean(member) && !member!.deceased && !member!.injury)
@@ -6570,11 +6572,11 @@ export const useGameStore = create<GameStore>()(
         }
 
         world.currentCard = createEmptyCard(
-          segmentsForShow(
+          cardSizeFor(
             isBigShowWeek(world.week, scheduleOf(world.promotion, world.settings), world.settings)
               ? 'ppv'
               : 'television',
-            world.settings,
+            world,
           ),
         );
         world.currentPromos = createEmptyPromoSlots(world.settings.promoSlotsPerCard);

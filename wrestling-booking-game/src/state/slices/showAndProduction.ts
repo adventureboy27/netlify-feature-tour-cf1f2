@@ -23,6 +23,7 @@ import {
 import { promoTopicById } from '../../data/promoTopics';
 import { confrontationById } from '../../data/confrontations';
 import { HAULAGE, haulageById, nextHaulage, ladderStatus } from '../../engine/economy/production';
+import { nextCardSizeTier } from '../../data/cardSize';
 import { productionAssetById } from '../../data/production';
 import { newAssetCondition, repairAsset, repairCost } from '../../engine/economy/showBudget';
 import { fireSaleEligible, fireSaleValue } from '../../engine/economy/fireSale';
@@ -40,6 +41,7 @@ type ShowAndProductionSlice = Pick<
   | 'toggleShowExtra'
   | 'buyRung'
   | 'buyHaulage'
+  | 'buyCardSizeTier'
   | 'buyProductionAsset'
   | 'repairProductionAsset'
   | 'sellProductionAsset'
@@ -252,6 +254,25 @@ export const createShowAndProductionSlice: StateCreator<
       world.haulageId = next.id;
       world.weeklyNews.push(
         wire('story', `${world.promotion.name} are rolling on a brand-new ${next.name.toLowerCase()} now. ${next.blurb}`, world.week, 'minor'),
+      );
+    });
+  },
+
+  buyCardSizeTier: (tierId) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      const next = nextCardSizeTier(world.cardSizeTierId);
+      // One tier at a time, upwards only — same shape as buyHaulage.
+      if (!next || next.id !== tierId) return;
+      if (world.promotion.bankBalance < next.cost) return;
+
+      world.promotion.bankBalance -= next.cost;
+      world.cardSizeTierId = next.id;
+      // Takes hold from the next card built, same as every other purchase —
+      // this week's card was already dealt.
+      world.weeklyNews.push(
+        wire('story', `${world.promotion.name} just bought their way onto a ${next.name.toLowerCase()}. ${next.blurb}`, world.week, 'minor'),
       );
     });
   },

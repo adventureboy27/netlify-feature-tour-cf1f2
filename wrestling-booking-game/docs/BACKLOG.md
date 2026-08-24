@@ -1968,3 +1968,53 @@ instead hands the player almost nothing, making the actual hiring the first real
   coherent $25-$250/wk spread with real age/persona variety (a 20-year-old fresh out of the school,
   a 36-year-old journeyman, a 55-year-old "near the end, every night costs her"), and the game plays
   from week one without a crash on the tiny opening roster.
+
+---
+
+## Equipment economy, continued — Phase B: card size, its own purchase
+
+Second phase of the expanded plan. Card size (how many matches a show has room for) becomes a real,
+purchasable ladder — decoupled from the venue and from the ring/sound/lights production ladder on
+purpose, so a promotion can be running out of the free backyard lot with a big card because that's
+where the money went, or renting a real arena and still running a bare card because it hasn't bought
+the room to book anything bigger yet. Confirmed via research before touching anything:
+`segmentsPerTV` had zero existing coupling to venue capacity or the production ladder to untangle —
+this is a clean, additive ladder, not a refactor.
+
+- **New file `data/cardSize.ts`**: `CARD_SIZE_TIERS`, a three-tier replacement ladder (own one tier
+  at a time, like the planned ring tiers) — **Backyard Card** (4 slots, free — what `backyard` opens
+  on), **Local Card** (6 slots, $12,000 — today's flat global default, what every other preset opens
+  on), **Regional Card** (8 slots, $48,000). `cardSizeTierById`/`nextCardSizeTier` mirror
+  `engine/economy/production.ts`'s `haulageById`/`nextHaulage` exactly.
+- **`engine/types.ts`**: new optional `startingCardSizeTierId?: Id` — unset for every preset except
+  `backyard` (`'backyardCard'`).
+- **`state/world.ts`**: `World` gets a new `cardSizeTierId: Id` field, same single-tier-scalar shape
+  as the existing `haulageId`. New exported `cardSizeFor(kind, world)` reads the owned tier's slot
+  count for a TV/house show, or the untouched `settings.segmentsPerPPV` for a PPV — this ladder does
+  not reach PPV size. Both places that used to build a card off `settings.segmentsPerTV` directly
+  (world creation, and `store.ts`'s weekly rebuild) now go through it. Rivals are deliberately
+  unaffected — `engine/world/rivalBooking.ts` still reads `settings.segmentsPerTV` straight, since
+  nothing the player buys should touch anyone else's show.
+- **`state/slices/showAndProduction.ts`**: new `buyCardSizeTier` action, one tier at a time and
+  upwards only — same shape as the existing `buyHaulage`. Takes effect on the next card built, same
+  as every other purchase (this week's card is already dealt).
+- **UI**: new "Card size" tab on `FinanceScreen.tsx`, same visual language as the production ladder
+  (owned/next/locked styling, a note on what's blocking an out-of-reach tier).
+- **A real bug found live, not in a test**: the "locked" note under an unreachable tier always said
+  "Needs {the currently-owned tier} first," which is only correct for the *immediately next* tier —
+  two rungs up it read as nonsense ("Regional Card... Needs Backyard Card first" while Backyard Card
+  was already owned). Fixed to reference the tier directly below the one being described.
+- **Confirmed, not assumed**: `BookingScreen.tsx`'s "Run the show" already has no fill-requirement
+  guard and show resolution already skips under-filled segments — a small, all-optional starter card
+  already worked with zero changes needed. This phase is purely about making the slot count itself a
+  purchase.
+- **Tests**: new `data/cardSize.test.ts` (ordering, pricing, blurb coverage, `nextCardSizeTier`
+  stepping and its unknown-id fallback). `worldPresets.test.ts` gets two more tests: `backyard` opens
+  on `'backyardCard'` with a real 4-segment card, and — added to the shared four-preset block — all
+  four original presets still open on `'localCard'` with a 6-segment card, unchanged by the new field
+  existing.
+- Verified: `tsc --noEmit` clean; full suite 146 files / 2,847 tests passing (10 new, zero
+  re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; a live
+  dev-server + Playwright pass confirming `backyard` opens with a real 4-slot card, buying up to
+  Regional Card on a cash-flush save correctly charges the price and updates "tonight's card," and
+  the new slot count only takes hold starting the *following* week's card, not the one already dealt.

@@ -116,6 +116,17 @@ describe('the presets actually differ', () => {
     expect(worldSettingsFromPreset('standard').startingRosterSize).toBeGreaterThanOrEqual(30);
   });
 
+  it('opens every one of the original four on the six-match tier, unchanged by the new ladder', () => {
+    // The card-size ladder (data/cardSize.ts) is additive — these four never
+    // set startingCardSizeTierId, so they should land exactly where they
+    // always did before that field existed.
+    for (const id of IDS) {
+      const world = createInitialWorld(rngFromSeed(worldSettingsFromPreset(id).seed), worldSettingsFromPreset(id));
+      expect(world.cardSizeTierId, id).toBe('localCard');
+      expect(world.currentCard.length, id).toBe(6);
+    }
+  });
+
   it('leans on the owner rather than the bank where money cannot bite', () => {
     // A promotion drawing four thousand people prints money under any tuning
     // that leaves the small starts playable, so big money's squeeze is the
@@ -187,6 +198,13 @@ describe('the backyard preset', () => {
     for (const agent of managerAgents) {
       expect(agent.askingRate, agent.wrestlerId).toBeLessThanOrEqual(maxWrestlerAsk * 1.5);
     }
+  });
+
+  it('opens on the bottom card-size tier, not the six-match default', () => {
+    // A separate purchase from the venue and the ring — see data/cardSize.ts.
+    const world = createInitialWorld(rngFromSeed(s.seed), s);
+    expect(world.cardSizeTierId).toBe('backyardCard');
+    expect(world.currentCard.length).toBe(4);
   });
 
   it('opens in the backyard, not wherever the algorithm would have picked', () => {

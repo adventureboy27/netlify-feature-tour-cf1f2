@@ -1755,6 +1755,16 @@ export interface WorldSettings {
   matchRatingWorkrateWeight: number;
   segmentsPerTV: number;
   segmentsPerPPV: number;
+  /**
+   * Which data/cardSize.ts tier a new promotion opens on — an actual card
+   * size, read through data/cardSize.ts's CardSizeTier.slots, in place of
+   * segmentsPerTV for a television show (PPV size is untouched by this
+   * ladder). Unset for every preset except backyard, which opens on the
+   * bottom tier; every other preset keeps segmentsPerTV's current value by
+   * opening on the tier whose slots equal it. See state/world.ts's
+   * cardSizeFor.
+   */
+  startingCardSizeTierId?: Id;
   broadcastWindowTV: number;
   broadcastWindowPPV: number;
   ratingLadderStepPerWeek: number;

@@ -96,11 +96,12 @@ export interface CupInvitation {
 }
 import { formTeams, teamIdFactory, tagTeamCountFor } from '../engine/world/tagTeams';
 import { bestFittingVenue, venueById } from '../data/venues';
+import { cardSizeTierById } from '../data/cardSize';
 import { computeDemand, fairTicketPrice, potentialAudience } from '../engine/economy/showBudget';
 import { TERRITORIES, createTerritories } from '../data/territories';
 import { OWNER_PROFILES } from '../data/owners';
 import { ppvCalendarFor } from '../data/ppvNames';
-import { defaultSchedule, scheduleForRival } from '../engine/world/schedule';
+import { defaultSchedule, scheduleForRival, type ShowKind } from '../engine/world/schedule';
 import type { ImpromptuShow } from '../engine/world/impromptu';
 import { seedManagerTalent } from '../engine/world/managerTalent';
 import type { Representation } from '../engine/career/representation';
@@ -226,6 +227,14 @@ export interface World {
   productionRungs: Id[];
   /** Which truck the operation runs on. Everything owned has to fit in it. */
   haulageId: Id;
+  /**
+   * Which data/cardSize.ts tier the player's TV show is booked at — a
+   * replacement ladder like haulageId, not a stack like productionRungs.
+   * Decoupled from the venue and from the production ladder on purpose; see
+   * cardSizeFor. Rivals don't have one — they still read settings.segmentsPerTV
+   * directly, unaffected by anything the player buys.
+   */
+  cardSizeTierId: Id;
   /** The books, newest last. One per week the company traded. */
   statements: WeeklyStatement[];
   /**
@@ -604,6 +613,19 @@ export function createEmptySegment(slot: number): Segment {
 
 export function createEmptyCard(segmentCount = SEGMENTS_PER_CARD): Segment[] {
   return Array.from({ length: segmentCount }, (_, i) => createEmptySegment(i));
+}
+
+/**
+ * How many TV segments the player's own show has room for — read through the
+ * owned data/cardSize.ts tier rather than the flat settings.segmentsPerTV
+ * every other promotion still uses. PPV size is untouched by this ladder;
+ * pass 'ppv' for the unmodified settings.segmentsPerPPV. Rivals never call
+ * this — engine/world/rivalBooking.ts still reads settings.segmentsPerTV
+ * directly, on purpose: nothing the player buys touches anyone else's show.
+ */
+export function cardSizeFor(kind: ShowKind, world: Pick<World, 'settings' | 'cardSizeTierId'>): number {
+  if (kind === 'ppv') return world.settings.segmentsPerPPV;
+  return cardSizeTierById(world.cardSizeTierId)?.slots ?? world.settings.segmentsPerTV;
 }
 
 /**
@@ -1054,13 +1076,19 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     return belts;
   });
 
+  // A tier the player owns from turn one, same shape as haulageId's
+  // 'pickup' below — most presets open on the tier matching today's flat
+  // segmentsPerTV (6, 'localCard'); backyard opens on the bottom rung
+  // instead. See data/cardSize.ts.
+  const cardSizeTierId = settings.startingCardSizeTierId ?? 'localCard';
+
   return {
     version: 5,
     settings,
     week: 1,
     wrestlers,
     promotion,
-    currentCard: createEmptyCard(settings.segmentsPerTV),
+    currentCard: createEmptyCard(cardSizeTierById(cardSizeTierId)?.slots ?? settings.segmentsPerTV),
     currentPromos: createEmptyPromoSlots(settings.promoSlotsPerCard),
     currentDarkMatches: createEmptyDarkMatches(settings.darkMatchSlots),
     showHistory: [],
@@ -1086,6 +1114,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     // on the ladder is somewhere above you — see economy/production.ts.
     productionRungs: [],
     haulageId: 'pickup',
+    cardSizeTierId,
     statements: [],
     // Touring, until somebody signs for a room. See economy/residency.ts.
     residency: null,

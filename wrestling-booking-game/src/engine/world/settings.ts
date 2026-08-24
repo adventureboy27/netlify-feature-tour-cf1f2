@@ -2318,6 +2318,10 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
     startingTerritoryFollowing: 10,
     startingVenueId: 'backyardRing',
     startingTerritoryId: 'brambleHollow',
+    // Four matches, not the six everybody else opens with — a real, separate
+    // purchase (data/cardSize.ts), unrelated to the venue above. Buying up
+    // is the way out of it, not growing the roster.
+    startingCardSizeTierId: 'backyardCard',
     // Nobody here is making a living at this yet. The default curve
     // (base 60, range 2200) prices an average wrestler in the hundreds a
     // week purely off the floor and the curve — there is no version of that
