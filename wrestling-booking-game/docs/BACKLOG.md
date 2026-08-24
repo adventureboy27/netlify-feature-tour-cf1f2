@@ -2207,3 +2207,81 @@ formula, its own line, and a flag the caller folds into the general injury chain
   re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; the live
   playthrough above. No UI changed in this phase — pyro was already purchasable before this; this
   phase only gives what's already bought a real downside.
+
+---
+
+## Equipment economy, continued — Phase F: the feed can drop, and a match nobody at home saw
+
+Sixth and final phase of the expanded plan. The most structurally new piece: gives a specific match a
+real "did this air" flag for the first time, and makes losing the feed cost the people in that match
+something real — "even crappy cameras can lose connection and therefore fans at home miss matches. a
+missed match on tv hurts the wrestlers during that match," per the player's own framing at the top of
+this plan.
+
+- **New file `engine/sim/broadcast.ts`**: `rollBroadcastDropout(rng, eligibleSlots,
+  equipmentInjuryReduction, settings)` — once per show, not once per match ("a feed does not drop
+  twice independently in one night in any believable way"), returns which match slot the feed dropped
+  during or `null` if it held. Odds are `settings.broadcastDropoutChance * (1 -
+  equipmentInjuryReduction)`, the same equipment-quality plumbing Phase C wired up and Phases D and E
+  already reused. `broadcastDropoutLine(rng, matchDescription)` supplies the "technical difficulties"
+  write-up sentence — confirmed via the original research that zero flavor text for this existed
+  anywhere in the game before this phase.
+- **`engine/world/wire.ts`**: new `WireKind` case, `'broadcast'` — its own category rather than folding
+  into `'misfortune'` or `'houseShow'`, both of which mean something more specific already. The
+  `WIRE_KIND_LABELS` map is a `Record<WireKind, ...>`, so the compiler itself refused to build until a
+  label was added — and `wire.test.ts`'s own exhaustiveness test (the guard against "a kind with no
+  sentence is a silent change") caught the missing sample before anything ran.
+- **`state/store.ts`**: once per show, before the card loop runs, computes which match slots are real
+  (2+ sides, real participants — the same filter the existing rating tally already applies) and rolls
+  `rollBroadcastDropout` against them. Inside the loop, the flagged segment's participants get the
+  same treatment `sim/darkMatch.ts` already gives a genuine dark match: their popularity gain from
+  `computeAftermath` is scaled by the existing `settings.darkMatchPopularityShare`, and a `'broadcast'`
+  wire line names the match and says what happened. At `computeShowRating`, the flagged slot's rating
+  *and* its slot weight are both dropped from the arrays entirely — not scored 0. That distinction
+  matters: 0 is what an unfilled segment gets (§13's own deliberate harshness for a thin card), and a
+  match that happened and was good is not that; excluding it from both arrays means the show is judged
+  only on what actually aired, exactly like a genuine dark match, which was never part of the weighted
+  arrays to begin with.
+- **A real, live-only bug, caught by the balance pass and nowhere else**: the first version seeded the
+  once-per-show roll from `world.promotion.id`, following the file's own convention of keying a roll to
+  the entity it concerns. But there is exactly one player promotion per save, always the same id — so
+  every save that will ever be played would have rolled a dropout on the *identical* week numbers,
+  regardless of its actual seed. A unit test testing the pure `rollBroadcastDropout` function in
+  isolation could never have caught this (it takes an `Rng`, not a promotion id); it only showed up
+  once played through the real store across multiple seeds, where the "bare" and "fully-equipped"
+  rates came out identical and the per-seed dropout count was suspiciously exact (4 out of 40 weeks,
+  every single seed). Fixed by keying on `` `${world.settings.seed}-broadcastDropout-${world.week}` ``
+  instead — the pattern every other per-week roll in `store.ts` already uses (`` `${world.settings.seed}
+  -catastrophe-${world.week}` `` and half a dozen others), which this roll should have matched from the
+  start rather than reaching for the `rngFromSeed`-from-an-entity pattern that fits a *person*-scoped
+  roll (`dayJobAbsence`'s `blame:${person.id}:${week}`) but not a *world*-scoped one.
+- **Tests**: new `engine/sim/broadcast.test.ts` (6 tests: never drops with nothing eligible, drops
+  sometimes and rarely when there is, better gear cuts the rate without erasing it, only ever picks an
+  actually-eligible slot, names the match with no leftover `{match}`, varies its line). New test in
+  `engine/economy/showRating.test.ts` locking in the exact distinction the store-level fix depends on:
+  excluding a slot from both arrays is not the same as scoring it 0, and produces a materially higher
+  rating for the same underlying show. `wire.test.ts` gets a new sample for the `'broadcast'` kind,
+  required by its own exhaustiveness check.
+- **Verified live, not just at the pure-function level** (CLAUDE.md: measure in a played save — this is
+  the phase where that rule actually paid for itself): 8 seeds × 40 weeks, bare vs. fully-equipped.
+  After the seed-key fix: 16 dropouts on bare gear vs. 13 equipped (out of 328 weeks each, in line with
+  the ~5% base rate scaled by the modest reduction the ladder alone provides), and a dropout week's
+  mean show rating (50.7) landed close to the overall mean (52.3) rather than being artificially
+  tanked — confirming the exclude-don't-zero mechanism actually works live, not just in the isolated
+  arithmetic test. Sample write-up lines pulled straight from the run: *"Technical difficulties knocked
+  the broadcast dark right in the middle of Delilah Blythe and Doyle Kavanagh, and nobody watching at
+  home saw a second of it."* and *"The feed went down during Marshal Reid and Nova Applewhite and never
+  came back before the bell. Anybody who tuned in missed the whole thing."*
+- Verified: `tsc --noEmit` clean; full suite 149 files / 2,885 tests passing (7 new, zero re-expressed,
+  zero baselines touched); `npm run sim` clean; `npm run build` clean; the live balance pass above,
+  including the seed-key bug found and fixed mid-verification. No UI changed in this phase.
+
+---
+
+This closes the six-phase equipment economy plan (`/root/.claude/plans/synthetic-plotting-planet.md`):
+Phase A rebuilt the hiring loop around a tiny seed and a real free-agent pool; Phase B made card size
+its own purchase; Phase C wired the dead `injuryReduction`/`incidentReduction`/`tvRating` fields into
+the real math; Phases D, E, and F built new, genuinely felt downsides on top of that wiring — hardware
+giving out, pyro burns, and a broadcast that can drop — matching the standing rule that started the
+whole plan: every purchase needs a real upside, and every cheap tier needs a real, occasionally-visible
+downside.

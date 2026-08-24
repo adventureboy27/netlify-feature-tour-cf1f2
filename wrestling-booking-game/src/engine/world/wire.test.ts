@@ -32,6 +32,7 @@ const SAMPLES: Record<WireKind, WireItem> = {
   misfortune: wire('misfortune', 'Duke Rawlins blew a tire on the interstate.', 12, 'minor'),
   injury: wire('injury', 'Duke Rawlins worked through it and got away with it. He was back in 3.', 12, 'lead'),
   houseShow: wire('houseShow', 'Two house shows on the road this week.', 12, 'minor'),
+  broadcast: wire('broadcast', 'The feed dropped during the main event and nobody at home saw it.', 12, 'normal'),
 };
 
 describe('every kind of news can be said', () => {

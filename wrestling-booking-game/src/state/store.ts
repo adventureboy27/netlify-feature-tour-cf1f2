@@ -376,6 +376,7 @@ import {
   equipmentSafetyEffects,
 } from '../engine/economy/production';
 import { StatementBuilder } from '../engine/economy/statement';
+import { rollBroadcastDropout, broadcastDropoutLine } from '../engine/sim/broadcast';
 import { SUPERSHOW_SEASONS } from '../engine/world/supershow';
 import { rivalWeek, shouldFold, shouldTrimPayroll } from '../engine/world/rivalEconomy';
 import { publishPositions } from '../engine/world/publication';
@@ -1608,6 +1609,40 @@ export const useGameStore = create<GameStore>()(
         // Same reasoning, for a blown call — see referees.ts's
         // rollRefereeMiss doc comment.
         const usedRefereeMissLines = new Set<string>();
+
+        // Did the feed hold tonight — once per show, decided before any
+        // match runs, so every segment below can just check its own index
+        // against it. Its own seeded stream rather than the shared `rng`
+        // (CLAUDE.md: an RNG draw that always fires shifts every roll after
+        // it — this only ever draws once, per world+week, isolated from
+        // everything else). See sim/broadcast.ts.
+        const dropoutEligibleSlots = world.currentCard
+          .map((segment, i) => ({ segment, i }))
+          .filter(
+            ({ segment }) =>
+              segment.kind === 'match' &&
+              segment.participants.length >= 2 &&
+              new Set(segment.participants.map((p) => p.side)).size >= 2,
+          )
+          .map(({ i }) => i);
+        const broadcastDropoutSlot = night.cancelled
+          ? null
+          : rollBroadcastDropout(
+              // The save's own seed, not the promotion's id — every save has
+              // exactly one player promotion, always the same id, so keying
+              // on it would have made the dropout schedule identical across
+              // every save that ever exists rather than varying with the
+              // seed the way every other per-week roll in this file does
+              // (see the `${world.settings.seed}-...-${world.week}` pattern
+              // used throughout). Caught in the live balance pass for this
+              // phase, not by a test.
+              rngFromSeed(`${world.settings.seed}-broadcastDropout-${world.week}`),
+              dropoutEligibleSlots,
+              equipmentSafetyEffects(world.ownedAssetIds, world.productionRungs, world.showSetup.extraIds)
+                .injuryReduction,
+              world.settings,
+            );
+
         if (!night.cancelled) world.currentCard.forEach((segment, i) => {
           const sides = new Set(segment.participants.map((p) => p.side));
           if (segment.participants.length < 2 || sides.size < 2) {
@@ -2701,10 +2736,34 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
-          for (const change of changes) {
+          // The feed dropped during this one — nobody at home saw it happen,
+          // so it pays the same dampened popularity a genuine dark match
+          // pays. See sim/darkMatch.ts's identical scaling, and
+          // sim/broadcast.ts for why this segment in particular.
+          const wentDark = i === broadcastDropoutSlot;
+          const finalChanges = wentDark
+            ? changes.map((c) => ({ ...c, popularity: c.popularity * world.settings.darkMatchPopularityShare }))
+            : changes;
+
+          for (const change of finalChanges) {
             const w = world.wrestlers[change.wrestlerId];
             if (w) applyAftermath(w, change, world.settings, result.rating);
             worked.add(change.wrestlerId);
+          }
+
+          if (wentDark) {
+            const dropoutNames = participantWrestlers.map((w) => w.name).join(' and ');
+            world.weeklyNews.push(
+              wire(
+                'broadcast',
+                broadcastDropoutLine(
+                  rngFromSeed(`${world.settings.seed}-broadcastDropoutLine-${world.week}`),
+                  dropoutNames,
+                ),
+                world.week + 1,
+                'normal',
+              ),
+            );
           }
 
           // A manager takes the result of the side they worked. Their record
@@ -2765,6 +2824,11 @@ export const useGameStore = create<GameStore>()(
             );
           }
 
+          // The rating itself stays real — the live crowd got a real match.
+          // Whether it counts toward the broadcast's own number is decided
+          // below, at computeShowRating, by dropping this slot's weight
+          // entirely rather than scoring it 0 (0 is what an unfilled slot
+          // gets, and this was not that — see sim/broadcast.ts).
           segmentRatings.push(result.rating);
           // Weighed for the town this card is actually in. Using the national
           // number meant a card of local heroes drew exactly the same in their
@@ -2989,7 +3053,17 @@ export const useGameStore = create<GameStore>()(
         }
 
         const slotWeights = TV_SLOT_WEIGHTS.slice(0, world.currentCard.length);
-        const inRingRating = computeShowRating(segmentRatings, slotWeights);
+        // A dropped-feed slot is dropped from both arrays entirely, not
+        // scored 0 — that is what an unfilled slot gets, and this is a
+        // different thing: a real match the *broadcast* never carried. See
+        // sim/broadcast.ts.
+        const inRingRating =
+          broadcastDropoutSlot === null
+            ? computeShowRating(segmentRatings, slotWeights)
+            : computeShowRating(
+                segmentRatings.filter((_, i) => i !== broadcastDropoutSlot),
+                slotWeights.filter((_, i) => i !== broadcastDropoutSlot),
+              );
 
         // Did you give them what they were asking for? Judged on what was
         // booked rather than on how it went: the crowd asked for a match,

@@ -19,6 +19,25 @@ describe('computeShowRating', () => {
     const strongMainEvent = [50, 50, 50, 50, 50, 100];
     expect(computeShowRating(strongMainEvent, TV_SLOT_WEIGHTS)).toBeGreaterThan(computeShowRating(strongOpener, TV_SLOT_WEIGHTS));
   });
+
+  it('dropping a slot entirely from both arrays is not the same as scoring it 0', () => {
+    // The distinction state/store.ts's broadcast-dropout handling depends on
+    // (see sim/broadcast.ts): a match nobody at home saw still happened, and
+    // is not the same thing as an unfilled slot. Excluding it from both the
+    // ratings and the weights leaves the show judged only on what actually
+    // aired, rather than judging it as if that slot had gone empty.
+    const ratings = [90, 90, 90, 90, 90, 90];
+    const weights = TV_SLOT_WEIGHTS;
+    const scoredZero = [...ratings];
+    scoredZero[2] = null as unknown as number;
+    const excluded = computeShowRating(
+      ratings.filter((_, i) => i !== 2),
+      weights.filter((_, i) => i !== 2),
+    );
+    const zeroed = computeShowRating(scoredZero, weights);
+    expect(excluded).toBeCloseTo(90, 5);
+    expect(excluded).toBeGreaterThan(zeroed);
+  });
 });
 
 describe('ratingToStars', () => {

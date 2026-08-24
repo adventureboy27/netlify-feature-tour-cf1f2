@@ -2270,6 +2270,9 @@ export interface WorldSettings {
   pyroBurnRatingCost: number;
   /** How much a pyro burn that left a mark raises the injury roll. */
   pyroBurnInjuryMultiplier: number;
+  // --- the broadcast (sim/broadcast.ts) ---
+  /** Base chance, once per show, the feed drops during one match, before equipment safety. */
+  broadcastDropoutChance: number;
   /** Where the words for ring IQ change. */
   ringcraftGeneralAt: number;
   ringcraftSafeAt: number;

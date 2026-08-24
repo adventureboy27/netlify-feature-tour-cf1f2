@@ -596,6 +596,9 @@ export function defaultWorldSettings(): WorldSettings {
     pyroBurnInjuryShare: 0.35,
     pyroBurnRatingCost: 3,
     pyroBurnInjuryMultiplier: 2.5,
+    // Once per show, not once per match. A handful of shows a season on
+    // decent gear, a real nuisance on nothing but a mat and a truck.
+    broadcastDropoutChance: 0.05,
     ringcraftGeneralAt: 78,
     ringcraftSafeAt: 58,
     ringcraftGreenAt: 35,
