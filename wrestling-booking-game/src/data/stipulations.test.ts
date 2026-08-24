@@ -74,33 +74,61 @@ describe('stipulationRequirementsMet', () => {
 
   it('fails a heat-gated stipulation when heat is too low', () => {
     const steelCage = stipulationById('steelCage')!;
-    expect(stipulationRequirementsMet(steelCage, { participants: [low, high], rivalryHeat: 10, matchTimeLimitMinutes: 15 })).toBe(false);
-    expect(stipulationRequirementsMet(steelCage, { participants: [low, high], rivalryHeat: 50, matchTimeLimitMinutes: 15 })).toBe(true);
+    // A steel cage is also gear-gated now — owning one here so this test
+    // still isolates the heat check it was written to protect.
+    expect(stipulationRequirementsMet(steelCage, { participants: [low, high], rivalryHeat: 10, matchTimeLimitMinutes: 15, ownedGearUnits: 1 })).toBe(false);
+    expect(stipulationRequirementsMet(steelCage, { participants: [low, high], rivalryHeat: 50, matchTimeLimitMinutes: 15, ownedGearUnits: 1 })).toBe(true);
   });
 
   it('fails a stat-gated stipulation when the average is too low', () => {
     const ladder = stipulationById('ladder')!;
-    expect(stipulationRequirementsMet(ladder, { participants: [low, low], rivalryHeat: 0, matchTimeLimitMinutes: 15 })).toBe(false);
-    expect(stipulationRequirementsMet(ladder, { participants: [high, high], rivalryHeat: 0, matchTimeLimitMinutes: 15 })).toBe(true);
+    // A ladder match is also gear-gated now — owning one here so this test
+    // still isolates the stat check it was written to protect.
+    expect(stipulationRequirementsMet(ladder, { participants: [low, low], rivalryHeat: 0, matchTimeLimitMinutes: 15, ownedGearUnits: 1 })).toBe(false);
+    expect(stipulationRequirementsMet(ladder, { participants: [high, high], rivalryHeat: 0, matchTimeLimitMinutes: 15, ownedGearUnits: 1 })).toBe(true);
   });
 
   it('iron man additionally requires a 30+ minute time limit', () => {
     const ironMan = stipulationById('ironMan')!;
-    expect(stipulationRequirementsMet(ironMan, { participants: [high, high], rivalryHeat: 0, matchTimeLimitMinutes: 15 })).toBe(false);
-    expect(stipulationRequirementsMet(ironMan, { participants: [high, high], rivalryHeat: 0, matchTimeLimitMinutes: 30 })).toBe(true);
+    expect(stipulationRequirementsMet(ironMan, { participants: [high, high], rivalryHeat: 0, matchTimeLimitMinutes: 15, ownedGearUnits: 0 })).toBe(false);
+    expect(stipulationRequirementsMet(ironMan, { participants: [high, high], rivalryHeat: 0, matchTimeLimitMinutes: 30, ownedGearUnits: 0 })).toBe(true);
   });
 
   it('battle royal requires at least 8 participants', () => {
     const battleRoyal = stipulationById('battleRoyal')!;
     const few = Array.from({ length: 4 }, () => high);
     const many = Array.from({ length: 8 }, () => high);
-    expect(stipulationRequirementsMet(battleRoyal, { participants: few, rivalryHeat: 0, matchTimeLimitMinutes: 15 })).toBe(false);
-    expect(stipulationRequirementsMet(battleRoyal, { participants: many, rivalryHeat: 0, matchTimeLimitMinutes: 15 })).toBe(true);
+    expect(stipulationRequirementsMet(battleRoyal, { participants: few, rivalryHeat: 0, matchTimeLimitMinutes: 15, ownedGearUnits: 0 })).toBe(false);
+    expect(stipulationRequirementsMet(battleRoyal, { participants: many, rivalryHeat: 0, matchTimeLimitMinutes: 15, ownedGearUnits: 0 })).toBe(true);
   });
 
   it('squash requires a wide popularity gap', () => {
     const squash = stipulationById('squash')!;
-    expect(stipulationRequirementsMet(squash, { participants: [high, { ...high, popularity: 85 }], rivalryHeat: 0, matchTimeLimitMinutes: 15 })).toBe(false);
-    expect(stipulationRequirementsMet(squash, { participants: [high, low], rivalryHeat: 0, matchTimeLimitMinutes: 15 })).toBe(true);
+    expect(stipulationRequirementsMet(squash, { participants: [high, { ...high, popularity: 85 }], rivalryHeat: 0, matchTimeLimitMinutes: 15, ownedGearUnits: 0 })).toBe(false);
+    expect(stipulationRequirementsMet(squash, { participants: [high, low], rivalryHeat: 0, matchTimeLimitMinutes: 15, ownedGearUnits: 0 })).toBe(true);
+  });
+
+  describe('the gear gate — new: you cannot have a ladder match without a ladder', () => {
+    it('fails a hardware-sensitive stipulation with nothing owned', () => {
+      const ladder = stipulationById('ladder')!;
+      expect(
+        stipulationRequirementsMet(ladder, { participants: [high, high], rivalryHeat: 0, matchTimeLimitMinutes: 15, ownedGearUnits: 0 }),
+      ).toBe(false);
+    });
+
+    it('passes once at least one unit is owned', () => {
+      const ladder = stipulationById('ladder')!;
+      expect(
+        stipulationRequirementsMet(ladder, { participants: [high, high], rivalryHeat: 0, matchTimeLimitMinutes: 15, ownedGearUnits: 1 }),
+      ).toBe(true);
+    });
+
+    it('never gates a stipulation that has no gearFamilyId', () => {
+      const noDQ = stipulationById('noDQ')!;
+      expect(noDQ.gearFamilyId).toBeUndefined();
+      expect(
+        stipulationRequirementsMet(noDQ, { participants: [high, high], rivalryHeat: 0, matchTimeLimitMinutes: 15, ownedGearUnits: 0 }),
+      ).toBe(true);
+    });
   });
 });

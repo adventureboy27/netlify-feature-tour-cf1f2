@@ -109,6 +109,7 @@ import { MANAGERS } from '../data/ringsidePool';
 import { DEFAULT_PACE } from '../data/pacing';
 import type { AttendanceRecord } from '../engine/world/territories';
 import type { AssetCondition } from '../engine/economy/showBudget';
+import type { OwnedPropUnit } from '../engine/economy/matchProps';
 import type { ActiveLoan } from '../engine/economy/loan';
 import type { ContractDemand } from '../engine/career/ego';
 
@@ -249,6 +250,13 @@ export interface World {
   grudges: Grudge[];
   /** How worn each owned asset is. Gear does not last forever. */
   assetConditions: AssetCondition[];
+  /**
+   * Literal match hardware — ladders, cages, tables — owned in individual,
+   * separately-worn units. Distinct from ownedAssetIds/productionRungs,
+   * which model house gear (a ring, a truck) as single-owned capital. See
+   * engine/economy/matchProps.ts.
+   */
+  ownedPropUnits: OwnedPropUnit[];
   /** Contract renewals waiting on an answer, opened when a deal runs down. */
   pendingRenewals: RenewalOffer[];
   /** The renewal-window conversation, opened while there's still time on the deal. See RenewalTalk. */
@@ -1121,6 +1129,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     // Nobody has worked with you yet, so nobody has an opinion.
     grudges: [],
     assetConditions: [],
+    // Nobody starts with a ladder, a cage, or a table — see engine/economy/matchProps.ts.
+    ownedPropUnits: [],
     pendingRenewals: [],
     renewalTalks: [],
     signingTalks: [],

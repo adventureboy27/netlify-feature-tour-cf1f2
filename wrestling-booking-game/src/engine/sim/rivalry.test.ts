@@ -32,6 +32,9 @@ function grudgeStipulationIsLegal(rivalryHeat: number): boolean {
     ] as never,
     rivalryHeat,
     matchTimeLimitMinutes: 20,
+    // Flaming Tables is gear-gated now (data/matchProps.ts) — owning a
+    // table here so this stays a test of the heat gate specifically.
+    ownedGearUnits: 1,
   });
 }
 

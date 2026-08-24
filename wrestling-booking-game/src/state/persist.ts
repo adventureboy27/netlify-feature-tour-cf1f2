@@ -229,7 +229,13 @@ const SLOT_KEY = 'wbg.save.v1';
 // distinct from the fixed identity chosen at signing. A version-57 save's
 // promotions have no such field, and resolveWeek both reads and drifts it
 // for the player and every rival, every week.
-const SCHEMA_VERSION = 58;
+//
+// Version 59 adds World.ownedPropUnits — the real, individually-worn
+// inventory of literal match hardware (ladders, cages, tables), see
+// engine/economy/matchProps.ts. A version-58 save has no such field, and
+// both the booking gate (stipulationRequirementsMet) and the weekly
+// use/idle wear tick read it without a guard.
+const SCHEMA_VERSION = 59;
 
 export interface SaveFile {
   schema: number;

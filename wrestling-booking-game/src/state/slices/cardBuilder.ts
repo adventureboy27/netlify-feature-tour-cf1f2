@@ -13,6 +13,9 @@ import { promoIsValid } from '../../engine/sim/promo';
 import type { PromoTopicId } from '../../data/promoTopics';
 import { shunned } from '../../engine/career/onOurWatch';
 import { signedReferees, isAvailable as refereeIsAvailable } from '../../engine/sim/referees';
+import { stipulationById } from '../../data/stipulations';
+import { familyById } from '../../data/matchProps';
+import { usableUnitsForFamily } from '../../engine/economy/matchProps';
 import type { Id, Wrestler } from '../../engine/types';
 
 type CardBuilderSlice = Pick<
@@ -23,6 +26,7 @@ type CardBuilderSlice = Pick<
   | 'removeDarkMatchParticipant'
   | 'setSegmentRules'
   | 'setSegmentStipulation'
+  | 'setSegmentGearUnits'
   | 'autoFillCard'
   | 'toggleSegmentTitle'
 >;
@@ -78,6 +82,26 @@ export const createCardBuilderSlice: StateCreator<GameStore, [['zustand/immer', 
       const segment = state.world?.currentCard[slot];
       if (!segment) return;
       segment.stipulation = stipulationId;
+      // A gear assignment only makes sense for the stipulation it was picked
+      // for — ladders left over from a Ladder Match mean nothing once the
+      // slot becomes a Steel Cage. See data/matchProps.ts.
+      segment.gearUnitIds = undefined;
+    });
+  },
+
+  setSegmentGearUnits: (slot, unitIds) => {
+    set((state) => {
+      const world = state.world;
+      const segment = world?.currentCard[slot];
+      if (!world || !segment) return;
+      const stipulation = segment.stipulation ? stipulationById(segment.stipulation) : null;
+      const family = stipulation?.gearFamilyId ? familyById(stipulation.gearFamilyId) : null;
+      // Nothing to assign gear to if the booked stipulation doesn't need any.
+      if (!family) return;
+      const usable = new Set(
+        usableUnitsForFamily(world.ownedPropUnits, family.id, world.settings).map((u) => u.id),
+      );
+      segment.gearUnitIds = unitIds.filter((id) => usable.has(id)).slice(0, family.maxUnitsInMatch);
     });
   },
 

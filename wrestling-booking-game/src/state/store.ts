@@ -424,6 +424,16 @@ import {
   assetEffectiveness,
   assetHasFailed,
 } from '../engine/economy/showBudget';
+import {
+  idleWearUnit,
+  useWearUnit,
+  unitHasFailed,
+  usableUnitsForFamily,
+  aggregateBreakChance,
+  spectacleBonus,
+  type OwnedPropUnit,
+} from '../engine/economy/matchProps';
+import { tierById as propTierById, type MatchPropTier } from '../data/matchProps';
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import { decayGrudges, grudgeAgainst } from '../engine/world/grudges';
 import {
@@ -584,6 +594,8 @@ export interface GameStore {
     },
   ) => void;
   setSegmentStipulation: (slot: number, stipulationId: Id | null) => void;
+  /** Which owned match-prop units (ladders, a cage, tables) are in play tonight. See data/matchProps.ts. */
+  setSegmentGearUnits: (slot: number, unitIds: Id[]) => void;
   /**
    * Let the office book whatever is still empty on the card. Not a shortcut
    * past the game — a way to run a filler week without hand-booking six
@@ -636,6 +648,10 @@ export interface GameStore {
   setTicketPrice: (price: number) => void;
   toggleShowExtra: (extraId: Id) => void;
   buyProductionAsset: (assetId: Id) => void;
+  /** One more unit of match hardware — a ladder, a cage panel set, a table. Gated on the family's maxUnitsOwned. */
+  buyPropUnit: (tierId: Id) => void;
+  /** Put a specific owned unit back to full condition, for a fraction of its tier's cost. */
+  repairPropUnit: (unitId: Id) => void;
   // Ringside
   /**
    * Put somebody in a corner. `seat` 0 is the mouthpiece, 1 is the muscle —
@@ -1668,6 +1684,9 @@ export const useGameStore = create<GameStore>()(
                 // strangers is allowed, and eats the -8 (§9).
                 rivalryHeat: rivalry?.heat ?? 0,
                 matchTimeLimitMinutes: segment.rules.timeLimit,
+                ownedGearUnits: stipulation.gearFamilyId
+                  ? usableUnitsForFamily(world.ownedPropUnits, stipulation.gearFamilyId, world.settings).length
+                  : 0,
               })
             : true;
 
@@ -1831,6 +1850,39 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
+          // Which owned units are actually assigned to tonight's match, if
+          // the stipulation needs a family at all. A failed unit can't be
+          // put to work even if it's still sitting in inventory — same
+          // usableUnitsForFamily gate the booking screen already applies.
+          const assignedGearUnits = (segment.gearUnitIds ?? [])
+            .map((id) => world.ownedPropUnits.find((u) => u.id === id))
+            .filter((u): u is NonNullable<typeof u> => u !== undefined && !unitHasFailed(u, world.settings));
+          const gearUnitsInPlay = assignedGearUnits
+            .map((u) => {
+              const tier = propTierById(u.tierId);
+              return tier ? { id: u.id, name: tier.name, condition: u.condition } : null;
+            })
+            .filter((u): u is NonNullable<typeof u> => u !== null);
+          const gearUnitsWithTiers = assignedGearUnits
+            .map((u) => ({ unit: u as OwnedPropUnit, tier: propTierById(u.tierId) }))
+            .filter((x): x is { unit: OwnedPropUnit; tier: MatchPropTier } => x.tier !== undefined);
+          // Degrades to an ordinary mismatched-stipulation match (no gear
+          // assigned, or everything assigned since got sold/repaired away) —
+          // never manufactured risk out of nothing. See the plan's edge case.
+          // gearWearMultiplier also raises the odds it gives out mid-match,
+          // not just how fast it wears afterward — a table that is actually
+          // on fire is not just short-lived, it is more likely to go right
+          // there in the spot.
+          const gearFailureChance =
+            gearUnitsWithTiers.length > 0
+              ? clamp(aggregateBreakChance(gearUnitsWithTiers, world.settings) * (stipulation?.gearWearMultiplier ?? 1), 0, 1)
+              : 0;
+          const gearUnitRisk =
+            assignedGearUnits.length > 0
+              ? 1 - Math.min(...assignedGearUnits.map((u) => u.condition)) / 100
+              : 0;
+          const gearSpectacleBonusValue = spectacleBonus(assignedGearUnits.length, world.settings);
+
           const result = simulateMatch(rng, simParticipants, wrestlerById, {
             relationshipHeat: relHeat,
             rules: segment.rules,
@@ -1853,6 +1905,15 @@ export const useGameStore = create<GameStore>()(
             // tonight's entrances have real fire in them. See sim/pyro.ts.
             pyroActive:
               world.productionRungs.includes('pyro') || world.showSetup.extraIds.includes('pyroCharges'),
+            // Real match hardware, not the abstract production ladder — see
+            // engine/economy/matchProps.ts. Empty/zero whenever nothing was
+            // actually assigned, which is deliberate: booking the stipulation
+            // without the prop is a mismatched-stipulation match, not a
+            // manufactured-risk one.
+            gearUnitsInPlay,
+            gearFailureChance,
+            gearUnitRisk,
+            gearSpectacleBonus: gearSpectacleBonusValue,
             // Saturation is read at the level the promotion carried into the
             // show, so every segment on one card is judged against the same
             // number rather than each match penalising the next.
@@ -1897,6 +1958,15 @@ export const useGameStore = create<GameStore>()(
             deckStackingShiftsBySide:
               agenda && agenda.favoursSide !== null ? { [agenda.favoursSide]: agenda.shift } : undefined,
           });
+
+          // The specific unit that gave out is done for the night — reuses
+          // the existing "Failed" semantics wholesale (excluded from
+          // usableUnitsForFamily until repaired) rather than inventing new
+          // state. See engine/sim/gearFailure.ts.
+          if (result.gearFailureUnitId) {
+            const brokenUnit = world.ownedPropUnits.find((u) => u.id === result.gearFailureUnitId);
+            if (brokenUnit) brokenUnit.condition = 0;
+          }
 
           // Standing in the middle of a fight without a wrestler's licence to
           // defend yourself has a price, and it is not always paid.
@@ -2332,6 +2402,26 @@ export const useGameStore = create<GameStore>()(
             // It was on the line, so the clock resets whoever walked out with
             // it. Defending successfully is a defence.
             title.lastDefendedWeek = world.week;
+
+            // The gear gave out before anybody won it. Nobody defended it
+            // for real, so the office won't call it a defence — the belt
+            // comes off the table entirely rather than quietly staying with
+            // whoever walked in holding it. Must run before the
+            // isUnificationMatch/commitTitleChange logic below: that branch
+            // falls back to result.winnerWrestlerIds, which is empty on a
+            // draw finish.
+            if (result.finish === 'equipmentFailure') {
+              stripTitle(world, title, 'vacatedByEquipmentFailure');
+              world.weeklyNews.push(
+                wire(
+                  'title',
+                  `The ${title.name} is vacant tonight — the match for it never got a finish after the gear gave out, and the office isn't willing to call that a defence.`,
+                  world.week + 1,
+                  'lead',
+                ),
+              );
+              continue;
+            }
 
             // A unification settles a split belt: whoever wins holds the only
             // version of it, and the interim claim ends here.
@@ -4348,6 +4438,39 @@ export const useGameStore = create<GameStore>()(
             assetWearPerShow: world.settings.assetWearPerShow + (callOutcome?.extraWear ?? 0),
           }),
         );
+
+        // Match hardware wears differently depending on whether it actually
+        // did anything tonight — a ladder sitting in storage ages slowly; one
+        // that just took a beating in a match ages a lot faster. See
+        // engine/economy/matchProps.ts. Nothing "used tonight" if the show
+        // itself never happened.
+        const usedTonight = night.cancelled
+          ? new Set<Id>()
+          : new Set<Id>(
+              [...world.currentCard, ...world.currentDarkMatches, ...world.currentPromos].flatMap(
+                (s) => s.gearUnitIds ?? [],
+              ),
+            );
+        // How much harder tonight's specific booking was on the gear it
+        // used — a table that was actually on fire in a Flaming Tables
+        // match wears out far faster than the same tier table in a plain
+        // Tables Match. See Stipulation.gearWearMultiplier.
+        const gearWearMultiplierByUnit = new Map<Id, number>();
+        if (!night.cancelled) {
+          for (const s of [...world.currentCard, ...world.currentDarkMatches, ...world.currentPromos]) {
+            const mult = (s.stipulation ? stipulationById(s.stipulation) : null)?.gearWearMultiplier ?? 1;
+            for (const unitId of s.gearUnitIds ?? []) {
+              gearWearMultiplierByUnit.set(unitId, Math.max(gearWearMultiplierByUnit.get(unitId) ?? 1, mult));
+            }
+          }
+        }
+        world.ownedPropUnits = world.ownedPropUnits.map((unit) => {
+          const tier = propTierById(unit.tierId);
+          if (!tier) return unit;
+          return usedTonight.has(unit.id)
+            ? useWearUnit(unit, tier, gearWearMultiplierByUnit.get(unit.id) ?? 1)
+            : idleWearUnit(unit, tier);
+        });
 
         // Deals run down whether or not anybody was booked.
         const expired = expireContracts(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));

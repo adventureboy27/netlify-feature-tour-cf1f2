@@ -43,6 +43,7 @@ const FINISH_LINES: Record<FinishType, (winner: string, loser: string) => string
   refereeStoppage: (w, l) => `The referee waved it off — ${w} wins by stoppage over ${l}.`,
   injuryStoppage: (_w, l) => `${l} went down badly and did not get up. The match was stopped and the room went quiet.`,
   escape: (w, l) => `${w} hit the floor first and left ${l} still climbing — a Steel Cage win by escape.`,
+  equipmentFailure: (w, l) => `The gear gave out on ${w} and ${l} both, and there was no honest way to call a winner out of that.`,
 };
 
 export interface NarrativeContext {

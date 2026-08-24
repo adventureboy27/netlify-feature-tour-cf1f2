@@ -150,6 +150,11 @@ describe('when a belt moves', () => {
     expect(titleCanChangeHands('doubleKO', null)).toBe(false);
   });
 
+  it('does not hand it to anybody when the gear gave out — store.ts vacates it instead', () => {
+    expect(titleCanChangeHands('equipmentFailure', null)).toBe(false);
+    expect(titleCanChangeHands('equipmentFailure', stipulationById('ladder') ?? null)).toBe(false);
+  });
+
   it('goes to the challenger on a clean win', () => {
     const [champ, challenger] = cast(2);
     const title = awardTitle(belts()[0]!, [champ!.id], 1);

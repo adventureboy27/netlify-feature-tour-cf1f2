@@ -161,6 +161,8 @@ export type TitleReignEndMethod =
   | 'strippedUndefended'
   /** Ended by a unification match rather than an ordinary defence. */
   | 'unified'
+  /** The match for it broke down mid-way when the gear it needed gave out — nobody won it. */
+  | 'vacatedByEquipmentFailure'
   /** The championship itself was retired out from under them. */
   | 'titleRetired'
   | 'retired'
@@ -1166,6 +1168,22 @@ export interface Stipulation {
    * earns everyone else.
    */
   hardwareGearSensitive?: boolean;
+  /**
+   * Which data/matchProps.ts family this stipulation needs physically owned
+   * to be booked for real — e.g. a Ladder Match needs a ladder. Undefined
+   * means no physical prop is required. See stipulationRequirementsMet.
+   */
+  gearFamilyId?: Id;
+  /** How many usable units of gearFamilyId are required. Defaults to 1 when gearFamilyId is set. */
+  minGearUnits?: number;
+  /**
+   * How much harder this specific booking is on the gear it used tonight,
+   * multiplying the tier's ordinary useWearPerMatch. Defaults to 1. A table
+   * that's actually on fire does not come back from a Flaming Tables match
+   * the way a plain Tables Match table does — same family, same tiers, a
+   * much shorter life once the stipulation is the reason it broke.
+   */
+  gearWearMultiplier?: number;
 }
 
 // ============================================================================
@@ -1259,7 +1277,14 @@ export type FinishType =
   /** Somebody got hurt and it had to be stopped. Nobody goes home happy. */
   | 'injuryStoppage'
   /** Steel Cage only: over the wall or out the door before anybody's shoulders hit the mat. */
-  | 'escape';
+  | 'escape'
+  /**
+   * The gear gave out mid-match — a ladder buckled, a cage panel came loose,
+   * a table didn't break. Nobody wins this one. Only ever reachable when the
+   * booked stipulation actually needs owned hardware; see gearFamilyId and
+   * sim/gearFailure.ts.
+   */
+  | 'equipmentFailure';
 
 export interface RatingBreakdownEntry {
   label: string;
@@ -1281,6 +1306,9 @@ export type MatchBeatKind =
   // 'botch' is — the write-up needs to be able to tell "a spot went wrong"
   // from "the production gear went wrong". See sim/pyro.ts.
   | 'pyroBurn'
+  // The match hardware itself gave out — a ladder, a cage, a table. Its own
+  // kind for the same reason 'pyroBurn' is. See sim/gearFailure.ts.
+  | 'gearFailure'
   | 'finish';
 
 export interface MatchBeat {
@@ -1395,6 +1423,14 @@ export interface Segment {
    * unambiguously as "broadcast" without needing a migration.
    */
   dark?: boolean;
+  /**
+   * Which owned match-prop units (ladders, a cage, tables) are assigned to
+   * this segment tonight — see data/matchProps.ts and
+   * engine/economy/matchProps.ts. Undefined/empty means none chosen, which
+   * is what a hardware-sensitive stipulation booked with nothing assigned
+   * looks like: no physical prop to break, so no equipment-failure risk.
+   */
+  gearUnitIds?: Id[];
 }
 
 /** What a town made of what it was charged. See economy/showBudget.ts. */
@@ -2102,6 +2138,19 @@ export interface WorldSettings {
   assetFailureThreshold: number;
   /** Repair cost as a fraction of the purchase price, per point of wear. */
   assetRepairCostFraction: number;
+
+  // Wear and tear on literal match hardware — ladders, cages, tables
+  // (engine/economy/matchProps.ts). Same shape as the asset settings above,
+  // applied per-unit instead of per-owned-type.
+  /** At or below this condition a prop unit cannot be used at all. */
+  propFailureThreshold: number;
+  propRepairCostFraction: number;
+  /** The one tunable the whole per-unit break-odds formula is built from — everything else is tier data or unit state. */
+  propBreakChanceAtWorst: number;
+  /** Converts a 0-1 aggregate break chance into a rollFinish weight comparable to a clean pin's. */
+  equipmentFailureWeightScale: number;
+  gearUnitsSpectacleBonusPerExtra: number;
+  gearUnitsSpectacleBonusCurve: number;
   /** Rating points a maximum-prestige building adds to the show. */
   venuePrestigeRatingWeight: number;
   /** Fill ratio at or above which the building reads as full. */

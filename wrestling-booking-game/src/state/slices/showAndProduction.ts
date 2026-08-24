@@ -27,6 +27,13 @@ import { nextCardSizeTier } from '../../data/cardSize';
 import { productionAssetById } from '../../data/production';
 import { newAssetCondition, repairAsset, repairCost } from '../../engine/economy/showBudget';
 import { fireSaleEligible, fireSaleValue } from '../../engine/economy/fireSale';
+import {
+  newPropUnit,
+  repairPropUnit as repairPropUnitCondition,
+  propRepairCost,
+  ownedUnitsForFamily,
+} from '../../engine/economy/matchProps';
+import { tierById as propTierById, familyById as propFamilyById } from '../../data/matchProps';
 
 type ShowAndProductionSlice = Pick<
   GameStore,
@@ -45,6 +52,8 @@ type ShowAndProductionSlice = Pick<
   | 'buyProductionAsset'
   | 'repairProductionAsset'
   | 'sellProductionAsset'
+  | 'buyPropUnit'
+  | 'repairPropUnit'
 >;
 
 export const createShowAndProductionSlice: StateCreator<
@@ -328,6 +337,41 @@ export const createShowAndProductionSlice: StateCreator<
       world.weeklyNews.push(
         wire('story', `${world.promotion.name} sold off the ${asset.name.toLowerCase()} just to keep the lights on — a hard call, but a necessary one.`, world.week, 'minor'),
       );
+    });
+  },
+
+  // Match hardware — a ladder, a cage, a table. Countable, multi-unit,
+  // consumable in a way the production ladder above is not. See
+  // engine/economy/matchProps.ts and data/matchProps.ts.
+  buyPropUnit: (tierId) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      const tier = propTierById(tierId);
+      if (!tier) return;
+      const family = propFamilyById(tier.familyId);
+      if (!family) return;
+      // No warnings (§0) — but the family cap and the bank balance are both hard limits.
+      if (ownedUnitsForFamily(world.ownedPropUnits, family.id).length >= family.maxUnitsOwned) return;
+      if (world.promotion.bankBalance < tier.cost) return;
+      world.promotion.bankBalance -= tier.cost;
+      world.ownedPropUnits.push(newPropUnit(`prop-${world.nextId++}`, family.id, tier.id));
+    });
+  },
+
+  repairPropUnit: (unitId) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      const index = world.ownedPropUnits.findIndex((u) => u.id === unitId);
+      if (index < 0) return;
+      const unit = world.ownedPropUnits[index]!;
+      const tier = propTierById(unit.tierId);
+      if (!tier) return;
+      const cost = propRepairCost(unit, tier, world.settings);
+      if (cost <= 0 || world.promotion.bankBalance < cost) return;
+      world.promotion.bankBalance -= cost;
+      world.ownedPropUnits[index] = repairPropUnitCondition(unit);
     });
   },
 });

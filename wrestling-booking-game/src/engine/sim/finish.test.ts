@@ -89,6 +89,44 @@ describe('rollFinish', () => {
       expect(finish).not.toBe('refereeStoppage');
     }
   });
+
+  it('never returns equipmentFailure when no gear weight was supplied', () => {
+    const rng = mulberry32(6);
+    for (let i = 0; i < 300; i++) {
+      const finish = rollFinish(rng, {
+        rules: baseRules(),
+        violenceLevel: 0,
+        winnerIsTechnician: false,
+        isUpset: false,
+        isCloselyMatched: false,
+      });
+      expect(finish).not.toBe('equipmentFailure');
+    }
+  });
+
+  it('reaches equipmentFailure once real gear weight is in the match, and more often the higher it is', () => {
+    function equipmentFailureRate(weight: number, runs = 2000): number {
+      const rng = mulberry32(7);
+      let hits = 0;
+      for (let i = 0; i < runs; i++) {
+        const finish = rollFinish(rng, {
+          rules: baseRules(),
+          violenceLevel: 0,
+          winnerIsTechnician: false,
+          isUpset: false,
+          isCloselyMatched: false,
+          equipmentFailureWeight: weight,
+        });
+        if (finish === 'equipmentFailure') hits += 1;
+      }
+      return hits / runs;
+    }
+    expect(equipmentFailureRate(0)).toBe(0);
+    const lowRisk = equipmentFailureRate(2);
+    const highRisk = equipmentFailureRate(30);
+    expect(lowRisk).toBeGreaterThan(0);
+    expect(highRisk).toBeGreaterThan(lowRisk);
+  });
 });
 
 describe('isDrawFinish / isNonDecisiveFinish', () => {

@@ -18,6 +18,7 @@ import type {
 import { shootRatingBonus, shootInjuryMultiplier, heatFromMatch, type HeatChange } from './rivalry';
 import { rollBotch } from './ringcraft';
 import { rollPyroBurn } from './pyro';
+import { rollGearFailure, type GearUnitInPlay } from './gearFailure';
 import { ratingToStars } from '../economy/showRating';
 import { injuryProneness } from '../career/personality';
 import type { RingsideTotals } from './ringside';
@@ -61,6 +62,19 @@ export interface SimulateMatchContext {
    * show extra. Nothing rolls unless this is true; see sim/pyro.ts.
    */
   pyroActive?: boolean;
+  /**
+   * Tonight's assigned match-prop units (a ladder, a cage, tables) for this
+   * segment's stipulation, if it needs any — see data/matchProps.ts. Empty
+   * or undefined means none assigned, which degrades to zero equipment-
+   * failure risk rather than manufacturing risk from nothing.
+   */
+  gearUnitsInPlay?: GearUnitInPlay[];
+  /** 0-1. Pre-folded from gearUnitsInPlay by the caller — see engine/economy/matchProps.ts's aggregateBreakChance. */
+  gearFailureChance?: number;
+  /** 0-1. Worst condition among gearUnitsInPlay, pre-folded the same way equipmentInjuryReduction is. */
+  gearUnitRisk?: number;
+  /** Rating bonus for the spectacle of extra units in play — see matchProps.ts's spectacleBonus. */
+  gearSpectacleBonus?: number;
   titlePrestige?: number | null;
   /** The rivalry these two are in, if any — drives heat, bad blood, and injury risk. */
   rivalry?: Rivalry | null;
@@ -117,6 +131,8 @@ export interface MatchSimResult {
   paceSaturationAdded: number;
   /** How the rivalry moved, if these two were in one. Caller commits it. */
   heatChange: HeatChange | null;
+  /** Which owned match-prop unit gave out, if the finish was 'equipmentFailure'. */
+  gearFailureUnitId?: Id | null;
 }
 
 function mean(values: number[]): number {
@@ -142,10 +158,16 @@ export function simulateMatch(
 
   // A ladder, a cage, a table are hardware, and cheap hardware is real risk
   // on top of the stipulation's own flat injuryMult — see data/stipulations.ts's
-  // hardwareGearSensitive. Scales down as equipmentInjuryReduction climbs,
-  // same as everything else in this stack, and never quite to nothing.
+  // hardwareGearSensitive. Prefers the specific unit(s) actually assigned
+  // tonight (gearUnitRisk) over the general ring/mat proxy, so a promotion
+  // running a ladder match on a pro-spec ladder reads safer than one running
+  // it on the last owned unit held together with tape — falls back to the
+  // general proxy only if nothing was ever assigned. Scales down as safety
+  // climbs, same as everything else in this stack, and never quite to
+  // nothing.
+  const gearUnitRisk = ctx.gearUnitRisk ?? (1 - (ctx.equipmentInjuryReduction ?? 0));
   const hardwareGearRisk = ctx.stipulation?.hardwareGearSensitive
-    ? 1 + (1 - (ctx.equipmentInjuryReduction ?? 0)) * ctx.settings.hardwareGearRiskAtWorst
+    ? 1 + gearUnitRisk * ctx.settings.hardwareGearRiskAtWorst
     : 1;
 
   const weights = ruleAdjustedWeights(rules, isLadderOrHighSpot, isMultiMan);
@@ -255,6 +277,12 @@ export function simulateMatch(
     settings: ctx.settings,
   });
 
+  // Zero for any match not booked with hardware-needing gear actually
+  // assigned — see FinishRollContext's doc comment on equipmentFailureWeight.
+  const equipmentFailureWeight = ctx.stipulation?.gearFamilyId
+    ? (ctx.gearFailureChance ?? 0) * ctx.settings.equipmentFailureWeightScale
+    : 0;
+
   const finish: FinishType = caughtManager
     ? // Nothing else it can be. The official saw it.
       'disqualification'
@@ -265,6 +293,7 @@ export function simulateMatch(
     isUpset,
     isCloselyMatched: Math.abs(winnerProbability - 0.5) < 0.1,
     finishWeights: ctx.stipulation?.finishWeights,
+    equipmentFailureWeight,
     injuryMultiplier:
       (ctx.stipulation?.injuryMult ?? 1) *
       shootInjuryMultiplier(rivalry ?? undefined, ctx.settings) *
@@ -315,6 +344,7 @@ export function simulateMatch(
     overexposurePenalty: ctx.overexposurePenalty ?? 0,
     staleGimmickPenalty: ctx.staleGimmickPenalty ?? 0,
     signatureStipulationFit: ctx.signatureStipulationFit ?? 0,
+    gearSpectacleBonus: ctx.gearSpectacleBonus ?? 0,
   });
 
   // Did somebody lose their place out there. Rolled after the rating because
@@ -338,6 +368,15 @@ export function simulateMatch(
   );
   const pyroBurnBeat: MatchBeat[] = pyroBurn
     ? [{ kind: 'pyroBurn' as const, significant: true, text: pyroBurn.text }]
+    : [];
+
+  // Which specific unit gets blamed — only ever rolled when the finish
+  // itself already landed on 'equipmentFailure', the narrowest form of
+  // "only draw when the feature is actively engaged": this is already the
+  // rare tail of an already-rare weighted pick. See sim/gearFailure.ts.
+  const gearFailure = finish === 'equipmentFailure' ? rollGearFailure(rng, ctx.gearUnitsInPlay ?? []) : null;
+  const gearFailureBeat: MatchBeat[] = gearFailure
+    ? [{ kind: 'gearFailure' as const, significant: true, text: gearFailure.text }]
     : [];
 
   const finalRating = clamp(rating - (botch?.ratingCost ?? 0) - (pyroBurn?.ratingCost ?? 0), 3, 100);
@@ -401,9 +440,11 @@ export function simulateMatch(
     rating: finalRating,
     stars: finalStars,
     ratingBreakdown: breakdown,
-    beats: [...cornerBeat, ...distractionBeat, ...botchBeat, ...pyroBurnBeat, ...beats],
+    beats: [...cornerBeat, ...distractionBeat, ...botchBeat, ...pyroBurnBeat, ...gearFailureBeat, ...beats],
     /** Who blew a spot, if anybody did. The caller decides what it costs them. */
     botchedById: botch?.workerId ?? null,
+    /** Which owned unit gave out, if the finish was 'equipmentFailure'. The caller applies the consequence. */
+    gearFailureUnitId: gearFailure?.unitId ?? null,
     caughtManagerId,
     winProbabilitiesBySide,
     injuryMultiplier:

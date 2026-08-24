@@ -41,6 +41,7 @@ const FINISH_TEXT: Record<FinishType, string> = {
   refereeStoppage: 'referee stoppage',
   injuryStoppage: 'stopped through injury',
   escape: 'by escape',
+  equipmentFailure: 'no-contest — the gear gave out',
 };
 
 export function ShowResults({ show, onContinue }: { show: Show; onContinue: () => void }) {
@@ -267,11 +268,16 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
               {titleNames.length > 0 && (
                 <div
                   className={`px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider ${
-                    result.titleChanged ? 'bg-amber-900/40 text-amber-200' : 'text-amber-500/80'
+                    result.titleChanged
+                      ? 'bg-amber-900/40 text-amber-200'
+                      : result.finish === 'equipmentFailure'
+                        ? 'bg-red-900/30 text-red-300'
+                        : 'text-amber-500/80'
                   }`}
                 >
                   {titleNames.join(' & ')}
                   {result.titleChanged && <span className="ml-1.5">— new champion</span>}
+                  {result.finish === 'equipmentFailure' && <span className="ml-1.5">— vacated</span>}
                 </div>
               )}
 

@@ -28,6 +28,15 @@ export interface FinishRollContext {
    * finishes up; a devious manager pushes interference up.
    */
   ringsideWeights?: { screwy: number; interference: number; decisive?: number; hasOfficial?: boolean };
+  /**
+   * A pre-scaled absolute weight for 'equipmentFailure' — computed by the
+   * caller from tonight's assigned match-prop units (engine/economy/
+   * matchProps.ts's aggregateBreakChance * settings.equipmentFailureWeightScale),
+   * not a raw probability. Zero (the default) for any match that isn't
+   * booked with hardware-needing gear in play, so this can never surface
+   * anywhere it wasn't explicitly booked.
+   */
+  equipmentFailureWeight?: number;
 }
 
 export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
@@ -86,6 +95,10 @@ export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
   const injuryStoppage = 1.2 * (ctx.injuryMultiplier ?? 1) ** 2;
   entries.push(['injuryStoppage', injuryStoppage]);
 
+  // Zero for any match that isn't actually carrying hardware-needing gear —
+  // see FinishRollContext's doc comment on equipmentFailureWeight.
+  entries.push(['equipmentFailure', ctx.equipmentFailureWeight ?? 0]);
+
   const stipulationWeighted = ctx.finishWeights
     ? entries.map(([finish, weight]) => [finish, weight * (ctx.finishWeights![finish] ?? 1)] as [FinishType, number])
     : entries;
@@ -123,5 +136,5 @@ export function isNonDecisiveFinish(finish: FinishType): boolean {
 
 /** A draw finish has no winner at all — distinct from a non-decisive-but-still-a-winner DQ/count-out. */
 export function isDrawFinish(finish: FinishType): boolean {
-  return finish === 'timeLimitDraw' || finish === 'doubleKO';
+  return finish === 'timeLimitDraw' || finish === 'doubleKO' || finish === 'equipmentFailure';
 }

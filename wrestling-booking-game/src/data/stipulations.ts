@@ -27,6 +27,7 @@ export const STIPULATIONS: Stipulation[] = [
     violenceLevel: 2,
     injuryMult: 1.4,
     hardwareGearSensitive: true,
+    gearFamilyId: 'steelCage',
     heatRequirement: 40,
     archetypeFit: [],
     impliedRules: { countOuts: 'none', aim: 'escape' },
@@ -36,6 +37,7 @@ export const STIPULATIONS: Stipulation[] = [
       submission: 'folded {loser} up in the corner of that cage and cranked the hold until the tap came',
       knockout: 'hammered {loser} into the chain-link until there was nothing left to give',
       escape: 'beat {loser} to the door and hit that arena floor first for the escape',
+      equipmentFailure: 'was still working the lock with {loser} when a hinge went first, and neither of them ever got that door open clean',
     },
   },
   {
@@ -46,6 +48,7 @@ export const STIPULATIONS: Stipulation[] = [
     violenceLevel: 3,
     injuryMult: 2.0,
     hardwareGearSensitive: true,
+    gearFamilyId: 'ladder',
     avgStatRequirement: { stat: 'agility', min: 60 },
     archetypeFit: ['highFlyer'],
     impliedRules: { ruleStrictness: 'none' },
@@ -53,6 +56,7 @@ export const STIPULATIONS: Stipulation[] = [
     finishFlavor: {
       knockout: 'beat {loser} up the ladder and ripped the prize down off the hook to steal it',
       submission: 'caught {loser} at the peak of the ladder and simply would not let them come back down',
+      equipmentFailure: 'had {loser} beat to the top when the ladder gave out from under both of them, and nobody ever got a hand on what was hanging up there',
     },
   },
   {
@@ -121,6 +125,7 @@ export const STIPULATIONS: Stipulation[] = [
     violenceLevel: 3,
     injuryMult: 1.7,
     hardwareGearSensitive: true,
+    gearFamilyId: 'tables',
     heatRequirement: 30,
     archetypeFit: ['powerhouse'],
     impliedRules: { ruleStrictness: 'none', falls: 'knockout', countOuts: 'none' },
@@ -138,6 +143,7 @@ export const STIPULATIONS: Stipulation[] = [
       knockout: 'drove {loser} through the table in the corner',
       interference: 'sent {loser} through a table with help from outside',
       doubleKO: 'took {loser} through a table and went through it with them',
+      equipmentFailure: 'put {loser} through the table exactly like the stipulation called for, except the wood never gave — and there was no way to call that a finish',
     },
   },
   {
@@ -152,6 +158,11 @@ export const STIPULATIONS: Stipulation[] = [
     violenceLevel: 5,
     injuryMult: 2.6,
     hardwareGearSensitive: true,
+    gearFamilyId: 'tables',
+    // Same family and tiers as a plain Tables Match, but this one is
+    // actually on fire — the table does not come back from that the way a
+    // table that just got broken does.
+    gearWearMultiplier: 5,
     heatRequirement: 70,
     archetypeFit: ['brawler'],
     impliedRules: { ruleStrictness: 'none', falls: 'knockout', countOuts: 'none' },
@@ -168,6 +179,7 @@ export const STIPULATIONS: Stipulation[] = [
     finishFlavor: {
       knockout: 'put {loser} through the burning table and the arena lost its mind',
       doubleKO: 'took {loser} through the fire and neither of them got up',
+      equipmentFailure: 'drove {loser} toward the fire right on schedule, except the table held under both of them, and the whole thing died right there',
     },
     isBlowoff: true,
   },
@@ -343,6 +355,8 @@ export interface StipulationCheckContext {
   participants: Wrestler[];
   rivalryHeat: number;
   matchTimeLimitMinutes: number; // 0 = no limit
+  /** Usable owned units of whatever data/matchProps.ts family this stipulation needs. Irrelevant when gearFamilyId is unset. */
+  ownedGearUnits: number;
 }
 
 /** §9: "Booking a stipulation whose requirements aren't met is allowed but incurs a penalty." */
@@ -364,6 +378,9 @@ export function stipulationRequirementsMet(stipulation: Stipulation, ctx: Stipul
 
   if (stipulation.id === 'ironMan' && ctx.matchTimeLimitMinutes < 30) return false;
   if (stipulation.id === 'maskVsMask' && !ctx.participants.every((p) => p.appearance.mask !== 0)) return false;
+
+  // You can't have a ladder match without a ladder. See data/matchProps.ts.
+  if (stipulation.gearFamilyId && ctx.ownedGearUnits < (stipulation.minGearUnits ?? 1)) return false;
 
   return true;
 }

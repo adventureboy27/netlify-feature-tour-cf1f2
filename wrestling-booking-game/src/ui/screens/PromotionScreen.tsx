@@ -26,6 +26,8 @@ import {
   repairCost,
 } from '../../engine/economy/showBudget';
 import { fireSaleEligible, fireSaleValue } from '../../engine/economy/fireSale';
+import { MATCH_PROP_FAMILIES, tiersForFamily } from '../../data/matchProps';
+import { ownedUnitsForFamily, unitConditionLabel, unitHasFailed, propRepairCost } from '../../engine/economy/matchProps';
 import { weeklyWageBill } from '../../engine/economy/contracts';
 import { followingOf } from '../../engine/world/territories';
 import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
@@ -55,6 +57,8 @@ export function PromotionScreen() {
   const buyAsset = useGameStore((s) => s.buyProductionAsset);
   const repair = useGameStore((s) => s.repairProductionAsset);
   const sellAsset = useGameStore((s) => s.sellProductionAsset);
+  const buyPropUnit = useGameStore((s) => s.buyPropUnit);
+  const repairPropUnit = useGameStore((s) => s.repairPropUnit);
 
   const projection = useMemo(() => {
     if (!world) return null;
@@ -333,6 +337,104 @@ export function PromotionScreen() {
                   Fire sale · <Money amount={saleValue} />
                 </button>
               )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ---- match hardware ----------------------------------------------
+          Ladders, cages, tables — countable, multi-unit, and each one wears
+          out on its own. Different category from the capital purchases
+          above: those are one-owned-or-not house gear, these are consumable
+          props a stipulation actually needs. See data/matchProps.ts. */}
+      <section>
+        <h2 className="mb-2 text-sm font-medium text-neutral-300">Match hardware — tracked unit by unit</h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {MATCH_PROP_FAMILIES.map((family) => {
+            const owned = ownedUnitsForFamily(world.ownedPropUnits, family.id);
+            const atCap = owned.length >= family.maxUnitsOwned;
+
+            return (
+              <div key={family.id} className="rounded border border-neutral-800 bg-neutral-900 p-2">
+                <div className="mb-1 flex items-baseline justify-between">
+                  <span className="text-xs font-medium">{family.name}</span>
+                  <span className="text-[10px] text-neutral-600">
+                    {owned.length} / {family.maxUnitsOwned} owned
+                  </span>
+                </div>
+                <div className="mb-2 text-[10px] text-neutral-500">{family.blurb}</div>
+
+                {owned.length > 0 && (
+                  <div className="mb-2 flex flex-col gap-1">
+                    {owned.map((unit) => {
+                      const tier = tiersForFamily(family.id).find((t) => t.id === unit.tierId);
+                      if (!tier) return null;
+                      const failed = unitHasFailed(unit, world.settings);
+                      const fixCost = propRepairCost(unit, tier, world.settings);
+
+                      return (
+                        <div
+                          key={unit.id}
+                          className="flex items-center justify-between gap-2 rounded bg-neutral-950/60 px-2 py-1 text-[11px]"
+                        >
+                          <span className="min-w-0 truncate">
+                            {tier.name}{' '}
+                            <span className={failed ? 'text-rose-400' : unit.condition < 40 ? 'text-amber-500' : 'text-neutral-500'}>
+                              · {unitConditionLabel(unit, world.settings)}
+                            </span>
+                          </span>
+                          {fixCost > 0 && (
+                            <button
+                              type="button"
+                              data-testid={`repair-prop-${unit.id}`}
+                              disabled={world.promotion.bankBalance < fixCost}
+                              onClick={() => repairPropUnit(unit.id)}
+                              className={`shrink-0 rounded px-1.5 py-0.5 ${
+                                world.promotion.bankBalance >= fixCost
+                                  ? 'bg-amber-900/60 text-amber-200 hover:bg-amber-800/60'
+                                  : 'bg-neutral-900 text-neutral-600'
+                              }`}
+                            >
+                              Repair · <Money amount={fixCost} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  {tiersForFamily(family.id).map((tier) => {
+                    const affordable = world.promotion.bankBalance >= tier.cost;
+                    return (
+                      <button
+                        key={tier.id}
+                        type="button"
+                        data-testid={`buy-prop-${tier.id}`}
+                        disabled={atCap || !affordable}
+                        onClick={() => buyPropUnit(tier.id)}
+                        title={tier.blurb}
+                        className={`flex items-center justify-between gap-2 rounded border p-1.5 text-left text-[11px] ${
+                          atCap || !affordable
+                            ? 'border-neutral-900 bg-neutral-950 opacity-50'
+                            : 'border-neutral-800 bg-neutral-950 hover:border-neutral-600'
+                        }`}
+                      >
+                        <span className="min-w-0 truncate">{tier.name}</span>
+                        <span className="shrink-0 text-neutral-400">
+                          <Money amount={tier.cost} />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {atCap && (
+                  <div className="mt-1 text-[10px] text-neutral-600">
+                    This is as many as the promotion can own. A broken one still counts until it's repaired.
+                  </div>
+                )}
               </div>
             );
           })}

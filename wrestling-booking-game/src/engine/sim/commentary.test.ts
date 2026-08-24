@@ -113,7 +113,7 @@ const BACKED_BY: Record<string, string[]> = {
   ref: ['referee', 'refereeMiss'],
   refMiss: ['refereeMiss'],
   guestRef: ['guestReferee'],
-  title: ['title', 'titleChange', 'titleRetained', 'longReign'],
+  title: ['title', 'titleChange', 'titleRetained', 'titleVoided', 'longReign'],
   champion: ['titleRetained', 'longReign', 'titleChange'],
   reign: ['longReign'],
   hurt: ['injuredInMatch'],
@@ -515,6 +515,27 @@ describe('what it is allowed to talk about', () => {
     expect(factsOf(bare({ championWeeks: 200 })).has('longReign')).toBe(false);
   });
 
+  it('never calls an equipment-failure vacate a retained title', () => {
+    // Regression: the gear gave out, nobody won, and the belt was stripped —
+    // but titles.length > 0, titleChanged is false, and championName is
+    // still the outgoing champion's name (all snapshotted before the
+    // match), which used to be exactly the shape that made 'titleRetained'
+    // fire. See state/store.ts's equipmentFailure title-outcome intercept.
+    const titles = createStartingTitles('me', 'Southside', 'territory').slice(0, 1);
+    const facts = factsOf(
+      bare({ titles, championName: 'Aaron Quist', titleChanged: false, finish: 'equipmentFailure' }),
+    );
+    expect(facts.has('titleRetained')).toBe(false);
+    expect(facts.has('titleVoided')).toBe(true);
+  });
+
+  it('still calls it retained on an ordinary non-title-changing finish', () => {
+    const titles = createStartingTitles('me', 'Southside', 'territory').slice(0, 1);
+    const facts = factsOf(bare({ titles, championName: 'Aaron Quist', titleChanged: false, finish: 'cleanPin' }));
+    expect(facts.has('titleRetained')).toBe(true);
+    expect(facts.has('titleVoided')).toBe(false);
+  });
+
   it('talks about a manager exactly when there is one at ringside', () => {
     const withManager = said(
       bare({ managers: [{ name: 'Cyrus Fell', clientName: 'Bo Halvorsen', devious: true }] }),
@@ -539,6 +560,7 @@ describe('every fact has something to say about it', () => {
     'title',
     'titleChange',
     'titleRetained',
+    'titleVoided',
     'longReign',
     'grudge',
     'injuredInMatch',

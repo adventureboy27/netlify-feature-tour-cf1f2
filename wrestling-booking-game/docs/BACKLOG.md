@@ -2285,3 +2285,153 @@ the real math; Phases D, E, and F built new, genuinely felt downsides on top of 
 giving out, pyro burns, and a broadcast that can drop — matching the standing rule that started the
 whole plan: every purchase needs a real upside, and every cheap tier needs a real, occasionally-visible
 downside.
+
+---
+
+## Prop lifecycle & consequence system, Phase 1 — real, countable match hardware
+
+Grew out of a follow-up request, prompted directly by the player: every prop in wrestling — rings,
+ladders, cages, tables, cameras, pyro, the truck — should have a real 0-100% lifespan, some ownable in
+multiple units each tracked separately, with a real cap and real "magic" to owning more than one, with
+breakage odds climbing as condition drops, and a felt consequence when it actually breaks mid-match (a
+draw; a vacated title if a belt was on the line). Confirmed via research before writing any code: no
+literal ladder, cage, or table prop existed anywhere in the codebase — the existing "production ladder"
+(`engine/economy/production.ts`) is an abstract quality-tier system, and a Ladder/Cage/Tables
+*stipulation* had zero physical-prop requirement wired to it. This is Phase 1 of a larger plan (see the
+plan file); it ships the biggest genuinely-missing piece — the literal match hardware — plus the plumbing
+the later phases (pyro condition, camera condition, truck breakdown, gear-hurt-someone-backstage) will
+reuse. **Additive, not a retrofit**: `ownedAssetIds`/`AssetCondition` (System A, one-time shop) and
+`productionRungs`/`HAULAGE` (System B, ordered ladder) model single-owned house capital; a ladder, a
+cage, a table are a different category — consumable, countable, multi-unit match props — so this phase
+adds a new, parallel system rather than bending either existing one to fit.
+
+- **New file `data/matchProps.ts`**: `MatchPropFamily` (`ladder` maxUnitsOwned 6/maxUnitsInMatch 4,
+  `steelCage` 2/1, `tables` 10/4 — shared by `tables` and `flamingTables`) and `MatchPropTier`, three
+  per family cheap-to-expensive (`ladderWood`/`ladderAluminum`/`ladderProSpec`,
+  `cageRentedPanels`/`cageTouringRig`, `tableFolding`/`tableBanquetReinforced`), each with its own
+  `idleWearPerShow`/`useWearPerMatch`/`qualityFactor`. Lookup helpers: `familyById`, `tierById`,
+  `tiersForFamily`, `familyForStipulation`.
+- **New file `engine/economy/matchProps.ts`**: `OwnedPropUnit` (per-unit `condition`, `showsOwned`,
+  `timesUsed`) plus the same taper-curve/failure-threshold/repair-for-a-fraction idiom
+  `economy/showBudget.ts`'s `AssetCondition` already established, applied per unit instead of per asset
+  type: `newPropUnit`, `idleWearUnit`, `useWearUnit` (now takes an optional `wearMultiplier`, see
+  below), `unitHasFailed`, `unitConditionLabel`, `propRepairCost`, `repairPropUnit`,
+  `ownedUnitsForFamily`, `usableUnitsForFamily`. `unitBreakChance` scales with tier quality and
+  condition; `aggregateBreakChance` stacks several units in play the same way `productionEffects()`
+  stacks `injuryReduction` (`1 - product(1 - x_i)`, so more units in play is a real, compounding cost);
+  `spectacleBonus` gives diminishing-returns rating upside for more units in one match — the mechanical
+  answer to "4 ladders could put on a heck of a ladder match... there is magic to having certain
+  amounts."
+- **`World`/`Segment`/`WorldSettings`**: `World.ownedPropUnits: OwnedPropUnit[]` (schema bump 58→59,
+  hard reset on old saves per this codebase's existing no-migration convention); `Segment.gearUnitIds?:
+  Id[]` (which owned units are assigned to tonight's match); six new settings
+  (`propFailureThreshold`, `propRepairCostFraction`, `propBreakChanceAtWorst`,
+  `equipmentFailureWeightScale`, `gearUnitsSpectacleBonusPerExtra`, `gearUnitsSpectacleBonusCurve`).
+- **Use-vs-idle wear, live in `resolveWeek`**: every owned unit either takes `useWearUnit` (assigned to
+  a segment tonight) or `idleWearUnit` (sitting in storage) — the direct, literal answer to "a ladder
+  deteriorates faster during a match than if it's not used." Because the *rate itself* is tier data, a
+  cheap wooden ladder visibly ages faster than a pro-spec one even sitting untouched in storage.
+- **The booking gate — "you cannot book a Ladder Match without a ladder," the first time
+  `stipulationRequirementsMet()` has ever checked ownership at all.** `Stipulation` gets
+  `gearFamilyId`/`minGearUnits`, set on the four `hardwareGearSensitive` stipulations.
+  `StipulationCheckContext.ownedGearUnits` feeds the check. Deliberately **not** a hard block, matching
+  every other `stipulationRequirementsMet` failure already in the game: a booker can still put "Ladder
+  Match" on a card owning zero ladders, and it costs the same flat `-8` mismatched-stipulation rating
+  term it always did — the game states the cost, it does not refuse the decision.
+- **Unit selection**: new `setSegmentGearUnits(slot, unitIds)` action, capped at `maxUnitsInMatch`,
+  cleared automatically whenever the segment's stipulation changes family.
+  `ui/screens/BookingScreen.tsx` renders owned units of the right family as toggle chips (tier name +
+  condition label) once a hardware-sensitive stipulation is picked, with a plain caption ("more ladders
+  is a bigger spectacle. It's also more that can go wrong tonight") rather than a warning.
+- **Mid-match breakage → draw → title vacate.** New `FinishType` case `'equipmentFailure'`, wired through
+  every exhaustive `Record<FinishType, ...>` site the compiler caught (`narrative.ts`'s
+  `FINISH_LINES`, `matchRating.ts`'s `FINISH_SATISFACTION` at `-6`, `ShowResults.tsx`'s `FINISH_TEXT`),
+  plus real per-stipulation `finishFlavor` on all four hardware-sensitive stipulations (e.g. ladder:
+  *"the ladder gave way underneath both of them, and there was no honest way to call a winner out of
+  that."*). `isDrawFinish()` and `titleCanChangeHands()` both include it, so it behaves like a real draw
+  and never quietly lets a champion retain. **New file `engine/sim/gearFailure.ts`**: `rollGearFailure`,
+  modeled directly on `sim/pyro.ts`'s `rollPyroBurn` — weighted toward whichever assigned unit is worn
+  worst, named in the write-up, only ever rolled once `rollFinish`'s single existing weighted pick has
+  already landed on `equipmentFailure` (no new RNG draw — the finish weight is folded into the same
+  call every match already makes). Reachability requires the stipulation's `gearFamilyId` to be set —
+  never surfaces on a match nothing was booked into.
+  `simulateMatch.ts`'s `hardwareGearRisk` now prefers a real per-unit `gearUnitRisk` (worst condition
+  among tonight's assigned units) over the general ring/mat proxy when one is supplied, answering the
+  explicit ask that injury risk track the *specific* prop, not just the abstract production tier.
+- **`state/store.ts` title-outcome intercept — a real bug found and fixed before it shipped.** The
+  existing `isUnificationMatch` branch runs before the `!outcome.changed` check and falls back to
+  `result.winnerWrestlerIds`, which is empty on a draw — so an equipment-failure unification match would
+  have called `commitTitleChange(world, index, [])` without an explicit intercept. Fixed by checking
+  `result.finish === 'equipmentFailure'` first and calling the existing `stripTitle(world, title,
+  'vacatedByEquipmentFailure')` primitive (new `TitleReignEndMethod` literal), pushing a `wire('title',
+  ..., world.week + 1, 'lead')` item (stamped past the increment per this file's own wire-timing trap),
+  then `continue`-ing before the unification logic ever runs.
+- **Two more real bugs, found by direct review rather than the original design pass — both fixed before
+  shipping.** `engine/sim/commentary.ts`'s `factsOf()` would have added `'titleRetained'` for an
+  equipment-failure vacate (titles present, `titleChanged` false, `championName` still set from before
+  the match — exactly the shape that used to mean "the champion kept it"). Fixed by gating
+  `'titleRetained'` on `ctx.finish !== 'equipmentFailure'` and adding a new `'titleVoided'` fact with its
+  own `CLOSERS` line. `ui/screens/ShowResults.tsx`'s title header showed neither "new champion" nor any
+  vacate indication for this finish; it now shows "— vacated" alongside the existing "— new champion"
+  state.
+- **Buy/repair, `ui/screens/PromotionScreen.tsx`**: new "Match hardware — tracked unit by unit" section,
+  one card per family showing owned-count-vs-cap, each individually owned unit with its own condition
+  label and a per-unit repair button, and a buy button per tier (disabled at the family's cap or when
+  unaffordable). New store actions `buyPropUnit`/`repairPropUnit`
+  (`state/slices/showAndProduction.ts`, alongside the existing production-asset trio).
+- **Player follow-up, mid-build: "flaming tables would probably burn them up."** Correct, and the
+  original design missed it — `tables` and `flamingTables` shared the same family/tiers/wear rate, so a
+  table that is *actually on fire* wore out identically to one that just got broken. Added
+  `Stipulation.gearWearMultiplier?: number` (defaults to 1), set to `5` on `flamingTables` only,
+  threaded through both `useWearUnit`'s new optional `wearMultiplier` parameter (post-match wear) and
+  the `gearFailureChance` computed for `simulateMatch`'s context (mid-match break odds) — a table in a
+  Flaming Tables match is both far more likely to give out in the match itself and, if it survives,
+  comes out of the night far more damaged. At the tier numbers shipped, a cheap folding table
+  (`useWearPerMatch: 40`) is fully consumed in a single Flaming Tables booking; a reinforced banquet
+  table (`useWearPerMatch: 18`) barely survives one.
+- **Tests**: new `engine/economy/matchProps.test.ts` (20 tests: wear rates differ by tier, use vs. idle,
+  the wear-multiplier override, failure threshold and condition labels, repair cost/repair, break-chance
+  stacking never reaching certainty, spectacle bonus's diminishing returns). New
+  `engine/sim/gearFailure.test.ts` (5 tests: never fires on empty input, always names an assigned unit,
+  weighted toward the worst-condition one, never empty text). `data/stipulations.test.ts`'s gear-gate
+  tests (from the booking-gate step above). `engine/sim/finish.test.ts` gets 2 more: never reaches
+  `equipmentFailure` without an explicit weight, reaches it — more often at higher weight — once one is
+  supplied. `engine/sim/titleMatch.test.ts` gets a case confirming `titleCanChangeHands` is false for
+  this finish. `engine/sim/simulateMatch.test.ts` gets 5 more: worn-vs-fresh specific-unit risk, the gap
+  shrinking but never vanishing across three condition levels, the specific-unit term moving the number
+  even against an excellent general ring (not just re-reading the same proxy twice), never reaching
+  `equipmentFailure` without a `gearFamilyId` on the stipulation however high the break chance, and
+  reaching it — with the correct unit named — once one is set. `engine/sim/commentary.test.ts` gets 2
+  more, guarding the exact bug found above: `'titleRetained'` never fires and `'titleVoided'` does for
+  an equipment-failure finish with a title on the line; an ordinary non-title-changing finish still gets
+  `'titleRetained'` as before. The existing "every fact has something to say about it" /
+  "declares no fact the engine cannot set" exhaustiveness pair (guards against a fact with a line nobody
+  ever plays) both extended to cover `'titleVoided'`.
+- **Verified live, not just at the pure-function level** (CLAUDE.md: measure in a played save): a probe
+  forced the opening slot into a Ladder Match every week (`setSegmentStipulation` + `setSegmentGearUnits`,
+  repairing the assigned unit(s) whenever they failed so a broken cheap ladder does not just drop out of
+  the sample), and forced a real singles title onto that same opener every week
+  (`toggleSegmentTitle`) to exercise the vacate path directly rather than waiting for it to land there
+  organically. 14 seeds × 40 weeks, once with a single cheap wooden ladder, once with four pro-spec
+  ladders: 555 vs. 558 ladder matches, `equipmentFailure` landed 2.88% of the time on the cheap ladder
+  vs. 1.79% on pro-spec gear — a real, directional difference from owning better gear, same shape as
+  Phase D's. Condition after 40 weeks: the pro-spec run's assigned units averaged 77.4 vs. an untouched
+  spare's 96.3 — used gear visibly wears faster than idle gear in an actual played save, not just in the
+  isolated wear-tick math. Every equipment-failure title match across both runs produced the correct
+  wire (*"The Southside Heavyweight Title is vacant tonight — the match for it never got a finish after
+  the gear gave out, and the office isn't willing to call that a defence."*) and zero produced a
+  "new champion" — the exact bug the store.ts intercept fix above exists to prevent, confirmed absent
+  live across 1,113 combined ladder matches. Sample finish text: *"Quill Utley had Major Gus beat to the
+  top when the ladder gave out from under both of them, and nobody ever got a hand on what was hanging
+  up there."* The gear gate was never observed to actually block a booking (units were repaired in time
+  every run), confirming the "warns, never blocks" design intent held up live as well as in the pure
+  function.
+- Verified: `tsc --noEmit` clean; full suite 151 files / 2,923 tests passing (33 new across six test
+  files, zero re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; the live
+  probe above.
+- **Not part of Phase 1, sketched in the plan for later phases**: pyro gets real per-unit condition and
+  a "hit a fan" incident variant; cameras get real condition (design fork: consumable prop vs. house-
+  capital treatment, to be decided at the start of that phase); the truck can break down
+  (`CatastropheKind = 'gearFailure'`, needs a genuinely-missing single "effective owned gear tonight"
+  value the five current call sites each read independently); equipment can hurt somebody backstage,
+  routed through the already-built, cause-agnostic `NoShowCall` mechanism.

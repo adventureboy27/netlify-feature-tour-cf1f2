@@ -5,6 +5,9 @@
 import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { STIPULATIONS, stipulationById, stipulationRequirementsMet, effectiveRules } from '../../data/stipulations';
+import { familyById as propFamilyById } from '../../data/matchProps';
+import { usableUnitsForFamily, unitConditionLabel, type OwnedPropUnit } from '../../engine/economy/matchProps';
+import { tierById as propTierById } from '../../data/matchProps';
 
 import { managerFit, type Manager } from '../../engine/sim/ringside';
 import { signedReferees, officialFor, sharpnessLabel, refereeGrade, isAvailable } from '../../engine/sim/referees';
@@ -86,6 +89,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
   const setParticipant = useGameStore((s) => s.setSegmentParticipant);
   const removeParticipant = useGameStore((s) => s.removeSegmentParticipant);
   const setStipulation = useGameStore((s) => s.setSegmentStipulation);
+  const setGearUnits = useGameStore((s) => s.setSegmentGearUnits);
   const setRules = useGameStore((s) => s.setSegmentRules);
   const setManager = useGameStore((s) => s.setSegmentManager);
   const setReferee = useGameStore((s) => s.setSegmentReferee);
@@ -351,12 +355,20 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
               ? `Ref: ${assigned.name}${segment.refereeId ? '' : ' (card)'}`
               : 'Ref: one of the boys';
 
+          // Which family of match hardware (a ladder, a cage, a table) this
+          // stipulation needs physically owned — see data/matchProps.ts.
+          const gearFamily = stipulation?.gearFamilyId ? propFamilyById(stipulation.gearFamilyId) : null;
+          const usableGearUnits = gearFamily
+            ? usableUnitsForFamily(world.ownedPropUnits, gearFamily.id, world.settings)
+            : [];
+
           const requirementsMet =
             stipulation && participants.length >= 2
               ? stipulationRequirementsMet(stipulation, {
                   participants: participants.map((p) => p.wrestler),
                   rivalryHeat: rivalry?.heat ?? 0,
                   matchTimeLimitMinutes: segment.rules.timeLimit,
+                  ownedGearUnits: usableGearUnits.length,
                 })
               : true;
 
@@ -439,6 +451,8 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                     onAdd={(id, side) => setParticipant(index, id, side)}
                     onRemove={(id) => removeParticipant(index, id)}
                     onStipulation={(id) => setStipulation(index, id)}
+                    onGearUnits={(unitIds) => setGearUnits(index, unitIds)}
+                    ownedPropUnits={world.ownedPropUnits}
                     bookableTitles={bookable}
                     onToggleTitle={(id) => toggleTitle(index, id)}
                     onTimeLimit={(minutes) => setRules(index, { timeLimit: minutes })}
@@ -577,6 +591,8 @@ function SegmentEditor({
   onAdd,
   onRemove,
   onStipulation,
+  onGearUnits,
+  ownedPropUnits,
   bookableTitles,
   onToggleTitle,
   onTimeLimit,
@@ -601,6 +617,9 @@ function SegmentEditor({
   onAdd: (id: Id, side: number) => void;
   onRemove: (id: Id) => void;
   onStipulation: (id: Id | null) => void;
+  /** Which owned match-prop units (ladders, a cage, tables) are in play tonight. */
+  onGearUnits: (unitIds: Id[]) => void;
+  ownedPropUnits: OwnedPropUnit[];
   bookableTitles: Title[];
   onToggleTitle: (id: Id) => void;
   onTimeLimit: (minutes: (typeof TIME_LIMITS)[number]) => void;
@@ -635,6 +654,13 @@ function SegmentEditor({
     .filter((w) => !unavailable.has(w.id))
     .filter((w) => w.name.toLowerCase().includes(search.toLowerCase()))
     .slice(0, 40);
+
+  // Which family of match hardware (a ladder, a cage, a table) tonight's
+  // stipulation actually needs owned — see data/matchProps.ts.
+  const stipulationHere = segment.stipulation ? stipulationById(segment.stipulation) : null;
+  const gearFamily = stipulationHere?.gearFamilyId ? propFamilyById(stipulationHere.gearFamilyId) : null;
+  const usableGearUnits = gearFamily ? usableUnitsForFamily(ownedPropUnits, gearFamily.id, settings) : [];
+  const selectedGearUnits = segment.gearUnitIds ?? [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -783,6 +809,58 @@ function SegmentEditor({
           ))}
         </div>
       </div>
+
+      {gearFamily && (
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-[11px] uppercase tracking-wide text-neutral-500">{gearFamily.name}s</span>
+            <span className="text-[10px] text-neutral-600">
+              {selectedGearUnits.length}/{gearFamily.maxUnitsInMatch} tonight
+            </span>
+          </div>
+          {usableGearUnits.length === 0 ? (
+            <p className="text-[11px] text-amber-400">
+              You don't own a {gearFamily.name.toLowerCase()} — buy one from the Promotion screen before this
+              can happen for real.
+            </p>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-1">
+                {usableGearUnits.map((unit) => {
+                  const tier = propTierById(unit.tierId);
+                  const picked = selectedGearUnits.includes(unit.id);
+                  const disabled = !picked && selectedGearUnits.length >= gearFamily.maxUnitsInMatch;
+                  return (
+                    <button
+                      key={unit.id}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() =>
+                        onGearUnits(
+                          picked ? selectedGearUnits.filter((id) => id !== unit.id) : [...selectedGearUnits, unit.id],
+                        )
+                      }
+                      className={`rounded px-2 py-1 text-[11px] ${
+                        picked
+                          ? 'bg-emerald-600 text-white'
+                          : disabled
+                            ? 'bg-neutral-900 text-neutral-700'
+                            : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                      }`}
+                    >
+                      {tier?.name ?? gearFamily.name} — {unitConditionLabel(unit, settings)}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-[10px] text-neutral-600">
+                More {gearFamily.name.toLowerCase()}s is a bigger spectacle. It's also more that can go wrong
+                tonight.
+              </p>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ---- ringside ------------------------------------------------- */}
       <div className="flex flex-col gap-3 rounded border border-neutral-800 p-2">

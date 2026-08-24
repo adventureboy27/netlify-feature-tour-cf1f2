@@ -73,6 +73,12 @@ export interface MatchRatingContext {
    * when the tradition is honoured, negative when it is ignored.
    */
   signatureStipulationFit?: number;
+  /**
+   * More match hardware in play is a bigger spectacle — diminishing per
+   * extra unit. See engine/economy/matchProps.ts's spectacleBonus(). Traded
+   * against compounding breakage odds, not shown here.
+   */
+  gearSpectacleBonus?: number;
   /** What the booker asked them to go out and do — see sim/pacing.ts. */
   paceBonus: number;
   /**
@@ -105,6 +111,10 @@ const FINISH_SATISFACTION: Record<FinishType, number> = {
   // A Steel Cage escape is its own kind of decisive finish — the crowd sees
   // the whole climb, not just a cover. Rated with the other clean finishes.
   escape: 3.5,
+  // Worse than a count-out fizzling out, but a real story rather than
+  // nothing happening — the crowd saw something dramatic, it just wasn't a
+  // finish.
+  equipmentFailure: -6,
 };
 
 function mean(values: number[]): number {
@@ -191,6 +201,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
   );
 
   const mismatchedStipulation = term('Mismatched stipulation', ctx.stipulation && !ctx.requirementsMet ? -8 : 0);
+  const gearSpectacle = term('Gear spectacle', ctx.gearSpectacleBonus ?? 0);
 
   const jobberDrag = term(
     'Jobber drag',
@@ -232,6 +243,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
     pace +
     boredom +
     mismatchedStipulation +
+    gearSpectacle +
     jobberDrag +
     finishSatisfaction +
     randomness;

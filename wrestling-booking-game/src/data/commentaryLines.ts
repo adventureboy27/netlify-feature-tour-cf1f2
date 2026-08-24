@@ -26,6 +26,8 @@
 //   {ref} {refMiss}              needs 'referee' / 'refereeMiss'
 //   {guestRef}                   needs 'guestReferee'
 //   {title} {champion} {reign}   needs 'title' / 'titleRetained' / 'longReign'
+//                                'titleVoided' needs only 'title' — the belt
+//                                gave out, not the champion, so no {champion}.
 //   {hurt} {hurtHow}             needs 'injuredInMatch'
 //   {hurtComingIn}               needs 'carryingInjury'
 //   {incident}                   needs 'incident'
@@ -786,6 +788,11 @@ export const CLOSERS: readonly ColourTemplate[] = [
   {
     text: 'And {champion} walks out of here still carrying the {title}.',
     needs: ['titleRetained'],
+  },
+  {
+    text: 'The {title} is vacant as of right now. The office is not calling that a defence, not after what just happened to the gear.',
+    needs: ['titleVoided'],
+    speaker: 'play',
   },
   {
     text: 'Nobody saw that coming, {play}. Nobody in this building had {winner} winning that.',

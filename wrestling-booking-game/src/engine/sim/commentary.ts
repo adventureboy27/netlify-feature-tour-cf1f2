@@ -68,6 +68,8 @@ export type CommentaryFact =
   | 'title'
   | 'titleChange'
   | 'titleRetained'
+  /** The gear it needed gave out before there was a finish — no defence, no champion walking out with it. */
+  | 'titleVoided'
   | 'longReign'
   | 'grudge'
   | 'injuredInMatch'
@@ -235,7 +237,13 @@ export function factsOf(ctx: CommentaryContext): Set<CommentaryFact> {
   if (ctx.guestRefereeName) facts.add('guestReferee');
   if (ctx.titles.length > 0) facts.add('title');
   if (ctx.titles.length > 0 && ctx.titleChanged) facts.add('titleChange');
-  if (ctx.titles.length > 0 && !ctx.titleChanged && ctx.championName) facts.add('titleRetained');
+  // A vacate is not a retain — the gear gave out, nobody defended it for
+  // real, and the belt came off the table entirely. See state/store.ts's
+  // equipmentFailure title-outcome intercept.
+  if (ctx.titles.length > 0 && ctx.finish === 'equipmentFailure') facts.add('titleVoided');
+  if (ctx.titles.length > 0 && !ctx.titleChanged && ctx.championName && ctx.finish !== 'equipmentFailure') {
+    facts.add('titleRetained');
+  }
   if (ctx.titles.length > 0 && ctx.championName && ctx.championWeeks >= s.commentaryLongReignWeeks) {
     facts.add('longReign');
   }

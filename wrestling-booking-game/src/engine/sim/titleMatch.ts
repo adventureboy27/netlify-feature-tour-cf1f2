@@ -30,7 +30,13 @@ export function titleCanChangeHands(finish: FinishType, stipulation: Stipulation
     return stipulation?.titleChangesOnDQ === true;
   }
   // A draw leaves the champion holding it. Nobody beat them.
-  if (finish === 'timeLimitDraw' || finish === 'doubleKO') return false;
+  //
+  // equipmentFailure is a draw too, but the belt does NOT quietly retain
+  // here the way a real draw leaves it — store.ts's title outcome loop
+  // strips it outright instead, because the company cannot call a match
+  // that never got a finish a defence. This function only says the belt
+  // cannot *change hands*; it says nothing about vacating it.
+  if (finish === 'timeLimitDraw' || finish === 'doubleKO' || finish === 'equipmentFailure') return false;
   return true;
 }
 

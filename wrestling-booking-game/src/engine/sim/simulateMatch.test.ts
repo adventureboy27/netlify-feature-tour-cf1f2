@@ -266,4 +266,131 @@ describe('simulateMatch', () => {
     expect(beat).toBeTruthy();
     expect(beat!.text.length).toBeGreaterThan(15);
   });
+
+  // Match hardware — a ladder, a cage, a table — with its own tracked
+  // condition, distinct from the general ring/mat proxy above. See
+  // engine/economy/matchProps.ts and gearFailure.ts.
+  it('a worn specific unit is measurably riskier than a fresh one, mirroring the general-equipment pattern', () => {
+    const roster = makeRoster(12, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const hardwareStip = stipWith({ hardwareGearSensitive: true });
+    const freshGear = simulateMatch(
+      rngFromSeed('gear-unit-seed'),
+      participants,
+      byId,
+      baseContext({ stipulation: hardwareStip, equipmentInjuryReduction: 0, gearUnitRisk: 0 }),
+    );
+    const wornGear = simulateMatch(
+      rngFromSeed('gear-unit-seed'),
+      participants,
+      byId,
+      baseContext({ stipulation: hardwareStip, equipmentInjuryReduction: 0, gearUnitRisk: 1 }),
+    );
+    expect(wornGear.injuryMultiplier).toBeGreaterThan(freshGear.injuryMultiplier);
+  });
+
+  it('the gap from worn specific gear shrinks toward better condition, but never vanishes', () => {
+    const roster = makeRoster(13, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const hardwareStip = stipWith({ hardwareGearSensitive: true });
+    const worst = simulateMatch(
+      rngFromSeed('gear-gap-seed'),
+      participants,
+      byId,
+      baseContext({ stipulation: hardwareStip, equipmentInjuryReduction: 0, gearUnitRisk: 1 }),
+    );
+    const mid = simulateMatch(
+      rngFromSeed('gear-gap-seed'),
+      participants,
+      byId,
+      baseContext({ stipulation: hardwareStip, equipmentInjuryReduction: 0, gearUnitRisk: 0.5 }),
+    );
+    const best = simulateMatch(
+      rngFromSeed('gear-gap-seed'),
+      participants,
+      byId,
+      baseContext({ stipulation: hardwareStip, equipmentInjuryReduction: 0, gearUnitRisk: 0 }),
+    );
+    expect(mid.injuryMultiplier).toBeLessThan(worst.injuryMultiplier);
+    expect(best.injuryMultiplier).toBeLessThan(mid.injuryMultiplier);
+    // Never fully switched off, same as the general-equipment case above.
+    expect(best.injuryMultiplier).toBeGreaterThan(0);
+  });
+
+  it('the specific unit term moves the number even when the general ring is excellent — it is not just the same proxy twice', () => {
+    const roster = makeRoster(14, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const hardwareStip = stipWith({ hardwareGearSensitive: true });
+    // A great ring (equipmentInjuryReduction 0.9) would predict very low
+    // risk if gearUnitRisk just fell back to it — but the actual ladder
+    // assigned tonight is worn out, and that is what should win out.
+    const greatRingWornLadder = simulateMatch(
+      rngFromSeed('specific-unit-seed'),
+      participants,
+      byId,
+      baseContext({ stipulation: hardwareStip, equipmentInjuryReduction: 0.9, gearUnitRisk: 0.9 }),
+    );
+    const greatRingNoSpecificUnit = simulateMatch(
+      rngFromSeed('specific-unit-seed'),
+      participants,
+      byId,
+      baseContext({ stipulation: hardwareStip, equipmentInjuryReduction: 0.9 }),
+    );
+    expect(greatRingWornLadder.injuryMultiplier).toBeGreaterThan(greatRingNoSpecificUnit.injuryMultiplier);
+  });
+
+  it('never fires equipmentFailure without a gear family on the stipulation, however high the break chance', () => {
+    const roster = makeRoster(15, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    for (let i = 0; i < 300; i++) {
+      const result = simulateMatch(
+        rngFromSeed(`no-gear-family-${i}`),
+        participants,
+        byId,
+        baseContext({ stipulation: stipWith({ hardwareGearSensitive: true }), gearFailureChance: 1 }),
+      );
+      expect(result.finish).not.toBe('equipmentFailure');
+    }
+  });
+
+  it('reaches equipmentFailure when a gear family is on the line and the break chance is high, and names the unit that gave out', () => {
+    const roster = makeRoster(16, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const results = Array.from({ length: 500 }, (_, i) =>
+      simulateMatch(
+        rngFromSeed(`gear-family-${i}`),
+        participants,
+        byId,
+        baseContext({
+          stipulation: stipWith({ hardwareGearSensitive: true, gearFamilyId: 'ladder' }),
+          gearFailureChance: 1,
+          gearUnitsInPlay: [{ id: 'ladder-unit-1', name: 'Wooden Ladder', condition: 5 }],
+        }),
+      ),
+    );
+    const failed = results.find((r) => r.finish === 'equipmentFailure');
+    expect(failed).toBeTruthy();
+    expect(failed!.winnerSide).toBeNull();
+    expect(failed!.gearFailureUnitId).toBe('ladder-unit-1');
+  });
 });
