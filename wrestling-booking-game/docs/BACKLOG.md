@@ -1483,3 +1483,50 @@ pool.
   passing (two failures found and fixed on the first full run, both
   substring-match regressions described above, plus the one gendered-
   pronoun catch); `npm run build` and `npm run sim` both clean.
+
+## Phase 2d: promo / confrontation / event cluster in hype-reporter voice
+
+The promo, confrontation, and creative-event systems — the game's other big
+narrator-voiced surfaces, plus its one substantial first-person-dialogue
+surface.
+
+- **`data/promoTopics.ts`** — all 10 `PROMO_TOPICS`' `effect`/`cost` fields
+  punched up (kept short — these are decision-panel copy, not prose, same
+  treatment `stipulations.ts`'s `blurb` fields got in 2b) and all 24 lines
+  across the 4 `PROMO_LINES` quality bands rewritten in full reporter
+  voice, `{speaker}` preserved throughout.
+- **`data/confrontations.ts`** — all 9 `CONFRONTATIONS`' `blurb` fields and
+  27 `openers` lines rewritten, and all 10 `CONFRONTATION_TWISTS`' 30
+  `lines` rewritten; every `{a}`/`{b}`/`{c}` placeholder preserved exactly
+  (verified by placeholder-count grep before and after: 44/47/10
+  occurrences, unchanged). Twist `label` fields (short results-page tags
+  like "And that was that") and event `title` fields (short narrator
+  headlines like "{primary} was late again") were deliberately left as-is
+  — same precedent as leaving stipulation names and award names alone
+  while their `blurb`/citation prose got the full treatment: these are
+  functional labels, not the prose doing the narrating.
+- **`data/events.ts`** (1,169 lines, the largest single narrative file) —
+  all 21 creative events and both branching sub-nodes (`gimmickRequest`'s
+  `debut`, `wantsTitleShot`'s `howBig`, `workingHurt`'s `aftermath`,
+  `trainingInjury`'s `setback`) rewritten: every `body` array (narrator
+  prose for the 6 `speaker: 'narrator'` events, first-person dialogue for
+  the other 15 `speaker: 'primary'` events and their nodes) and every
+  option's `gains`/`costs` pair. First-person events got more color and
+  idiom *within* first-person voice per the plan's explicit carve-out —
+  not converted to third-person reporter narration. Two inline `wire()`
+  text strings inside gamble effects (the `gimmickRequest`/`debut` dark-
+  match phone-video line) rewritten too. `title` fields left alone, same
+  reasoning as above. `effects`, `gamble`, `next`, `conditions`, `weight`,
+  and `cooldownWeeks` — every mechanical field — untouched.
+- `events.test.ts` has no string-content assertions (only structural ones:
+  option counts, body-variant counts, placeholder-reachability, gains/costs
+  non-empty, effect-negativity), so this was a lower-risk rewrite than
+  Phase 2c's inline wire strings — confirmed by re-reading the test file in
+  full before starting rather than discovering it the hard way.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests passing
+  with zero test changes needed; `npm run build` and `npm run sim` both
+  clean; placeholder-integrity re-checked by grep count before/after on all
+  three files rather than a live-app pass this round, since every edit was
+  a pure string-literal change to fields the existing structural test suite
+  already covers exhaustively and no logic, effect, or branching field was
+  touched.

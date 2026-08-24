@@ -26,13 +26,13 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
   {
     id: 'backstageFight',
     category: 'lockerRoom',
-    title: '{primary} and {secondary} had to be pulled apart',
+    title: '{primary} and {secondary} had to be pulled apart backstage',
     speaker: 'narrator',
     body: [
-      'It started over a missed spot and ended with both of them on the floor. Half the locker room saw it.',
-      'Nobody will say who swung first. Both of them are sitting on opposite sides of the room refusing to look at each other.',
-      'A shoving match in catering turned into something the road agents had to break up.',
-      'It was over in ten seconds and everyone in the building is still talking about it.',
+      'It started over a missed spot and ended with both of them flat on the floor. Half this locker room saw the whole thing go down.',
+      'Nobody is saying who swung first. Both of them are sitting on opposite sides of the room right now, refusing to even look at each other.',
+      'A shoving match in catering turned into something the road agents had to physically break up.',
+      'It was over in ten seconds flat, and every single soul in this building is still talking about it.',
     ],
     weight: 10,
     cooldownWeeks: 30,
@@ -45,8 +45,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'fine-both',
         label: 'Fine them both and move on',
-        gains: 'The room sees a line being enforced',
-        costs: 'Both of them resent you, and the grudge stays live',
+        gains: 'The whole room sees exactly where the line is now',
+        costs: 'Both of them resent you for it, and that grudge stays red hot',
         effects: ({ primary, secondary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -10 },
           { kind: 'morale', wrestlerId: secondary!.id, delta: -10 },
@@ -57,8 +57,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'book-it',
         label: 'Put them in the ring together',
-        gains: 'Real animosity draws — this could be the best match of the year',
-        costs: 'You are pointing a camera at a fight nobody is pulling',
+        gains: 'Real animosity flat-out draws — this could be your match of the year',
+        costs: 'You are pointing a live camera at a fight nobody is holding back',
         effects: ({ primary, secondary }) => [
           { kind: 'shootHeat', wrestlerIds: [primary!.id, secondary!.id], delta: 25 },
           { kind: 'crowdHeat', wrestlerIds: [primary!.id, secondary!.id], delta: 20 },
@@ -80,8 +80,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'separate',
         label: 'Keep them apart entirely',
-        gains: 'It cannot escalate if they never share a building',
-        costs: 'Your two best heat magnets can never be booked together',
+        gains: 'It cannot blow up if they never share a building again',
+        costs: 'Your two best heat magnets can never once be booked together',
         effects: ({ primary, secondary }) => [
           { kind: 'rosterMorale', delta: 2 },
           { kind: 'momentum', wrestlerId: primary!.id, delta: -8 },
@@ -96,9 +96,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} thinks the young talent is being handed too much',
     speaker: 'primary',
     body: [
-      "Twenty years in this business, and I've got opinions about who's getting the spots. I caught you after the show because this couldn't wait.",
-      "This isn't a complaint, exactly. It's a long story about how things used to be. But there's a point at the end of it.",
-      "I've been saying this in the locker room for weeks. Now I'm saying it to you.",
+      "Twenty years in this business, and I have got real opinions about who is getting the spots. I caught you right after the show because this could not wait one more minute.",
+      "This is not a complaint, exactly. It is a long story about how things used to be done right. But there is a point at the end of it, and you are going to want to hear it.",
+      "I have been saying this in that locker room for weeks now. Time somebody said it straight to you.",
     ],
     weight: 12,
     cooldownWeeks: 22,
@@ -107,8 +107,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'agree',
         label: 'Agree — slow the young talent down',
-        gains: 'The veterans trust you and the room settles',
-        costs: 'Your prospects stop climbing, and they notice',
+        gains: 'The veterans trust you completely and this room settles right down',
+        costs: 'Your best prospects stop climbing dead in their tracks, and they notice',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: 12 },
           { kind: 'rosterMorale', delta: -3 },
@@ -118,8 +118,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'tell-them',
         label: 'Tell them the business moved on',
-        gains: 'You keep control of your own booking',
-        costs: 'A respected voice in that locker room is now against you',
+        gains: 'You keep full control of your own booking, no exceptions',
+        costs: 'A respected voice in that locker room is dead set against you now',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -16 },
           { kind: 'bookingCredibility', delta: 3 },
@@ -129,8 +129,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'make-them-teach',
         label: 'Make it their job to fix it',
-        gains: 'Turns the complaint into a use for someone with nothing to do',
-        costs: 'Costs you a spot on the card and their appearance fee',
+        gains: 'Turns a loud complaint into real use out of someone with nothing to do',
+        costs: 'Costs you a spot on the card and their full appearance fee',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: 8 },
           { kind: 'money', delta: -2500 },
@@ -146,9 +146,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} was late again',
     speaker: 'primary',
     body: [
-      "I know I was late. I'm not going to make excuses about it.",
-      "It won't happen again. I know I said that last time too.",
-      "The road agent already had it written down before I even got through the door.",
+      "I know I was late. I am not going to stand here and make excuses about it.",
+      "It will not happen again. I know I said that exact same thing last time too.",
+      "The road agent already had it written down before I even made it through the door.",
     ],
     weight: 13,
     cooldownWeeks: 10,
@@ -157,8 +157,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'let-slide',
         label: 'Let it go this time',
-        gains: 'No hard feelings, and they know it',
-        costs: 'The next one who is late remembers you did nothing about this one',
+        gains: 'No hard feelings at all, and they know it',
+        costs: 'The next one who shows up late remembers you did nothing about this one',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: 6 },
           { kind: 'rosterMorale', delta: -3 },
@@ -167,8 +167,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'write-up',
         label: 'Write them up',
-        gains: 'The room sees the schedule actually matters',
-        costs: 'They think you are keeping a list on them — because now you are',
+        gains: 'The whole room sees the schedule actually means something around here',
+        costs: 'They figure you are keeping a list on them — because now, flat out, you are',
         effects: ({ primary }) => [
           { kind: 'violation', wrestlerId: primary!.id, violationKind: 'conduct', note: 'Late for the show.' },
           { kind: 'morale', wrestlerId: primary!.id, delta: -8 },
@@ -180,13 +180,13 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
   {
     id: 'gimmickRequest',
     category: 'creative',
-    title: '{primary} wants a new gimmick',
+    title: '{primary} wants a brand-new gimmick',
     speaker: 'primary',
     body: [
-      "I've been doing the same character for years and I'm done with it. I've got an idea. It's not a bad one.",
-      "I wrote you three pages of notes. I've been thinking about this for a long time.",
-      "The act's stale and I knew it before you did. I want to change everything.",
-      "I'm not asking for a push. I'm asking to be someone else.",
+      "I have been doing the same character for years and I am flat-out done with it. I have got an idea. It is not a bad one either.",
+      "I wrote you three full pages of notes. I have been thinking about this for a long, long time.",
+      "The act is stale and I knew it before you ever did. I want to change every single thing about it.",
+      "I am not asking for a push. I am asking to be somebody else entirely.",
     ],
     weight: 14,
     cooldownWeeks: 16,
@@ -195,8 +195,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'grant',
         label: 'Grant it — new character, new look',
-        gains: 'A fresh act, restyled to match, and a wrestler who owes you one',
-        costs: 'Everything you built with the old gimmick is gone',
+        gains: 'A completely fresh act, restyled to match, and a wrestler who owes you one',
+        costs: 'Every ounce of equity you built with the old gimmick is gone for good',
         effects: ({ primary }) => [
           { kind: 'gimmickChange', wrestlerId: primary!.id },
           { kind: 'morale', wrestlerId: primary!.id, delta: 14 },
@@ -210,8 +210,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'refuse',
         label: 'Refuse — the act still works',
-        gains: 'Keeps the popularity you have already paid for',
-        costs: 'They are stale, they know it, and now they know you do not care',
+        gains: 'Keeps every ounce of popularity you already paid good money for',
+        costs: 'They are stale, they know it, and now they know you plain do not care',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -14 },
           { kind: 'momentum', wrestlerId: primary!.id, delta: -5 },
@@ -220,8 +220,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'tweak',
         label: 'A repackage, not a rebuild',
-        gains: 'Freshens the act without throwing the equity away',
-        costs: 'Half measures satisfy nobody, least of all them',
+        gains: 'Freshens the act right up without throwing away all that equity',
+        costs: 'Half measures satisfy absolutely nobody, least of all them',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: 3 },
           { kind: 'popularity', wrestlerId: primary!.id, delta: -2 },
@@ -234,15 +234,15 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
         id: 'debut',
         speaker: 'primary',
         body: [
-          'So how do we bring this out?',
-          "New look, new name — how do you want people to see it for the first time?",
+          'So how do we actually bring this out?',
+          "New look, new name — how do you want this crowd to see it for the very first time?",
         ],
         options: [
           {
             id: 'cold',
             label: 'Debut it cold on TV',
-            gains: 'Maximum impact if the crowd bites immediately',
-            costs: 'No safety net at all if they do not',
+            gains: 'Maximum impact if this crowd bites right away',
+            costs: 'Absolutely no safety net if they do not',
             effects: () => [],
             gamble: {
               chance: ({ primary }) => 0.35 + (primary!.charisma / 100) * 0.45,
@@ -259,8 +259,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
           {
             id: 'vignette',
             label: 'Vignette it first',
-            gains: 'Builds anticipation before anybody has to sell it live',
-            costs: 'Production money spent on a video package instead of a match',
+            gains: 'Builds real anticipation before anybody has to sell it live',
+            costs: 'Production money burned on a video package instead of a match',
             effects: ({ primary }) => [
               { kind: 'popularity', wrestlerId: primary!.id, delta: 5 },
               { kind: 'momentum', wrestlerId: primary!.id, delta: 8 },
@@ -270,8 +270,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
           {
             id: 'dark',
             label: 'Debut it in a dark match',
-            gains: 'A real look at how a live crowd takes it, with nothing on the line if it flops',
-            costs: 'Nobody watching at home ever sees it happen',
+            gains: 'A real look at how a live crowd takes it, with nothing on the line if it flops flat',
+            costs: 'Nobody watching at home ever sees a second of it',
             effects: ({ primary }) => [{ kind: 'popularity', wrestlerId: primary!.id, delta: 2 }],
             gamble: {
               // Safer odds than debuting cold on TV — a building's worth of
@@ -283,7 +283,7 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
                 {
                   kind: 'wire',
                   wireKind: 'debut',
-                  text: `Somebody in the crowd filmed ${primary!.name}'s new look on their phone. It is already doing better numbers than half of last week's show.`,
+                  text: `Somebody in that crowd filmed ${primary!.name}'s brand-new look on their phone, and it is already pulling better numbers online than half of last week's entire show.`,
                 },
               ],
               onFailure: ({ primary }) => [{ kind: 'morale', wrestlerId: primary!.id, delta: -6 }],
@@ -299,9 +299,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} wants to turn',
     speaker: 'primary',
     body: [
-      "I think the crowd's ready to hate me. I might be right.",
-      "I'm tired of being cheered politely. I want to be booed properly.",
-      "This character's got nowhere left to go in this direction, and I know it.",
+      "I think this crowd is finally ready to hate me. And I think I might be right.",
+      "I am tired of getting cheered politely. I want to be booed properly, the real way.",
+      "This character has got nowhere left to go in this direction, and I have known it for a while now.",
     ],
     weight: 11,
     cooldownWeeks: 20,
@@ -310,8 +310,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'turn',
         label: 'Turn them',
-        gains: 'A fresh direction and a story the crowd has not seen',
-        costs: 'You lose the act you had, and turns can fall completely flat',
+        gains: 'A brand-new direction and a story this crowd has never once seen',
+        costs: 'You lose the act you had, and a turn can fall completely, spectacularly flat',
         effects: ({ primary }) => [
           { kind: 'alignmentTurn', wrestlerId: primary!.id, toward: primary!.alignment >= 0 ? 'heel' : 'face' },
           { kind: 'morale', wrestlerId: primary!.id, delta: 10 },
@@ -332,8 +332,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'later',
         label: 'Tell them to wait',
-        gains: 'You keep the timing for when it will draw the most',
-        costs: 'Momentum stalls and they stop bringing you ideas',
+        gains: 'You keep the timing for exactly when it will draw the biggest money',
+        costs: 'Momentum stalls out and they stop bringing you ideas at all',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -8 },
           { kind: 'momentum', wrestlerId: primary!.id, delta: -6 },
@@ -347,9 +347,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} and {secondary} want to form a group',
     speaker: 'narrator',
     body: [
-      'They have been traveling together for months and they have it all worked out — name, colors, the lot.',
-      'Two acts that are not going anywhere alone think they would go somewhere together.',
-      'They pitched it as a faction. They already have matching gear made.',
+      'They have been traveling together for months now and they have got it all worked out already — name, colors, the whole package.',
+      'Two acts going absolutely nowhere alone think, put together, they would go somewhere real.',
+      'They pitched it as a full faction. They already have matching gear made and ready to go.',
     ],
     weight: 9,
     cooldownWeeks: 26,
@@ -362,8 +362,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'form',
         label: 'Form the group, matching colors and all',
-        gains: 'Two mid-card acts become one thing worth caring about',
-        costs: 'Neither of them can be built as a singles act while it lasts',
+        gains: 'Two mid-card acts become one genuine thing worth caring about',
+        costs: 'Neither one can be built as a singles act for as long as it lasts',
         effects: ({ primary, secondary }) => [
           { kind: 'formStable', memberIds: [primary!.id, secondary!.id], name: 'faction' },
           { kind: 'morale', wrestlerId: primary!.id, delta: 10 },
@@ -377,8 +377,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'refuse',
         label: 'Keep them singles',
-        gains: 'Both stay available to build individually',
-        costs: 'Two disappointed wrestlers who had a plan',
+        gains: 'Both stay wide open to build up individually',
+        costs: 'Two genuinely disappointed wrestlers who had a real plan',
         effects: ({ primary, secondary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -9 },
           { kind: 'morale', wrestlerId: secondary!.id, delta: -9 },
@@ -393,9 +393,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} wants the top of the card',
     speaker: 'primary',
     body: [
-      "I've done everything you've asked for two years. I want the top of the card, not just a good spot on it.",
-      "I'm not asking for a favor. I'm telling you I'm ready.",
-      "Every time I ask, it's 'not yet.' I want to know what 'yet' actually means.",
+      "I have done everything you have asked for two straight years. I want the top of this card, not just a good spot on it.",
+      "I am not asking for a favor here. I am telling you flat out that I am ready.",
+      "Every single time I ask, it is 'not yet.' I want to know exactly what 'yet' actually means.",
     ],
     weight: 11,
     cooldownWeeks: 20,
@@ -404,8 +404,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'grant',
         label: 'Put them in the main event',
-        gains: 'A wrestler who finally gets what they have been chasing',
-        costs: 'If the crowd does not follow them up there, everyone in the building sees it',
+        gains: 'A wrestler who finally gets exactly what they have been chasing this whole time',
+        costs: 'If this crowd does not follow them up there, everybody in that building sees it happen',
         effects: ({ primary }) => [
           { kind: 'momentum', wrestlerId: primary!.id, delta: 16 },
           { kind: 'morale', wrestlerId: primary!.id, delta: 14 },
@@ -422,8 +422,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'refuse',
         label: 'Tell them it is not time yet',
-        gains: 'You keep the card exactly where you had it',
-        costs: 'They now know exactly where they stand with you',
+        gains: 'You keep the card exactly where you already had it',
+        costs: 'They now know precisely where they stand with you, and it stings',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -16 },
           { kind: 'momentum', wrestlerId: primary!.id, delta: -6 },
@@ -437,9 +437,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} and {secondary} want to team up',
     speaker: 'narrator',
     body: [
-      "They have been tagging in dark matches for months and it works — they want to make it official.",
-      "Two singles pushes going nowhere is worse than one tag team going somewhere, and they have already worked that out.",
-      "They already have the name picked. They just need you to say yes.",
+      "They have been tagging together in dark matches for months and it flat-out works — now they want to make it official.",
+      "Two singles pushes going nowhere is a whole lot worse than one tag team going somewhere real, and they have already worked that out for themselves.",
+      "They already have the name picked out. They just need you to say the word.",
     ],
     weight: 10,
     cooldownWeeks: 24,
@@ -452,8 +452,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'form',
         label: 'Make it official',
-        gains: 'A tag division gets an act that already has real chemistry',
-        costs: 'Neither of them is available for a singles push while this runs',
+        gains: 'A tag division gets an act with real, honest-to-goodness chemistry already built in',
+        costs: 'Neither one is available for a singles push for as long as this runs',
         effects: ({ primary, secondary }) => [
           { kind: 'formStable', memberIds: [primary!.id, secondary!.id], name: 'tagTeam' },
           { kind: 'relationship', aId: primary!.id, bId: secondary!.id, delta: 20 },
@@ -466,8 +466,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'refuse',
         label: 'Keep them apart',
-        gains: 'Both stay open for a singles run',
-        costs: 'Two people who wanted this hear no together, and remember who said it',
+        gains: 'Both stay wide open for a singles run down the road',
+        costs: 'Two people who wanted this hear no together, and they both remember exactly who said it',
         effects: ({ primary, secondary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -10 },
           { kind: 'morale', wrestlerId: secondary!.id, delta: -10 },
@@ -482,9 +482,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} wants a title shot',
     speaker: 'primary',
     body: [
-      "I want a title shot. Not eventually. Now.",
-      "I've beaten everyone in my way except the one with the belt.",
-      "You know I have earned this. I want to hear you say it too.",
+      "I want a title shot. Not eventually. Right now.",
+      "I have beaten everyone standing in my way except the one man holding that belt.",
+      "You know I have earned this. I want to hear you say it too, out loud.",
     ],
     weight: 10,
     cooldownWeeks: 22,
@@ -496,8 +496,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'grant',
         label: 'Promise them the shot',
-        gains: 'A wrestler who finally has something real to chase',
-        costs: 'You just told the whole roster where the next shot is going',
+        gains: 'A wrestler who finally has something real and big to chase',
+        costs: 'You just told the entire roster exactly where the next shot is going',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: 12 },
           { kind: 'momentum', wrestlerId: primary!.id, delta: 8 },
@@ -508,8 +508,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'refuse',
         label: 'Tell them to wait their turn',
-        gains: 'The title picture stays exactly where you had it',
-        costs: 'Real heat, and they will not forget you said no',
+        gains: 'The title picture stays exactly where you already had it',
+        costs: 'Real, genuine heat — and they are never going to forget you said no',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -16 },
           { kind: 'shootHeat', wrestlerIds: [primary!.id], delta: 12 },
@@ -520,13 +520,13 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       howBig: {
         id: 'howBig',
         speaker: 'primary',
-        body: ['So how do we get there? Do I get the shot, or do I earn the shot first?'],
+        body: ['So how do we actually get there? Do I get the shot, or do I earn the shot first?'],
         options: [
           {
             id: 'cold-shot',
             label: 'Book the title match next show',
-            gains: 'Fastest way to pay off the promise',
-            costs: 'No time to build it — the crowd has to already be there',
+            gains: 'The fastest possible way to pay off that promise',
+            costs: 'No time at all to build it — this crowd has to already be there for it',
             effects: () => [],
             gamble: {
               chance: ({ primary }) => 0.35 + (primary!.popularity / 100) * 0.4,
@@ -543,8 +543,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
           {
             id: 'build-angle',
             label: 'Build an angle first',
-            gains: 'The match means more by the time it actually happens',
-            costs: 'Weeks of TV time spent building instead of moving somebody else',
+            gains: 'The match means a whole lot more by the time it actually happens',
+            costs: 'Weeks of TV time burned building this instead of moving somebody else forward',
             effects: ({ primary }) => [
               { kind: 'momentum', wrestlerId: primary!.id, delta: 10 },
               { kind: 'popularity', wrestlerId: primary!.id, delta: 6 },
@@ -563,9 +563,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: 'A sponsor wants their name on the show',
     speaker: 'narrator',
     body: [
-      'A regional brand wants the naming rights. The money is real and the creative notes are going to be worse.',
-      'They love the product. They have also sent over a two-page list of things they would rather you did not do on camera.',
-      'It is not enormous money, but it is money that arrives whether the show is any good or not.',
+      'A regional brand wants the naming rights, and they are ready to pay real money for it. The creative notes are going to be a whole lot worse.',
+      'They love the product, they really do. They have also sent over a two-page list of things they would rather you did not do on camera.',
+      'It is not enormous money, but it is money that shows up whether the show is any good or not.',
     ],
     weight: 10,
     cooldownWeeks: 24,
@@ -574,8 +574,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'take',
         label: 'Take the money',
-        gains: 'Guaranteed income that does not depend on the gate',
-        costs: 'They get a say, and what they want is duller than what you want',
+        gains: 'Guaranteed income that does not depend one bit on the gate',
+        costs: 'They get a real say, and what they want is a whole lot duller than what you want',
         effects: () => [
           { kind: 'money', delta: 22000 },
           { kind: 'companyRating', delta: -2 },
@@ -585,8 +585,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'refuse',
         label: 'Turn it down',
-        gains: 'The show stays yours',
-        costs: 'The boys hear you turned down a payday they would have shared in',
+        gains: 'The show stays entirely yours, top to bottom',
+        costs: 'The boys hear you turned down a payday they would have shared in too',
         effects: () => [
           { kind: 'reputation', delta: 4 },
           { kind: 'bookingCredibility', delta: 2 },
@@ -596,8 +596,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'negotiate',
         label: 'Take it but fight over the notes',
-        gains: 'Most of the money without all of the interference',
-        costs: 'They may walk entirely, and you have burned the relationship',
+        gains: 'Most of the money without all of that interference',
+        costs: 'They may walk away entirely, and you have burned the relationship for good',
         effects: () => [{ kind: 'reputation', delta: 1 }],
         gamble: {
           chance: ({ promotion }) => 0.3 + (promotion.reputation / 100) * 0.5,
@@ -616,9 +616,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: 'The network is offering a better slot',
     speaker: 'narrator',
     body: [
-      'A better night, more eyes, and they want more shows a month to go with it.',
-      'The slot is a real upgrade. The production commitment that comes with it is not small.',
-      'They are offering the good hour. They want to know you can fill it every week.',
+      'A better night, a whole lot more eyes, and they want more shows a month to go along with it.',
+      'This slot is a genuine upgrade. The production commitment riding along with it is not small at all.',
+      'They are offering the good hour, the one everybody wants. They want to know you can fill it every single week.',
     ],
     weight: 8,
     cooldownWeeks: 40,
@@ -627,8 +627,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'accept',
         label: 'Take the slot',
-        gains: 'A bigger audience every week from here on',
-        costs: 'A production commitment your roster may not be deep enough for',
+        gains: 'A bigger audience, every single week from here on out',
+        costs: 'A production commitment your roster may not be deep enough to cover',
         effects: () => [
           { kind: 'companyRating', delta: 6 },
           { kind: 'money', delta: -15000 },
@@ -638,8 +638,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'decline',
         label: 'Stay where you are',
-        gains: 'A schedule your roster can actually sustain',
-        costs: 'The network offered once; they may not offer again',
+        gains: 'A schedule your roster can actually sustain long term',
+        costs: 'The network offered once — they may never offer it again',
         effects: () => [
           { kind: 'companyRating', delta: -2 },
           { kind: 'rosterMorale', delta: 3 },
@@ -655,10 +655,10 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{rival} has been talking to {primary}',
     speaker: 'primary',
     body: [
-      "It got back to you third-hand, which means it's been going on a while. I should have told you myself.",
-      "Yeah, I had dinner with a booker who doesn't work for you. I'm not going to pretend I didn't.",
-      "I'm not denying it. I'm not sure I can explain it either.",
-      "The offer's generous. It's in writing. I haven't signed anything.",
+      "It got back to you third-hand, which means it has been going on for a while now. I should have told you myself, straight up.",
+      "Yeah, I had dinner with a booker who does not work for you. I am not going to sit here and pretend I did not.",
+      "I am not denying it. I am honestly not sure I can even explain it either.",
+      "The offer is generous, real generous. It is in writing. I have not signed a single thing.",
     ],
     weight: 13,
     cooldownWeeks: 14,
@@ -671,8 +671,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'pay',
         label: 'Match the money',
-        gains: 'They stay, and the locker room sees loyalty rewarded',
-        costs: 'Your payroll just went up, and everyone else will hear about it',
+        gains: 'They stay, and this whole locker room sees loyalty actually get rewarded',
+        costs: 'Your payroll just jumped, and everybody else in that room is going to hear about it',
         effects: ({ primary }) => [
           { kind: 'contractRate', wrestlerId: primary!.id, multiplier: 1.35 },
           { kind: 'morale', wrestlerId: primary!.id, delta: 15 },
@@ -682,8 +682,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'push',
         label: 'Outbid them with the booking instead',
-        gains: 'Costs nothing up front and buys real loyalty',
-        costs: 'You are committing your top spot to someone with one foot out',
+        gains: 'Costs nothing at all up front and buys real, lasting loyalty',
+        costs: 'You are handing your top spot to somebody standing there with one foot out the door',
         effects: ({ primary }) => [
           { kind: 'momentum', wrestlerId: primary!.id, delta: 20 },
           { kind: 'morale', wrestlerId: primary!.id, delta: 10 },
@@ -701,8 +701,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'let-go',
         label: 'Let them walk',
-        gains: 'You keep the money and the spot opens for somebody younger',
-        costs: 'You just handed a rival a star you built',
+        gains: 'You keep the money, and the spot opens right up for somebody younger',
+        costs: 'You just handed a rival promotion a star that you built from nothing',
         effects: ({ primary }) => [
           { kind: 'release', wrestlerId: primary!.id },
           { kind: 'money', delta: 6000 },
@@ -718,9 +718,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{rival} ran your finish on their show',
     speaker: 'narrator',
     body: [
-      'Same spot, same false finish, seven days later and better lit.',
-      'It is not illegal. It is not subtle either.',
-      'Their booker has clearly been watching. Closely.',
+      'Same exact spot, same false finish, seven days later and better lit besides.',
+      'It is not illegal, not technically. It is not subtle either, not even a little.',
+      'Their booker has clearly been watching. Closely. Very closely.',
     ],
     weight: 9,
     cooldownWeeks: 20,
@@ -729,15 +729,15 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'ignore',
         label: 'Say nothing',
-        gains: 'You look like the bigger operation',
-        costs: 'They will do it again, and your locker room noticed you did nothing',
+        gains: 'You look like the bigger operation, above all the noise',
+        costs: 'They will absolutely do it again, and your locker room noticed you did nothing',
         effects: () => [{ kind: 'rosterMorale', delta: -3 }],
       },
       {
         id: 'answer',
         label: 'Answer it on air',
-        gains: 'A real inter-promotional story your audience can follow',
-        costs: 'You just told your viewers a rival promotion exists',
+        gains: 'A real inter-promotional story your audience can actually follow',
+        costs: 'You just told every viewer you have that a rival promotion exists',
         effects: () => [
           { kind: 'companyRating', delta: 3 },
           { kind: 'reputation', delta: -2 },
@@ -761,9 +761,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} has been working hurt',
     speaker: 'primary',
     body: [
-      "The trainer told you before I did. I've been taping this up for weeks.",
-      "It's not serious yet. I've been careful to use that word — \"yet.\"",
-      "I can go tonight. I shouldn't. But I can.",
+      "The trainer told you before I ever did. I have been taping this up for weeks now.",
+      "It is not serious yet. I have been real careful to use that word — \"yet.\"",
+      "I can go tonight. I should not. But I can.",
     ],
     weight: 12,
     cooldownWeeks: 12,
@@ -772,8 +772,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'rest',
         label: 'Sit them down until it heals',
-        gains: 'You get them back whole instead of losing them for a year',
-        costs: 'A hole in your card and an act going cold',
+        gains: 'You get them back whole instead of losing them for a full year',
+        costs: 'A hole right in your card and an act going stone cold',
         effects: ({ primary }) => [
           { kind: 'health', wrestlerId: primary!.id, delta: 25 },
           { kind: 'momentum', wrestlerId: primary!.id, delta: -18 },
@@ -783,8 +783,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'work',
         label: 'Keep them working',
-        gains: 'Your card holds and the story keeps moving',
-        costs: 'You are gambling with somebody’s career to save a booking',
+        gains: 'Your card holds together and the story keeps right on moving',
+        costs: 'You are gambling with somebody’s entire career just to save one booking',
         effects: ({ primary }) => [{ kind: 'morale', wrestlerId: primary!.id, delta: -6 }],
         gamble: {
           chance: ({ primary }) => 0.3 + (primary!.toughness / 100) * 0.45,
@@ -802,8 +802,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'lighten',
         label: 'Book them light and protect them',
-        gains: 'Keeps them on television without the risk',
-        costs: 'Everyone can see they are being protected, including the crowd',
+        gains: 'Keeps them right on television without taking on the risk',
+        costs: 'Everybody can see they are being protected, including this crowd',
         effects: ({ primary }) => [
           { kind: 'health', wrestlerId: primary!.id, delta: 8 },
           { kind: 'popularity', wrestlerId: primary!.id, delta: -3 },
@@ -816,15 +816,15 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
         id: 'aftermath',
         speaker: 'primary',
         body: [
-          "You knew this could happen. I need to know you're actually going to take care of it now.",
-          "This costs me time either way. The question is whether it costs you anything too.",
+          "You knew this could happen. I need to know you are actually going to take care of it now.",
+          "This costs me time either way, no question. The real question is whether it costs you anything too.",
         ],
         options: [
           {
             id: 'full-cover',
             label: 'Cover the medical bill in full',
-            gains: 'They know you stood behind them when it went wrong',
-            costs: 'A real bill, paid in full, for a gamble that was yours to take',
+            gains: 'They know for certain you stood behind them when it all went wrong',
+            costs: 'A real bill, paid in full, for a gamble that was entirely yours to take',
             effects: ({ primary }) => [
               { kind: 'money', delta: -6000 },
               { kind: 'morale', wrestlerId: primary!.id, delta: 15 },
@@ -833,8 +833,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
           {
             id: 'standard-care',
             label: 'Standard company care only',
-            gains: 'Cheap, and technically within your obligations',
-            costs: 'They remember exactly who was in the ring when it happened',
+            gains: 'Cheap, and technically well within your obligations',
+            costs: 'They remember exactly who was calling the shots when it happened',
             effects: ({ primary }) => [
               { kind: 'money', delta: -1000 },
               { kind: 'shootHeat', wrestlerIds: [primary!.id], delta: 15 },
@@ -850,9 +850,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} is thinking about the end',
     speaker: 'primary',
     body: [
-      "Not this year. But I said it out loud, and that's new.",
-      "My body's telling me something, and I've started listening.",
-      "I wanted you to hear it from me before you heard it from anyone else.",
+      "Not this year. But I said it out loud just now, and that is new for me.",
+      "My body is telling me something, and I have finally started listening to it.",
+      "I wanted you to hear it from me first, before you heard it from anybody else.",
     ],
     weight: 7,
     cooldownWeeks: 36,
@@ -861,8 +861,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'send-off',
         label: 'Plan the send-off now',
-        gains: 'A retirement run you control, and a huge final night',
-        costs: 'You are committing to losing them on a date you just set',
+        gains: 'A retirement run you control completely, and one huge final night to remember',
+        costs: 'You are committing to losing them on a date you just picked yourself',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: 18 },
           { kind: 'popularity', wrestlerId: primary!.id, delta: 10 },
@@ -873,8 +873,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'talk-out',
         label: 'Talk them out of it',
-        gains: 'You keep a draw on the roster a while longer',
-        costs: 'Every week they keep going is a week closer to a bad injury',
+        gains: 'You keep a real drawing card on your roster a while longer',
+        costs: 'Every week they keep going out there is a week closer to a serious injury',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -5 },
           { kind: 'health', wrestlerId: primary!.id, delta: -10 },
@@ -883,8 +883,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'office-job',
         label: 'Offer them a job in the office',
-        gains: 'Keeps the knowledge in the building after the body quits',
-        costs: 'Their in-ring value goes to zero the day they accept',
+        gains: 'Keeps decades of knowledge right in the building after the body finally quits',
+        costs: 'Their in-ring value drops to zero the very day they accept',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: 12 },
           { kind: 'rosterMorale', delta: 4 },
@@ -900,10 +900,10 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} needs a week off',
     speaker: 'primary',
     body: [
-      "My kid has a thing at school and I already missed the last one.",
-      "I haven't had a week off since I signed here. I'm not asking for much.",
-      "Family stuff. I don't want to get into it. I just need the week.",
-      "I need to be somewhere that isn't an arena parking lot, just for once.",
+      "My kid has a thing at school and I already missed the last one. I am not missing this one too.",
+      "I have not had a single week off since I signed here. I am not asking for much, believe me.",
+      "Family stuff. I do not want to get into all of it. I just need the week.",
+      "I need to be somewhere, just once, that is not an arena parking lot.",
     ],
     weight: 14,
     cooldownWeeks: 16,
@@ -912,8 +912,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'grant',
         label: 'Give them the week',
-        gains: 'They remember you said yes',
-        costs: 'A body off the card for a show you already built around them',
+        gains: 'They remember, for a long time, that you said yes',
+        costs: 'A body off the card for a show you had already built around them',
         effects: ({ primary }) => [
           { kind: 'leave', wrestlerId: primary!.id, weeks: 1, reason: 'Personal time, granted without an argument.' },
           { kind: 'morale', wrestlerId: primary!.id, delta: 12 },
@@ -923,8 +923,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'refuse',
         label: 'Tell them the schedule does not move',
-        gains: 'The card stays exactly as booked',
-        costs: 'They hear "no" and file it away',
+        gains: 'The card stays exactly as it was booked, no exceptions',
+        costs: 'They hear that "no" loud and clear, and file it away for later',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -14 },
           { kind: 'momentum', wrestlerId: primary!.id, delta: -4 },
@@ -938,9 +938,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} got hurt in the gym',
     speaker: 'primary',
     body: [
-      "Pulled something in the gym this morning. Nothing dramatic, but it's real.",
-      "Landed a drill wrong. The trainer already looked at it.",
-      "I was pushing the numbers up and something in my shoulder disagreed.",
+      "Pulled something in the gym this morning. Nothing dramatic, but it is real, and I felt it right away.",
+      "Landed a drill wrong. The trainer already looked at it and does not love what they saw.",
+      "I was pushing the numbers up and something in my shoulder flat-out disagreed with the plan.",
     ],
     weight: 11,
     cooldownWeeks: 18,
@@ -949,8 +949,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'rest',
         label: 'Pull them from everything until it is checked out properly',
-        gains: 'A small injury stays small',
-        costs: 'Training time lost and a body off the card',
+        gains: 'A small injury actually stays small',
+        costs: 'Training time lost, and a body off the card while it heals',
         effects: ({ primary }) => [
           { kind: 'injury', wrestlerId: primary!.id, weeks: 2 },
           { kind: 'fatigue', wrestlerId: primary!.id, delta: -10 },
@@ -960,8 +960,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'push',
         label: 'Clear them to keep going',
-        gains: 'No time lost at all if it really is nothing',
-        costs: 'You are betting on a diagnosis nobody actually made',
+        gains: 'No time lost whatsoever if it really is nothing',
+        costs: 'You are betting on a diagnosis nobody in a lab coat actually made',
         effects: ({ primary }) => [{ kind: 'fatigue', wrestlerId: primary!.id, delta: 5 }],
         gamble: {
           chance: ({ primary }) => 0.35 + (primary!.toughness / 100) * 0.4,
@@ -980,13 +980,13 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       setback: {
         id: 'setback',
         speaker: 'primary',
-        body: ["Told you. It's worse now, and I need you to actually do something about it this time."],
+        body: ["Told you so. It is worse now, and I need you to actually do something real about it this time."],
         options: [
           {
             id: 'proper-treatment',
             label: 'Pay for real treatment',
-            gains: 'They know you did not cut corners twice',
-            costs: 'A real medical bill for a bet that was yours to make',
+            gains: 'They know for a fact you did not cut corners a second time',
+            costs: 'A real medical bill for a bet that was entirely yours to make',
             effects: ({ primary }) => [
               { kind: 'money', delta: -5000 },
               { kind: 'morale', wrestlerId: primary!.id, delta: 14 },
@@ -995,8 +995,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
           {
             id: 'cheap-out',
             label: 'Standard company care only',
-            gains: 'Cheap, and it is over quickly',
-            costs: 'They clock exactly how little that was',
+            gains: 'Cheap, and this one is over quickly',
+            costs: 'They clock exactly how little that gesture really was',
             effects: ({ primary }) => [
               { kind: 'money', delta: -800 },
               { kind: 'morale', wrestlerId: primary!.id, delta: -12 },
@@ -1012,9 +1012,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} is running on empty',
     speaker: 'primary',
     body: [
-      "I'm not injured. I'm just done. I need you to hear that difference.",
-      "I've worked every date for months. I don't have anything left tonight, and I might not next week either.",
-      "I'm not walking out. I'm telling you before I have to.",
+      "I am not injured. I am just plain done. I need you to actually hear that difference.",
+      "I have worked every single date for months straight. I do not have anything left tonight, and I might not next week either.",
+      "I am not walking out on you. I am telling you now, before I have to.",
     ],
     weight: 10,
     cooldownWeeks: 20,
@@ -1023,8 +1023,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'mandate-rest',
         label: 'Pull them off the schedule for a real break',
-        gains: 'They come back able to actually perform',
-        costs: 'Weeks of a body you were counting on',
+        gains: 'They come back actually able to perform, night in and night out',
+        costs: 'Weeks without a body you were counting on to be there',
         effects: ({ primary }) => [
           { kind: 'leave', wrestlerId: primary!.id, weeks: 2, reason: 'Burned out. Ordered off the road.' },
           { kind: 'fatigue', wrestlerId: primary!.id, delta: -40 },
@@ -1035,8 +1035,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'push-forward',
         label: 'Ask them to push through it',
-        gains: 'The card does not move',
-        costs: 'You are spending a well you already emptied',
+        gains: 'The card does not move an inch',
+        costs: 'You are drawing on a well you have already emptied dry',
         effects: ({ primary }) => [
           { kind: 'fatigue', wrestlerId: primary!.id, delta: 15 },
           { kind: 'morale', wrestlerId: primary!.id, delta: -12 },
@@ -1051,9 +1051,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} is sick',
     speaker: 'primary',
     body: [
-      "I've been throwing up since this morning. I didn't want to no-show without telling you first.",
-      "Whatever's going around got me too. I can barely stand up straight.",
-      "I don't think I should be near anyone in that locker room tonight.",
+      "I have been throwing up since this morning. I did not want to no-show without telling you myself first.",
+      "Whatever is going around got me too. I can barely stand up straight right now.",
+      "I do not think I should be anywhere near that locker room tonight.",
     ],
     weight: 9,
     cooldownWeeks: 14,
@@ -1062,8 +1062,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'send-home',
         label: 'Send them home',
-        gains: 'Nobody else in the building catches it',
-        costs: 'A late scratch you now have to cover',
+        gains: 'Nobody else in this building catches it too',
+        costs: 'A late scratch you now have to scramble to cover',
         effects: ({ primary }) => [
           { kind: 'leave', wrestlerId: primary!.id, weeks: 1, reason: 'Sick. Sent home rather than risk the room.' },
           { kind: 'morale', wrestlerId: primary!.id, delta: 6 },
@@ -1073,8 +1073,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'work-through',
         label: 'Ask them to push through it',
-        gains: 'The card holds as booked',
-        costs: 'A visibly sick performer is not the show you wanted',
+        gains: 'The card holds exactly as booked',
+        costs: 'A visibly sick performer out there is not the show you wanted anybody to see',
         effects: ({ primary }) => [
           { kind: 'health', wrestlerId: primary!.id, delta: -15 },
           { kind: 'morale', wrestlerId: primary!.id, delta: -10 },
@@ -1089,9 +1089,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} wants to cut back',
     speaker: 'primary',
     body: [
-      "I don't want to retire. I want to stop doing every single date.",
-      "My body can do twelve nights a year properly. It cannot do fifty anymore.",
-      "I'll still show up big. I just cannot be there every week doing it.",
+      "I do not want to retire. I want to stop doing every single date on the calendar.",
+      "My body can do twelve nights a year the right way. It flat-out cannot do fifty anymore.",
+      "I will still show up big when it matters. I just cannot be there every week doing it.",
     ],
     weight: 8,
     cooldownWeeks: 30,
@@ -1103,8 +1103,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'grant',
         label: 'Work out a part-time arrangement',
-        gains: 'You keep a name on the roster instead of losing them entirely',
-        costs: 'A smaller wage and a wrestler you cannot count on week to week',
+        gains: 'You keep a real name on the roster instead of losing them entirely',
+        costs: 'A smaller wage and a wrestler you flat-out cannot count on week to week',
         effects: ({ primary }) => [
           { kind: 'contractType', wrestlerId: primary!.id, type: 'partTime' },
           { kind: 'contractRate', wrestlerId: primary!.id, multiplier: 0.55 },
@@ -1115,8 +1115,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'refuse',
         label: 'Tell them it is full-time or nothing',
-        gains: 'You keep full access to their dates',
-        costs: 'You may be pushing out someone who would have stayed part-time',
+        gains: 'You keep full access to every one of their dates',
+        costs: 'You may be pushing out somebody who would have gladly stayed on part-time',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -14 },
           { kind: 'momentum', wrestlerId: primary!.id, delta: -6 },
@@ -1130,9 +1130,9 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
     title: '{primary} has a movie offer',
     speaker: 'primary',
     body: [
-      "A studio wants me for six weeks. It is a real role, not a cameo.",
-      "This does not happen twice. I need you to let me go do this.",
-      "I already told them I would ask you. I am asking.",
+      "A studio wants me for six weeks straight. It is a real role too, not some cameo.",
+      "This does not happen twice in a career. I need you to let me go do this.",
+      "I already told them I would ask you first. So here I am, asking.",
     ],
     weight: 7,
     cooldownWeeks: 40,
@@ -1141,8 +1141,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'grant',
         label: 'Let them go make it',
-        gains: 'Mainstream exposure the company did not have to pay for',
-        costs: 'Weeks of a name gone from every card you build',
+        gains: 'Real mainstream exposure the company never had to pay one dime for',
+        costs: 'Weeks with a top name gone from every single card you build',
         effects: ({ primary }) => [
           { kind: 'leave', wrestlerId: primary!.id, weeks: 5, reason: 'Off shooting a film. Back on schedule.' },
           { kind: 'popularity', wrestlerId: primary!.id, delta: 18 },
@@ -1153,8 +1153,8 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       {
         id: 'refuse',
         label: 'Tell them the company needs them here',
-        gains: 'No gap in the card at all',
-        costs: 'You just turned down the best exposure they will ever be offered',
+        gains: 'No gap in the card whatsoever',
+        costs: 'You just turned down the single best exposure they will ever be offered in this business',
         effects: ({ primary }) => [
           { kind: 'morale', wrestlerId: primary!.id, delta: -20 },
           { kind: 'momentum', wrestlerId: primary!.id, delta: -8 },
