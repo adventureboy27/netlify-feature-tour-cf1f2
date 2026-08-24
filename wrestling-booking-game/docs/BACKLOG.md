@@ -1597,3 +1597,59 @@ pools, and the world's taste-geography systems.
 - Verified: `tsc --noEmit` clean after every file; full suite 145 files /
   2825 tests passing with zero test changes needed; `npm run build` and
   `npm run sim` both clean.
+
+## Phase 2f: gimmick character-voice cluster, first-person treatment
+
+The largest single content pool in the game (~779 strings across two
+files), and the one place in the voice sweep where "hype-reporter voice"
+explicitly does not apply — this is in-character wrestler dialogue, not
+narrator prose, and the plan calls for more flair *within* first-person
+voice rather than converting it to third-person reporter narration.
+
+- **`data/gimmicks.ts`** — every `GimmickSeed.promoLines` entry across all
+  ~190 gimmicks rewritten: punchier, more idiomatic first-person promo
+  dialogue (added intensifiers — "absolutely", "genuinely", "flat-out",
+  "every single", "not one" — and traded flat statements for the kind of
+  line a real promo would actually deliver), while keeping each
+  character's persona intact per its `concept`. Entries that started with
+  an empty `promoLines: []` (silentMonster, gironGrip, gbellToBell,
+  goldReliable, gsecondGear, gtheQuietType, glocalFavorite) were left
+  empty — that silence is the character.
+  - **`concept` deliberately left untouched.** It reads as tight,
+    already-vivid third-person catalog/scouting-report prose — closer to
+    the target register already than the flat prose this whole project
+    exists to fix — and rewriting it into reporter narration would
+    directly contradict the plan's "first-person treatment, not
+    third-person reporter narration" instruction for this cluster. Same
+    call as Phase 2b's partial touch on `commentaryLines.ts`: content
+    already close to the target gets left alone rather than risked on a
+    rewrite it doesn't need. `id`, `name`, `category`, `alignmentLean`,
+    `prop`, and the Classic-set's mechanical fields (`popularityCeiling`,
+    `growthRateMultiplier`, `territoryFit`, `merchMultiplier`, `look`) are
+    untouched as well — none of them are prose.
+  - Worth flagging: `concept` **is** player-facing (rendered as the
+    `subtext` in `OfficeScreen.tsx`'s `DialogueCard` at the signing,
+    relaunch, and group-formation dialogues), but `promoLines` is
+    currently **not wired into the UI or referenced by any engine logic**
+    anywhere — confirmed by grep across `src/ui`, `src/state`, and
+    `src/engine`, turning up only the type definition in `types.ts` and a
+    `Pick<...>` reference in `gimmickDefaults.ts`. The rewrite still
+    covers it in full per the plan's explicit naming of `promoLines` as
+    in-scope content, on the basis that it's real content waiting on a
+    UI hookup rather than dead weight.
+- **`data/groupGimmicks.ts`** — same first-person treatment applied to
+  every non-empty `promoLines` entry across the 22 tag-team identities
+  (the 15 faction/`stable` entries all carry empty `promoLines` in the
+  source data — a shared identity speaking with one voice doesn't fit a
+  faction the way it fits a duo, so that was left as-is rather than
+  invented). `concept` left untouched for the same reason as above.
+  - Caught two unescaped-apostrophe syntax errors introduced by the
+    rewrite itself (`you're`, `you've` inside single-quoted string
+    literals) via `tsc --noEmit` immediately after the edit — fixed by
+    escaping them properly before moving on to verification.
+- No test file constrains `concept` or `promoLines` content in either
+  file, so this was a zero-test-risk content rewrite.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests
+  passing with zero test changes needed; `npm run sim` clean (300-name
+  roster generation, distributions unaffected — gimmick prose has no
+  mechanical weight); `npm run build` clean.
