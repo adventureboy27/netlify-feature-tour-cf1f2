@@ -14,7 +14,7 @@
 
 import type { Rng } from '../rng';
 import { pick, chance } from '../rng';
-import type { Wrestler, MatchBeat, MatchBeatKind, FinishType, Stipulation, Title } from '../types';
+import type { Id, Wrestler, MatchBeat, MatchBeatKind, FinishType, Stipulation, Title } from '../types';
 import {
   OPENING_BEATS,
   CONTROL_BEATS,
@@ -24,7 +24,8 @@ import {
   TITLE_BEATS,
   GRUDGE_BEATS,
   AFTERMATH_BEATS,
-  BATTLE_ROYAL_MIDDLE_BEATS,
+  BATTLE_ROYAL_ELIMINATION_BEATS,
+  BATTLE_ROYAL_ELIMINATION_BY_BEATS,
   BATTLE_ROYAL_FINAL_BEATS,
   WEAPONS,
   type BeatTemplate,
@@ -45,6 +46,17 @@ const FINISH_LINES: Record<FinishType, (winner: string, loser: string) => string
   escape: (w, l) => `${w} hit the floor first and left ${l} still climbing — a Steel Cage win by escape.`,
   equipmentFailure: (w, l) => `The gear gave out on ${w} and ${l} both, and there was no honest way to call a winner out of that.`,
 };
+
+/**
+ * Battle royal only — one wrestler going out, and who put them there (if
+ * anybody decided did). See engine/sim/battleRoyal.ts's pickEliminators.
+ */
+export interface EliminationEvent {
+  eliminatedId: Id;
+  eliminatedName: string;
+  eliminatorId: Id | null;
+  eliminatorName: string | null;
+}
 
 export interface NarrativeContext {
   winnerMembers: Wrestler[];
@@ -67,11 +79,19 @@ export interface NarrativeContext {
   /** True for the last match on the card. */
   isMainEvent?: boolean;
   /**
-   * Battle royal only — every eliminated side's member names, in the order
-   * they went out (winner excluded; the finish beat already covers them).
-   * See engine/sim/battleRoyal.ts. Undefined for every other match.
+   * Battle royal only — every elimination, in the order it happened (winner
+   * excluded; the finish beat already covers them). See
+   * engine/sim/battleRoyal.ts. Undefined for every other match.
    */
-  eliminatedInOrder?: string[][];
+  eliminations?: EliminationEvent[];
+  /**
+   * The one wrestler who actually took the fall/tap/knockout/count, and the
+   * one who delivered it — decided once, off a side that may have more than
+   * one member, rather than always reading as the first-listed name. Absent
+   * for a finish with no winner/loser roles (a draw).
+   */
+  pinnedId?: Id;
+  pinnerId?: Id;
 }
 
 /**
@@ -90,6 +110,12 @@ const MAX_BEATS = 8;
 const GRUDGE_THRESHOLD = 40;
 /** Not every match gets a closing line — it lands harder for not being automatic. */
 const AFTERMATH_CHANCE = 0.55;
+/**
+ * A twenty-man field has nineteen eliminations. The reel is a highlight, not
+ * a play-by-play (§11.5) — so even a maximal-budget match only ever names a
+ * handful, spread evenly across the whole order.
+ */
+const ELIMINATION_BEATS_MAX = 4;
 
 /** Templates whose rating window includes this match. */
 function usable(templates: readonly BeatTemplate[], rating: number): BeatTemplate[] {
@@ -124,17 +150,44 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
 
   const beats: MatchBeat[] = [];
   const used = usedAcrossCard;
-  /** `extra` runs after fill(), for placeholders (like battle royal's {eliminated}) that vary per beat rather than per match. */
-  const pushCustom = (kind: MatchBeatKind, templates: readonly BeatTemplate[], extra?: (text: string) => string): boolean => {
+
+  // Who the beat is "about," structurally — mirrors the same flip-at-hopeSpot,
+  // reset-at-finish rule already duplicated independently in commentary.ts
+  // (its own prose momentum) and matchPlayback.ts (its rotation-guess
+  // fallback). A third small copy here, purely to stamp real ids as beats are
+  // created — none of the existing text generation below changes.
+  let onTop: readonly Wrestler[] = ctx.winnerMembers;
+  let inTrouble: readonly Wrestler[] = ctx.loserMembers;
+
+  /**
+   * `extra` runs after fill(), for placeholders (like battle royal's
+   * {eliminated}) that vary per beat rather than per match. `idOverride`
+   * stamps a specific actor/target instead of the current momentum pair —
+   * used for beats (eliminations, the finish) that already know exactly who
+   * did what.
+   */
+  const pushCustom = (
+    kind: MatchBeatKind,
+    templates: readonly BeatTemplate[],
+    extra?: (text: string) => string,
+    idOverride?: { actorId: Id | null; targetId: Id | null },
+  ): boolean => {
     const options = usable(templates, ctx.rating).filter((t) => !used.has(t.text));
     if (options.length === 0) return false;
     const template = pick(rng, options);
     used.add(template.text);
     const text = extra ? extra(fill(template.text)) : fill(template.text);
-    beats.push({ kind, text, significant: true });
+    const actorId = idOverride ? idOverride.actorId : (onTop[0]?.id ?? null);
+    const targetId = idOverride ? idOverride.targetId : (inTrouble[0]?.id ?? null);
+    beats.push({ kind, text, significant: true, actorId, targetId });
     return true;
   };
   const push = (kind: MatchBeatKind, templates: readonly BeatTemplate[]): void => {
+    if (kind === 'hopeSpot') {
+      const nextOnTop = inTrouble;
+      inTrouble = onTop;
+      onTop = nextOnTop;
+    }
     pushCustom(kind, templates);
   };
 
@@ -158,16 +211,42 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
     if (styled.length > 0) push('control', styled);
   }
 
-  // Battle royal only: a name from partway through the field going over the
-  // top, then the field narrowing to its final two. Placed ahead of the
-  // rating-gated hopeSpot/nearFall/bigSpot below and not rating-gated
-  // themselves — eliminations are structural to this match type, not a
-  // bonus only a great one earns, so they claim the beat budget first.
-  if (room() && ctx.eliminatedInOrder && ctx.eliminatedInOrder.length > 0) {
-    const middleName = ctx.eliminatedInOrder[Math.floor(ctx.eliminatedInOrder.length / 2)]?.[0];
-    if (middleName) pushCustom('control', BATTLE_ROYAL_MIDDLE_BEATS, (t) => t.replace(/\{eliminated\}/g, middleName));
+  // Battle royal only: real eliminations, spread evenly across the whole
+  // order rather than one beat per fall — a twenty-man field has nineteen of
+  // them, and the reel is a highlight, not a play-by-play (§11.5). Placed
+  // ahead of the rating-gated hopeSpot/nearFall/bigSpot below and not
+  // rating-gated themselves — eliminations are structural to this match
+  // type, not a bonus only a great one earns, so they claim the budget first.
+  // The final-two milestone below wants its own slot — reserved here so a
+  // full house of elimination beats can't crowd out the one line that says
+  // the field has actually narrowed.
+  const finalTwoReserved = ctx.eliminations && ctx.eliminations.length > 1 ? 1 : 0;
+  const roomForEliminations = () => beats.length < budget - 1 - finalTwoReserved;
+  if (ctx.eliminations && ctx.eliminations.length > 0) {
+    const events = ctx.eliminations;
+    const slots = Math.min(ELIMINATION_BEATS_MAX, events.length);
+    const chosen = new Set<number>();
+    for (let i = 0; i < slots; i++) {
+      // Evenly spread indices across the order, e.g. 4 slots over 10 events
+      // picks roughly 0, 3, 6, 9 rather than clustering at the start.
+      const index = Math.min(events.length - 1, Math.floor((i * events.length) / slots));
+      chosen.add(index);
+    }
+    for (const index of [...chosen].sort((a, b) => a - b)) {
+      if (!roomForEliminations()) break;
+      const event = events[index]!;
+      const pool = event.eliminatorName ? BATTLE_ROYAL_ELIMINATION_BY_BEATS : BATTLE_ROYAL_ELIMINATION_BEATS;
+      pushCustom(
+        'elimination',
+        pool,
+        (t) => t.replace(/\{eliminated\}/g, event.eliminatedName).replace(/\{eliminatedBy\}/g, event.eliminatorName ?? ''),
+        { actorId: event.eliminatorId, targetId: event.eliminatedId },
+      );
+    }
   }
-  if (room() && ctx.eliminatedInOrder && ctx.eliminatedInOrder.length > 1) {
+  // The field narrowing to its final two is its own milestone, separate from
+  // any one elimination.
+  if (room() && ctx.eliminations && ctx.eliminations.length > 1) {
     pushCustom('control', BATTLE_ROYAL_FINAL_BEATS);
   }
 
@@ -183,7 +262,13 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
   // couldn't name the weapon just because the pool line beside it can.
   const flavor = ctx.stipulation?.finishFlavor?.[ctx.finish];
   const finishLine = flavor ? `${winnerName} ${fill(flavor)}.` : FINISH_LINES[ctx.finish](winnerName, loserName);
-  beats.push({ kind: 'finish', text: finishLine, significant: true });
+  beats.push({
+    kind: 'finish',
+    text: finishLine,
+    significant: true,
+    actorId: ctx.pinnerId ?? null,
+    targetId: ctx.pinnedId ?? null,
+  });
 
   // And how the room felt about it, if there is anything left to say.
   if (beats.length < budget && chance(rng, AFTERMATH_CHANCE)) push('control', AFTERMATH_BEATS);

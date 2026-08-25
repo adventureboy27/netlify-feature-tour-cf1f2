@@ -93,6 +93,33 @@ describe('buildPlaybackTimeline', () => {
     expect(finishBeat.moveName).toBe(a.moveSet.finisher.name);
   });
 
+  it('prefers a beat\'s own actorId/targetId over the rotation guess', () => {
+    const [a, b] = pair();
+    // If the guess ran, a control beat with b as sideA's only member would
+    // put b on top (loser starts on top) — but this beat says otherwise.
+    const beats: MatchBeat[] = [{ kind: 'control', text: 'control happens', significant: true, actorId: a.id, targetId: b.id }];
+    const timeline = buildPlaybackTimeline(beats, [a], [b], 'a');
+    expect(timeline[0]!.actorId).toBe(a.id);
+    expect(timeline[0]!.targetId).toBe(b.id);
+  });
+
+  it('maps an elimination beat to the elimination pose and carries real ids', () => {
+    const [a, b] = pair();
+    const beats: MatchBeat[] = [{ kind: 'elimination', text: 'b goes over the top', significant: true, actorId: a.id, targetId: b.id }];
+    const timeline = buildPlaybackTimeline(beats, [a], [b], 'a');
+    expect(timeline[0]!.pose).toBe('elimination');
+    expect(timeline[0]!.actorId).toBe(a.id);
+    expect(timeline[0]!.targetId).toBe(b.id);
+  });
+
+  it('falls back to the rotation guess only when a beat has no actor/target at all', () => {
+    const [a, b] = pair();
+    const beats: MatchBeat[] = [beat('control')]; // no actorId/targetId set
+    const timeline = buildPlaybackTimeline(beats, [a], [b], 'a');
+    // Loser (b) starts on top per the momentum rule.
+    expect(timeline[0]!.actorId).toBe(b.id);
+  });
+
   it('rotates the spotlight across a tag team rather than always featuring the same member', () => {
     const [a, b] = pair();
     const [c, d] = pair();

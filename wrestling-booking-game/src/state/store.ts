@@ -1891,6 +1891,7 @@ export const useGameStore = create<GameStore>()(
             isPPV,
             matchLengthMinutes: lengthMinutes,
             settings: world.settings,
+            week: world.week,
             // A real ring is a real ring whoever is standing in it — see
             // sim/simulateMatch.ts's own comment on the field. Pure and
             // cheap; recomputed per match rather than hoisted so this stays

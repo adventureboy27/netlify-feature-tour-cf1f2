@@ -74,6 +74,7 @@ export function resolveDarkMatch(
     isPPV: false,
     matchLengthMinutes: ctx.matchLengthMinutes,
     settings: ctx.settings,
+    week: currentWeek,
     rivalry: ctx.rivalry,
     houseStyleFit: houseStyleRatingBonus(people, ctx.promotionArchetype, ctx.settings),
   });

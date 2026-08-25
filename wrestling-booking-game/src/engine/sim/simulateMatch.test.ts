@@ -3,6 +3,7 @@ import { mulberry32, rngFromSeed } from '../rng';
 import { generateWrestler } from '../generate/wrestler';
 import { defaultWorldSettings } from '../world/settings';
 import { simulateMatch, type SimParticipant, type SimulateMatchContext } from './simulateMatch';
+import { stipulationById } from '../../data/stipulations';
 import type { MatchRules, Stipulation, Wrestler } from '../types';
 
 function stipWith(overrides: Partial<Stipulation> = {}): Stipulation {
@@ -41,6 +42,7 @@ function baseContext(overrides: Partial<SimulateMatchContext> = {}): SimulateMat
     isPPV: false,
     matchLengthMinutes: 12,
     settings: defaultWorldSettings(),
+    week: 1,
     ...overrides,
   };
 }
@@ -392,5 +394,74 @@ describe('simulateMatch', () => {
     expect(failed).toBeTruthy();
     expect(failed!.winnerSide).toBeNull();
     expect(failed!.gearFailureUnitId).toBe('ladder-unit-1');
+  });
+
+  it('a tag match finish names a real, resolvable pinned/pinner pair — not always the first-listed member', () => {
+    const roster = makeRoster(17, 4);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 0 },
+      { wrestlerId: roster[2]!.id, side: 1 },
+      { wrestlerId: roster[3]!.id, side: 1 },
+    ];
+    const sideIds = { 0: new Set([roster[0]!.id, roster[1]!.id]), 1: new Set([roster[2]!.id, roster[3]!.id]) };
+    const secondListedEverySide = new Set([roster[1]!.id, roster[3]!.id]);
+
+    let sawSecondListedPinned = false;
+    let sawSecondListedPinner = false;
+    for (let i = 0; i < 60; i++) {
+      const result = simulateMatch(
+        rngFromSeed(`tag-pin-${i}`),
+        participants,
+        byId,
+        baseContext({ rules: baseRules({ preset: 'tag' }) }),
+      );
+      const finishBeat = result.beats[result.beats.length - 1]!;
+      expect(finishBeat.kind).toBe('finish');
+      // Whoever is named must be a real participant, and specifically must
+      // belong to the losing/winning side respectively.
+      if (result.winnerSide !== null) {
+        const winnerSide = result.winnerSide;
+        const loserSide = winnerSide === 0 ? 1 : 0;
+        expect(finishBeat.actorId).not.toBeNull();
+        expect(finishBeat.targetId).not.toBeNull();
+        expect(sideIds[winnerSide as 0 | 1].has(finishBeat.actorId!)).toBe(true);
+        expect(sideIds[loserSide as 0 | 1].has(finishBeat.targetId!)).toBe(true);
+        if (secondListedEverySide.has(finishBeat.targetId!)) sawSecondListedPinned = true;
+        if (secondListedEverySide.has(finishBeat.actorId!)) sawSecondListedPinner = true;
+      }
+    }
+    // Across enough seeds, the pin cannot always land on the first-listed
+    // team member — that was the bug this feature fixes.
+    expect(sawSecondListedPinned).toBe(true);
+    expect(sawSecondListedPinner).toBe(true);
+  });
+
+  it('a battle royal produces elimination beats with real, resolvable actor/target ids', () => {
+    const roster = makeRoster(18, 6);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = roster.map((w, i) => ({ wrestlerId: w.id, side: i }));
+    const validIds = new Set(roster.map((w) => w.id));
+
+    let sawEliminationBeat = false;
+    for (let i = 0; i < 30; i++) {
+      const result = simulateMatch(
+        rngFromSeed(`royal-${i}`),
+        participants,
+        byId,
+        baseContext({ rules: baseRules({ preset: 'battleRoyal' }), stipulation: stipulationById('battleRoyal') ?? null, week: i }),
+      );
+      for (const b of result.beats) {
+        if (b.kind !== 'elimination') continue;
+        sawEliminationBeat = true;
+        expect(b.targetId).toBeTruthy();
+        expect(validIds.has(b.targetId!)).toBe(true);
+        // actorId is only set when an eliminator was decided — still must be
+        // a real participant when present.
+        if (b.actorId) expect(validIds.has(b.actorId)).toBe(true);
+      }
+    }
+    expect(sawEliminationBeat).toBe(true);
   });
 });

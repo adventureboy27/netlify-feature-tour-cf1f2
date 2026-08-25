@@ -28,6 +28,7 @@ export type BeatPose =
   | 'interference'
   | 'botch'
   | 'environmental'
+  | 'elimination'
   | 'finish';
 
 export interface PlaybackBeat {
@@ -67,6 +68,8 @@ function poseFor(kind: MatchBeatKind, index: number): BeatPose {
     case 'pyroBurn':
     case 'gearFailure':
       return 'environmental';
+    case 'elimination':
+      return 'elimination';
     case 'finish':
       return 'finish';
   }
@@ -88,10 +91,14 @@ export function buildPlaybackTimeline(
 ): PlaybackBeat[] {
   const winners = winningSide === 'b' ? sideB : sideA;
   const losers = winningSide === 'b' ? sideA : sideB;
+  const byId = new Map<Id, Wrestler>([...sideA, ...sideB].map((w) => [w.id, w]));
 
   // The loser takes over first, the winner fights out of it — the same shape
   // `callTheMatch` calls the match in, so a beat that reads as a comeback
-  // there reads as one here too.
+  // there reads as one here too. Only ever consulted as a fallback now — most
+  // beats carry their own real `actorId`/`targetId`, stamped where they're
+  // generated (see narrative.ts); this rotation guess only covers a beat that
+  // genuinely doesn't (today, just the interference beat — see BACKLOG.md).
   let onTop: readonly Wrestler[] = losers;
   let inTrouble: readonly Wrestler[] = winners;
 
@@ -107,9 +114,13 @@ export function buildPlaybackTimeline(
     }
 
     const pose = poseFor(beat.kind, index);
-    const hasActor = !NO_ACTOR_KINDS.has(beat.kind) && onTop.length > 0 && inTrouble.length > 0;
-    const actor = hasActor ? onTop[index % onTop.length]! : null;
-    const target = hasActor ? inTrouble[index % inTrouble.length]! : null;
+
+    let actor = beat.actorId ? (byId.get(beat.actorId) ?? null) : null;
+    let target = beat.targetId ? (byId.get(beat.targetId) ?? null) : null;
+    if (!actor && !target && !NO_ACTOR_KINDS.has(beat.kind) && onTop.length > 0 && inTrouble.length > 0) {
+      actor = onTop[index % onTop.length]!;
+      target = inTrouble[index % inTrouble.length]!;
+    }
 
     let moveName: string | null = null;
     if (actor) {

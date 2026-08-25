@@ -1309,12 +1309,27 @@ export type MatchBeatKind =
   // The match hardware itself gave out — a ladder, a cage, a table. Its own
   // kind for the same reason 'pyroBurn' is. See sim/gearFailure.ts.
   | 'gearFailure'
+  // Battle royal only: one specific wrestler going over the top, put there by
+  // another specific wrestler. Its own kind rather than reusing 'control' —
+  // it carries real actor/target identity a plain control beat doesn't. See
+  // sim/battleRoyal.ts.
+  | 'elimination'
   | 'finish';
 
 export interface MatchBeat {
   kind: MatchBeatKind;
   text: string;
   significant: boolean; // only significant beats render in the highlight, §11.5
+  /**
+   * Who did this, and who it was done to — real wrestler ids, not a guess.
+   * Absent (or null) for a beat with no clean single actor/target (an
+   * interference beat today, for instance — see docs/BACKLOG.md for what's
+   * deliberately not covered yet). Consumers that need to reconstruct a
+   * pose (see ui/screens/MatchViewerScreen.tsx) should treat a missing id as
+   * "not decided," not "nobody."
+   */
+  actorId?: Id | null;
+  targetId?: Id | null;
 }
 
 // DESIGN: SegmentResult is referenced by Segment but never defined.

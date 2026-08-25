@@ -57,6 +57,7 @@ const ANIM: Record<PlaybackBeat['pose'], { actor: string; target: string }> = {
   interference: { actor: 'animate-ring-strike', target: 'animate-ring-strike' },
   botch: { actor: 'animate-ring-jostle', target: '' },
   environmental: { actor: '', target: '' },
+  elimination: { actor: 'animate-ring-surge', target: 'animate-ring-eliminated' },
   finish: { actor: 'animate-ring-surge', target: 'animate-ring-slam' },
 };
 
@@ -128,16 +129,26 @@ export function MatchViewerScreen({
   const visible = ring.slice(0, MAX_VISIBLE);
   const overflow = ring.length - visible.length;
 
+  // Every elimination beat played so far, tallied fresh each render rather
+  // than tracked as its own state — `timeline`/`beatIndex` already say
+  // everything about "what's happened up to now," so a separate synced Set
+  // would just be one more thing to keep in step with them.
+  const eliminated = new Set(
+    timeline.slice(0, beatIndex + 1).flatMap((b) => (b.pose === 'elimination' && b.targetId ? [b.targetId] : [])),
+  );
+
   const calloutText =
     current?.pose === 'finish'
       ? finishCallout(result.finish)
-      : current?.pose === 'nearFall'
-        ? '1... 2...'
-        : current?.moveName
-          ? current.moveName.toUpperCase()
-          : current?.pose === 'signature'
-            ? 'BIG MOVE!'
-            : null;
+      : current?.pose === 'elimination'
+        ? 'ELIMINATED!'
+        : current?.pose === 'nearFall'
+          ? '1... 2...'
+          : current?.moveName
+            ? current.moveName.toUpperCase()
+            : current?.pose === 'signature'
+              ? 'BIG MOVE!'
+              : null;
 
   return (
     <div className="flex h-full flex-col p-6 text-neutral-100">
@@ -175,6 +186,10 @@ export function MatchViewerScreen({
             const isActor = current?.actorId === wrestler.id;
             const isTarget = current?.targetId === wrestler.id;
             const spotlighted = isActor || isTarget;
+            // Eliminated, and this isn't the beat that just eliminated them —
+            // stay out on the rail, visibly out of it, rather than standing
+            // there indistinguishable from someone still in the match.
+            const isOut = eliminated.has(wrestler.id) && !spotlighted;
             const radius = spotlighted ? 70 : 150;
             const animClass = isActor
               ? ANIM[current!.pose].actor
@@ -195,7 +210,9 @@ export function MatchViewerScreen({
                     treating a repeated class as already-applied. */}
                 <div
                   key={beatIndex}
-                  className={`flex flex-col items-center gap-1 ${spotlighted ? 'z-10 scale-125' : 'opacity-80'} ${animClass}`}
+                  className={`flex flex-col items-center gap-1 ${
+                    spotlighted ? 'z-10 scale-125' : isOut ? 'scale-75 opacity-35 grayscale' : 'opacity-80'
+                  } ${animClass}`}
                 >
                   <PaperDoll
                     appearance={wrestler.appearance}
@@ -206,6 +223,7 @@ export function MatchViewerScreen({
                   />
                   <span className="max-w-[80px] truncate rounded bg-neutral-950/80 px-1 text-[9px] text-neutral-300">
                     {wrestler.name}
+                    {isOut && <span className="ml-1 text-rose-400">OUT</span>}
                   </span>
                 </div>
               </div>

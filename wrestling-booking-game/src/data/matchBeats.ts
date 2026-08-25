@@ -12,7 +12,8 @@
 //   {finisher}                 the winner's finishing move
 //   {title}                    the belt on the line
 //   {weapon}                   something to hit somebody with
-//   {eliminated}               BATTLE_ROYAL_MIDDLE_BEATS only — whoever just went out
+//   {eliminated}               battle-royal elimination beats only — who just went out
+//   {eliminatedBy}             BATTLE_ROYAL_ELIMINATION_BY_BEATS only — who put them out
 //
 // Every line here has to read as a *highlight* — the bit somebody would tell
 // you about afterwards — not as play-by-play. "They locked up" is not a
@@ -186,11 +187,20 @@ export const AFTERMATH_BEATS: BeatTemplate[] = [
  * engine/sim/battleRoyal.ts's orderEliminations for how the order itself is
  * decided — this pool only narrates it.
  */
-export const BATTLE_ROYAL_MIDDLE_BEATS: BeatTemplate[] = [
+/** A real elimination, identity unknown or not worth naming (nobody clear did it — a gang-up, a scramble). */
+export const BATTLE_ROYAL_ELIMINATION_BEATS: BeatTemplate[] = [
   { text: '{eliminated} never saw it coming — hoisted up and heaved over the top rope, gone, and the field just got a whole lot more dangerous.' },
   { text: 'Two of them ganged up on {eliminated} at the ropes, and that was the whole story — over and out.' },
   { text: '{eliminated} tried fighting off three sets of hands at once. Nobody wins that math. Over the top and gone.' },
   { text: 'The floor is where {eliminated} landed, and the roar that followed said this crowd was not expecting that one so soon.' },
+];
+
+/** A real elimination with a decided eliminator — engine/sim/battleRoyal.ts's pickEliminators. */
+export const BATTLE_ROYAL_ELIMINATION_BY_BEATS: BeatTemplate[] = [
+  { text: '{eliminatedBy} put {eliminated} over the top rope and out, clean as anything.' },
+  { text: '{eliminated} never saw {eliminatedBy} coming from behind — over the ropes and gone.' },
+  { text: 'It was {eliminatedBy} who finally got rid of {eliminated}, and the whole building came alive for it.' },
+  { text: '{eliminatedBy} and {eliminated} traded shots right at the ropes, and {eliminatedBy} was the one still standing on the apron after.' },
 ];
 
 export const BATTLE_ROYAL_FINAL_BEATS: BeatTemplate[] = [

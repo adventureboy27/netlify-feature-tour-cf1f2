@@ -181,6 +181,7 @@ export function runCup(rng: Rng, ctx: CupRunContext): CupResult | null {
         isPPV: true,
         matchLengthMinutes: ctx.settings.defaultMatchLength,
         settings: ctx.settings,
+        week: ctx.week,
         hardcoreSaturation: 0,
         // No belts on this card, for the same reason as the joint shows.
         titles: [],

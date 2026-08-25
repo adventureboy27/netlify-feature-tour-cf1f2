@@ -2863,3 +2863,79 @@ in `world.showHistory` — nothing here decides anything, the same way the exist
 - **Not part of this pass**: per-elimination beat timing for battle royals (needs a real engine change, see
   above); a scrub bar or pause control (skip-to-finish only, matching `CallWindow`'s existing convention);
   reflowing the rest of the game's screens for desktop (a separate, already-flagged pass).
+
+---
+
+## Real elimination and pinfall identity — the engine change the match viewer above deferred
+
+Direct follow-up to that deferred item ("teaching the sim to emit one real beat per elimination with a
+wrestler id is a legitimate future engine change, not this one"). The player's own words on being told the
+gap existed: **"yes we must track it. and who gets pinned."** Two things were quietly never decided anywhere
+in the sim before this: which specific wrestler goes out of a battle royal at each elimination (and who put
+them there), and which specific wrestler takes the fall/tap/knockout at a finish when either side has more
+than one member (a tag match, a battle royal's final two) — both silently defaulted to `sideMembers[0]`,
+array position rather than a real decision.
+
+- **`engine/types.ts`** — `MatchBeat` gains `actorId?: Id | null` / `targetId?: Id | null` (absent only for a
+  genuinely actor-less beat — interference stays a known, documented gap, see below). `MatchBeatKind` gains
+  `'elimination'`, its own kind rather than reusing `'control'`, since it carries real per-event identity a
+  plain control beat doesn't.
+- **`engine/sim/battleRoyal.ts`** — new `pickEliminators(order, sideMembers, week)`, sitting beside
+  `orderEliminations` (left byte-for-byte untouched — this is a second, independent decision, not a revision
+  of the first). For each elimination, seeds its own `rngFromSeed(\`eliminator:${eliminatedId}:${week}\`)`
+  stream and picks uniformly from whoever is still active at that point in the order — never the eliminated
+  side's own member, never the shared `rng` `simulateMatch.ts` threads through the winner/finish/rating rolls.
+  Per root CLAUDE.md's own documented trap ("adding an RNG draw shifts every seeded roll after it"), this
+  guarantees the new decision cannot shift a single existing seeded test or `docs/BALANCE.md` baseline.
+- **`engine/sim/simulateMatch.ts`** — assembles a real `EliminationEvent[]` (`{eliminatedId, eliminatedName,
+  eliminatorId, eliminatorName}`) from `pickEliminators`'s output, replacing the old name-only
+  `eliminatedInOrder: string[][]`. Also decides, the same entity-seeded way (`pinned:${...ids}:${week}` /
+  `pinner:${...ids}:${week}`), exactly one wrestler from the loser/winner side to be the one who actually
+  took/gave the finish, even when that side has several members — a 1v1 match degenerates trivially to the
+  only member, so nothing changes there. The free wins that already carried real identity but never wrote it
+  onto their beat (`Botch.workerId`, `PyroBurn.workerId`, the caught-manager DQ) now stamp `actorId` too — no
+  new decision, just no longer throwing away one that already existed. `SimulateMatchContext` gained a
+  required `week: number` (all 4 real call sites — `store.ts`, `rivalBooking.ts`, `cupRun.ts`,
+  `darkMatch.ts` — and the test fixture updated) purely so these new streams have something to seed from.
+- **`engine/sim/narrative.ts`** — a small local `onTop`/`inTrouble` momentum tracker (the same flip-at-
+  `hopeSpot`, reset-at-`finish` rule already independently duplicated in `commentary.ts` and
+  `matchPlayback.ts` — a third small copy, deliberately not shared, for the reasons already accepted for the
+  other two) stamps `actorId`/`targetId` on every beat as `generateBeats` writes it. **Text generation is
+  completely unchanged** — `fill()`'s `{winner}`/`{loser}` placeholders still resolve off `winnerMembers[0]`/
+  `loserMembers[0]` exactly as before, so the prose write-up reads the same; only the new, parallel id
+  metadata (used for the match viewer's pose, not the sentence) reflects the real decision. Replaced the old
+  two-beat battle-royal scheme with up to `ELIMINATION_BEATS_MAX = 4` real elimination beats, evenly sampled
+  across the whole order rather than one beat per fall — a twenty-man field has nineteen eliminations, and
+  the reel stays a highlight, not a play-by-play (§11.5). A slot is reserved so the existing "field narrows
+  to its final two" milestone beat can't be crowded out by a full house of elimination beats.
+- **`data/matchBeats.ts`** — `BATTLE_ROYAL_MIDDLE_BEATS` renamed `BATTLE_ROYAL_ELIMINATION_BEATS` (same
+  lines, for when nobody clear did it); new `BATTLE_ROYAL_ELIMINATION_BY_BEATS` for when an eliminator is
+  known, using both `{eliminated}` and a new `{eliminatedBy}` placeholder. `BATTLE_ROYAL_FINAL_BEATS`
+  untouched.
+- **`engine/sim/matchPlayback.ts` + `ui/screens/MatchViewerScreen.tsx`** — `buildPlaybackTimeline` now
+  prefers a beat's own `actorId`/`targetId` (resolved against everyone in `sideA`/`sideB`) over the rotation
+  guess, falling back to the guess only when a beat genuinely carries neither (interference, for now — see
+  the match viewer entry above). New `'elimination'` pose plus a one-shot `ring-eliminated` keyframe. The
+  screen tracks which wrestlers have been eliminated so far as `beatIndex` advances and renders their
+  portrait greyed/shrunk with an "OUT" tag for every subsequent beat, instead of standing there
+  indistinguishable from someone still in it; the finish pose now lands on the real decided pinned/pinner
+  pair instead of array position zero.
+- **Tests**: `narrative.test.ts`'s battle-royal assertions rewritten for the `eliminations`-driven scheme
+  (real ids, a cap-respecting test for a 15-entrant field); new `pickEliminators` tests in
+  `battleRoyal.test.ts` (deterministic per `(eliminatedId, week)`, never credits a side with eliminating
+  itself, only ever picks someone still active at that point); `matchPlayback.test.ts` gained cases for a
+  beat's own ids winning over the guess and the `'elimination'` pose; `simulateMatch.test.ts` gained a
+  60-seed tag-match test confirming the pinned/pinner pair lands on the second-listed team member often
+  enough to prove it isn't always position zero, and a battle-royal run asserting every `'elimination'` beat
+  carries valid, resolvable ids.
+- **Verified live**: booked a genuine 6-way battle royal by driving `window.__store` directly (the same
+  precedent as the match-viewer entry above — the Card screen's roster picker hard-caps at 2 sides
+  regardless of stipulation, a pre-existing UI limit this pass didn't touch), ran the show, and watched it —
+  two named wrestlers (not the same two every time) visibly greyed out with an "OUT" tag one at a time as
+  eliminations played, while the rest of the field stayed live; a 5-vs-1 handicap main event's finish landed
+  the flip/upside-down pose on the actual loser rather than a guess. `tsc --noEmit` clean; full suite 152
+  files / 2,941 tests passing (+30 for this change, zero unrelated regressions); `npm run build` clean.
+- **Still not decided anywhere**: the interference/distraction beat only ever has a name
+  (`ringside.ts`'s `RingsideOutcome.distractionBy`), no matching id field — unlike `caughtBy`/`caughtById`,
+  there's no `distractionById` to stamp. Cheap-looking, but touches a subsystem nobody asked about this pass;
+  left on the rotation-guess fallback, same as before.

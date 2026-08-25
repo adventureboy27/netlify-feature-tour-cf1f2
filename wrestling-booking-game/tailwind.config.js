@@ -67,6 +67,13 @@ export default {
           '60%': { opacity: '1', transform: 'scale(1.15) rotate(3deg)' },
           '100%': { opacity: '1', transform: 'scale(1) rotate(-2deg)' },
         },
+        // A battle-royal elimination — over the top and gone, settling into
+        // the greyed-out "OUT" state the viewer holds them in afterward.
+        'ring-eliminated': {
+          '0%': { transform: 'translateY(0) rotate(0deg) scale(1)', opacity: '1' },
+          '50%': { transform: 'translateY(-24px) rotate(120deg) scale(0.9)', opacity: '0.9' },
+          '100%': { transform: 'translateY(30px) rotate(200deg) scale(0.7)', opacity: '0.4' },
+        },
       },
       animation: {
         'rise-in': 'rise-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both',
@@ -78,6 +85,7 @@ export default {
         'ring-surge': 'ring-surge 0.5s ease-out both',
         'ring-slam': 'ring-slam 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both',
         'callout-pop': 'callout-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+        'ring-eliminated': 'ring-eliminated 0.8s cubic-bezier(0.34, 1.2, 0.64, 1) both',
       },
     },
   },

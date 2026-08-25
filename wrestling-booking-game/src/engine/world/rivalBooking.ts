@@ -416,6 +416,7 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
       isPPV: false,
       matchLengthMinutes: ctx.settings.defaultMatchLength,
       settings: ctx.settings,
+      week: ctx.week,
       hardcoreSaturation: ctx.promotion.hardcoreSaturation,
       titlePrestige: matchTitlePrestige(titles, ctx.settings),
       houseStyleFit: houseStyleRatingBonus(everyone, ctx.promotion.identity, ctx.settings, ctx.promotion.fanTaste),

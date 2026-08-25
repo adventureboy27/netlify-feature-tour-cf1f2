@@ -2,7 +2,7 @@
 // -> rating -> narrative into the single entry point callers use.
 
 import type { Rng } from '../rng';
-import { chance, clamp, weightedPick } from '../rng';
+import { chance, clamp, weightedPick, rngFromSeed, pick } from '../rng';
 import type {
   Title,
   Id,
@@ -24,11 +24,11 @@ import { injuryProneness } from '../career/personality';
 import type { RingsideTotals } from './ringside';
 import { ruleAdjustedWeights, kayfabeScore } from './kayfabe';
 import { pairWinProbability, multiManWinProbabilities } from './winProbability';
-import { orderEliminations } from './battleRoyal';
+import { orderEliminations, pickEliminators } from './battleRoyal';
 import { rollFinish, isDrawFinish, isNonDecisiveFinish } from './finish';
 import { computeMatchRating } from './matchRating';
 import { paceEffect } from './pacing';
-import { generateBeats } from './narrative';
+import { generateBeats, type EliminationEvent } from './narrative';
 import { effectiveRules } from '../../data/stipulations';
 
 export interface SimParticipant {
@@ -43,6 +43,8 @@ export interface SimulateMatchContext {
   isPPV: boolean;
   matchLengthMinutes: number;
   settings: WorldSettings;
+  /** For entity-seeded, shared-rng-free identity decisions (who eliminated whom, who took the pin) — see sim/battleRoyal.ts's pickEliminators. */
+  week: number;
 
   /** Deck-stacking odds shifts in percentage points, keyed by side. Empty until M4. */
   deckStackingShiftsBySide?: Record<number, number>;
@@ -254,6 +256,21 @@ export function simulateMatch(
   const loserMembers = sides.filter((s) => s !== winnerSide).flatMap((s) => sideMembers.get(s)!);
   const winnerIsTechnician = winnerMembers.some((w) => w.archetype === 'technician');
 
+  // Who specifically took the fall, and who specifically delivered it — for
+  // a 1v1 match this degenerates to the only member of each side; for a tag
+  // team or a battle royal's final two, this used to be silently "whoever
+  // is listed first," which was never a decision, just array position. Each
+  // pick is its own entity-seeded stream, not the shared `rng` — a tag
+  // match's pinned member cannot shift a single other roll in this match.
+  const pinnedId =
+    loserMembers.length > 1
+      ? pick(rngFromSeed(`pinned:${loserMembers.map((w) => w.id).sort().join(',')}:${ctx.week}`), loserMembers).id
+      : loserMembers[0]?.id;
+  const pinnerId =
+    winnerMembers.length > 1
+      ? pick(rngFromSeed(`pinner:${winnerMembers.map((w) => w.id).sort().join(',')}:${ctx.week}`), winnerMembers).id
+      : winnerMembers[0]?.id;
+
   // Battle royal only: ordering dressing on the winner already decided
   // above — never overrides winnerSide, only decides what order everybody
   // else went out in, so the highlight reel can read like a battle royal
@@ -263,7 +280,23 @@ export function simulateMatch(
     isMultiMan && ctx.stipulation?.id === 'battleRoyal'
       ? orderEliminations(rng, sides, winnerSide, winProbabilitiesBySide)
       : null;
-  const eliminatedInOrder = eliminationOrder?.slice(0, -1).map((s) => sideMembers.get(s)!.map((w) => w.name)) ?? undefined;
+  const eliminatorsBySide = eliminationOrder ? pickEliminators(eliminationOrder, sideMembers, ctx.week) : null;
+  const eliminations: EliminationEvent[] | undefined = eliminationOrder
+    ? eliminationOrder.slice(0, -1).flatMap((side): EliminationEvent[] => {
+        const eliminated = sideMembers.get(side)?.[0];
+        if (!eliminated) return [];
+        const eliminatorId = eliminatorsBySide?.get(side) ?? null;
+        const eliminator = eliminatorId ? wrestlerById.get(eliminatorId) : null;
+        return [
+          {
+            eliminatedId: eliminated.id,
+            eliminatedName: eliminated.name,
+            eliminatorId: eliminator?.id ?? null,
+            eliminatorName: eliminator?.name ?? null,
+          },
+        ];
+      })
+    : undefined;
 
   // What the pace is worth here, and what it costs. Worked out once and used
   // by the finish roll, the rating and the aftermath — the same call has to
@@ -353,7 +386,7 @@ export function simulateMatch(
   // occasionally hurts whoever blew it. See sim/ringcraft.ts.
   const botch = rollBotch(rng, allParticipants, ctx.matchLengthMinutes, ctx.settings);
   const botchBeat: MatchBeat[] = botch
-    ? [{ kind: 'botch' as const, significant: true, text: botch.text }]
+    ? [{ kind: 'botch' as const, significant: true, text: botch.text, actorId: botch.workerId }]
     : [];
 
   // The entrance pyro, if this show fired any. Same shape as a botch — its
@@ -367,7 +400,7 @@ export function simulateMatch(
     ctx.settings,
   );
   const pyroBurnBeat: MatchBeat[] = pyroBurn
-    ? [{ kind: 'pyroBurn' as const, significant: true, text: pyroBurn.text }]
+    ? [{ kind: 'pyroBurn' as const, significant: true, text: pyroBurn.text, actorId: pyroBurn.workerId }]
     : [];
 
   // Which specific unit gets blamed — only ever rolled when the finish
@@ -402,6 +435,7 @@ export function simulateMatch(
           kind: 'finish' as const,
           significant: true,
           text: `${caughtManager} was caught in the act at ringside, and the referee called for the bell.`,
+          actorId: caughtManagerId,
         },
       ]
     : [];
@@ -418,7 +452,9 @@ export function simulateMatch(
       titles: ctx.titles,
       shootHeat: rivalry?.shootHeat ?? 0,
       isMainEvent: ctx.isMainEvent ?? false,
-      eliminatedInOrder,
+      eliminations,
+      pinnedId,
+      pinnerId,
     },
     ctx.usedBeats,
   );

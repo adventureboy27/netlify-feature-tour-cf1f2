@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { generateBeats, beatCount, type NarrativeContext } from './narrative';
+import { generateBeats, beatCount, type NarrativeContext, type EliminationEvent } from './narrative';
 import { rngFromSeed } from '../rng';
 import { generateWrestlers } from '../generate/wrestler';
 import { createStartingTitles } from '../../data/titles';
 import { stipulationById } from '../../data/stipulations';
-import { BATTLE_ROYAL_MIDDLE_BEATS, BATTLE_ROYAL_FINAL_BEATS } from '../../data/matchBeats';
+import { BATTLE_ROYAL_ELIMINATION_BEATS, BATTLE_ROYAL_ELIMINATION_BY_BEATS, BATTLE_ROYAL_FINAL_BEATS } from '../../data/matchBeats';
 import type { Wrestler } from '../types';
 
 function pair(): [Wrestler, Wrestler] {
@@ -122,25 +122,48 @@ describe('what the reel talks about', () => {
     expect(finish.text.toLowerCase()).toContain('scorecard');
   });
 
-  it('names an eliminated wrestler and reaches a final-two beat for a battle royal', () => {
+  it('names eliminated wrestlers with real ids and reaches a final-two beat for a battle royal', () => {
     const [a, b] = pair();
+    const eliminations: EliminationEvent[] = [
+      { eliminatedId: 'w-third', eliminatedName: 'Third Wheel', eliminatorId: null, eliminatorName: null },
+      { eliminatedId: 'w-fourth', eliminatedName: 'Fourth Wheel', eliminatorId: a.id, eliminatorName: a.name },
+      { eliminatedId: 'w-fifth', eliminatedName: 'Fifth Wheel', eliminatorId: null, eliminatorName: null },
+    ];
     const beats = reel({
       rating: 60,
       isMainEvent: true,
-      eliminatedInOrder: [['Third Wheel'], ['Fourth Wheel'], ['Fifth Wheel']],
+      eliminations,
       winnerMembers: [a],
       loserMembers: [b],
     });
     const text = beats.map((beat) => beat.text).join(' ');
     expect(text).toContain('Fourth Wheel');
+    const eliminationBeat = beats.find((b) => b.kind === 'elimination' && b.targetId === 'w-fourth');
+    expect(eliminationBeat).toBeDefined();
+    expect(eliminationBeat!.actorId).toBe(a.id);
     const finalBeatTexts = BATTLE_ROYAL_FINAL_BEATS.map((t) => t.text);
     expect(beats.some((b) => finalBeatTexts.includes(b.text))).toBe(true);
   });
 
+  it('never invents more than the elimination-beat cap, even for a huge field', () => {
+    const [a, b] = pair();
+    const eliminations: EliminationEvent[] = Array.from({ length: 15 }, (_, i) => ({
+      eliminatedId: `w-${i}`,
+      eliminatedName: `Wheel ${i}`,
+      eliminatorId: null,
+      eliminatorName: null,
+    }));
+    const beats = reel({ rating: 100, isMainEvent: true, eliminations, winnerMembers: [a], loserMembers: [b] });
+    expect(beats.filter((b) => b.kind === 'elimination').length).toBeLessThanOrEqual(4);
+  });
+
   it('skips battle royal beats entirely for an ordinary match', () => {
-    const beats = reel({ rating: 60, eliminatedInOrder: undefined });
-    const battleRoyalTexts = [...BATTLE_ROYAL_MIDDLE_BEATS, ...BATTLE_ROYAL_FINAL_BEATS].map((t) => t.text);
+    const beats = reel({ rating: 60, eliminations: undefined });
+    const battleRoyalTexts = [...BATTLE_ROYAL_ELIMINATION_BEATS, ...BATTLE_ROYAL_ELIMINATION_BY_BEATS, ...BATTLE_ROYAL_FINAL_BEATS].map(
+      (t) => t.text,
+    );
     expect(beats.some((b) => battleRoyalTexts.includes(b.text))).toBe(false);
+    expect(beats.some((b) => b.kind === 'elimination')).toBe(false);
   });
 
   it('does not repeat a control-beat line across the same card', () => {

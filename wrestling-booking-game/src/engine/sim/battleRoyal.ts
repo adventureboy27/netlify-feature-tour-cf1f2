@@ -11,7 +11,8 @@
 // never eliminated: it is excluded from the draw and appended last.
 
 import type { Rng } from '../rng';
-import { weightedPick } from '../rng';
+import { weightedPick, rngFromSeed, pick } from '../rng';
+import type { Id, Wrestler } from '../types';
 
 /**
  * Returns every side in the match, ordered first-eliminated to last (the
@@ -36,4 +37,41 @@ export function orderEliminations(
 
   order.push(winnerSide);
   return order;
+}
+
+/**
+ * Who put each eliminated side over the top. Reads `order` (`orderEliminations`'s
+ * own output) without touching it — this is a separate decision, not a second
+ * opinion on the first one.
+ *
+ * Each pick is drawn from its own entity-seeded stream
+ * (`rngFromSeed(\`eliminator:${...}:${week}\`)`), never from the shared `rng`
+ * `simulateMatch.ts` threads through the winner/finish/rating rolls — adding
+ * a decision here must never shift anything that already exists downstream of
+ * it. See the root CLAUDE.md's "adding an RNG draw shifts every seeded roll
+ * after it" trap.
+ */
+export function pickEliminators(
+  order: readonly number[],
+  sideMembers: ReadonlyMap<number, readonly Wrestler[]>,
+  week: number,
+): Map<number, Id> {
+  const eliminators = new Map<number, Id>();
+
+  // Every entry but the last (the winner, who is never eliminated).
+  for (let i = 0; i < order.length - 1; i++) {
+    const eliminatedSide = order[i]!;
+    const eliminatedRep = sideMembers.get(eliminatedSide)?.[0];
+    if (!eliminatedRep) continue;
+
+    // Whoever is still in the ring at this point — every side that goes out
+    // later, plus the eventual winner. Never the side being eliminated.
+    const stillActive = order.slice(i + 1).flatMap((s) => sideMembers.get(s) ?? []);
+    if (stillActive.length === 0) continue;
+
+    const rng = rngFromSeed(`eliminator:${eliminatedRep.id}:${week}`);
+    eliminators.set(eliminatedSide, pick(rng, stillActive).id);
+  }
+
+  return eliminators;
 }
