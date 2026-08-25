@@ -5,6 +5,54 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## UX/navigation overhaul — flagged for next session, do not start without a fresh go-ahead
+
+Player played the actual built game for the first time this session and the verdict was blunt: "the ux
+and layout is horrible. I didn't even know where to go... we've done fairly well behind the
+scenes......but nobody will want to play." Explicitly deferred — no budget left this session — but
+flagged as the top priority for whenever work resumes, ranked above the items below it in this file.
+**Do not start this without the player actively kicking it off** — it's a big, cross-cutting redesign,
+not a fix to slot in alongside other work.
+
+The player supplied seven reference screenshots from mDickie's *Wrestling Empire* (a genre sibling, not
+this codebase) and named exactly what makes its interface work, as a concrete brief for what "much more
+user-friendly and visually appealing" means here:
+
+- **One screen, one job.** The card/booking screen in the reference shows *only* the card — Main Event /
+  Mid Card slots, nothing else competing for attention. Compare our `BookingScreen.tsx`, which currently
+  puts stipulation pickers, gear-unit chips, referee/manager assignment, and the full segment editor all
+  on screen at once per slot.
+- **Drill-down navigation instead of one crowded screen.** Tap a calendar date → straight into that
+  night's card. Tap an empty slot on the card → back to a roster-picker screen to fill it. Tap a booked
+  match → a dedicated match-setup screen with its own top tab bar (`Arena / Rules / Cast / Script /
+  Play`), each tab a focused single-purpose screen, not an accordion or a scroll-everything page.
+- **A real roster/wrestler-detail screen.** Tap a name anywhere → a screen with the portrait, quick
+  stat bars up top (Popularity/Strength/Skill/Agility/Stamina/Attitude — visually near-identical to what
+  our own `RosterScreen`-adjacent stat displays already compute, just laid out cleaner), and — this is
+  the part we don't have at all — **tag partners and managers shown right there on the same screen**,
+  each tappable to jump to *their* detail screen. Same list-of-wrestler-rows visual language reused
+  everywhere: a promotion's roster, a rival's roster, the free-agent pool, the wrestling school
+  intake, and a legends pool all render as the same scrollable list component, just filtered
+  differently — not five different bespoke layouts.
+- **Consistent, uncluttered chrome.** Every reference screen has the same header shape (back arrow,
+  section wordmark/logo, a small stat/portrait cluster top-right) and the same list-row visual style
+  (colored bars, a name, a small icon for a title belt/manager/mystery-signing). Ours currently varies
+  screen to screen with no single reusable "list row" or "detail header" component doing the work.
+
+**What this means for us, concretely, next time:** an audit of every existing `ui/screens/*.tsx` against
+"is this one screen doing one job, or several," a real wrestler-detail screen/route that doesn't exist
+yet (tag partners and managers are data we already have — `world.relationships`, tag team state, manager
+assignments — just never surfaced as a single drill-down destination), a shared `RosterList`/`ListRow`
+component to stop every screen inventing its own roster-row markup, and reworking `BookingScreen.tsx`'s
+segment editor into its own dedicated screen/route reached by tapping a card slot, rather than expanding
+inline. This is a real information-architecture pass, not a visual-polish pass — the design-system work
+already done (tokens, `chrome.tsx`, the pilot screens) is about *how things look*; this is about *how you
+get from one thing to the next*, which the player is saying is the actual blocker to anyone wanting to
+play. Screenshots referenced are attached to the chat message that raised this, not saved into the repo —
+re-request them from the player when this work actually starts if they aren't still visible in scrollback.
+
+---
+
 ## Infrastructure debt
 
 **`resolveWeek` is still ~5,200 lines inline in `store.ts`.** The ~90
