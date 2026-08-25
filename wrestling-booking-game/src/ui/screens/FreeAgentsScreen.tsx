@@ -14,7 +14,13 @@
 
 import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
-import { rankPool, currentAskingRate, canSign, AVAILABILITY_LABELS } from '../../engine/world/freeAgents';
+import {
+  rankPool,
+  currentAskingRate,
+  canSign,
+  AVAILABILITY_LABELS,
+  type AvailabilityReason,
+} from '../../engine/world/freeAgents';
 import { contractLengthLine } from '../../engine/economy/contracts';
 import { leverageReason } from '../../engine/career/leverage';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
@@ -39,6 +45,7 @@ export function FreeAgentsScreen({ onNavigate }: { onNavigate?: (wrestlerId: Id)
   const world = useGameStore((s) => s.world);
   const sign = useGameStore((s) => s.signFreeAgent);
   const [selectedId, setSelectedId] = useState<Id | null>(null);
+  const [reasonFilter, setReasonFilter] = useState<AvailabilityReason | 'all'>('all');
 
   const ranked = useMemo(() => {
     if (!world) return [];
@@ -53,9 +60,10 @@ export function FreeAgentsScreen({ onNavigate }: { onNavigate?: (wrestlerId: Id)
   const heldAgainstUs = stillHeldAgainstUs(deaths, world.week, world.settings);
   const buried = mostRecentDeath(deaths);
 
-  const agentIds = new Set(ranked.map((a) => a.wrestlerId));
-  const activeAgentId = selectedId && agentIds.has(selectedId) ? selectedId : (ranked[0]?.wrestlerId ?? null);
-  const activeAgent = ranked.find((a) => a.wrestlerId === activeAgentId);
+  const visible = reasonFilter === 'all' ? ranked : ranked.filter((a) => a.reason === reasonFilter);
+  const agentIds = new Set(visible.map((a) => a.wrestlerId));
+  const activeAgentId = selectedId && agentIds.has(selectedId) ? selectedId : (visible[0]?.wrestlerId ?? null);
+  const activeAgent = visible.find((a) => a.wrestlerId === activeAgentId);
   const activeWrestler = activeAgentId ? world.wrestlers[activeAgentId] : undefined;
 
   return (
@@ -65,6 +73,43 @@ export function FreeAgentsScreen({ onNavigate }: { onNavigate?: (wrestlerId: Id)
         <p className="text-xs text-neutral-500">
           Bank <Money amount={world.promotion.bankBalance} /> · roster {world.promotion.rosterIds.length}
         </p>
+      </div>
+
+      {/* Who's available and why is the whole decision on this screen —
+          filtering by it beats scrolling past forty names to find the two
+          who just graduated the school. */}
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          data-testid="fa-filter-all"
+          onClick={() => setReasonFilter('all')}
+          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+            reasonFilter === 'all'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-neutral-900 text-neutral-400 ring-1 ring-inset ring-neutral-800 hover:text-neutral-200'
+          }`}
+        >
+          All — {ranked.length}
+        </button>
+        {(Object.keys(AVAILABILITY_LABELS) as AvailabilityReason[]).map((reason) => {
+          const count = ranked.filter((a) => a.reason === reason).length;
+          if (count === 0) return null;
+          return (
+            <button
+              key={reason}
+              type="button"
+              data-testid={`fa-filter-${reason}`}
+              onClick={() => setReasonFilter(reason)}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                reasonFilter === reason
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-neutral-900 text-neutral-400 ring-1 ring-inset ring-neutral-800 hover:text-neutral-200'
+              }`}
+            >
+              {AVAILABILITY_LABELS[reason]} — {count}
+            </button>
+          );
+        })}
       </div>
 
       {/* What this company did, and what the market thinks of it. Stated at
@@ -87,10 +132,14 @@ export function FreeAgentsScreen({ onNavigate }: { onNavigate?: (wrestlerId: Id)
         <p className="rounded border border-neutral-800 bg-neutral-900 p-6 text-center text-sm text-neutral-500">
           Nobody is available right now. Every single person in this business is already signed somewhere.
         </p>
+      ) : visible.length === 0 ? (
+        <p className="rounded border border-neutral-800 bg-neutral-900 p-6 text-center text-sm text-neutral-500">
+          Nobody matches that filter right now.
+        </p>
       ) : (
         <div className="grid grid-cols-[380px_1fr] gap-4">
           <div className="flex max-h-[75vh] flex-col gap-1.5 overflow-y-auto pr-1">
-            {ranked.map((agent) => {
+            {visible.map((agent) => {
               const wrestler = world.wrestlers[agent.wrestlerId];
               if (!wrestler) return null;
               const rate = ourPrice(currentAskingRate(agent, world.settings), heldAgainstUs, world.settings);

@@ -34,6 +34,46 @@ const SHORT: Record<WeekMark, string> = {
   cup: 'Cup',
 };
 
+/**
+ * This week only, read-only — the honest version of "tap a date, see the
+ * card" for a booking screen that has no per-future-week storage to point a
+ * tap at. `world.currentCard` is a single flat array, not one per week, so
+ * there is nothing else on the calendar this screen could actually take you
+ * to; this says what tonight and the rest of the week look like and stops
+ * there, on purpose.
+ */
+export function ThisWeekStrip() {
+  const world = useGameStore((s) => s.world);
+  if (!world?.promotion.schedule) return null;
+
+  const view = calendarMonths(world.week, 1, {
+    now: world.week,
+    schedule: world.promotion.schedule,
+    settings: world.settings,
+    cupMonth: CUP_MONTH,
+  });
+  const thisWeek = view.flatMap((m) => m.weeks).find((w) => w.isNow);
+  if (!thisWeek) return null;
+
+  return (
+    <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-2.5" data-testid="this-week-strip">
+      <div className="mb-1.5 text-[10px] uppercase tracking-wider text-neutral-500">This week</div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {thisWeek.nights.map((night) => (
+          <div
+            key={night.day}
+            title={`${night.day}${night.label ? ` — ${night.label}` : ' — dark'}`}
+            className={`flex flex-col items-center gap-0.5 truncate rounded border px-0.5 py-1 ${NIGHT[night.mark]}`}
+          >
+            <span className="text-[8px] uppercase tracking-wide text-neutral-500">{night.day.slice(0, 2)}</span>
+            <span className="text-[9px] font-semibold">{SHORT[night.mark]}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function CalendarStrip({ months = 2 }: { months?: number }) {
   const world = useGameStore((s) => s.world);
   const toggle = useGameStore((s) => s.toggleShowOnDay);

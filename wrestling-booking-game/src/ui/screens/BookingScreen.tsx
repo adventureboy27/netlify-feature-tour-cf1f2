@@ -38,6 +38,7 @@ import { DialogueCard } from '../dialogue/DialogueCard';
 import type { WeatherCallOptionId } from '../../data/weatherCalls';
 import { NO_SHOW_CALL_OPTIONS, type NoShowChoiceId } from '../../engine/world/noShowCall';
 import { Stories } from '../components/Stories';
+import { ThisWeekStrip } from '../components/CalendarStrip';
 import { BiddingWarPanel } from '../components/BiddingWar';
 import { SupershowPanel } from '../components/Supershow';
 import { CupPanel } from '../components/Cup';
@@ -291,6 +292,7 @@ export function BookingScreen({
             these already returns null when nothing's relevant, so most weeks
             this rail simply isn't there. */}
         <div className="flex flex-col gap-3">
+          <ThisWeekStrip />
           <CupPanel />
           <SupershowPanel />
           <BiddingWarPanel />

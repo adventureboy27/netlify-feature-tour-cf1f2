@@ -5,20 +5,20 @@ read. Roughly in the order it is worth doing.
 
 ---
 
-## UX/navigation overhaul — desktop/Steam pivot shipped, Phase 4 flagged
+## UX/navigation overhaul — all four phases shipped
 
 Player played the actual built game for the first time and the verdict was blunt: "the ux and layout is
 horrible. I didn't even know where to go... we've done fairly well behind the scenes......but nobody will
 want to play." Originally deferred for a later session; the player then explicitly kicked it off ("let's
 start on it"), and a bare "proceed" carried it straight on into Phase 2 (navigation stack + the wrestler-
-detail screen — see "UX/navigation overhaul, Phase 1" and "Phase 2" below). **Mid-way through Phase 3, the
+detail screen — see "UX/navigation overhaul, Phase 1" and "Phase 2" below). Mid-way through Phase 3, the
 player redirected the whole thing: the game is not phone-tailored any more — it's headed for Steam, on a
-PC, and should use a real window's worth of space instead of a single scrolling column.** That pivot —
+PC, and should use a real window's worth of space instead of a single scrolling column. That pivot —
 sidebar shell, the booking flow finished natively for desktop, and Roster/Free Agents/The competition
-rebuilt as master-detail split panes — is now built and shipped. See "UX/navigation overhaul, desktop/Steam
-pivot" further down this file for the full write-up. Only Phase 4 (calendar linkage, a free-agent
-"new graduates" filter — small, unrelated to the pivot) remains flagged and **should not be started without
-the player actively kicking it off**. The full plan lives in `/root/.claude/plans/synthetic-plotting-planet.md`.
+rebuilt as master-detail split panes — shipped as "UX/navigation overhaul, desktop/Steam pivot" further
+down this file. **Phase 4 (a calendar "this week" indicator, a free-agent "new graduates" filter) has now
+shipped too — see "UX/navigation overhaul, Phase 4" at the very end of this file — closing out the whole
+overhaul.** The full plan lives in `/root/.claude/plans/synthetic-plotting-planet.md`.
 
 The player supplied seven reference screenshots from mDickie's *Wrestling Empire* (a genre sibling, not
 this codebase) and named exactly what makes its interface work, as a concrete brief for what "much more
@@ -2742,3 +2742,46 @@ casual rewording — phone/touch stop being a design target from here on.
   unused space to the right of it until a follow-up pass gets to them — an accepted, deliberate gap, not an
   oversight. Phase 4 (calendar "this week" indicator, a free-agent "new graduates" filter) remains
   unstarted, small, and unrelated to the pivot.
+
+---
+
+## UX/navigation overhaul, Phase 4 — a this-week calendar strip, and a free-agent reason filter
+
+Last of the four phases from the original plan (`/root/.claude/plans/synthetic-plotting-planet.md`). Both
+pieces were already fully scoped from the first research pass, well before the desktop pivot — small,
+pure-UI, no engine changes — and stayed exactly that size once actually built.
+
+- **Calendar**: `world.currentCard` is still confirmed a single flat array, not one per future week, so a
+  literal "tap any date on the calendar, jump to that night's card" (the mDickie reference's original ask)
+  is not buildable without a real future-scheduling data model — out of scope, as flagged from the start.
+  The honest version: a new `ThisWeekStrip` component (`src/ui/components/CalendarStrip.tsx`, beside the
+  existing schedule-configuration `CalendarStrip`) reuses the same engine-backed `calendarMonths` view the
+  configuration screen already draws from, pulls out just the current week's seven nights, and renders them
+  read-only — no `onClick`, nothing to tap — in the desktop booking screen's right-hand rail, above the six
+  conditional notice panels. It reads real schedule data (a televised night, a house show, a dark night) the
+  same way the Office screen's calendar does, so the two can never disagree about what's actually on this
+  week. `OfficeScreen.tsx`'s own `CalendarStrip` (the tappable, schedule-editing one) is untouched.
+- **Free agents**: a filter chip row above the master-detail list on `FreeAgentsScreen.tsx`, built entirely
+  from data that already existed — `FreeAgent.reason: AvailabilityReason` and the `AVAILABILITY_LABELS` map
+  (`src/engine/world/freeAgents.ts`) already distinguished `neverSigned` / `contractExpired` / `released` /
+  `schoolGraduate` / `walkOn` / `returning`, stamped correctly at intake; nothing on the engine side needed
+  to change. "All" plus one chip per reason actually present in the current pool (a reason nobody currently
+  has, `walkOn` most weeks, doesn't clutter the row), each labelled with its live count. Filtering re-clamps
+  the master-detail selection the same way a re-sort does elsewhere on this screen — the right pane never
+  points at somebody the current filter has hidden.
+- **Tests**: none added or changed — still no automated UI/component test layer in this codebase; full
+  suite (151 files / 2,923 tests) passes unchanged, both pieces being pure UI reading data that was already
+  there.
+- **Verified live**, `npm run dev` + Playwright: the this-week strip renders the correct seven-night read-out
+  for a fresh save (the televised night and a house-show night both marked correctly, matching the header
+  text above the card); the free-agent filter chips' counts summed to the pool total, and selecting "Out of
+  the school" correctly narrowed the list to exactly the three matching agents with the detail pane updating
+  to the first of them.
+- Verified: `tsc --noEmit` clean; full suite 151 files / 2,923 tests passing (zero changes); `npm run build`
+  clean; the live check above.
+- **This closes out the UX/navigation overhaul.** Everything in the original plan — the navigation stack,
+  the wrestler-detail screen, the desktop/Steam shell and booking flow, master-detail for the three roster
+  screens, and this phase — is shipped. What's left, as flagged throughout, is reflowing the rest of the
+  screens for desktop (Office, Promotion, Territories, Finance, Rankings, The Sheet, Records, Legacy, The
+  Crucible, Contact sheet, The quiet business, Settings, Show Results, New Game, Title, the wrestler
+  Editor) — a real, separate pass, not started here.
