@@ -84,7 +84,13 @@ function previewOdds(segment: Segment, wrestlers: Wrestler[]): number | null {
   return pairWinProbability(a, b, 0, 0.08, 0.92);
 }
 
-export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
+export function BookingScreen({
+  onRunShow,
+  onNavigateWrestler,
+}: {
+  onRunShow: () => void;
+  onNavigateWrestler?: (id: Id) => void;
+}) {
   const world = useGameStore((s) => s.world);
   const setParticipant = useGameStore((s) => s.setSegmentParticipant);
   const removeParticipant = useGameStore((s) => s.removeSegmentParticipant);
@@ -450,6 +456,7 @@ export function BookingScreen({ onRunShow }: { onRunShow: () => void }) {
                     unavailable={bookedIds}
                     onAdd={(id, side) => setParticipant(index, id, side)}
                     onRemove={(id) => removeParticipant(index, id)}
+                    onNavigateWrestler={onNavigateWrestler}
                     onStipulation={(id) => setStipulation(index, id)}
                     onGearUnits={(unitIds) => setGearUnits(index, unitIds)}
                     ownedPropUnits={world.ownedPropUnits}
@@ -590,6 +597,7 @@ function SegmentEditor({
   unavailable,
   onAdd,
   onRemove,
+  onNavigateWrestler,
   onStipulation,
   onGearUnits,
   ownedPropUnits,
@@ -616,6 +624,8 @@ function SegmentEditor({
   unavailable: Set<Id>;
   onAdd: (id: Id, side: number) => void;
   onRemove: (id: Id) => void;
+  /** Tap a name already on the card to view their detail screen. */
+  onNavigateWrestler?: (id: Id) => void;
   onStipulation: (id: Id | null) => void;
   /** Which owned match-prop units (ladders, a cage, tables) are in play tonight. */
   onGearUnits: (unitIds: Id[]) => void;
@@ -685,21 +695,37 @@ function SegmentEditor({
                   const wrestler = roster.find((w) => w.id === p.wrestlerId);
                   if (!wrestler) return null;
                   return (
-                    <WrestlerRow
+                    // A plain div, not WrestlerRow's own onClick — the row
+                    // still needs a real, separate ✕ button inside it, and
+                    // WrestlerRow puts everything including `trailing` inside
+                    // one <button> once onClick is set, which would nest a
+                    // button inside a button. The stopPropagation on the ✕
+                    // is what keeps "remove" from also triggering "view".
+                    <div
                       key={p.wrestlerId}
-                      wrestler={wrestler}
-                      settings={settings}
-                      trailing={
-                        <button
-                          type="button"
-                          onClick={() => onRemove(p.wrestlerId)}
-                          className="rounded px-2 py-1 text-xs text-neutral-500 hover:text-rose-400"
-                          aria-label={`Remove ${wrestler.name}`}
-                        >
-                          ✕
-                        </button>
-                      }
-                    />
+                      role={onNavigateWrestler ? 'button' : undefined}
+                      tabIndex={onNavigateWrestler ? 0 : undefined}
+                      onClick={onNavigateWrestler ? () => onNavigateWrestler(p.wrestlerId) : undefined}
+                      className={onNavigateWrestler ? 'cursor-pointer' : undefined}
+                    >
+                      <WrestlerRow
+                        wrestler={wrestler}
+                        settings={settings}
+                        trailing={
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRemove(p.wrestlerId);
+                            }}
+                            className="rounded px-2 py-1 text-xs text-neutral-500 hover:text-rose-400"
+                            aria-label={`Remove ${wrestler.name}`}
+                          >
+                            ✕
+                          </button>
+                        }
+                      />
+                    </div>
                   );
                 })}
               {segment.participants.filter((p) => p.side === s).length === 0 && (

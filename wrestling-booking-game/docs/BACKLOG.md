@@ -5,17 +5,18 @@ read. Roughly in the order it is worth doing.
 
 ---
 
-## UX/navigation overhaul — Phase 1 of 4 shipped, Phases 2-4 flagged, do not start without a fresh go-ahead
+## UX/navigation overhaul — Phases 1-2 of 4 shipped, Phases 3-4 flagged, do not start without a fresh go-ahead
 
 Player played the actual built game for the first time and the verdict was blunt: "the ux and layout is
 horrible. I didn't even know where to go... we've done fairly well behind the scenes......but nobody will
 want to play." Originally deferred for a later session; the player then explicitly kicked it off ("let's
-start on it"). **Phase 1 (navigation infrastructure) is now built and shipped — see "UX/navigation
-overhaul, Phase 1" further down this file for the full write-up.** Phases 2-4 (the wrestler-detail screen,
-the `BookingScreen.tsx` split, calendar linkage) remain flagged and **should not be started without the
+start on it"), and a bare "proceed" carried it straight on into Phase 2. **Phases 1 (navigation
+infrastructure) and 2 (the wrestler-detail screen) are now built and shipped — see "UX/navigation overhaul,
+Phase 1" and "UX/navigation overhaul, Phase 2" further down this file for the full write-ups.** Phases 3-4
+(the `BookingScreen.tsx` split, calendar linkage) remain flagged and **should not be started without the
 player actively kicking off that specific phase** — each is its own scope, not a fix to slot in alongside
-other work. The full plan (all four phases, in detail) lives in
-`/root/.claude/plans/synthetic-plotting-planet.md`.
+other work. Phase 3 in particular is the biggest and riskiest of the four. The full plan (all four phases,
+in detail) lives in `/root/.claude/plans/synthetic-plotting-planet.md`.
 
 The player supplied seven reference screenshots from mDickie's *Wrestling Empire* (a genre sibling, not
 this codebase) and named exactly what makes its interface work, as a concrete brief for what "much more
@@ -2590,3 +2591,68 @@ bigger is built on top of it.
   roster-picker screen, and a tabbed match-setup screen (Phase 3); calendar linkage and a free-agent
   "new graduates" filter (Phase 4, both already confirmed small and low-risk in the plan). All fully
   specified in the plan file; none started here.
+
+---
+
+## UX/navigation overhaul, Phase 2 — a real wrestler-detail screen, reached from everywhere
+
+Second of four phases (full plan: `/root/.claude/plans/synthetic-plotting-planet.md`). Built on Phase 1's
+navigation stack without touching the mechanism itself — this phase is entirely new screens and wiring.
+Kicked off by a bare "proceed" immediately after Phase 1 shipped, no fresh planning round.
+
+- **New `src/ui/screens/WrestlerDetailScreen.tsx`**, reached via
+  `goTo({screen:'wrestlerDetail', params:{wrestlerId}})` from every `WrestlerRow` in the app.
+  `ScreenHeader` with the billed name as title; a portrait row (`PaperDoll size="large"`, injury badge,
+  crown/nickname/alignment/age/former names/belts) with full non-compact `MiniStats` beside it; then two new
+  tappable sections the game never had before — **tag partner(s)**, via the existing `teamOf(world.stables,
+  wrestlerId)`, and **manager**, via the existing `representativeOf(world.representations, wrestlerId)` —
+  each rendered as a compact `WrestlerRow` whose `onClick` pushes a *new* `wrestlerDetail` target for that
+  person. Below that, everything that used to be crammed onto `RosterScreen.tsx`'s giant per-wrestler card
+  moved here wholesale and unchanged in substance: notice-to-leave, staleness, shun/leave status, injury
+  text, stances, the one-line relationship summary (`circleSummary`), career-status line, gimmick heat,
+  manager's-own-book lines, discipline record, lineage, scout pitch, mood, reach/strongholds/home,
+  ringcraft/likeability, motivation symbols, trait chips, `CareerLedger`, and contract line. One small
+  enhancement beyond the plan's literal spec: the ally/enemy relationship chips are now tappable links to
+  those wrestlers' own detail screens too, not just tag partners and managers — free, since the data and the
+  `onNavigateWrestler` callback were already right there.
+- **The four consequential action buttons — retire, role-change, release, repackage — moved here, off the
+  roster row entirely**, exactly as flagged in the plan as a real, deliberate behavior change: releasing or
+  retiring someone is now row → detail → action instead of one tap from the list. This is what makes
+  `RosterScreen`'s row genuinely the same shared row used everywhere else — free agents' and rivals' rows
+  obviously can't carry Retire/Release buttons, and now none of them have to be special-cased.
+- **`src/ui/screens/RosterScreen.tsx` rewritten**, 992 lines down to ~275. Its giant-card grid is now a
+  plain list of `WrestlerRow`s (`onClick` → detail); sort chips, the wage-total header, `TagTeamPanel`, and
+  `MotivationKey` stay here as roster-wide tools. `alignmentOf` and the `PerkRow`/`AssignmentRow`/`BeltIcon`
+  helpers moved to `WrestlerDetailScreen.tsx` with the content that needed them.
+- **`onClick` wired into the `WrestlerRow` call sites that didn't have it**: `FreeAgentsScreen.tsx` and
+  `RivalRosterScreen.tsx` both gained an optional `onNavigate` prop, threaded straight through. No
+  `WrestlerRow` API changes were needed anywhere — its existing `onClick`/`trailing` props already covered
+  this.
+- **`BookingScreen.tsx`: the already-on-segment participant rows only**, per the plan — the roster-picker
+  list (tap-anywhere-to-add) stays untouched until Phase 3 gives it its own screen. This surfaced a real
+  layout problem the plan didn't anticipate: those rows already use `WrestlerRow`'s `trailing` slot for a ✕
+  remove button, and `WrestlerRow` wraps everything — including `trailing` — inside its own `<button>` the
+  moment `onClick` is passed, which would have nested a real `<button>` inside another real `<button>`.
+  Fixed without touching `WrestlerRow`'s API: the row is wrapped in a plain `<div role="button" tabIndex={0}
+  onClick={...}>` instead, and the inner ✕ button calls `e.stopPropagation()` so removing a wrestler no
+  longer also navigates to their detail screen.
+- **Tests**: none added or changed — still no automated UI/component test layer in this codebase; full
+  suite (151 files / 2,923 tests) passes unchanged, consistent with this being pure UI/routing work with no
+  engine or store logic touched.
+- **Verified live**, `npm run dev` + Playwright, across every wiring site: Roster list → a wrestler's detail
+  screen; from inside that screen, tapping a tag partner → *their* detail screen, confirmed by distinct
+  rendered name/portrait/stats — the concrete proof, under real recursion this time (not just Phase 1's
+  simpler single-param editor case), that the stack-derived remount key from Phase 1 actually holds; back →
+  back → landing correctly on Roster; Free Agents list → detail; Rival Rosters list → detail; and a booking
+  segment's already-on-card row → detail, with the ✕ remove button confirmed still working on its own
+  without triggering navigation. Two rounds of test-script false negatives along the way turned out to be
+  script assumptions, not app bugs (a `formTagTeam` call silently no-op'd against a wrestler who already had
+  a real pre-existing partner in the starting roster; a toggle click assumed the first card slot started
+  collapsed when it's open by default) — both traced to their actual cause and the script corrected rather
+  than the app.
+- Verified: `tsc --noEmit` clean; full suite 151 files / 2,923 tests passing (zero changes); `npm run build`
+  clean; the live click-through above.
+- **Not part of Phase 2**: the `BookingScreen.tsx` split into a card-overview screen, a roster-picker
+  screen, and a tabbed match-setup screen (Phase 3, the biggest and riskiest of the four); calendar linkage
+  and a free-agent "new graduates" filter (Phase 4, both already confirmed small and low-risk in the plan).
+  Both fully specified in the plan file; neither started here.

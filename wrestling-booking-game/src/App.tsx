@@ -15,6 +15,7 @@ import { TerritoriesScreen } from './ui/screens/TerritoriesScreen';
 import { ShowResults } from './ui/screens/ShowResults';
 import { ContactSheet } from './ui/screens/ContactSheet';
 import { WrestlerEditor } from './ui/screens/WrestlerEditor';
+import { WrestlerDetailScreen } from './ui/screens/WrestlerDetailScreen';
 import { NewGameScreen } from './ui/screens/NewGameScreen';
 import { TitleScreen } from './ui/screens/TitleScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
@@ -165,16 +166,21 @@ export default function App() {
         {screen === 'more' && <MoreScreen onNavigate={resetTo} />}
         {screen === 'settings' && <SettingsScreen onBack={() => resetTo('more')} />}
         {screen === 'office' && <OfficeScreen />}
-        {screen === 'booking' && <BookingScreen onRunShow={runShow} />}
+        {screen === 'booking' && (
+          <BookingScreen
+            onRunShow={runShow}
+            onNavigateWrestler={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
+          />
+        )}
         {screen === 'promotion' && <PromotionScreen />}
         {screen === 'roster' && (
-          <RosterScreen
-            onRepackage={(wrestlerId) => goTo({ screen: 'editor', params: { wrestlerId } })}
-          />
+          <RosterScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
         )}
         {screen === 'territories' && <TerritoriesScreen />}
         {screen === 'finance' && <FinanceScreen />}
-        {screen === 'freeAgents' && <FreeAgentsScreen />}
+        {screen === 'freeAgents' && (
+          <FreeAgentsScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
+        )}
         {screen === 'results' &&
           (lastShow ? (
             <ShowResults show={lastShow} onContinue={() => resetTo('booking')} />
@@ -182,7 +188,9 @@ export default function App() {
             <p className="p-6 text-center text-sm text-neutral-500">No show has run yet.</p>
           ))}
         {screen === 'rankings' && <RankingsScreen />}
-        {screen === 'rivalRosters' && <RivalRosterScreen />}
+        {screen === 'rivalRosters' && (
+          <RivalRosterScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
+        )}
         {screen === 'sheet' && <SheetScreen />}
         {screen === 'secrets' && <SecretsScreen />}
         {screen === 'records' && <RecordsScreen />}
@@ -190,6 +198,14 @@ export default function App() {
         {screen === 'crucible' && <CrucibleScreen />}
         {screen === 'contactSheet' && <ContactSheet />}
         {screen === 'editor' && <WrestlerEditor wrestlerId={params?.wrestlerId} onDone={goBack} />}
+        {screen === 'wrestlerDetail' && params?.wrestlerId && (
+          <WrestlerDetailScreen
+            wrestlerId={params.wrestlerId}
+            onBack={goBack}
+            onNavigateWrestler={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
+            onRepackage={(wrestlerId) => goTo({ screen: 'editor', params: { wrestlerId } })}
+          />
+        )}
       </main>
 
       <BottomNav

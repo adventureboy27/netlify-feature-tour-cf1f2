@@ -15,7 +15,7 @@ import { CareerLedger } from '../components/CareerLedger';
 import { Panel, SectionHead } from '../components/chrome';
 import type { Promotion, Wrestler } from '../../engine/types';
 
-export function RivalRosterScreen() {
+export function RivalRosterScreen({ onNavigate }: { onNavigate?: (wrestlerId: string) => void } = {}) {
   const world = useGameStore((s) => s.world);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -79,7 +79,11 @@ export function RivalRosterScreen() {
                   const belts = titlesHeldBy(world.titles, w.id);
                   return (
                     <Panel key={w.id} className="p-2">
-                      <WrestlerRow wrestler={w} settings={world.settings} />
+                      <WrestlerRow
+                        wrestler={w}
+                        settings={world.settings}
+                        onClick={onNavigate ? () => onNavigate(w.id) : undefined}
+                      />
                       {belts.length > 0 && (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {belts.map((belt) => (

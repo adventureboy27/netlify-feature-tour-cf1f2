@@ -28,7 +28,7 @@ import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { Money } from '../components/display';
 import { WrestlerRow } from '../components/WrestlerRow';
 
-export function FreeAgentsScreen() {
+export function FreeAgentsScreen({ onNavigate }: { onNavigate?: (wrestlerId: string) => void } = {}) {
   const world = useGameStore((s) => s.world);
   const sign = useGameStore((s) => s.signFreeAgent);
 
@@ -90,7 +90,11 @@ export function FreeAgentsScreen() {
               className="flex gap-2 rounded border border-neutral-800 bg-neutral-900 p-2"
             >
               <div className="min-w-0 flex-1">
-                <WrestlerRow wrestler={wrestler} settings={world.settings} />
+                <WrestlerRow
+                  wrestler={wrestler}
+                  settings={world.settings}
+                  onClick={onNavigate ? () => onNavigate(wrestler.id) : undefined}
+                />
                 <div className="mt-1 truncate text-[10px] text-amber-500/80">
                   {CAREER_STATUS_LABELS[wrestler.careerStatus]} · age {wrestler.age} ·{' '}
                   {AVAILABILITY_LABELS[agent.reason]}

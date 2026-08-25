@@ -33,7 +33,9 @@ export type Screen =
   | 'secrets'
   | 'rivalRosters'
   | 'settings'
-  | 'more';
+  | 'more'
+  /** One wrestler's own screen — reached by tapping a WrestlerRow anywhere. */
+  | 'wrestlerDetail';
 
 // ---------------------------------------------------------------------------
 // Icons
