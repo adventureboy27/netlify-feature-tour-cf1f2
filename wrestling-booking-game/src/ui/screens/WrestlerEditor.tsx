@@ -13,6 +13,7 @@ import { useGameStore } from '../../state/store';
 import { generateAppearance, APPEARANCE_TRAIT_RANGES } from '../../engine/generate/appearance';
 import { rngFromSeed } from '../../engine/rng';
 import { PaperDoll } from '../paperdoll/PaperDoll';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { SKIN_TONE_PALETTE, HAIR_COLOR_PALETTE, ATTIRE_PALETTE } from '../paperdoll/palette';
 import { DRAW_ORDER, SLOT_CELLS, type AtlasSlot } from '../paperdoll/atlas/manifest';
 import { SLOT_TRAIT, selectCells, traitValueForCell } from '../paperdoll/atlas/traits';
@@ -231,25 +232,19 @@ export function WrestlerEditor({ wrestlerId, onDone }: { wrestlerId?: Id; onDone
 
   return (
     <div className="min-h-screen bg-neutral-950 p-4 text-neutral-100">
-      <header className="mb-4 flex items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold">{subject ? `Repackage ${subject.name}` : 'Wrestler Editor'}</h1>
-        <div className="flex shrink-0 gap-2">
-          <button
-            type="button"
-            onClick={randomize}
-            className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700"
-          >
-            Randomize
-          </button>
-          {subject && (
-            <>
-              <button
-                type="button"
-                onClick={onDone}
-                className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700"
-              >
-                Cancel
-              </button>
+      <ScreenHeader
+        title={subject ? `Repackage ${subject.name}` : 'Wrestler Editor'}
+        onBack={onDone ?? (() => {})}
+        right={
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={randomize}
+              className="rounded bg-neutral-800 px-3 py-1.5 text-sm hover:bg-neutral-700"
+            >
+              Randomize
+            </button>
+            {subject && (
               <button
                 type="button"
                 data-testid="save-repackage"
@@ -258,10 +253,10 @@ export function WrestlerEditor({ wrestlerId, onDone }: { wrestlerId?: Id; onDone
               >
                 Save
               </button>
-            </>
-          )}
-        </div>
-      </header>
+            )}
+          </div>
+        }
+      />
 
       {subject && (
         <div className="mb-4 flex flex-col gap-2 rounded border border-neutral-800 p-3">

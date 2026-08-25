@@ -5,14 +5,17 @@ read. Roughly in the order it is worth doing.
 
 ---
 
-## UX/navigation overhaul — flagged for next session, do not start without a fresh go-ahead
+## UX/navigation overhaul — Phase 1 of 4 shipped, Phases 2-4 flagged, do not start without a fresh go-ahead
 
-Player played the actual built game for the first time this session and the verdict was blunt: "the ux
-and layout is horrible. I didn't even know where to go... we've done fairly well behind the
-scenes......but nobody will want to play." Explicitly deferred — no budget left this session — but
-flagged as the top priority for whenever work resumes, ranked above the items below it in this file.
-**Do not start this without the player actively kicking it off** — it's a big, cross-cutting redesign,
-not a fix to slot in alongside other work.
+Player played the actual built game for the first time and the verdict was blunt: "the ux and layout is
+horrible. I didn't even know where to go... we've done fairly well behind the scenes......but nobody will
+want to play." Originally deferred for a later session; the player then explicitly kicked it off ("let's
+start on it"). **Phase 1 (navigation infrastructure) is now built and shipped — see "UX/navigation
+overhaul, Phase 1" further down this file for the full write-up.** Phases 2-4 (the wrestler-detail screen,
+the `BookingScreen.tsx` split, calendar linkage) remain flagged and **should not be started without the
+player actively kicking off that specific phase** — each is its own scope, not a fix to slot in alongside
+other work. The full plan (all four phases, in detail) lives in
+`/root/.claude/plans/synthetic-plotting-planet.md`.
 
 The player supplied seven reference screenshots from mDickie's *Wrestling Empire* (a genre sibling, not
 this codebase) and named exactly what makes its interface work, as a concrete brief for what "much more
@@ -2514,3 +2517,76 @@ player-facing name surfaces, all updated together so nothing lagged behind:
   checked here since the new file is a different size; `npm run play` clean, its `<title>` confirmed
   correct in the built single-file output. Live screenshots of both the title screen and Settings screen
   confirm the new logo renders correctly in its frame and both text surfaces read the new name.
+
+---
+
+## UX/navigation overhaul, Phase 1 — a real navigation stack, and one shared screen header
+
+First of four phases (full plan: `/root/.claude/plans/synthetic-plotting-planet.md`). Grew out of the
+player actually playing the built game and not being able to find their way around it — full context in
+this file's "UX/navigation overhaul" entry above. Two research passes plus a design pass confirmed the
+starting point: routing was a flat `useState<Screen>` in `App.tsx` with no history or params, and the only
+precedent for passing an id into a screen was a one-off `repackaging: string | null` used solely by the
+wrestler editor. This phase replaces that with the one mechanism every later phase (the wrestler-detail
+screen in Phase 2, the `BookingScreen.tsx` split in Phase 3) builds on, and proves it works before anything
+bigger is built on top of it.
+
+- **`src/App.tsx`**: `const [screen, setScreen] = useState<Screen>('booking')` replaced with a small typed
+  stack — `interface NavTarget { screen: Screen; params?: { wrestlerId?: Id } }`,
+  `const [navStack, setNavStack] = useState<NavTarget[]>([{ screen: 'booking' }])`. Three functions replace
+  the old single `navigate`: `goTo(target)` pushes (drill-down — a `WrestlerRow` tap, a card-slot tap in a
+  later phase), `goBack()` pops (falls back to `{screen:'booking'}` defensively if the stack would go
+  empty), `resetTo(screen)` replaces the whole stack with one entry (the bottom nav's five tabs and
+  everything behind the More screen — lateral moves, not drill-downs, so none of them grow the stack or
+  show a back arrow, exactly as before). No React Router, no URL, no history API — this stays a small typed
+  stack matching the zero-framework grain of everything else in this codebase; at the depth this redesign
+  needs (one or two levels), that's the right-sized tool, not an under-reaction.
+- **The `key={screen}` trap — load-bearing, not cosmetic.** `<main key={screen}>` used to key React's
+  remount purely on the flat screen id. Once a screen can navigate to another instance of itself (Phase 2's
+  "tap a tag partner from inside a wrestler's detail screen, land on *their* detail screen"), keying on the
+  screen id alone breaks: React sees the same key both times and won't remount, so the previous subject's
+  data would silently linger. Fixed now, ahead of needing it, by deriving the key from the whole nav target
+  — `` key={`${screen}:${params?.wrestlerId ?? ''}`} `` — and proven in this phase's own live pass (see
+  Verified below) using the one param-carrying screen that exists today, the wrestler editor, repackaging
+  two different wrestlers back to back.
+- **`repackaging` folded into the new mechanism**, not left as a second, inconsistent pattern next to it.
+  `RosterScreen`'s `onRepackage` now calls `goTo({screen:'editor', params:{wrestlerId}})` directly;
+  `WrestlerEditor` reads `params?.wrestlerId` as an ordinary prop from `App.tsx`'s render body, same as
+  before, just sourced from the stack instead of a dedicated `useState`.
+- **New `src/ui/components/ScreenHeader.tsx`** — the first piece of "consistent chrome everywhere": a back
+  arrow (calls whatever `onBack` it's given — always `goBack` in practice), a title that wraps rather than
+  truncates (a first draft truncated to "Repackag…" on a phone-width screen with two buttons next to it —
+  caught in the live screenshot pass below and fixed before shipping), an optional subtitle line, and an
+  optional `right` slot for a small action cluster. Its own file rather than folded into `chrome.tsx` —
+  that file's own header comment already declares "no screen invents its own panel any more" for the
+  Panel/Tabs/Badge family, and a header-with-back-arrow is a new category of primitive, not a variant of an
+  existing one.
+- **Piloted on `src/ui/screens/WrestlerEditor.tsx`** — deliberately the only screen touched beyond
+  `App.tsx` this phase, to prove the mechanism on the smallest possible surface before Phase 2 builds a
+  real new screen on it. Its hand-rolled `<header><h1>...` block is replaced with `ScreenHeader`, and its
+  separate "Cancel" button is folded into the header's own back arrow (they did the same thing — abandon
+  without saving — so keeping both was two affordances for one action). A **real, deliberate side effect**:
+  the sandbox editor (reached from the More list, no wrestler being repackaged) previously had no back
+  button at all — `save()` and the Cancel/Save buttons only ever rendered when a subject existed, so the
+  only way out was the bottom nav. It now gets `ScreenHeader`'s back arrow like every other screen, which
+  correctly falls back to the booking screen via `goBack()`'s defensive default (confirmed live, see below)
+  — a small, unambiguous improvement, not a scope change.
+- **Tests**: none added or changed — this phase is pure UI/routing, and this codebase has no automated
+  UI/component test layer at all (confirmed via `grep -rl data-testid **/*.test.ts*` returning nothing);
+  every `data-testid` in the UI exists solely to support live click-through verification, which is what
+  this phase's own verification pass is.
+- **Verified live, not just at the pure-function level**: `npm run dev` + a real Playwright click-through.
+  Repackaged wrestler A (Lars McCready), confirmed the editor's title read the full name; backed out via
+  the new header, confirmed landing back on the roster; repackaged a *different* wrestler B (Lux Kincaid) —
+  the concrete proof the stack-derived key fix works — and confirmed the editor showed B's name and
+  portrait, not stale A data. Clicked through all five bottom-nav tabs plus two More-list screens (Free
+  Agents, the sandbox Editor) and confirmed zero back arrows on any of them except the sandbox editor's new
+  one, which correctly returned to the booking screen. The title-wrap bug above was caught and fixed during
+  this same pass, before shipping.
+- Verified: `tsc --noEmit` clean; full suite 151 files / 2,923 tests passing (zero changes, as expected for
+  a pure UI/routing phase); `npm run build` clean; the live click-through above.
+- **Not part of Phase 1**: the wrestler-detail screen, wiring `WrestlerRow` `onClick`s to it, and
+  `RosterScreen.tsx`'s restructuring (Phase 2); the `BookingScreen.tsx` split into a card-overview screen, a
+  roster-picker screen, and a tabbed match-setup screen (Phase 3); calendar linkage and a free-agent
+  "new graduates" filter (Phase 4, both already confirmed small and low-risk in the plan). All fully
+  specified in the plan file; none started here.

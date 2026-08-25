@@ -3,6 +3,7 @@
 // arrives with the milestones that own those systems; this is the spine they
 // hang on.
 import { useEffect, useState } from 'react';
+import type { Id } from './engine/types';
 import { weekLine } from './engine/world/calendar';
 import { useGameStore } from './state/store';
 import { BookingScreen } from './ui/screens/BookingScreen';
@@ -33,14 +34,27 @@ import { getReducedMotionPreference } from './ui/reducedMotion';
 /** Before a world exists, the app is a much smaller state machine — the title screen and its two doors. */
 type PreGameView = 'title' | 'newGame' | 'settings';
 
+/** One entry on the navigation stack — which screen, and (for a drill-down screen) which id it's about. */
+interface NavTarget {
+  screen: Screen;
+  params?: { wrestlerId?: Id };
+}
+
 export default function App() {
   const world = useGameStore((s) => s.world);
   const resolveWeek = useGameStore((s) => s.resolveWeek);
   const saveNow = useGameStore((s) => s.saveNow);
-  const [screen, setScreen] = useState<Screen>('booking');
-  /** Who the editor is currently repackaging, if anybody. */
-  const [repackaging, setRepackaging] = useState<string | null>(null);
+  // A small typed stack rather than a flat screen id, so a drill-down screen
+  // (a wrestler's detail page, say) can navigate to another instance of
+  // itself — tapping a tag partner from inside one detail screen needs to
+  // push a second one on top, which a single "current screen" variable can't
+  // express. The five bottom-nav tabs and everything behind More stay lateral
+  // moves (see resetTo below), not pushes — only the newer drill-down screens
+  // grow this stack.
+  const [navStack, setNavStack] = useState<NavTarget[]>([{ screen: 'booking' }]);
   const [preGameView, setPreGameView] = useState<PreGameView>('title');
+  const screen = navStack[navStack.length - 1]!.screen;
+  const params = navStack[navStack.length - 1]!.params;
   const reduceMotion = getReducedMotionPreference();
 
   // Autosave. The world is plain data, so this is cheap; debounced so that
@@ -61,24 +75,39 @@ export default function App() {
 
   function runShow() {
     if (world?.folded) {
-      navigate('office');
+      resetTo('office');
       return;
     }
     resolveWeek();
     // Straight to the top of the marquee. Running the show from halfway down
     // the card screen used to drop you halfway down the results.
-    navigate('results');
+    resetTo('results');
   }
 
   // A story waiting on a decision is worth a badge — it's easy to miss a tab.
   const officeBadge = world.pendingEvent !== null || world.approachOffers.length > 0;
   const theme = promotionTheme(world.promotion.identity);
 
-  function navigate(next: Screen) {
-    if (next !== 'editor') setRepackaging(null);
-    setScreen(next);
-    // A destination reached from More opens at the top, not wherever the
-    // previous screen happened to be scrolled to.
+  /** Drill down — push a new screen on top, so a later goBack() returns here. */
+  function goTo(target: NavTarget) {
+    setNavStack((stack) => [...stack, target]);
+    window.scrollTo(0, 0);
+  }
+
+  /** Return to whatever pushed the current screen. */
+  function goBack() {
+    setNavStack((stack) => (stack.length > 1 ? stack.slice(0, -1) : [{ screen: 'booking' }]));
+    window.scrollTo(0, 0);
+  }
+
+  /**
+   * A lateral move — the bottom nav's five tabs, and everything behind More —
+   * replaces the whole stack rather than pushing, so none of those carry a
+   * back arrow. A destination reached this way opens at the top, not
+   * wherever the previous screen happened to be scrolled to.
+   */
+  function resetTo(next: Screen) {
+    setNavStack([{ screen: next }]);
     window.scrollTo(0, 0);
   }
 
@@ -121,21 +150,26 @@ export default function App() {
       </header>
 
       {/* Room for the bar, so the last row of any screen is reachable rather
-          than sitting underneath it. Keyed by screen so every navigation is a
-          quiet settle-in rather than a hard cut — the same beat a broadcast
-          uses between segments. */}
-      <main key={screen} className={`pb-16 ${reduceMotion ? '' : 'animate-rise-in'}`}>
-        {screen === 'more' && <MoreScreen onNavigate={navigate} />}
-        {screen === 'settings' && <SettingsScreen onBack={() => navigate('more')} />}
+          than sitting underneath it. Keyed off the *whole* nav target, not
+          just the screen id — a drill-down screen can navigate to another
+          instance of itself (a wrestler's detail page linking to another
+          wrestler's), and keying on the screen id alone would leave React
+          seeing "the same screen" and refuse to remount, so the previous
+          subject's data and scroll position would silently linger. Every
+          navigation is a quiet settle-in rather than a hard cut — the same
+          beat a broadcast uses between segments. */}
+      <main
+        key={`${screen}:${params?.wrestlerId ?? ''}`}
+        className={`pb-16 ${reduceMotion ? '' : 'animate-rise-in'}`}
+      >
+        {screen === 'more' && <MoreScreen onNavigate={resetTo} />}
+        {screen === 'settings' && <SettingsScreen onBack={() => resetTo('more')} />}
         {screen === 'office' && <OfficeScreen />}
         {screen === 'booking' && <BookingScreen onRunShow={runShow} />}
         {screen === 'promotion' && <PromotionScreen />}
         {screen === 'roster' && (
           <RosterScreen
-            onRepackage={(wrestlerId) => {
-              setRepackaging(wrestlerId);
-              navigate('editor');
-            }}
+            onRepackage={(wrestlerId) => goTo({ screen: 'editor', params: { wrestlerId } })}
           />
         )}
         {screen === 'territories' && <TerritoriesScreen />}
@@ -143,7 +177,7 @@ export default function App() {
         {screen === 'freeAgents' && <FreeAgentsScreen />}
         {screen === 'results' &&
           (lastShow ? (
-            <ShowResults show={lastShow} onContinue={() => navigate('booking')} />
+            <ShowResults show={lastShow} onContinue={() => resetTo('booking')} />
           ) : (
             <p className="p-6 text-center text-sm text-neutral-500">No show has run yet.</p>
           ))}
@@ -155,23 +189,12 @@ export default function App() {
         {screen === 'legacy' && <LegacyScreen />}
         {screen === 'crucible' && <CrucibleScreen />}
         {screen === 'contactSheet' && <ContactSheet />}
-        {screen === 'editor' && (
-          <WrestlerEditor
-            // Keyed so switching to a different wrestler reloads the form
-            // rather than keeping the last one's name in the fields.
-            key={repackaging ?? 'sandbox'}
-            wrestlerId={repackaging ?? undefined}
-            onDone={() => {
-              setRepackaging(null);
-              navigate('roster');
-            }}
-          />
-        )}
+        {screen === 'editor' && <WrestlerEditor wrestlerId={params?.wrestlerId} onDone={goBack} />}
       </main>
 
       <BottomNav
         screen={screen}
-        onNavigate={navigate}
+        onNavigate={resetTo}
         theme={theme}
         officeBadge={officeBadge}
         moreBadge={BEHIND_MORE.has(screen)}
