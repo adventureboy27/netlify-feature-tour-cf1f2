@@ -4,7 +4,9 @@ Project brief for Claude Code. Keep this file in the repo root.
 
 ## What we're building
 
-A phone-first, offline, browser-based **wrestling promotion management game**.
+A desktop-first, offline, browser-based **wrestling promotion management game**, headed for Steam. Screens
+use a real window's worth of space — dedicated panes and grids, not a single scrolling phone column. Phone
+and touch are not a design target; whatever still happens to work on one is incidental.
 The player is a booker: they build show cards, sign and manage talent, run
 storylines, and grow a promotion across simulated decades.
 
@@ -61,14 +63,14 @@ Do not jump ahead. M2 must be playable before M3 starts.
 npm run dev        # Vite dev server
 npm run sim        # Headless balance harness — run after every sim change
 npm run test       # Unit tests
-npm run build      # Production PWA build
+npm run build      # Production build
 npm run play       # Build, then fold it into one openable HTML file
 ```
 
 `npm run play` writes `dist/wrestling-booker.html` — the whole game in a
 single file, CSS and JS inlined, sprite atlas already data-URI'd by Vite.
-Open it directly, no server; mail it to a phone and it works there too. The
-game is offline-only by design, so nothing is lost in the folding.
+Open it directly, no server needed. The game is offline-only by design, so
+nothing is lost in the folding.
 
 ## Traps that have caught somebody more than once
 

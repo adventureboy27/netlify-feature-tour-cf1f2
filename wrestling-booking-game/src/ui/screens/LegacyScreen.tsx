@@ -32,7 +32,7 @@ export function LegacyScreen() {
   const awardYears = [...new Set(world.awardHistory.map((entry) => entry.year))].sort((a, b) => b - a);
 
   return (
-    <div className="p-3 pb-24 text-neutral-100">
+    <div className="p-3 pb-6 text-neutral-100">
       <h1 className="mb-3 text-base font-semibold">Legacy</h1>
 
       <section className="mb-5">

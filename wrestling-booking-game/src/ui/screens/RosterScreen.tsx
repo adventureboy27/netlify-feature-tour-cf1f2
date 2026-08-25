@@ -1,21 +1,23 @@
 // Roster — §21: "Grid of name plates. Color-coded... Health as a red bar
 // consuming the plate from the right. Sortable by any stat."
 //
-// The list itself now only has one job: let a booker scan the whole roster
-// and recognise who they're looking at. Everything about one specific
-// person — contract, discipline, career ledger, retire/release/repackage —
-// lives on their own detail screen (`WrestlerDetailScreen.tsx`) now, reached
-// by tapping their row, the same shared row every other list of wrestlers in
-// the game already uses.
+// A master-detail split, not a drill-down: the list on the left is for
+// scanning and picking who to look at, and the right pane shows everything
+// about whoever's selected — contract, discipline, career ledger, retire/
+// release/role/repackage — without leaving the screen or losing your place
+// in the list. `WrestlerDetailBody` (`ui/components/WrestlerDetail.tsx`) is
+// the same content `WrestlerDetailScreen` shows when a name is tapped from
+// somewhere with no list of its own to embed it in.
 
 import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { MotivationKey, WrestlerRow } from '../components/WrestlerRow';
+import { WrestlerDetailBody } from '../components/WrestlerDetail';
 import { canFormTeam, teamOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
 import { ATTIRE_PALETTE } from '../paperdoll/palette';
 import { titlesHeldBy } from '../../data/titles';
 import { Money } from '../components/display';
-import type { Wrestler } from '../../engine/types';
+import type { Id, Wrestler } from '../../engine/types';
 
 const SORTS = {
   popularity: { label: 'Popularity', of: (w: Wrestler) => w.popularity },
@@ -31,9 +33,17 @@ const SORTS = {
 
 type SortKey = keyof typeof SORTS;
 
-export function RosterScreen({ onNavigate }: { onNavigate?: (wrestlerId: string) => void } = {}) {
+export function RosterScreen({
+  onNavigate,
+  onRepackage,
+}: {
+  /** Fallback for a name that isn't in this roster (a rare off-roster relationship). */
+  onNavigate?: (wrestlerId: Id) => void;
+  onRepackage?: (wrestlerId: Id) => void;
+} = {}) {
   const world = useGameStore((s) => s.world);
   const [sort, setSort] = useState<SortKey>('popularity');
+  const [selectedId, setSelectedId] = useState<Id | null>(null);
 
   const roster = useMemo(() => {
     if (!world) return [];
@@ -44,8 +54,21 @@ export function RosterScreen({ onNavigate }: { onNavigate?: (wrestlerId: string)
 
   if (!world) return null;
 
+  const rosterIds = new Set(roster.map((w) => w.id));
+  // The selection re-clamps to the top of the (possibly re-sorted) list
+  // whenever it points at nobody real any more — a re-sort, or somebody
+  // leaving via retire/release right there in the detail pane.
+  const activeId = selectedId && rosterIds.has(selectedId) ? selectedId : (roster[0]?.id ?? null);
+  const active = activeId ? world.wrestlers[activeId] : undefined;
+
+  /** Tag partner / manager / ally taps inside the detail pane: reselect in place if they're on this same roster, otherwise fall back to a real navigation. */
+  function onSelectWrestler(id: Id) {
+    if (rosterIds.has(id)) setSelectedId(id);
+    else onNavigate?.(id);
+  }
+
   return (
-    <div className="p-3 pb-24 text-neutral-100">
+    <div className="p-6 text-neutral-100">
       <div className="mb-3 flex items-end justify-between gap-2">
         <h1 className="text-xl font-black tracking-tight">
           Roster <span className="text-neutral-500">— {roster.length}</span>
@@ -76,19 +99,33 @@ export function RosterScreen({ onNavigate }: { onNavigate?: (wrestlerId: string)
       <TagTeamPanel />
       <MotivationKey />
 
-      <div className="flex flex-col gap-2">
-        {roster.map((w) => (
-          <div key={w.id} data-testid={`roster-${w.id}`}>
-            <WrestlerRow
-              wrestler={w}
-              settings={world.settings}
-              titles={world.titles}
-              territoryId={world.showSetup.territoryId}
-              territoryName={world.territories.find((t) => t.id === world.showSetup.territoryId)?.name}
-              onClick={onNavigate ? () => onNavigate(w.id) : undefined}
-            />
-          </div>
-        ))}
+      <div className="grid grid-cols-[380px_1fr] gap-4">
+        <div className="flex max-h-[75vh] flex-col gap-1.5 overflow-y-auto pr-1">
+          {roster.map((w) => (
+            <div key={w.id} data-testid={`roster-${w.id}`}>
+              <WrestlerRow
+                wrestler={w}
+                settings={world.settings}
+                titles={world.titles}
+                territoryId={world.showSetup.territoryId}
+                territoryName={world.territories.find((t) => t.id === world.showSetup.territoryId)?.name}
+                compact
+                selected={w.id === activeId}
+                onClick={() => setSelectedId(w.id)}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+          {active ? (
+            <div className="max-w-2xl">
+              <WrestlerDetailBody wrestler={active} editable onNavigateWrestler={onSelectWrestler} onRepackage={onRepackage} />
+            </div>
+          ) : (
+            <p className="text-sm text-neutral-500">Nobody on the roster yet.</p>
+          )}
+        </div>
       </div>
     </div>
   );

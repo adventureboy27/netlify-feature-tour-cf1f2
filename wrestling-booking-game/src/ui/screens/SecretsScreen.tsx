@@ -90,7 +90,7 @@ export function SecretsScreen() {
     .reduce((sum, s) => sum + s.weeklyRate, 0);
 
   return (
-    <div className="p-3 pb-24 text-neutral-100">
+    <div className="p-3 pb-6 text-neutral-100">
       <h1 className="text-lg font-bold">The quiet business</h1>
       <p className="mb-3 text-[11px] leading-snug text-neutral-500">
         Nobody works for two companies at once, not really. What you can do is find somebody whose deal is nearly

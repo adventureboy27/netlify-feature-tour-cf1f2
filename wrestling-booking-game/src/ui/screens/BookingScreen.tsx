@@ -1,23 +1,20 @@
 // The card builder — §21's "Match Setup" plus the card view. This is M2's
 // main interaction, and per §9 it has no time pressure and no warnings: the
 // game will let you book Loser Leaves between two strangers and find out.
+//
+// One screen, one job: this is the card overview only. Tapping a slot goes
+// to a dedicated screen — the roster picker if it isn't cast on both sides
+// yet, the match's own Cast/Rules/Stakes screen once it is — rather than
+// expanding an accordion in place. The six conditional notice panels (a cup
+// invite, a supershow offer, a bidding war, live stories, what the crowd
+// wants, belts on the clock) live in a right-hand rail beside the card
+// instead of stacking above it, now that there's a whole desktop window to
+// use instead of a phone's one column.
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useGameStore } from '../../state/store';
-import { STIPULATIONS, stipulationById, stipulationRequirementsMet, effectiveRules } from '../../data/stipulations';
-import { familyById as propFamilyById } from '../../data/matchProps';
-import { usableUnitsForFamily, unitConditionLabel, type OwnedPropUnit } from '../../engine/economy/matchProps';
-import { tierById as propTierById } from '../../data/matchProps';
-
-import { managerFit, type Manager } from '../../engine/sim/ringside';
-import { signedReferees, officialFor, sharpnessLabel, refereeGrade, isAvailable } from '../../engine/sim/referees';
-import { findRivalry } from '../../engine/sim/rivalry';
-import { ruleAdjustedWeights, kayfabeScore } from '../../engine/sim/kayfabe';
-import { pairWinProbability } from '../../engine/sim/winProbability';
+import { signedReferees, sharpnessLabel, refereeGrade, isAvailable } from '../../engine/sim/referees';
 import { Odds, HeatBadge } from '../components/display';
-import { WrestlerRow, RowKey } from '../components/WrestlerRow';
-import { eligibleTitles, titleStakesLabel } from '../../engine/sim/titleMatch';
-import { shortTitleName } from '../../data/titles';
 import {
   bigShowName,
   houseShowsThisWeek,
@@ -31,9 +28,7 @@ import { DarkMatchSlots } from '../components/DarkMatchSlots';
 import { ASSIGNMENTS, assignmentOf } from '../../engine/career/assignment';
 import { leaveStatusLine } from '../../engine/career/onOurWatch';
 import { isSuspended } from '../../engine/career/discipline';
-import type { Id, Wrestler, Segment, Title, WorldSettings, Referee, PaceId } from '../../engine/types';
-import { PACES, paceById } from '../../data/pacing';
-import { paceFit } from '../../engine/sim/pacing';
+import type { Wrestler, Referee } from '../../engine/types';
 import { slotLabel } from '../cardLabels';
 import { defenceWatch } from '../../engine/world/titleDefence';
 import { fanDemands } from '../../engine/world/fanDemand';
@@ -46,67 +41,22 @@ import { Stories } from '../components/Stories';
 import { BiddingWarPanel } from '../components/BiddingWar';
 import { SupershowPanel } from '../components/Supershow';
 import { CupPanel } from '../components/Cup';
-
-/**
- * How worn an official is, as a colour. The player is managing a crew across
- * a card, and the whole decision is legible at a glance or it is not a
- * decision at all.
- */
-function sharpnessTone(referee: Referee): string {
-  const label = sharpnessLabel(referee);
-  if (label === 'Fresh' || label === 'Sharp') return 'text-emerald-400';
-  if (label === 'Working hard') return 'text-neutral-400';
-  if (label === 'Fading') return 'text-amber-400';
-  return 'text-rose-400';
-}
-
-/** Preview odds using the same path the sim will take, so the words don't lie. */
-function previewOdds(segment: Segment, wrestlers: Wrestler[]): number | null {
-  const sides = [...new Set(segment.participants.map((p) => p.side))];
-  if (sides.length !== 2 || wrestlers.length < 2) return null;
-
-  const stipulation = segment.stipulation ? (stipulationById(segment.stipulation) ?? null) : null;
-  const rules = effectiveRules(segment.rules, stipulation);
-  const weights = ruleAdjustedWeights(rules, stipulation?.id === 'ladder', false);
-
-  const scoreFor = (side: number) => {
-    const members = segment.participants
-      .filter((p) => p.side === side)
-      .map((p) => wrestlers.find((w) => w.id === p.wrestlerId))
-      .filter((w): w is Wrestler => Boolean(w));
-    if (members.length === 0) return null;
-    return members.reduce((sum, w) => sum + kayfabeScore(w, weights), 0) / members.length;
-  };
-
-  const a = scoreFor(sides[0]!);
-  const b = scoreFor(sides[1]!);
-  if (a === null || b === null) return null;
-  return pairWinProbability(a, b, 0, 0.08, 0.92);
-}
+import { summarizeSegment, refereeSharpnessTone } from './segmentSummary';
 
 export function BookingScreen({
   onRunShow,
-  onNavigateWrestler,
+  onOpenSlot,
 }: {
   onRunShow: () => void;
-  onNavigateWrestler?: (id: Id) => void;
+  /** A slot tile was tapped — `cast` says whether it already has both sides filled. */
+  onOpenSlot: (slotIndex: number, cast: boolean) => void;
 }) {
   const world = useGameStore((s) => s.world);
-  const setParticipant = useGameStore((s) => s.setSegmentParticipant);
-  const removeParticipant = useGameStore((s) => s.removeSegmentParticipant);
-  const setStipulation = useGameStore((s) => s.setSegmentStipulation);
-  const setGearUnits = useGameStore((s) => s.setSegmentGearUnits);
-  const setRules = useGameStore((s) => s.setSegmentRules);
-  const setManager = useGameStore((s) => s.setSegmentManager);
-  const setReferee = useGameStore((s) => s.setSegmentReferee);
-  const setGuestReferee = useGameStore((s) => s.setSegmentGuestReferee);
   const setDefaultReferee = useGameStore((s) => s.setDefaultReferee);
   const spreadCrew = useGameStore((s) => s.spreadOfficialsAcrossCard);
-  const toggleTitle = useGameStore((s) => s.toggleSegmentTitle);
   const autoFill = useGameStore((s) => s.autoFillCard);
   const answerWeatherCall = useGameStore((s) => s.answerWeatherCall);
   const answerNoShowCall = useGameStore((s) => s.answerNoShowCall);
-  const [openSlot, setOpenSlot] = useState(0);
 
   const roster = useMemo(
     () => (world ? world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean) : []),
@@ -115,14 +65,10 @@ export function BookingScreen({
 
   // The officials under contract, best first. Fatigue is per night, so this
   // list is also the crew rota — who has worked what, and who is left.
-  const crew = useMemo(
-    () => (world ? signedReferees(world.referees, world.promotion.id) : []),
-    [world],
-  );
+  const crew = useMemo(() => (world ? signedReferees(world.referees, world.promotion.id) : []), [world]);
 
   if (!world) return null;
 
-  const bookedIds = new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
   const filledSegments = world.currentCard.filter((s) => new Set(s.participants.map((p) => p.side)).size >= 2).length;
 
   // What tonight is, and what is coming — a weekly grind needs something to
@@ -135,9 +81,6 @@ export function BookingScreen({
   const televisedShow = schedule.shows.find((show) => show.televised);
   const roadShows = houseShowsThisWeek(world.week, schedule, world.settings);
   const tonightsImpromptu = (world.impromptuShows ?? []).filter((sh) => sh.week === world.week);
-  // The year has a shape whether or not the booker uses it: a holiday is a
-  // night the town turns out for the date rather than the card, and knowing
-  // one is three weeks out is the whole reason to build toward it.
   const call = world.pendingWeatherCall;
   const noShowCall = world.pendingNoShowCall;
   const tonightsHoliday = holidayForWeek(world.week);
@@ -147,21 +90,16 @@ export function BookingScreen({
   // company's own colour rather than a generic green.
   const theme = promotionTheme(world.promotion.identity);
 
-  return (
-    <div className="p-3 pb-24 text-neutral-100">
-      <CupPanel />
-      <SupershowPanel />
-      <BiddingWarPanel />
-      <Stories />
-      <WhatTheyWant />
-      <BeltsOnTheClock />
+  const bookedIds = new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
 
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+  return (
+    <div className="p-6 text-neutral-100">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           {tonightIsPPV ? (
             <>
               <div className="text-[10px] uppercase tracking-wide text-amber-500">Pay-per-view</div>
-              <h1 className="text-base font-semibold text-amber-400">{tonightsName ?? 'The big one'}</h1>
+              <h1 className="text-lg font-semibold text-amber-400">{tonightsName ?? 'The big one'}</h1>
             </>
           ) : (
             <>
@@ -171,7 +109,7 @@ export function BookingScreen({
               <div className="text-[10px] uppercase tracking-wide text-neutral-500">
                 {televisedShow?.day ?? 'Tonight'}
               </div>
-              <h1 className="text-base font-semibold">{televisedShow?.name ?? "This week's card"}</h1>
+              <h1 className="text-lg font-semibold">{televisedShow?.name ?? "This week's card"}</h1>
             </>
           )}
           {tonightsHoliday && (
@@ -196,11 +134,6 @@ export function BookingScreen({
               </span>
             )}
           </p>
-          {/* The rest of the week. The player does not book these, but they
-              are shows their roster is working, and a night on the road that
-              nobody mentions is a night that happened off-screen. */}
-          {/* A night nobody planned — a memorial, a benefit. Not part of the
-              pattern, and it says why it exists. See engine/world/impromptu.ts. */}
           {tonightsImpromptu.map((extra) => (
             <p key={extra.id} className="text-[11px] font-medium text-violet-300">
               {extra.name} ({extra.day}) — {extra.kind === 'memorial' ? 'the gate goes to the family' : 'nobody is being paid'}
@@ -234,9 +167,7 @@ export function BookingScreen({
 
       {/* The call on the weather. This is the one thing in the game that
           stops the week: the show does not resolve until it is answered,
-          because deciding whether to run it *is* running it. Narrator-voiced
-          on the conversation screen — nobody with a face is doing the
-          asking — and not dismissible: no onClose, matching the block above. */}
+          because deciding whether to run it *is* running it. */}
       {call && (
         <DialogueCard
           speaker={{ kind: 'narrator' }}
@@ -250,11 +181,6 @@ export function BookingScreen({
         />
       )}
 
-      {/* A booked wrestler simply never turned up — the rarer, business-wide
-          cousin of the ordinary silent misfortune swap. Same blocking
-          pattern as the weather call, narrator-voiced for the same reason:
-          this is the office finding out, not somebody speaking for
-          themselves. */}
       {noShowCall && (
         <DialogueCard
           speaker={{ kind: 'narrator' }}
@@ -273,229 +199,161 @@ export function BookingScreen({
         />
       )}
 
-      {/* The card's official. Boxing does it this way: one referee named for
-          the night, and the good one saved for the fights that matter. */}
-      <div className="mb-3 rounded border border-neutral-800 bg-neutral-900 p-3">
-        <div className="mb-1 flex items-baseline justify-between gap-2">
-          <span className="text-[11px] uppercase tracking-wide text-neutral-500">Official for the night</span>
-          {crew.length > 1 ? (
-            <button
-              type="button"
-              data-testid="spread-officials"
-              onClick={spreadCrew}
-              className="rounded bg-neutral-800 px-2 py-1 text-[10px] text-neutral-300 hover:bg-neutral-700"
-              title="Share the card out — best official on the main event, nobody worked into the ground"
-            >
-              Share out the card
-            </button>
-          ) : (
-            <span className="text-[10px] text-neutral-600">Any match can name somebody else</span>
-          )}
-        </div>
-        {crew.length === 0 ? (
-          <p className="text-[11px] text-amber-400">
-            Not one official is under contract. One of the boys will have to count every single match, and every
-            last one of them has their own idea about who should win. Sign an official in the office.
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {crew.map((referee) => {
-              const hurt = !isAvailable(referee);
-              return (
+      <div className="grid grid-cols-[1fr_320px] gap-6">
+        <div className="min-w-0">
+          {/* The card's official. Boxing does it this way: one referee named
+              for the night, and the good one saved for the fights that
+              matter. */}
+          <div className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">
+            <div className="mb-1 flex items-baseline justify-between gap-2">
+              <span className="text-[11px] uppercase tracking-wide text-neutral-500">Official for the night</span>
+              {crew.length > 1 ? (
                 <button
-                  key={referee.id}
                   type="button"
-                  data-testid={`card-referee-${referee.id}`}
-                  disabled={hurt}
-                  onClick={() => setDefaultReferee(referee.id)}
-                  title={`${referee.blurb} — ${refereeGrade(referee)}`}
-                  className={`rounded px-2 py-1 text-[11px] ${
-                    hurt
-                      ? 'cursor-not-allowed bg-neutral-900 text-neutral-700'
-                      : world.defaultRefereeId === referee.id
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                  }`}
+                  data-testid="spread-officials"
+                  onClick={spreadCrew}
+                  className="rounded bg-neutral-800 px-2 py-1 text-[10px] text-neutral-300 hover:bg-neutral-700"
+                  title="Share the card out — best official on the main event, nobody worked into the ground"
                 >
-                  {referee.name}
-                  <span className={`ml-1 ${hurt ? 'text-neutral-700' : sharpnessTone(referee)}`}>
-                    {hurt ? 'injured' : sharpnessLabel(referee)}
-                  </span>
+                  Share out the card
                 </button>
+              ) : (
+                <span className="text-[10px] text-neutral-600">Any match can name somebody else</span>
+              )}
+            </div>
+            {crew.length === 0 ? (
+              <p className="text-[11px] text-amber-400">
+                Not one official is under contract. One of the boys will have to count every single match, and every
+                last one of them has their own idea about who should win. Sign an official in the office.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {crew.map((referee: Referee) => {
+                  const hurt = !isAvailable(referee);
+                  return (
+                    <button
+                      key={referee.id}
+                      type="button"
+                      data-testid={`card-referee-${referee.id}`}
+                      disabled={hurt}
+                      onClick={() => setDefaultReferee(referee.id)}
+                      title={`${referee.blurb} — ${refereeGrade(referee)}`}
+                      className={`rounded px-2 py-1 text-[11px] ${
+                        hurt
+                          ? 'cursor-not-allowed bg-neutral-900 text-neutral-700'
+                          : world.defaultRefereeId === referee.id
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                      }`}
+                    >
+                      {referee.name}
+                      <span className={`ml-1 ${hurt ? 'text-neutral-700' : refereeSharpnessTone(referee)}`}>
+                        {hurt ? 'injured' : sharpnessLabel(referee)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* The card itself — a grid of slot tiles, each its own screen once
+              tapped. */}
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+            {world.currentCard.map((segment, index) => {
+              const summary = summarizeSegment(segment, roster, world);
+              const cast = summary.sides.length >= 2;
+              return (
+                <SlotCard
+                  key={segment.slot}
+                  index={index}
+                  total={world.currentCard.length}
+                  summary={summary}
+                  onOpen={() => onOpenSlot(index, cast)}
+                />
               );
             })}
           </div>
+
+          <PromoSlots />
+          <DarkMatchSlots />
+
+          {/* And what everybody who is not on it does instead. Here rather
+              than on the roster page because it is the same decision, made at
+              the same moment: these are exactly the people you have just
+              finished leaving off, and the answer can be different next
+              week. */}
+          <RestOfTheWeek bookedIds={bookedIds} />
+        </div>
+
+        {/* The right rail — every notice that competed for attention above
+            the card on a phone screen now lives beside it instead. Each of
+            these already returns null when nothing's relevant, so most weeks
+            this rail simply isn't there. */}
+        <div className="flex flex-col gap-3">
+          <CupPanel />
+          <SupershowPanel />
+          <BiddingWarPanel />
+          <Stories />
+          <WhatTheyWant />
+          <BeltsOnTheClock />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** One match slot on the card overview — a summary tile, not an editor. Tapping it always leaves this screen. */
+function SlotCard({
+  index,
+  total,
+  summary,
+  onOpen,
+}: {
+  index: number;
+  total: number;
+  summary: ReturnType<typeof summarizeSegment>;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={`segment-${index}`}
+      onClick={onOpen}
+      className="flex flex-col gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-left transition hover:border-neutral-600"
+    >
+      <div className="text-[11px] uppercase tracking-wide text-neutral-500">{slotLabel(index, total)}</div>
+      <div className="text-sm font-medium">
+        {summary.participants.length === 0 ? (
+          <span className="text-neutral-600">Empty</span>
+        ) : (
+          summary.sides
+            .map((side) => summary.participants.filter((p) => p.side === side).map((p) => p.wrestler.name).join(' & '))
+            .join('  vs  ')
         )}
       </div>
-
-      <div className="flex flex-col gap-2">
-        {world.currentCard.map((segment, index) => {
-          const participants = segment.participants
-            .map((p) => ({ role: p, wrestler: world.wrestlers[p.wrestlerId] }))
-            .filter((p): p is { role: typeof p.role; wrestler: Wrestler } => Boolean(p.wrestler));
-          const sides = [...new Set(segment.participants.map((p) => p.side))].sort();
-          const rivalry = findRivalry(world.rivalries, participants.map((p) => p.wrestler.id));
-          const stipulation = segment.stipulation ? (stipulationById(segment.stipulation) ?? null) : null;
-          const odds = previewOdds(segment, roster);
-
-          // Which belts this match could be for, and what it is billed as.
-          const bookable = eligibleTitles(world.titles, {
-            stipulationId: segment.stipulation,
-            participants: participants.map((p) => ({ wrestler: p.wrestler, side: p.role.side })),
-            promotionId: world.promotion.id,
-          });
-          const onTheLine = segment.titleIds
-            .map((id) => world.titles.find((t) => t.id === id))
-            .filter((t): t is NonNullable<typeof t> => Boolean(t));
-          const championInMatch = bookable.some((t) => !t.vacant);
-          const stakes = titleStakesLabel(onTheLine, championInMatch);
-          const isOpen = openSlot === index;
-
-          // Who ends up counting this one, resolved exactly the way the sim
-          // will resolve it at bell time.
-          const assigned = officialFor(segment.refereeId, world.defaultRefereeId, world.referees, world.promotion.id);
-          const guest = segment.guestRefereeId ? world.wrestlers[segment.guestRefereeId] : null;
-          const officialLabel = guest
-            ? `Ref: ${guest.name} (guest)`
-            : assigned
-              ? `Ref: ${assigned.name}${segment.refereeId ? '' : ' (card)'}`
-              : 'Ref: one of the boys';
-
-          // Which family of match hardware (a ladder, a cage, a table) this
-          // stipulation needs physically owned — see data/matchProps.ts.
-          const gearFamily = stipulation?.gearFamilyId ? propFamilyById(stipulation.gearFamilyId) : null;
-          const usableGearUnits = gearFamily
-            ? usableUnitsForFamily(world.ownedPropUnits, gearFamily.id, world.settings)
-            : [];
-
-          const requirementsMet =
-            stipulation && participants.length >= 2
-              ? stipulationRequirementsMet(stipulation, {
-                  participants: participants.map((p) => p.wrestler),
-                  rivalryHeat: rivalry?.heat ?? 0,
-                  matchTimeLimitMinutes: segment.rules.timeLimit,
-                  ownedGearUnits: usableGearUnits.length,
-                })
-              : true;
-
-          return (
-            <section
-              key={segment.slot}
-              data-testid={`segment-${index}`}
-              data-open={isOpen ? 'true' : 'false'}
-              className="rounded border border-neutral-800 bg-neutral-900"
-            >
-              <button
-                type="button"
-                data-testid={`segment-${index}-toggle`}
-                onClick={() => setOpenSlot(isOpen ? -1 : index)}
-                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
-              >
-                <div className="min-w-0">
-                  <div className="text-[11px] uppercase tracking-wide text-neutral-500">
-                    {slotLabel(index, world.currentCard.length)}
-                  </div>
-                  <div className="truncate text-sm">
-                    {participants.length === 0 ? (
-                      <span className="text-neutral-600">Empty</span>
-                    ) : (
-                      sides
-                        .map((side) =>
-                          participants
-                            .filter((p) => p.role.side === side)
-                            .map((p) => p.wrestler.name)
-                            .join(' & '),
-                        )
-                        .join('  vs  ')
-                    )}
-                  </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                    {stipulation && (
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] ${requirementsMet ? 'bg-sky-950 text-sky-300' : 'bg-amber-950 text-amber-300'}`}
-                        title={requirementsMet ? stipulation.blurb : "Requirements aren't met — this will cost you"}
-                      >
-                        {stipulation.name}
-                        {!requirementsMet && ' ⚠'}
-                      </span>
-                    )}
-                    {stakes && (
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] ${
-                          stakes === 'Non-title'
-                            ? 'bg-neutral-800 text-neutral-400'
-                            : 'bg-amber-950 text-amber-300'
-                        }`}
-                      >
-                        {stakes}
-                      </span>
-                    )}
-                    {rivalry && <HeatBadge heat={rivalry.heat} shootHeat={rivalry.shootHeat} />}
-                    {odds !== null && <Odds probability={odds} />}
-                    {/* Who is counting, printed beside the match. */}
-                    {participants.length > 0 && <span className="text-[10px] text-neutral-500">{officialLabel}</span>}
-                  </div>
-                </div>
-                <span className="shrink-0 text-neutral-600">{isOpen ? '▾' : '▸'}</span>
-              </button>
-
-              {isOpen && (
-                <div className="border-t border-neutral-800 p-3">
-                  <SegmentEditor
-                    segment={segment}
-                    roster={roster}
-                    titles={world.titles}
-                    territoryId={world.showSetup.territoryId}
-                    territoryName={
-                      world.territories.find((t) => t.id === world.showSetup.territoryId)?.name ?? ''
-                    }
-                    // Anyone already on the card — including in this very
-                    // segment — is off the picker. They're visible in their
-                    // side panel, and offering them again only ever means a
-                    // misclick that silently moves them between sides.
-                    unavailable={bookedIds}
-                    onAdd={(id, side) => setParticipant(index, id, side)}
-                    onRemove={(id) => removeParticipant(index, id)}
-                    onNavigateWrestler={onNavigateWrestler}
-                    onStipulation={(id) => setStipulation(index, id)}
-                    onGearUnits={(unitIds) => setGearUnits(index, unitIds)}
-                    ownedPropUnits={world.ownedPropUnits}
-                    bookableTitles={bookable}
-                    onToggleTitle={(id) => toggleTitle(index, id)}
-                    onTimeLimit={(minutes) => setRules(index, { timeLimit: minutes })}
-                    onPace={(pace) => setRules(index, { pace })}
-                    isMainEvent={index === world.currentCard.length - 1}
-                    isOpener={index === 0}
-                    paceSaturation={world.paceSaturation[segment.rules.pace] ?? 0}
-                    onManager={(managerId, forSide, seat) => setManager(index, managerId, forSide, seat)}
-                    onReferee={(refereeId) => setReferee(index, refereeId)}
-                    onGuestReferee={(id) => setGuestReferee(index, id)}
-                    crew={crew}
-                    staffManagers={world.staffManagers}
-                    defaultReferee={
-                      world.defaultRefereeId
-                        ? (crew.find((r) => r.id === world.defaultRefereeId) ?? null)
-                        : null
-                    }
-                    settings={world.settings}
-                  />
-                </div>
-              )}
-            </section>
-          );
-        })}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {summary.stipulation && (
+          <span
+            className={`rounded px-1.5 py-0.5 text-[10px] ${summary.requirementsMet ? 'bg-sky-950 text-sky-300' : 'bg-amber-950 text-amber-300'}`}
+            title={summary.requirementsMet ? summary.stipulation.blurb : "Requirements aren't met — this will cost you"}
+          >
+            {summary.stipulation.name}
+            {!summary.requirementsMet && ' ⚠'}
+          </span>
+        )}
+        {summary.stakes && (
+          <span
+            className={`rounded px-1.5 py-0.5 text-[10px] ${summary.stakes === 'Non-title' ? 'bg-neutral-800 text-neutral-400' : 'bg-amber-950 text-amber-300'}`}
+          >
+            {summary.stakes}
+          </span>
+        )}
+        {summary.rivalry && <HeatBadge heat={summary.rivalry.heat} shootHeat={summary.rivalry.shootHeat} />}
+        {summary.odds !== null && <Odds probability={summary.odds} />}
       </div>
-
-      <PromoSlots />
-
-      <DarkMatchSlots />
-
-      {/* And what everybody who is not on it does instead. Here rather than on
-          the roster page because it is the same decision, made at the same
-          moment: these are exactly the people you have just finished leaving
-          off, and the answer can be different next week. */}
-      <RestOfTheWeek bookedIds={bookedIds} />
-    </div>
+      {summary.participants.length > 0 && <span className="text-[10px] text-neutral-500">{summary.officialLabel}</span>}
+    </button>
   );
 }
 
@@ -534,12 +392,12 @@ function RestOfTheWeek({ bookedIds }: { bookedIds: Set<string> }) {
   const out = off.filter((w) => sidelined(w));
 
   return (
-    <details className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/60" data-testid="rest-of-week">
+    <details className="mt-4 rounded-lg border border-neutral-800 bg-neutral-900/60" data-testid="rest-of-week">
       <summary className="cursor-pointer px-2.5 py-2 text-[11px] text-neutral-300">
         The rest of the week — {free.length} not on the card
       </summary>
 
-      <div className="flex flex-col gap-1 px-2.5 pb-2.5">
+      <div className="grid grid-cols-2 gap-1 px-2.5 pb-2.5 xl:grid-cols-3">
         {free.map((w) => {
           const doing = assignmentOf(w, world.settings);
           const pinned = Boolean(w.assignment && w.assignment !== 'auto');
@@ -589,532 +447,6 @@ function RestOfTheWeek({ bookedIds }: { bookedIds: Set<string> }) {
   );
 }
 
-const TIME_LIMITS = [0, 5, 10, 15, 20, 30, 60] as const;
-
-function SegmentEditor({
-  segment,
-  roster,
-  unavailable,
-  onAdd,
-  onRemove,
-  onNavigateWrestler,
-  onStipulation,
-  onGearUnits,
-  ownedPropUnits,
-  bookableTitles,
-  onToggleTitle,
-  onTimeLimit,
-  onPace,
-  isMainEvent,
-  isOpener,
-  paceSaturation,
-  onManager,
-  onReferee,
-  onGuestReferee,
-  crew,
-  staffManagers,
-  defaultReferee,
-  settings,
-  titles,
-  territoryId,
-  territoryName,
-}: {
-  segment: Segment;
-  roster: Wrestler[];
-  unavailable: Set<Id>;
-  onAdd: (id: Id, side: number) => void;
-  onRemove: (id: Id) => void;
-  /** Tap a name already on the card to view their detail screen. */
-  onNavigateWrestler?: (id: Id) => void;
-  onStipulation: (id: Id | null) => void;
-  /** Which owned match-prop units (ladders, a cage, tables) are in play tonight. */
-  onGearUnits: (unitIds: Id[]) => void;
-  ownedPropUnits: OwnedPropUnit[];
-  bookableTitles: Title[];
-  onToggleTitle: (id: Id) => void;
-  onTimeLimit: (minutes: (typeof TIME_LIMITS)[number]) => void;
-  onPace: (pace: PaceId) => void;
-  isMainEvent: boolean;
-  /** Everything in play, so a picker row can show a belt and a local draw. */
-  titles: readonly Title[];
-  territoryId: Id;
-  territoryName: string;
-  isOpener: boolean;
-  paceSaturation: number;
-  onManager: (managerId: Id | null, forSide: number, seat: number) => void;
-  onReferee: (refereeId: Id | null) => void;
-  onGuestReferee: (wrestlerId: Id | null) => void;
-  /** The officials under contract, best first. */
-  crew: Referee[];
-  /** Your own wrestlers working as managers. They cost nothing per night. */
-  staffManagers: Manager[];
-  /** Who takes this match if it names nobody. */
-  defaultReferee: Referee | null;
-  settings: WorldSettings;
-}) {
-  const [side, setSide] = useState(0);
-  const [search, setSearch] = useState('');
-
-  // Who is actually in this match, for reading the pace against.
-  const paceParticipants = segment.participants
-    .map((p) => roster.find((w) => w.id === p.wrestlerId))
-    .filter((w): w is Wrestler => Boolean(w));
-
-  const available = roster
-    .filter((w) => !unavailable.has(w.id))
-    .filter((w) => w.name.toLowerCase().includes(search.toLowerCase()))
-    .slice(0, 40);
-
-  // Which family of match hardware (a ladder, a cage, a table) tonight's
-  // stipulation actually needs owned — see data/matchProps.ts.
-  const stipulationHere = segment.stipulation ? stipulationById(segment.stipulation) : null;
-  const gearFamily = stipulationHere?.gearFamilyId ? propFamilyById(stipulationHere.gearFamilyId) : null;
-  const usableGearUnits = gearFamily ? usableUnitsForFamily(ownedPropUnits, gearFamily.id, settings) : [];
-  const selectedGearUnits = segment.gearUnitIds ?? [];
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {[0, 1].map((s) => (
-          <div key={s} className="rounded border border-neutral-800 p-2">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[11px] uppercase tracking-wide text-neutral-500">Side {s + 1}</span>
-              <button
-                type="button"
-                data-testid={`side-${s}`}
-                onClick={() => setSide(s)}
-                className={`rounded px-2 py-0.5 text-[11px] ${side === s ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-400'}`}
-              >
-                {side === s ? 'Adding here' : 'Add here'}
-              </button>
-            </div>
-            <div className="flex flex-col gap-1">
-              {segment.participants
-                .filter((p) => p.side === s)
-                .map((p) => {
-                  const wrestler = roster.find((w) => w.id === p.wrestlerId);
-                  if (!wrestler) return null;
-                  return (
-                    // A plain div, not WrestlerRow's own onClick — the row
-                    // still needs a real, separate ✕ button inside it, and
-                    // WrestlerRow puts everything including `trailing` inside
-                    // one <button> once onClick is set, which would nest a
-                    // button inside a button. The stopPropagation on the ✕
-                    // is what keeps "remove" from also triggering "view".
-                    <div
-                      key={p.wrestlerId}
-                      role={onNavigateWrestler ? 'button' : undefined}
-                      tabIndex={onNavigateWrestler ? 0 : undefined}
-                      onClick={onNavigateWrestler ? () => onNavigateWrestler(p.wrestlerId) : undefined}
-                      className={onNavigateWrestler ? 'cursor-pointer' : undefined}
-                    >
-                      <WrestlerRow
-                        wrestler={wrestler}
-                        settings={settings}
-                        trailing={
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRemove(p.wrestlerId);
-                            }}
-                            className="rounded px-2 py-1 text-xs text-neutral-500 hover:text-rose-400"
-                            aria-label={`Remove ${wrestler.name}`}
-                          >
-                            ✕
-                          </button>
-                        }
-                      />
-                    </div>
-                  );
-                })}
-              {segment.participants.filter((p) => p.side === s).length === 0 && (
-                <p className="text-[11px] text-neutral-600">Nobody yet</p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div>
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search the roster…"
-          className="mb-2 w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600"
-        />
-        <RowKey />
-        <div data-testid="roster-picker" className="flex max-h-96 flex-col gap-1 overflow-y-auto">
-          {available.map((w) => (
-            <div key={w.id} data-testid="roster-pick">
-              <WrestlerRow
-                wrestler={w}
-                settings={settings}
-                titles={titles}
-                territoryId={territoryId}
-                territoryName={territoryName}
-                onClick={() => onAdd(w.id, side)}
-              />
-            </div>
-          ))}
-          {available.length === 0 && (
-            <p className="py-3 text-center text-[11px] text-neutral-600">
-              Nobody left standing who is not already booked on this match.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* ---- what is at stake ------------------------------------------ */}
-      <div>
-        <div className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">On the line</div>
-        {bookableTitles.length === 0 ? (
-          <p className="text-[11px] text-neutral-600">
-            No championship fits this match — a belt can only ever be defended by its own champion, in its own
-            division.
-          </p>
-        ) : (
-          <>
-            <div className="flex flex-wrap gap-1">
-              {bookableTitles.map((title) => {
-                const booked = segment.titleIds.includes(title.id);
-                return (
-                  <button
-                    key={title.id}
-                    type="button"
-                    data-testid={`title-${title.id}`}
-                    onClick={() => onToggleTitle(title.id)}
-                    title={title.blurb}
-                    className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] ${
-                      booked ? 'bg-amber-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                    }`}
-                  >
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: title.colorway.plate }}
-                      aria-hidden
-                    />
-                    {shortTitleName(title)}
-                    {title.vacant && <span className="text-neutral-400">(vacant)</span>}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-1 text-[10px] text-neutral-600">
-              {segment.titleIds.length === 0
-                ? 'Nothing on the line here. A champion can absolutely wrestle without defending.'
-                : segment.titleIds.length > 1
-                  ? 'Title for title — the winner walks out with every single one of them.'
-                  : 'That belt does not change hands on a disqualification or a count-out. Never has.'}
-            </p>
-          </>
-        )}
-      </div>
-
-      <div>
-        <div className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">Stipulation</div>
-        <div className="flex flex-wrap gap-1">
-          <button
-            type="button"
-            onClick={() => onStipulation(null)}
-            className={`rounded px-2 py-1 text-[11px] ${!segment.stipulation ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
-          >
-            Straight match
-          </button>
-          {STIPULATIONS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              title={s.blurb}
-              onClick={() => onStipulation(s.id)}
-              className={`rounded px-2 py-1 text-[11px] ${segment.stipulation === s.id ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}`}
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {gearFamily && (
-        <div>
-          <div className="mb-1 flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-wide text-neutral-500">{gearFamily.name}s</span>
-            <span className="text-[10px] text-neutral-600">
-              {selectedGearUnits.length}/{gearFamily.maxUnitsInMatch} tonight
-            </span>
-          </div>
-          {usableGearUnits.length === 0 ? (
-            <p className="text-[11px] text-amber-400">
-              You don't own a {gearFamily.name.toLowerCase()} — buy one from the Promotion screen before this
-              can happen for real.
-            </p>
-          ) : (
-            <>
-              <div className="flex flex-wrap gap-1">
-                {usableGearUnits.map((unit) => {
-                  const tier = propTierById(unit.tierId);
-                  const picked = selectedGearUnits.includes(unit.id);
-                  const disabled = !picked && selectedGearUnits.length >= gearFamily.maxUnitsInMatch;
-                  return (
-                    <button
-                      key={unit.id}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() =>
-                        onGearUnits(
-                          picked ? selectedGearUnits.filter((id) => id !== unit.id) : [...selectedGearUnits, unit.id],
-                        )
-                      }
-                      className={`rounded px-2 py-1 text-[11px] ${
-                        picked
-                          ? 'bg-emerald-600 text-white'
-                          : disabled
-                            ? 'bg-neutral-900 text-neutral-700'
-                            : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                      }`}
-                    >
-                      {tier?.name ?? gearFamily.name} — {unitConditionLabel(unit, settings)}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-1 text-[10px] text-neutral-600">
-                More {gearFamily.name.toLowerCase()}s is a bigger spectacle. It's also more that can go wrong
-                tonight.
-              </p>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ---- ringside ------------------------------------------------- */}
-      <div className="flex flex-col gap-3 rounded border border-neutral-800 p-2">
-        <div className="text-[11px] uppercase tracking-wide text-neutral-500">Ringside</div>
-
-        {[0, 1].flatMap((side) =>
-          // Two seats a corner: the mouthpiece, then the muscle. Put both
-          // behind the same man and they can run something between them that
-          // neither could alone — see sim/ringside.ts.
-          [0, 1].map((seat) => {
-          const client = segment.participants.find((p) => p.side === side);
-          const clientWrestler = client ? roster.find((w) => w.id === client.wrestlerId) : undefined;
-          const inCorner = (segment.managerIds ?? []).filter((m) => m.forSide === side);
-          const current = inCorner[seat];
-          const partner = inCorner[1 - seat];
-          return (
-            <div key={`${side}-${seat}`} className="flex flex-col gap-1">
-              <span className="text-[11px] text-neutral-400">
-                {seat === 0 ? 'Mouthpiece' : 'Muscle'} for side {side + 1}
-                {clientWrestler && <span className="ml-1 text-neutral-600">({clientWrestler.name})</span>}
-              </span>
-              <div className="flex flex-wrap gap-1">
-                <button
-                  type="button"
-                  onClick={() => onManager(null, side, seat)}
-                  className={`rounded px-2 py-1 text-[11px] ${!current ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
-                >
-                  None
-                </button>
-                {/* Your own people first: a wrestler you moved into a suit
-                    costs nothing per night, because they are already paid. */}
-                {staffManagers.map((manager) => (
-                  <button
-                    key={manager.id}
-                    type="button"
-                    data-testid={`manager-${side}-${seat}-${manager.id}`}
-                    onClick={() => onManager(manager.id, side, seat)}
-                    title={`${manager.blurb}${manager.feePerShow > 0 ? ` — $${manager.feePerShow}/show` : ' — already on the payroll'}${
-                      clientWrestler ? ` · ${managerFit(manager, clientWrestler, settings)}` : ''
-                    }`}
-                    className={`rounded px-2 py-1 text-[11px] ${
-                      current?.managerId === manager.id
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                    }`}
-                  >
-                    {manager.name}
-                    <span className={`ml-1 ${manager.feePerShow > 0 ? 'text-neutral-500' : 'text-sky-500'}`}>
-                      {manager.feePerShow > 0 ? `$${manager.feePerShow}` : 'yours'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {current && clientWrestler && staffManagers.some((m) => m.id === current.managerId) && (
-                <span className="text-[10px] text-sky-400">
-                  {managerFit(
-                    staffManagers.find((m) => m.id === current.managerId)!,
-                    clientWrestler,
-                    settings,
-                  )}
-                </span>
-              )}
-              {/* Stating what is stood there, not whether it will work. §0. */}
-              {current && partner && seat === 1 && (
-                <span className="text-[10px] text-fuchsia-400">
-                  Two men in this corner, behind the same wrestler.
-                </span>
-              )}
-            </div>
-          );
-          }),
-        )}
-
-        <div className="flex flex-col gap-1">
-          <span className="text-[11px] text-neutral-400">
-            Referee <span className="text-neutral-600">— leave it on the card&apos;s official, or name one for this match</span>
-          </span>
-          {/* Stating what the option *is* — not whether it is wise. Somebody
-              always ends up counting; the question is whether they are neutral. */}
-          {!defaultReferee && !segment.refereeId && !segment.guestRefereeId && (
-            <span className="text-[11px] text-amber-400">
-              One of the boys will have to count it, and they will have their own ideas about who should win.
-            </span>
-          )}
-          {segment.guestRefereeId && (
-            <span className="text-[11px] text-amber-400">
-              A wrestler in the shirt. Bigger match, and they will take a side.
-            </span>
-          )}
-          <div className="flex flex-wrap gap-1">
-            <button
-              type="button"
-              onClick={() => onReferee(null)}
-              className={`rounded px-2 py-1 text-[11px] ${
-                !segment.refereeId && !segment.guestRefereeId ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'
-              }`}
-            >
-              {defaultReferee ? `Card official — ${defaultReferee.name}` : 'Nobody — draft one of the boys'}
-            </button>
-            {crew.map((referee) => {
-              const hurt = !isAvailable(referee);
-              return (
-                <button
-                  key={referee.id}
-                  type="button"
-                  data-testid={`referee-${referee.id}`}
-                  disabled={hurt}
-                  onClick={() => onReferee(referee.id)}
-                  title={`${referee.blurb} — ${refereeGrade(referee)}`}
-                  className={`rounded px-2 py-1 text-[11px] ${
-                    hurt
-                      ? 'cursor-not-allowed bg-neutral-900 text-neutral-700'
-                      : segment.refereeId === referee.id
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                  }`}
-                >
-                  {referee.name}
-                  <span className={`ml-1 ${hurt ? 'text-neutral-700' : sharpnessTone(referee)}`}>
-                    {hurt ? 'injured' : sharpnessLabel(referee)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          {segment.refereeId && (
-            <span className="text-[10px] text-neutral-500">
-              {crew.find((r) => r.id === segment.refereeId)?.blurb}
-            </span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <span className="text-[11px] text-neutral-400">
-            Guest referee <span className="text-neutral-600">— star power, at the cost of a clean finish</span>
-          </span>
-          <div className="flex max-h-24 flex-wrap gap-1 overflow-y-auto">
-            <button
-              type="button"
-              onClick={() => onGuestReferee(null)}
-              className={`rounded px-2 py-1 text-[11px] ${!segment.guestRefereeId ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
-            >
-              None
-            </button>
-            {roster
-              // Somebody wrestling in the match cannot also count it.
-              .filter((w) => !segment.participants.some((p) => p.wrestlerId === w.id))
-              .slice(0, 24)
-              .map((w) => (
-                <button
-                  key={w.id}
-                  type="button"
-                  data-testid={`guest-ref-${w.id}`}
-                  onClick={() => onGuestReferee(w.id)}
-                  className={`rounded px-2 py-1 text-[11px] ${
-                    segment.guestRefereeId === w.id
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                  }`}
-                >
-                  {w.name}
-                </button>
-              ))}
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">
-          Pace <span className="normal-case text-neutral-600">— what you send them out to do</span>
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {PACES.map((pace) => (
-            <button
-              key={pace.id}
-              type="button"
-              data-testid={`pace-${pace.id}`}
-              onClick={() => onPace(pace.id)}
-              title={pace.blurb}
-              className={`rounded px-2 py-1 text-[11px] ${
-                segment.rules.pace === pace.id
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-              }`}
-            >
-              {pace.name}
-            </button>
-          ))}
-        </div>
-        {/* Says what the call is worth to the people picked, the same way
-            manager fit does. Never a warning — the card will happily let you
-            put a sprint on top. */}
-        {paceParticipants.length > 0 && (
-          <div className="mt-1 flex flex-col gap-0.5">
-            <span className="text-[10px] text-sky-400">
-              {paceFit({
-                pace: segment.rules.pace,
-                participants: paceParticipants,
-                isMainEvent,
-                isOpener,
-                saturation: paceSaturation,
-                settings,
-              })}
-            </span>
-            <span className="text-[10px] text-neutral-600">{paceById(segment.rules.pace).blurb}</span>
-          </div>
-        )}
-      </div>
-
-      <div>
-        <div className="mb-1 text-[11px] uppercase tracking-wide text-neutral-500">Time limit</div>
-        <div className="flex flex-wrap gap-1">
-          {TIME_LIMITS.map((minutes) => (
-            <button
-              key={minutes}
-              type="button"
-              onClick={() => onTimeLimit(minutes)}
-              className={`rounded px-2 py-1 text-[11px] ${segment.rules.timeLimit === minutes ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
-            >
-              {minutes === 0 ? 'No limit' : `${minutes}m`}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /**
  * Which belts are running out of time, on the screen where you would do
  * something about it.
@@ -1131,7 +463,7 @@ function BeltsOnTheClock() {
   if (watch.length === 0) return null;
 
   return (
-    <div className="mb-3 rounded-lg border border-amber-900/60 bg-amber-950/20 p-2.5" data-testid="belts-on-the-clock">
+    <div className="rounded-lg border border-amber-900/60 bg-amber-950/20 p-2.5" data-testid="belts-on-the-clock">
       <div className="text-[10px] uppercase tracking-wider text-amber-500">On the clock</div>
       <ul className="mt-1 flex flex-col gap-0.5">
         {watch.map((item) => {
@@ -1186,21 +518,15 @@ function WhatTheyWant() {
   if (demands.length === 0) return null;
 
   return (
-    <details className="mb-3 rounded-lg border border-sky-900/50 bg-sky-950/20" data-testid="fan-demands">
+    <details className="rounded-lg border border-sky-900/50 bg-sky-950/20" data-testid="fan-demands">
       <summary className="cursor-pointer px-2.5 py-2 text-[11px] text-sky-300">
         What they want to see ({demands.length})
       </summary>
       <ul className="flex flex-col gap-1 px-2.5 pb-2.5">
         {demands.map((demand) => (
           <li key={demand.id} className="text-[11px] leading-snug text-neutral-300">
-            <span className={demand.kind === 'enoughOfHim' ? 'text-rose-300' : 'text-neutral-300'}>
-              {demand.text}
-            </span>
-            {demand.signableFrom && (
-              <span className="ml-1 text-amber-400">
-                That deal is nearly up — see The quiet business.
-              </span>
-            )}
+            <span className={demand.kind === 'enoughOfHim' ? 'text-rose-300' : 'text-neutral-300'}>{demand.text}</span>
+            {demand.signableFrom && <span className="ml-1 text-amber-400">That deal is nearly up — see The quiet business.</span>}
           </li>
         ))}
       </ul>

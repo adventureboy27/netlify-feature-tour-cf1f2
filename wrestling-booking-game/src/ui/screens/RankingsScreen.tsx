@@ -63,7 +63,7 @@ export function RankingsScreen() {
   const theme = promotionTheme(world.promotion.identity);
 
   return (
-    <div className="p-3 pb-24 text-neutral-100">
+    <div className="p-3 pb-6 text-neutral-100">
       <h1 className="mb-3 text-xl font-black tracking-tight">Rankings</h1>
 
       <div className="mb-3">

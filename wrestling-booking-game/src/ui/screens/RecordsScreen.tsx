@@ -75,7 +75,7 @@ export function RecordsScreen() {
           : [];
 
   return (
-    <div className="p-3 pb-24 text-neutral-100">
+    <div className="p-3 pb-6 text-neutral-100">
       <div className="mb-1 flex items-baseline justify-between">
         <h1 className="text-base font-semibold">The record books</h1>
         <span className="text-[10px] uppercase tracking-widest text-neutral-600">Week {world.week}</span>

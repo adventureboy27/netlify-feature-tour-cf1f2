@@ -124,7 +124,7 @@ export function OfficeScreen() {
   ];
 
   return (
-    <div className="p-3 pb-24 text-neutral-100">
+    <div className="p-3 pb-6 text-neutral-100">
       {/* The bank is in the app header on every screen; no need to repeat it. */}
       <h1 className="mb-2 text-base font-semibold">The office — {weekLine(world.week, world.settings)}</h1>
 

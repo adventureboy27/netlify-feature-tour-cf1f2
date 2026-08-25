@@ -16,6 +16,8 @@ import { ShowResults } from './ui/screens/ShowResults';
 import { ContactSheet } from './ui/screens/ContactSheet';
 import { WrestlerEditor } from './ui/screens/WrestlerEditor';
 import { WrestlerDetailScreen } from './ui/screens/WrestlerDetailScreen';
+import { SlotRosterPicker } from './ui/screens/SlotRosterPicker';
+import { MatchSetupScreen } from './ui/screens/MatchSetupScreen';
 import { NewGameScreen } from './ui/screens/NewGameScreen';
 import { TitleScreen } from './ui/screens/TitleScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
@@ -29,16 +31,16 @@ import { SheetScreen } from './ui/screens/SheetScreen';
 import { SecretsScreen } from './ui/screens/SecretsScreen';
 import { Money } from './ui/components/display';
 import { promotionTheme } from './ui/components/chrome';
-import { BottomNav, MoreScreen, BEHIND_MORE, type Screen } from './ui/components/Nav';
+import { Sidebar, type Screen } from './ui/components/Nav';
 import { getReducedMotionPreference } from './ui/reducedMotion';
 
 /** Before a world exists, the app is a much smaller state machine — the title screen and its two doors. */
 type PreGameView = 'title' | 'newGame' | 'settings';
 
-/** One entry on the navigation stack — which screen, and (for a drill-down screen) which id it's about. */
+/** One entry on the navigation stack — which screen, and (for a drill-down screen) which id or slot it's about. */
 interface NavTarget {
   screen: Screen;
-  params?: { wrestlerId?: Id };
+  params?: { wrestlerId?: Id; slotIndex?: number };
 }
 
 export default function App() {
@@ -49,9 +51,8 @@ export default function App() {
   // (a wrestler's detail page, say) can navigate to another instance of
   // itself — tapping a tag partner from inside one detail screen needs to
   // push a second one on top, which a single "current screen" variable can't
-  // express. The five bottom-nav tabs and everything behind More stay lateral
-  // moves (see resetTo below), not pushes — only the newer drill-down screens
-  // grow this stack.
+  // express. Every sidebar destination stays a lateral move (see resetTo
+  // below), not a push — only drill-down screens grow this stack.
   const [navStack, setNavStack] = useState<NavTarget[]>([{ screen: 'booking' }]);
   const [preGameView, setPreGameView] = useState<PreGameView>('title');
   const screen = navStack[navStack.length - 1]!.screen;
@@ -102,10 +103,10 @@ export default function App() {
   }
 
   /**
-   * A lateral move — the bottom nav's five tabs, and everything behind More —
-   * replaces the whole stack rather than pushing, so none of those carry a
-   * back arrow. A destination reached this way opens at the top, not
-   * wherever the previous screen happened to be scrolled to.
+   * A lateral move — every sidebar destination — replaces the whole stack
+   * rather than pushing, so none of those carry a back arrow. A destination
+   * reached this way opens at the top, not wherever the previous screen
+   * happened to be scrolled to.
    */
   function resetTo(next: Screen) {
     setNavStack([{ screen: next }]);
@@ -113,108 +114,122 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950">
-      {/* The status bar: who you are, what week it is, and what is in the
-          bank. The promotion's own name appeared nowhere in the shell, which
-          for a game about building one is an odd thing to leave out. A
-          hairline wash of the house color says whose save this is before a
-          single word is read. */}
-      <header
-        className={`sticky top-0 z-10 border-b border-neutral-800/80 bg-gradient-to-b ${theme.wash} to-neutral-950/95 bg-neutral-950/95 backdrop-blur-md`}
-      >
-        <div className="flex items-center justify-between gap-3 px-3.5 py-3">
-          <div className="min-w-0">
-            <div className={`truncate text-base font-black leading-tight tracking-tight ${theme.ink}`}>
-              {world.promotion.name}
+    <div className="flex h-screen bg-neutral-950">
+      <Sidebar screen={screen} onNavigate={resetTo} theme={theme} officeBadge={officeBadge} />
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* The status bar: who you are, what week it is, and what is in the
+            bank. The promotion's own name appeared nowhere in the shell, which
+            for a game about building one is an odd thing to leave out. A
+            hairline wash of the house color says whose save this is before a
+            single word is read. */}
+        <header
+          className={`sticky top-0 z-10 border-b border-neutral-800/80 bg-gradient-to-b ${theme.wash} to-neutral-950/95 bg-neutral-950/95 backdrop-blur-md`}
+        >
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0">
+              <div className={`truncate text-base font-black leading-tight tracking-tight ${theme.ink}`}>
+                {world.promotion.name}
+              </div>
+              <div className="mt-0.5 text-[11px] leading-tight text-neutral-500">
+                {/* No dates, ever. A promotion thinks in "the week before the
+                    pay-per-view", not in the fourteenth of March — so the shell
+                    says the month and which week of it. See engine/world/calendar.ts. */}
+                {weekLine(world.week, world.settings)}
+                <span className="mx-1.5 text-neutral-700">·</span>
+                <span className="text-neutral-400">rating {Math.round(world.promotion.rating)}</span>
+                {world.promotion.hardcoreSaturation > 25 && (
+                  <span className="ml-1.5 text-amber-500" title="Booked violence is wearing the audience down">
+                    crowd desensitised
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="mt-0.5 text-[11px] leading-tight text-neutral-500">
-              {/* No dates, ever. A promotion thinks in "the week before the
-                  pay-per-view", not in the fourteenth of March — so the shell
-                  says the month and which week of it. See engine/world/calendar.ts. */}
-              {weekLine(world.week, world.settings)}
-              <span className="mx-1.5 text-neutral-700">·</span>
-              <span className="text-neutral-400">rating {Math.round(world.promotion.rating)}</span>
-              {world.promotion.hardcoreSaturation > 25 && (
-                <span className="ml-1.5 text-amber-500" title="Booked violence is wearing the audience down">
-                  crowd desensitised
-                </span>
-              )}
+            <div className="shrink-0 rounded-lg border border-neutral-800 bg-neutral-900/80 px-2.5 py-1.5 text-right shadow-panel">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-neutral-500">Bank</div>
+              <div className="text-sm font-bold tabular-nums text-neutral-50">
+                <Money amount={world.promotion.bankBalance} />
+              </div>
             </div>
           </div>
-          <div className="shrink-0 rounded-lg border border-neutral-800 bg-neutral-900/80 px-2.5 py-1.5 text-right shadow-panel">
-            <div className="text-[9px] font-semibold uppercase tracking-wider text-neutral-500">Bank</div>
-            <div className="text-sm font-bold tabular-nums text-neutral-50">
-              <Money amount={world.promotion.bankBalance} />
-            </div>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Room for the bar, so the last row of any screen is reachable rather
-          than sitting underneath it. Keyed off the *whole* nav target, not
-          just the screen id — a drill-down screen can navigate to another
-          instance of itself (a wrestler's detail page linking to another
-          wrestler's), and keying on the screen id alone would leave React
-          seeing "the same screen" and refuse to remount, so the previous
-          subject's data and scroll position would silently linger. Every
-          navigation is a quiet settle-in rather than a hard cut — the same
-          beat a broadcast uses between segments. */}
-      <main
-        key={`${screen}:${params?.wrestlerId ?? ''}`}
-        className={`pb-16 ${reduceMotion ? '' : 'animate-rise-in'}`}
-      >
-        {screen === 'more' && <MoreScreen onNavigate={resetTo} />}
-        {screen === 'settings' && <SettingsScreen onBack={() => resetTo('more')} />}
-        {screen === 'office' && <OfficeScreen />}
-        {screen === 'booking' && (
-          <BookingScreen
-            onRunShow={runShow}
-            onNavigateWrestler={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
-          />
-        )}
-        {screen === 'promotion' && <PromotionScreen />}
-        {screen === 'roster' && (
-          <RosterScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
-        )}
-        {screen === 'territories' && <TerritoriesScreen />}
-        {screen === 'finance' && <FinanceScreen />}
-        {screen === 'freeAgents' && (
-          <FreeAgentsScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
-        )}
-        {screen === 'results' &&
-          (lastShow ? (
-            <ShowResults show={lastShow} onContinue={() => resetTo('booking')} />
-          ) : (
-            <p className="p-6 text-center text-sm text-neutral-500">No show has run yet.</p>
-          ))}
-        {screen === 'rankings' && <RankingsScreen />}
-        {screen === 'rivalRosters' && (
-          <RivalRosterScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
-        )}
-        {screen === 'sheet' && <SheetScreen />}
-        {screen === 'secrets' && <SecretsScreen />}
-        {screen === 'records' && <RecordsScreen />}
-        {screen === 'legacy' && <LegacyScreen />}
-        {screen === 'crucible' && <CrucibleScreen />}
-        {screen === 'contactSheet' && <ContactSheet />}
-        {screen === 'editor' && <WrestlerEditor wrestlerId={params?.wrestlerId} onDone={goBack} />}
-        {screen === 'wrestlerDetail' && params?.wrestlerId && (
-          <WrestlerDetailScreen
-            wrestlerId={params.wrestlerId}
-            onBack={goBack}
-            onNavigateWrestler={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
-            onRepackage={(wrestlerId) => goTo({ screen: 'editor', params: { wrestlerId } })}
-          />
-        )}
-      </main>
-
-      <BottomNav
-        screen={screen}
-        onNavigate={resetTo}
-        theme={theme}
-        officeBadge={officeBadge}
-        moreBadge={BEHIND_MORE.has(screen)}
-      />
+        {/* Keyed off the *whole* nav target, not just the screen id — a
+            drill-down screen can navigate to another instance of itself (a
+            wrestler's detail page linking to another wrestler's, or one card
+            slot to another), and keying on the screen id alone would leave
+            React seeing "the same screen" and refuse to remount, so the
+            previous subject's data and scroll position would silently
+            linger. Every navigation is a quiet settle-in rather than a hard
+            cut — the same beat a broadcast uses between segments. */}
+        <main
+          key={`${screen}:${params?.wrestlerId ?? ''}:${params?.slotIndex ?? ''}`}
+          className={`min-h-0 flex-1 overflow-y-auto ${reduceMotion ? '' : 'animate-rise-in'}`}
+        >
+          {screen === 'settings' && <SettingsScreen onBack={() => resetTo('booking')} />}
+          {screen === 'office' && <OfficeScreen />}
+          {screen === 'booking' && (
+            <BookingScreen
+              onRunShow={runShow}
+              onOpenSlot={(slotIndex, cast) =>
+                goTo({ screen: cast ? 'matchSetup' : 'slotPicker', params: { slotIndex } })
+              }
+            />
+          )}
+          {screen === 'promotion' && <PromotionScreen />}
+          {screen === 'roster' && (
+            <RosterScreen
+              onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
+              onRepackage={(wrestlerId) => goTo({ screen: 'editor', params: { wrestlerId } })}
+            />
+          )}
+          {screen === 'territories' && <TerritoriesScreen />}
+          {screen === 'finance' && <FinanceScreen />}
+          {screen === 'freeAgents' && (
+            <FreeAgentsScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
+          )}
+          {screen === 'results' &&
+            (lastShow ? (
+              <ShowResults show={lastShow} onContinue={() => resetTo('booking')} />
+            ) : (
+              <p className="p-6 text-center text-sm text-neutral-500">No show has run yet.</p>
+            ))}
+          {screen === 'rankings' && <RankingsScreen />}
+          {screen === 'rivalRosters' && (
+            <RivalRosterScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
+          )}
+          {screen === 'sheet' && <SheetScreen />}
+          {screen === 'secrets' && <SecretsScreen />}
+          {screen === 'records' && <RecordsScreen />}
+          {screen === 'legacy' && <LegacyScreen />}
+          {screen === 'crucible' && <CrucibleScreen />}
+          {screen === 'contactSheet' && <ContactSheet />}
+          {screen === 'editor' && <WrestlerEditor wrestlerId={params?.wrestlerId} onDone={goBack} />}
+          {screen === 'wrestlerDetail' && params?.wrestlerId && (
+            <WrestlerDetailScreen
+              wrestlerId={params.wrestlerId}
+              onBack={goBack}
+              onNavigateWrestler={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
+              onRepackage={(wrestlerId) => goTo({ screen: 'editor', params: { wrestlerId } })}
+            />
+          )}
+          {screen === 'slotPicker' && params?.slotIndex !== undefined && (
+            <SlotRosterPicker
+              slotIndex={params.slotIndex}
+              onBack={goBack}
+              onNavigateWrestler={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
+            />
+          )}
+          {screen === 'matchSetup' && params?.slotIndex !== undefined && (
+            <MatchSetupScreen
+              slotIndex={params.slotIndex}
+              onBack={goBack}
+              onNavigateWrestler={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
+              onAddMore={() => goTo({ screen: 'slotPicker', params: { slotIndex: params.slotIndex! } })}
+            />
+          )}
+        </main>
+      </div>
     </div>
   );
 }

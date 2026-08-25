@@ -32,7 +32,7 @@ export function FinanceScreen() {
   if (!world) return null;
 
   return (
-    <div className="space-y-3 p-3 pb-24 text-neutral-100">
+    <div className="space-y-3 p-3 pb-6 text-neutral-100">
       <h1 className="text-base font-semibold">Finance</h1>
       <div className="flex gap-1">
         {(['books', 'ladder', 'cardSize'] as const).map((id) => (

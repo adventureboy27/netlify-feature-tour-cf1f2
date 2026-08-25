@@ -138,7 +138,7 @@ export function PromotionScreen() {
   const { venue } = projection;
 
   return (
-    <div className="p-3 pb-24 text-neutral-100">
+    <div className="p-3 pb-6 text-neutral-100">
       <h1 className="mb-3 text-base font-semibold">The promotion</h1>
 
       <IdentityPanel />

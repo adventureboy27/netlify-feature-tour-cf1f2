@@ -5,18 +5,20 @@ read. Roughly in the order it is worth doing.
 
 ---
 
-## UX/navigation overhaul — Phases 1-2 of 4 shipped, Phases 3-4 flagged, do not start without a fresh go-ahead
+## UX/navigation overhaul — desktop/Steam pivot shipped, Phase 4 flagged
 
 Player played the actual built game for the first time and the verdict was blunt: "the ux and layout is
 horrible. I didn't even know where to go... we've done fairly well behind the scenes......but nobody will
 want to play." Originally deferred for a later session; the player then explicitly kicked it off ("let's
-start on it"), and a bare "proceed" carried it straight on into Phase 2. **Phases 1 (navigation
-infrastructure) and 2 (the wrestler-detail screen) are now built and shipped — see "UX/navigation overhaul,
-Phase 1" and "UX/navigation overhaul, Phase 2" further down this file for the full write-ups.** Phases 3-4
-(the `BookingScreen.tsx` split, calendar linkage) remain flagged and **should not be started without the
-player actively kicking off that specific phase** — each is its own scope, not a fix to slot in alongside
-other work. Phase 3 in particular is the biggest and riskiest of the four. The full plan (all four phases,
-in detail) lives in `/root/.claude/plans/synthetic-plotting-planet.md`.
+start on it"), and a bare "proceed" carried it straight on into Phase 2 (navigation stack + the wrestler-
+detail screen — see "UX/navigation overhaul, Phase 1" and "Phase 2" below). **Mid-way through Phase 3, the
+player redirected the whole thing: the game is not phone-tailored any more — it's headed for Steam, on a
+PC, and should use a real window's worth of space instead of a single scrolling column.** That pivot —
+sidebar shell, the booking flow finished natively for desktop, and Roster/Free Agents/The competition
+rebuilt as master-detail split panes — is now built and shipped. See "UX/navigation overhaul, desktop/Steam
+pivot" further down this file for the full write-up. Only Phase 4 (calendar linkage, a free-agent
+"new graduates" filter — small, unrelated to the pivot) remains flagged and **should not be started without
+the player actively kicking it off**. The full plan lives in `/root/.claude/plans/synthetic-plotting-planet.md`.
 
 The player supplied seven reference screenshots from mDickie's *Wrestling Empire* (a genre sibling, not
 this codebase) and named exactly what makes its interface work, as a concrete brief for what "much more
@@ -2656,3 +2658,87 @@ Kicked off by a bare "proceed" immediately after Phase 1 shipped, no fresh plann
   screen, and a tabbed match-setup screen (Phase 3, the biggest and riskiest of the four); calendar linkage
   and a free-agent "new graduates" filter (Phase 4, both already confirmed small and low-risk in the plan).
   Both fully specified in the plan file; neither started here.
+
+---
+
+## UX/navigation overhaul, desktop/Steam pivot — the shell, the booking flow, and three master-detail screens
+
+Full plan: `/root/.claude/plans/synthetic-plotting-planet.md`. Started as Phase 3 of the phone-first overhaul
+above (the `BookingScreen.tsx` split); mid-way through, the player redirected it outright: the game is not
+phone-tailored, it is headed for Steam on a PC, and should use a real window's worth of space — "dedicate
+full screens to different rosters...or parts. use the space" — instead of a single scrolling column.
+Research into how this genre's respected desktop UIs actually look (Pro Wrestling Sim on Steam, explicitly
+compared to "hockey and football management sims"; Football Manager's classic sidebar-plus-main-pane
+layout; Total Extreme Wrestling's dense multi-panel booking screens) confirmed the direction: a persistent
+always-visible navigation rail rather than hiding most destinations behind a second tap, and dense
+multi-column layouts rather than a phone's forced one-thing-at-a-time stack. `wrestling-booking-game/CLAUDE.md`'s
+framing changed from phone-first to desktop-first, Steam-bound, as an explicit, deliberate call, not a
+casual rewording — phone/touch stop being a design target from here on.
+
+- **The shell (`src/ui/components/Nav.tsx`, `src/App.tsx`)**: `BottomNav` (five tabs) and `MoreScreen`
+  (fourteen items behind a second tap) are gone. A new `Sidebar` component shows all nineteen destinations
+  at once, grouped (Tonight / Talent / Business / History / Admin), each with the one-line blurb `MoreScreen`
+  used to justify its own existence — now sitting right there under the label instead, since a desktop
+  window has the room a phone never did. `App.tsx`'s outer shell becomes a row (`Sidebar` beside a content
+  column) instead of a column with a fixed bottom bar; the top status strip (promotion name/week/bank) is
+  unchanged. **The navigation stack mechanism itself — `NavTarget`/`goTo`/`goBack`/`resetTo`, and the
+  stack-derived remount key — needed zero changes.** It was built platform-agnostic in Phase 1, and every
+  sidebar row calls `resetTo` exactly the way `BottomNav`'s tabs used to. `index.html`'s phone-locking
+  viewport meta (`maximum-scale=1.0, user-scalable=no`) and `index.css`'s touch-target CSS (a `pointer:
+  coarse` media block, load-bearing only under the old phone-first premise) are both removed. The eighteen
+  `pb-24` bottom-nav-clearance classes scattered through every screen become `pb-6` — a mechanical sweep,
+  no bottom bar to clear any more.
+- **The booking flow, finished natively for desktop (this is what Phase 3 became)**: `BookingScreen.tsx`
+  is trimmed to a true card overview — a two-column layout (`grid-cols-[1fr_320px]`), the card itself as a
+  grid of slot tiles rather than a single-column accordion, and the six conditional notice panels (a cup
+  invite, a supershow offer, a bidding war, live stories, what the crowd wants, belts on the clock) moved
+  into a right-hand rail instead of stacking above the card — they already return `null` when nothing's
+  relevant, so most weeks the rail simply isn't there. Tapping a slot tile always leaves the screen: to a
+  new **`SlotRosterPicker.tsx`** (a wide two-pane picker — a dense, multi-column roster grid on the left, a
+  sticky right rail showing both sides' current picks and the "Add here" toggle) if the slot isn't cast on
+  both sides yet, or to a new **`MatchSetupScreen.tsx`** if it is. `MatchSetupScreen` drops the phone-era
+  plan's tab bar (`Arena`/`Rules`/`Cast`/`Script`/`Play` compressed into tabs for lack of room) in favor of
+  showing **Cast, Rules, and Stakes as three simultaneous columns** — everything about one match visible at
+  once, closer to how a real match-booking form works than a tab-switching wizard. A new
+  `src/ui/screens/segmentSummary.ts` holds the odds/stipulation/stakes/referee calculation shared by the
+  card-overview tile and the match's own screen, so the two can never disagree about what a match is.
+- **Roster, Free Agents, and The competition, rebuilt as master-detail** (a deliberate, player-directed
+  extension of scope beyond the booking flow, in the same pass): each is now a list on the left and a full
+  detail pane on the right, no navigation, no back button. `WrestlerDetailScreen.tsx`'s content — portrait,
+  stats, tag partners/manager, every status line, `CareerLedger`, contract, and the four consequential
+  actions (retire, role, release, repackage) — was extracted into a new shared `WrestlerDetailBody`
+  (`src/ui/components/WrestlerDetail.tsx`), gated by a new `editable` flag so the actions render only for
+  somebody actually on your own roster. `WrestlerDetailScreen.tsx` itself survives as a thin wrapper
+  (`ScreenHeader` + the body, `editable` computed from `world.promotion.rosterIds.includes(w.id)` rather
+  than assumed) — still the real destination for a name tapped from somewhere with no list of its own to
+  embed the body in (a booking slot's cast, a tag partner outside whatever list is on screen).
+  `RosterScreen.tsx`'s row taps now set a local selection instead of navigating, with the selection
+  re-clamping to the top of the list whenever it points at nobody real any more (a re-sort, or somebody
+  leaving via retire/release right there in the detail pane); tag-partner/ally taps inside the pane reselect
+  in place if the target is on the same roster, or fall back to a real navigation otherwise.
+  `FreeAgentsScreen.tsx` keeps its per-row Sign button on the compact left list (it shouldn't need a detail
+  view first) and adds the free-agent-specific case for or against signing — asking rate, refusal reasons,
+  weeks unsigned — as its own panel below the shared, read-only (`editable={false}`) body on the right.
+  `RivalRosterScreen.tsx` keeps its company-picker chips and adds the same read-only master-detail split,
+  dropping the belts/`CareerLedger` that used to repeat down every row now that the detail pane shows both.
+- **Tests**: none added or changed — still no automated UI/component test layer in this codebase; full
+  suite (151 files / 2,923 tests) passes unchanged, consistent with this being pure UI/routing/layout work
+  with no engine or store logic touched.
+- **Verified live**, `npm run dev` + Playwright at a real desktop viewport (1440×900): all eighteen sidebar
+  destinations click through with nothing hidden and no crash; a fresh card's empty opener → the slot
+  picker → Add → lands back on the card overview with the pick in place; a fully-cast slot (opener and main
+  event both checked) → match setup, with a stipulation, a pace, and a title stake all toggled successfully
+  across the three simultaneous columns, and "Add someone" correctly reopening the picker for that same
+  slot; Roster's master-detail (selecting a second row updates the right pane; a role-change button in the
+  pane works without leaving the screen); Free Agents' master-detail (selecting an agent shows the full
+  read-out plus the sign panel); The competition's master-detail (switching companies and selecting one of
+  their wrestlers, including a tappable tag partner). The one console warning seen across the whole pass was
+  a missing favicon — a pre-existing, unrelated cosmetic gap, not a regression.
+- Verified: `tsc --noEmit` clean; full suite 151 files / 2,923 tests passing (zero changes); `npm run build`
+  clean; the live click-through above.
+- **Not part of this pass**: every other screen (Office, Promotion, Territories, Finance, Rankings, The
+  Sheet, Records, Legacy, The Crucible, Contact sheet, The quiet business, Settings, Show Results, New Game,
+  Title, the wrestler Editor) keeps its current single-column phone-shaped layout for now, rendering with
+  unused space to the right of it until a follow-up pass gets to them — an accepted, deliberate gap, not an
+  oversight. Phase 4 (calendar "this week" indicator, a free-agent "new graduates" filter) remains
+  unstarted, small, and unrelated to the pivot.

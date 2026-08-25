@@ -100,7 +100,7 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
   const theme = promotionTheme(world.promotion.identity);
 
   return (
-    <div className="p-3 pb-24 text-neutral-100">
+    <div className="p-3 pb-6 text-neutral-100">
       {/* The marquee.
           Everything below this is detail; this is the answer to the only
           question the player asked when they pressed the button. It used to

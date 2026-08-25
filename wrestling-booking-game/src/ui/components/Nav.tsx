@@ -1,16 +1,15 @@
-// Getting around, on a phone.
+// Getting around, on a desktop window.
 //
-// There were thirteen tabs in a horizontally-scrolling strip at the top of
-// the screen. At an iPhone width that shows five and a half of them, clipped
-// at both ends, with no edge or shadow to say the row scrolls — so eight
-// destinations were invisible unless you happened to drag a row of buttons
-// sideways. It also put every navigation target at the far end of the screen
-// from the thumb holding the device.
+// This used to be a bottom tab bar with five destinations and a "More" list
+// hiding the other fourteen behind a second tap — the right trade on a phone,
+// where a horizontally-scrolling strip of thirteen tabs had clipped eight of
+// them off-screen with no indication they existed. The game is not
+// phone-tailored any more (see the root of `wrestling-booking-game/CLAUDE.md`):
+// it's headed for a desktop window on Steam, which has the room to just show
+// every destination at once, grouped, with the one-line blurb that used to
+// justify a whole extra screen sitting right there under the label.
 //
-// So: the five places you go every single week live in a bottom bar, and
-// everything else lives behind More — which is a real screen with a sentence
-// under each entry, because "The Sheet" and "Legacy" do not explain
-// themselves and nothing else in the game was going to.
+// So: a persistent left sidebar, always visible, nothing behind anything.
 
 import type { PromotionTheme } from './chrome';
 
@@ -33,210 +32,135 @@ export type Screen =
   | 'secrets'
   | 'rivalRosters'
   | 'settings'
-  | 'more'
-  /** One wrestler's own screen — reached by tapping a WrestlerRow anywhere. */
-  | 'wrestlerDetail';
+  /** One wrestler's own screen — the real destination for a name tapped from
+   *  somewhere that isn't one of the three master-detail lists below. */
+  | 'wrestlerDetail'
+  /** Fill an empty or fill-eligible card slot — reached by tapping it from the card overview. */
+  | 'slotPicker'
+  /** A booked slot's own screen — competitors, stakes, and rules — reached by tapping it from the card overview. */
+  | 'matchSetup';
 
 // ---------------------------------------------------------------------------
-// Icons
-//
-// Drawn inline rather than pulled from a set: the game is offline-only and
-// ships as a single file, so a webfont or an icon package is not an option.
-// Five shapes at 20px is not worth a dependency anyway.
+// The sidebar
 // ---------------------------------------------------------------------------
 
-function Icon({ children }: { children: React.ReactNode }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
+interface SidebarItem {
+  id: Screen;
+  label: string;
+  blurb: string;
 }
 
-const ICONS: Record<string, React.ReactNode> = {
-  // A card: the running order of the night.
-  booking: (
-    <Icon>
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <path d="M7 9h10M7 13h10M7 17h6" />
-    </Icon>
-  ),
-  // Two people: the roster.
-  roster: (
-    <Icon>
-      <circle cx="9" cy="8" r="3" />
-      <path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5" />
-      <path d="M16 5.5a3 3 0 0 1 0 5.8M17 15c2.4.5 4 2.2 4 5" />
-    </Icon>
-  ),
-  // A briefcase: the business end.
-  office: (
-    <Icon>
-      <rect x="2.5" y="7" width="19" height="13" rx="2" />
-      <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M2.5 12h19" />
-    </Icon>
-  ),
-  // A star: what the night got.
-  results: (
-    <Icon>
-      <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z" />
-    </Icon>
-  ),
-  more: (
-    <Icon>
-      <circle cx="5" cy="12" r="1.4" />
-      <circle cx="12" cy="12" r="1.4" />
-      <circle cx="19" cy="12" r="1.4" />
-    </Icon>
-  ),
-};
-
-// ---------------------------------------------------------------------------
-// The bar
-// ---------------------------------------------------------------------------
-
-/** The five you touch every week. Everything else is one tap further away. */
-const PRIMARY: { id: Screen; label: string }[] = [
-  { id: 'booking', label: 'Card' },
-  { id: 'roster', label: 'Roster' },
-  { id: 'office', label: 'Office' },
-  { id: 'results', label: 'Results' },
-  { id: 'more', label: 'More' },
+const SIDEBAR_GROUPS: { label: string; items: SidebarItem[] }[] = [
+  {
+    label: 'Tonight',
+    items: [
+      { id: 'office', label: 'Office', blurb: 'Talk to your talent, and answer the calls only you can make.' },
+      { id: 'booking', label: 'Card', blurb: "This week's show, slot by slot." },
+      { id: 'results', label: 'Results', blurb: 'What actually happened, all at once.' },
+    ],
+  },
+  {
+    label: 'Talent',
+    items: [
+      {
+        id: 'roster',
+        label: 'Roster',
+        blurb: 'Everyone signed here — stats, contracts, and the decisions that change a career.',
+      },
+      { id: 'freeAgents', label: 'Free agents', blurb: 'Who is out of contract right now, what they genuinely want, and what they actually bring to the table.' },
+      {
+        id: 'rivalRosters',
+        label: 'The competition',
+        blurb: "Every other company's full roster, and the career that got each and every one of them there.",
+      },
+      { id: 'contactSheet', label: 'Contact sheet', blurb: 'Every single face in this entire game, right there on one screen.' },
+    ],
+  },
+  {
+    label: 'Business',
+    items: [
+      { id: 'promotion', label: 'Promotion', blurb: 'Your belts, your teams, your house style, and exactly what the owner expects from you this year.' },
+      {
+        id: 'finance',
+        label: 'Finance',
+        blurb: 'Where every last dollar of last week went, and the ring, rig, and truck you are grinding toward.',
+      },
+      { id: 'territories', label: 'Territories', blurb: 'Every town you can run, the venues waiting in them, and what a ticket is actually worth there.' },
+      { id: 'rankings', label: 'Rankings', blurb: 'Exactly where your company stands against every other one in this business.' },
+    ],
+  },
+  {
+    label: 'History',
+    items: [
+      { id: 'sheet', label: 'The Sheet', blurb: "The dirtsheet's weekly lists — who is red-hot, who is buried, who is walking out the door." },
+      { id: 'records', label: 'Records', blurb: 'Win-loss records, title histories, and the longest reigns this business has ever seen.' },
+      { id: 'legacy', label: 'Legacy', blurb: 'The Hall of Fame, the retired, and the ones who are gone for good.' },
+      {
+        id: 'crucible',
+        label: 'The Crucible',
+        blurb: 'Every single winner of the Iron Crown, the year they took it, and exactly who they took it from.',
+      },
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      {
+        id: 'secrets',
+        label: 'The quiet business',
+        blurb: 'Whose deal is running out at a competitor, and being the one holding the pen the second it does.',
+      },
+      { id: 'editor', label: 'Editor', blurb: 'Rename anybody, repackage them completely, or build somebody brand new from scratch.' },
+      { id: 'settings', label: 'Settings', blurb: 'Export or load a save, erase one, and turn the screen transitions off if they are not your thing.' },
+    ],
+  },
 ];
 
-const ICON_KEY: Record<string, string> = {
-  booking: 'booking',
-  roster: 'roster',
-  office: 'office',
-  results: 'results',
-  more: 'more',
-};
-
-export function BottomNav({
+export function Sidebar({
   screen,
   onNavigate,
   theme,
   officeBadge,
-  moreBadge,
 }: {
   screen: Screen;
   onNavigate: (screen: Screen) => void;
   theme: PromotionTheme;
   /** A story or an offer waiting on an answer. */
   officeBadge: boolean;
-  /** The current screen lives behind More, so More shows as the active one. */
-  moreBadge: boolean;
 }) {
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-800/80 bg-neutral-950/90 shadow-nav backdrop-blur-md"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-    >
-      <div className="mx-auto flex max-w-lg gap-1 px-1.5 py-1.5">
-        {PRIMARY.map((tab) => {
-          const active = screen === tab.id || (tab.id === 'more' && moreBadge);
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => onNavigate(tab.id)}
-              aria-current={active ? 'page' : undefined}
-              className={`relative flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold transition-all duration-150 active:scale-95 ${
-                active ? `${theme.ink} bg-neutral-900/80` : 'text-neutral-500 hover:text-neutral-300'
-              }`}
-            >
-              <span className={active ? 'scale-110 transition-transform duration-150' : 'transition-transform duration-150'}>
-                {ICONS[ICON_KEY[tab.id]!]}
-              </span>
-              {tab.label}
-              {tab.id === 'office' && officeBadge && (
-                <span className="absolute right-1/2 top-1 -mr-3.5 h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_6px_1px_rgba(251,191,36,0.7)]" />
-              )}
-            </button>
-          );
-        })}
-      </div>
+    <nav className="flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-neutral-800/80 bg-neutral-950/95 py-3">
+      {SIDEBAR_GROUPS.map((group) => (
+        <div key={group.label} className="mb-3 px-2.5">
+          <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-600">
+            {group.label}
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {group.items.map((item) => {
+              const active = screen === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onNavigate(item.id)}
+                  aria-current={active ? 'page' : undefined}
+                  className={`w-full rounded-lg px-2.5 py-1.5 text-left transition ${
+                    active ? `${theme.ink} bg-neutral-900 shadow-panel` : 'text-neutral-400 hover:bg-neutral-900/70 hover:text-neutral-200'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 text-[13px] font-semibold">
+                    {item.label}
+                    {item.id === 'office' && officeBadge && (
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_6px_1px_rgba(251,191,36,0.7)]" />
+                    )}
+                  </span>
+                  <span className="mt-0.5 block text-[10.5px] leading-snug text-neutral-600">{item.blurb}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </nav>
   );
 }
-
-// ---------------------------------------------------------------------------
-// More
-// ---------------------------------------------------------------------------
-
-/**
- * The rest of the game, with a sentence each.
- *
- * A tab strip gives a screen one or two words and expects them to carry it.
- * "The Sheet", "Legacy" and "Contact sheet" carry nothing at all to somebody
- * who has not already opened them, and there was nowhere in the game that
- * said what any screen was for.
- */
-const MORE: { id: Screen; label: string; blurb: string }[] = [
-  { id: 'freeAgents', label: 'Free agents', blurb: 'Who is out of contract right now, what they genuinely want, and what they actually bring to the table.' },
-  { id: 'promotion', label: 'Promotion', blurb: 'Your belts, your teams, your house style, and exactly what the owner expects from you this year.' },
-  {
-    id: 'finance',
-    label: 'Finance',
-    blurb: 'Where every last dollar of last week went, and the ring, rig, and truck you are grinding toward.',
-  },
-  { id: 'territories', label: 'Territories', blurb: 'Every town you can run, the venues waiting in them, and what a ticket is actually worth there.' },
-  { id: 'rankings', label: 'Rankings', blurb: 'Exactly where your company stands against every other one in this business.' },
-  {
-    id: 'rivalRosters',
-    label: 'The competition',
-    blurb: "Every other company's full roster, and the career that got each and every one of them there.",
-  },
-  { id: 'sheet', label: 'The Sheet', blurb: "The dirtsheet's weekly lists — who is red-hot, who is buried, who is walking out the door." },
-  { id: 'records', label: 'Records', blurb: 'Win-loss records, title histories, and the longest reigns this business has ever seen.' },
-  { id: 'legacy', label: 'Legacy', blurb: 'The Hall of Fame, the retired, and the ones who are gone for good.' },
-  {
-    id: 'crucible',
-    label: 'The Crucible',
-    blurb: 'Every single winner of the Iron Crown, the year they took it, and exactly who they took it from.',
-  },
-  { id: 'contactSheet', label: 'Contact sheet', blurb: 'Every single face in this entire game, right there on one screen.' },
-  {
-    id: 'secrets',
-    label: 'The quiet business',
-    blurb: 'Whose deal is running out at a competitor, and being the one holding the pen the second it does.',
-  },
-  { id: 'editor', label: 'Editor', blurb: 'Rename anybody, repackage them completely, or build somebody brand new from scratch.' },
-  { id: 'settings', label: 'Settings', blurb: 'Export or load a save, erase one, and turn the screen transitions off if they are not your thing.' },
-];
-
-export function MoreScreen({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
-  return (
-    <div className="p-3 pb-24">
-      <h1 className="mb-3 text-lg font-bold text-neutral-100">Everything else</h1>
-      <div className="flex flex-col gap-1.5">
-        {MORE.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            onClick={() => onNavigate(entry.id)}
-            className="rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-left transition hover:border-neutral-600"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold text-neutral-100">{entry.label}</span>
-              <span className="shrink-0 text-neutral-600">›</span>
-            </div>
-            <p className="mt-0.5 text-[11px] leading-snug text-neutral-400">{entry.blurb}</p>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/** Which screens sit behind More, so the bar can light the right tab. */
-export const BEHIND_MORE = new Set<Screen>(MORE.map((e) => e.id));

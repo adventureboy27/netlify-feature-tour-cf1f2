@@ -26,7 +26,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
     // bearing when it renders before a world exists, from the title screen,
     // where this is the only thing standing between the page and
     // browser-default white.
-    <div className="min-h-screen bg-neutral-950 p-3 pb-24 text-neutral-100">
+    <div className="min-h-screen bg-neutral-950 p-3 pb-6 text-neutral-100">
       <div className="mx-auto max-w-lg">
         <div className="mb-3 flex items-center gap-2">
           <button
