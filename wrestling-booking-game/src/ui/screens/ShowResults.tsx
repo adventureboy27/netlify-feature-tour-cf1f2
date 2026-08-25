@@ -44,7 +44,16 @@ const FINISH_TEXT: Record<FinishType, string> = {
   equipmentFailure: 'no-contest — the gear gave out',
 };
 
-export function ShowResults({ show, onContinue }: { show: Show; onContinue: () => void }) {
+export function ShowResults({
+  show,
+  onContinue,
+  onWatch,
+}: {
+  show: Show;
+  onContinue: () => void;
+  /** Watch a decided match back — see `MatchViewerScreen`. */
+  onWatch?: (slot: number) => void;
+}) {
   const world = useGameStore((s) => s.world);
   if (!world) return null;
 
@@ -260,7 +269,17 @@ export function ShowResults({ show, onContinue }: { show: Show; onContinue: () =
                   {slotLabel(segment.slot, booked.length)}
                 </span>
                 {stipulation && <span className="truncate text-[11px] text-sky-400">{stipulation.name}</span>}
-                <span className="ml-auto shrink-0">
+                <span className="ml-auto flex shrink-0 items-center gap-2">
+                  {onWatch && (
+                    <button
+                      type="button"
+                      data-testid={`watch-${segment.slot}`}
+                      onClick={() => onWatch(segment.slot)}
+                      className="rounded bg-neutral-800 px-2 py-1 text-[10px] font-semibold text-neutral-200 hover:bg-neutral-700"
+                    >
+                      ▶ Watch
+                    </button>
+                  )}
                   <Stars stars={result.stars} />
                 </span>
               </div>

@@ -2785,3 +2785,81 @@ pure-UI, no engine changes — and stayed exactly that size once actually built.
   screens for desktop (Office, Promotion, Territories, Finance, Rankings, The Sheet, Records, Legacy, The
   Crucible, Contact sheet, The quiet business, Settings, Show Results, New Game, Title, the wrestler
   Editor) — a real, separate pass, not started here.
+
+## Match viewer — a live action window over an already-decided match
+
+The player sketched this by hand: an optional "watch the match" screen — bottom third two commentators
+trading live lines in a chat feed, top two-thirds a ring where wrestler portraits hold poses (never
+animating their own shape) that get moved, rotated, and collided via CSS transforms to mimic what's
+happening, with comic-style move-name callouts, "BAM!", and pinfall counts. Full plan:
+`/root/.claude/plans/synthetic-plotting-planet.md`. **This does not touch §0's "the sim always picks the
+winner, no scripted finishes, no re-sims."** The viewer only ever replays a `SegmentResult` already sitting
+in `world.showHistory` — nothing here decides anything, the same way the existing prose write-up doesn't.
+
+- **New `src/engine/sim/matchPlayback.ts`** — pure, no new RNG draws anywhere in it. `buildPlaybackTimeline
+  (beats, sideA, sideB, winningSide)` turns the sim's prose-only `MatchBeat[]` into `PlaybackBeat[]` (kind,
+  a `BeatPose`, an `actorId`/`targetId`, and — only on `signature`/`finish` beats — a `moveName` pulled from
+  the actor's own `MoveSet`, never invented). Deliberately re-derives its own tiny copy of the "who's on
+  top" flip rule `commentary.ts`'s `callTheMatch` already tracks (loser on top, flip at every `hopeSpot`,
+  reset to the winner at `finish`) rather than touching or refactoring `callTheMatch` itself — that function
+  turned out to be far more interwoven than expected once actually read (a line budget that can cut its
+  beat loop short, an opener/stakes line before the loop and a closer after it belonging to no beat, and
+  same-beat "comeback" replies pushing extra lines mid-beat), and extracting a clean per-beat state out of
+  it safely would have been a much bigger, riskier change than this feature needed. The honest cost, stated
+  plainly rather than quietly fallen short of: the ring visual and the commentary feed are *thematically*
+  synced (both agree on who's on top at any point in the match) rather than *line-for-line* synced (a
+  specific pose landing on the exact word "suplex").
+- **`finishCallout(finish: FinishType)`** alongside it — every `FinishType` gets its own comic-style word
+  ("1... 2... 3!", "TAPS OUT!", "COUNTED OUT!", "TIME LIMIT DRAW!", "IT BROKE!", and so on), held on screen
+  once the last pose plays.
+- **Multi-man is real, not stubbed** — the player asked for every match type including battle royals in the
+  first pass, not just singles and tag. `CommentaryContext` (and now `matchPlayback.ts`, matching it on
+  purpose) only ever models two corners even for a battle royal, so a multi-man match reduces to "the
+  eventual winner" vs. "everyone else" for pose/momentum purposes — the same reduction commentary already
+  uses, not a new one. One real, deliberate gap found while reading `narrative.ts`: `orderEliminations`
+  (`engine/sim/battleRoyal.ts`) is not beat-timed data — `simulateMatch.ts` only ever feeds it into at most
+  two flavor-text beats ("a name goes over partway through," "the field narrows to its final two") and
+  never preserves it on `SegmentResult`. The viewer does not animate individual eliminations because the
+  engine has nothing to time them against; every entrant sits around the ring for the whole match, the
+  current beat's on-top/in-trouble pair is spotlighted at centre (rotating through the field by beat index),
+  and the finish reveals the winner plainly. Teaching the sim to emit one real beat per elimination with a
+  wrestler id is a legitimate future engine change, not this one.
+- **New `src/ui/screens/MatchViewerScreen.tsx`** — reached by a new "▶ Watch" button per match on
+  `ShowResults.tsx` (`onWatch`, threaded from `App.tsx` the same way `onContinue` already was), pushed via
+  the existing nav stack (`NavTarget.params` gains `matchWeek`/`matchSlot`; `Nav.tsx` gains a `'matchViewer'`
+  screen id) with the same defensive "not found" guard every other pushed screen uses for a stale ref. Ring
+  layout is one circular arrangement for every match size — two entrants land at left/right, four at the
+  corners of a diamond, more spread evenly around the perimeter (capped at 12 visible with a "+N more in the
+  ring" chip beyond that) — so singles, tag, and battle royal never needed separate layout code. Each
+  portrait sits in two nested wrappers: an outer one carrying its static ring position (so the maths never
+  has to fight anything) and an inner one, remounted fresh every beat via a `key`, carrying the one-shot pose
+  animation for that beat — `PaperDoll` itself is untouched, still just a `<canvas>` drawn once per prop
+  change. Six new one-shot Tailwind keyframes (`ring-jostle`, `ring-whip`, `ring-strike`, `ring-surge`,
+  `ring-slam`, `callout-pop`) follow the existing "nothing loops, nothing decorative" convention from
+  `tailwind.config.js`'s original three — `ring-slam` deliberately ends mid-rotation so a finisher's target
+  visibly lands upside down and stays that way until the next beat remounts them, which is exactly the
+  "land upside down" the sketch asked for. The bottom-third commentary feed is a new, small, independent
+  `setTimeout` reveal loop (same shape as `CallWindow`'s, a separate implementation rather than a shared or
+  modified one, since `CallWindow` is used elsewhere and didn't need touching) rendering `SegmentResult
+  .commentary` as alternating chat bubbles — play-by-play left, colour right, each "slightly below" the one
+  before it, same as the player's own sketch — and paced independently from the ring so the two beat/line
+  tickers roughly finish together without being locked to each other. No commentary team hired means no
+  bottom third at all, not an empty one. A single "Skip to the finish" action jumps both tickers to the end
+  at once; once both are done, the header's action swaps to "Back to results."
+- **Tests**: `src/engine/sim/matchPlayback.test.ts` (7 tests, all pure/deterministic — no RNG in the module,
+  so no seeding concerns) — the on-top flip and the winner-reset at finish, the full `BeatPose` mapping
+  including the whip embellishment on every third `control` beat, that an environmental beat never gets an
+  actor or target, that `moveName` is only ever set on `signature`/`finish` beats and only from the actor's
+  own `MoveSet`, and that every `FinishType` earns a distinct callout.
+- **Verified live**, `npm run dev` + Playwright at a desktop viewport: booked a genuine 6-way battle royal
+  by hand (`setSegmentStipulation('battleRoyal')` + six `setSegmentParticipant` calls across six sides) plus
+  an auto-filled singles match, ran the show, and watched both back — the battle royal's ring correctly laid
+  out all six entrants in a circle, the finish held the spotlighted pair with one portrait visibly rotated
+  upside down under "IT'S OVER!" and a "BAM!" flash; the singles match showed the two-tone commentary chat
+  feed updating alongside the ring, "COUNTED OUT!" on that particular roll, and skip-to-finish correctly
+  swapping in the "Back to results" action. No console errors either run.
+- Verified: `tsc --noEmit` clean; full suite 152 files / 2,930 tests passing (+7 for the new module, zero
+  changes elsewhere); `npm run build` clean; the live watch-throughs above.
+- **Not part of this pass**: per-elimination beat timing for battle royals (needs a real engine change, see
+  above); a scrub bar or pause control (skip-to-finish only, matching `CallWindow`'s existing convention);
+  reflowing the rest of the game's screens for desktop (a separate, already-flagged pass).

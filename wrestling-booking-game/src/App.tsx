@@ -18,6 +18,7 @@ import { WrestlerEditor } from './ui/screens/WrestlerEditor';
 import { WrestlerDetailScreen } from './ui/screens/WrestlerDetailScreen';
 import { SlotRosterPicker } from './ui/screens/SlotRosterPicker';
 import { MatchSetupScreen } from './ui/screens/MatchSetupScreen';
+import { MatchViewerScreen } from './ui/screens/MatchViewerScreen';
 import { NewGameScreen } from './ui/screens/NewGameScreen';
 import { TitleScreen } from './ui/screens/TitleScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
@@ -40,7 +41,7 @@ type PreGameView = 'title' | 'newGame' | 'settings';
 /** One entry on the navigation stack — which screen, and (for a drill-down screen) which id or slot it's about. */
 interface NavTarget {
   screen: Screen;
-  params?: { wrestlerId?: Id; slotIndex?: number };
+  params?: { wrestlerId?: Id; slotIndex?: number; matchWeek?: number; matchSlot?: number };
 }
 
 export default function App() {
@@ -163,7 +164,7 @@ export default function App() {
             linger. Every navigation is a quiet settle-in rather than a hard
             cut — the same beat a broadcast uses between segments. */}
         <main
-          key={`${screen}:${params?.wrestlerId ?? ''}:${params?.slotIndex ?? ''}`}
+          key={`${screen}:${params?.wrestlerId ?? ''}:${params?.slotIndex ?? ''}:${params?.matchWeek ?? ''}:${params?.matchSlot ?? ''}`}
           className={`min-h-0 flex-1 overflow-y-auto ${reduceMotion ? '' : 'animate-rise-in'}`}
         >
           {screen === 'settings' && <SettingsScreen onBack={() => resetTo('booking')} />}
@@ -190,7 +191,11 @@ export default function App() {
           )}
           {screen === 'results' &&
             (lastShow ? (
-              <ShowResults show={lastShow} onContinue={() => resetTo('booking')} />
+              <ShowResults
+                show={lastShow}
+                onContinue={() => resetTo('booking')}
+                onWatch={(slot) => goTo({ screen: 'matchViewer', params: { matchWeek: lastShow.week, matchSlot: slot } })}
+              />
             ) : (
               <p className="p-6 text-center text-sm text-neutral-500">No show has run yet.</p>
             ))}
@@ -227,6 +232,9 @@ export default function App() {
               onNavigateWrestler={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
               onAddMore={() => goTo({ screen: 'slotPicker', params: { slotIndex: params.slotIndex! } })}
             />
+          )}
+          {screen === 'matchViewer' && params?.matchWeek !== undefined && params?.matchSlot !== undefined && (
+            <MatchViewerScreen matchWeek={params.matchWeek} matchSlot={params.matchSlot} onBack={goBack} />
           )}
         </main>
       </div>

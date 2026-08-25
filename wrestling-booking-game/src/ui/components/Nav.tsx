@@ -38,7 +38,9 @@ export type Screen =
   /** Fill an empty or fill-eligible card slot — reached by tapping it from the card overview. */
   | 'slotPicker'
   /** A booked slot's own screen — competitors, stakes, and rules — reached by tapping it from the card overview. */
-  | 'matchSetup';
+  | 'matchSetup'
+  /** A watch-back of a decided match — reached by the Watch button on the results screen. */
+  | 'matchViewer';
 
 // ---------------------------------------------------------------------------
 // The sidebar

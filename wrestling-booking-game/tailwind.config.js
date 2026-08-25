@@ -30,11 +30,54 @@ export default {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
         },
+        // The match viewer's pose set — still one-shot per the rule above,
+        // just bigger beats than a settling card. Applied to a portrait's
+        // own inner wrapper, never to the element carrying its ring
+        // position, so a pose never has to fight a layout transform.
+        'ring-jostle': {
+          '0%, 100%': { transform: 'translateX(0) rotate(0deg)' },
+          '25%': { transform: 'translateX(-4px) rotate(-3deg)' },
+          '75%': { transform: 'translateX(4px) rotate(3deg)' },
+        },
+        'ring-whip': {
+          '0%': { transform: 'translateX(0)' },
+          '45%': { transform: 'translateX(140px)' },
+          '70%': { transform: 'translateX(150px)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        'ring-strike': {
+          '0%': { transform: 'translateX(0) scale(1)' },
+          '30%': { transform: 'translateX(10px) scale(0.96)' },
+          '55%': { transform: 'translateX(-6px) scale(1.02)' },
+          '100%': { transform: 'translateX(0) scale(1)' },
+        },
+        'ring-surge': {
+          '0%': { transform: 'translateX(0) scale(1)' },
+          '50%': { transform: 'translateX(-16px) scale(1.08)' },
+          '100%': { transform: 'translateX(0) scale(1)' },
+        },
+        'ring-slam': {
+          '0%': { transform: 'rotate(0deg) translateY(0)' },
+          '40%': { transform: 'rotate(150deg) translateY(-10px)' },
+          '70%': { transform: 'rotate(190deg) translateY(6px)' },
+          '100%': { transform: 'rotate(180deg) translateY(0)' },
+        },
+        'callout-pop': {
+          '0%': { opacity: '0', transform: 'scale(0.5) rotate(-6deg)' },
+          '60%': { opacity: '1', transform: 'scale(1.15) rotate(3deg)' },
+          '100%': { opacity: '1', transform: 'scale(1) rotate(-2deg)' },
+        },
       },
       animation: {
         'rise-in': 'rise-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both',
         'pop-in': 'pop-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both',
         shimmer: 'shimmer 2.2s linear infinite',
+        'ring-jostle': 'ring-jostle 0.5s ease-in-out both',
+        'ring-whip': 'ring-whip 0.9s ease-in-out both',
+        'ring-strike': 'ring-strike 0.5s ease-out both',
+        'ring-surge': 'ring-surge 0.5s ease-out both',
+        'ring-slam': 'ring-slam 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+        'callout-pop': 'callout-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both',
       },
     },
   },
