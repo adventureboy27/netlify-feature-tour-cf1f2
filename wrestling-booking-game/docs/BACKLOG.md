@@ -3016,3 +3016,37 @@ turned up in `MatchViewerScreen.tsx`, both fixed:
   regression test); `npm run build` clean; live re-verification of both a normal 2-sided match (ring, full
   names, avatars, and the new referee/poor-match lines all visible together) and a 6-way battle royal
   (confirming it still renders correctly with no commentary panel, as designed).
+
+### Follow-up: fixed the ring crowding — sides, not a shared circle
+
+Player's own framing: "you can make the ring bigger. the profile pics don't have to stay in the ring. just a
+general thing to look at. I'd rather they start on the sides anyway" — which is also just what the original
+sketch actually asked for ("participant profile pics on the sides"). The circular layout from the first pass
+put everyone, spotlighted or not, on one shared orbit around the ring; a spotlighted portrait pulled in tight
+(radius 70) could land right on top of a same-side neighbour still sitting at the normal radius (150) a few
+degrees away; the more entrants a battle royal had, the worse it got.
+
+- **Replaced the circle with two rails and a centre stage.** `sideA` rests down a vertical rail on the left,
+  `sideB` down one on the right (plain flex columns — no more per-wrestler angle/radius trig at all). Only
+  whoever the current beat's `actorId`/`targetId` actually names ever leaves their rail, rendered instead in
+  a small flex row pinned to `left-1/2 top-1/2` — dead centre over the ring regardless of how wide the panel
+  is, which a fixed pixel offset from either rail couldn't have guaranteed. For a singles match this reduces
+  to exactly what it always looked like (both wrestlers are the beat's actor/target on literally every beat,
+  so the rails stay empty and both stand centre stage the whole match) — the fix only changes behaviour once
+  a side actually has more than one member with somebody free to rest.
+- **Size does the spotlight emphasis, not a CSS scale.** Resting portraits render at `bust` (80px); the
+  active pair render at `large` (120px) — swapping the `PaperDoll` size prop, not `transform: scale()`, which
+  matters because a scale transform on the same element as the pose animation (`ring-slam`, `ring-eliminated`,
+  ...) would have fought it for control of `transform` the same way the upside-down-label bug did two passes
+  ago.
+- **The ring is bigger.** 300px β†’ 380px, since it no longer has to leave clearance for a field orbiting
+  around it.
+- **`data-testid="match-ring"` and the rest of the panel chrome are untouched** — this was purely the
+  wrestler-positioning internals.
+- Verified live: a 10-way battle royal (one side per entrant, so the field reduces to 1-vs-9 the same way
+  every multi-man match does — see the two-corner note above) now shows every resting wrestler clearly
+  stacked down the right rail with zero overlap, `OUT` tags legible on eliminated names sitting right there
+  on the rail, and the active pair squarely centred on the enlarged ring at every beat including the finish;
+  re-ran the normal 2-sided case too and confirmed it renders identically to before (both always centred,
+  rails empty, nothing regressed). `tsc --noEmit` clean; full suite 152 files / 2,942 tests passing (no test
+  covers this screen — presentation, caught only by watching it); `npm run build` clean.
