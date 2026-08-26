@@ -126,12 +126,7 @@ export function SecretsScreen() {
                   className={`p-2.5 ${secret ? (walkable ? 'border-emerald-900' : '') : 'border-rose-900'}`}
                 >
                   <div className="flex items-start gap-2">
-                    <PaperDoll
-                      appearance={person.appearance}
-                      gender={person.gender}
-                      alignment={person.alignment}
-                      size="thumb"
-                    />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold">{billedAs(person)}</div>
                       <div className="text-[11px] text-neutral-500">
@@ -220,12 +215,7 @@ export function SecretsScreen() {
               world.rivals.find((r) => r.id === person.promotionId)?.name ?? 'another company';
             return (
               <Panel key={person.id} className="flex items-center gap-2 p-2">
-                <PaperDoll
-                  appearance={person.appearance}
-                  gender={person.gender}
-                  alignment={person.alignment}
-                  size="thumb"
-                />
+                <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-xs font-semibold">{billedAs(person)}</div>
                   <div className="truncate text-[11px] text-neutral-500">{company}</div>

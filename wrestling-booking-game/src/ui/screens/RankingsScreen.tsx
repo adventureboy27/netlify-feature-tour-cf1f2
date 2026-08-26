@@ -24,7 +24,6 @@ import { titlesOf, shortTitleName } from '../../data/titles';
 import { billedAs } from '../../engine/generate/nickname';
 import { identityOf } from '../../data/promotionIdentity';
 import { PaperDoll } from '../paperdoll/PaperDoll';
-import { effectiveAppearance } from '../../engine/generate/gimmickLook';
 import { StatBar } from '../components/display';
 import { Tabs, promotionTheme } from '../components/chrome';
 
@@ -125,12 +124,7 @@ export function RankingsScreen() {
                   }`}
                 >
                   <span className="w-5 shrink-0 text-right font-mono text-xs text-neutral-500">{entry.rank}</span>
-                  <PaperDoll
-                    appearance={effectiveAppearance(w, world.stables)}
-                    gender={w.gender}
-                    alignment={w.alignment}
-                    size="thumb"
-                  />
+                  <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} size="thumb" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs font-medium">{billedAs(w)}</div>
                     <div className="truncate text-[10px] text-neutral-500">{company?.name ?? 'Unsigned'}</div>
@@ -197,12 +191,7 @@ export function RankingsScreen() {
                   className="flex items-center gap-2 rounded border border-neutral-800 bg-neutral-900 p-1.5"
                 >
                   <span className="w-5 shrink-0 text-right font-mono text-xs text-neutral-500">{entry.rank}</span>
-                  <PaperDoll
-                    appearance={effectiveAppearance(w, world.stables)}
-                    gender={w.gender}
-                    alignment={w.alignment}
-                    size="thumb"
-                  />
+                  <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} size="thumb" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs font-medium">{billedAs(w)}</div>
                     <div className="text-[10px] text-neutral-500">

@@ -44,10 +44,11 @@ sections relevant to the current milestone.
 - Content (events, gimmicks, names, moves, territories) lives in `data/` as
   typed arrays so it can grow without touching logic.
 - Tests cover the simulation, not the UI.
-- Wrestler art is a generated indexed sprite atlas, not runtime-drawn shapes.
-  `tools/wrestler_atlas.py` emits it; `src/ui/paperdoll/README.md` explains the
-  pipeline, how to regenerate, and which traits the atlas can't express yet.
-  This supersedes §7's opening "No image assets."
+- Wrestler art is a real uploaded photo, or an initials placeholder when there
+  isn't one — `src/ui/paperdoll/README.md` explains the pipeline. This
+  supersedes §7's opening "No image assets," and supersedes an earlier
+  version of this file that described a generated indexed sprite atlas; that
+  system was removed wholesale, not extended.
 
 ## Build order
 
@@ -68,9 +69,9 @@ npm run play       # Build, then fold it into one openable HTML file
 ```
 
 `npm run play` writes `dist/wrestling-booker.html` — the whole game in a
-single file, CSS and JS inlined, sprite atlas already data-URI'd by Vite.
-Open it directly, no server needed. The game is offline-only by design, so
-nothing is lost in the folding.
+single file, CSS and JS inlined, uploaded photos already inline as data URIs
+in the save. Open it directly, no server needed. The game is offline-only by
+design, so nothing is lost in the folding.
 
 ## Traps that have caught somebody more than once
 

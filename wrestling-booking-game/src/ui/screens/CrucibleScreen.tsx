@@ -41,9 +41,8 @@ export function CrucibleScreen() {
           <div className="mt-1 flex items-center gap-3">
             {world.wrestlers[current.wrestlerId] && (
               <PaperDoll
-                appearance={world.wrestlers[current.wrestlerId]!.appearance}
-                gender={world.wrestlers[current.wrestlerId]!.gender}
-                alignment={world.wrestlers[current.wrestlerId]!.alignment}
+                photoDataUrl={world.wrestlers[current.wrestlerId]!.photoDataUrl}
+                name={world.wrestlers[current.wrestlerId]!.name}
                 size="bust"
               />
             )}

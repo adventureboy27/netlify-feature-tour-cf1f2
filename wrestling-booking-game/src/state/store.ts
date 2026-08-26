@@ -16,7 +16,6 @@ import {
 import { generateWrestlers } from '../engine/generate/wrestler';
 import type { Rng } from '../engine/rng';
 import type {
-  Appearance,
   Id,
   MatchRules,
   Promotion,
@@ -807,7 +806,7 @@ export interface GameStore {
    */
   repackageWrestler: (
     wrestlerId: Id,
-    change: { name?: string; nickname?: string | null; appearance?: Appearance },
+    change: { name?: string; nickname?: string | null; photoDataUrl?: string | null },
   ) => { ok: boolean; reason: string | null };
   /** Put two of your people together as a tag team. Empty name = let the announcers pick. */
   formTagTeam: (aId: Id, bId: Id, name?: string) => void;
@@ -961,7 +960,6 @@ export const useGameStore = create<GameStore>()(
           // Rolls what the business believes about them, as against what is true.
           settings: world.settings,
           currentYear: world.settings.startingYear + Math.floor(world.week / 52),
-          existingAppearances: Object.values(world.wrestlers).map((w) => w.appearance),
           existingNames: taken,
         });
 
@@ -2663,9 +2661,10 @@ export const useGameStore = create<GameStore>()(
             const lineRng = rngFromSeed(`stipulationConsequence:${segment.slot}:${world.week}`);
             for (const loser of losers) {
               if (consequence === 'shaveHead') {
-                loser.appearance.hairStyle = 0;
+                // Purely cosmetic — nothing else in the sim reads it, so
+                // there's nothing to write down beyond the write-up's line.
               } else if (consequence === 'unmask') {
-                loser.appearance.mask = 0;
+                loser.masked = false;
               } else {
                 const terms = exitTerms(loser, 'fired', world.settings, world.promotion.name);
                 world.promotion.bankBalance -= terms.severance;
@@ -6369,7 +6368,6 @@ export const useGameStore = create<GameStore>()(
             ),
             year,
             world.settings,
-            everyone.map((w) => w.appearance),
             new Set(takenNamesNow),
           );
 
@@ -6402,7 +6400,6 @@ export const useGameStore = create<GameStore>()(
             randInt(rng, world.settings.walkOnsPerYearMin, world.settings.walkOnsPerYearMax),
             year,
             world.settings,
-            everyone.map((w) => w.appearance),
             takenNamesNow,
           );
           for (const person of walkOns.wrestlers) {
@@ -6426,7 +6423,6 @@ export const useGameStore = create<GameStore>()(
             {
               settings: world.settings,
               currentYear: year,
-              existingAppearances: everyone.map((w) => w.appearance),
               existingNames: new Set(takenNamesNow),
             },
           );

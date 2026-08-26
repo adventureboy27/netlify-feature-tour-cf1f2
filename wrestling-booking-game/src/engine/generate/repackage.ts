@@ -12,8 +12,7 @@
 // they used to be.
 
 import { buildNameIndex, isTooSimilar, normalizeName } from './name';
-import type { Appearance, Id, WorldSettings, Wrestler } from '../types';
-import { appearanceHammingDistance, MIN_DISTINCT_HAMMING_DISTANCE } from './appearance';
+import type { WorldSettings, Wrestler } from '../types';
 
 /** Why a proposed name cannot be used. Null when it can. */
 export type RenameRejection =
@@ -66,24 +65,6 @@ export function checkRename(
   return { ok: true, reason: null };
 }
 
-/**
- * Can this wrestler look like this? Same rule generation obeys: nobody in the
- * business may read as somebody else at a glance.
- */
-export function checkRestyle(
-  proposed: Appearance,
-  wrestlerId: Id,
-  everybody: readonly Wrestler[],
-): { ok: boolean; clashesWith: Id | null } {
-  for (const other of everybody) {
-    if (other.id === wrestlerId || other.deceased) continue;
-    if (appearanceHammingDistance(proposed, other.appearance) < MIN_DISTINCT_HAMMING_DISTANCE) {
-      return { ok: false, clashesWith: other.id };
-    }
-  }
-  return { ok: true, clashesWith: null };
-}
-
 /** A name somebody used to work under. */
 export interface FormerName {
   name: string;
@@ -103,7 +84,7 @@ export interface FormerName {
  */
 export function repackage(
   w: Wrestler,
-  change: { name?: string; nickname?: string | null; appearance?: Appearance },
+  change: { name?: string; nickname?: string | null; photoDataUrl?: string | null },
   week: number,
 ): void {
   if (change.name !== undefined) {
@@ -114,7 +95,7 @@ export function repackage(
     }
   }
   if (change.nickname !== undefined) w.nickname = change.nickname ?? undefined;
-  if (change.appearance) w.appearance = change.appearance;
+  if (change.photoDataUrl !== undefined) w.photoDataUrl = change.photoDataUrl ?? undefined;
 
   // New look, new name, new character — whatever staleness had built up on the
   // old one does not carry over.

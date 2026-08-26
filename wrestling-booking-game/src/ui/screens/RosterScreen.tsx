@@ -14,7 +14,6 @@ import { useGameStore } from '../../state/store';
 import { MotivationKey, WrestlerRow } from '../components/WrestlerRow';
 import { WrestlerDetailBody } from '../components/WrestlerDetail';
 import { canFormTeam, teamOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
-import { ATTIRE_PALETTE } from '../paperdoll/palette';
 import { titlesHeldBy } from '../../data/titles';
 import { Money } from '../components/display';
 import type { Id, Wrestler } from '../../engine/types';
@@ -204,13 +203,6 @@ function TagTeamPanel() {
                     data-testid={`team-${team.id}`}
                     className="flex items-center gap-2 rounded bg-neutral-950 p-2"
                   >
-                    {team.colors && (
-                      <span
-                        className="h-6 w-1.5 shrink-0 rounded-sm"
-                        style={{ backgroundColor: ATTIRE_PALETTE[team.colors.primary] }}
-                        aria-hidden
-                      />
-                    )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-medium">{team.name}</span>
                       <span className="block truncate text-[10px] text-neutral-500">

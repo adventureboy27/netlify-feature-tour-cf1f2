@@ -39,13 +39,7 @@ function Corner({ side, mirror, dim }: { side: BoutSide; mirror: boolean; dim: b
               lit ? 'border-emerald-600/70 shadow-[0_0_14px_-2px_rgba(16,185,129,0.45)]' : 'border-neutral-800'
             }`}
           >
-            <PaperDoll
-              appearance={w.appearance}
-              gender={w.gender}
-              alignment={w.alignment}
-              size="bust"
-              flip={mirror}
-            />
+            <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} size="bust" flip={mirror} />
           </div>
         ))}
       </div>

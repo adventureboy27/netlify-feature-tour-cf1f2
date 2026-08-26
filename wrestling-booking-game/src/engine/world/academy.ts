@@ -15,7 +15,7 @@ import type { Rng } from '../rng';
 import { desiredContractWeeks } from '../economy/contracts';
 import { chance, clamp, randInt } from '../rng';
 import { rollStandoutTalent } from '../career/hype';
-import type { Appearance, Id, Wrestler, WorldSettings } from '../types';
+import type { Id, Wrestler, WorldSettings } from '../types';
 import { generateWrestlers, rollDebutAge } from '../generate/wrestler';
 import type { FreeAgent } from './freeAgents';
 
@@ -171,7 +171,6 @@ export function graduateClass(
   count: number,
   currentYear: number,
   settings: WorldSettings,
-  existingAppearances: Appearance[] = [],
   existingNames: ReadonlySet<string> = new Set(),
 ): AcademyIntake {
   if (count <= 0) return { wrestlers: [], freeAgents: [], phenomId: null };
@@ -187,7 +186,6 @@ export function graduateClass(
     divisionShare: settings.womensRosterShare,
     divisionFloor: settings.womensDivisionFloor,
     currentYear,
-    existingAppearances,
     existingNames: new Set(existingNames),
   }).map((w) => {
     // Whatever the generator rolled, somebody out of a school has not done

@@ -1904,6 +1904,17 @@ describe('the rest of the business pays its own wages', () => {
 });
 
 describe('the joint show', () => {
+  // A bigger roster than the file default, so the rival's booked card has
+  // real depth to draft from — at the default size the drafted card and the
+  // agreed size can land exactly equal, leaving no standbys to test
+  // backfilling with. That is a real, valid outcome the game handles (see
+  // cardStatusLine's "nothing left to fill the gaps with"), just not the one
+  // these tests are about; the fix is headroom, not chasing a seed where the
+  // numbers happen not to collide.
+  beforeEach(() => {
+    useGameStore.getState().newGame({ ...freshSettings(), startingRosterSize: 30 });
+  });
+
   /** Get a rival to the table and sign whatever they put up. */
   function signAJointShow(): boolean {
     for (let i = 0; i < 30; i++) {

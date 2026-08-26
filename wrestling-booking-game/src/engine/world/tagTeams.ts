@@ -17,7 +17,6 @@ import type { WorldSettings } from '../types';
 import { pick } from '../rng';
 import type { GroupGimmick, Id, Stable, Wrestler } from '../types';
 import { TEAM_NAMES, WOMENS_TEAM_NAMES, surnamePair } from '../../data/teamNames';
-import { stableColorsFrom } from '../generate/gimmickLook';
 
 export interface TeamFormationContext {
   /** Names already used anywhere in the world. */
@@ -83,9 +82,6 @@ export function formTeams(
         kind: 'tagTeam',
         memberIds: [a.id, b.id],
         leaderId: a.id,
-        colors: stableColorsFrom(a),
-        // A thrown-together pairing does not dress alike; a real team does.
-        unifiedLook: true,
         formedWeek: ctx.week,
         disbandedWeek: null,
         record: { wins: 0, losses: 0, draws: 0 },
@@ -166,11 +162,9 @@ export function createTeam(
     name: name?.trim() || teamName(rng, a, b, taken),
     kind: 'tagTeam',
     memberIds: [a.id, b.id],
-    // The more established of the two fronts it, and the team wears their
-    // colours — same rule the generated teams follow.
+    // The more established of the two fronts it — same rule the generated
+    // teams follow.
     leaderId: a.popularity >= b.popularity ? a.id : b.id,
-    colors: stableColorsFrom(a.popularity >= b.popularity ? a : b),
-    unifiedLook: true,
     formedWeek: week,
     disbandedWeek: null,
     record: { wins: 0, losses: 0, draws: 0 },
@@ -246,8 +240,6 @@ export function formGroupGimmickStable(members: readonly Wrestler[], group: Grou
     kind: group.kind,
     memberIds: members.map((w) => w.id),
     leaderId: leader.id,
-    colors: stableColorsFrom(leader),
-    unifiedLook: true,
     formedWeek: week,
     disbandedWeek: null,
     record: { wins: 0, losses: 0, draws: 0 },

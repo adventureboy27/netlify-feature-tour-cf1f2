@@ -1,70 +1,77 @@
-// <PaperDoll size="full|bust|thumb" /> — §7 "Requirements".
-//
-// The sprite itself comes from the indexed atlas (atlas/); this component
-// only decides which window of the frame to show, at what scale, and applies
-// the container-level heel/face palette shift.
-import { useEffect, useRef } from 'react';
-import type { Appearance } from '../../engine/types';
-import { getSourceCanvas } from './spriteCache';
-import { cropSpec, type PaperDollSize } from './crops';
-import { useAtlasSheets } from './useAtlasSheets';
-import { ALIGNMENT_FILTER, alignmentBucket } from './palette';
+// A wrestler's portrait — a real uploaded photo, or an initials placeholder
+// if nobody has given them one yet. See README.md for what this replaced.
 
-export type { PaperDollSize };
+export type PaperDollSize = 'large' | 'bust' | 'thumb';
+
+const SIZE_PX: Record<PaperDollSize, number> = {
+  large: 120,
+  bust: 80,
+  thumb: 48,
+};
+
+/** First letter of up to two words — the same idea as the commentator avatars in the match viewer. */
+function initials(name: string): string {
+  const letters = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase());
+  return letters.join('') || '?';
+}
+
+/** A stable color per wrestler, so the same person's placeholder always looks the same. */
+function placeholderColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  const hue = hash % 360;
+  return `hsl(${hue}, 45%, 32%)`;
+}
 
 export interface PaperDollProps {
-  appearance: Appearance;
-  gender: 'm' | 'f'; // not part of Appearance (§3); picks the atlas body frame
-  alignment: number; // -100..100, drives the heel/face palette shift (§7)
+  /** A real photo, as a data URI. Absent for almost everyone. */
+  photoDataUrl?: string;
+  /** For the initials placeholder, and the alt text either way. */
+  name: string;
   size: PaperDollSize;
   className?: string;
-  /**
-   * Mirror horizontally. The atlas frames are front-on, so this is not a
-   * turn of the head — it mirrors the asymmetric cells (hair part, single
-   * knee pad, a strap over one shoulder) so a pair billed against each other
-   * composes as two corners rather than as the same pose printed twice.
-   */
+  /** Mirror horizontally, so two people billed against each other face inward rather than the same way. */
   flip?: boolean;
 }
 
-export function PaperDoll({ appearance, gender, alignment, size, className, flip = false }: PaperDollProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const sheets = useAtlasSheets();
-  const spec = cropSpec(size);
+export function PaperDoll({ photoDataUrl, name, size, className, flip = false }: PaperDollProps) {
+  const px = SIZE_PX[size];
+  const style: React.CSSProperties = {
+    width: px,
+    height: px,
+    ...(flip ? { transform: 'scaleX(-1)' } : {}),
+  };
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !sheets) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(
-      getSourceCanvas(sheets, appearance, gender),
-      spec.sourceX,
-      spec.sourceY,
-      spec.sourceWidth,
-      spec.sourceHeight,
-      0,
-      0,
-      spec.displayWidth,
-      spec.displayHeight,
+  if (photoDataUrl) {
+    return (
+      <img
+        src={photoDataUrl}
+        alt={name}
+        width={px}
+        height={px}
+        className={`rounded object-cover ${className ?? ''}`}
+        style={style}
+      />
     );
-  }, [sheets, appearance, gender, spec]);
+  }
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={spec.displayWidth}
-      height={spec.displayHeight}
-      className={className}
+    <div
+      role="img"
+      aria-label={name}
+      className={`flex items-center justify-center rounded font-bold text-neutral-100 ${className ?? ''}`}
       style={{
-        width: spec.displayWidth,
-        height: spec.displayHeight,
-        imageRendering: 'pixelated',
-        filter: ALIGNMENT_FILTER[alignmentBucket(alignment)],
-        ...(flip ? { transform: 'scaleX(-1)' } : {}),
+        ...style,
+        backgroundColor: placeholderColor(name),
+        fontSize: px * 0.36,
       }}
-    />
+    >
+      {initials(name)}
+    </div>
   );
 }

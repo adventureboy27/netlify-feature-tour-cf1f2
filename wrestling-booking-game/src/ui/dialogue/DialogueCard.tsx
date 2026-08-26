@@ -100,12 +100,7 @@ export function DialogueCard({
         <div className="flex flex-col items-center gap-2 py-2 text-center">
           {speaker.kind === 'wrestler' && wrestler && (
             <>
-              <PaperDoll
-                appearance={wrestler.appearance}
-                gender={wrestler.gender}
-                alignment={wrestler.alignment}
-                size="large"
-              />
+              <PaperDoll photoDataUrl={wrestler.photoDataUrl} name={wrestler.name} size="large" />
               <div className="text-sm font-semibold text-neutral-100">{speakerName}</div>
             </>
           )}

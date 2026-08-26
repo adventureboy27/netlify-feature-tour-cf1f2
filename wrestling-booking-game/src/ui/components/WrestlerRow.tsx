@@ -68,7 +68,7 @@ export function WrestlerRow({
   const alignment = alignmentLabel(wrestler.alignment);
   const body = (
     <>
-      <PaperDoll appearance={wrestler.appearance} gender={wrestler.gender} alignment={wrestler.alignment} size="thumb" />
+      <PaperDoll photoDataUrl={wrestler.photoDataUrl} name={wrestler.name} size="thumb" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           {/* The face goes first, before the name — when you are scanning a

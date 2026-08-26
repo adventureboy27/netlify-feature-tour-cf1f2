@@ -33,7 +33,6 @@ import {
 import { responseOutcome } from '../../engine/world/poaching';
 import { gimmickById } from '../../data/gimmicks';
 import { groupGimmickById } from '../../data/groupGimmicks';
-import { applyGimmickLook } from '../../engine/generate/gimmickLook';
 import { canFormGroup, formGroupGimmickStable } from '../../engine/world/tagTeams';
 
 type RosterAndContractsSlice = Pick<
@@ -375,7 +374,8 @@ export const createRosterAndContractsSlice: StateCreator<
       // the gimmickRequest event's own gimmickChange handler.
       if (gimmick.id !== wrestler.gimmick.id) {
         wrestler.gimmick = gimmick;
-        wrestler.appearance = applyGimmickLook(wrestler.appearance, gimmick, rng);
+        if (gimmick.masked === 'required') wrestler.masked = true;
+        else if (gimmick.masked === 'forbidden') wrestler.masked = false;
         wrestler.gimmickFreshness = 100;
       }
       talk.stage = 'offerPairing';
@@ -470,7 +470,8 @@ export const createRosterAndContractsSlice: StateCreator<
       // give it a real push") and earns the same reset, not a smaller one.
       if (gimmick.id !== wrestler.gimmick.id) {
         wrestler.gimmick = gimmick;
-        wrestler.appearance = applyGimmickLook(wrestler.appearance, gimmick, rng);
+        if (gimmick.masked === 'required') wrestler.masked = true;
+        else if (gimmick.masked === 'forbidden') wrestler.masked = false;
       }
       wrestler.gimmickFreshness = 100;
       wrestler.weeksIceCold = 0;

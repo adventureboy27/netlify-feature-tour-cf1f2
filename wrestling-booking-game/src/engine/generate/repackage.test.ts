@@ -1,14 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { checkRename, checkRestyle, repackage, namesInUse } from './repackage';
+import { checkRename, repackage, namesInUse } from './repackage';
 import { defaultWorldSettings } from '../world/settings';
-import { generateAppearance } from './appearance';
-import { rngFromSeed } from '../rng';
-import type { Appearance, Wrestler } from '../types';
+import type { Wrestler } from '../types';
 
 const settings = defaultWorldSettings();
 
 let nextId = 0;
-function person(name: string, appearance?: Appearance): Wrestler {
+function person(name: string): Wrestler {
   nextId += 1;
   return {
     id: `w${nextId}`,
@@ -16,7 +14,6 @@ function person(name: string, appearance?: Appearance): Wrestler {
     nickname: undefined,
     gimmickFreshness: 20,
     deceased: null,
-    appearance: appearance ?? generateAppearance(rngFromSeed(`look-${nextId}`)),
   } as unknown as Wrestler;
 }
 
@@ -59,35 +56,6 @@ describe('what a ring name is allowed to be', () => {
   });
 });
 
-describe('what a look is allowed to be', () => {
-  it('accepts a look nobody else has', () => {
-    const mine = person('Me');
-    const others = [person('Somebody'), person('Somebody Else')];
-    expect(checkRestyle(mine.appearance, mine.id, [mine, ...others]).ok).toBe(true);
-  });
-
-  it('rejects a look that reads as somebody already in the business', () => {
-    const other = person('Somebody');
-    const mine = person('Me');
-    const copied = { ...other.appearance };
-    const check = checkRestyle(copied, mine.id, [mine, other]);
-    expect(check.ok).toBe(false);
-    expect(check.clashesWith).toBe(other.id);
-  });
-
-  it('does not count the wrestler against themselves', () => {
-    const mine = person('Me');
-    expect(checkRestyle(mine.appearance, mine.id, [mine]).ok).toBe(true);
-  });
-
-  it('does not count the dead', () => {
-    const gone = person('The Late');
-    (gone as { deceased: unknown }).deceased = { week: 5, age: 60, cause: 'age' };
-    const mine = person('Me');
-    expect(checkRestyle({ ...gone.appearance }, mine.id, [mine, gone]).ok).toBe(true);
-  });
-});
-
 describe('doing the repackage', () => {
   it('changes the name and keeps the old one', () => {
     const w = person('Kid Dynamite');
@@ -114,16 +82,22 @@ describe('doing the repackage', () => {
   it('makes the character fresh again', () => {
     const w = person('Stale');
     expect(w.gimmickFreshness).toBeLessThan(100);
-    repackage(w, { appearance: generateAppearance(rngFromSeed('new-look')) }, 10);
+    repackage(w, { name: 'Stale' }, 10);
     expect(w.gimmickFreshness).toBe(100);
   });
 
-  it('takes a look and a nickname too', () => {
+  it('takes a photo and a nickname too', () => {
     const w = person('Somebody');
-    const look = generateAppearance(rngFromSeed('brand-new'));
-    repackage(w, { nickname: 'The Hammer', appearance: look }, 10);
+    repackage(w, { nickname: 'The Hammer', photoDataUrl: 'data:image/webp;base64,AAAA' }, 10);
     expect(w.nickname).toBe('The Hammer');
-    expect(w.appearance).toEqual(look);
+    expect(w.photoDataUrl).toBe('data:image/webp;base64,AAAA');
+  });
+
+  it('can remove a photo', () => {
+    const w = person('Somebody');
+    w.photoDataUrl = 'data:image/webp;base64,AAAA';
+    repackage(w, { photoDataUrl: null }, 10);
+    expect(w.photoDataUrl).toBeUndefined();
   });
 
   it('can drop a nickname', () => {

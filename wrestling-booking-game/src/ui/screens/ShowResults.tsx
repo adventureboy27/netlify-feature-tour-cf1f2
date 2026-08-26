@@ -428,12 +428,7 @@ export function ShowResults({
               return (
                 <Panel key={i} data-testid={`promo-result-${i}`} className="flex items-start gap-2 p-2">
                   {speaker && (
-                    <PaperDoll
-                      appearance={speaker.appearance}
-                      gender={speaker.gender}
-                      alignment={speaker.alignment}
-                      size="thumb"
-                    />
+                    <PaperDoll photoDataUrl={speaker.photoDataUrl} name={speaker.name} size="thumb" />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
@@ -691,9 +686,8 @@ function RivalryDigest() {
                 {people.map((w, i) => (
                   <PaperDoll
                     key={w.id}
-                    appearance={w.appearance}
-                    gender={w.gender}
-                    alignment={w.alignment}
+                    photoDataUrl={w.photoDataUrl}
+                    name={w.name}
                     size="thumb"
                     flip={i > 0}
                   />

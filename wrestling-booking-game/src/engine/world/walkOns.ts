@@ -25,7 +25,7 @@
 
 import type { Rng } from '../rng';
 import { chance, clamp, gaussian, randInt } from '../rng';
-import type { Appearance, Wrestler, WorldSettings } from '../types';
+import type { Wrestler, WorldSettings } from '../types';
 import { generateWrestlers } from '../generate/wrestler';
 import { rollStandoutTalent } from '../career/hype';
 import type { FreeAgent } from './freeAgents';
@@ -158,7 +158,6 @@ export function walkOnIntake(
   count: number,
   currentYear: number,
   settings: WorldSettings,
-  existingAppearances: Appearance[] = [],
   existingNames: ReadonlySet<string> = new Set(),
 ): WalkOnIntake {
   if (count <= 0) return { wrestlers: [], freeAgents: [], kinds: {} };
@@ -168,7 +167,6 @@ export function walkOnIntake(
     // Rolls what the business believes about them, as against what is true.
     settings,
     currentYear,
-    existingAppearances,
     existingNames: new Set(existingNames),
   }).map((person) => {
     const kind = rollKind(rng, settings);

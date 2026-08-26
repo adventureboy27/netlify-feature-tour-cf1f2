@@ -154,7 +154,6 @@ describe('turning one person into a walk-on', () => {
     expect(walkOn.strength).toBe(person.strength);
     expect(walkOn.heightIn).toBe(person.heightIn);
     expect(walkOn.gender).toBe(person.gender);
-    expect(walkOn.appearance).toEqual(person.appearance);
   });
 
   it('knocks down the things a school would have taught', () => {

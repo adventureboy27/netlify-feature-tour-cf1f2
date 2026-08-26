@@ -12,7 +12,6 @@ import {
 import { generateWrestlers } from '../generate/wrestler';
 import { defaultWorldSettings } from './settings';
 import { rngFromSeed } from '../rng';
-import { APPEARANCE_TRAIT_RANGES } from '../generate/appearance';
 
 const settings = defaultWorldSettings();
 
@@ -28,7 +27,6 @@ describe('taking a roster out', () => {
     expect(file.wrestlers).toHaveLength(3);
     expect(file.wrestlers[0]!.name).toBe(roster[0]!.name);
     expect(file.wrestlers[0]!.charisma).toBe(roster[0]!.charisma);
-    expect(file.wrestlers[0]!.appearance).toBeDefined();
   });
 
   it('carries no ids or world state — a roster belongs to no save', () => {
@@ -123,21 +121,18 @@ describe('nothing in a file is trusted', () => {
     expect(entry.age).toBeUndefined();
   });
 
-  it('will not let a file ask for a sprite the atlas cannot cut', () => {
+  it('only accepts a photo as a data URI', () => {
     const result = parseRoster(
-      JSON.stringify({ format: 1, wrestlers: [{ name: 'Impossible', appearance: { hairStyle: 900, skinTone: -4 } }] }),
+      JSON.stringify({
+        format: 1,
+        wrestlers: [
+          { name: 'Real Photo', photoDataUrl: 'data:image/webp;base64,AAAA' },
+          { name: 'Bogus Photo', photoDataUrl: 'https://example.com/pic.png' },
+        ],
+      }),
     );
-    const appearance = result.entries[0]!.appearance!;
-    expect(appearance.hairStyle).toBe(APPEARANCE_TRAIT_RANGES.hairStyle - 1);
-    expect(appearance.skinTone).toBe(0);
-  });
-
-  it('ignores appearance keys it does not recognise', () => {
-    const result = parseRoster(
-      JSON.stringify({ format: 1, wrestlers: [{ name: 'Odd', appearance: { notATrait: 5, hairStyle: 2 } }] }),
-    );
-    expect(result.entries[0]!.appearance).not.toHaveProperty('notATrait');
-    expect(result.entries[0]!.appearance!.hairStyle).toBe(2);
+    expect(result.entries[0]!.photoDataUrl).toBe('data:image/webp;base64,AAAA');
+    expect(result.entries[1]!.photoDataUrl).toBeUndefined();
   });
 
   it('warns about a file from a newer game but still reads what it can', () => {
@@ -161,7 +156,6 @@ describe('putting one in', () => {
     expect(merged.strength).toBe(base!.strength);
     expect(merged.age).toBe(base!.age);
     expect(merged.gender).toBe(base!.gender);
-    expect(merged.appearance).toEqual(base!.appearance);
   });
 
   it('lets the file override what it specifies', () => {
@@ -180,12 +174,16 @@ describe('putting one in', () => {
     expect(merged.id).toBe(base!.id);
   });
 
-  it('merges a partial appearance over the generated one', () => {
+  it('takes the photo a file supplies', () => {
     const [base] = someWrestlers(1);
-    const merged = applyRosterEntry(base!, { name: 'Half A Look', appearance: { hairStyle: 3 } });
-    expect(merged.appearance.hairStyle).toBe(3);
-    // Untouched traits survive.
-    expect(merged.appearance.skinTone).toBe(base!.appearance.skinTone);
+    const merged = applyRosterEntry(base!, { name: 'Has A Photo', photoDataUrl: 'data:image/webp;base64,AAAA' });
+    expect(merged.photoDataUrl).toBe('data:image/webp;base64,AAAA');
+  });
+
+  it('leaves the photo unset when the file has none', () => {
+    const [base] = someWrestlers(1);
+    const merged = applyRosterEntry(base!, { name: 'No Photo' });
+    expect(merged.photoDataUrl).toBe(base!.photoDataUrl);
   });
 });
 

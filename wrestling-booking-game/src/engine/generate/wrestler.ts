@@ -5,7 +5,7 @@
 
 import type { Rng } from '../rng';
 import { rngFromSeed, clamp, gaussian, randInt, weightedPick, pick, chance, shuffle } from '../rng';
-import type { Appearance, Archetype, CardStatus, Id, Wrestler, WorldSettings } from '../types';
+import type { Archetype, CardStatus, Id, Wrestler, WorldSettings } from '../types';
 import { rollHype } from '../career/hype';
 import { drawTraits } from '../career/personality';
 import { drawMotivators } from '../career/motivation';
@@ -13,7 +13,6 @@ import { ARCHETYPES, archetypeById } from '../../data/archetypes';
 import { WRESTLING_STYLES } from '../../data/styles';
 import { GIMMICKS } from '../../data/gimmicks';
 import { generateName } from './name';
-import { generateDistinctAppearance } from './appearance';
 import { generateMoveSet } from './moveset';
 
 export type Tier = 'jobber' | 'midcarder' | 'upper' | 'mainEventer';
@@ -38,6 +37,9 @@ const TIER_TO_CARD_STATUS: Record<Tier, CardStatus> = {
   upper: 'upperMidcard',
   mainEventer: 'mainEventer',
 };
+
+/** How often a wrestler wears a mask when their gimmick doesn't require or forbid it. */
+const BASE_MASKED_CHANCE = 0.12;
 
 function rollTier(rng: Rng): Tier {
   return weightedPick(rng, TIER_WEIGHTS);
@@ -116,8 +118,6 @@ export interface GenerateWrestlerOptions {
    */
   homeTerritoryIds?: readonly Id[];
   currentYear?: number;
-  /** Appearances already in the roster — new wrestlers stay visually distinct from these, §7. */
-  existingAppearances?: Appearance[];
   /**
    * Ring names already taken anywhere in the world, lowercased. Without this
    * a batch only avoids collisions *within itself*, which is how the schools
@@ -215,6 +215,16 @@ export function generateWrestler(
   const heightIn = clamp(Math.round(gaussian(rng, gender === 'm' ? 71 : 66, 3.5)), 60, 84);
 
   const id = randomId(rng, 'w');
+
+  // A mechanical fact, not a look — see Wrestler.masked. Most gimmicks leave
+  // it free, so it is settled by its own entity-seeded stream rather than
+  // the shared one: adding this must not reroll anybody who already existed.
+  const masked =
+    gimmick.masked === 'required'
+      ? true
+      : gimmick.masked === 'forbidden'
+        ? false
+        : chance(rngFromSeed(`masked:${id}`), BASE_MASKED_CHANCE);
 
   // How he regards his own future. Derived rather than drawn: taking another
   // number off the stream here would shift every seeded roll after it, and
@@ -320,6 +330,7 @@ export function generateWrestler(
     style,
     secondaryStyle,
     gimmick,
+    masked,
     moveSet: generateMoveSet(rng, style),
     isCreated: false,
     homeTerritoryId:
@@ -331,7 +342,6 @@ export function generateWrestler(
     // of the national profile rather than as zero, so an empty map is the
     // correct starting state rather than a gap to be filled.
     regionalPopularity: {},
-    appearance: generateDistinctAppearance(rng, options.existingAppearances ?? [], gender),
 
     promotionId: null,
     contract: null,
@@ -380,7 +390,6 @@ export function divisionSplit(count: number, share: number, floor: number): ('m'
 
 export function generateWrestlers(rng: Rng, count: number, options: GenerateWrestlerOptions = {}): Wrestler[] {
   const existingNames = new Set(options.existingNames ?? []);
-  const existingAppearances = options.existingAppearances ?? [];
   // Shuffled so the forced split does not come out as "all the women first",
   // which would show up anywhere the roster is read in generation order.
   const genders = options.divisionShare
@@ -390,10 +399,8 @@ export function generateWrestlers(rng: Rng, count: number, options: GenerateWres
   for (let i = 0; i < count; i++) {
     const wrestler = generateWrestler(rng, existingNames, {
       ...options,
-      existingAppearances,
       gender: genders[i] ?? options.gender,
     });
-    existingAppearances.push(wrestler.appearance);
     wrestlers.push(wrestler);
   }
   return wrestlers;

@@ -270,21 +270,6 @@ export interface Injury {
 
 export type AlignmentLean = 'face' | 'heel' | 'either';
 
-/**
- * How a gimmick dresses, described in terms the engine understands rather
- * than in sprite-sheet indices — `data/` must not know what the atlas cuts.
- * engine/generate/gimmickLook.ts turns these into Appearance traits.
- */
-export interface GimmickLook {
-  masked?: 'required' | 'forbidden';
-  /** The silhouette the gimmick wants. */
-  attire?: 'flashy' | 'plain' | 'formal' | 'brawler' | 'athletic' | 'savage';
-  /** The colours it wants. */
-  palette?: 'bright' | 'dark' | 'monochrome' | 'gold' | 'blood' | 'earthy';
-  /** Hair the gimmick implies, if any. */
-  hair?: 'long' | 'short' | 'wild' | 'bald' | 'any';
-}
-
 export interface Gimmick {
   id: Id;
   name: string;
@@ -301,31 +286,25 @@ export interface Gimmick {
   growthRateMultiplier: number; // applied to popularity gains while fresh
   territoryFit: Partial<Record<Id, number>>; // territoryId -> affinity weight, -1..1
   merchMultiplier: number;
-  /** Granting a gimmick change restyles the wrestler to match this (§20). */
-  look?: GimmickLook;
+  /**
+   * Mechanical, not cosmetic: whether this character wears a mask at all,
+   * for the "Mask vs Mask" stipulation's eligibility check and its stakes —
+   * see data/stipulations.ts. Most gimmicks don't care either way.
+   */
+  masked?: 'required' | 'forbidden';
 }
 
 // ============================================================================
 // §18 — Tag teams, stables, factions
 // ============================================================================
 
-/**
- * A tag team or stable. Members wrestle in matching colours — the colours
- * live here, and engine/generate/gimmickLook.ts's `effectiveAppearance`
- * substitutes them over each member's own attire palette without destroying
- * it, so a wrestler who leaves the group goes back to looking like
- * themselves.
- */
+/** A tag team or stable. */
 export interface Stable {
   id: Id;
   name: string;
   kind: 'tagTeam' | 'stable';
   memberIds: Id[];
   leaderId: Id | null;
-  /** Palette indices into ATTIRE_PALETTE — the group's colours. */
-  colors: { primary: number; secondary: number; accent: number } | null;
-  /** Members dress alike. Turn off for a loose alliance. */
-  unifiedLook: boolean;
   formedWeek: number;
   disbandedWeek: number | null;
   record: WinLossRecord;
@@ -377,33 +356,6 @@ export interface MoveSet {
   secondaryFinisher?: Move;
   signatures: Move[]; // 2-4 recognizable spots
   style: MoveStyle;
-}
-
-// ============================================================================
-// §7 — Paper-doll appearance
-// ============================================================================
-
-export interface Appearance {
-  skinTone: number; // 0-11
-  build: number; // 0-5: slim, athletic, thick, heavy, massive, tall
-  height: number; // 0-4
-  hairStyle: number; // 0-23, includes bald
-  hairColor: number; // 0-11
-  facialHair: number; // 0-11
-  faceShape: number; // 0-7
-  eyes: number; // 0-7
-  attireTop: number; // 0-15
-  attireBottom: number; // 0-15
-  boots: number; // 0-9
-  mask: number; // 0-11, 0 = none
-  accessory: number; // 0-15
-  glasses: number; // 0-9, 0 = none
-  shirt: number; // 0-15
-  tattoos: number; // 0-11
-  beltStyle: number;
-  primaryColor: number; // 0-19
-  secondaryColor: number; // 0-19
-  accentColor: number; // 0-19
 }
 
 // ============================================================================
@@ -531,7 +483,20 @@ export interface Wrestler {
    * their national profile rather than to zero, because word travels.
    */
   regionalPopularity: Partial<Record<Id, number>>;
-  appearance: Appearance;
+  /**
+   * A real photo the booker uploaded, as a data URI — resized/cropped
+   * client-side before it ever lands here (see ui/paperdoll/photoUpload.ts).
+   * Optional and absent for almost everyone: this replaced the generated
+   * pixel-art sprite entirely rather than sitting alongside it, so anyone
+   * without one just renders as an initials avatar. See ui/paperdoll/PaperDoll.tsx.
+   */
+  photoDataUrl?: string;
+  /**
+   * Wears a mask, as a fact about the character rather than a look — the
+   * only thing this gates is the "Mask vs Mask" stipulation's eligibility
+   * and its stakes. See data/stipulations.ts and Gimmick.masked.
+   */
+  masked: boolean;
 
   // Employment
   promotionId: Id | null;

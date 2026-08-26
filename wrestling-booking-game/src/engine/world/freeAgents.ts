@@ -11,7 +11,7 @@
 
 import type { Rng } from '../rng';
 import { chance, randInt } from '../rng';
-import type { Wrestler, WorldSettings, Appearance } from '../types';
+import type { Wrestler, WorldSettings } from '../types';
 import { generateWrestlers } from '../generate/wrestler';
 import { askingRate, desiredContractWeeks, isAffordable } from '../economy/contracts';
 
@@ -60,7 +60,6 @@ export const AVAILABILITY_LABELS: Record<AvailabilityReason, string> = {
 export function generateFreeAgentPool(
   rng: Rng,
   settings: WorldSettings,
-  existingAppearances: Appearance[] = [],
   existingNames: ReadonlySet<string> = new Set(),
 ): {
   wrestlers: Wrestler[];
@@ -75,7 +74,6 @@ export function generateFreeAgentPool(
     divisionShare: settings.womensRosterShare,
     divisionFloor: settings.womensDivisionFloor,
     currentYear: settings.startingYear,
-    existingAppearances,
     existingNames: new Set(existingNames),
   });
 

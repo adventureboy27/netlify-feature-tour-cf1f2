@@ -170,12 +170,7 @@ export function BiddingWarPanel() {
         )}
         <div className="mt-2 flex gap-3">
           <div className="shrink-0">
-            <PaperDoll
-              appearance={subject.appearance}
-              gender={subject.gender}
-              alignment={subject.alignment}
-              size="bust"
-            />
+            <PaperDoll photoDataUrl={subject.photoDataUrl} name={subject.name} size="bust" />
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-semibold text-amber-200">{subject.name}</h2>
@@ -234,12 +229,7 @@ export function BiddingWarPanel() {
       <div className="text-[10px] uppercase tracking-wide text-amber-500">Your one offer</div>
       <div className="mt-2 flex gap-3">
         <div className="shrink-0">
-          <PaperDoll
-            appearance={subject.appearance}
-            gender={subject.gender}
-            alignment={subject.alignment}
-            size="bust"
-          />
+          <PaperDoll photoDataUrl={subject.photoDataUrl} name={subject.name} size="bust" />
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-amber-200">{subject.name}</h2>

@@ -702,7 +702,6 @@ function buildPlannedPromotion(
   // company names should also have to pick eight house styles.
   const archetype = slot.archetype ?? pick(rng, PROMOTION_ARCHETYPES);
 
-  const existingAppearances = () => Object.values(ctx.wrestlers).map((w) => w.appearance);
   const existingNames = () => new Set(Object.values(ctx.wrestlers).map((w) => w.name.trim().toLowerCase()));
 
   let roster: Wrestler[];
@@ -716,7 +715,6 @@ function buildPlannedPromotion(
       currentYear: settings.startingYear,
       divisionShare: settings.womensRosterShare,
       divisionFloor: settings.womensDivisionFloor,
-      existingAppearances: existingAppearances(),
       existingNames: existingNames(),
     });
   } else {
@@ -733,7 +731,6 @@ function buildPlannedPromotion(
       settings,
       homeTerritoryIds: ctx.territoryIds,
       currentYear: settings.startingYear,
-      existingAppearances: existingAppearances(),
       existingNames: existingNames(),
     });
     const taken = existingNames();
@@ -832,7 +829,6 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     pool = generateFreeAgentPool(
       rng,
       settings,
-      rosterSoFar.map((w) => w.appearance),
       new Set(rosterSoFar.map((w) => w.name.trim().toLowerCase())),
     );
     for (const agent of pool.wrestlers) wrestlers[agent.id] = agent;
@@ -844,7 +840,6 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     const managerBodies = generateWrestlers(rng, MANAGERS.length, {
       settings,
       currentYear: settings.startingYear,
-      existingAppearances: [...rosterSoFar.map((w) => w.appearance), ...pool.wrestlers.map((w) => w.appearance)],
       existingNames: new Set(
         [...rosterSoFar, ...pool.wrestlers].map((w) => w.name.trim().toLowerCase()),
       ),
@@ -999,7 +994,6 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
         divisionFloor: settings.womensDivisionFloor,
         homeTerritoryIds: territoryIds,
         currentYear: settings.startingYear,
-        existingAppearances: Object.values(wrestlers).map((w) => w.appearance),
         existingNames: new Set(Object.values(wrestlers).map((w) => w.name.trim().toLowerCase())),
       });
       for (const w of signed) {

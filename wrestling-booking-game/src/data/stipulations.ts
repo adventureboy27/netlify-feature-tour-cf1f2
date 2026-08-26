@@ -377,7 +377,7 @@ export function stipulationRequirementsMet(stipulation: Stipulation, ctx: Stipul
   }
 
   if (stipulation.id === 'ironMan' && ctx.matchTimeLimitMinutes < 30) return false;
-  if (stipulation.id === 'maskVsMask' && !ctx.participants.every((p) => p.appearance.mask !== 0)) return false;
+  if (stipulation.id === 'maskVsMask' && !ctx.participants.every((p) => p.masked)) return false;
 
   // You can't have a ladder match without a ladder. See data/matchProps.ts.
   if (stipulation.gearFamilyId && ctx.ownedGearUnits < (stipulation.minGearUnits ?? 1)) return false;

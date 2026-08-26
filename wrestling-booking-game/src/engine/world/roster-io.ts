@@ -16,8 +16,7 @@
 // file says about ids is ignored and reassigned. A malformed roster must
 // produce a boring wrestler, never a broken save.
 
-import type { Appearance, Wrestler } from '../types';
-import { APPEARANCE_TRAIT_RANGES } from '../generate/appearance';
+import type { Wrestler } from '../types';
 import { clamp, shuffle, type Rng } from '../rng';
 
 /** The format version. Bumped only when an old file could be misread. */
@@ -39,8 +38,8 @@ export interface RosterEntry {
   stamina?: number;
   toughness?: number;
   style?: string;
-  /** Trait numbers. Anything unrecognised is ignored. */
-  appearance?: Record<string, number>;
+  /** A real photo, as a data URI. Absent for almost everyone. */
+  photoDataUrl?: string;
   /**
    * Which promotion this wrestler belongs to, for a multi-promotion import.
    * See groupByCompany — if every entry in a file carries one, the game
@@ -77,7 +76,7 @@ export function exportRoster(wrestlers: readonly Wrestler[], label?: string): Ro
       stamina: w.stamina,
       toughness: w.toughness,
       style: w.style,
-      appearance: { ...w.appearance } as unknown as Record<string, number>,
+      photoDataUrl: w.photoDataUrl,
     })),
   };
 }
@@ -160,22 +159,8 @@ export function parseRoster(raw: string): ImportResult {
     }
     if (typeof row.style === 'string') entry.style = row.style;
     if (typeof row.company === 'string' && row.company.trim()) entry.company = row.company.trim();
-
-    // Appearance traits are checked against the ranges the generator uses, so
-    // a file cannot produce a sprite the atlas has no cell for.
-    if (isRecord(row.appearance)) {
-      const appearance: Record<string, number> = {};
-      // APPEARANCE_TRAIT_RANGES gives the number of cells the atlas cuts for
-      // each trait, so a valid value is 0..count-1. Anything outside is
-      // clamped rather than rejected: a file asking for hair style 900 gets
-      // the last hairstyle, not a crash and not an invisible wrestler.
-      for (const [trait, count] of Object.entries(APPEARANCE_TRAIT_RANGES)) {
-        const value = row.appearance[trait];
-        if (typeof value === 'number' && Number.isFinite(value)) {
-          appearance[trait] = clamp(Math.round(value), 0, Math.max(0, count - 1));
-        }
-      }
-      entry.appearance = appearance;
+    if (typeof row.photoDataUrl === 'string' && row.photoDataUrl.startsWith('data:')) {
+      entry.photoDataUrl = row.photoDataUrl;
     }
 
     entries.push(entry);
@@ -209,9 +194,7 @@ export function applyRosterEntry(base: Wrestler, entry: RosterEntry): Wrestler {
     toughness: entry.toughness ?? base.toughness,
   };
   merged.crowdReaction = merged.alignment;
-  if (entry.appearance) {
-    merged.appearance = { ...base.appearance, ...entry.appearance } as unknown as Appearance;
-  }
+  if (entry.photoDataUrl) merged.photoDataUrl = entry.photoDataUrl;
   return merged;
 }
 

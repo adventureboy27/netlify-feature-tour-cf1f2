@@ -12,8 +12,7 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { buildPlaybackTimeline, finishCallout, type PlaybackBeat } from '../../engine/sim/matchPlayback';
-import { PaperDoll } from '../paperdoll/PaperDoll';
-import type { PaperDollSize } from '../paperdoll/crops';
+import { PaperDoll, type PaperDollSize } from '../paperdoll/PaperDoll';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, promotionTheme } from '../components/chrome';
 import { stipulationById } from '../../data/stipulations';
@@ -183,9 +182,8 @@ export function MatchViewerScreen({
             than flipping with it. */}
         <div key={beatIndex} className={animClass}>
           <PaperDoll
-            appearance={wrestler.appearance}
-            gender={wrestler.gender}
-            alignment={wrestler.alignment}
+            photoDataUrl={wrestler.photoDataUrl}
+            name={wrestler.name}
             size={size}
             flip={side === 'left' ? false : true}
           />

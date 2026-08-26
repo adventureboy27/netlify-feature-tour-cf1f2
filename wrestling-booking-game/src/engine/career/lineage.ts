@@ -38,7 +38,7 @@
 import type { Rng } from '../rng';
 import { chance, clamp, gaussian, pick, randInt } from '../rng';
 import { MASCULINE_FIRST_NAMES, FEMININE_FIRST_NAMES } from '../../data/names';
-import type { Appearance, Id, Lineage, Wrestler, WorldSettings } from '../types';
+import type { Id, Lineage, Wrestler, WorldSettings } from '../types';
 
 export interface LineageContext {
   currentYear: number;
@@ -150,31 +150,6 @@ export function childName(
 }
 
 // ---------------------------------------------------------------------------
-// The face
-
-/**
- * Family resemblance, in the traits the atlas actually draws.
- *
- * Only the heritable-looking ones: colouring and frame. Hair *style*, attire
- * and gear are choices a person makes, not things they are born with, so the
- * kid keeps their own — which is also what stops a second-gen looking like a
- * palette swap of a wrestler who is already on screen.
- */
-export function resemblance(rng: Rng, parent: Appearance, own: Appearance, settings: WorldSettings): Appearance {
-  const takes = (probability: number) => chance(rng, probability);
-  const p = settings.secondGenResemblance;
-  return {
-    ...own,
-    skinTone: takes(p) ? parent.skinTone : own.skinTone,
-    hairColor: takes(p) ? parent.hairColor : own.hairColor,
-    build: takes(p) ? parent.build : own.build,
-    height: takes(p) ? parent.height : own.height,
-    faceShape: takes(p) ? parent.faceShape : own.faceShape,
-    eyes: takes(p) ? parent.eyes : own.eyes,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Making one
 
 /** What the name is worth at debut, before anybody has seen them work. */
@@ -222,7 +197,6 @@ export function asSecondGeneration(
     careerHighPopularity: Math.max(child.careerHighPopularity, popularity),
     // The town that made the parent is the town that will care most.
     homeTerritoryId: parent.homeTerritoryId,
-    appearance: resemblance(rng, parent.appearance, child.appearance, settings),
     // A little of the parent's presence carries — it is the one thing that
     // genuinely runs in families in this business, and it is the trait the
     // crowd reads first.

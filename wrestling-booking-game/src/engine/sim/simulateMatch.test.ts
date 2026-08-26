@@ -411,11 +411,15 @@ describe('simulateMatch', () => {
     let sawSecondListedPinned = false;
     let sawSecondListedPinner = false;
     for (let i = 0; i < 60; i++) {
+      // The pinned/pinner pick is its own entity-seeded stream keyed on the
+      // participants' ids and the week (see simulateMatch.ts) — fixed
+      // participants alone would repeat the same two draws every iteration.
+      // Varying the week is what actually samples the distribution.
       const result = simulateMatch(
         rngFromSeed(`tag-pin-${i}`),
         participants,
         byId,
-        baseContext({ rules: baseRules({ preset: 'tag' }) }),
+        baseContext({ rules: baseRules({ preset: 'tag' }), week: i }),
       );
       const finishBeat = result.beats[result.beats.length - 1]!;
       expect(finishBeat.kind).toBe('finish');

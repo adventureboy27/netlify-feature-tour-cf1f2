@@ -26,8 +26,6 @@ function group(members: Wrestler[]): Stable {
     kind: 'stable',
     memberIds: members.map((m) => m.id),
     leaderId: members[0]?.id ?? null,
-    colors: null,
-    unifiedLook: true,
     formedWeek: 1,
     disbandedWeek: null,
     record: { wins: 0, losses: 0, draws: 0 },

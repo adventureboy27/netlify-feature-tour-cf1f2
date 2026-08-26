@@ -5,6 +5,62 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Photo portraits replace the generated sprite atlas — shipped
+
+Asked directly what it takes to upload a profile picture, the honest answer was that there was no upload
+feature at all — every wrestler's look was a procedurally generated pixel-art sprite, and Claude's art
+"isn't very good." Scoped as a photo-upload feature to sit *alongside* the generator; the player's actual
+instruction, once the scoping doc was in front of them, was more decisive: **"let's remove all body parts.
+one profile pic per person."** One clarifying question — what a wrestler with no uploaded photo should
+look like, since that's the vast majority of the roster — got "Simple placeholder avatar," matching the
+initials-and-color-swatch style already used for commentators in the match viewer.
+
+The entire procedural system is gone, not patched around: `Appearance` (20 numeric traits), the indexed
+sprite atlas (`tools/wrestler_atlas.py`, 72 PNG sheets, the compositor, the manifest/traits contract), the
+Hamming-distance distinctness checks at generation and repackage time, `GimmickLook`/`applyGimmickLook` and
+stable unified colors, and second-generation face resemblance — all deleted, along with every import and
+call site that touched them (three generation call sites, `repackage.ts`, `lineage.ts`, `roster-io.ts`,
+~24 `<PaperDoll>` render sites across the UI, and every test that exercised any of it).
+
+`Wrestler.photoDataUrl?: string` is the entire replacement: an optional data URI, absent for the
+overwhelming majority of the roster (every generated NPC, free agent, rival). `PaperDoll.tsx` is the one
+render point everything still goes through — a real photo if `photoDataUrl` is set, otherwise a flat
+colored circle with the wrestler's initials, hue derived from a hash of their name so it's stable across
+renders. `ui/paperdoll/photoUpload.ts` turns an uploaded file into that data URI entirely client-side —
+decode, centre-crop to a square, downscale to 96×96, export as compressed WebP — no network call, same as
+the rest of the game. The upload/remove-photo control lives in a rewritten `WrestlerEditor.tsx`, which also
+dropped its now-meaningless gender/alignment "preview" controls (they only ever existed to drive the
+deleted atlas's frame selection and heel/face tint; `repackageWrestler` never actually saved them).
+
+One real mechanic had to survive the cut: the "Mask vs Mask" stipulation needs to know who is actually
+masked, both to gate booking it (all participants must be masked) and to apply its stakes (the loser is
+unmasked for good). That was previously read off `appearance.mask`. It's now `Wrestler.masked: boolean` —
+a mechanical fact, not a look — set at generation from a new `Gimmick.masked?: 'required' | 'forbidden'`
+field (kept on exactly the three gimmicks that ever cared: Luchador and Mysterious Outsider require it,
+Daredevil forbids it) or, for everyone else, a small flat chance seeded off the wrestler's own id so
+removing this draw can never reroll anyone who already existed. The three places a gimmick can change
+underneath a wrestler (`gimmickChange`, the signing-meeting picker, the cold-meeting relaunch) re-apply the
+required/forbidden rule the same way `applyGimmickLook` used to. "Hair vs Hair" needed nothing: nothing
+else in the sim ever read hairstyle, so its consequence is now just the write-up line, same as always.
+
+Removing the appearance generator's RNG draws shifted every seeded roll after it in world/wrestler
+creation — the exact trap CLAUDE.md warns about, just in reverse (removing draws instead of adding one).
+Four existing tests broke as a result, none from a logic bug: an academy age-range assertion that was
+actually checking the wrong settings field and had only ever passed by seed luck; a tag-match pinned/pinner
+test whose 60-iteration loop was actually just two fixed entity-seeded draws repeated (fixed by varying
+`week` per iteration so it samples real independent draws); and two joint-show tests that depended on a
+rival's booked card having spare standby capacity, which a bigger local roster (30 vs. the file's 24)
+restores with headroom rather than chasing the old seed. Re-expressed per CLAUDE.md's own rule, not
+re-baselined — each fix is documented inline at the assertion it touches.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2857 tests, 0 failures), `npm run build` clean, and a
+live Playwright pass through a fresh save — roster and detail screens render initials placeholders
+correctly for the whole generated roster, the editor's upload flow accepts a file, crops/resizes/previews
+it, and Save writes it through so the roster row and every other `<PaperDoll>` site immediately show the
+real photo in place of the placeholder.
+
+---
+
 ## UX/navigation overhaul — all four phases shipped
 
 Player played the actual built game for the first time and the verdict was blunt: "the ux and layout is

@@ -80,7 +80,6 @@ import {
 } from '../engine/economy/bidding';
 import { causesFor } from '../data/casualties';
 import { GIMMICKS } from '../data/gimmicks';
-import { applyGimmickLook, stableColorsFrom } from '../engine/generate/gimmickLook';
 import type { IncidentContext } from '../engine/sim/incidents';
 
 /**
@@ -1407,11 +1406,10 @@ export function applyEffect(world: World, rng: Rng, effect: EventEffect): number
     case 'gimmickChange': {
       const w = at(effect.wrestlerId);
       if (w) {
-        // The look follows the character — that's the whole point of granting
-        // the request rather than making the player dress them.
         const next = pick(rng, GIMMICKS.filter((g) => g.id !== w.gimmick.id));
         w.gimmick = next;
-        w.appearance = applyGimmickLook(w.appearance, next, rng);
+        if (next.masked === 'required') w.masked = true;
+        else if (next.masked === 'forbidden') w.masked = false;
         w.gimmickFreshness = 100;
       }
       break;
@@ -1477,8 +1475,6 @@ export function applyEffect(world: World, rng: Rng, effect: EventEffect): number
         kind: effect.memberIds.length > 2 ? 'stable' : 'tagTeam',
         memberIds: [...effect.memberIds],
         leaderId: founder.id,
-        colors: stableColorsFrom(founder),
-        unifiedLook: true,
         formedWeek: world.week,
         disbandedWeek: null,
         record: { wins: 0, losses: 0, draws: 0 },

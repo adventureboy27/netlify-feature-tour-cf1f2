@@ -17,7 +17,6 @@ import {
   lineageLabel,
   nameBurden,
   patienceLeft,
-  resemblance,
   rollParent,
   weeklyLineage,
 } from './lineage';
@@ -208,29 +207,6 @@ describe('where the name is known', () => {
 
   it('is empty for a parent who never worked a territory', () => {
     expect(inheritedTowns(legend('p6', { regionalPopularity: {} }), settings)).toEqual({});
-  });
-});
-
-describe('family resemblance', () => {
-  it('only ever takes colouring and frame', () => {
-    const parent = makeWrestler('rp').appearance;
-    const own = makeWrestler('ro').appearance;
-    // Certainty in both directions, so the split is testable.
-    const takesAll = resemblance(rngFromSeed('r'), parent, own, { ...settings, secondGenResemblance: 1 });
-    expect(takesAll.skinTone).toBe(parent.skinTone);
-    expect(takesAll.hairColor).toBe(parent.hairColor);
-    expect(takesAll.build).toBe(parent.build);
-    expect(takesAll.height).toBe(parent.height);
-    // Choices, not genes.
-    expect(takesAll.hairStyle).toBe(own.hairStyle);
-    expect(takesAll.attireTop).toBe(own.attireTop);
-    expect(takesAll.attireBottom).toBe(own.attireBottom);
-    expect(takesAll.boots).toBe(own.boots);
-    expect(takesAll.mask).toBe(own.mask);
-    expect(takesAll.primaryColor).toBe(own.primaryColor);
-
-    const takesNone = resemblance(rngFromSeed('r'), parent, own, { ...settings, secondGenResemblance: 0 });
-    expect(takesNone).toEqual(own);
   });
 });
 

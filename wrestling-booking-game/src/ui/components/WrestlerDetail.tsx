@@ -16,7 +16,6 @@ import { useState } from 'react';
 import { crownBadge, crownsFor, CUP_NAME } from '../../engine/world/cup';
 import { useGameStore } from '../../state/store';
 import { activeRivalriesFor } from '../../engine/sim/rivalry';
-import { effectiveAppearance } from '../../engine/generate/gimmickLook';
 import { CAREER_STATUS_LABELS, CAREER_STATUS_BLURBS, yearsPro } from '../../engine/career/status';
 import { egoLabel } from '../../engine/career/ego';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
@@ -110,7 +109,7 @@ export function WrestlerDetailBody({
           this is the one screen a wrestler is the entire point of. */}
       <div className="mb-3 flex gap-3">
         <div className="relative shrink-0">
-          <PaperDoll appearance={effectiveAppearance(w, world.stables)} gender={w.gender} alignment={w.alignment} size="large" />
+          <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} size="large" />
           {w.injury && (
             <span
               className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-sm font-bold text-white shadow"

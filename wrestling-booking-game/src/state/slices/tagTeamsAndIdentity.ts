@@ -11,7 +11,6 @@ import { saveGame } from '../persist';
 import { canFormTeam, createTeam } from '../../engine/world/tagTeams';
 import {
   checkRename,
-  checkRestyle,
   namesInUse,
   repackage,
   RENAME_REJECTION_TEXT,
@@ -96,19 +95,6 @@ export const createTagTeamsAndIdentitySlice: StateCreator<
       const check = checkRename(change.name, w.name, namesInUse(everybody), world.settings);
       if (!check.ok) return { ok: false, reason: RENAME_REJECTION_TEXT[check.reason!] };
     }
-    if (change.appearance) {
-      const look = checkRestyle(change.appearance, wrestlerId, everybody);
-      if (!look.ok) {
-        const clash = look.clashesWith ? world.wrestlers[look.clashesWith]?.name : null;
-        return {
-          ok: false,
-          reason: clash
-            ? `Too close to how ${clash} already looks. Change more than a couple of things.`
-            : 'Too close to how somebody else already looks.',
-        };
-      }
-    }
-
     set((state) => {
       const draft = state.world;
       const target = draft?.wrestlers[wrestlerId];

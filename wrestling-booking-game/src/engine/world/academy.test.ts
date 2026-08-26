@@ -64,8 +64,10 @@ describe('a graduating class', () => {
     expect(wrestlers).toHaveLength(3);
     expect(freeAgents).toHaveLength(3);
     for (const w of wrestlers) {
+      // Late starters are still students, up to the school's own age cap —
+      // see the "thirty-year-old who finally walked in" note in academy.ts.
       expect(w.age).toBeGreaterThanOrEqual(settings.academyDebutAgeMin);
-      expect(w.age).toBeLessThanOrEqual(settings.academyDebutAgeMax);
+      expect(w.age).toBeLessThanOrEqual(settings.academyMaxAge);
       expect(w.debutYear).toBe(2000);
       expect(w.careerStatus).toBe('rookie');
       expect(w.contract).toBeNull();

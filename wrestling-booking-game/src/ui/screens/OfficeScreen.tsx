@@ -892,12 +892,7 @@ function ContractsTab() {
                   className="rounded border border-rose-900/60 bg-neutral-900 p-2"
                 >
                   <div className="flex items-center gap-2">
-                    <PaperDoll
-                      appearance={person.appearance}
-                      gender={person.gender}
-                      alignment={person.alignment}
-                      size="thumb"
-                    />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-neutral-500">
@@ -993,12 +988,7 @@ function ContractsTab() {
                   className="rounded border border-rose-900/60 bg-neutral-900 p-2"
                 >
                   <div className="flex items-center gap-2">
-                    <PaperDoll
-                      appearance={person.appearance}
-                      gender={person.gender}
-                      alignment={person.alignment}
-                      size="thumb"
-                    />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-rose-400">Getting nothing back from the crowd — a decision is due</div>
@@ -1131,12 +1121,7 @@ function ContractsTab() {
                   className="rounded border border-emerald-900/60 bg-neutral-900 p-2"
                 >
                   <div className="flex items-center gap-2">
-                    <PaperDoll
-                      appearance={person.appearance}
-                      gender={person.gender}
-                      alignment={person.alignment}
-                      size="thumb"
-                    />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-neutral-500">
@@ -1358,12 +1343,7 @@ function ContractsTab() {
                   className="rounded border border-sky-900/60 bg-neutral-900 p-2"
                 >
                   <div className="flex items-center gap-2">
-                    <PaperDoll
-                      appearance={person.appearance}
-                      gender={person.gender}
-                      alignment={person.alignment}
-                      size="thumb"
-                    />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-neutral-500">
@@ -1486,12 +1466,7 @@ function ContractsTab() {
               return (
                 <article key={renewal.wrestlerId} className="rounded border border-amber-900/60 bg-neutral-900 p-2">
                   <div className="flex items-center gap-2">
-                    <PaperDoll
-                      appearance={person.appearance}
-                      gender={person.gender}
-                      alignment={person.alignment}
-                      size="thumb"
-                    />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-neutral-500">
@@ -1573,12 +1548,7 @@ function ContractsTab() {
                   onClick={() => setOpenApproachId(offer.id)}
                   className="flex w-full items-center gap-2 rounded border border-neutral-800 bg-neutral-900 p-2 text-left hover:border-neutral-600"
                 >
-                  <PaperDoll
-                    appearance={target.appearance}
-                    gender={target.gender}
-                    alignment={target.alignment}
-                    size="thumb"
-                  />
+                  <PaperDoll photoDataUrl={target.photoDataUrl} name={target.name} size="thumb" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs">
                       {target.name}
