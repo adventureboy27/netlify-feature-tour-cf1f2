@@ -207,20 +207,26 @@ export function MatchViewerScreen({
               >
                 {/* Remounted every beat (`key`) so a one-shot pose animation
                     replays from its start each time, instead of the browser
-                    treating a repeated class as already-applied. */}
+                    treating a repeated class as already-applied. `animClass`
+                    lives on its own inner wrapper around just the portrait —
+                    several poses (ring-slam, ring-eliminated) rotate all the
+                    way to upside down, and the name tag below needs to stay
+                    put and readable rather than flipping with it. */}
                 <div
                   key={beatIndex}
                   className={`flex flex-col items-center gap-1 ${
                     spotlighted ? 'z-10 scale-125' : isOut ? 'scale-75 opacity-35 grayscale' : 'opacity-80'
-                  } ${animClass}`}
+                  }`}
                 >
-                  <PaperDoll
-                    appearance={wrestler.appearance}
-                    gender={wrestler.gender}
-                    alignment={wrestler.alignment}
-                    size="large"
-                    flip={sideA.includes(wrestler) ? false : true}
-                  />
+                  <div className={animClass}>
+                    <PaperDoll
+                      appearance={wrestler.appearance}
+                      gender={wrestler.gender}
+                      alignment={wrestler.alignment}
+                      size="large"
+                      flip={sideA.includes(wrestler) ? false : true}
+                    />
+                  </div>
                   <span className="max-w-[80px] truncate rounded bg-neutral-950/80 px-1 text-[9px] text-neutral-300">
                     {wrestler.name}
                     {isOut && <span className="ml-1 text-rose-400">OUT</span>}
@@ -236,14 +242,19 @@ export function MatchViewerScreen({
             </span>
           )}
 
-          {/* The comic-book callout — a move name, a count, or the finish word. */}
+          {/* The comic-book callout — a move name, a count, or the finish
+              word. Pinned to a strip along the top rather than the panel's
+              dead centre: the wrestlers themselves sit centred (and the
+              spotlighted pair pulls in tight, radius 70), so a centred
+              callout landed squarely on top of whoever the beat was about,
+              covering the exact portrait it was meant to punctuate. */}
           {calloutText && (
             <div
               key={`callout-${beatIndex}`}
-              className="pointer-events-none absolute inset-0 flex items-center justify-center"
+              className="pointer-events-none absolute inset-x-0 top-4 flex justify-center px-4"
             >
               <span
-                className="animate-callout-pop select-none text-3xl font-black uppercase tracking-wide text-amber-300"
+                className="animate-callout-pop select-none rounded bg-neutral-950/40 px-2 text-3xl font-black uppercase tracking-wide text-amber-300"
                 style={{ textShadow: '3px 3px 0 rgba(0,0,0,0.6), -1px -1px 0 rgba(255,255,255,0.15)' }}
               >
                 {calloutText}

@@ -2939,3 +2939,34 @@ array position rather than a real decision.
   (`ringside.ts`'s `RingsideOutcome.distractionBy`), no matching id field — unlike `caughtBy`/`caughtById`,
   there's no `distractionById` to stamp. Cheap-looking, but touches a subsystem nobody asked about this pass;
   left on the rotation-guess fallback, same as before.
+
+### Follow-up: two visual bugs found reviewing the match viewer
+
+Asked directly "do the commentator graphics, ring, and rest of the screen look good," so it got a real
+look — 18 matches watched across 3 weeks, not just the elimination/pinfall scenarios above. Two real defects
+turned up in `MatchViewerScreen.tsx`, both fixed:
+
+- **The comic callout collided with the portrait it was about.** `1... 2... 3!`, `KNOCKED OUT!`, `THE REF
+  STOPS IT!` and friends were centred across the whole ring panel (`inset-0` + `items-center`), and the
+  spotlighted actor/target pull in to a tight radius (70px) right around that same centre — so the callout
+  landed squarely on top of whoever it was calling out, covering their face, on essentially every finish.
+  Moved it to a pinned strip along the top (`inset-x-0 top-4`) instead, clear of the whole ring circle, plus
+  a faint backing so it stays legible over whatever's behind it.
+- **A wrestler's name went upside down along with them.** `ring-slam` and `ring-eliminated` rotate a
+  portrait a full 180° — the point, for a finisher's target or an elimination — but the animation class sat
+  on the same wrapper as the name tag underneath, so the label rotated too and came out as unreadable mirror
+  text. Split the wrapper: the animation now lives on an inner div around just the `PaperDoll`, the name tag
+  is a sibling that never rotates. The grey/shrink/opacity treatment for an eliminated wrestler stays on the
+  outer wrapper (so it still covers the label, which is correct — an eliminated name should read as faded,
+  just not sideways).
+- **Not fixed this pass, flagged in the answer to the question**: the ring itself has no visual identity at
+  all (no ropes/mat/turnbuckles/crowd — wrestlers just float on the panel's plain dark background), long
+  names hard-truncate illegibly, the commentators have no graphic beyond a colored name label, and the
+  underlying commentary line pools (`data/commentaryLines.ts`) repeat noticeably for facts that are almost
+  always true (a `poorMatch` + heel-leaning closer had exactly one line and fired in 7 of 18 watched
+  matches; a bare `referee` colour line fired in 4 of 18) — plus a real bug where a debut line can print a
+  wrestler's own name as their opponent's when they're the one sitting in `{sideB}`. None of that was asked
+  for yet; noted here so it doesn't have to be rediscovered.
+- Verified: `tsc --noEmit` clean, full suite 152 files / 2,941 tests passing (no test covered this — it's
+  presentation, caught only by watching it), `npm run build` clean, live re-verification of a 6-way battle
+  royal's elimination and finish poses confirming both the callout and the label sit correctly now.
