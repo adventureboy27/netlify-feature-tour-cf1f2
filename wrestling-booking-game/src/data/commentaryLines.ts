@@ -46,7 +46,12 @@
 //   {otherChamp} {otherBelt}     needs 'reigningElsewhere'
 //   {streaking}                  needs 'onATear'
 //   {slumping}                   needs 'slumping'
-//   {debutant}                   needs 'debut'
+//   {debutant} {debutantOpponent} needs 'debut'. {debutantOpponent} is
+//                                resolved from whichever corner the debutant
+//                                is *not* in — never write "{debutant} ...
+//                                {sideA}/{sideB}" together, since if the
+//                                debutant happens to be that side's own first
+//                                name it prints the same wrestler twice.
 //   {secondGen} {secondGenParent} needs 'secondGeneration'
 //   {timesMet}                   needs 'metOften'
 //   {feudWeeks} {feudMatches}    needs 'longFeud'
@@ -173,7 +178,7 @@ export const OPENERS: readonly ColourTemplate[] = [
     needs: ['blowoff'],
   },
   {
-    text: 'Debut night. {debutant} has never worked a match for this company, and starts against {sideB}.',
+    text: 'Debut night. {debutant} has never worked a match for this company, and starts against {debutantOpponent}.',
     needs: ['debut'],
   },
   {
@@ -403,6 +408,22 @@ export const COLOUR: readonly ColourTemplate[] = [
     needs: ['referee'],
     after: ['nearFall'],
     provocative: true,
+  },
+  {
+    text: '{ref} has a decent view of this one so far, {play}. Right in position every time.',
+    needs: ['referee'],
+    after: ['control'],
+  },
+  {
+    text: 'You do not envy {ref} tonight. That is not an easy match to keep up with.',
+    needs: ['referee'],
+    after: ['hopeSpot', 'signature'],
+  },
+  {
+    text: 'Credit where it is due — {ref} is right on top of this one.',
+    needs: ['referee'],
+    leaning: 'face',
+    after: ['nearFall', 'signature'],
   },
   {
     // A pass-through, like {incident}: the miss already has its own written
@@ -818,6 +839,41 @@ export const CLOSERS: readonly ColourTemplate[] = [
     text: 'A win is a win. It does not have to be pretty and that certainly was not.',
     needs: ['poorMatch'],
     leaning: 'heel',
+  },
+  {
+    text: 'Call it what you want, {play}. They got the hand raised, and that is the whole job.',
+    needs: ['poorMatch'],
+    leaning: 'heel',
+  },
+  {
+    text: 'Not every night is a classic. Some nights you just win, and {winner} just won.',
+    needs: ['poorMatch'],
+    leaning: 'heel',
+  },
+  {
+    text: 'Give them credit for finding a way through that, because it was not pretty to watch.',
+    needs: ['poorMatch'],
+    leaning: 'face',
+  },
+  {
+    text: 'It will not make the highlight reel, but a win is a win for {winner} tonight.',
+    needs: ['poorMatch'],
+    leaning: 'face',
+  },
+  {
+    text: 'Not their finest work out there, and I think {winner} would tell you that themselves.',
+    needs: ['poorMatch'],
+    leaning: 'face',
+  },
+  {
+    text: 'The numbers will not be kind to that one, but the result counts the same either way.',
+    needs: ['poorMatch'],
+    leaning: 'analyst',
+  },
+  {
+    text: 'That will not move anybody up the card, win or lose. Function over form tonight.',
+    needs: ['poorMatch'],
+    leaning: 'analyst',
   },
   {
     text: 'Listen to that reaction. That is what this business is for.',

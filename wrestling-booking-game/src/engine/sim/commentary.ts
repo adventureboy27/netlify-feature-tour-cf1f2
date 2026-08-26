@@ -334,6 +334,12 @@ function filler(ctx: CommentaryContext, rng: Rng) {
   const manager = ctx.managers.length > 0 ? pick(rng, [...ctx.managers]) : null;
   const byWeight = [...everyone].sort((a, b) => (b.weightLbs ?? 0) - (a.weightLbs ?? 0));
   const hurt = ctx.injuries[0];
+  // Which corner is actually across from the debutant — found by where their
+  // name sits, not assumed to be a fixed side, since the debutant can be
+  // booked into either corner.
+  const debutantOpponent = ctx.debutantName
+    ? (ctx.sideA.some((w) => w.name === ctx.debutantName) ? ctx.sideB[0] : ctx.sideA[0])
+    : null;
 
   return (text: string, momentum: Momentum): string => {
     // Where two people qualify, the one the line is about is the one it is
@@ -363,6 +369,13 @@ function filler(ctx: CommentaryContext, rng: Rng) {
       .replace(/\{oldHand\}/g, ctx.oldHandName ?? everyone[0]?.name ?? 'them')
       .replace(/\{oldHandYears\}/g, String(Math.max(1, ctx.oldHandYears)))
       .replace(/\{debutant\}/g, ctx.debutantName ?? everyone[0]?.name ?? 'them')
+      // Whoever the debutant is *not* — resolved from which corner their name
+      // actually sits in, rather than a fixed {sideA}/{sideB} lookup. A debut
+      // line naming both the debutant and "the other corner" used to print
+      // the same name twice whenever the debutant happened to be sideB's own
+      // first name: "{debutant} ... starts against {sideB}" with both
+      // resolving to the same wrestler.
+      .replace(/\{debutantOpponent\}/g, debutantOpponent?.name ?? 'their opponent')
       .replace(/\{secondGen\}/g, ctx.secondGenName ?? everyone[0]?.name ?? 'them')
       .replace(/\{secondGenParent\}/g, ctx.secondGenParentName ?? 'their parent')
       .replace(/\{timesMet\}/g, String(ctx.timesMet))

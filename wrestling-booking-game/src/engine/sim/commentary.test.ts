@@ -134,6 +134,7 @@ const BACKED_BY: Record<string, string[]> = {
   streaking: ['onATear'],
   slumping: ['slumping'],
   debutant: ['debut'],
+  debutantOpponent: ['debut'],
   secondGen: ['secondGeneration'],
   secondGenParent: ['secondGeneration'],
   timesMet: ['metOften'],
@@ -463,6 +464,27 @@ describe('what it is allowed to talk about', () => {
   it('knows a debut from an ordinary night', () => {
     expect(factsOf(bare({ debutantName: 'Aaron Quist' })).has('debut')).toBe(true);
     expect(factsOf(bare()).has('debut')).toBe(false);
+  });
+
+  it('never names the debutant as their own opponent, whichever corner they are booked in', () => {
+    // The bug: a debut opener names {debutant} and {sideB} together, and
+    // {sideB} used to be a fixed lookup regardless of which side the
+    // debutant actually sat in — so a debutant booked into sideB read as
+    // "Bo Halvorsen ... starts against Bo Halvorsen."
+    const debutantOnA = bare({ debutantName: 'Aaron Quist' });
+    const debutantOnB = bare({ debutantName: 'Bo Halvorsen' });
+    for (let i = 0; i < 40; i++) {
+      const textA = said(debutantOnA, `debut-a-${i}`);
+      if (textA.includes('Debut night.')) {
+        expect(textA).toContain('Bo Halvorsen');
+        expect(textA).not.toMatch(/starts against Aaron Quist/);
+      }
+      const textB = said(debutantOnB, `debut-b-${i}`);
+      if (textB.includes('Debut night.')) {
+        expect(textB).toContain('Aaron Quist');
+        expect(textB).not.toMatch(/starts against Bo Halvorsen/);
+      }
+    }
   });
 
   it('only calls a match a first meeting when it is worth remarking on', () => {

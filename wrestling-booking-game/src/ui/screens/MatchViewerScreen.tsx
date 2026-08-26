@@ -179,8 +179,39 @@ export function MatchViewerScreen({
       />
 
       {/* ---- the ring, top two-thirds ------------------------------------ */}
-      <Panel elevation="hero" className="relative mt-3 flex-[2] overflow-hidden" data-testid="match-ring">
+      <Panel
+        elevation="hero"
+        className="relative mt-3 flex-[2] overflow-hidden"
+        style={{ background: 'radial-gradient(ellipse at 50% 42%, rgba(255,255,255,0.05), transparent 60%)' }}
+        data-testid="match-ring"
+      >
         <div className="relative h-full min-h-[420px] w-full">
+          {/* The ring itself — otherwise every wrestler is just floating on
+              the panel's plain background with nothing under them. A mat and
+              three rope lines sized to frame the spotlighted pair (radius 70)
+              at the centre; everyone else, further out at radius 150, reads
+              as circling just outside it, which is exactly where a battle
+              royal's field actually stands while two of them go at it in the
+              middle. Tinted to the promotion's own colour so it doesn't feel
+              like a placeholder. */}
+          <div
+            className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            style={{ width: 300, height: 300 }}
+          >
+            <div className="absolute inset-5 rounded-xl bg-gradient-to-b from-neutral-800/50 to-neutral-950/70" />
+            <div className={`absolute inset-0 rounded-2xl border-2 ${theme.edge} opacity-60`} />
+            <div className={`absolute inset-[10px] rounded-2xl border-2 ${theme.edge} opacity-40`} />
+            <div className={`absolute inset-5 rounded-2xl border-2 ${theme.edge} opacity-25`} />
+            {[
+              'left-0 top-0 -translate-x-1/2 -translate-y-1/2',
+              'right-0 top-0 translate-x-1/2 -translate-y-1/2',
+              'left-0 bottom-0 -translate-x-1/2 translate-y-1/2',
+              'right-0 bottom-0 translate-x-1/2 translate-y-1/2',
+            ].map((pos) => (
+              <div key={pos} className={`absolute h-3 w-3 rounded-sm ${theme.action} ${pos}`} />
+            ))}
+          </div>
+
           {visible.map((wrestler, i) => {
             const angle = (360 / visible.length) * i;
             const isActor = current?.actorId === wrestler.id;
@@ -227,9 +258,13 @@ export function MatchViewerScreen({
                       flip={sideA.includes(wrestler) ? false : true}
                     />
                   </div>
-                  <span className="max-w-[80px] truncate rounded bg-neutral-950/80 px-1 text-[9px] text-neutral-300">
-                    {wrestler.name}
-                    {isOut && <span className="ml-1 text-rose-400">OUT</span>}
+                  {/* `line-clamp-2` rather than a single-line `truncate` — a
+                      long ring name used to hard-cut to "Diamond Sun…" at
+                      80px; wrapping onto a second line keeps the whole name
+                      readable instead of guessing at it. */}
+                  <span className="flex max-w-[110px] flex-col items-center gap-0.5 rounded bg-neutral-950/80 px-1 py-0.5 text-center text-[9px] leading-tight text-neutral-300">
+                    <span className="line-clamp-2 break-words">{wrestler.name}</span>
+                    {isOut && <span className="text-rose-400">OUT</span>}
                   </span>
                 </div>
               </div>
@@ -286,6 +321,29 @@ export function MatchViewerScreen({
   );
 }
 
+/** First letter of up to two words — the closest thing a commentator has to a portrait. */
+function initials(name: string): string {
+  const letters = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase());
+  return letters.join('') || '?';
+}
+
+function Avatar({ name, tone }: { name: string; tone: 'play' | 'colour' }) {
+  return (
+    <span
+      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+        tone === 'play' ? 'bg-sky-700 text-sky-100' : 'bg-amber-700 text-amber-100'
+      }`}
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
 function CommentaryFeed({
   lines,
   shown,
@@ -300,12 +358,19 @@ function CommentaryFeed({
   return (
     <div className="mt-3 flex-1 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900" data-testid="commentary-feed">
       <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950/60 px-3 py-1.5">
-        <span className="text-[11px] font-semibold text-sky-400">{playName}</span>
-        <span className="text-[11px] font-semibold text-amber-400">{colourName}</span>
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-sky-400">
+          <Avatar name={playName} tone="play" />
+          {playName}
+        </span>
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400">
+          {colourName}
+          <Avatar name={colourName} tone="colour" />
+        </span>
       </div>
       <div className="flex h-full max-h-[220px] flex-col gap-1.5 overflow-y-auto px-3 py-2">
         {lines.slice(0, shown).map((line, i) => (
-          <div key={i} className={`flex ${line.speaker === 'play' ? 'justify-start' : 'justify-end'}`}>
+          <div key={i} className={`flex items-end gap-1.5 ${line.speaker === 'play' ? 'justify-start' : 'justify-end'}`}>
+            {line.speaker === 'play' && <Avatar name={line.name} tone="play" />}
             <div
               className={`max-w-[70%] rounded-lg px-2.5 py-1.5 text-xs leading-snug ${
                 line.speaker === 'play'
@@ -315,6 +380,7 @@ function CommentaryFeed({
             >
               {line.text}
             </div>
+            {line.speaker === 'colour' && <Avatar name={line.name} tone="colour" />}
           </div>
         ))}
       </div>

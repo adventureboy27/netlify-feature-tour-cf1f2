@@ -2970,3 +2970,49 @@ turned up in `MatchViewerScreen.tsx`, both fixed:
 - Verified: `tsc --noEmit` clean, full suite 152 files / 2,941 tests passing (no test covered this — it's
   presentation, caught only by watching it), `npm run build` clean, live re-verification of a 6-way battle
   royal's elimination and finish poses confirming both the callout and the label sit correctly now.
+
+### Follow-up: the four items flagged above ("go for it")
+
+- **The ring now has a visual identity.** A mat, three concentric rope borders, and four corner
+  turnbuckles, drawn under the wrestlers in `MatchViewerScreen.tsx`, sized to frame the spotlighted pair
+  (radius 70) at the centre. Tinted to the promotion's own `theme.edge`/`theme.action` colours rather than a
+  fixed color, so it reads as this company's ring, not a generic placeholder. Confirmed live on both a
+  normal 2-sided match and a battle royal.
+- **Long names no longer hard-truncate.** The name tag was a single-line `truncate` at 80px, which cut
+  "Diamond Sundown" down to "Diamond Sun…". Widened to 110px and switched to `line-clamp-2` with
+  `break-words`, so a long name wraps onto a second line instead of guessing at it.
+- **The commentators now have a graphic, not just colored text.** A small circular avatar with their
+  initials (derived from the name, no new data needed — `CommentaryTeam` still carries no portrait field)
+  sits next to their name in the feed header and next to every one of their own chat bubbles, tinted to
+  match their existing sky/amber bubble color.
+- **The debut opponent-naming bug is fixed.** `commentary.ts`'s `filler()` used to resolve `{sideB}` as a
+  fixed lookup regardless of which corner the debutant actually sat in, so a debut opener could read
+  "Needles has never worked a match for this company, and starts against Needles" whenever the debutant
+  happened to be `sideB`'s own first name. Added a dedicated `{debutantOpponent}` placeholder, resolved by
+  finding which corner the debutant's name is actually in and naming the other one; the one template that
+  combined `{debutant}` with `{sideB}` now uses it. New regression test in `commentary.test.ts` runs both
+  placements (debutant on sideA, debutant on sideB) across 40 seeds each and confirms the opener never
+  names the debutant as their own opponent either way.
+- **Thinned-pool repeats reduced with more content, not new gating logic.** The `poorMatch` + heel-leaning
+  `CLOSERS` line ("A win is a win...") was the *only* poor-match closer in the whole file and fired in 7 of
+  18 watched matches; added 2 more heel lines, and — since face/analyst colour men had no poor-match closer
+  at all before this — 3 face and 2 analyst lines, so those leanings get *something* to say about a bad
+  match instead of silence. Added 3 more bare `needs: ['referee']` `COLOUR` lines (that pool had exactly 2)
+  gated to different beat phases (`control`, `hopeSpot`/`signature`, `nearFall`/`signature`) so they don't
+  all compete for the same slot.
+- **Explicitly not touched, and not a bug**: a genuine multi-man match (3+ real sides — a true battle
+  royal) gets no live commentary call at all, by design — this was already a deliberate, documented decision
+  from an earlier session ("Multi-man live commentary stopped mislabeling the field," above in this file):
+  `commentary.ts`'s whole vocabulary is built around exactly two corners, and reworking it to be N-way aware
+  was scoped out as "a real, separate project." Worth restating plainly since it means the answer to "is the
+  commentary entertaining" for a battle royal specifically is "there isn't any" — the highlight beats (now
+  carrying real elimination/pinfall identity, see above) are what a battle royal gets instead.
+- **Also found, not fixed**: adjacent-angle crowding in the ring when a field is large (5-6+) and one of two
+  angularly-close entrants is spotlighted (pulled to radius 70) while its neighbor sits at the normal radius
+  150 — their 120px portraits can visibly overlap. Pre-existing (present before this session's ring
+  background made it easier to see), and fixing it properly means re-tuning the radius/spacing math across
+  entrant counts, not a small change — left as a follow-up rather than guessed at here.
+- Verified: `tsc --noEmit` clean; full suite 152 files / 2,942 tests passing (+1, the debut-opponent
+  regression test); `npm run build` clean; live re-verification of both a normal 2-sided match (ring, full
+  names, avatars, and the new referee/poor-match lines all visible together) and a 6-way battle royal
+  (confirming it still renders correctly with no commentary panel, as designed).
