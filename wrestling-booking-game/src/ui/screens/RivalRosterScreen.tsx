@@ -19,7 +19,13 @@ import { WrestlerRow } from '../components/WrestlerRow';
 import { WrestlerDetailBody } from '../components/WrestlerDetail';
 import type { Id, Promotion, Wrestler } from '../../engine/types';
 
-export function RivalRosterScreen({ onNavigate }: { onNavigate?: (wrestlerId: Id) => void } = {}) {
+export function RivalRosterScreen({
+  onNavigate,
+  onOpenFeuds,
+}: {
+  onNavigate?: (wrestlerId: Id) => void;
+  onOpenFeuds?: (wrestlerId: Id) => void;
+} = {}) {
   const world = useGameStore((s) => s.world);
   const [selectedId, setSelectedId] = useState<Id | null>(null);
   const [selectedWrestlerId, setSelectedWrestlerId] = useState<Id | null>(null);
@@ -103,7 +109,12 @@ export function RivalRosterScreen({ onNavigate }: { onNavigate?: (wrestlerId: Id
               <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
                 {active ? (
                   <div className="max-w-2xl">
-                    <WrestlerDetailBody wrestler={active} editable={false} onNavigateWrestler={(id) => onNavigate?.(id)} />
+                    <WrestlerDetailBody
+                      wrestler={active}
+                      editable={false}
+                      onNavigateWrestler={(id) => onNavigate?.(id)}
+                      onOpenFeuds={onOpenFeuds}
+                    />
                   </div>
                 ) : (
                   <p className="text-sm text-neutral-500">Nobody selected.</p>

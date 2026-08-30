@@ -35,6 +35,12 @@ export type Screen =
   /** One wrestler's own screen — the real destination for a name tapped from
    *  somewhere that isn't one of the three master-detail lists below. */
   | 'wrestlerDetail'
+  /** One wrestler's whole feud history — current feuds first, then everything settled. */
+  | 'feuds'
+  /** Every pairing that has earned an all-time rivalry. */
+  | 'allTimeRivals'
+  /** Every pairing that told a genuinely memorable story, short of all-time. */
+  | 'classicRivalries'
   /** Fill an empty or fill-eligible card slot — reached by tapping it from the card overview. */
   | 'slotPicker'
   /** A booked slot's own screen — competitors, stakes, and rules — reached by tapping it from the card overview. */
@@ -101,6 +107,16 @@ const SIDEBAR_GROUPS: { label: string; items: SidebarItem[] }[] = [
         id: 'crucible',
         label: 'The Crucible',
         blurb: 'Every single winner of the Iron Crown, the year they took it, and exactly who they took it from.',
+      },
+      {
+        id: 'allTimeRivals',
+        label: 'All-Time Rivals',
+        blurb: 'The rare pairings that told more than one genuinely great story — earned, never handed out.',
+      },
+      {
+        id: 'classicRivalries',
+        label: 'Classic Rivalries',
+        blurb: 'Every other pairing the crowd still remembers, one real story short of an all-time rivalry.',
       },
     ],
   },

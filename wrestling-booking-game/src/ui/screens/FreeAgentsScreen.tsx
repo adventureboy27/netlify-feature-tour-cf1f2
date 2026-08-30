@@ -41,7 +41,13 @@ import { WrestlerRow } from '../components/WrestlerRow';
 import { WrestlerDetailBody } from '../components/WrestlerDetail';
 import type { Id } from '../../engine/types';
 
-export function FreeAgentsScreen({ onNavigate }: { onNavigate?: (wrestlerId: Id) => void } = {}) {
+export function FreeAgentsScreen({
+  onNavigate,
+  onOpenFeuds,
+}: {
+  onNavigate?: (wrestlerId: Id) => void;
+  onOpenFeuds?: (wrestlerId: Id) => void;
+} = {}) {
   const world = useGameStore((s) => s.world);
   const sign = useGameStore((s) => s.signFreeAgent);
   const [selectedId, setSelectedId] = useState<Id | null>(null);
@@ -209,6 +215,7 @@ export function FreeAgentsScreen({ onNavigate }: { onNavigate?: (wrestlerId: Id)
                   wrestler={activeWrestler}
                   editable={false}
                   onNavigateWrestler={(id) => onNavigate?.(id)}
+                  onOpenFeuds={onOpenFeuds}
                 />
 
                 {/* The free-agent-specific case for or against signing —

@@ -9,6 +9,7 @@ import { familyById as propFamilyById, type MatchPropFamily } from '../../data/m
 import { usableUnitsForFamily, type OwnedPropUnit } from '../../engine/economy/matchProps';
 import { officialFor, sharpnessLabel } from '../../engine/sim/referees';
 import { findRivalry } from '../../engine/sim/rivalry';
+import { isLive, type Storyline } from '../../engine/world/storyline';
 import { ruleAdjustedWeights, kayfabeScore } from '../../engine/sim/kayfabe';
 import { pairWinProbability } from '../../engine/sim/winProbability';
 import { eligibleTitles, titleStakesLabel } from '../../engine/sim/titleMatch';
@@ -53,10 +54,20 @@ export function previewOdds(segment: Segment, wrestlers: Wrestler[]): number | n
   return pairWinProbability(a, b, 0, 0.08, 0.92);
 }
 
+/** The live story this pairing would advance, if either principal of one is on both sides of this segment. */
+function liveStorylineFor(storylines: readonly Storyline[], segmentParticipantIds: readonly Id[]): Storyline | null {
+  return (
+    storylines.find(
+      (s) => isLive(s) && s.participantIds.length >= 2 && s.participantIds.every((id) => segmentParticipantIds.includes(id)),
+    ) ?? null
+  );
+}
+
 export interface SegmentSummary {
   participants: { wrestlerId: Id; side: number; wrestler: Wrestler }[];
   sides: number[];
   rivalry: Rivalry | undefined;
+  storyline: Storyline | null;
   stipulation: Stipulation | null;
   odds: number | null;
   bookable: Title[];
@@ -78,6 +89,7 @@ export function summarizeSegment(segment: Segment, roster: Wrestler[], world: Wo
     .filter((p): p is { wrestlerId: Id; side: number; wrestler: Wrestler } => Boolean(p.wrestler));
   const sides = [...new Set(segment.participants.map((p) => p.side))].sort();
   const rivalry = findRivalry(world.rivalries, participants.map((p) => p.wrestler.id));
+  const storyline = liveStorylineFor(world.storylines, participants.map((p) => p.wrestler.id));
   const stipulation = segment.stipulation ? (stipulationById(segment.stipulation) ?? null) : null;
   const odds = previewOdds(segment, roster);
 
@@ -117,6 +129,7 @@ export function summarizeSegment(segment: Segment, roster: Wrestler[], world: Wo
     participants,
     sides,
     rivalry,
+    storyline,
     stipulation,
     odds,
     bookable,

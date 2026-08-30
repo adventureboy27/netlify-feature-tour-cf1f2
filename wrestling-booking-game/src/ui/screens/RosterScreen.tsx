@@ -35,10 +35,12 @@ type SortKey = keyof typeof SORTS;
 export function RosterScreen({
   onNavigate,
   onRepackage,
+  onOpenFeuds,
 }: {
   /** Fallback for a name that isn't in this roster (a rare off-roster relationship). */
   onNavigate?: (wrestlerId: Id) => void;
   onRepackage?: (wrestlerId: Id) => void;
+  onOpenFeuds?: (wrestlerId: Id) => void;
 } = {}) {
   const world = useGameStore((s) => s.world);
   const [sort, setSort] = useState<SortKey>('popularity');
@@ -119,7 +121,13 @@ export function RosterScreen({
         <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
           {active ? (
             <div className="max-w-2xl">
-              <WrestlerDetailBody wrestler={active} editable onNavigateWrestler={onSelectWrestler} onRepackage={onRepackage} />
+              <WrestlerDetailBody
+                wrestler={active}
+                editable
+                onNavigateWrestler={onSelectWrestler}
+                onRepackage={onRepackage}
+                onOpenFeuds={onOpenFeuds}
+              />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">Nobody on the roster yet.</p>

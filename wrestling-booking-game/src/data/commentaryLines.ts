@@ -420,6 +420,16 @@ export const COLOUR: readonly ColourTemplate[] = [
     after: ['hopeSpot', 'signature'],
   },
   {
+    text: '{ref} is earning tonight’s pay right there, sprinting to keep this in view.',
+    needs: ['referee'],
+    after: ['hopeSpot', 'signature'],
+  },
+  {
+    text: 'That pace would wear anybody out, {play} — official included.',
+    needs: ['referee'],
+    after: ['hopeSpot', 'signature'],
+  },
+  {
     text: 'Credit where it is due — {ref} is right on top of this one.',
     needs: ['referee'],
     leaning: 'face',

@@ -5,6 +5,80 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Feud pages, pair chemistry, and earned rivalry status — shipped
+
+Asked what else was worth building, the honest read of the storyline system was that it mostly already
+existed — `engine/world/storyline.ts` and the Stories board on the booking screen already ran the whole
+opening/building/boiling/blown-off lifecycle. The real gap, once scoped, was everything the player actually
+asked for next: a per-wrestler feud history with a visible rise-and-fall shape, some pairings clicking and
+some never working, a real mechanic for revisiting a great feud for a spark without running it into the
+ground, and an earned "All-Time Rivals" tier modeled explicitly on the real thing — Flair and Steamboat,
+picking a decades-old feud back up and the house knowing it's in for a treat, versus the same match run once
+too often burning out its own heat.
+
+The mechanic (`engine/sim/pairChemistry.ts`, new) has two halves, both feeding a single
+`pairChemistryBonus` term in `matchRating.ts` that already existed as a wired but permanently-zero context
+field — the same "dead hook" pattern `overexposurePenalty` was before `freshness.ts` gave it a real value,
+so the rating formula itself needed no changes at all:
+
+- `innateChemistry(participantIds, settings)` — a fixed, entity-seeded roll (`rngFromSeed`, never the shared
+  stream) per pairing, gaussian around a slight positive mean with real negative tail. Some pairs just click;
+  a few genuinely never do, and that pair's segments carry a real, visible penalty every time they're booked
+  together, all the way down to `chemistryLabel()`'s plain-words read ("no chemistry at all — this is a
+  fight to book, not a story") rather than a number.
+- `sharedHistoryBonus(history, currentWeek, settings)` — real, tunable modeling of the too-soon-vs-earned-
+  spark tradeoff: reviving a pairing inside `rivalryRestWeeks` costs a real penalty that compounds per
+  revival: too many trips back to the well and the audience is done with it. Given enough rest, a genuinely
+  great past blow-off (quality-weighted, using the pre-existing `blowOffQuality()`) earns a real bonus that
+  fades a little on each subsequent revival, exactly the diminishing-returns shape asked for.
+
+Both `blowOffQuality` and past-blow-off history had to actually survive past the moment they were computed.
+`blowOff()` always calculated a quality score to color that one week's write-up and then threw it away;
+`Storyline` now carries an optional `blowOffQuality?: number` (no schema bump — old saves just read it as
+`undefined`, same safe-optional-field pattern as every prior save-compatible addition here), so a pairing's
+whole history of blow-offs is queryable after the fact. `legendStatus()` derives the earned tier from that
+history against the existing `storylineGreatBlowoff`/`storylineFairBlowoff` thresholds (reused, not
+duplicated) plus two new settings, `allTimeRivalGreatBlowoffs` (2) and `classicRivalryFairBlowoffs` (2) —
+most feuds never get there on purpose.
+
+Five new UI surfaces, all reading the engine rather than deciding anything themselves:
+
+- **`WrestlerFeudsScreen.tsx`** (new `feuds` screen) — one wrestler's whole feud history, current feuds
+  (up to however many are actually running) shown first and foremost, each with a `FeudTimeline` — a
+  horizontal progress bar against the real building/boiling thresholds, a dot per beat, colored by stage —
+  so the rise/fall shape asked for is the actual shape of the story, not a chart bolted on after. Real,
+  attributable comparability stats (`sharedNightsSummary`) — matches together, best and average stars, gate
+  on the nights they shared a card — substitute for per-wrestler merch tracking, which the data model
+  genuinely does not carry (`merch` is Show-level only); said so rather than fabricating a number. A "Start a
+  story" panel lets the booker manually name a pairing without waiting for the crowd to earn it, reusing the
+  pre-existing `startStoryline` action untouched.
+- **`AllTimeRivalsScreen.tsx` / `ClassicRivalriesScreen.tsx`** (new History-group screens) — every pairing
+  at each earned tier, citation-card style deliberately matching the Hall of Fame's own look.
+- **Office → Feuds tab** (`OfficeScreen.tsx`) — the feud index the player asked for: every wrestler who has
+  ever carried a real story, current business sorted first, each row linking straight to their feud page.
+- **`WrestlerDetail.tsx`** gained a "View feud history" link (any wrestler with a storyline, not just
+  roster members), and every screen that renders it (`Roster`, `FreeAgents`, `RivalRosters`,
+  `WrestlerDetailScreen`) threads an `onOpenFeuds` prop down to it.
+- **Card-slot chip** — `segmentSummary.ts` gained a `storyline` field (any live story whose principals are
+  both present in a segment, singles or tag), surfaced as an "Advances: {name}" chip on both the card
+  overview and the match setup screen, so booking a pairing that's mid-story says so before the show runs.
+
+Wiring in a real, always-on rating term surfaced a genuine pre-existing content gap rather than a bug in the
+new code: `store.test.ts`'s "does not repeat the colour man across the card" test failed once chemistry
+started shifting match ratings for real, because the "you do not envy {ref} tonight" observation had exactly
+one eligible template for a `hopeSpot`/`signature` beat with a non-face colour man — any card where three or
+more segments hit that combination was always going to force a third repeat, chemistry or not. Fixed at the
+actual source per CLAUDE.md's own rule (re-express what broke, don't re-baseline the number): two more
+templates in that same slot in `data/commentaryLines.ts`, giving the colour man real alternatives instead of
+tuning the chemistry math to dodge one fixed seed.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2881 tests, 0 failures, including the new 24-test
+`pairChemistry.test.ts`), `npm run build` clean, and `tools/probe.mjs` (3 seeds × 104 weeks) showing mean
+show rating unchanged from the documented baseline (49.6 against a 49-51 baseline range) — the new rating
+term is real without having quietly reshaped the whole rating curve.
+
+---
+
 ## Photo portraits replace the generated sprite atlas — shipped
 
 Asked directly what it takes to upload a profile picture, the honest answer was that there was no upload

@@ -64,7 +64,7 @@ import {
 } from '../../engine/world/schedule';
 import { identityOf } from '../../data/promotionIdentity';
 import { foldRisk, FOLD_RISK_LABELS } from '../../engine/world/rivalEconomy';
-import type { Wrestler } from '../../engine/types';
+import type { Id, Wrestler } from '../../engine/types';
 import { contractUrgency } from '../../engine/economy/contracts';
 import { severanceOwed, guaranteeLabel, releaseRequestLine } from '../../engine/economy/termination';
 import { canBeTraded, tradeWorth, tradePartners } from '../../engine/world/trades';
@@ -77,11 +77,13 @@ import {
   sharpnessLabel,
   isAvailable,
 } from '../../engine/sim/referees';
+import { allStorylinesFor, everyoneWithAStoryline, isLive, standing } from '../../engine/world/storyline';
+import { Badge } from '../components/chrome';
 
-type Tab = 'desk' | 'contracts' | 'officials' | 'trades' | 'television' | 'schedule' | 'joint';
+type Tab = 'desk' | 'contracts' | 'officials' | 'trades' | 'television' | 'schedule' | 'joint' | 'feuds';
 
 
-export function OfficeScreen() {
+export function OfficeScreen({ onOpenFeuds }: { onOpenFeuds?: (wrestlerId: Id) => void } = {}) {
   const world = useGameStore((s) => s.world);
   const [tab, setTab] = useState<Tab>('desk');
   if (!world) return null;
@@ -121,6 +123,7 @@ export function OfficeScreen() {
     { id: 'television', label: 'Television', badge: 0 },
     { id: 'schedule', label: 'Schedule', badge: 0 },
     { id: 'joint', label: 'Joint shows', badge: 0 },
+    { id: 'feuds', label: 'Feuds', badge: 0 },
   ];
 
   return (
@@ -166,6 +169,7 @@ export function OfficeScreen() {
       {tab === 'television' && <TelevisionTab />}
       {tab === 'schedule' && <ScheduleTab />}
       {tab === 'joint' && <JointShowsTab />}
+      {tab === 'feuds' && <FeudsTab onOpenFeuds={onOpenFeuds} />}
     </div>
   );
 }
@@ -1806,6 +1810,70 @@ function OfficialsTab() {
  * A refusal always says which half of the deal was wrong, because "no" on its
  * own is not information.
  */
+/**
+ * The feud index — every single soul who has ever been part of a real story,
+ * one row each, current business sorted to the top. Just having shared a
+ * match with somebody never lands you here; see `engine/world/storyline.ts`
+ * for what it actually takes to start one.
+ */
+function FeudsTab({ onOpenFeuds }: { onOpenFeuds?: (wrestlerId: Id) => void }) {
+  const world = useGameStore((s) => s.world);
+  if (!world) return null;
+
+  const rows = everyoneWithAStoryline(world.storylines)
+    .map((id) => world.wrestlers[id])
+    .filter((w): w is Wrestler => Boolean(w))
+    .map((w) => {
+      const stories = allStorylinesFor(world.storylines, w.id);
+      const current = stories.filter(isLive);
+      return { w, stories, current };
+    })
+    .sort((a, b) => {
+      if (a.current.length !== b.current.length) return b.current.length - a.current.length;
+      return billedAs(a.w).localeCompare(billedAs(b.w));
+    });
+
+  return (
+    <section>
+      <h2 className="mb-1 text-sm font-medium text-neutral-300">The feud index</h2>
+      <p className="mb-3 max-w-xl text-[11px] text-neutral-500">
+        Everybody who has ever carried a real story — current business first. A match alone never starts one; it
+        takes real heat across several matches and promos.
+      </p>
+
+      {rows.length === 0 ? (
+        <p className="text-xs text-neutral-500">Nobody has ever been part of a story yet.</p>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {rows.map(({ w, stories, current }) => (
+            <button
+              key={w.id}
+              type="button"
+              data-testid={`feud-index-${w.id}`}
+              onClick={() => onOpenFeuds?.(w.id)}
+              className="flex items-center justify-between gap-2 rounded border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-left hover:border-neutral-600"
+            >
+              <div className="flex items-center gap-2">
+                <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} size="bust" />
+                <span className="text-[12px] font-medium text-neutral-200">{billedAs(w)}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {current.length > 0 ? (
+                  <Badge tone="warning">
+                    {current.length} current — {standing(current[0]!)}
+                  </Badge>
+                ) : (
+                  <Badge tone="neutral">{stories.length} settled</Badge>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function TradesTab() {
   const world = useGameStore((s) => s.world);
   const propose = useGameStore((s) => s.proposeTrade);

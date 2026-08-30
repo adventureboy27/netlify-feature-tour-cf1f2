@@ -74,6 +74,14 @@ export interface Storyline {
   resolvedWeek: number | null;
   /** How it ended, in the sheet's words. Null until it does. */
   payoff: string | null;
+  /**
+   * The number `blowOffQuality()` actually computed, kept rather than only
+   * the words it produced. Optional and absent on anything that predates it
+   * — old saves' already-settled arcs just don't count toward a pairing's
+   * shared history; nothing crashes reading them. See sim/pairChemistry.ts,
+   * the only reader.
+   */
+  blowOffQuality?: number;
 }
 
 /** Total weight of everything that has happened, which is what moves stages. */
@@ -205,6 +213,7 @@ export function blowOff(
     resolvedWeek: week,
     lastAdvancedWeek: week,
     payoff: verdict,
+    blowOffQuality: quality,
   };
 }
 
@@ -273,6 +282,28 @@ export function storylinesFor(
   return storylines.filter(
     (s) => isLive(s) && s.participantIds.some((id) => wrestlerIds.includes(id)),
   );
+}
+
+/**
+ * Every storyline this one person has ever been part of, live or finished —
+ * the feud page's whole reading list. Current first, most recently touched
+ * first within each group, so the thing actually worth reading is at the top
+ * whether it is still running or already told.
+ */
+export function allStorylinesFor(storylines: readonly Storyline[], wrestlerId: Id): Storyline[] {
+  return storylines
+    .filter((s) => s.participantIds.includes(wrestlerId))
+    .sort((a, b) => {
+      if (isLive(a) !== isLive(b)) return isLive(a) ? -1 : 1;
+      return b.lastAdvancedWeek - a.lastAdvancedWeek;
+    });
+}
+
+/** Everybody in the business who has ever been part of a storyline — the office's feud index. */
+export function everyoneWithAStoryline(storylines: readonly Storyline[]): Id[] {
+  const ids = new Set<Id>();
+  for (const s of storylines) for (const id of s.participantIds) ids.add(id);
+  return [...ids];
 }
 
 /** The storyline covering exactly these two, if there is one. */

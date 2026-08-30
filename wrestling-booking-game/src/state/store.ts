@@ -155,6 +155,7 @@ import {
   recallBookings,
   staleGimmickPenalty,
 } from '../engine/sim/freshness';
+import { segmentPairChemistry } from '../engine/sim/pairChemistry';
 import {
   wire,
   teamSplitLine,
@@ -1941,6 +1942,10 @@ export const useGameStore = create<GameStore>()(
             // show are judged against the same memory rather than each one
             // penalising the next.
             overexposurePenalty: overexposurePenalty(segment, bookingMemory, world.settings),
+            // Some pairings just click and some never do, and a pairing that
+            // already told one real story together can be brought back for
+            // a genuine spark — or run into the ground. See sim/pairChemistry.ts.
+            pairChemistryBonus: segmentPairChemistry(segment, world.storylines, world.week, world.settings),
             staleGimmickPenalty: staleGimmickPenalty(participantWrestlers, world.settings),
             // A deathmatch title in a normal match is a broken promise, and
             // the crowd is entitled to notice.

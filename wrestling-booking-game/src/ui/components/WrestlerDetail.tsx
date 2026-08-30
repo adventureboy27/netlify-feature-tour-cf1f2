@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { crownBadge, crownsFor, CUP_NAME } from '../../engine/world/cup';
 import { useGameStore } from '../../state/store';
 import { activeRivalriesFor } from '../../engine/sim/rivalry';
+import { allStorylinesFor } from '../../engine/world/storyline';
 import { CAREER_STATUS_LABELS, CAREER_STATUS_BLURBS, yearsPro } from '../../engine/career/status';
 import { egoLabel } from '../../engine/career/ego';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
@@ -70,12 +71,15 @@ export function WrestlerDetailBody({
   editable,
   onNavigateWrestler,
   onRepackage,
+  onOpenFeuds,
 }: {
   wrestler: Wrestler;
   /** Whether the consequential actions (retire, role, release, repackage) render at all. */
   editable: boolean;
   onNavigateWrestler: (id: Id) => void;
   onRepackage?: (id: Id) => void;
+  /** This wrestler's own feud history — current feuds first, then everything settled. Renders only when they have any. */
+  onOpenFeuds?: (id: Id) => void;
 }) {
   const world = useGameStore((s) => s.world)!;
   const retireWrestler = useGameStore((s) => s.retireWrestler);
@@ -408,6 +412,16 @@ export function WrestlerDetailBody({
               <HeatBadge key={r.id} heat={r.heat} shootHeat={r.shootHeat} />
             ))}
           </div>
+        )}
+        {onOpenFeuds && allStorylinesFor(world.storylines, w.id).length > 0 && (
+          <button
+            type="button"
+            data-testid={`open-feuds-${w.id}`}
+            onClick={() => onOpenFeuds(w.id)}
+            className="mt-1 self-start text-[10px] text-sky-400 underline-offset-2 hover:underline"
+          >
+            View feud history →
+          </button>
         )}
 
         {/* What they do with a week you did not book them for. */}

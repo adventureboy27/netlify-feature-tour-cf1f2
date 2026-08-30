@@ -354,6 +354,11 @@ function SlotCard({
         {summary.rivalry && <HeatBadge heat={summary.rivalry.heat} shootHeat={summary.rivalry.shootHeat} />}
         {summary.odds !== null && <Odds probability={summary.odds} />}
       </div>
+      {summary.storyline && (
+        <div className="truncate text-[10px] text-sky-400" title={summary.storyline.name}>
+          Advances: {summary.storyline.name}
+        </div>
+      )}
       {summary.participants.length > 0 && <span className="text-[10px] text-neutral-500">{summary.officialLabel}</span>}
     </button>
   );

@@ -783,6 +783,27 @@ export function defaultWorldSettings(): WorldSettings {
     storylinePayoffCompanyRating: 2.5,
     storylineFizzleRating: 0.8,
 
+    // Pair chemistry — some pairings just click and some never do, rolled
+    // once off nothing but the two ids and never touched again. A slight
+    // positive mean because a surprise click reads better across a save than
+    // a bland, mostly-neutral roster; the ceiling sits above the floor's
+    // magnitude for the same reason.
+    chemistryMean: 0.5,
+    chemistrySpread: 4.5,
+    chemistryFloor: -9,
+    chemistryCeiling: 13,
+    chemistryBonusFloor: -14,
+    chemistryBonusCeiling: 18,
+    // About five months. Long enough that revisiting a great pairing reads
+    // as an event and not a rerun; short enough that a thirty-year save gets
+    // to do it more than once or twice.
+    rivalryRestWeeks: 20,
+    rivalryTooSoonPenalty: 10,
+    rivalrySparkWeight: 9,
+    rivalrySparkFadePerRevival: 0.35,
+    allTimeRivalGreatBlowoffs: 2,
+    classicRivalryFairBlowoffs: 2,
+
     // Tired is tonight's tank; worn is the debt that does not clear between
     // shows. The player cares about both and they are different problems.
     miniTiredEnergy: 45,

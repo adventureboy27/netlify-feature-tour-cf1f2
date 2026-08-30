@@ -2515,6 +2515,29 @@ export interface WorldSettings {
   /** What a story fizzling costs the company. Small, and entirely deserved. */
   storylineFizzleRating: number;
 
+  // Pair chemistry and shared history — see sim/pairChemistry.ts.
+  /** The innate roll's centre and spread. Most pairings land near the centre; a real minority land clearly good or clearly bad. */
+  chemistryMean: number;
+  chemistrySpread: number;
+  /** Bounds on the innate roll alone, before shared history is added. */
+  chemistryFloor: number;
+  chemistryCeiling: number;
+  /** Bounds on the combined bonus the rating formula actually reads. */
+  chemistryBonusFloor: number;
+  chemistryBonusCeiling: number;
+  /** Weeks after a blow-off before revisiting the pairing stops being "too soon." */
+  rivalryRestWeeks: number;
+  /** How hard a too-soon revival costs, before scaling by how many times it has already happened. */
+  rivalryTooSoonPenalty: number;
+  /** How much of a well-earned revival's spark comes from the best past blow-off's quality. */
+  rivalrySparkWeight: number;
+  /** How much smaller each additional revival's spark gets — the tenth reunion reads as fine, not special. */
+  rivalrySparkFadePerRevival: number;
+  /** Great blow-offs a pairing needs to be called an All-Time Rivalry. */
+  allTimeRivalGreatBlowoffs: number;
+  /** Fair-or-better blow-offs (short of an all-time run) that still earn Hall of Fame Classic Rivalry status. */
+  classicRivalryFairBlowoffs: number;
+
   // The mini profile's status pips — see ui/components/MiniStats.tsx.
   /** Energy at or below which tonight's tank reads as empty. */
   miniTiredEnergy: number;

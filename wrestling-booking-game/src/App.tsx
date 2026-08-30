@@ -30,6 +30,9 @@ import { RankingsScreen } from './ui/screens/RankingsScreen';
 import { RivalRosterScreen } from './ui/screens/RivalRosterScreen';
 import { SheetScreen } from './ui/screens/SheetScreen';
 import { SecretsScreen } from './ui/screens/SecretsScreen';
+import { WrestlerFeudsScreen } from './ui/screens/WrestlerFeudsScreen';
+import { AllTimeRivalsScreen } from './ui/screens/AllTimeRivalsScreen';
+import { ClassicRivalriesScreen } from './ui/screens/ClassicRivalriesScreen';
 import { Money } from './ui/components/display';
 import { promotionTheme } from './ui/components/chrome';
 import { Sidebar, type Screen } from './ui/components/Nav';
@@ -168,7 +171,9 @@ export default function App() {
           className={`min-h-0 flex-1 overflow-y-auto ${reduceMotion ? '' : 'animate-rise-in'}`}
         >
           {screen === 'settings' && <SettingsScreen onBack={() => resetTo('booking')} />}
-          {screen === 'office' && <OfficeScreen />}
+          {screen === 'office' && (
+            <OfficeScreen onOpenFeuds={(wrestlerId) => goTo({ screen: 'feuds', params: { wrestlerId } })} />
+          )}
           {screen === 'booking' && (
             <BookingScreen
               onRunShow={runShow}
@@ -182,12 +187,16 @@ export default function App() {
             <RosterScreen
               onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
               onRepackage={(wrestlerId) => goTo({ screen: 'editor', params: { wrestlerId } })}
+              onOpenFeuds={(wrestlerId) => goTo({ screen: 'feuds', params: { wrestlerId } })}
             />
           )}
           {screen === 'territories' && <TerritoriesScreen />}
           {screen === 'finance' && <FinanceScreen />}
           {screen === 'freeAgents' && (
-            <FreeAgentsScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
+            <FreeAgentsScreen
+              onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
+              onOpenFeuds={(wrestlerId) => goTo({ screen: 'feuds', params: { wrestlerId } })}
+            />
           )}
           {screen === 'results' &&
             (lastShow ? (
@@ -201,7 +210,10 @@ export default function App() {
             ))}
           {screen === 'rankings' && <RankingsScreen />}
           {screen === 'rivalRosters' && (
-            <RivalRosterScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
+            <RivalRosterScreen
+              onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
+              onOpenFeuds={(wrestlerId) => goTo({ screen: 'feuds', params: { wrestlerId } })}
+            />
           )}
           {screen === 'sheet' && <SheetScreen />}
           {screen === 'secrets' && <SecretsScreen />}
@@ -216,7 +228,21 @@ export default function App() {
               onBack={goBack}
               onNavigateWrestler={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
               onRepackage={(wrestlerId) => goTo({ screen: 'editor', params: { wrestlerId } })}
+              onOpenFeuds={(wrestlerId) => goTo({ screen: 'feuds', params: { wrestlerId } })}
             />
+          )}
+          {screen === 'feuds' && params?.wrestlerId && (
+            <WrestlerFeudsScreen
+              wrestlerId={params.wrestlerId}
+              onBack={goBack}
+              onNavigateWrestler={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })}
+            />
+          )}
+          {screen === 'allTimeRivals' && (
+            <AllTimeRivalsScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
+          )}
+          {screen === 'classicRivalries' && (
+            <ClassicRivalriesScreen onNavigate={(wrestlerId) => goTo({ screen: 'wrestlerDetail', params: { wrestlerId } })} />
           )}
           {screen === 'slotPicker' && params?.slotIndex !== undefined && (
             <SlotRosterPicker

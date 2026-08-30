@@ -92,6 +92,7 @@ export function MatchSetupScreen({
         )}
         {summary.rivalry && <HeatBadge heat={summary.rivalry.heat} shootHeat={summary.rivalry.shootHeat} />}
         {summary.odds !== null && <Odds probability={summary.odds} />}
+        {summary.storyline && <span className="text-sky-400">Advances: {summary.storyline.name}</span>}
         <span className="text-neutral-500">{summary.officialLabel}</span>
       </div>
 

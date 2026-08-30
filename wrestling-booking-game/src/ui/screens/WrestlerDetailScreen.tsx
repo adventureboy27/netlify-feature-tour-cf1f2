@@ -21,12 +21,14 @@ export function WrestlerDetailScreen({
   onBack,
   onNavigateWrestler,
   onRepackage,
+  onOpenFeuds,
 }: {
   wrestlerId: Id;
   onBack: () => void;
   /** Tap a tag partner or manager row — lands on their copy of this screen. */
   onNavigateWrestler: (id: Id) => void;
   onRepackage?: (id: Id) => void;
+  onOpenFeuds?: (id: Id) => void;
 }) {
   const world = useGameStore((s) => s.world);
 
@@ -52,6 +54,7 @@ export function WrestlerDetailScreen({
           editable={world.promotion.rosterIds.includes(w.id)}
           onNavigateWrestler={onNavigateWrestler}
           onRepackage={onRepackage}
+          onOpenFeuds={onOpenFeuds}
         />
       </div>
     </div>
