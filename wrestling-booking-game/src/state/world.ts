@@ -1347,11 +1347,12 @@ export interface RenewalTalk {
  * on the roster (`signFreeAgent`, a folded-roster pickup, or winning a
  * bidding war). Every generated wrestler already has *a* gimmick — this is
  * the booker actually deciding instead of living with the roll. See
- * chooseSigningGimmick / declineSigningPairing / formSigningGroup.
+ * chooseSigningGimmick / chooseSigningDebut / declineSigningPairing /
+ * formSigningGroup.
  */
 export interface SigningTalk {
   wrestlerId: Id;
-  stage: 'pickGimmick' | 'offerPairing';
+  stage: 'pickGimmick' | 'chooseDebut' | 'offerPairing';
   openedWeek: number;
 }
 

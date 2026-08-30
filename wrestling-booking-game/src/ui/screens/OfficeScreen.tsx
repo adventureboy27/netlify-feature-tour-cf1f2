@@ -835,6 +835,7 @@ function ContractsTab() {
   const [openApproachId, setOpenApproachId] = useState<string | null>(null);
   const [openRenewalTalkId, setOpenRenewalTalkId] = useState<string | null>(null);
   const chooseSigningGimmick = useGameStore((s) => s.chooseSigningGimmick);
+  const chooseSigningDebut = useGameStore((s) => s.chooseSigningDebut);
   const declineSigningPairing = useGameStore((s) => s.declineSigningPairing);
   const formSigningGroup = useGameStore((s) => s.formSigningGroup);
   const [openSigningTalkId, setOpenSigningTalkId] = useState<string | null>(null);
@@ -1129,7 +1130,11 @@ function ContractsTab() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-neutral-500">
-                        {talk.stage === 'pickGimmick' ? 'Just signed — meet them' : 'Anybody to put them with?'}
+                        {talk.stage === 'pickGimmick'
+                          ? 'Just signed — meet them'
+                          : talk.stage === 'chooseDebut'
+                            ? 'How do we bring them out?'
+                            : 'Anybody to put them with?'}
                       </div>
                     </div>
                   </div>
@@ -1198,6 +1203,48 @@ function ContractsTab() {
                   },
                 ]}
                 onChoose={() => chooseSigningGimmick(talk.wrestlerId, pickedGimmickId || person.gimmick.id)}
+                theme={theme}
+                promotionName={world.promotion.name}
+                onClose={() => setOpenSigningTalkId(null)}
+              />
+            );
+          }
+
+          if (talk.stage === 'chooseDebut') {
+            const canAffordVignette = world.promotion.bankBalance >= world.settings.vignetteCost;
+            return (
+              <DialogueCard
+                key={`${talk.wrestlerId}-debut`}
+                speaker={{ kind: 'booker' }}
+                speakerName={world.promotion.name}
+                body={`So how do we actually bring ${person.name} out? New name, new look — how does this crowd see it for the very first time?`}
+                subtext={`${person.gimmick.name} — ${person.gimmick.concept}`}
+                choices={[
+                  {
+                    id: 'now',
+                    label: 'Debut them tonight',
+                    gains: 'On the card this very week, no waiting around',
+                    costs: 'One night to make a first impression, nothing built up behind it',
+                  },
+                  {
+                    id: 'vignette',
+                    label: `Run a vignette package — ${world.settings.vignetteWeeks} weeks`,
+                    gains: 'Real anticipation built before anybody has to sell it live — and something in it for them, if it catches',
+                    costs: `${world.settings.vignetteWeeks} weeks off the card and money spent whether the crowd bites or not`,
+                    disabled: !canAffordVignette,
+                  },
+                ]}
+                beforeChoices={
+                  <p className="text-[11px] text-neutral-500">
+                    A vignette package costs <Money amount={world.settings.vignetteCost} /> up front, and{' '}
+                    {person.name} cannot be booked for {world.settings.vignetteWeeks} weeks while it airs. It might
+                    make them a made star before their first match — or the crowd might never bite at all.
+                  </p>
+                }
+                onChoose={(choiceId) => {
+                  chooseSigningDebut(talk.wrestlerId, choiceId === 'vignette' ? 'vignette' : 'now');
+                  setOpenSigningTalkId(null);
+                }}
                 theme={theme}
                 promotionName={world.promotion.name}
                 onClose={() => setOpenSigningTalkId(null)}

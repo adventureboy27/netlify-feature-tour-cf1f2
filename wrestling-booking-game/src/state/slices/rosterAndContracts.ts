@@ -34,6 +34,7 @@ import { responseOutcome } from '../../engine/world/poaching';
 import { gimmickById } from '../../data/gimmicks';
 import { groupGimmickById } from '../../data/groupGimmicks';
 import { canFormGroup, formGroupGimmickStable } from '../../engine/world/tagTeams';
+import { newVignette } from '../../engine/career/vignette';
 
 type RosterAndContractsSlice = Pick<
   GameStore,
@@ -45,6 +46,7 @@ type RosterAndContractsSlice = Pick<
   | 'answerRenewalInterest'
   | 'answerRenewalWish'
   | 'chooseSigningGimmick'
+  | 'chooseSigningDebut'
   | 'declineSigningPairing'
   | 'formSigningGroup'
   | 'answerColdMeeting'
@@ -378,12 +380,48 @@ export const createRosterAndContractsSlice: StateCreator<
         else if (gimmick.masked === 'forbidden') wrestler.masked = false;
         wrestler.gimmickFreshness = 100;
       }
+      // The character is locked in; how the crowd actually meets it is a
+      // second, real decision — see chooseSigningDebut.
+      talk.stage = 'chooseDebut';
+    });
+  },
+
+  chooseSigningDebut: (wrestlerId, choice) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      const talk = world.signingTalks.find((t) => t.wrestlerId === wrestlerId && t.stage === 'chooseDebut');
+      const wrestler = world.wrestlers[wrestlerId];
+      if (!talk || !wrestler) return;
+
+      if (choice === 'vignette') {
+        // Can't afford it — nothing happens, same as any other unaffordable
+        // booker decision in this game. The talk stays open for a real choice.
+        if (world.promotion.bankBalance < world.settings.vignetteCost) return;
+        world.promotion.bankBalance -= world.settings.vignetteCost;
+        wrestler.vignette = newVignette(world.settings, world.week);
+        // No debut wire yet — the whole point is nobody outside the office
+        // knows this name exists. See engine/career/vignette.ts's payoff,
+        // which fires the real "debuts tonight" news once it resolves.
+        world.weeklyNews.push(
+          wire(
+            'debut',
+            `${world.promotion.name} starts running mystery vignettes tonight — no name, no face, just a promise that somebody new is coming.`,
+            world.week,
+            'minor',
+          ),
+        );
+      } else {
+        // A plain free-agent signing has never carried its own wire line —
+        // this is the moment the character actually locks in, so it is the
+        // first real news anybody gets about the new arrival.
+        world.weeklyNews.push(
+          wire('debut', `${wrestler.name} debuts tonight as ${wrestler.gimmick.name} — a brand-new name for this crowd to learn.`, world.week, 'minor'),
+        );
+        world.pendingGimmickReactions.push({ kind: 'debut', name: wrestler.name, gimmickName: wrestler.gimmick.name });
+      }
+
       talk.stage = 'offerPairing';
-      // A plain free-agent signing has never carried its own wire line —
-      // this is the moment the character actually locks in, so it is the
-      // first real news anybody gets about the new arrival.
-      world.weeklyNews.push(wire('debut', `${wrestler.name} debuts tonight as ${gimmick.name} — a brand-new name for this crowd to learn.`, world.week, 'minor'));
-      world.pendingGimmickReactions.push({ kind: 'debut', name: wrestler.name, gimmickName: gimmick.name });
     });
   },
 

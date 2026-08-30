@@ -207,6 +207,9 @@ export function canWork(w: Wrestler, settings: WorldSettings, week?: number): bo
   // after somebody died in the ring with him and it is not negotiable —
   // there is deliberately no clearance flag for this one. See onOurWatch.ts.
   if (w.leave) return false;
+  // A vignette is airing in his place. The whole point is the crowd hasn't
+  // met him yet — see career/vignette.ts.
+  if (w.vignette) return false;
   if (w.deceased || w.careerStatus === 'retired') return false;
   // Somebody working as an official or a mouthpiece is not on the active
   // roster. Gating it here covers the office's card and every rival's, so

@@ -804,6 +804,22 @@ export function defaultWorldSettings(): WorldSettings {
     allTimeRivalGreatBlowoffs: 2,
     classicRivalryFairBlowoffs: 2,
 
+    // Vignette packages — three real weeks off the card for a shot at
+    // walking in already over. Base chance sits under a coin flip on
+    // purpose: this is meant to read as a real bet, not a bonus every
+    // signing should take by default, and the charisma term rewards
+    // betting it on somebody who can actually carry a mystery. The payoff
+    // is sized well above the one-shot "debut cold on TV" gamble in
+    // data/events.ts (+18 pop/+20 momentum) since three weeks of paid
+    // production is a much bigger stake than one night's flick of a coin;
+    // a bust costs nothing beyond the money and the weeks already spent.
+    vignetteWeeks: 3,
+    vignetteCost: 6000,
+    vignetteSuccessChance: 0.4,
+    vignetteCharismaBonus: 0.35,
+    vignetteSuccessPopularity: 24,
+    vignetteSuccessMomentum: 26,
+
     // Tired is tonight's tank; worn is the debt that does not clear between
     // shows. The player cares about both and they are different problems.
     miniTiredEnergy: 45,

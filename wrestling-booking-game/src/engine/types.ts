@@ -609,6 +609,13 @@ export interface Wrestler {
    */
   leave?: Leave | null;
   /**
+   * A hype campaign airing in place of an ordinary debut — three weeks of
+   * paid-for mystery instead of just showing up. Set only at signing time,
+   * and only for somebody who has never had a match here. See
+   * career/vignette.ts; blocks booking the same way `leave` does.
+   */
+  vignette?: Vignette | null;
+  /**
    * A death the locker room lays at his door rather than the office's. While
    * it is fresh nobody will work with him. See career/onOurWatch.ts.
    */
@@ -813,6 +820,7 @@ import type { PromotionSchedule } from './world/schedule';
 import type { Ledger } from './career/ledger';
 import type { DisciplineRecord } from './career/discipline';
 import type { BlamedFor, DeathOnOurWatch, Leave } from './career/onOurWatch';
+import type { Vignette } from './career/vignette';
 import type { TraitId } from './career/personality';
 import type { MotivatorId } from './career/motivation';
 import type { AssignmentChoice } from './career/assignment';
@@ -2537,6 +2545,21 @@ export interface WorldSettings {
   allTimeRivalGreatBlowoffs: number;
   /** Fair-or-better blow-offs (short of an all-time run) that still earn Hall of Fame Classic Rivalry status. */
   classicRivalryFairBlowoffs: number;
+
+  // Vignette packages — see career/vignette.ts. A signing-time gamble: pay
+  // up front, keep a brand-new face off the card for a real stretch, and
+  // either walk in already over or walk in to a shrug.
+  /** How many real weeks the campaign runs before it pays off — or doesn't. */
+  vignetteWeeks: number;
+  /** What it costs the company, paid the day the campaign starts. */
+  vignetteCost: number;
+  /** Base chance the hype actually catches, before charisma is added in. */
+  vignetteSuccessChance: number;
+  /** How much of the wrestler's own charisma (0-100) gets added to that base chance. */
+  vignetteCharismaBonus: number;
+  /** What a caught campaign is worth to the wrestler, for good. A bust is worth nothing at all — not a punishment, just the gamble not paying off. */
+  vignetteSuccessPopularity: number;
+  vignetteSuccessMomentum: number;
 
   // The mini profile's status pips — see ui/components/MiniStats.tsx.
   /** Energy at or below which tonight's tank reads as empty. */

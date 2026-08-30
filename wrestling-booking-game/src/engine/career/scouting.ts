@@ -124,6 +124,9 @@ export function thePitch(wrestler: Wrestler, settings: WorldSettings): string {
  */
 export function theCatch(wrestler: Wrestler, settings: WorldSettings): string | null {
   const p = pronouns(wrestler);
+  if (wrestler.vignette) {
+    return `A vignette package is airing — ${wrestler.vignette.weeksRemaining} more ${wrestler.vignette.weeksRemaining === 1 ? 'week' : 'weeks'} before ${p.they} can be booked.`;
+  }
   if (wrestler.injury) {
     const weeks = wrestler.injury.weeksRemaining;
     return `${wrestler.injury.description}. Out for ${weeks} ${weeks === 1 ? 'week' : 'weeks'}.`;

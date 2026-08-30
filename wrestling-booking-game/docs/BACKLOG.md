@@ -5,6 +5,62 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Vignette packages — a paid gamble to hype a debut — shipped
+
+Asked whether the game had a way to build anticipation for a new signing the way wrestling did it in the 80s
+and 90s — Razor Ramon's toothpick-and-gold-chain vignettes, not a wire photo — the honest answer was a single
+one-shot dialogue option buried inside an *existing* wrestler's gimmick-change event, not anything reachable
+from a fresh signing. Scoped and built as its own thing per the player's own spec: a dedicated card-slot
+presence, offered at signing time, three real weeks paid for up front, the wrestler unbookable the whole
+time, and a genuine coin-flip-ish gamble at the end — a real popularity and momentum payoff if it catches, or
+nothing at all for the money and the missed weeks if the crowd never bites.
+
+`engine/career/vignette.ts` (new) is the whole mechanic: `newVignette`/`tickVignette` manage the three-week
+countdown the same way `Leave` already does; `resolveVignette` rolls the payoff off an entity-seeded stream —
+`rngFromSeed(\`vignette:${wrestlerId}:${startWeek}\`)`, never the shared stream, so adding this decision can't
+shift a single existing seeded roll — weighted by the wrestler's own charisma via two new settings
+(`vignetteSuccessChance`, `vignetteCharismaBonus`). A bust is deliberately worth exactly zero, not a
+punishment on top of the sunk cost — the risk the player asked for is real, not padded.
+
+The signing-time hook is the existing "meet the booker" `SigningTalk` flow, which already fires exactly once
+per new signee regardless of how they arrived (free agent, folded-roster pickup, bidding-war win). It gained
+a third stage, `chooseDebut`, between picking the gimmick and the tag-team pairing offer:
+`chooseSigningDebut(wrestlerId, 'now' | 'vignette')` either fires the ordinary immediate "debuts tonight"
+wire (moved out of `chooseSigningGimmick`, which used to fire it unconditionally) or spends
+`vignetteCost` up front and sets `Wrestler.vignette` — a new optional field, no schema bump needed, same
+safe-optional-field pattern as every other save-compatible addition here. Unaffordable is a silent no-op,
+same convention as `signFreeAgent`'s own guard — the talk just stays open for a real choice.
+
+A running vignette blocks booking exactly like `Leave` already does: `canWork()` in `rivalBooking.ts` (used
+by every AI's own booking, including auto-fill) now refuses a wrestler mid-campaign, `theCatch()` in
+`scouting.ts` says so on their card, and `BookingScreen.tsx`'s "rest of the week" panel reports it with a
+countdown. The manual slot picker still lets the booker cast them anyway if they really want to — same
+established convention as an injured or on-leave wrestler, since the game does not block the player's own
+bad decisions, only the AI's.
+
+The card-slot presence itself is `ui/components/VignettePanel.tsx` — a new, read-only section on the booking
+screen mirroring `PromoSlots`/`DarkMatchSlots`'s exact layout convention, listing anyone currently mid-campaign
+with a week-by-week flavor line ("Grainy footage, no name, no face" → "the crowd cannot stop talking about
+it" → "one more week of this"). Nothing to cast here on purpose — the whole campaign was decided the day it
+was bought.
+
+The payoff resolves in `resolveWeek`, in the same post-increment bookkeeping pass as `Leave`'s own tick (right
+after `world.week += 1`, so a wire stamped `world.week` there lands correctly rather than vanishing per
+CLAUDE.md's own stamping trap): ticks down, and on the final week either applies the real, lasting
+popularity/momentum gain and posts the "three weeks finally pay off" wire, or clears silently into an
+ordinary, unremarked debut.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2898 tests, 0 failures — 10 new in
+`engine/career/vignette.test.ts`, 7 new in `state/vignette.store.test.ts`), `npm run build` clean,
+`tools/probe.mjs` unchanged from baseline (the mechanic is entirely player-decision-gated, same as the
+existing gimmick/pairing signing talks, so the automated probe never exercises it — expected, not a gap),
+and a full live Playwright walk-through: signed a free agent, picked a gimmick, chose the vignette option in
+the new "How do we bring them out?" dialogue, watched the cost leave the bank and the card-slot panel appear
+and progress week over week, and ran the show three times to see the real debut wire land and the panel
+clear.
+
+---
+
 ## Feud pages, pair chemistry, and earned rivalry status — shipped
 
 Asked what else was worth building, the honest read of the storyline system was that it mostly already

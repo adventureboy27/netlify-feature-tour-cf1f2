@@ -25,6 +25,7 @@ import {
 import { holidayForWeek, seasonForWeek, weeksUntilHoliday, SEASON_LABELS } from '../../engine/world/seasons';
 import { PromoSlots } from '../components/PromoSlots';
 import { DarkMatchSlots } from '../components/DarkMatchSlots';
+import { VignettePanel } from '../components/VignettePanel';
 import { ASSIGNMENTS, assignmentOf } from '../../engine/career/assignment';
 import { leaveStatusLine } from '../../engine/career/onOurWatch';
 import { isSuspended } from '../../engine/career/discipline';
@@ -278,6 +279,7 @@ export function BookingScreen({
 
           <PromoSlots />
           <DarkMatchSlots />
+          <VignettePanel />
 
           {/* And what everybody who is not on it does instead. Here rather
               than on the roster page because it is the same decision, made at
@@ -391,6 +393,7 @@ function RestOfTheWeek({ bookedIds }: { bookedIds: Set<string> }) {
   const sidelined = (w: Wrestler): string | null => {
     if (w.injury) return `Out ${w.injury.weeksRemaining} ${w.injury.weeksRemaining === 1 ? 'week' : 'weeks'}`;
     if (w.leave) return leaveStatusLine(w.leave);
+    if (w.vignette) return `Filming vignettes — ${w.vignette.weeksRemaining} more ${w.vignette.weeksRemaining === 1 ? 'week' : 'weeks'}`;
     if (isSuspended(w.discipline, world.week)) return 'Suspended';
     return null;
   };

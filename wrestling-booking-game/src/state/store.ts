@@ -451,6 +451,7 @@ import {
   wontRenewLine,
   wontWorkForUs,
 } from '../engine/career/onOurWatch';
+import { resolveVignette, tickVignette } from '../engine/career/vignette';
 import {
   handsInNotice,
   noticeLine,
@@ -830,7 +831,9 @@ export interface GameStore {
   answerRenewalWish: (wrestlerId: Id, choice: 'stay' | 'leave' | 'explore') => void;
   /** Node 1 of the signing meeting: the booker picks (or keeps) the new signee's gimmick. See SigningTalk. */
   chooseSigningGimmick: (wrestlerId: Id, gimmickId: Id) => void;
-  /** Node 2, "no": keep them solo, closing the signing meeting without a pairing. */
+  /** Node 2 of the signing meeting: debut them tonight, or run a paid vignette package first. See career/vignette.ts. */
+  chooseSigningDebut: (wrestlerId: Id, choice: 'now' | 'vignette') => void;
+  /** Node 3, "no": keep them solo, closing the signing meeting without a pairing. */
   declineSigningPairing: (wrestlerId: Id) => void;
   /** Node 2, "yes": form a tag team or faction under a GroupGimmick's shared identity. */
   formSigningGroup: (wrestlerId: Id, groupGimmickId: Id, partnerIds: Id[]) => void;
@@ -4280,6 +4283,41 @@ export const useGameStore = create<GameStore>()(
               wire('injury', `${member.name} is officially back on the roster and cleared to book.`, world.week, 'normal'),
             );
           }
+        }
+
+        // A vignette campaign counts down the same way — except what lands
+        // at the end is a first-ever debut rather than a return. See
+        // engine/career/vignette.ts.
+        for (const id of world.promotion.rosterIds) {
+          const member = world.wrestlers[id];
+          if (!member?.vignette) continue;
+          const ticked = tickVignette(member.vignette);
+          if (ticked) {
+            member.vignette = ticked;
+            continue;
+          }
+          const payoff = resolveVignette(member, member.vignette, world.settings);
+          member.vignette = null;
+          if (payoff.success) {
+            member.popularity = clamp(member.popularity + payoff.popularityDelta, 0, 100);
+            if (member.popularity > member.careerHighPopularity) {
+              member.careerHighPopularity = member.popularity;
+              member.careerHighWeek = world.week;
+            }
+            member.momentum = clamp(member.momentum + payoff.momentumDelta, 0, 100);
+          }
+          const weeksWord = `${world.settings.vignetteWeeks} ${world.settings.vignetteWeeks === 1 ? 'week' : 'weeks'}`;
+          world.weeklyNews.push(
+            wire(
+              'debut',
+              payoff.success
+                ? `${weeksWord} of those vignettes finally pay off — ${member.name} debuts tonight as ${member.gimmick.name}, and this crowd already knows every syllable of the name.`
+                : `${member.name} finally debuts tonight as ${member.gimmick.name}, exactly as advertised for ${weeksWord} running. The crowd's reaction? Not much of one at all.`,
+              world.week,
+              payoff.success ? 'lead' : 'minor',
+            ),
+          );
+          world.pendingGimmickReactions.push({ kind: 'debut', name: member.name, gimmickName: member.gimmick.name });
         }
 
         // ---- the night nobody had a referee -------------------------------
