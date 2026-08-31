@@ -54,6 +54,7 @@ import type { WireItem } from '../engine/world/wire';
 import type { MemoriamShow } from '../engine/world/seasons';
 import type { WeatherCall } from '../engine/world/weatherCall';
 import type { RingCall, RingCallOptionId } from '../engine/world/ringCall';
+import type { TruckCall, TruckCallOptionId } from '../engine/world/truckBreakdown';
 import type { NoShowCall, NoShowChoiceId } from '../engine/world/noShowCall';
 import type { TitleMemorial } from '../engine/world/titleMemorial';
 import type { RivalMove } from '../engine/world/rivalMove';
@@ -325,6 +326,8 @@ export interface World {
    * until it's answered.
    */
   pendingRingCall: RingCall | null;
+  /** The truck never arrived at all — same shape as pendingRingCall, an unrelated trigger. */
+  pendingTruckCall: TruckCall | null;
   /**
    * A wrestler booked tonight simply never turns up, rolled by the
    * catastrophe system (engine/world/catastrophe.ts) rather than the
@@ -403,6 +406,7 @@ export interface World {
   /** What was decided, carried into the resolve that follows. */
   weatherChoice: WeatherCallOptionId | null;
   ringCallChoice: RingCallOptionId | null;
+  truckCallChoice: TruckCallOptionId | null;
   /** Everyone in the business who is not signed anywhere. */
   freeAgents: FreeAgent[];
   /**
@@ -536,6 +540,12 @@ export interface World {
   mergerHappened: boolean;
   /** Rival promotion ids that have already been through succession (engine/world/succession.ts) — can happen once per rival, not once ever. */
   successionHappenedFor: Id[];
+  /**
+   * Stipulation ids the player has actually earned — see Stipulation.locked.
+   * Empty on a fresh save; a locked stipulation never appears in the picker
+   * until its id lands here (Arena Floor, from engine/world/truckBreakdown.ts).
+   */
+  unlockedStipulationIds: Id[];
   nextId: number;
 }
 
@@ -1158,6 +1168,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     pendingMemoriam: null,
     pendingWeatherCall: null,
     pendingRingCall: null,
+    pendingTruckCall: null,
     pendingNoShowCall: null,
     noShowChoice: null,
     pendingChampionCall: null,
@@ -1179,6 +1190,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     secretSignings: [],
     weatherChoice: null,
     ringCallChoice: null,
+    truckCallChoice: null,
     freeAgents: [...pool.freeAgents, ...managers.freeAgents],
     referees,
     // You open with one official on the books, and a six-match card runs him
@@ -1226,6 +1238,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     meetings: {},
     mergerHappened: false,
     successionHappenedFor: [],
+    unlockedStipulationIds: [],
     nextId: 1,
   };
 }

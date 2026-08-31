@@ -444,6 +444,7 @@ import { pickSuccessionTarget, rollHeirBranch, applySuccession } from '../engine
 import { pickShakeupReleases } from '../engine/world/ownershipShakeup';
 import { rollWorldStory, type WorldStoryContext } from '../engine/sim/worldStories';
 import { ringCallFrom, resolveRingCall, type RingCallOptionId } from '../engine/world/ringCall';
+import { truckBreakdownFrom, resolveTruckCall, type TruckCallOptionId } from '../engine/world/truckBreakdown';
 import {
   compassionateLeave,
   leaveLine,
@@ -716,6 +717,7 @@ export interface GameStore {
   answerReleaseRequest: (wrestlerId: Id, grant: boolean) => void;
   answerWeatherCall: (choice: WeatherCallOptionId) => void;
   answerRingCall: (choice: RingCallOptionId) => void;
+  answerTruckCall: (choice: TruckCallOptionId) => void;
   /** A booked wrestler never showed up. Same "answering runs the show" shape as the weather call. */
   answerNoShowCall: (choice: NoShowChoiceId) => void;
   /** A rival made a signing worth reacting to. Non-blocking — answer it whenever, or never. */
@@ -1247,6 +1249,22 @@ export const useGameStore = create<GameStore>()(
           }
           world.pendingNoShowCall = null;
           world.noShowChoice = null;
+        }
+
+        // The truck simply not showing up is a separate, unrelated risk from
+        // a worn ring — checked first, so a week the truck never arrives
+        // never also rolls for whether the (perfectly fine) ring was going
+        // to give out.
+        const carriedTruckCall = world.pendingTruckCall?.week === world.week ? world.pendingTruckCall : null;
+        if (carriedTruckCall && !world.truckCallChoice) return;
+        if (!carriedTruckCall && !world.pendingTruckCall) {
+          const truckCallRng = rngFromSeed(`truckCall:${territory.id}:${world.week}`);
+          const raisedTruck = truckBreakdownFrom(truckCallRng, world.week, territory.id, territory.name, world.settings);
+          if (raisedTruck) {
+            world.pendingTruckCall = raisedTruck;
+            world.truckCallChoice = null;
+            return; // nothing resolves until the promoter answers
+          }
         }
 
         // A worn ring is a real, foreseeable risk — same shape as a severe
@@ -4763,6 +4781,68 @@ export const useGameStore = create<GameStore>()(
           }
           world.pendingRingCall = null;
           world.ringCallChoice = null;
+        }
+
+        // The truck that never showed up — same self-contained shape as the
+        // ring call above, applied after the show already resolved rather
+        // than genuinely gating whether it simulates.
+        if (carriedTruckCall && world.truckCallChoice) {
+          const truckResolveRng = rngFromSeed(`truckCallResolve:${carriedTruckCall.territoryId}:${carriedTruckCall.week}`);
+          const truckOutcome = resolveTruckCall(carriedTruckCall, world.truckCallChoice, truckResolveRng, world.settings);
+          world.weeklyNews.push(wire('houseShow', truckOutcome.line, world.week, 'lead'));
+
+          if (!truckOutcome.ran) {
+            books.spend('other', Math.round(showPayable * truckOutcome.costShare));
+            for (const id of worked) {
+              const w = world.wrestlers[id];
+              if (w) w.morale = clampMorale(w.morale + truckOutcome.moraleDelta, world.settings);
+            }
+          } else {
+            if (!world.unlockedStipulationIds.includes('arenaFloor')) {
+              world.unlockedStipulationIds = [...world.unlockedStipulationIds, 'arenaFloor'];
+              world.weeklyNews.push(
+                wire('houseShow', 'Arena Floor is now a bookable match type — the promotion learned the hard way that it works.', world.week, 'minor'),
+              );
+            }
+            if (chance(truckResolveRng, Math.min(0.6, (truckOutcome.injuryMultiplier - 1) * 0.4))) {
+              const candidates = [...worked]
+                .map((id) => world.wrestlers[id])
+                .filter((w) => Boolean(w) && !w!.injury && !w!.deceased)
+                .map((w) => w!);
+              const unlucky = candidates.length ? pick(truckResolveRng, candidates) : null;
+              if (unlucky) {
+                const weeks = randInt(truckResolveRng, 2, world.settings.weatherInjuryMaxWeeks);
+                unlucky.health = clamp(unlucky.health - world.settings.casualtyHealthCost, 0, 100);
+                unlucky.career.longestInjuryWeeks = Math.max(unlucky.career.longestInjuryWeeks, weeks);
+                unlucky.injury = {
+                  severity: 'moderate',
+                  grade: 30,
+                  description: 'Hurt working the bare floor',
+                  sufferedWeek: world.week,
+                  totalWeeks: weeks,
+                  weeksRemaining: weeks,
+                  permanentStatLoss: {},
+                  earlyReturnWeeksUsed: 0,
+                };
+                unlucky.injuryHistory = recordInjury(
+                  unlucky.injuryHistory ?? [],
+                  unlucky.injury,
+                  world.settings.startingYear + Math.floor(world.week / 52),
+                );
+                world.weeklyNews.push(
+                  wire(
+                    'injury',
+                    `${unlucky.name} went down hard on the bare cement in ${carriedTruckCall.territoryName} and is out for ${weeks} ${weeks === 1 ? 'week' : 'weeks'}. There was no ring to protect the landing.`,
+                    world.week,
+                    'lead',
+                  ),
+                );
+              }
+            }
+            world.promotion.rating = clamp(world.promotion.rating + truckOutcome.ratingSwing, 0, 100);
+          }
+          world.pendingTruckCall = null;
+          world.truckCallChoice = null;
         }
 
         if (night.holiday && !night.cancelled) {

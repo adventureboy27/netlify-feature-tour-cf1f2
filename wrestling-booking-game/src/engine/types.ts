@@ -1157,6 +1157,13 @@ export interface Stipulation {
    * much shorter life once the stipulation is the reason it broke.
    */
   gearWearMultiplier?: number;
+  /**
+   * True for a stipulation nobody starts a save with — earned by living
+   * through the specific event that unlocks it (Arena Floor, from the truck
+   * breaking down; see engine/world/truckBreakdown.ts). Hidden from the
+   * picker unless World.unlockedStipulationIds contains this id.
+   */
+  locked?: boolean;
 }
 
 // ============================================================================
@@ -2687,6 +2694,19 @@ export interface WorldSettings {
   /** "Go nuclear": finished on the bare floor. */
   ringCallNuclearInjuryMultiplier: number;
   ringCallNuclearRatingSwing: number;
+
+  // The truck breaks down — a separate, blunter logistics failure (bad luck
+  // on the road, nothing to do with wear) that raises the same shape of
+  // decision as the ring call: play it safe, or hold the show anyway on the
+  // bare arena floor. See engine/world/truckBreakdown.ts.
+  /** Rolled fresh each week, independent of ring condition. */
+  truckBreakdownChancePerWeek: number;
+  /** "Call it off": no contest, refunded. */
+  truckBreakdownCancelMoraleDelta: number;
+  truckBreakdownCancelMerchShare: number;
+  /** "Hold it on the arena floor": no ring at all, for real. */
+  truckBreakdownInjuryMultiplier: number;
+  truckBreakdownRatingSwing: number;
 
   supershowEagerAt: number;
   supershowCautiousAt: number;

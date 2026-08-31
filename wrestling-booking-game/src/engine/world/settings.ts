@@ -941,6 +941,17 @@ export function defaultWorldSettings(): WorldSettings {
     // never a guaranteed pop for going bare-floor.
     ringCallNuclearRatingSwing: 22,
 
+    // The truck breaks down — pure bad luck on the road, nothing to do with
+    // ring wear, so it gets its own rare weekly roll rather than sharing the
+    // ring call's condition gate.
+    truckBreakdownChancePerWeek: 0.006,
+    truckBreakdownCancelMoraleDelta: -5,
+    truckBreakdownCancelMerchShare: 0.4,
+    // No ring at all beats a worn one for danger — a real step up from the
+    // ring call's own nuclear multiplier.
+    truckBreakdownInjuryMultiplier: 2.0,
+    truckBreakdownRatingSwing: 25,
+
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,

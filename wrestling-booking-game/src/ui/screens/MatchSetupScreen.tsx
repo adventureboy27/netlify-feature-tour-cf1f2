@@ -320,7 +320,7 @@ export function MatchSetupScreen({
               >
                 Straight match
               </button>
-              {STIPULATIONS.map((s) => (
+              {STIPULATIONS.filter((s) => !s.locked || world.unlockedStipulationIds.includes(s.id)).map((s) => (
                 <button
                   key={s.id}
                   type="button"

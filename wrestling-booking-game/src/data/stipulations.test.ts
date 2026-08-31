@@ -28,6 +28,15 @@ describe('STIPULATIONS', () => {
       expect(Object.keys(s.finishFlavor ?? {}).length).toBeGreaterThan(0);
     }
   });
+
+  it('Arena Floor starts locked, unlike everything a fresh save already has', () => {
+    const arenaFloor = stipulationById('arenaFloor')!;
+    expect(arenaFloor.locked).toBe(true);
+    for (const s of STIPULATIONS) {
+      if (s.id === 'arenaFloor') continue;
+      expect(s.locked).toBeFalsy();
+    }
+  });
 });
 
 describe('stipulationConsequence', () => {

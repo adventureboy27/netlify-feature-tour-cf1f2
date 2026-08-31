@@ -38,6 +38,7 @@ import { promotionTheme } from '../components/chrome';
 import { DialogueCard } from '../dialogue/DialogueCard';
 import type { WeatherCallOptionId } from '../../data/weatherCalls';
 import { RING_CALL_OPTIONS, type RingCallOptionId } from '../../engine/world/ringCall';
+import { TRUCK_CALL_OPTIONS, type TruckCallOptionId } from '../../engine/world/truckBreakdown';
 import { NO_SHOW_CALL_OPTIONS, type NoShowChoiceId } from '../../engine/world/noShowCall';
 import { Stories } from '../components/Stories';
 import { ThisWeekStrip } from '../components/CalendarStrip';
@@ -60,6 +61,7 @@ export function BookingScreen({
   const autoFill = useGameStore((s) => s.autoFillCard);
   const answerWeatherCall = useGameStore((s) => s.answerWeatherCall);
   const answerRingCall = useGameStore((s) => s.answerRingCall);
+  const answerTruckCall = useGameStore((s) => s.answerTruckCall);
   const answerNoShowCall = useGameStore((s) => s.answerNoShowCall);
 
   const roster = useMemo(
@@ -87,6 +89,7 @@ export function BookingScreen({
   const tonightsImpromptu = (world.impromptuShows ?? []).filter((sh) => sh.week === world.week);
   const call = world.pendingWeatherCall;
   const ringCall = world.pendingRingCall;
+  const truckCall = world.pendingTruckCall;
   const noShowCall = world.pendingNoShowCall;
   const tonightsHoliday = holidayForWeek(world.week);
   const nextHoliday = weeksUntilHoliday(world.week);
@@ -195,6 +198,20 @@ export function BookingScreen({
           body={ringCall.warning}
           choices={RING_CALL_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
           onChoose={(optionId) => answerRingCall(optionId as RingCallOptionId)}
+          theme={theme}
+          promotionName={world.promotion.name}
+        />
+      )}
+
+      {/* The truck never showed — checked before the ring, so it is the one
+          the promoter answers first if both are somehow in play. */}
+      {truckCall && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName={`The equipment truck for ${truckCall.territoryName}`}
+          body={truckCall.warning}
+          choices={TRUCK_CALL_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
+          onChoose={(optionId) => answerTruckCall(optionId as TruckCallOptionId)}
           theme={theme}
           promotionName={world.promotion.name}
         />

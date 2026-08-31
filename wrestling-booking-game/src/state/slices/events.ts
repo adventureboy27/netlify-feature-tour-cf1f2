@@ -23,6 +23,7 @@ type EventsSlice = Pick<
   | 'dismissYearInReview'
   | 'answerWeatherCall'
   | 'answerRingCall'
+  | 'answerTruckCall'
   | 'answerNoShowCall'
   | 'answerRivalMove'
   | 'answerConfrontationCall'
@@ -126,6 +127,15 @@ export const createEventsSlice: StateCreator<GameStore, [['zustand/immer', never
       const world = state.world;
       if (!world?.pendingRingCall) return;
       world.ringCallChoice = choice;
+    });
+    get().resolveWeek();
+  },
+
+  answerTruckCall: (choice) => {
+    set((state) => {
+      const world = state.world;
+      if (!world?.pendingTruckCall) return;
+      world.truckCallChoice = choice;
     });
     get().resolveWeek();
   },

@@ -340,6 +340,22 @@ export const STIPULATIONS: Stipulation[] = [
     archetypeFit: ['monster'],
     finishWeights: { cleanPin: 3, knockout: 2, timeLimitDraw: 0, rollup: 0.2 },
   },
+  {
+    id: 'arenaFloor',
+    name: 'Arena Floor',
+    blurb: 'No ring, no ropes — bare concrete and whatever barrier is still standing. Unlocked, never scheduled by choice from a cold start.',
+    ratingBonus: 10,
+    violenceLevel: 3,
+    injuryMult: 2.3,
+    archetypeFit: [],
+    locked: true,
+    finishWeights: { knockout: 1.6, submission: 0.3, cleanPin: 0.4, timeLimitDraw: 0 },
+    finishFlavor: {
+      knockout: 'flattened {loser} on the bare concrete with nothing underneath either of them but the floor',
+      cleanPin: 'made the count for real, right there on the arena floor, with no mat to land soft on',
+      submission: 'cranked {loser} into it on the cement with nowhere to go and no rope to reach for',
+    },
+  },
 ];
 
 export function stipulationById(id: string): Stipulation | undefined {

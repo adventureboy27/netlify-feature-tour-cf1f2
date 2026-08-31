@@ -5,6 +5,55 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## The truck breaks down: Arena Floor, a new unlockable stipulation — shipped
+
+First slice of "build it all" on the rest of the brainstormed pool. Asked specifically for this one: the
+equipment truck breaks down, and the promoter has to decide between calling the show off or holding it on
+the bare arena floor — real elevated injury risk, a rating swing that can go either way, still real ticket
+sales, and it permanently unlocks Arena Floor as a bookable match type going forward.
+
+Read `engine/world/ringCall.ts` first, since the ring-giving-out event shipped in the previous slice already
+covers almost the identical scenario mechanically (a worn ring failing mid-life, with a "go nuclear" outcome
+whose own narration already says "bare cement... show went on anyway"). Rather than build a second, near-
+duplicate pending-decision system, the new `engine/world/truckBreakdown.ts` deliberately mirrors the same
+shape — a warning, a two-way choice, honest either-direction consequences — while staying its own small
+module: the trigger is genuinely unrelated (a truck breaking down two states back is bad luck, not
+accumulated ring wear), so it gets its own rare weekly roll (`truckBreakdownChancePerWeek`) independent of
+ring condition, and its own settings block, rather than forcing one cause into a system built around the
+other. `ringCall.ts` itself was not touched, so nothing here risks the already-shipped, already-tested
+ring-call path.
+
+The unlock itself needed a real place to live: `Stipulation` gained a `locked` flag, and `World` gained
+`unlockedStipulationIds: Id[]` — a small, generalized array rather than a single `arenaFloorUnlocked`
+boolean, so any *future* earned stipulation can reuse the same field instead of getting its own bespoke one.
+`arenaFloor` is the only entry in `STIPULATIONS` with `locked: true`; `MatchSetupScreen`'s stipulation picker
+filters it out unless the id is present in `unlockedStipulationIds`. Confirmed rivals can't stumble into
+booking it before it's earned — rival shows pick stipulations off their own identity's `signatureBelt`, never
+by iterating `STIPULATIONS`, so there was no second gate to add.
+
+Wired into `resolveWeek` as its own self-contained pre-show block, same shape and same scope-cut as the ring
+call before it: checked before the ring call (so a week the truck never shows up never also asks whether the
+perfectly fine ring was about to give out), and its consequences — refund-equivalent economics on "call it
+off," an extra injury roll and a real rating swing on "hold it on the arena floor" — apply *after* the show
+already resolved normally rather than genuinely gating whether it simulates. Same reasoning as documented for
+the ring call: real mid-resolution control-flow surgery is exactly what this doc's own infrastructure-debt
+note warns against.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (160 files, 2981 tests, 0 failures — new coverage in
+`truckBreakdown.test.ts` for the pure raise/resolve logic and `truckBreakdown.store.test.ts` for the real
+pending/answer round trip including the unlock), `npm run build` clean, and a 3-seed/160-week probe run with
+all three saves surviving and no regressions to injury/morale/show/money baselines.
+
+Five more slices of the same brainstormed backlog remain, tracked as their own entries once shipped: the rest
+of the standalone random events (viral botch, live retirement, an uninvited legend, sponsor pullout, protest
+no-show, a lucky pyro accident, scheduling collision — `familyEmergency` and the shoot/beatdown-style
+"backstage brawl" idea turned out to already exist, as `misfortunes.ts`'s `familyEmergency` entry and
+`incidents.ts`'s `itWentReal`/`postMatchBeatdown`, so those are not being rebuilt), the rest of the
+brainstormed sub-stories, the rest of the major stories, the pricing dashboard with deliberately inconsistent
+rival pricing, and a general unlockables system beyond this one stipulation.
+
+---
+
 ## A world-story registry, succession, Breaking News, and skill-based in-ring danger — shipped
 
 Asked for an open-ended brainstorm of more stories and random events beyond the merger — "need outside
