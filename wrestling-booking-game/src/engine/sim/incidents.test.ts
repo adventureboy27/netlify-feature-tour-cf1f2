@@ -57,6 +57,7 @@ function ctxFor(over: Partial<IncidentContext> = {}): IncidentContext {
     heat: 0,
     shootHeat: 0,
     availableReturns: [],
+    potentialInvaders: [],
     settings,
     ...over,
   };
@@ -155,6 +156,16 @@ describe('nothing fires out of nowhere', () => {
 
   it('will not bring back somebody who was on the card', () => {
     expect(eligibleIncidents(ctxFor({ availableReturns: [] })).map((d) => d.id)).not.toContain('runIn');
+  });
+
+  it('will not invade with nobody eligible to send', () => {
+    expect(eligibleIncidents(ctxFor({ potentialInvaders: [] })).map((d) => d.id)).not.toContain('rivalInvasion');
+  });
+
+  it('will not invade a card with no main event or title stakes', () => {
+    const invader = { wrestler: person({ name: 'Outsider' }), fromPromotionId: 'rival-1', fromPromotionName: 'Rival Co' };
+    const ctx = ctxFor({ potentialInvaders: [invader], isMainEvent: false, titleOnTheLine: false });
+    expect(eligibleIncidents(ctx).map((d) => d.id)).not.toContain('rivalInvasion');
   });
 });
 
@@ -258,6 +269,19 @@ describe('what an incident does', () => {
     expect(incident.id).toBe('itWentReal');
     expect(incident.effects.some((e) => e.kind === 'injury')).toBe(true);
     expect(incident.effects.some((e) => e.kind === 'rosterMorale')).toBe(true);
+  });
+
+  it('sends a rival to crash the show, names their promotion, and drains some of the grudge', () => {
+    const invader = { wrestler: person({ name: 'The Outsider' }), fromPromotionId: 'rival-1', fromPromotionName: 'Grudge Wrestling' };
+    const ctx = ctxFor({ potentialInvaders: [invader], rating: 60, hasReferee: false });
+    const incident = forced(ctx, 'invade')!;
+    expect(incident.id).toBe('rivalInvasion');
+    expect(incident.headline).toContain('The Outsider');
+    expect(incident.headline).toContain('Grudge Wrestling');
+    expect(incident.involvedIds).toContain(invader.wrestler.id);
+    expect(incident.effects.some((e) => e.kind === 'crowdHeat')).toBe(true);
+    const relief = incident.effects.find((e) => e.kind === 'grudgeRelief');
+    expect(relief).toEqual({ kind: 'grudgeRelief', promotionId: 'rival-1', delta: settings.invasionCatharsis });
   });
 
   it('costs the promotion credibility for a finish nobody could explain', () => {

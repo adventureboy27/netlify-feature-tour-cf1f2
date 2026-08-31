@@ -54,6 +54,7 @@ import {
   applyEffects,
   incidentContextFor,
   couldTurnUp,
+  couldInvade,
   tickLoan,
   tickReleaseStigma,
   maybeOfferLoan,
@@ -2481,6 +2482,7 @@ export const useGameStore = create<GameStore>()(
                 .map((m) => ({ id: m.manager.id, name: m.manager.name, forSide: m.forSide })),
               hasReferee: Boolean(assignedReferee) && !segment.guestRefereeId,
               availableReturns: couldTurnUp(world, world.promotion.id, bookedTonight, participantIds),
+              potentialInvaders: couldInvade(world, world.promotion.id, bookedTonight, participantIds),
             }),
           );
           if (incident) {

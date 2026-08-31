@@ -1546,6 +1546,17 @@ export function applyEffect(world: World, rng: Rng, effect: EventEffect): number
       world.weeklyNews.push(wire(effect.wireKind, effect.text, world.week, 'minor'));
       break;
     }
+    case 'grudgeRelief': {
+      const existing = grudgeAgainst(world.grudges, effect.promotionId);
+      if (existing) {
+        const resentment = clamp(existing.resentment - effect.delta, 0, 100);
+        world.grudges =
+          resentment <= 0
+            ? world.grudges.filter((g) => g.promotionId !== effect.promotionId)
+            : world.grudges.map((g) => (g.promotionId === effect.promotionId ? { ...g, resentment } : g));
+      }
+      break;
+    }
   }
 
   // Everything that is not a `money` effect moved no money.
@@ -1586,6 +1597,7 @@ export function incidentContextFor(
     managers?: { id: Id; name: string; forSide: number }[];
     hasReferee?: boolean;
     availableReturns?: Wrestler[];
+    potentialInvaders?: PotentialInvader[];
     /**
      * 0-1. Only the player's own show should ever pass this — see
      * engine/economy/production.ts's equipmentSafetyEffects, computed at the
@@ -1624,6 +1636,7 @@ export function incidentContextFor(
     heat: rivalry?.heat ?? 0,
     shootHeat: rivalry?.shootHeat ?? 0,
     availableReturns: match.availableReturns ?? [],
+    potentialInvaders: match.potentialInvaders ?? [],
     settings: world.settings,
     incidentReduction: match.incidentReduction ?? 0,
   };
@@ -1660,4 +1673,48 @@ export function couldTurnUp(
         w!.careerStatus !== 'retired' &&
         hasSomethingToSettle(w!.id),
     );
+}
+
+/** A wrestler another company could send through the curtain, and where they're from. */
+export interface PotentialInvader {
+  wrestler: Wrestler;
+  fromPromotionId: Id;
+  fromPromotionName: string;
+}
+
+/**
+ * Who a rival with a real grudge against you could send to crash your show.
+ *
+ * Grudges (engine/world/grudges.ts) only ever record how a rival feels about
+ * the *player* — they come from joint supershow nights, and nothing else in
+ * this system tracks how rivals feel about each other. So this only ever
+ * returns anybody for the player's own show; a rival's own show has no
+ * comparable ledger to read, and returns nothing rather than guessing.
+ * Deliberately gated behind settings.invasionEarliestWeek on top of whatever
+ * grudge is on the books, so this never shows up in a save's first couple of
+ * years even if a grudge happens to spike early.
+ */
+export function couldInvade(
+  world: World,
+  hostPromotionId: Id,
+  booked: ReadonlySet<Id>,
+  againstIds: readonly Id[],
+): PotentialInvader[] {
+  if (hostPromotionId !== world.promotion.id) return [];
+  if (world.week < world.settings.invasionEarliestWeek) return [];
+
+  const against = new Set(againstIds);
+  const invaders: PotentialInvader[] = [];
+  for (const rival of world.rivals) {
+    const grudge = grudgeAgainst(world.grudges, rival.id);
+    if (!grudge || grudge.resentment < world.settings.invasionGrudgeThreshold) continue;
+    for (const id of rival.rosterIds) {
+      const w = world.wrestlers[id];
+      if (!w || booked.has(w.id) || against.has(w.id) || w.injury || w.deceased || w.careerStatus === 'retired') {
+        continue;
+      }
+      invaders.push({ wrestler: w, fromPromotionId: rival.id, fromPromotionName: rival.name });
+    }
+  }
+  return invaders;
 }

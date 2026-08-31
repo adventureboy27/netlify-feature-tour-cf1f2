@@ -5,6 +5,49 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Invasion angles — a rival with a real grudge sends somebody through the curtain — shipped
+
+The second of "1 and 3" — custom creation and logo/photo work landed first; this is invasions, the
+cross-promotion angle. Asked explicitly to "save some surprises for down the road... a few years into it,"
+so this is deliberately not available in a fresh save: `WorldSettings.invasionEarliestWeek` (104 — two years,
+at 52 weeks/year) gates it well behind `supershowEarliestWeek`'s 20, and it further requires
+`invasionGrudgeThreshold` worth of real resentment already on a rival's ledger. A save has to be old, and a
+rival has to have a real reason, before this can ever fire — the whole point of the request.
+
+Read `engine/sim/incidents.ts`'s header first: an incident never decides who won, and nothing fires without a
+real reason already in the world. `runIn` was the near-exact structural precedent — a wrestler off the card
+with unfinished business crashes the main event — so invasions reuse the same shape, sourced cross-promotion
+instead of same-roster. The one existing promotion-vs-promotion "feeling" in the game is
+`engine/world/grudges.ts`'s `Grudge` ledger, fed today only by lopsided joint supershow nights — so a rival
+who was buried on a supershow is exactly the company that would now send someone to get some of it back.
+
+New `couldInvade(world, hostPromotionId, booked, againstIds)` (`state/storeHelpers.ts`, mirroring the
+existing `couldTurnUp`) walks every rival with resentment past the threshold and offers up their fit roster
+members. It's deliberately one-sided: grudges only ever record how a rival feels about the *player* (there's
+no ledger for how rivals feel about each other), so it returns nothing at all unless `hostPromotionId` is the
+player's own promotion — a rival's own show never gets an invader, rather than guessing. `IncidentContext`
+gained a `potentialInvaders` field carrying each candidate's wrestler and home promotion; the new
+`rivalInvasion` incident (`data/incidents.ts`) fires only in a main event or title match with a winner to
+target, exactly `runIn`'s own gate, and names the invader's promotion right in the headline.
+
+The "getting their moment lets some steam off" half needed a new closed vocabulary entry rather than a direct
+world mutation — `EventEffect` gained `grudgeRelief` (a promotion id and a magnitude), with its case in
+`applyEffect` draining resentment off that rival's `Grudge` and dropping the entry entirely once it reaches
+zero, the same as it already does when it decays away naturally. `rivalInvasion` spends `invasionCatharsis`
+of it on every fire, so a rival doesn't just get one invasion and then another immediately after — the grudge
+that earned it is real, and using it costs something.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2917 tests, 0 failures — 22 in `incidents.test.ts`
+including new eligibility and build coverage for `rivalInvasion`, 8 new in `invasion.test.ts` for
+`couldInvade`'s gates and the `grudgeRelief` effect), `npm run build` clean, and a 3-seed/160-week probe run
+confirming the new incident sits safely in the weekly resolution loop for a save well past
+`invasionEarliestWeek` with no regressions to the existing injury/morale/show/money baselines. Natural
+observation of a fired invasion in a played save needs a completed, lopsided supershow first (itself a rare,
+multi-year event) — the gating logic and the incident's own `when`/`build` are covered directly instead,
+against a real `World` built through the store rather than a hand-rolled fixture.
+
+---
+
 ## Custom promotion creation, a generated logo, and batch photo import — shipped
 
 Asked "what else, let's be the best," the design doc's own §23 named custom promotion creation as a

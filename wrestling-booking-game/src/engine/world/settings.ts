@@ -882,6 +882,18 @@ export function defaultWorldSettings(): WorldSettings {
     // About nine months to forget a full burial: it costs you the next season
     // and most of the one after.
     grudgeDecayPerWeek: 1.4,
+    // Two years in. Long enough that a fresh save never sees this, and long
+    // enough for a real grudge to have had time to build past the decay rate
+    // above — the whole point is that this is a surprise for a save that has
+    // been running a while, not a system available from week one.
+    invasionEarliestWeek: 104,
+    invasionGrudgeThreshold: 40,
+    invasionHeat: 45,
+    invasionMomentum: 25,
+    invasionPopularity: 6,
+    // A meaningful chunk of resentment, not a full reset — one invasion lets
+    // off steam, it does not erase the history that earned it.
+    invasionCatharsis: 30,
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,

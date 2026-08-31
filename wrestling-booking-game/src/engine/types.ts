@@ -2619,6 +2619,19 @@ export interface WorldSettings {
   /** The share above which the write-up calls it a burial. */
   grudgeMassacreShare: number;
   grudgeDecayPerWeek: number;
+  // §16.5 invasions — a rival with a real grudge sends somebody through the
+  // curtain on their own initiative. Deliberately gated well behind
+  // supershows: this is the kind of thing a save should not see in its
+  // first year, only once a rivalry has actually had time to sour.
+  /** No invasion before the world — and the grudges in it — have had this long to develop. */
+  invasionEarliestWeek: number;
+  /** A rival needs at least this much resentment on the books before they'll send someone. */
+  invasionGrudgeThreshold: number;
+  invasionHeat: number;
+  invasionMomentum: number;
+  invasionPopularity: number;
+  /** How much resentment an invasion burns off the triggering rival's grudge — getting their moment lets off steam. */
+  invasionCatharsis: number;
   supershowEagerAt: number;
   supershowCautiousAt: number;
   supershowPublicRefusalChance: number;

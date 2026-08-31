@@ -67,6 +67,13 @@ export interface IncidentContext {
    * that ever happened.
    */
   availableReturns: Wrestler[];
+  /**
+   * Wrestlers from a rival with a real grudge against you who could crash
+   * this show — see state/storeHelpers.ts's couldInvade. Only ever
+   * populated for the player's own show; grudges have no equivalent ledger
+   * for how rivals feel about each other.
+   */
+  potentialInvaders: { wrestler: Wrestler; fromPromotionId: Id; fromPromotionName: string }[];
   settings: WorldSettings;
   /**
    * 0-1. What owned crowd-control gear (steel barricades, security) cuts off

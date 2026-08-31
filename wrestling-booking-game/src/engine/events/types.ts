@@ -71,7 +71,9 @@ export type EventEffect =
   /** Routes through the existing discipline ladder — see career/discipline.ts. */
   | { kind: 'violation'; wrestlerId: Id; violationKind: ViolationKind; note: string }
   /** A one-off line on the wire — for something that happened off the regular results path (a dark-match debut, say). */
-  | { kind: 'wire'; wireKind: WireKind; text: string };
+  | { kind: 'wire'; wireKind: WireKind; text: string }
+  /** Drains resentment off a rival's grudge against you — see engine/world/grudges.ts. Positive delta, always a reduction. */
+  | { kind: 'grudgeRelief'; promotionId: Id; delta: number };
 
 /**
  * One choice the player can make. `gains` and `costs` are the honest,

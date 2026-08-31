@@ -251,6 +251,38 @@ export const INCIDENTS: IncidentDefinition[] = [
     },
   },
 
+  // ----------------------------------------------------------- invasions
+  {
+    id: 'rivalInvasion',
+    kind: 'Invasion',
+    // Rarer than a run-in on purpose — see WorldSettings.invasionEarliestWeek.
+    // By the time a save is old enough for this to even be possible, it
+    // should still read as a genuine surprise, not a regular Tuesday.
+    weight: 4,
+    when: (ctx) =>
+      ctx.potentialInvaders.length > 0 && (ctx.isMainEvent || ctx.titleOnTheLine) && ctx.winnerIds.length > 0,
+    build: (ctx, rng) => {
+      const invader = pick(rng, ctx.potentialInvaders);
+      const target = pick(rng, winners(ctx));
+      return {
+        id: 'rivalInvasion',
+        headline: pick(rng, [
+          `${nameOf(invader.wrestler)} came walking out from the back wearing ${invader.fromPromotionName} colors, and put ${nameOf(target)} straight through the mat before a soul back there could stop it.`,
+          `Nobody announced it and nobody advertised it. Every phone in the building was up the second ${nameOf(invader.wrestler)} hit that ramp, and ${nameOf(target)} never got one second to enjoy the win.`,
+          `${invader.fromPromotionName} just sent a message, and ${nameOf(invader.wrestler)} delivered it in person. ${nameOf(target)} is still trying to figure out what happened.`,
+        ]),
+        involvedIds: [invader.wrestler.id, target.id],
+        effects: [
+          { kind: 'crowdHeat', wrestlerIds: [invader.wrestler.id, target.id], delta: ctx.settings.invasionHeat },
+          { kind: 'momentum', wrestlerId: invader.wrestler.id, delta: ctx.settings.invasionMomentum },
+          { kind: 'popularity', wrestlerId: invader.wrestler.id, delta: ctx.settings.invasionPopularity },
+          // They came, they made their point, and it lets some of the steam off — see engine/world/grudges.ts.
+          { kind: 'grudgeRelief', promotionId: invader.fromPromotionId, delta: ctx.settings.invasionCatharsis },
+        ],
+      };
+    },
+  },
+
   // ------------------------------------------------------- real trouble
   {
     id: 'itWentReal',
