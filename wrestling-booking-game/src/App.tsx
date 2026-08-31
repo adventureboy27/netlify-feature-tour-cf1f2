@@ -35,6 +35,7 @@ import { AllTimeRivalsScreen } from './ui/screens/AllTimeRivalsScreen';
 import { ClassicRivalriesScreen } from './ui/screens/ClassicRivalriesScreen';
 import { Money } from './ui/components/display';
 import { promotionTheme } from './ui/components/chrome';
+import { PromotionMark } from './ui/components/PromotionMark';
 import { Sidebar, type Screen } from './ui/components/Nav';
 import { getReducedMotionPreference } from './ui/reducedMotion';
 
@@ -131,22 +132,25 @@ export default function App() {
           className={`sticky top-0 z-10 border-b border-neutral-800/80 bg-gradient-to-b ${theme.wash} to-neutral-950/95 bg-neutral-950/95 backdrop-blur-md`}
         >
           <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <div className="min-w-0">
-              <div className={`truncate text-base font-black leading-tight tracking-tight ${theme.ink}`}>
-                {world.promotion.name}
-              </div>
-              <div className="mt-0.5 text-[11px] leading-tight text-neutral-500">
-                {/* No dates, ever. A promotion thinks in "the week before the
-                    pay-per-view", not in the fourteenth of March — so the shell
-                    says the month and which week of it. See engine/world/calendar.ts. */}
-                {weekLine(world.week, world.settings)}
-                <span className="mx-1.5 text-neutral-700">·</span>
-                <span className="text-neutral-400">rating {Math.round(world.promotion.rating)}</span>
-                {world.promotion.hardcoreSaturation > 25 && (
-                  <span className="ml-1.5 text-amber-500" title="Booked violence is wearing the audience down">
-                    crowd desensitised
-                  </span>
-                )}
+            <div className="flex min-w-0 items-center gap-2">
+              <PromotionMark name={world.promotion.name} archetype={world.promotion.identity} size="small" />
+              <div className="min-w-0">
+                <div className={`truncate text-base font-black leading-tight tracking-tight ${theme.ink}`}>
+                  {world.promotion.name}
+                </div>
+                <div className="mt-0.5 text-[11px] leading-tight text-neutral-500">
+                  {/* No dates, ever. A promotion thinks in "the week before the
+                      pay-per-view", not in the fourteenth of March — so the shell
+                      says the month and which week of it. See engine/world/calendar.ts. */}
+                  {weekLine(world.week, world.settings)}
+                  <span className="mx-1.5 text-neutral-700">·</span>
+                  <span className="text-neutral-400">rating {Math.round(world.promotion.rating)}</span>
+                  {world.promotion.hardcoreSaturation > 25 && (
+                    <span className="ml-1.5 text-amber-500" title="Booked violence is wearing the audience down">
+                      crowd desensitised
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <div className="shrink-0 rounded-lg border border-neutral-800 bg-neutral-900/80 px-2.5 py-1.5 text-right shadow-panel">

@@ -5,6 +5,61 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Custom promotion creation, a generated logo, and batch photo import — shipped
+
+Asked "what else, let's be the best," the design doc's own §23 named custom promotion creation as a
+post-v1 candidate — checking what NewGameScreen already did turned up far more than expected: a real name,
+generate-or-import per company, house style, and a full custom-championship builder already existed. The
+actual gap was narrower and already anticipated in the type system: `WorldPresetName` has carried a `'custom'`
+member since the five-preset system was built, with no UI ever reaching it — the five presets' own starting
+cash/roster/rating/following are fixed bundles, and there was no way to set those numbers directly.
+
+`data/worldPresets.ts` gained `CUSTOM_PRESET_BOUNDS` — four sliders (cash, roster size, national credibility,
+home following), each clamped to the exact span the five hand-tuned presets already validated individually
+(Backyard's floor to Big money's ceiling, per field) so Custom can only ever recombine numbers this game has
+already balance-tested, never exceed them. A generated (never hand-written) `customSqueezeLine()` reads the
+combination back in the same voice as the five presets' own `theSqueeze` — qualitative, words not numbers,
+reacting to both money-per-head and how known the promotion already is. `engine/world/settings.ts` gained the
+matching `worldSettingsFromCustom()`, and `NewGameScreen.tsx` a sixth tile alongside the five fixed presets,
+sliders appearing inline when it's selected. Locked with 23 new tests in `worldPresets.test.ts`, including one
+that asserts every bound stays inside the five presets' own measured span — if a future preset retune ever
+widens or narrows that span, this test catches Custom drifting outside proven territory.
+
+Separately, asked for "generic logos with initials" the player can still name and choose: rather than a
+second, disconnected color system, `PromotionMark` (new) reuses the *existing* seven-way house-style palette
+(`chrome.tsx`'s `promotionTheme`, already driving every button and header wash in the game) and pairs each
+archetype with its own badge shape — a circle for Territory, a five-point star for Sports entertainment, a
+jagged burst for Hardcore, a hexagon for Technical, a rotated diamond for Lucha, a heraldic shield for Old
+school, a plain rounded square for Athletic — via inline `clipPath`, no art asset. It's the exact same
+"generate from the name, no upload" idea `PaperDoll` already uses for a wrestler with no photo. Needs zero new
+state: fully derived from a promotion's existing `name` and `identity`, so "choosing" the logo *is* picking
+the house style the player was already going to pick — updates live in `NewGameScreen`'s creation flow, and
+placed persistently in `App.tsx`'s header, `PromotionScreen`'s "Who you are" panel, and the rival-company
+picker on `RivalRosterScreen`.
+
+Third: "make sure importing photos is easy... whether it's batch or individually... make sure it knows male
+vs female... utilities in the menu that are run and foolproof." The individual case and the JSON whole-roster
+import (which already carries `gender` and `photoDataUrl` per entry) both already existed; the real gap was
+attaching real image *files* — a folder of actual photos — to a roster already in play, which had no path at
+all. New `BatchPhotoImport.tsx`, reachable from Settings next to the existing save/roster file tools: pick any
+number of image files at once, each gets matched against the roster by filename (`suggestMatch` — normalizes
+both sides and pre-selects only on an *exact, unambiguous* single match, never guessing between candidates),
+reuses the existing `resizeToDataUrl` pipeline unchanged, and shows every row's target wrestler with their
+name and gender spelled out before anything is written — nothing is saved until Apply, and a duplicate pick
+within one batch is flagged rather than silently overwritten. The store gained a new, deliberately minimal
+`setWrestlerPhoto` action rather than routing through the existing `repackageWrestler` — that path always
+resets `gimmickFreshness` to 100 on the theory that a new look is a new character, which a plain photo attach
+must never trigger as a side effect (confirmed by a new store test asserting freshness is untouched).
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2906 tests, 0 failures — 23 new for the custom preset, 3
+new for `setWrestlerPhoto`), `npm run build` clean, and two live Playwright walk-throughs: building a custom
+promotion end to end (dragging every slider, confirming the squeeze line and the live logo both react, then
+actually opening the doors and seeing the chosen numbers land in the real save), and a batch photo import
+against a real roster (three files, two filename-matched correctly, one correctly left unmatched, applied and
+confirmed on the roster screen afterward).
+
+---
+
 ## Vignette packages — a paid gamble to hype a debut — shipped
 
 Asked whether the game had a way to build anticipation for a new signing the way wrestling did it in the 80s

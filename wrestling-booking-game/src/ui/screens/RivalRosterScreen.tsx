@@ -17,6 +17,7 @@ import { useGameStore } from '../../state/store';
 import { identityOf } from '../../data/promotionIdentity';
 import { WrestlerRow } from '../components/WrestlerRow';
 import { WrestlerDetailBody } from '../components/WrestlerDetail';
+import { PromotionMark } from '../components/PromotionMark';
 import type { Id, Promotion, Wrestler } from '../../engine/types';
 
 export function RivalRosterScreen({
@@ -74,16 +75,19 @@ export function RivalRosterScreen({
                   setSelectedId(rival.id);
                   setSelectedWrestlerId(null);
                 }}
-                className={`rounded-lg border px-2.5 py-1.5 text-left text-xs transition ${
+                className={`flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-left text-xs transition ${
                   selected?.id === rival.id
                     ? 'border-emerald-600 bg-emerald-950/40 text-neutral-100'
                     : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-600'
                 }`}
               >
-                <div className="font-semibold">{rival.name}</div>
-                <div className="text-[10px] text-neutral-500">
-                  {identityOf(rival.identity).label} · rating {Math.round(rival.rating)} · {rival.rosterIds.length}{' '}
-                  signed
+                <PromotionMark name={rival.name} archetype={rival.identity} size="small" />
+                <div>
+                  <div className="font-semibold">{rival.name}</div>
+                  <div className="text-[10px] text-neutral-500">
+                    {identityOf(rival.identity).label} · rating {Math.round(rival.rating)} · {rival.rosterIds.length}{' '}
+                    signed
+                  </div>
                 </div>
               </button>
             ))}

@@ -21,8 +21,9 @@ import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
 import { startingBlueprints } from '../../data/titles';
 import { beltPrefix } from '../../data/promotionIdentity';
 import { TitleBuilder, blankTitleBlueprint } from '../components/TitleBuilder';
-import { worldSettingsFromPreset } from '../../engine/world/settings';
-import { WORLD_PRESET_INFO } from '../../data/worldPresets';
+import { PromotionMark } from '../components/PromotionMark';
+import { worldSettingsFromPreset, worldSettingsFromCustom } from '../../engine/world/settings';
+import { WORLD_PRESET_INFO, CUSTOM_PRESET_BOUNDS, customSqueezeLine } from '../../data/worldPresets';
 import { rngFromSeed } from '../../engine/rng';
 import { parseRoster, type RosterEntry } from '../../engine/world/roster-io';
 import type { PromotionArchetype, TitleBlueprint, WorldPresetName } from '../../engine/types';
@@ -52,8 +53,20 @@ export function NewGameScreen() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  const [preset, setPreset] = useState<Exclude<WorldPresetName, 'custom'>>('backyard');
-  const defaults = worldSettingsFromPreset(preset);
+  const [preset, setPreset] = useState<WorldPresetName>('backyard');
+  const [customCash, setCustomCash] = useState(CUSTOM_PRESET_BOUNDS.cash.default);
+  const [customRosterSize, setCustomRosterSize] = useState(CUSTOM_PRESET_BOUNDS.rosterSize.default);
+  const [customCompanyRating, setCustomCompanyRating] = useState(CUSTOM_PRESET_BOUNDS.companyRating.default);
+  const [customTerritoryFollowing, setCustomTerritoryFollowing] = useState(CUSTOM_PRESET_BOUNDS.territoryFollowing.default);
+  const defaults =
+    preset === 'custom'
+      ? worldSettingsFromCustom({
+          startingCash: customCash,
+          startingRosterSize: customRosterSize,
+          startingCompanyRating: customCompanyRating,
+          startingTerritoryFollowing: customTerritoryFollowing,
+        })
+      : worldSettingsFromPreset(preset);
   const [promotionCount, setPromotionCount] = useState(1);
 
   const [slots, setSlots] = useState<SlotDraft[]>([{ name: '', mode: 'generate' }]);
@@ -249,6 +262,90 @@ export function NewGameScreen() {
                   </button>
                 );
               })}
+
+              <div
+                className={`rounded border p-2 ${
+                  preset === 'custom'
+                    ? 'border-emerald-500 bg-emerald-950/40'
+                    : 'border-neutral-800 bg-neutral-900 hover:border-neutral-600'
+                }`}
+              >
+                <button
+                  type="button"
+                  data-testid="preset-custom"
+                  onClick={() => setPreset('custom')}
+                  className="block w-full text-left"
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-sm font-medium">Custom</span>
+                    <span className="shrink-0 font-mono text-[10px] text-neutral-500">
+                      ${customCash.toLocaleString()} · {customRosterSize} on the payroll
+                    </span>
+                  </div>
+                  <div className={`text-[11px] ${preset === 'custom' ? 'text-neutral-200' : 'text-neutral-400'}`}>
+                    Build your own starting position instead of picking one off the shelf.
+                  </div>
+                </button>
+                {preset === 'custom' && (
+                  <div className="mt-2 flex flex-col gap-2">
+                    <label className="block text-[10px] uppercase tracking-wider text-neutral-500">
+                      Starting cash — ${customCash.toLocaleString()}
+                      <input
+                        type="range"
+                        data-testid="custom-cash"
+                        min={CUSTOM_PRESET_BOUNDS.cash.min}
+                        max={CUSTOM_PRESET_BOUNDS.cash.max}
+                        step={CUSTOM_PRESET_BOUNDS.cash.step}
+                        value={customCash}
+                        onChange={(e) => setCustomCash(Number(e.target.value))}
+                        className="mt-1 w-full"
+                      />
+                    </label>
+                    <label className="block text-[10px] uppercase tracking-wider text-neutral-500">
+                      Starting roster size — {customRosterSize}
+                      <input
+                        type="range"
+                        data-testid="custom-roster-size"
+                        min={CUSTOM_PRESET_BOUNDS.rosterSize.min}
+                        max={CUSTOM_PRESET_BOUNDS.rosterSize.max}
+                        step={CUSTOM_PRESET_BOUNDS.rosterSize.step}
+                        value={customRosterSize}
+                        onChange={(e) => setCustomRosterSize(Number(e.target.value))}
+                        className="mt-1 w-full"
+                      />
+                    </label>
+                    <label className="block text-[10px] uppercase tracking-wider text-neutral-500">
+                      How credible you already are, nationally
+                      <input
+                        type="range"
+                        data-testid="custom-company-rating"
+                        min={CUSTOM_PRESET_BOUNDS.companyRating.min}
+                        max={CUSTOM_PRESET_BOUNDS.companyRating.max}
+                        step={CUSTOM_PRESET_BOUNDS.companyRating.step}
+                        value={customCompanyRating}
+                        onChange={(e) => setCustomCompanyRating(Number(e.target.value))}
+                        className="mt-1 w-full"
+                      />
+                    </label>
+                    <label className="block text-[10px] uppercase tracking-wider text-neutral-500">
+                      How loved you already are at home
+                      <input
+                        type="range"
+                        data-testid="custom-territory-following"
+                        min={CUSTOM_PRESET_BOUNDS.territoryFollowing.min}
+                        max={CUSTOM_PRESET_BOUNDS.territoryFollowing.max}
+                        step={CUSTOM_PRESET_BOUNDS.territoryFollowing.step}
+                        value={customTerritoryFollowing}
+                        onChange={(e) => setCustomTerritoryFollowing(Number(e.target.value))}
+                        className="mt-1 w-full"
+                      />
+                    </label>
+                    <div className="text-[11px] text-amber-300" data-testid="custom-squeeze">
+                      {customSqueezeLine(customCash, customRosterSize, customCompanyRating, customTerritoryFollowing)}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
@@ -439,6 +536,13 @@ export function NewGameScreen() {
             <>
               <section className="mb-4">
                 <div className="mb-1 text-xs uppercase tracking-wide text-neutral-500">House style</div>
+                <div className="mb-2 flex items-center gap-2">
+                  <PromotionMark name={playerSlot?.name || 'Your Promotion'} archetype={archetype} size="medium" />
+                  <p className="text-[11px] text-neutral-500">
+                    No logo to upload — this mark is generated from the name and the house style below, and updates
+                    the moment either one changes.
+                  </p>
+                </div>
                 <div className="flex flex-wrap gap-1">
                   {PROMOTION_ARCHETYPES.map((option) => (
                     <button

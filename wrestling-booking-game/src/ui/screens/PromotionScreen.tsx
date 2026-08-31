@@ -31,6 +31,7 @@ import { ownedUnitsForFamily, unitConditionLabel, unitHasFailed, propRepairCost 
 import { weeklyWageBill } from '../../engine/economy/contracts';
 import { followingOf } from '../../engine/world/territories';
 import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
+import { PromotionMark } from '../components/PromotionMark';
 import { fanTasteHighlights } from '../../engine/world/fanTaste';
 import { STYLE_LABEL } from '../../data/styles';
 import { titlesOf } from '../../data/titles';
@@ -470,18 +471,21 @@ function IdentityPanel() {
         </span>
       </div>
 
-      <input
-        type="text"
-        value={name}
-        disabled={locked}
-        data-testid="promotion-name"
-        onChange={(e) => setDraftName(e.target.value)}
-        onBlur={() => {
-          if (draftName !== null) setIdentity(draftName, world.promotion.identity);
-          setDraftName(null);
-        }}
-        className="mb-2 w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1 text-sm disabled:opacity-60"
-      />
+      <div className="mb-2 flex items-center gap-2">
+        <PromotionMark name={name} archetype={world.promotion.identity} size="small" />
+        <input
+          type="text"
+          value={name}
+          disabled={locked}
+          data-testid="promotion-name"
+          onChange={(e) => setDraftName(e.target.value)}
+          onBlur={() => {
+            if (draftName !== null) setIdentity(draftName, world.promotion.identity);
+            setDraftName(null);
+          }}
+          className="w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1 text-sm disabled:opacity-60"
+        />
+      </div>
 
       <div className="mb-2 flex flex-wrap gap-1">
         {PROMOTION_ARCHETYPES.map((archetype) => {

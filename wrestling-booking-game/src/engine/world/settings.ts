@@ -2411,3 +2411,21 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetName, 'custom'>, Partial<W
 export function worldSettingsFromPreset(preset: Exclude<WorldPresetName, 'custom'>): WorldSettings {
   return { ...defaultWorldSettings(), ...WORLD_PRESETS[preset] };
 }
+
+/** The sixth way in — built by hand from data/worldPresets.ts's CUSTOM_PRESET_BOUNDS instead of picked off the shelf. */
+export interface CustomPresetChoices {
+  startingCash: number;
+  startingRosterSize: number;
+  startingCompanyRating: number;
+  startingTerritoryFollowing: number;
+}
+
+export function worldSettingsFromCustom(choices: CustomPresetChoices): WorldSettings {
+  return {
+    ...defaultWorldSettings(),
+    startingCash: choices.startingCash,
+    startingRosterSize: choices.startingRosterSize,
+    startingCompanyRating: choices.startingCompanyRating,
+    startingTerritoryFollowing: choices.startingTerritoryFollowing,
+  };
+}

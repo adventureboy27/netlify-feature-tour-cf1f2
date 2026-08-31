@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { WORLD_PRESET_INFO, presetInfo } from './worldPresets';
-import { WORLD_PRESETS, worldSettingsFromPreset, defaultWorldSettings } from '../engine/world/settings';
+import { WORLD_PRESET_INFO, presetInfo, CUSTOM_PRESET_BOUNDS, customSqueezeLine } from './worldPresets';
+import { WORLD_PRESETS, worldSettingsFromPreset, worldSettingsFromCustom, defaultWorldSettings } from '../engine/world/settings';
 import { bestFittingVenue, venueById } from './venues';
 import { divisionSplit } from '../engine/generate/wrestler';
 import { tagTeamCountFor } from '../engine/world/tagTeams';
@@ -136,6 +136,88 @@ describe('the presets actually differ', () => {
     const base = defaultWorldSettings();
     expect(big.mandateStrikesBeforeFiring).toBeLessThan(base.mandateStrikesBeforeFiring);
     expect(territory.mandateStrikesBeforeFiring).toBeGreaterThan(base.mandateStrikesBeforeFiring);
+  });
+});
+
+describe('the custom preset', () => {
+  // Every bound has to sit inside the span the five hand-tuned presets
+  // already proved playable — Custom can only ever recombine numbers this
+  // game has already balance-tested individually. If a bound ever drifts
+  // outside that span, Custom stops being "untested combination of tested
+  // values" and starts being a genuinely new, unmeasured difficulty.
+  it('never lets a slider reach past what the five presets already validated', () => {
+    const cash = Object.values(WORLD_PRESETS).map((p) => p.startingCash).filter((n): n is number => n !== undefined);
+    const roster = Object.values(WORLD_PRESETS).map((p) => p.startingRosterSize).filter((n): n is number => n !== undefined);
+    const rating = Object.values(WORLD_PRESETS).map((p) => p.startingCompanyRating).filter((n): n is number => n !== undefined);
+    const following = Object.values(WORLD_PRESETS)
+      .map((p) => p.startingTerritoryFollowing)
+      .filter((n): n is number => n !== undefined);
+
+    expect(CUSTOM_PRESET_BOUNDS.cash.min).toBeGreaterThanOrEqual(Math.min(...cash));
+    expect(CUSTOM_PRESET_BOUNDS.cash.max).toBeLessThanOrEqual(Math.max(...cash));
+    expect(CUSTOM_PRESET_BOUNDS.companyRating.min).toBeGreaterThanOrEqual(Math.min(...rating));
+    expect(CUSTOM_PRESET_BOUNDS.companyRating.max).toBeLessThanOrEqual(Math.max(...rating));
+    expect(CUSTOM_PRESET_BOUNDS.territoryFollowing.min).toBeGreaterThanOrEqual(Math.min(...following));
+    expect(CUSTOM_PRESET_BOUNDS.territoryFollowing.max).toBeLessThanOrEqual(Math.max(...following));
+    // Roster size is deliberately floored above Backyard's true minimum —
+    // see CUSTOM_PRESET_BOUNDS' own comment on why that preset's floor does
+    // not carry over — so this checks against the ceiling only.
+    expect(CUSTOM_PRESET_BOUNDS.rosterSize.max).toBeLessThanOrEqual(Math.max(...roster));
+    expect(CUSTOM_PRESET_BOUNDS.rosterSize.min).toBeGreaterThan(Math.min(...roster));
+  });
+
+  it('every default sits inside its own bounds', () => {
+    for (const key of ['cash', 'rosterSize', 'companyRating', 'territoryFollowing'] as const) {
+      const b = CUSTOM_PRESET_BOUNDS[key];
+      expect(b.default, key).toBeGreaterThanOrEqual(b.min);
+      expect(b.default, key).toBeLessThanOrEqual(b.max);
+    }
+  });
+
+  it('worldSettingsFromCustom sets exactly the four chosen fields and nothing else', () => {
+    const base = defaultWorldSettings();
+    const custom = worldSettingsFromCustom({
+      startingCash: 120_000,
+      startingRosterSize: 30,
+      startingCompanyRating: 40,
+      startingTerritoryFollowing: 35,
+    });
+    expect(custom.startingCash).toBe(120_000);
+    expect(custom.startingRosterSize).toBe(30);
+    expect(custom.startingCompanyRating).toBe(40);
+    expect(custom.startingTerritoryFollowing).toBe(35);
+    // Everything else rides the ordinary defaults, exactly like a preset
+    // that never mentions a field.
+    expect(custom.chaosLevel).toBe(base.chaosLevel);
+    expect(custom.promotionArchetype).toBe(base.promotionArchetype);
+  });
+
+  it('the squeeze line always says something, whatever the combination', () => {
+    const combos: [number, number, number, number][] = [
+      [CUSTOM_PRESET_BOUNDS.cash.min, CUSTOM_PRESET_BOUNDS.rosterSize.max, CUSTOM_PRESET_BOUNDS.companyRating.min, CUSTOM_PRESET_BOUNDS.territoryFollowing.min],
+      [CUSTOM_PRESET_BOUNDS.cash.max, CUSTOM_PRESET_BOUNDS.rosterSize.min, CUSTOM_PRESET_BOUNDS.companyRating.max, CUSTOM_PRESET_BOUNDS.territoryFollowing.max],
+      [CUSTOM_PRESET_BOUNDS.cash.default, CUSTOM_PRESET_BOUNDS.rosterSize.default, CUSTOM_PRESET_BOUNDS.companyRating.default, CUSTOM_PRESET_BOUNDS.territoryFollowing.default],
+    ];
+    for (const [cash, roster, rating, following] of combos) {
+      const line = customSqueezeLine(cash, roster, rating, following);
+      expect(line.length).toBeGreaterThan(20);
+    }
+  });
+
+  it('reads the thinnest and richest combinations differently', () => {
+    const thin = customSqueezeLine(
+      CUSTOM_PRESET_BOUNDS.cash.min,
+      CUSTOM_PRESET_BOUNDS.rosterSize.max,
+      CUSTOM_PRESET_BOUNDS.companyRating.min,
+      CUSTOM_PRESET_BOUNDS.territoryFollowing.min,
+    );
+    const rich = customSqueezeLine(
+      CUSTOM_PRESET_BOUNDS.cash.max,
+      CUSTOM_PRESET_BOUNDS.rosterSize.min,
+      CUSTOM_PRESET_BOUNDS.companyRating.max,
+      CUSTOM_PRESET_BOUNDS.territoryFollowing.max,
+    );
+    expect(thin).not.toBe(rich);
   });
 });
 

@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { clearSave, savedGameSummary } from '../../state/persist';
 import { FileTransfer } from '../components/FileTransfer';
+import { BatchPhotoImport } from '../components/BatchPhotoImport';
 import { Panel, SectionHead, Badge } from '../components/chrome';
 import { getReducedMotionPreference, setReducedMotionPreference } from '../reducedMotion';
 
@@ -67,6 +68,11 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
             <SectionHead>Your save</SectionHead>
             <Panel className="p-3">
               <FileTransfer />
+            </Panel>
+
+            <SectionHead>Photos</SectionHead>
+            <Panel className="p-3">
+              <BatchPhotoImport />
             </Panel>
           </>
         )}

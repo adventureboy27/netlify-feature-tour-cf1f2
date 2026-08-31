@@ -810,6 +810,12 @@ export interface GameStore {
     wrestlerId: Id,
     change: { name?: string; nickname?: string | null; photoDataUrl?: string | null },
   ) => { ok: boolean; reason: string | null };
+  /**
+   * Attach (or clear) a real photo on its own, with none of repackageWrestler's
+   * other effects — no name check, no gimmickFreshness reset. See
+   * ui/components/BatchPhotoImport.tsx.
+   */
+  setWrestlerPhoto: (wrestlerId: Id, photoDataUrl: string | null) => void;
   /** Put two of your people together as a tag team. Empty name = let the announcers pick. */
   formTagTeam: (aId: Id, bId: Id, name?: string) => void;
   /** Split a team up. Any tag belts they were carrying go vacant. */

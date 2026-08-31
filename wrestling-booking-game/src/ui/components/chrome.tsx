@@ -34,6 +34,8 @@ import type { PromotionArchetype } from '../../engine/types';
 export interface PromotionTheme {
   /** Solid fill for the one primary action on a screen. */
   action: string;
+  /** The same fill with no hover state — for anything that isn't a button, like PromotionMark. */
+  solid: string;
   /** Text colour for headings and accents. */
   ink: string;
   /** Hairline for a heading rule or an active tab. */
@@ -45,42 +47,49 @@ export interface PromotionTheme {
 const THEMES: Record<PromotionArchetype, PromotionTheme> = {
   territory: {
     action: 'bg-amber-600 hover:bg-amber-500',
+    solid: 'bg-amber-600',
     ink: 'text-amber-400',
     edge: 'border-amber-700',
     wash: 'from-amber-950/40',
   },
   hardcore: {
     action: 'bg-red-700 hover:bg-red-600',
+    solid: 'bg-red-700',
     ink: 'text-red-400',
     edge: 'border-red-800',
     wash: 'from-red-950/40',
   },
   technical: {
     action: 'bg-sky-700 hover:bg-sky-600',
+    solid: 'bg-sky-700',
     ink: 'text-sky-400',
     edge: 'border-sky-800',
     wash: 'from-sky-950/40',
   },
   sportsEntertainment: {
     action: 'bg-fuchsia-700 hover:bg-fuchsia-600',
+    solid: 'bg-fuchsia-700',
     ink: 'text-fuchsia-400',
     edge: 'border-fuchsia-800',
     wash: 'from-fuchsia-950/40',
   },
   lucha: {
     action: 'bg-orange-600 hover:bg-orange-500',
+    solid: 'bg-orange-600',
     ink: 'text-orange-400',
     edge: 'border-orange-700',
     wash: 'from-orange-950/40',
   },
   oldSchool: {
     action: 'bg-stone-600 hover:bg-stone-500',
+    solid: 'bg-stone-600',
     ink: 'text-stone-300',
     edge: 'border-stone-600',
     wash: 'from-stone-900/50',
   },
   athletic: {
     action: 'bg-emerald-600 hover:bg-emerald-500',
+    solid: 'bg-emerald-600',
     ink: 'text-emerald-400',
     edge: 'border-emerald-700',
     wash: 'from-emerald-950/40',

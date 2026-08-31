@@ -21,7 +21,12 @@ import { createStartingTitles } from '../../data/titles';
 
 type TagTeamsAndIdentitySlice = Pick<
   GameStore,
-  'formTagTeam' | 'disbandTagTeam' | 'repackageWrestler' | 'retireWrestler' | 'setPromotionIdentity'
+  | 'formTagTeam'
+  | 'disbandTagTeam'
+  | 'repackageWrestler'
+  | 'setWrestlerPhoto'
+  | 'retireWrestler'
+  | 'setPromotionIdentity'
 >;
 
 export const createTagTeamsAndIdentitySlice: StateCreator<
@@ -104,6 +109,19 @@ export const createTagTeamsAndIdentitySlice: StateCreator<
     const after = get().world;
     if (after) saveGame(after, rng.state?.() ?? 0);
     return { ok: true, reason: null };
+  },
+
+  // A photo on its own, never routed through repackage() — that function
+  // always resets gimmickFreshness to 100 on the theory that a new look is
+  // a new character. Attaching a real photo to an existing act is not a
+  // repackage and must not give a stale gimmick a free reset. See
+  // ui/components/BatchPhotoImport.tsx, the one caller that needs this.
+  setWrestlerPhoto: (wrestlerId, photoDataUrl) => {
+    set((state) => {
+      const w = state.world?.wrestlers[wrestlerId];
+      if (!w) return;
+      w.photoDataUrl = photoDataUrl ?? undefined;
+    });
   },
 
   retireWrestler: (wrestlerId) => {
