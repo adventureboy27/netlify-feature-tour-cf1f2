@@ -2656,6 +2656,38 @@ export interface WorldSettings {
   mergerBankInjection: number;
   /** Added straight onto the resentment term a supershow proposal is judged against, for anybody who isn't their own sibling. */
   mergerCrossPromotionResistance: number;
+  /** Relative weight against other world stories eligible the same week — see data/worldStories.ts. */
+  mergerStoryWeight: number;
+
+  // Succession — a rival's founder dies or steps back. Lighter and more
+  // common than the merger; can happen to more than one rival across a long
+  // save, tracked per-promotion rather than once ever.
+  successionEarliestWeek: number;
+  successionChancePerWeek: number;
+  successionStoryWeight: number;
+  successionRatingBoostSharp: number;
+  successionReputationBoostSharp: number;
+  successionRatingDropWeak: number;
+  successionReputationDropWeak: number;
+  /** A weak or contested heir sheds staff who were loyal to the old regime — see engine/world/ownershipShakeup.ts. */
+  shakeupReleaseMin: number;
+  shakeupReleaseMax: number;
+
+  // The ring gives out — a pre-show risk, foreshadowed by how worn the ring
+  // actually is, resolved the same shape as a severe-weather call: a
+  // warning, a real decision, an uncertain outcome.
+  /** Floor below which a worn ring can even raise the warning at all. */
+  ringCallConditionFloor: number;
+  ringCallLikelyShare: number;
+  ringCallLikelyFailChance: number;
+  ringCallEvenFailChance: number;
+  /** "Play it safe": no contest, refunded. */
+  ringCallSafeMoraleDelta: number;
+  ringCallSafeMerchShare: number;
+  /** "Go nuclear": finished on the bare floor. */
+  ringCallNuclearInjuryMultiplier: number;
+  ringCallNuclearRatingSwing: number;
+
   supershowEagerAt: number;
   supershowCautiousAt: number;
   supershowPublicRefusalChance: number;
@@ -3662,6 +3694,14 @@ export interface WorldSettings {
   casualtyChanceManager: number;
   /** However violent it gets, nobody is certain to be hurt. */
   casualtyChanceCap: number;
+  /**
+   * How much unskilled hands raise the match's overall injuryMultiplier — see
+   * simulateMatch.ts. Compounds across both participants rather than
+   * averaging: one green wrestler paired with a veteran is still mostly
+   * safe, but two green wrestlers together multiply the danger rather than
+   * split the difference.
+   */
+  skillInjuryWeight: number;
   /** How far a given injury swings either side of its listed length. */
   casualtyWeeksVariance: number;
   /**

@@ -488,6 +488,7 @@ export function ShowResults({
         </section>
       )}
 
+      <BreakingNews />
       <FanReaction />
       <TheWire />
       <AroundTheBusiness />
@@ -572,18 +573,60 @@ function AroundTheBusiness() {
   );
 }
 
+/** Which wire kinds are big enough to run as their own headline rather than folding into the ordinary feed. */
+const BREAKING_NEWS_KINDS = new Set<string>(['business', 'ownership', 'contract', 'talent']);
+
+/**
+ * The stories that change the shape of the business — a merger, a
+ * succession, a contract raid, a rival throwing money at spite. Run apart
+ * from the ordinary week's news rather than blended into it, so a headline
+ * this size never reads as just another line in the feed.
+ */
+function BreakingNews() {
+  const world = useGameStore((s) => s.world);
+  if (!world) return null;
+  const items = sortWire(world.weeklyNews).filter(
+    (item) => BREAKING_NEWS_KINDS.has(item.kind) && item.weight === 'lead',
+  );
+  if (items.length === 0) return null;
+
+  return (
+    <section>
+      <SectionHead>Breaking news</SectionHead>
+      <div className="flex flex-col gap-2">
+        {items.map((item, i) => (
+          <article
+            key={`breaking-${item.kind}-${i}`}
+            data-testid={`breaking-news-${item.kind}`}
+            className="rounded-lg border border-rose-800/70 bg-rose-950/30 px-3 py-2"
+          >
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-rose-400">
+              {WIRE_KIND_LABELS[item.kind]}
+            </div>
+            <p className="text-sm text-rose-100">{item.text}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /**
  * Everything that happened to anybody this week.
  *
  * The results page used to cover the card and nothing else, so a death, a
  * retirement, a team splitting up or a rival signing the man you released all
  * went unmentioned until — at best — the December digest. This is the section
- * that keeps CLAUDE.md's promise for all of it.
+ * that keeps CLAUDE.md's promise for all of it. The biggest stories run above,
+ * in Breaking News, and do not repeat down here.
  */
 function TheWire() {
   const world = useGameStore((s) => s.world);
   if (!world || world.weeklyNews.length === 0) return null;
-  const items = sortWire(world.weeklyNews);
+  const items = sortWire(world.weeklyNews).filter(
+    (item) => !(BREAKING_NEWS_KINDS.has(item.kind) && item.weight === 'lead'),
+  );
+  if (items.length === 0) return null;
 
   return (
     <section>

@@ -53,6 +53,7 @@ import type { Manager } from '../engine/sim/ringside';
 import type { WireItem } from '../engine/world/wire';
 import type { MemoriamShow } from '../engine/world/seasons';
 import type { WeatherCall } from '../engine/world/weatherCall';
+import type { RingCall, RingCallOptionId } from '../engine/world/ringCall';
 import type { NoShowCall, NoShowChoiceId } from '../engine/world/noShowCall';
 import type { TitleMemorial } from '../engine/world/titleMemorial';
 import type { RivalMove } from '../engine/world/rivalMove';
@@ -319,6 +320,12 @@ export interface World {
    */
   pendingWeatherCall: WeatherCall | null;
   /**
+   * A worn ring's warning, waiting on a decision — same shape as
+   * pendingWeatherCall, and the same reason: the week does not resolve
+   * until it's answered.
+   */
+  pendingRingCall: RingCall | null;
+  /**
    * A wrestler booked tonight simply never turns up, rolled by the
    * catastrophe system (engine/world/catastrophe.ts) rather than the
    * ordinary weekly misfortune roll — rare enough to be a real decision
@@ -395,6 +402,7 @@ export interface World {
   secretSignings: SecretSigning[];
   /** What was decided, carried into the resolve that follows. */
   weatherChoice: WeatherCallOptionId | null;
+  ringCallChoice: RingCallOptionId | null;
   /** Everyone in the business who is not signed anywhere. */
   freeAgents: FreeAgent[];
   /**
@@ -526,6 +534,8 @@ export interface World {
    * never fire twice — see WorldSettings.mergerEarliestWeek.
    */
   mergerHappened: boolean;
+  /** Rival promotion ids that have already been through succession (engine/world/succession.ts) — can happen once per rival, not once ever. */
+  successionHappenedFor: Id[];
   nextId: number;
 }
 
@@ -1147,6 +1157,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     solventWeeksSinceLastRelease: 0,
     pendingMemoriam: null,
     pendingWeatherCall: null,
+    pendingRingCall: null,
     pendingNoShowCall: null,
     noShowChoice: null,
     pendingChampionCall: null,
@@ -1167,6 +1178,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     lastBiddingWar: null,
     secretSignings: [],
     weatherChoice: null,
+    ringCallChoice: null,
     freeAgents: [...pool.freeAgents, ...managers.freeAgents],
     referees,
     // You open with one official on the books, and a six-match card runs him
@@ -1213,6 +1225,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     ratingsChart: [],
     meetings: {},
     mergerHappened: false,
+    successionHappenedFor: [],
     nextId: 1,
   };
 }

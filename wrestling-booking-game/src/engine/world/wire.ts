@@ -46,7 +46,13 @@ export type WireKind =
   /** The cameras were there and the feed still didn't hold. See sim/broadcast.ts. */
   | 'broadcast'
   /** A change to the shape of the business itself — a promotion bought, sold, or merged. */
-  | 'business';
+  | 'business'
+  /** Who's actually in charge somewhere — a founder's death, a succession, an heir taking over. */
+  | 'ownership'
+  /** A wrestler's deal — signed, broken, exposed, or exploited. */
+  | 'contract'
+  /** A signing, a departure, or a raid that's really about who's on which roster. */
+  | 'talent';
 
 /** How loudly the results page should say it. */
 export type WireWeight = 'lead' | 'normal' | 'minor';
@@ -78,6 +84,9 @@ export const WIRE_KIND_LABELS: Record<WireKind, string> = {
   houseShow: 'On the road',
   broadcast: 'The broadcast',
   business: 'The business',
+  ownership: 'Ownership',
+  contract: 'Contracts',
+  talent: 'Talent',
 };
 
 /**

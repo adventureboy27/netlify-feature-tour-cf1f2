@@ -432,6 +432,34 @@ export function letThemGo(world: World, wrestler: Wrestler, terms: ReturnType<ty
 }
 
 /**
+ * A rival's own roster shake-up — a founder's death, a scandal, a merger,
+ * whatever the trigger was. Not letThemGo: this happens to *any* rival's
+ * roster, not just the player's, and there is no severance economics to
+ * work out — the wrestler is simply cut loose. Who gets picked is
+ * engine/world/ownershipShakeup.ts's job; this is just the mechanics of
+ * actually letting one of them go.
+ */
+export function releaseFromShakeup(world: World, wrestler: Wrestler, promotionId: Id): void {
+  wrestler.promotionId = null;
+  wrestler.contract = null;
+  wrestler.role = 'wrestler';
+  if (promotionId === world.promotion.id) {
+    world.promotion.rosterIds = world.promotion.rosterIds.filter((id) => id !== wrestler.id);
+  } else {
+    const rival = world.rivals.find((r) => r.id === promotionId);
+    if (rival) rival.rosterIds = rival.rosterIds.filter((id) => id !== wrestler.id);
+  }
+  dropFromCard(world, wrestler.id);
+  world.freeAgents.push({
+    wrestlerId: wrestler.id,
+    reason: 'released',
+    askingRate: askingRate(wrestler, world.settings),
+    wantsWeeks: desiredContractWeeks(wrestler, world.settings),
+    weeksUnsigned: 0,
+  });
+}
+
+/**
  * Move a championship, and write the lineage on both sides of it: the old
  * champion's reign closes, the new one's opens. Shared by the player's show
  * and by every rival's, so a belt changing hands means the same thing

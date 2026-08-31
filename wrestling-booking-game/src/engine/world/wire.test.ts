@@ -34,6 +34,9 @@ const SAMPLES: Record<WireKind, WireItem> = {
   houseShow: wire('houseShow', 'Two house shows on the road this week.', 12, 'minor'),
   broadcast: wire('broadcast', 'The feed dropped during the main event and nobody at home saw it.', 12, 'normal'),
   business: wire('business', 'A billionaire just bought two rival promotions and merged them.', 12, 'lead'),
+  ownership: wire('ownership', 'A rival founder has died, and the company passes to an heir.', 12, 'lead'),
+  contract: wire('contract', 'A rival found real problems in five of your contracts.', 12, 'lead'),
+  talent: wire('talent', 'A rival overpaid four times over for a hot free agent, just to spite somebody.', 12, 'normal'),
 };
 
 describe('every kind of news can be said', () => {

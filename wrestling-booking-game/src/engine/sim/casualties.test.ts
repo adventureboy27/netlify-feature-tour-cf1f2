@@ -12,6 +12,7 @@ import {
   aggravate,
   fitToWork,
   injuryWord,
+  skillDangerMultiplier,
   type CasualtyContext,
 } from './casualties';
 import { INJURY_CAUSES, causesFor, injuryCauseById } from '../../data/casualties';
@@ -353,5 +354,37 @@ describe('severity as a number', () => {
     for (const grade of [0, 10, 30, 60, 95]) {
       expect(injuryWord(grade, settings)).not.toMatch(/\d/);
     }
+  });
+});
+
+describe('what unskilled hands do to the danger', () => {
+  it('leaves two skilled workers at baseline', () => {
+    expect(skillDangerMultiplier(95, [95], settings)).toBeCloseTo(1, 1);
+  });
+
+  it('keeps a green wrestler mostly safe when the other is a veteran', () => {
+    const greenWithVet = skillDangerMultiplier(10, [90], settings);
+    expect(greenWithVet).toBeLessThan(1.2);
+  });
+
+  it('protects the veteran too, working with a green opponent', () => {
+    const vetWithGreen = skillDangerMultiplier(90, [10], settings);
+    expect(vetWithGreen).toBeLessThan(1.2);
+  });
+
+  it('multiplies the danger when neither side has anything in the tank', () => {
+    const bothGreen = skillDangerMultiplier(5, [5], settings);
+    const oneSkilled = skillDangerMultiplier(5, [90], settings);
+    expect(bothGreen).toBeGreaterThan(oneSkilled);
+    expect(bothGreen).toBeGreaterThan(1.5);
+  });
+
+  it('averages across more than one opponent', () => {
+    const value = skillDangerMultiplier(50, [50, 50], settings);
+    expect(value).toBeGreaterThan(1);
+  });
+
+  it('is a no-op with nobody to be dangerous with', () => {
+    expect(skillDangerMultiplier(10, [], settings)).toBe(1);
   });
 });

@@ -91,6 +91,28 @@ function weeksOut(rng: Rng, cause: { weeks: number }, multiplier: number, settin
 }
 
 /**
+ * How much unskilled hands raise the danger for a competitor, on top of
+ * everything else already in `injuryMultiplier`.
+ *
+ * Compounds rather than averages: a green wrestler paired with a veteran is
+ * still mostly safe, because the veteran is the one controlling the
+ * exchange — real ring skill protects whoever you're in there with, not
+ * just yourself. Two green wrestlers together is where it actually
+ * multiplies, because neither one knows how to take care of the other.
+ */
+export function skillDangerMultiplier(
+  personSkill: number,
+  opponentSkills: readonly number[],
+  settings: WorldSettings,
+): number {
+  if (opponentSkills.length === 0) return 1;
+  const opponentAvg = opponentSkills.reduce((sum, s) => sum + s, 0) / opponentSkills.length;
+  const personGap = 1 - Math.max(0, Math.min(100, personSkill)) / 100;
+  const opponentGap = 1 - Math.max(0, Math.min(100, opponentAvg)) / 100;
+  return 1 + personGap * opponentGap * settings.skillInjuryWeight;
+}
+
+/**
  * Roll an injury for one person, or nothing.
  *
  * The odds differ by what they were doing: a competitor is in the match, a

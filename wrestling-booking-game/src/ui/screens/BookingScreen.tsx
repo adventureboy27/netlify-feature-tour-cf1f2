@@ -37,6 +37,7 @@ import { recallBookings } from '../../engine/sim/freshness';
 import { promotionTheme } from '../components/chrome';
 import { DialogueCard } from '../dialogue/DialogueCard';
 import type { WeatherCallOptionId } from '../../data/weatherCalls';
+import { RING_CALL_OPTIONS, type RingCallOptionId } from '../../engine/world/ringCall';
 import { NO_SHOW_CALL_OPTIONS, type NoShowChoiceId } from '../../engine/world/noShowCall';
 import { Stories } from '../components/Stories';
 import { ThisWeekStrip } from '../components/CalendarStrip';
@@ -58,6 +59,7 @@ export function BookingScreen({
   const spreadCrew = useGameStore((s) => s.spreadOfficialsAcrossCard);
   const autoFill = useGameStore((s) => s.autoFillCard);
   const answerWeatherCall = useGameStore((s) => s.answerWeatherCall);
+  const answerRingCall = useGameStore((s) => s.answerRingCall);
   const answerNoShowCall = useGameStore((s) => s.answerNoShowCall);
 
   const roster = useMemo(
@@ -84,6 +86,7 @@ export function BookingScreen({
   const roadShows = houseShowsThisWeek(world.week, schedule, world.settings);
   const tonightsImpromptu = (world.impromptuShows ?? []).filter((sh) => sh.week === world.week);
   const call = world.pendingWeatherCall;
+  const ringCall = world.pendingRingCall;
   const noShowCall = world.pendingNoShowCall;
   const tonightsHoliday = holidayForWeek(world.week);
   const nextHoliday = weeksUntilHoliday(world.week);
@@ -178,6 +181,20 @@ export function BookingScreen({
           subtext={call.forecast}
           choices={call.options.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
           onChoose={(optionId) => answerWeatherCall(optionId as WeatherCallOptionId)}
+          theme={theme}
+          promotionName={world.promotion.name}
+        />
+      )}
+
+      {/* The ring gives out — checked before weather, so if both are somehow
+          in play the same night, this is the one the promoter answers first. */}
+      {ringCall && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName={`The ring in ${ringCall.territoryName}`}
+          body={ringCall.warning}
+          choices={RING_CALL_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
+          onChoose={(optionId) => answerRingCall(optionId as RingCallOptionId)}
           theme={theme}
           promotionName={world.promotion.name}
         />

@@ -22,6 +22,7 @@ type EventsSlice = Pick<
   | 'dismissMandateOutcome'
   | 'dismissYearInReview'
   | 'answerWeatherCall'
+  | 'answerRingCall'
   | 'answerNoShowCall'
   | 'answerRivalMove'
   | 'answerConfrontationCall'
@@ -117,6 +118,15 @@ export const createEventsSlice: StateCreator<GameStore, [['zustand/immer', never
     // Answering *is* running the show. The week was held open waiting for
     // this, so it resolves the moment the booker decides rather than making
     // them press the same button twice.
+    get().resolveWeek();
+  },
+
+  answerRingCall: (choice) => {
+    set((state) => {
+      const world = state.world;
+      if (!world?.pendingRingCall) return;
+      world.ringCallChoice = choice;
+    });
     get().resolveWeek();
   },
 

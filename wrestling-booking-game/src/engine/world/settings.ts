@@ -911,6 +911,36 @@ export function defaultWorldSettings(): WorldSettings {
     // A supershow proposal has to clear the same climb as facing down real,
     // earned resentment — this is not a company being merely reluctant.
     mergerCrossPromotionResistance: 40,
+    mergerStoryWeight: 5,
+
+    // Two years — earlier than the merger, since this is a lighter, more
+    // ordinary kind of change and can happen to more than one rival.
+    successionEarliestWeek: 104,
+    successionChancePerWeek: 0.02,
+    successionStoryWeight: 5,
+    successionRatingBoostSharp: 10,
+    successionReputationBoostSharp: 8,
+    successionRatingDropWeak: 12,
+    successionReputationDropWeak: 10,
+    shakeupReleaseMin: 2,
+    shakeupReleaseMax: 5,
+
+    // A ring nobody's kept up with is a real, foreseeable risk — same shape
+    // as a severe-weather call: a warning, a real decision, an outcome
+    // that's genuinely uncertain either way.
+    ringCallConditionFloor: 35,
+    ringCallLikelyShare: 0.4,
+    ringCallLikelyFailChance: 0.55,
+    ringCallEvenFailChance: 0.25,
+    ringCallSafeMoraleDelta: -6,
+    ringCallSafeMerchShare: 0.4,
+    // A dangerous night, not a routine one — on top of everything else that
+    // already scales injuryMultiplier.
+    ringCallNuclearInjuryMultiplier: 1.8,
+    // Can swing either way — the whole point is that it is a real gamble,
+    // never a guaranteed pop for going bare-floor.
+    ringCallNuclearRatingSwing: 22,
+
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,
@@ -1731,6 +1761,9 @@ export function defaultWorldSettings(): WorldSettings {
     casualtyChanceReferee: 0.012,
     casualtyChanceManager: 0.02,
     casualtyChanceCap: 0.4,
+    // Two wrestlers with nothing in the skill tank multiply the danger
+    // rather than split the difference — see simulateMatch.ts's skill term.
+    skillInjuryWeight: 0.9,
     casualtyWeeksVariance: 0.4,
     casualtyLengthExponent: 0.45,
     // About one injury in forty. Rare enough to be a story, common enough

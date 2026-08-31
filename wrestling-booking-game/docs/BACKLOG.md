@@ -5,6 +5,90 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## A world-story registry, succession, Breaking News, and skill-based in-ring danger — shipped
+
+Asked for an open-ended brainstorm of more stories and random events beyond the merger — "need outside
+influences" — with hard requirements laid down up front: every story or event needs real upside(s),
+downside(s), and an explicit multiple-choice decision tree wherever a real choice exists; sub-stories should
+be a shared, reusable pool rather than owned by one main story; and every major/sub story must be announced
+as clearly-labeled Breaking News in the weekly feed, separated by category, and never conflated with tweets
+("tweets are always a reaction gauge, not a story teller"). The brainstorm ran long and stayed brainstorm-only
+for most of the conversation ("don't build yet" / "keep brainstorming until I say otherwise") before a
+first, narrow slice was greenlit: a second major story (succession), the plumbing to hold more of these
+without hand-rolling each one into `resolveWeek`, the Breaking News UI, and two of the standalone random
+events (skill-linked injury risk, the ring giving out).
+
+**The registry.** The merger was originally a bespoke block inside `resolveWeek`; adding a second major story
+the same way would have meant two near-identical eligibility/roll blocks and no shared place for a third.
+`data/worldStories.ts` (new) holds `WorldStoryDefinition {id, category, weight, chancePerWeek(settings),
+eligible(ctx)}` — metadata only, no mutation logic, because a merger and a succession do genuinely different
+things to the world and forcing them through one closed effect vocabulary would have been the wrong kind of
+generalization. `engine/sim/worldStories.ts` rolls each eligible story against its own `chancePerWeek`
+independently, breaking ties among simultaneous hits by `weight`. `resolveWeek` now does one dispatch off the
+result instead of a bespoke merger check; `applyMerger` itself is untouched.
+
+**Succession.** `engine/world/succession.ts` (new): once a rival is old enough (`successionEarliestWeek`:
+104, two years — same era as invasions) and hasn't already been through it, a founder/booker dies or steps
+back and the company passes to an heir. `rollHeirBranch` weights three outcomes — steady (45%, no change),
+sharp (25%, real rating/reputation gain), weak (30%, real rating/reputation loss) — so the upside and
+downside are both genuine and neither is guaranteed. A weak heir also triggers a shared sub-story: `engine/
+world/ownershipShakeup.ts`'s `pickShakeupReleases` sheds 2-5 of that company's roster into the free agent
+pool, panic cost-cutting from new ownership that doesn't know what it's doing. Built as a standalone,
+reusable function rather than succession-only, so any future ownership-change trigger (the merger, or
+something later) can call the same release logic instead of a bespoke copy.
+
+**Breaking News.** `WireKind` gained `'ownership'`, `'contract'`, and `'talent'` alongside the merger's
+existing `'business'`. `ShowResults.tsx` gained a `BreakingNews` component that pulls `weight === 'lead'`
+items of those kinds into their own visually distinct, category-labeled section ahead of the regular wire;
+`TheWire` excludes the same items so nothing doubles up. This is UI-and-classification only — no new data
+pipeline, since `WireKind` and the lead/routine weight distinction already existed and just weren't being
+surfaced as a dedicated section.
+
+**Skill-based in-ring danger.** Answered a direct mechanics question — can a wrestler hurt another during a
+match, tied to in-ring skill, worse when neither is any good — with `engine/sim/casualties.ts`'s new
+`skillDangerMultiplier(personSkill, opponentSkills, settings)`: `1 + (1 - personSkill/100) * (1 -
+avgOpponentSkill/100) * settings.skillInjuryWeight`. Deliberately multiplicative, not averaged: one
+genuinely good worker with a green opponent keeps the product low (one near-zero term protects the whole
+match), while two green workers compound real danger instead of diluting it — matching how it actually reads
+ringside. Wired into the one real "wrestler hurts wrestler" competitor-vs-competitor `rollCasualty` call site
+in `resolveWeek` (traced directly rather than assumed — the other three `rollCasualty`/`stoppageCasualty`
+call sites are unrelated: stunt/environmental risk, not opponent skill).
+
+**The ring gives out.** `engine/world/ringCall.ts` (new): when ring condition drops below
+`ringCallConditionFloor`, a real warning can be raised before a show — worn ropes, a soft spot in the
+canvas — and the promoter gets a genuine two-way choice, not a coin flip disguised as one: play it safe
+(refund-equivalent economics, `worked` morale hit, merch sales down, show never runs) or go nuclear (the show
+runs as booked, injury odds go up by `ringCallNuclearInjuryMultiplier`, and the rating swing can land either
+direction — no guaranteed pop for the risk). **Scoped down from the original ask on purpose, and said so
+plainly rather than silently cutting it**: a literal mid-match interruption would have meant restructuring
+`resolveWeek`'s control flow, exactly what this doc's own "don't start without asking" note on infrastructure
+debt warns against. So the call fires *before* the show, as its own self-contained pending-decision block —
+same real consequences (refund vs. real injury/rating risk), reused verbatim from the weather-call
+pending-decision pattern (`world.pendingRingCall`/`ringCallChoice`, a new `answerRingCall` action, a
+`DialogueCard` built off `RING_CALL_OPTIONS`) — rather than a true in-match interrupt. No store-level
+integration test exercises the full pending/answer round trip end to end; `ringCall.test.ts` covers the pure
+raise/resolve logic directly instead.
+
+Not built in this slice, left for later prioritization: the rest of the brainstormed major-story pool
+(scandal collapse, network realignment, breakaway promotion, owner rivalry, rogue promotion, a legend's
+farewell tour), most of the brainstormed sub-stories (blackballing, personal confrontations, title stripping,
+territory-targeting bias, insider defectors, a third-company race, whisper campaigns, charity-PR moves, staff
+poaching, the contract-loophole raid, the billionaire's below-cost pricing turmoil sub-story, and the 4x-value
+spite free-agent signing), most of the standalone random events (backstage brawl, viral botch, live
+retirement, an uninvited legend, sponsor pullout, protest no-show, family emergency, a lucky pyro accident,
+scheduling collision, and the truck-breaks-down/Arena Floor stipulation event), the pricing dashboard with
+deliberately-inconsistent rival pricing, and a general unlockables system. All of it stayed design discussion
+only, per the standing "don't build yet" instruction that governed the brainstorm until this narrower slice
+was explicitly greenlit.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (158 files, 2970 tests, 0 failures — new coverage in
+`succession.test.ts`, `ownershipShakeup.test.ts`, `ringCall.test.ts`, `worldStories.test.ts`,
+`succession.store.test.ts`, plus additions to `casualties.test.ts` and `wire.test.ts`), `npm run build`
+clean, and a 3-seed/160-week probe run with all three saves surviving and plausible injury metrics.  Schema
+bumped to 61 (`World.pendingRingCall`, `World.ringCallChoice`, `World.successionHappenedFor` are all new).
+
+---
+
 ## The billionaire merger — a one-time, late-game escalation — shipped
 
 Asked whether the game needed an endgame, and pitched a specific mechanic: a rich outside buyer eventually

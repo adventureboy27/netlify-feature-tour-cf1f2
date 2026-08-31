@@ -64,6 +64,7 @@ import {
   maybeTrimRivalPayroll,
   openSigningTalk,
   letThemGo,
+  releaseFromShakeup,
 } from './storeHelpers';
 import { createCardBuilderSlice } from './slices/cardBuilder';
 import { createEventsSlice } from './slices/events';
@@ -279,6 +280,7 @@ import { decideAwards, awardEffects, emptyYearRecord, noteMatch, noteTeamResult 
 import { rollIncident, type Incident } from '../engine/sim/incidents';
 import {
   rollCasualty,
+  skillDangerMultiplier,
   stoppageCasualty,
   injuryFrom,
   severityOf,
@@ -437,7 +439,11 @@ import {
 import { tierById as propTierById, type MatchPropTier } from '../data/matchProps';
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import { decayGrudges, grudgeAgainst } from '../engine/world/grudges';
-import { eligibleForMerger, pickMergerTargets, nameMerger, applyMerger, isHostileOutsider } from '../engine/world/merger';
+import { pickMergerTargets, nameMerger, applyMerger, isHostileOutsider } from '../engine/world/merger';
+import { pickSuccessionTarget, rollHeirBranch, applySuccession } from '../engine/world/succession';
+import { pickShakeupReleases } from '../engine/world/ownershipShakeup';
+import { rollWorldStory, type WorldStoryContext } from '../engine/sim/worldStories';
+import { ringCallFrom, resolveRingCall, type RingCallOptionId } from '../engine/world/ringCall';
 import {
   compassionateLeave,
   leaveLine,
@@ -709,6 +715,7 @@ export interface GameStore {
    */
   answerReleaseRequest: (wrestlerId: Id, grant: boolean) => void;
   answerWeatherCall: (choice: WeatherCallOptionId) => void;
+  answerRingCall: (choice: RingCallOptionId) => void;
   /** A booked wrestler never showed up. Same "answering runs the show" shape as the weather call. */
   answerNoShowCall: (choice: NoShowChoiceId) => void;
   /** A rival made a signing worth reacting to. Non-blocking — answer it whenever, or never. */
@@ -1240,6 +1247,24 @@ export const useGameStore = create<GameStore>()(
           }
           world.pendingNoShowCall = null;
           world.noShowChoice = null;
+        }
+
+        // A worn ring is a real, foreseeable risk — same shape as a severe
+        // forecast, and checked first: if this stops the clock, weather
+        // never even gets rolled for the same night.
+        const carriedRingCall = world.pendingRingCall?.week === world.week ? world.pendingRingCall : null;
+        if (carriedRingCall && !world.ringCallChoice) return;
+        if (!carriedRingCall && !world.pendingRingCall) {
+          // Its own stream — inserted into weekly resolution, so it must
+          // never touch the shared one (see the RNG note in CLAUDE.md).
+          const ringCallRng = rngFromSeed(`ringCall:${territory.id}:${world.week}`);
+          const ringCondition = world.assetConditions.find((a) => a.assetId === 'ringUpgrade')?.condition ?? 60;
+          const raised = ringCallFrom(ringCallRng, world.week, territory.id, territory.name, ringCondition, world.settings);
+          if (raised) {
+            world.pendingRingCall = raised;
+            world.ringCallChoice = null;
+            return; // nothing resolves until the promoter answers
+          }
         }
 
         // A severe forecast is the one thing in the game that stops the
@@ -2187,7 +2212,12 @@ export const useGameStore = create<GameStore>()(
                 result.injuryMultiplier *
                 relInjury *
                 workingHurtRisk(person, world.settings) *
-                (1 - (ringside.injuryShield?.[person.id] ?? 0)),
+                (1 - (ringside.injuryShield?.[person.id] ?? 0)) *
+                skillDangerMultiplier(
+                  person.skill,
+                  participantWrestlers.filter((w) => w.id !== person.id).map((w) => w.skill),
+                  world.settings,
+                ),
               toughness: person.toughness,
               settings: world.settings,
               stipulationId: stipulation?.id ?? null,
@@ -4481,30 +4511,71 @@ export const useGameStore = create<GameStore>()(
         // And rival bookers slowly forget what you did to them on a joint card.
         world.grudges = decayGrudges(world.grudges, world.settings);
 
-        // Somewhere out there, a very rich person is watching this business.
-        // Once, late in a save, she buys the two strongest survivors — see
-        // engine/world/merger.ts. It never reverses and it never repeats.
+        // The major-story pool — a weekly sibling to per-match incidents.
+        // At most one of these fires a week, whichever wins the roll (see
+        // data/worldStories.ts to add more without touching this dispatch).
+        // Its own stream — inserted into weekly resolution, so it must
+        // never touch the shared one (see the RNG note in CLAUDE.md).
         {
           const livingRivals = world.rivals.filter((r) => r.closedWeek === null);
-          if (eligibleForMerger(world.week, livingRivals, world.mergerHappened, world.settings)) {
-            // Its own stream — inserted into weekly resolution, so it must
-            // never touch the shared one (see the RNG note in CLAUDE.md).
-            const mergerRng = rngFromSeed(`merger:${world.week}`);
-            if (chance(mergerRng, world.settings.mergerChancePerWeek)) {
-              const [east, west] = pickMergerTargets(mergerRng, livingRivals);
-              const { brand, buyer } = nameMerger(mergerRng);
-              const oldEastName = east.name;
-              const oldWestName = west.name;
-              applyMerger(east, west, `conglomerate-${world.nextId++}`, brand, world.settings);
-              world.mergerHappened = true;
-              world.weeklyNews.push(
-                wire(
-                  'business',
-                  `${buyer} just bought this business two companies at a time. ${oldEastName} and ${oldWestName} are gone — in their place, ${east.name} and ${west.name}, same owner, same money, and from tonight on, a great deal less interested in sharing a building with anybody who isn't the other half of the family.`,
-                  world.week,
-                  'lead',
-                ),
-              );
+          const storyCtx: WorldStoryContext = {
+            week: world.week,
+            livingRivals,
+            mergerHappened: world.mergerHappened,
+            successionHappenedFor: world.successionHappenedFor,
+            settings: world.settings,
+          };
+          const storyRng = rngFromSeed(`worldStory:${world.week}`);
+          const picked = rollWorldStory(storyRng, storyCtx);
+
+          if (picked?.id === 'merger') {
+            const [east, west] = pickMergerTargets(storyRng, livingRivals);
+            const { brand, buyer } = nameMerger(storyRng);
+            const oldEastName = east.name;
+            const oldWestName = west.name;
+            applyMerger(east, west, `conglomerate-${world.nextId++}`, brand, world.settings);
+            world.mergerHappened = true;
+            world.weeklyNews.push(
+              wire(
+                'business',
+                `${buyer} just bought this business two companies at a time. ${oldEastName} and ${oldWestName} are gone — in their place, ${east.name} and ${west.name}, same owner, same money, and from tonight on, a great deal less interested in sharing a building with anybody who isn't the other half of the family.`,
+                world.week,
+                'lead',
+              ),
+            );
+          } else if (picked?.id === 'succession') {
+            const rival = pickSuccessionTarget(storyRng, livingRivals, world.successionHappenedFor);
+            const branch = rollHeirBranch(storyRng);
+            applySuccession(rival, branch, world.settings);
+            world.successionHappenedFor = [...world.successionHappenedFor, rival.id];
+
+            const branchLine =
+              branch === 'steady'
+                ? `${rival.name}'s new regime is a steady hand — the business barely noticed the change.`
+                : branch === 'sharp'
+                  ? `Whoever's running ${rival.name} now is sharper than whoever came before them, and it's already showing.`
+                  : `${rival.name} has not looked right since the change at the top, and it's starting to cost them.`;
+            world.weeklyNews.push(wire('ownership', `The founder is gone. ${branchLine}`, world.week, 'lead'));
+
+            if (branch === 'weak') {
+              const releaseIds = pickShakeupReleases(storyRng, rival.rosterIds, world.settings);
+              const releasedNames: string[] = [];
+              for (const id of releaseIds) {
+                const person = world.wrestlers[id];
+                if (!person) continue;
+                releaseFromShakeup(world, person, rival.id);
+                releasedNames.push(person.name);
+              }
+              if (releasedNames.length > 0) {
+                world.weeklyNews.push(
+                  wire(
+                    'talent',
+                    `The people who were loyal to the old regime at ${rival.name} are not sticking around for the new one — ${releasedNames.join(', ')} are all suddenly free agents.`,
+                    world.week,
+                    'normal',
+                  ),
+                );
+              }
             }
           }
         }
@@ -4631,6 +4702,69 @@ export const useGameStore = create<GameStore>()(
           const loud = night.weather.severity === 'catastrophe' || night.weather.severity === 'severe';
           world.weeklyNews.push(wire('weather', night.weather.line, world.week, loud ? 'lead' : 'minor'));
         }
+        // A ring that gave out — resolved the same way weather is, but as
+        // its own self-contained block rather than gating whether tonight's
+        // matches simulate at all: too much of resolveWeek already reads off
+        // that single control-flow decision to safely fork it a second way
+        // without real risk to everything downstream of it.
+        if (carriedRingCall && world.ringCallChoice) {
+          const ringResolveRng = rngFromSeed(`ringCallResolve:${carriedRingCall.territoryId}:${carriedRingCall.week}`);
+          const ringOutcome = resolveRingCall(carriedRingCall, world.ringCallChoice, ringResolveRng, world.settings);
+          world.weeklyNews.push(wire('houseShow', ringOutcome.line, world.week, 'lead'));
+
+          if (!ringOutcome.ran) {
+            // Play it safe: refunded, no contest. The gate the night would
+            // have drawn is written off, same shape as calling off a show.
+            books.spend('other', Math.round(showPayable * ringOutcome.costShare));
+            for (const id of worked) {
+              const w = world.wrestlers[id];
+              if (w) w.morale = clampMorale(w.morale + ringOutcome.moraleDelta, world.settings);
+            }
+          } else {
+            // Go nuclear: the show ran, and it ran dangerous. One extra,
+            // genuine chance somebody gets hurt tonight beyond the ordinary
+            // per-match rolls — nothing happens to a person off-screen.
+            if (chance(ringResolveRng, Math.min(0.6, (ringOutcome.injuryMultiplier - 1) * 0.4))) {
+              const candidates = [...worked]
+                .map((id) => world.wrestlers[id])
+                .filter((w) => Boolean(w) && !w!.injury && !w!.deceased)
+                .map((w) => w!);
+              const unlucky = candidates.length ? pick(ringResolveRng, candidates) : null;
+              if (unlucky) {
+                const weeks = randInt(ringResolveRng, 2, world.settings.weatherInjuryMaxWeeks);
+                unlucky.health = clamp(unlucky.health - world.settings.casualtyHealthCost, 0, 100);
+                unlucky.career.longestInjuryWeeks = Math.max(unlucky.career.longestInjuryWeeks, weeks);
+                unlucky.injury = {
+                  severity: 'moderate',
+                  grade: 30,
+                  description: 'Hurt working the bare floor',
+                  sufferedWeek: world.week,
+                  totalWeeks: weeks,
+                  weeksRemaining: weeks,
+                  permanentStatLoss: {},
+                  earlyReturnWeeksUsed: 0,
+                };
+                unlucky.injuryHistory = recordInjury(
+                  unlucky.injuryHistory ?? [],
+                  unlucky.injury,
+                  world.settings.startingYear + Math.floor(world.week / 52),
+                );
+                world.weeklyNews.push(
+                  wire(
+                    'injury',
+                    `${unlucky.name} went down hard on the bare cement in ${carriedRingCall.territoryName} and is out for ${weeks} ${weeks === 1 ? 'week' : 'weeks'}. There was no ring to protect the landing.`,
+                    world.week,
+                    'lead',
+                  ),
+                );
+              }
+            }
+            world.promotion.rating = clamp(world.promotion.rating + ringOutcome.ratingSwing, 0, 100);
+          }
+          world.pendingRingCall = null;
+          world.ringCallChoice = null;
+        }
+
         if (night.holiday && !night.cancelled) {
           world.weeklyNews.push(
             wire('weather', `${night.holiday.name}. ${night.holiday.blurb}`, world.week, 'minor'),
