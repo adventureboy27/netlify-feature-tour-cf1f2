@@ -882,6 +882,11 @@ export function defaultWorldSettings(): WorldSettings {
     // About nine months to forget a full burial: it costs you the next season
     // and most of the one after.
     grudgeDecayPerWeek: 1.4,
+    // A fresh, high-stature, unblown reveal (impact ~3-4.5) lands 20-30
+    // resentment — real, but short of grudgeBurialMax's 55. A stale or
+    // already-blown one barely registers, matching how little of a surprise
+    // it was left by the time it happened.
+    grudgeSecretSigningPerImpact: 7,
     // Two years in. Long enough that a fresh save never sees this, and long
     // enough for a real grudge to have had time to build past the decay rate
     // above — the whole point is that this is a surprise for a save that has

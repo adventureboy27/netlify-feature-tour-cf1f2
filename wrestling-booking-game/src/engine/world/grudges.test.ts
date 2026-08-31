@@ -9,6 +9,7 @@ import {
   burialShare,
   grudgeFromNight,
   rememberNight,
+  addGrudge,
   decayGrudge,
   decayGrudges,
   grudgeAgainst,
@@ -107,6 +108,33 @@ describe('the ledger', () => {
     expect(g.reason).toMatch(/buried/i);
     expect(grudgeLine(g, 'Atlas Pro')).toMatch(/Atlas Pro has not forgotten/);
     expect(grudgeLine(undefined, 'Atlas Pro')).toBeNull();
+  });
+});
+
+describe('adding a grudge for something other than a joint night', () => {
+  it('opens a fresh grudge with the reason given', () => {
+    const g = addGrudge(undefined, 'rival-1', 20, 'You took their guy.', 10)!;
+    expect(g.promotionId).toBe('rival-1');
+    expect(g.resentment).toBe(20);
+    expect(g.reason).toBe('You took their guy.');
+    expect(g.since).toBe(10);
+  });
+
+  it('stacks on top of an existing grudge rather than replacing it', () => {
+    const first = addGrudge(undefined, 'rival-1', 20, 'first', 1)!;
+    const second = addGrudge(first, 'rival-1', 15, 'second', 5)!;
+    expect(second.resentment).toBe(35);
+    expect(second.since).toBe(5);
+  });
+
+  it('never carries more than a whole grudge', () => {
+    const g = addGrudge(undefined, 'rival-1', 500, 'a lot at once', 1)!;
+    expect(g.resentment).toBe(100);
+  });
+
+  it('drops to nothing rather than going negative, same as a night can', () => {
+    const existing = addGrudge(undefined, 'rival-1', 10, 'a little', 1)!;
+    expect(addGrudge(existing, 'rival-1', -50, 'made up for it', 2)).toBeNull();
   });
 });
 

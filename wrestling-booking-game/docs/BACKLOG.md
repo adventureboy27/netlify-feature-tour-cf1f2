@@ -5,6 +5,33 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Secret signings now feed the same grudge invasions read — shipped
+
+A gap flagged and deliberately left open while building invasions: `Grudge` (`engine/world/grudges.ts`) was
+only ever created by a lopsided joint supershow night, so a rival who had just had their top guy stolen out
+from under them via a secret signing carried zero mechanical resentment — a real betrayal with no memory
+behind it, and one fewer path into the invasion incident that now reads that ledger.
+
+`rememberNight`'s merge-and-clamp logic is specific to a joint night's own stats (`playerWins`/`partnerWins`/
+`showStars`), so rather than force poaching through that shape, `grudges.ts` gained a smaller sibling,
+`addGrudge(existing, promotionId, amount, reason, week)` — same merge/clamp/drop-at-zero rule, but driven by
+a plain magnitude and reason instead of a derived night. `rosterAndContracts.ts`'s `revealSecretSigning` —
+the moment a secretly-signed wrestler actually walks out on television and the rest of the business finds
+out — now calls it right alongside the rating hit it already applied to the victimized rival, scaled by the
+same `revealImpact` the existing effects already use (a fresh, high-stature, unblown reveal lands roughly
+20-30 resentment via the new `grudgeSecretSigningPerImpact` setting; a stale or already-blown one barely
+registers, matching how little of a surprise it was left by the time it happened).
+
+Deliberately one-directional: a rival poaching *from* the player (`answerApproach`'s `doNothing` resolution)
+does not get a symmetric grudge, because `Grudge` only ever represents how a rival feels about the player —
+there is no ledger for the reverse, and inventing one was out of scope for this pass.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2922 tests, 0 failures — 4 new in `grudges.test.ts` for
+`addGrudge`'s merge/clamp/drop behavior, 1 new in `store.test.ts` confirming a real secret-signing reveal
+leaves the victimized rival with resentment on the books), `npm run build` clean.
+
+---
+
 ## Invasion angles — a rival with a real grudge sends somebody through the curtain — shipped
 
 The second of "1 and 3" — custom creation and logo/photo work landed first; this is invasions, the

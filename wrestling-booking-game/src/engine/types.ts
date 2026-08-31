@@ -2619,6 +2619,8 @@ export interface WorldSettings {
   /** The share above which the write-up calls it a burial. */
   grudgeMassacreShare: number;
   grudgeDecayPerWeek: number;
+  /** How much resentment a revealed secret signing adds, per point of its reveal impact — see engine/world/secretSigning.ts's revealImpact. */
+  grudgeSecretSigningPerImpact: number;
   // §16.5 invasions — a rival with a real grudge sends somebody through the
   // curtain on their own initiative. Deliberately gated well behind
   // supershows: this is the kind of thing a save should not see in its

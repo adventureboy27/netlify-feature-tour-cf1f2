@@ -1616,6 +1616,25 @@ describe('the quiet business', () => {
     ).toBe(true);
   });
 
+  it('leaves the company they took him from carrying real resentment', () => {
+    useGameStore.getState().newGame({ ...freshSettings(), seed: 'walked-out-grudge' });
+    const id = targetWithWeeks(2);
+    const fromPromotionId = useGameStore.getState().world!.wrestlers[id]!.promotionId!;
+    let ok = false;
+    for (let i = 0; i < 40 && !ok; i++) ok = useGameStore.getState().signSecretly(id).ok;
+    expect(ok).toBe(true);
+
+    for (let i = 0; i < 3; i++) runWeek();
+    const signing = useGameStore.getState().world!.secretSignings.find((s) => s.wrestlerId === id);
+    expect(signing, 'his old company re-signed him before the deal lapsed').toBeDefined();
+
+    useGameStore.getState().revealSecretSigning(id);
+    const grudge = useGameStore.getState().world!.grudges.find((g) => g.promotionId === fromPromotionId);
+    expect(grudge).toBeDefined();
+    expect(grudge!.resentment).toBeGreaterThan(0);
+    expect(grudge!.reason).toContain(useGameStore.getState().world!.wrestlers[id]!.name);
+  });
+
   it('runs every deal in the business down, not only the player’s', () => {
     const before = Object.values(useGameStore.getState().world!.wrestlers)
       .filter((w) => w.promotionId && w.promotionId !== useGameStore.getState().world!.promotion.id)

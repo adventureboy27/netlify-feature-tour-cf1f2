@@ -100,6 +100,24 @@ export function rememberNight(
   };
 }
 
+/**
+ * Add resentment for a specific wrong that is not a joint night — a secret
+ * signing revealed, say — rather than one derived from `grudgeFromNight`.
+ * Same merge-and-clamp rule as a night's own tally: negative overwrites
+ * carry it toward zero, and it is dropped once nothing is left to carry.
+ */
+export function addGrudge(
+  existing: Grudge | undefined,
+  promotionId: Id,
+  amount: number,
+  reason: string,
+  week: number,
+): Grudge | null {
+  const resentment = clamp((existing?.resentment ?? 0) + amount, 0, 100);
+  if (resentment <= 0) return null;
+  return { promotionId, resentment, reason, since: week };
+}
+
 function reasonFor(night: NightAsTheySawIt, change: number, settings: WorldSettings): string {
   const share = burialShare(night.playerWins, night.partnerWins);
   if (change <= 0) return 'You did right by them last time.';

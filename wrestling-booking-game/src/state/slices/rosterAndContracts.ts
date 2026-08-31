@@ -31,6 +31,7 @@ import {
   weeksUntilFree,
 } from '../../engine/world/secretSigning';
 import { responseOutcome } from '../../engine/world/poaching';
+import { addGrudge, grudgeAgainst } from '../../engine/world/grudges';
 import { gimmickById } from '../../data/gimmicks';
 import { groupGimmickById } from '../../data/groupGimmicks';
 import { canFormGroup, formGroupGimmickStable } from '../../engine/world/tagTeams';
@@ -648,6 +649,21 @@ export const createRosterAndContractsSlice: StateCreator<
       const victim = world.rivals.find((r) => r.id === signing.fromPromotionId);
       if (victim) {
         victim.rating = clamp(victim.rating - impact * world.settings.revealRivalRatingPerImpact, 0, 100);
+
+        // They remember this the same way they remember a burial on a joint
+        // show — see engine/world/grudges.ts. It is the reason a rival who
+        // has had somebody stolen out from under them is exactly the kind of
+        // company that later sends somebody through the curtain of their
+        // own accord (data/incidents.ts's rivalInvasion).
+        const remembered = addGrudge(
+          grudgeAgainst(world.grudges, victim.id),
+          victim.id,
+          impact * world.settings.grudgeSecretSigningPerImpact,
+          `You took ${person.name} right out from under them.`,
+          world.week,
+        );
+        world.grudges = world.grudges.filter((g) => g.promotionId !== victim.id);
+        if (remembered) world.grudges.push(remembered);
       }
 
       const sinceFree = Math.max(0, world.week - signing.freeWeek);
