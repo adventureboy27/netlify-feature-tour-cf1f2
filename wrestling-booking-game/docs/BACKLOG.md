@@ -5,6 +5,53 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## The billionaire merger — a one-time, late-game escalation — shipped
+
+Asked whether the game needed an endgame, and pitched a specific mechanic: a rich outside buyer eventually
+acquires the two strongest surviving rivals, keeps them running as separate shows under one shared brand
+split East and West, and makes them meaningfully harder for everybody left — not a formal win/lose state,
+just real escalating pressure on a long save. Scoped down to exactly that: no new ending screen, no victory
+check, and it never repeats once it has happened — a permanent shift in the shape of the business for the
+rest of the save, not an ongoing threat to keep rebalancing.
+
+`engine/world/merger.ts` (new) is the whole mechanic in pure functions: `eligibleForMerger` gates on
+`WorldSettings.mergerEarliestWeek` (156 — three years, later than invasions' own 104-week gate) and needing
+at least `mergerMinLivingRivals` (3) living rivals — two to buy, one left over besides the player, so the
+business is never reduced to a two-company death match by the event itself. `pickMergerTargets` always takes
+the two highest-rated survivors (a buyer with this kind of money is not interested in a struggling regional
+outfit); `nameMerger` draws a brand and a buyer's name from small invented pools (`Vantage`, `Colossus`,
+`Dominion`...); `applyMerger` renames both `<Brand> East`/`<Brand> West`, gives both a real rating and
+bankroll boost, and stamps a shared `Promotion.conglomerateId` (new, optional — absent for everyone else,
+including the player, who can never be bought).
+
+Wired into `resolveWeek` as a one-time weekly roll, entity-seeded off `rngFromSeed('merger:${week}')` per the
+CLAUDE.md RNG-order trap — inserted into weekly resolution, so it must never touch the shared stream — rare
+on purpose (`mergerChancePerWeek: 0.015`, so it reads as a genuine surprise even once eligible) and guarded
+by `World.mergerHappened` so it can only ever fire once. Announced in full on the wire the week it happens
+(a new `'business'` `WireKind` — nothing this size happens off-screen).
+
+The "colder to everyone else" half reuses the existing joint-supershow negotiation wholesale: `coopAppetite`
+already reads a `resentment` term computed at its one call site, so a hostile-outsider check
+(`isHostileOutsider` — anyone who isn't their own sibling) just adds `mergerCrossPromotionResistance` (40)
+onto that same term. No new negotiation system needed. Deliberately *not* built: an actual simulated joint
+show between the two halves (there is no rival-vs-rival supershow system in this game at all, and inventing
+one was out of scope), and any AI-vs-AI poaching (doesn't exist either) — the difficulty increase for the
+rest of the business comes honestly from the rating/bankroll boost alone, which already scales poaching
+aggression, bidding-war strength, and territory draw everywhere those numbers are read. Flagged plainly
+rather than implied, since it would have been easy to oversell this as more mechanized than it is.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2936 tests, 0 failures — 11 new in `merger.test.ts` for
+the pure functions, 3 new in `merger.store.test.ts` confirming the weekly roll is correctly gated, applies
+once, and never repeats), `npm run build` clean, and a 3-seed/200-week probe run (past the merger's own week
+gate) with no regressions to the existing injury/morale/show/money baselines and all three saves surviving.
+Schema bumped to 60 (`Promotion.conglomerateId`, `World.mergerHappened`, `WireKind.business` are all new
+required/closed-set surface).
+
+A world-map/international-expansion system was discussed in the same conversation and deliberately parked as
+a future expansion, not built here — see the session's own design notes if it comes back up.
+
+---
+
 ## Secret signings now feed the same grudge invasions read — shipped
 
 A gap flagged and deliberately left open while building invasions: `Grudge` (`engine/world/grudges.ts`) was

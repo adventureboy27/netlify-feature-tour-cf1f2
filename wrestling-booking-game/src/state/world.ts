@@ -520,6 +520,12 @@ export interface World {
    * in a short span organically generates a rivalry."
    */
   meetings: Record<string, number>;
+  /**
+   * Whether the one-time billionaire merger (engine/world/merger.ts) has
+   * already happened this save. Checked before every weekly roll so it can
+   * never fire twice — see WorldSettings.mergerEarliestWeek.
+   */
+  mergerHappened: boolean;
   nextId: number;
 }
 
@@ -1206,6 +1212,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     relationships: seedRelationships(rng, roster, settings),
     ratingsChart: [],
     meetings: {},
+    mergerHappened: false,
     nextId: 1,
   };
 }

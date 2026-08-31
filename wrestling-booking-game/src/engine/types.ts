@@ -1490,6 +1490,12 @@ export interface Promotion {
   titleIds: Id[];
   ownedTerritoryIds: Id[];
   homeTerritoryId: Id;
+  /**
+   * Set on both halves of a billionaire merger (engine/world/merger.ts) — a
+   * shared value identifying the pair. Absent for everybody else, including
+   * the player, who can never be bought.
+   */
+  conglomerateId?: Id | null;
   styleProfile: StyleProfile;
   bookingCredibility: number; // 0-100, §13
   reputation: number; // 0-100, §19
@@ -2634,6 +2640,22 @@ export interface WorldSettings {
   invasionPopularity: number;
   /** How much resentment an invasion burns off the triggering rival's grudge — getting their moment lets off steam. */
   invasionCatharsis: number;
+  // The billionaire merger — a one-time, late-game escalation. An outside
+  // buyer acquires the two strongest surviving rivals, keeps them running as
+  // separate shows under a shared brand, and makes them meaningfully harder
+  // for everybody left, not just the player. Never reverses, never repeats.
+  /** No merger before the business itself has had this long to produce two worth buying. */
+  mergerEarliestWeek: number;
+  /** Rolled once a week once eligible. Rare on purpose — this should read as a real surprise. */
+  mergerChancePerWeek: number;
+  /** Needs this many living rivals — two to buy, plus at least one company left over besides the player. */
+  mergerMinLivingRivals: number;
+  /** Immediate rating bump to both halves, the billionaire's backing showing up on screen. */
+  mergerRatingBoost: number;
+  /** Flat cash injection to both halves. */
+  mergerBankInjection: number;
+  /** Added straight onto the resentment term a supershow proposal is judged against, for anybody who isn't their own sibling. */
+  mergerCrossPromotionResistance: number;
   supershowEagerAt: number;
   supershowCautiousAt: number;
   supershowPublicRefusalChance: number;

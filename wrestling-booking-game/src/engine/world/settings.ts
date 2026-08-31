@@ -899,6 +899,18 @@ export function defaultWorldSettings(): WorldSettings {
     // A meaningful chunk of resentment, not a full reset — one invasion lets
     // off steam, it does not erase the history that earned it.
     invasionCatharsis: 30,
+    // Three years. Later than invasions' own gate — the business needs real
+    // time to produce two rivals actually worth an outside buyer's money.
+    mergerEarliestWeek: 156,
+    // ~1.3 years of expected wait once eligible, since it only ever needs to
+    // fire once — a real surprise, not a scheduled event.
+    mergerChancePerWeek: 0.015,
+    mergerMinLivingRivals: 3,
+    mergerRatingBoost: 18,
+    mergerBankInjection: 250_000,
+    // A supershow proposal has to clear the same climb as facing down real,
+    // earned resentment — this is not a company being merely reluctant.
+    mergerCrossPromotionResistance: 40,
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,

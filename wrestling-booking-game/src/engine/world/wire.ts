@@ -44,7 +44,9 @@ export type WireKind =
   /** The nights on the road the cameras were not at. */
   | 'houseShow'
   /** The cameras were there and the feed still didn't hold. See sim/broadcast.ts. */
-  | 'broadcast';
+  | 'broadcast'
+  /** A change to the shape of the business itself — a promotion bought, sold, or merged. */
+  | 'business';
 
 /** How loudly the results page should say it. */
 export type WireWeight = 'lead' | 'normal' | 'minor';
@@ -75,6 +77,7 @@ export const WIRE_KIND_LABELS: Record<WireKind, string> = {
   story: 'The story',
   houseShow: 'On the road',
   broadcast: 'The broadcast',
+  business: 'The business',
 };
 
 /**

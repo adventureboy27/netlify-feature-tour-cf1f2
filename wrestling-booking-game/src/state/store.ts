@@ -437,6 +437,7 @@ import {
 import { tierById as propTierById, type MatchPropTier } from '../data/matchProps';
 import { VENUES, venueById, fallbackVenue } from '../data/venues';
 import { decayGrudges, grudgeAgainst } from '../engine/world/grudges';
+import { eligibleForMerger, pickMergerTargets, nameMerger, applyMerger, isHostileOutsider } from '../engine/world/merger';
 import {
   compassionateLeave,
   leaveLine,
@@ -4480,6 +4481,34 @@ export const useGameStore = create<GameStore>()(
         // And rival bookers slowly forget what you did to them on a joint card.
         world.grudges = decayGrudges(world.grudges, world.settings);
 
+        // Somewhere out there, a very rich person is watching this business.
+        // Once, late in a save, she buys the two strongest survivors — see
+        // engine/world/merger.ts. It never reverses and it never repeats.
+        {
+          const livingRivals = world.rivals.filter((r) => r.closedWeek === null);
+          if (eligibleForMerger(world.week, livingRivals, world.mergerHappened, world.settings)) {
+            // Its own stream — inserted into weekly resolution, so it must
+            // never touch the shared one (see the RNG note in CLAUDE.md).
+            const mergerRng = rngFromSeed(`merger:${world.week}`);
+            if (chance(mergerRng, world.settings.mergerChancePerWeek)) {
+              const [east, west] = pickMergerTargets(mergerRng, livingRivals);
+              const { brand, buyer } = nameMerger(mergerRng);
+              const oldEastName = east.name;
+              const oldWestName = west.name;
+              applyMerger(east, west, `conglomerate-${world.nextId++}`, brand, world.settings);
+              world.mergerHappened = true;
+              world.weeklyNews.push(
+                wire(
+                  'business',
+                  `${buyer} just bought this business two companies at a time. ${oldEastName} and ${oldWestName} are gone — in their place, ${east.name} and ${west.name}, same owner, same money, and from tonight on, a great deal less interested in sharing a building with anybody who isn't the other half of the family.`,
+                  world.week,
+                  'lead',
+                ),
+              );
+            }
+          }
+        }
+
         // A show's worth of wear on everything that was hauled out tonight.
         world.assetConditions = world.assetConditions.map((state) =>
           wearAsset(state, {
@@ -5699,7 +5728,10 @@ export const useGameStore = create<GameStore>()(
         // with you in May as though nothing had happened.
         const resentment = clamp(
           (partner.rating - world.promotion.rating) / 2 +
-            (grudgeAgainst(world.grudges, partner.id)?.resentment ?? 0),
+            (grudgeAgainst(world.grudges, partner.id)?.resentment ?? 0) +
+            // A conglomerate half shares a building with its own sibling, and
+            // nobody else — see engine/world/merger.ts.
+            (isHostileOutsider(partner, world.promotion) ? world.settings.mergerCrossPromotionResistance : 0),
           0,
           100,
         );
