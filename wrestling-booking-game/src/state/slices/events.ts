@@ -14,6 +14,9 @@ import type { EventSubjects } from '../../engine/events/types';
 import { clampMorale } from '../../engine/career/morale';
 import { gradeFromLength, severityOf } from '../../engine/sim/casualties';
 import { recordInjury } from '../../engine/career/theBody';
+import { resolveContractRaid, type ContractRaidOptionId } from '../../engine/world/contractRaid';
+import { wire } from '../../engine/world/wire';
+import { addGrudge, grudgeAgainst } from '../../engine/world/grudges';
 
 type EventsSlice = Pick<
   GameStore,
@@ -27,6 +30,7 @@ type EventsSlice = Pick<
   | 'answerNoShowCall'
   | 'answerRivalMove'
   | 'answerConfrontationCall'
+  | 'answerContractRaid'
 >;
 
 export const createEventsSlice: StateCreator<GameStore, [['zustand/immer', never]], [], EventsSlice> = (
@@ -138,6 +142,37 @@ export const createEventsSlice: StateCreator<GameStore, [['zustand/immer', never
       world.truckCallChoice = choice;
     });
     get().resolveWeek();
+  },
+
+  answerContractRaid: (choice: ContractRaidOptionId) => {
+    set((state) => {
+      const world = state.world;
+      const call = world?.pendingContractRaid;
+      if (!world || !call) return;
+
+      const outcome = resolveContractRaid(choice, world.settings);
+      world.promotion.bankBalance += outcome.moneyDelta;
+      for (const id of world.promotion.rosterIds) {
+        const w = world.wrestlers[id];
+        if (w) w.morale = clampMorale(w.morale + outcome.moraleDelta, world.settings);
+      }
+      world.promotion.reputation = clamp(world.promotion.reputation + outcome.reputationDelta, 0, 100);
+
+      if (outcome.grudgeDelta > 0) {
+        const remembered = addGrudge(
+          grudgeAgainst(world.grudges, call.rivalId),
+          call.rivalId,
+          outcome.grudgeDelta,
+          `You went right back after them for raiding your contracts.`,
+          world.week,
+        );
+        world.grudges = world.grudges.filter((g) => g.promotionId !== call.rivalId);
+        if (remembered) world.grudges.push(remembered);
+      }
+
+      world.weeklyNews.push(wire('contract', outcome.line, world.week, 'normal'));
+      world.pendingContractRaid = null;
+    });
   },
 
   answerNoShowCall: (choice) => {

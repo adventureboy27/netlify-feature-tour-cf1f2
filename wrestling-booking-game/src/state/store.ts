@@ -445,6 +445,7 @@ import { pickShakeupReleases } from '../engine/world/ownershipShakeup';
 import { rollWorldStory, type WorldStoryContext } from '../engine/sim/worldStories';
 import { ringCallFrom, resolveRingCall, type RingCallOptionId } from '../engine/world/ringCall';
 import { truckBreakdownFrom, resolveTruckCall, type TruckCallOptionId } from '../engine/world/truckBreakdown';
+import { rollContractRaid, type ContractRaidOptionId } from '../engine/world/contractRaid';
 import {
   compassionateLeave,
   leaveLine,
@@ -718,6 +719,7 @@ export interface GameStore {
   answerWeatherCall: (choice: WeatherCallOptionId) => void;
   answerRingCall: (choice: RingCallOptionId) => void;
   answerTruckCall: (choice: TruckCallOptionId) => void;
+  answerContractRaid: (choice: ContractRaidOptionId) => void;
   /** A booked wrestler never showed up. Same "answering runs the show" shape as the weather call. */
   answerNoShowCall: (choice: NoShowChoiceId) => void;
   /** A rival made a signing worth reacting to. Non-blocking — answer it whenever, or never. */
@@ -5237,6 +5239,54 @@ export const useGameStore = create<GameStore>()(
               teamHeld: isTeamHeld(title),
             };
             break;
+          }
+        }
+
+        // A raid that sat unanswered too long decides itself as doing
+        // nothing — same shape as the champion call's own grace period.
+        if (world.pendingContractRaid && world.week - world.pendingContractRaid.week >= world.settings.contractRaidGraceWeeks) {
+          for (const id of world.promotion.rosterIds) {
+            const w = world.wrestlers[id];
+            if (w) w.morale = clampMorale(w.morale + world.settings.contractRaidDoNothingMorale, world.settings);
+          }
+          world.weeklyNews.push(
+            wire('contract', 'Nobody up top ever answered for the contracts that got raided. The locker room clocked that too.', world.week, 'normal'),
+          );
+          world.pendingContractRaid = null;
+        }
+
+        // A rival's lawyers find real holes in a run of contracts, and the
+        // wrestlers are simply gone by the time the office hears about it —
+        // the raid itself is not a decision, only the response to it is.
+        if (!world.pendingContractRaid) {
+          const raidRng = rngFromSeed(`contractRaid:${world.week}`);
+          const livingRivals = world.rivals.filter((r) => r.closedWeek === null);
+          const raided = rollContractRaid(raidRng, world.week, world.promotion.rosterIds, livingRivals, world.settings);
+          if (raided) {
+            const names: string[] = [];
+            for (const id of raided.raidedIds) {
+              const w = world.wrestlers[id];
+              if (!w) continue;
+              names.push(w.name);
+              releaseFromShakeup(world, w, world.promotion.id);
+            }
+            if (names.length > 0) {
+              world.pendingContractRaid = {
+                week: world.week,
+                rivalId: raided.rival.id,
+                rivalName: raided.rival.name,
+                raidedIds: raided.raidedIds,
+                raidedNames: names,
+              };
+              world.weeklyNews.push(
+                wire(
+                  'contract',
+                  `${raided.rival.name}'s lawyers found real holes in ${names.length} contract${names.length === 1 ? '' : 's'} — ${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} gone, signed away outright, no severance, no warning.`,
+                  world.week,
+                  'lead',
+                ),
+              );
+            }
           }
         }
 

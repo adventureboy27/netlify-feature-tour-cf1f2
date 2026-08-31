@@ -2708,6 +2708,22 @@ export interface WorldSettings {
   truckBreakdownInjuryMultiplier: number;
   truckBreakdownRatingSwing: number;
 
+  // A rival's lawyers find real holes in a run of your wrestlers' contracts
+  // and sign them away outright — see engine/world/contractRaid.ts. The raid
+  // itself lands immediately; what's left open is how the office responds.
+  contractRaidEarliestWeek: number;
+  contractRaidChancePerWeek: number;
+  /** Never fires against a roster too thin to spare it. */
+  contractRaidMinRoster: number;
+  /** Weeks the aftermath decision stays open before it decides itself as doing nothing. */
+  contractRaidGraceWeeks: number;
+  contractRaidOverhaulCost: number;
+  contractRaidOverhaulMorale: number;
+  contractRaidRetaliateMorale: number;
+  contractRaidRetaliateReputationCost: number;
+  contractRaidRetaliateGrudge: number;
+  contractRaidDoNothingMorale: number;
+
   supershowEagerAt: number;
   supershowCautiousAt: number;
   supershowPublicRefusalChance: number;

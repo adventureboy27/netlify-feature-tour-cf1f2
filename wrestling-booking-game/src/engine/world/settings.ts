@@ -952,6 +952,19 @@ export function defaultWorldSettings(): WorldSettings {
     truckBreakdownInjuryMultiplier: 2.0,
     truckBreakdownRatingSwing: 25,
 
+    // A rival's lawyers find real holes in a run of contracts — rare, and
+    // held back until a save has a roster worth raiding.
+    contractRaidEarliestWeek: 60,
+    contractRaidChancePerWeek: 0.01,
+    contractRaidMinRoster: 10,
+    contractRaidGraceWeeks: 3,
+    contractRaidOverhaulCost: 12000,
+    contractRaidOverhaulMorale: 6,
+    contractRaidRetaliateMorale: 4,
+    contractRaidRetaliateReputationCost: 4,
+    contractRaidRetaliateGrudge: 15,
+    contractRaidDoNothingMorale: -8,
+
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,

@@ -914,7 +914,13 @@ describe('the next generation', () => {
   });
 
   it('leaves the ordinary school leavers unknown', () => {
-    useGameStore.getState().newGame(solventWorld({ secondGenChancePerGraduate: 0 }));
+    // Zeroed out alongside lineage: a phenom graduate is a real, designed
+    // exception to "unknown" (see academy.ts's asPhenom and
+    // biddingPhenomPopularity) — this test is about the ordinary rest of the
+    // class, so it rules the one deliberately-famous exception out the same
+    // way it already rules lineage out, rather than leaving it to chance
+    // whether this seed happens to roll one.
+    useGameStore.getState().newGame(solventWorld({ secondGenChancePerGraduate: 0, biddingPhenomChancePerClass: 0 }));
     runToTheTurnOfTheYear();
 
     const world = useGameStore.getState().world!;

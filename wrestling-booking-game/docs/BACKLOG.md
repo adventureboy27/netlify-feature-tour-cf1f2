@@ -5,6 +5,67 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## The rest of the "Rival Booker Battle" sub-stories pool — shipped
+
+Third slice of "build it all." Ten of the twelve brainstormed sub-stories landed here; the other two were
+scope decisions, made and disclosed rather than silently skipped:
+
+- **Title stripping** was left alone — the champion-injury vacate path (`titleDefence.ts`, `OfficeScreen`'s
+  `ChampionCallPanel`) already covers a title coming off somebody for a real, booker-driven reason, and
+  building a second, parallel path for the same outcome would have been pure duplication.
+- **Billionaire below-cost pricing turmoil** is deliberately not here — it needs real multi-week temporary
+  state (a lifespan, not a one-shot effect) and ties directly into the pricing dashboard, so it is paired with
+  that build instead of forced into this slice.
+
+**Nine landed as ordinary creative events** (`data/events.ts`, same reuse as the last slice — zero new
+plumbing): `personalConfrontation`, `charityPRMove`, `whisperCampaign`, `insiderDefector`,
+`thirdCompanyRace`, `territoryTargetingBias` (gated on actually owning a territory), `blackballing`,
+`staffPoaching`, and `spiteFreeAgentSigning` — the free-agent-pool sub-story the player asked for by name
+early in the brainstorm. Two of these (`blackballing`, `staffPoaching`) hit the same real limitation
+`uninvitedLegend` hit last slice: the event scheduler's subject resolution only ever pulls a `primary`/
+`secondary` from the *active roster*, and there is no `EventEffect` that touches a manager or referee at all
+(only `wrestlerId`-keyed effects exist). `blackballing` was kept pointed at a real roster wrestler rather than
+somebody who already left; `staffPoaching` was kept deliberately unnamed — a real business consequence
+(money, reputation) without pretending to move a specific manager's contract the engine has no vocabulary
+for.
+
+**The tenth, `contractRaid` (`engine/world/contractRaid.ts`, new), needed its own small module** — the one
+explicitly detailed brainstormed item: "one of the rivals finds problems in 5 of your wrestler contracts and
+signs them away immediately." A creative event could not express this: `EventOption.effects()` has no `rng`
+parameter, so there was no way to pick which 5 wrestlers inside the standard pipeline. Reuses
+`ownershipShakeup.ts`'s `pickShakeupReleases` wholesale for "how many, who" — the exact reusable sub-story
+function the player asked for when this system was first designed. The raid itself is not a decision (the
+wrestlers are already gone, released to free agency, by the time the promoter hears about it — the same scope
+simplification as the truck-breaks-down event: a rival directly re-signing them was more machinery than this
+was worth); what *is* a decision is the aftermath, presented the same non-blocking, expiring way as the
+existing champion-injury call (`pendingChampionCall`'s own precedent): overhaul every contract in the
+building (real money, real reassurance), retaliate (spends reputation, buys a real, mechanical grudge against
+the raiding rival via the existing `engine/world/grudges.ts` ledger — the same ledger invasions already read),
+or do nothing (free today, costs roster morale, and decides itself the same way if the grace period runs out
+unanswered).
+
+Adding nine more entries to the shared weekly creative-event pool shifted which event fires, in which week,
+for any long fixed-seed playthrough — expected, since it changes what a given random draw resolves to without
+changing the draw count (not the entity-seeding trap in CLAUDE.md, a different, milder version of the same
+family). It broke one existing store.test.ts assertion: a school-leaver graduate landed at exactly 38
+popularity, which is not noise — 38 is `settings.biddingPhenomPopularity` verbatim, a real, designed exception
+(`academy.ts`'s `asPhenom`) the test's own title already implied it meant to exclude ("leaves the *ordinary*
+school leavers unknown") but never actually filtered out, only filtering lineage kids. Re-expressed rather
+than re-baselined: the test now also zeroes `biddingPhenomChancePerClass`, the same way it already zeroes
+`secondGenChancePerGraduate` — ruling the one deliberately-famous exception out on purpose instead of leaving
+it to chance whether a given seed rolls one. Confirmed via `academy.test.ts`'s own dedicated, RNG-cascade-free
+unit test that the actual invariant (ordinary graduates come out scaled down and unknown) was never in
+question.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (163 files, 3044 tests, 0 failures — new coverage in
+`contractRaid.test.ts` for the pure roll/resolve logic and `contractRaid.store.test.ts` for the real
+raise/answer/expiry round trip, plus the nine new events already covered automatically by `events.test.ts`'s
+library-wide checks), `npm run build` clean, and a 3-seed/160-week probe run with all three saves surviving
+and no regressions to the existing
+injury/morale/show/money baselines.
+
+---
+
 ## The rest of the standalone random events pool — shipped
 
 Second slice of "build it all." Went through the brainstormed random-events pool item by item rather than

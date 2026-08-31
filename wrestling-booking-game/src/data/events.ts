@@ -1368,6 +1368,329 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       },
     ],
   },
+
+  // ---------------------------------------------------------------
+  // "Rival Booker Battle" sub-stories — the rest of the brainstormed pool
+  // that fits a single-decision event cleanly. Title stripping did not make
+  // this list: the existing champion-injury vacate path (titleDefence.ts,
+  // OfficeScreen's ChampionCallPanel) already covers a title being taken off
+  // somebody for a real, booker-driven reason, so it was not rebuilt.
+
+  {
+    id: 'personalConfrontation',
+    category: 'rival',
+    title: '{rival} took a real shot at you, by name',
+    speaker: 'narrator',
+    body: [
+      "The head of {rival} went out of their way in an interview this week to call you out directly, by name, unprompted.",
+      "{rival}'s office put out a statement this week that had your name in it three separate times, and none of them were kind.",
+      "Whoever runs {rival} decided this was the week to make it personal, right out in the open where everybody could see it.",
+    ],
+    weight: 8,
+    cooldownWeeks: 24,
+    conditions: { minWeek: 12, needsRival: true },
+    options: [
+      {
+        id: 'fireBack',
+        label: 'Fire back in public',
+        gains: 'Real heat and real press for the promotion, right now',
+        costs: 'The locker room notices the office fixated on a feud with a rival instead of building the roster',
+        effects: () => [
+          { kind: 'companyRating', delta: 3 },
+          { kind: 'bookingCredibility', delta: -2 },
+        ],
+      },
+      {
+        id: 'riseAboveIt',
+        label: 'Rise above it and say nothing',
+        gains: 'Reads as the more professional operation in the room',
+        costs: 'Some of the boys wanted the office to swing back, and they noticed it did not',
+        effects: () => [
+          { kind: 'reputation', delta: 2 },
+          { kind: 'rosterMorale', delta: -3 },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'charityPRMove',
+    category: 'rival',
+    title: '{rival} just staged a real charity push',
+    speaker: 'narrator',
+    body: [
+      '{rival} put on a genuine charity show this week, and the good press is everywhere — the kind of story that makes everybody else look worse by comparison.',
+      'Every outlet covering this business ran the same story this week: {rival} gave real money to a real cause, on camera, and it landed.',
+      "{rival}'s charity push this week was not subtle, and it worked exactly like they wanted it to.",
+    ],
+    weight: 6,
+    cooldownWeeks: 30,
+    conditions: { minWeek: 14, needsRival: true },
+    options: [
+      {
+        id: 'matchThem',
+        label: 'Put on a real charity push of your own',
+        gains: 'Genuine goodwill, and the story stops being only about them',
+        costs: 'A real donation, not a photo-op number',
+        effects: () => [
+          { kind: 'money', delta: -10000 },
+          { kind: 'reputation', delta: 6 },
+        ],
+      },
+      {
+        id: 'letItGo',
+        label: 'Let them have the news cycle',
+        gains: 'Costs nothing today',
+        costs: 'The contrast is not flattering, and people notice who did something and who did not',
+        effects: () => [{ kind: 'reputation', delta: -3 }],
+      },
+    ],
+  },
+
+  {
+    id: 'whisperCampaign',
+    category: 'rival',
+    title: 'Somebody is quietly spreading rumors about your locker room',
+    speaker: 'narrator',
+    body: [
+      "Whispers are going around about real dysfunction backstage — nothing anybody can point to directly, but it traces straight back to people close to {rival}.",
+      'A story is circulating about your own locker room that nobody in it actually said — and it has {rival}\'s fingerprints all over the timing of it.',
+      "None of it is confirmed, all of it is spreading, and it started right around the time {rival} started losing ground to you.",
+    ],
+    weight: 6,
+    cooldownWeeks: 26,
+    conditions: { minWeek: 16, needsRival: true },
+    options: [
+      {
+        id: 'addressItHeadOn',
+        label: 'Address it head-on, publicly',
+        gains: 'Gets ahead of the story before it hardens into something worse',
+        costs: 'Answering rumors at all makes people wonder how much smoke there really is',
+        effects: () => [
+          { kind: 'bookingCredibility', delta: 4 },
+          { kind: 'reputation', delta: -2 },
+        ],
+      },
+      {
+        id: 'letItDieOnItsOwn',
+        label: 'Say nothing and let it die on its own',
+        gains: 'Refuses to give the story any more oxygen',
+        costs: 'The locker room notices nobody up top ever said a word in their defense',
+        effects: () => [{ kind: 'rosterMorale', delta: -5 }],
+      },
+    ],
+  },
+
+  {
+    id: 'insiderDefector',
+    category: 'rival',
+    title: 'Somebody inside {rival} wants to talk',
+    speaker: 'narrator',
+    body: [
+      'A voice from inside {rival}\'s own front office reached out this week, quietly, with real information nobody outside that building should have.',
+      "Somebody close to {rival}'s booking table wants to feed you something real — the kind of thing that only makes sense if they are already looking for a way out.",
+      "An email landed this week from an address that traces back to {rival}. Whoever sent it knows things they should not be telling you.",
+    ],
+    weight: 5,
+    cooldownWeeks: 34,
+    conditions: { minWeek: 20, needsRival: true },
+    options: [
+      {
+        id: 'useTheIntel',
+        label: 'Use what they gave you',
+        gains: 'A real edge, if it holds up',
+        costs: 'If this ever traces back to you, the fallout is real',
+        effects: () => [],
+        gamble: {
+          chance: ({ promotion }) => 0.4 + (promotion.reputation / 100) * 0.3,
+          onSuccess: () => [{ kind: 'companyRating', delta: 6 }],
+          onFailure: () => [{ kind: 'reputation', delta: -8 }],
+        },
+      },
+      {
+        id: 'declineIt',
+        label: 'Decline. It is not worth the risk',
+        gains: 'Keeps your hands clean',
+        costs: 'You will never know what they had',
+        effects: () => [{ kind: 'bookingCredibility', delta: -2 }],
+      },
+    ],
+  },
+
+  {
+    id: 'thirdCompanyRace',
+    category: 'rival',
+    title: 'Two other companies are racing for the same thing',
+    speaker: 'narrator',
+    body: [
+      'Word is out that two other promotions are quietly racing each other for the same opening, and neither one has noticed you could still get in on it.',
+      'A real opportunity just opened up, and right now it is a two-horse race between companies that are not you — unless you make it a three-horse one.',
+      'Everybody assumes this is a fight between two other promotions. Nobody has said you cannot make it a fight between three.',
+    ],
+    weight: 5,
+    cooldownWeeks: 30,
+    conditions: { minWeek: 18, needsRival: true },
+    options: [
+      {
+        id: 'jumpIn',
+        label: 'Spend to get in on it',
+        gains: 'A real shot at winning something two other companies wanted for themselves',
+        costs: 'The entry money is gone the moment you commit, win or lose',
+        effects: () => [{ kind: 'money', delta: -8000 }],
+        gamble: {
+          chance: ({ promotion }) => 0.35 + (promotion.rating / 100) * 0.35,
+          onSuccess: () => [
+            { kind: 'money', delta: 20000 },
+            { kind: 'companyRating', delta: 4 },
+          ],
+          onFailure: () => [{ kind: 'reputation', delta: -2 }],
+        },
+      },
+      {
+        id: 'stayOut',
+        label: 'Stay out of it entirely',
+        gains: 'No money at risk',
+        costs: 'You watch two other companies fight over something you could have had a piece of',
+        effects: () => [{ kind: 'reputation', delta: -1 }],
+      },
+    ],
+  },
+
+  {
+    id: 'territoryTargetingBias',
+    category: 'business',
+    title: '{rival} is targeting your own home turf',
+    speaker: 'narrator',
+    body: [
+      '{rival} just booked a show inside your own territory, priced to undercut you on your own turf, on purpose.',
+      "This is not {rival} expanding generally — this is {rival} specifically going after the ground you already stand on.",
+      '{rival} could have run their show almost anywhere. They picked your territory, and that is the story.',
+    ],
+    weight: 6,
+    cooldownWeeks: 30,
+    conditions: { minWeek: 16, needsRival: true, promotion: (p) => p.ownedTerritoryIds.length > 0 },
+    options: [
+      {
+        id: 'defendItHard',
+        label: 'Defend it hard — spend to protect the turf',
+        gains: 'Sends a real message that this ground is not open for the taking',
+        costs: 'Protecting a territory this way is not cheap',
+        effects: () => [
+          { kind: 'money', delta: -9000 },
+          { kind: 'companyRating', delta: 3 },
+        ],
+      },
+      {
+        id: 'letItRide',
+        label: 'Let it ride and see what happens',
+        gains: 'Costs nothing today',
+        costs: 'A rival testing your own ground and getting no response is a real dent',
+        effects: () => [{ kind: 'companyRating', delta: -4 }],
+      },
+    ],
+  },
+
+  {
+    id: 'blackballing',
+    category: 'personal',
+    title: '{rival} is trying to blackball {primary}',
+    speaker: 'narrator',
+    body: [
+      "Word is going around that {rival} is leaning on other promotions not to book {primary}, quietly, over bad blood that has nothing to do with wrestling.",
+      '{primary} crossed {rival} once, a long time ago, and {rival} has apparently decided this is the year to make sure nobody else in the business forgets it.',
+      "{rival} is working the phones trying to make {primary} unemployable everywhere but here. {primary} knows it.",
+    ],
+    weight: 5,
+    cooldownWeeks: 34,
+    conditions: { minWeek: 18, needsRival: true, primary: (w) => w.popularity > 40 },
+    options: [
+      {
+        id: 'backThemPublicly',
+        label: 'Back them publicly',
+        gains: 'A real show of loyalty the whole locker room sees',
+        costs: 'Standing behind them publicly costs real money and picks a side in a fight that was not originally yours',
+        effects: ({ primary }) => [
+          { kind: 'money', delta: -4000 },
+          { kind: 'morale', wrestlerId: primary!.id, delta: 10 },
+        ],
+      },
+      {
+        id: 'letThemFendForThemselves',
+        label: 'Let them handle it themselves',
+        gains: 'Stays out of a fight that is not officially yours',
+        costs: 'They notice exactly who did not have their back',
+        effects: ({ primary }) => [{ kind: 'morale', wrestlerId: primary!.id, delta: -14 }],
+      },
+    ],
+  },
+
+  {
+    id: 'staffPoaching',
+    category: 'business',
+    title: '{rival} is making a real run at one of your signed staff',
+    speaker: 'narrator',
+    body: [
+      "{rival} is quietly offering real money to somebody signed to your production and officiating staff, not your roster.",
+      'One of the people who make your shows actually run — not a wrestler — has a real offer from {rival} sitting in front of them right now.',
+      "{rival} figured out that the fastest way to hurt you is not always a wrestler. Sometimes it is whoever keeps your shows running on time.",
+    ],
+    weight: 5,
+    cooldownWeeks: 30,
+    conditions: { minWeek: 14, needsRival: true },
+    options: [
+      {
+        id: 'payToKeepThem',
+        label: 'Pay to keep them',
+        gains: 'Keeps the people who actually run your shows in the building',
+        costs: 'Real money, and a precedent for the next time somebody comes calling',
+        effects: () => [
+          { kind: 'money', delta: -7000 },
+          { kind: 'reputation', delta: 2 },
+        ],
+      },
+      {
+        id: 'letThemGo',
+        label: 'Let them go',
+        gains: 'No money spent today',
+        costs: 'Word gets around that this is not a building worth staying loyal to',
+        effects: () => [{ kind: 'reputation', delta: -3 }],
+      },
+    ],
+  },
+
+  {
+    id: 'spiteFreeAgentSigning',
+    category: 'rival',
+    title: '{rival} just paid four times market rate out of pure spite',
+    speaker: 'narrator',
+    body: [
+      "{rival} signed a hot free agent this week for roughly four times what anybody in the business thought they were worth — not because the numbers made sense, but to keep them off every other roster, yours included.",
+      "Nobody thinks {rival} actually needed that free agent. They just did not want anybody else — especially you — to have them.",
+      "The number {rival} paid does not make business sense on paper. It was never about the paper. It was about making sure you could not have that name.",
+    ],
+    weight: 6,
+    cooldownWeeks: 26,
+    conditions: { minWeek: 14, needsRival: true },
+    options: [
+      {
+        id: 'callItOut',
+        label: 'Call out the overspend publicly',
+        gains: 'Reads as the office that keeps its head while a rival throws money around',
+        costs: 'Sounds a little like sour grapes to anybody who was not already on your side',
+        effects: () => [
+          { kind: 'bookingCredibility', delta: 3 },
+          { kind: 'reputation', delta: -2 },
+        ],
+      },
+      {
+        id: 'matchTheNewReality',
+        label: 'Quietly raise your own offers to stay competitive',
+        gains: 'Keeps your own targets from testing a market that just got a lot more expensive',
+        costs: 'Real money, spent to stand still rather than get ahead',
+        effects: () => [{ kind: 'money', delta: -5000 }],
+      },
+    ],
+  },
 ];
 
 export function eventById(id: string): CreativeEvent | undefined {

@@ -235,7 +235,7 @@ const SLOT_KEY = 'wbg.save.v1';
 // engine/economy/matchProps.ts. A version-58 save has no such field, and
 // both the booking gate (stipulationRequirementsMet) and the weekly
 // use/idle wear tick read it without a guard.
-const SCHEMA_VERSION = 62;
+const SCHEMA_VERSION = 63;
 
 export interface SaveFile {
   schema: number;

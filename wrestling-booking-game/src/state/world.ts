@@ -55,6 +55,7 @@ import type { MemoriamShow } from '../engine/world/seasons';
 import type { WeatherCall } from '../engine/world/weatherCall';
 import type { RingCall, RingCallOptionId } from '../engine/world/ringCall';
 import type { TruckCall, TruckCallOptionId } from '../engine/world/truckBreakdown';
+import type { ContractRaidCall } from '../engine/world/contractRaid';
 import type { NoShowCall, NoShowChoiceId } from '../engine/world/noShowCall';
 import type { TitleMemorial } from '../engine/world/titleMemorial';
 import type { RivalMove } from '../engine/world/rivalMove';
@@ -345,6 +346,12 @@ export interface World {
    * title for you, and says so.
    */
   pendingChampionCall: ChampionCall | null;
+  /**
+   * A rival's lawyers already found the holes and already signed the
+   * wrestlers away — this is only the aftermath decision. Same shape as
+   * pendingChampionCall: does not hold the week open, but does expire.
+   */
+  pendingContractRaid: ContractRaidCall | null;
   /**
    * A champion died holding one of this promotion's belts. Unlike the
    * tribute show (applied automatically) this is a real decision — what
@@ -1172,6 +1179,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     pendingNoShowCall: null,
     noShowChoice: null,
     pendingChampionCall: null,
+    pendingContractRaid: null,
     pendingTitleMemorial: null,
     pendingRivalMove: null,
     pendingConfrontationCall: null,

@@ -41,6 +41,7 @@ import { TITLE_MEMORIAL_OPTIONS, type TitleMemorialChoiceId } from '../../engine
 import { loanTermsFor, LOAN_TIER_LABELS, type LoanTier } from '../../engine/economy/loan';
 import { RIVAL_MOVE_OPTIONS, type RivalMoveChoiceId } from '../../engine/world/rivalMove';
 import { CONFRONTATION_CALL_OPTIONS, type ConfrontationCallChoiceId } from '../../engine/world/confrontationCall';
+import { CONTRACT_RAID_OPTIONS, type ContractRaidOptionId } from '../../engine/world/contractRaid';
 import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
 import { GIMMICKS, gimmickCategories } from '../../data/gimmicks';
@@ -285,6 +286,7 @@ function DeskTab() {
       <ChampionCallPanel />
       <TitleMemorialPanel />
       <RivalMovePanel />
+      <ContractRaidPanel />
       <ConfrontationCallPanel />
       <LoanOfferPanel />
       <ActiveLoanNotice />
@@ -2484,6 +2486,59 @@ function RivalMovePanel() {
           choices={RIVAL_MOVE_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
           onChoose={(optionId) => {
             answer(optionId as RivalMoveChoiceId);
+            setOpen(false);
+          }}
+          theme={promotionTheme(world.promotion.identity)}
+          promotionName={world.promotion.name}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+/**
+ * A rival already raided a run of contracts — the raid itself already
+ * happened by the time this panel appears. What's left open is how the
+ * office responds. Same non-blocking, expiring shape as ChampionCallPanel.
+ */
+function ContractRaidPanel() {
+  const world = useGameStore((s) => s.world);
+  const answer = useGameStore((s) => s.answerContractRaid);
+  const [open, setOpen] = useState(false);
+  if (!world?.pendingContractRaid) return null;
+
+  const call = world.pendingContractRaid;
+  const weeksLeft = world.settings.contractRaidGraceWeeks - (world.week - call.week);
+
+  return (
+    <section className="mb-3 rounded-lg border border-rose-800 bg-rose-950/20 p-3" data-testid="contract-raid">
+      <div className="text-xs uppercase tracking-wide text-rose-400">Contracts raided</div>
+      <h2 className="mt-1 text-sm font-semibold">
+        {call.rivalName} took {call.raidedNames.join(', ')}
+      </h2>
+      <p className="mt-1 text-[11px] text-neutral-500">
+        {weeksLeft <= 1
+          ? 'Decide this week, or the office moves on without answering for it.'
+          : `${weeksLeft} weeks left to decide how the office responds.`}
+      </p>
+      <button
+        type="button"
+        data-testid="contract-raid-talk"
+        onClick={() => setOpen(true)}
+        className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:bg-neutral-700"
+      >
+        Decide how to respond
+      </button>
+
+      {open && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName={`${call.rivalName}'s lawyers`}
+          body={`${call.rivalName}'s lawyers found real holes in ${call.raidedNames.length} contract${call.raidedNames.length === 1 ? '' : 's'} — ${call.raidedNames.join(', ')} ${call.raidedNames.length === 1 ? 'is' : 'are'} gone, signed away outright, no severance, no warning. How does the office answer for it?`}
+          choices={CONTRACT_RAID_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
+          onChoose={(optionId) => {
+            answer(optionId as ContractRaidOptionId);
             setOpen(false);
           }}
           theme={promotionTheme(world.promotion.identity)}
