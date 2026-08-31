@@ -46,6 +46,7 @@ function ctxFor(overrides: Partial<WorldStoryContext> = {}): WorldStoryContext {
     livingRivals: [],
     mergerHappened: false,
     successionHappenedFor: [],
+    happenedFor: {},
     settings,
     ...overrides,
   };

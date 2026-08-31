@@ -965,6 +965,18 @@ export function defaultWorldSettings(): WorldSettings {
     contractRaidRetaliateGrudge: 15,
     contractRaidDoNothingMorale: -8,
 
+    // Three more world-story registry entries, all rival-side only.
+    networkRealignmentEarliestWeek: 40,
+    networkRealignmentChancePerWeek: 0.012,
+    networkRealignmentRatingSwing: 8,
+    ownerRivalryEarliestWeek: 30,
+    ownerRivalryChancePerWeek: 0.012,
+    ownerRivalryRatingSwing: 6,
+    rogueEarliestWeek: 80,
+    rogueChancePerWeek: 0.008,
+    rogueRatingSwing: 10,
+    rogueViolenceBoost: 30,
+
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,

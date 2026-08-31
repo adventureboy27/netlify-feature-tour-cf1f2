@@ -8,6 +8,9 @@ import type { WireKind } from '../engine/world/wire';
 import type { WorldSettings } from '../engine/types';
 import { eligibleForMerger } from '../engine/world/merger';
 import { eligibleForSuccession } from '../engine/world/succession';
+import { eligibleForNetworkRealignment } from '../engine/world/networkRealignment';
+import { eligibleForOwnerRivalry } from '../engine/world/ownerRivalry';
+import { eligibleForRogueTurn } from '../engine/world/rogueTurn';
 
 export interface WorldStoryDefinition {
   id: string;
@@ -33,6 +36,28 @@ export const WORLD_STORIES: WorldStoryDefinition[] = [
     weight: 5,
     chancePerWeek: (s) => s.successionChancePerWeek,
     eligible: (ctx) => eligibleForSuccession(ctx.week, ctx.livingRivals, ctx.successionHappenedFor, ctx.settings),
+  },
+  {
+    id: 'networkRealignment',
+    category: 'business',
+    weight: 4,
+    chancePerWeek: (s) => s.networkRealignmentChancePerWeek,
+    eligible: (ctx) => eligibleForNetworkRealignment(ctx.week, ctx.livingRivals, ctx.settings),
+  },
+  {
+    id: 'ownerRivalry',
+    category: 'ownership',
+    weight: 4,
+    chancePerWeek: (s) => s.ownerRivalryChancePerWeek,
+    eligible: (ctx) => eligibleForOwnerRivalry(ctx.week, ctx.livingRivals, ctx.settings),
+  },
+  {
+    id: 'rogueTurn',
+    category: 'business',
+    weight: 3,
+    chancePerWeek: (s) => s.rogueChancePerWeek,
+    eligible: (ctx) =>
+      eligibleForRogueTurn(ctx.week, ctx.livingRivals, ctx.happenedFor['rogueTurn'] ?? [], ctx.settings),
   },
 ];
 

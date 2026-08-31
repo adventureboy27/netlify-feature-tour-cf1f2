@@ -2724,6 +2724,20 @@ export interface WorldSettings {
   contractRaidRetaliateGrudge: number;
   contractRaidDoNothingMorale: number;
 
+  // Three more world-story registry entries — see data/worldStories.ts.
+  // Each is rival-side only: real, but never a player decision.
+  networkRealignmentEarliestWeek: number;
+  networkRealignmentChancePerWeek: number;
+  networkRealignmentRatingSwing: number;
+  ownerRivalryEarliestWeek: number;
+  ownerRivalryChancePerWeek: number;
+  ownerRivalryRatingSwing: number;
+  /** Once per rival — see World.worldStoryHappenedFor. */
+  rogueEarliestWeek: number;
+  rogueChancePerWeek: number;
+  rogueRatingSwing: number;
+  rogueViolenceBoost: number;
+
   supershowEagerAt: number;
   supershowCautiousAt: number;
   supershowPublicRefusalChance: number;

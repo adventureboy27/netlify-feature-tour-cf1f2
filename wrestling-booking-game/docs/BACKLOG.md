@@ -5,6 +5,37 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Three more major stories: network realignment, owner rivalry, rogue turn — shipped
+
+Fourth slice of "build it all," and the first half of the six brainstormed major stories. Split deliberately:
+these three are rival-side-only (no player decision, the same way `starIsBorn`/`torchPassed` incidents are)
+and share almost no new machinery beyond the registry itself, so they shipped together; the other three
+(scandal collapse, breakaway promotion, legend's farewell tour) each need real new machinery of their own —
+a shared roster-shedding sub-story, a brand-new promotion actually getting founded mid-save, and a real player
+decision — and are tracked as a follow-up slice rather than rushed into this one.
+
+All three are new `data/worldStories.ts` registry entries, same shape as merger/succession: `networkRealignment`
+(a rival's TV arrangement shifts, rating swing either direction, no guaranteed win), `ownerRivalry` (two
+*different* existing rivals go after each other publicly — the only one of the three with no world.mergerHappened-
+style singleton state; the loser and winner swap every time it fires), and `rogueTurn` (a rival drops
+regulation and goes outlaw for good — a permanent `styleProfile.violenceTolerance` shift plus a real either-
+direction rating swing, once per rival).
+
+`rogueTurn`'s "once per rival" need was the reason `World` gained something new rather than another dedicated
+array: `worldStoryHappenedFor: Record<string, Id[]>`, a generic per-story tracker the same shape as
+`successionHappenedFor` but keyed by story id, so a fourth, fifth, sixth per-rival-gated story (scandal
+collapse and breakaway promotion, next slice, both need exactly this) never needs its own bespoke field again.
+`succession`/`merger` were left on their own existing dedicated fields rather than migrated onto the new
+generic one — no reason to touch two already-shipped, already-tested stories for a refactor that costs real
+regression risk and buys nothing new.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (new coverage in `networkRealignment.test.ts`,
+`ownerRivalry.test.ts`, `rogueTurn.test.ts` for the pure roll/apply logic, `worldStoriesD.store.test.ts` for
+the real weekly-dispatch round trip on all three), `npm run build` clean, and a 3-seed/160-week probe run with
+all three saves surviving and no regressions to the existing injury/morale/show/money baselines.
+
+---
+
 ## The rest of the "Rival Booker Battle" sub-stories pool — shipped
 
 Third slice of "build it all." Ten of the twelve brainstormed sub-stories landed here; the other two were

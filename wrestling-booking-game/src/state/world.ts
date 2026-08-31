@@ -548,6 +548,13 @@ export interface World {
   /** Rival promotion ids that have already been through succession (engine/world/succession.ts) — can happen once per rival, not once ever. */
   successionHappenedFor: Id[];
   /**
+   * Generic per-story "already happened to this rival" tracking, keyed by
+   * world-story id — the same shape as successionHappenedFor, generalized
+   * rather than adding a new dedicated array field for every story that
+   * only needs "once per rival." Absent key means nobody yet.
+   */
+  worldStoryHappenedFor: Record<string, Id[]>;
+  /**
    * Stipulation ids the player has actually earned — see Stipulation.locked.
    * Empty on a fresh save; a locked stipulation never appears in the picker
    * until its id lands here (Arena Floor, from engine/world/truckBreakdown.ts).
@@ -1246,6 +1253,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     meetings: {},
     mergerHappened: false,
     successionHappenedFor: [],
+    worldStoryHappenedFor: {},
     unlockedStipulationIds: [],
     nextId: 1,
   };

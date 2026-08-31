@@ -446,6 +446,9 @@ import { rollWorldStory, type WorldStoryContext } from '../engine/sim/worldStori
 import { ringCallFrom, resolveRingCall, type RingCallOptionId } from '../engine/world/ringCall';
 import { truckBreakdownFrom, resolveTruckCall, type TruckCallOptionId } from '../engine/world/truckBreakdown';
 import { rollContractRaid, type ContractRaidOptionId } from '../engine/world/contractRaid';
+import { pickNetworkRealignmentTarget, applyNetworkRealignment } from '../engine/world/networkRealignment';
+import { pickOwnerRivalryPair, applyOwnerRivalry } from '../engine/world/ownerRivalry';
+import { pickRogueTarget, applyRogueTurn } from '../engine/world/rogueTurn';
 import {
   compassionateLeave,
   leaveLine,
@@ -4545,6 +4548,7 @@ export const useGameStore = create<GameStore>()(
             livingRivals,
             mergerHappened: world.mergerHappened,
             successionHappenedFor: world.successionHappenedFor,
+            happenedFor: world.worldStoryHappenedFor,
             settings: world.settings,
           };
           const storyRng = rngFromSeed(`worldStory:${world.week}`);
@@ -4599,6 +4603,20 @@ export const useGameStore = create<GameStore>()(
                 );
               }
             }
+          } else if (picked?.id === 'networkRealignment') {
+            const rival = pickNetworkRealignmentTarget(storyRng, livingRivals);
+            const outcome = applyNetworkRealignment(storyRng, rival, world.settings);
+            world.weeklyNews.push(wire('business', outcome.line, world.week, 'lead'));
+          } else if (picked?.id === 'ownerRivalry') {
+            const [a, b] = pickOwnerRivalryPair(storyRng, livingRivals);
+            const outcome = applyOwnerRivalry(storyRng, a, b, world.settings);
+            world.weeklyNews.push(wire('ownership', outcome.line, world.week, 'lead'));
+          } else if (picked?.id === 'rogueTurn') {
+            const already = world.worldStoryHappenedFor['rogueTurn'] ?? [];
+            const rival = pickRogueTarget(storyRng, livingRivals, already);
+            const outcome = applyRogueTurn(storyRng, rival, world.settings);
+            world.worldStoryHappenedFor = { ...world.worldStoryHappenedFor, rogueTurn: [...already, rival.id] };
+            world.weeklyNews.push(wire('business', outcome.line, world.week, 'lead'));
           }
         }
 
