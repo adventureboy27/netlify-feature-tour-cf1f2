@@ -14,6 +14,7 @@ import { eligibleForRogueTurn } from '../engine/world/rogueTurn';
 import { eligibleForScandal } from '../engine/world/scandal';
 import { eligibleForBreakaway } from '../engine/world/breakawayPromotion';
 import { eligibleForFarewellTour } from '../engine/world/farewellTour';
+import { eligibleForPricingWar } from '../engine/world/pricingWar';
 
 export interface WorldStoryDefinition {
   id: string;
@@ -84,6 +85,13 @@ export const WORLD_STORIES: WorldStoryDefinition[] = [
     weight: 3,
     chancePerWeek: (s) => s.farewellTourChancePerWeek,
     eligible: (ctx) => eligibleForFarewellTour(ctx.week, (ctx.happenedFor['farewellTour'] ?? []).length > 0, ctx.settings),
+  },
+  {
+    id: 'pricingWar',
+    category: 'business',
+    weight: 3,
+    chancePerWeek: (s) => s.pricingWarChancePerWeek,
+    eligible: (ctx) => eligibleForPricingWar(ctx.week, ctx.livingRivals, ctx.pricingWarActive, ctx.settings),
   },
 ];
 

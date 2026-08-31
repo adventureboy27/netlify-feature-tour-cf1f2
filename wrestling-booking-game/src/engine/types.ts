@@ -2779,6 +2779,17 @@ export interface WorldSettings {
   rivalPpvPriceMin: number;
   rivalPpvPriceMax: number;
 
+  // The billionaire pricing war — one conglomerate half prices below cost for
+  // a real stretch of weeks, then reverts. Only possible once the merger has
+  // actually happened (see World.pricingWar, engine/world/pricingWar.ts).
+  pricingWarEarliestWeek: number;
+  pricingWarChancePerWeek: number;
+  pricingWarDurationWeeks: number;
+  /** Multiplied onto each of a rival's three prices while the war is active. */
+  pricingWarSlashFraction: number;
+  /** Immediate rating gain for the rival buying market share this way. */
+  pricingWarRatingBoost: number;
+
   supershowEagerAt: number;
   supershowCautiousAt: number;
   supershowPublicRefusalChance: number;

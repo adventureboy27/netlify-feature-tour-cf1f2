@@ -5,6 +5,45 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## The billionaire below-cost pricing war — shipped
+
+Seventh slice of "build it all," and the sub-story explicitly promised alongside the pricing dashboard
+(Slice C's own BACKLOG note: it "needs real multi-week temporary state... and ties directly into the pricing
+dashboard, so it is paired with that build instead"). Now that both exist, this is the pairing.
+
+Only reachable once the billionaire merger (`engine/world/merger.ts`) has actually happened — eligibility
+(`engine/world/pricingWar.ts`'s `eligibleForPricingWar`) checks for a living rival with a real
+`conglomerateId`, which only exists post-merger. One half of the conglomerate slashes its ticket/merch/PPV
+prices (`slashedPricing`, a flat fraction off each of the three, floored at $1) for a real, counted-down
+number of weeks — visible the whole time on the pricing dashboard this pairs with — takes an immediate rating
+bump for buying market share that way, and reverts to a fresh, ordinary `randomRivalPricing` roll the moment
+the war ends. Deliberately display-adjacent rather than plumbed into `rivalEconomy.ts`'s revenue math: the
+rating bump is the same kind of summary move every other world story in this pool already makes (a scandal
+drops rating, a network deal raises it), not an invented price-elasticity model for one company over six
+weeks.
+
+Registered as a ninth entry in the world-story registry (`data/worldStories.ts`) — `WorldStoryContext` gained
+`pricingWarActive`, and `World.pricingWar: { rivalId, weeksRemaining } | null` is the new temporary state.
+
+One real bug caught by its own store-level tests before this shipped: the roll that *starts* the war and the
+weekly tick that counts it down both run inside the same `resolveWeek` call, so a naive countdown shaved a
+week off before the player ever saw the timer at its starting value — "6 weeks" would only really run for
+5. Fixed by capturing whether a war was already active *before* that week's story roll runs
+(`pricingWarActiveBeforeThisWeek`) and only ticking the countdown when it was — so the week a war starts is
+never also the week it loses its first tick.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (175 files / 3112 tests — new coverage in
+`pricingWar.test.ts` for the pure eligibility/target/slash logic and `pricingWar.store.test.ts` for the real
+weekly wiring, including a dedicated regression test for the off-by-one above), `npm run build` clean, and a
+200-week/2-seed probe run with merger and pricing-war chances both boosted well above default to force real
+exercise of the whole chain (merger fires, a war starts, runs its course, and reverts) with no crashes and no
+out-of-range numbers.
+
+All seven slices of "build it all" are now shipped except Slice F (a general unlockables system beyond Arena
+Floor), which remains open.
+
+---
+
 ## The pricing dashboard: rival ticket/merch/PPV prices, deliberately inconsistent — shipped
 
 Sixth slice of "build it all." Scope trimmed on purpose from the brainstorm doc's full description: this

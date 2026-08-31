@@ -199,6 +199,12 @@ export interface World {
    */
   rivalPricing: Record<Id, RivalPricing>;
   /**
+   * The billionaire pricing war — one conglomerate half pricing below cost
+   * for a real stretch of weeks (engine/world/pricingWar.ts). Null when
+   * nobody is running one; only one can run at a time.
+   */
+  pricingWar: { rivalId: Id; weeksRemaining: number } | null;
+  /**
    * Last week's sheet, kept so this week's can show which way people moved.
    * The current one is derived on read — only the comparison needs storing.
    */
@@ -1158,6 +1164,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     stables,
     rivals,
     rivalPricing: randomRivalPricingFor(rivals.map((r) => r.id), settings),
+    pricingWar: null,
     rivalShows: [],
     lastIncidents: [],
     lastPublication: null,

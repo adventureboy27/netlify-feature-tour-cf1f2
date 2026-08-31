@@ -453,6 +453,7 @@ import { pickScandalTarget, applyScandal } from '../engine/world/scandal';
 import { pickBreakawaySource } from '../engine/world/breakawayPromotion';
 import type { FarewellTourOptionId } from '../engine/world/farewellTour';
 import { randomRivalPricing } from '../engine/world/pricing';
+import { pickPricingWarTarget, slashedPricing, pricingWarStartLine, pricingWarEndLine } from '../engine/world/pricingWar';
 import {
   compassionateLeave,
   leaveLine,
@@ -4546,6 +4547,13 @@ export const useGameStore = create<GameStore>()(
         // data/worldStories.ts to add more without touching this dispatch).
         // Its own stream — inserted into weekly resolution, so it must
         // never touch the shared one (see the RNG note in CLAUDE.md).
+        //
+        // Captured before the roll below so the pricing-war tick further
+        // down (which runs later in this same resolveWeek call) can tell a
+        // war that just started this week from one already in progress —
+        // otherwise its first week of "N weeks" would be shaved off before
+        // the player ever saw it.
+        const pricingWarActiveBeforeThisWeek = world.pricingWar !== null;
         {
           const livingRivals = world.rivals.filter((r) => r.closedWeek === null);
           const storyCtx: WorldStoryContext = {
@@ -4554,6 +4562,7 @@ export const useGameStore = create<GameStore>()(
             mergerHappened: world.mergerHappened,
             successionHappenedFor: world.successionHappenedFor,
             happenedFor: world.worldStoryHappenedFor,
+            pricingWarActive: pricingWarActiveBeforeThisWeek,
             settings: world.settings,
           };
           const storyRng = rngFromSeed(`worldStory:${world.week}`);
@@ -4701,6 +4710,15 @@ export const useGameStore = create<GameStore>()(
                 'lead',
               ),
             );
+          } else if (picked?.id === 'pricingWar') {
+            const target = pickPricingWarTarget(storyRng, livingRivals);
+            const current =
+              world.rivalPricing[target.id] ??
+              randomRivalPricing(rngFromSeed(`rival-pricing:${target.id}`), world.settings);
+            world.rivalPricing[target.id] = slashedPricing(current, world.settings);
+            world.pricingWar = { rivalId: target.id, weeksRemaining: world.settings.pricingWarDurationWeeks };
+            target.rating = clamp(target.rating + world.settings.pricingWarRatingBoost, 0, 100);
+            world.weeklyNews.push(wire('business', pricingWarStartLine(target.name), world.week, 'lead'));
           }
         }
 
@@ -7225,6 +7243,23 @@ export const useGameStore = create<GameStore>()(
         tickLoan(world);
         // Same shape, a lighter thing — see economy/releaseStigma.ts.
         tickReleaseStigma(world);
+
+        // ---- the billionaire pricing war, if one is running -------------
+        // See engine/world/pricingWar.ts. Reverts to a fresh, ordinary price
+        // the moment it ends — this was never a discount that sticks.
+        if (world.pricingWar && pricingWarActiveBeforeThisWeek) {
+          world.pricingWar.weeksRemaining -= 1;
+          if (world.pricingWar.weeksRemaining <= 0) {
+            const rivalId = world.pricingWar.rivalId;
+            const rival = world.rivals.find((r) => r.id === rivalId);
+            world.rivalPricing[rivalId] = randomRivalPricing(
+              rngFromSeed(`rival-pricing:${rivalId}:${world.week}`),
+              world.settings,
+            );
+            world.weeklyNews.push(wire('business', pricingWarEndLine(rival?.name ?? 'The company'), world.week, 'minor'));
+            world.pricingWar = null;
+          }
+        }
 
         // ---- can you still pay for this? -------------------------------
         // The grace period is real: one bad month is survivable, a run of

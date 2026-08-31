@@ -23,6 +23,8 @@ export interface WorldStoryContext {
   successionHappenedFor: readonly Id[];
   /** Generic per-story "already happened to this rival" tracking — see World.worldStoryHappenedFor. */
   happenedFor: Readonly<Record<string, readonly Id[]>>;
+  /** Whether a billionaire pricing war is already running — see World.pricingWar. */
+  pricingWarActive: boolean;
   settings: WorldSettings;
 }
 

@@ -1007,6 +1007,15 @@ export function defaultWorldSettings(): WorldSettings {
     rivalPpvPriceMin: 10,
     rivalPpvPriceMax: 80,
 
+    // Only reachable once the merger has happened (mergerEarliestWeek: 156),
+    // so this gate mostly documents intent rather than doing the real
+    // gating — the conglomerate check in eligibleForPricingWar does that.
+    pricingWarEarliestWeek: 160,
+    pricingWarChancePerWeek: 0.02,
+    pricingWarDurationWeeks: 6,
+    pricingWarSlashFraction: 0.35,
+    pricingWarRatingBoost: 6,
+
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,
