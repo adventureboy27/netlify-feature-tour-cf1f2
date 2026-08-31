@@ -15,6 +15,7 @@ import { clampMorale } from '../../engine/career/morale';
 import { gradeFromLength, severityOf } from '../../engine/sim/casualties';
 import { recordInjury } from '../../engine/career/theBody';
 import { resolveContractRaid, type ContractRaidOptionId } from '../../engine/world/contractRaid';
+import { resolveFarewellTour, type FarewellTourOptionId } from '../../engine/world/farewellTour';
 import { wire } from '../../engine/world/wire';
 import { addGrudge, grudgeAgainst } from '../../engine/world/grudges';
 
@@ -31,6 +32,7 @@ type EventsSlice = Pick<
   | 'answerRivalMove'
   | 'answerConfrontationCall'
   | 'answerContractRaid'
+  | 'answerFarewellTour'
 >;
 
 export const createEventsSlice: StateCreator<GameStore, [['zustand/immer', never]], [], EventsSlice> = (
@@ -172,6 +174,20 @@ export const createEventsSlice: StateCreator<GameStore, [['zustand/immer', never
 
       world.weeklyNews.push(wire('contract', outcome.line, world.week, 'normal'));
       world.pendingContractRaid = null;
+    });
+  },
+
+  answerFarewellTour: (choice: FarewellTourOptionId) => {
+    set((state) => {
+      const world = state.world;
+      if (!world?.pendingFarewellTour) return;
+
+      const outcome = resolveFarewellTour(choice, world.settings);
+      world.promotion.bankBalance += outcome.moneyDelta;
+      world.promotion.rating = clamp(world.promotion.rating + outcome.ratingDelta, 0, 100);
+      world.promotion.reputation = clamp(world.promotion.reputation + outcome.reputationDelta, 0, 100);
+      world.weeklyNews.push(wire('talent', outcome.line, world.week, 'lead'));
+      world.pendingFarewellTour = null;
     });
   },
 

@@ -5,6 +5,56 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## The last three major stories: scandal, breakaway promotion, farewell tour — shipped
+
+Fifth slice of "build it all" — the second half of the six brainstormed major stories, finishing the pool.
+
+`scandal` (`engine/world/scandal.ts`) is once per rival: a real, immediate rating and reputation hit, then the
+same reusable aftermath succession's own weak branch already uses — `ownershipShakeup.ts`'s
+`pickShakeupReleases` sheds real roster into free agency, because staying at a company mid-scandal is not
+something everybody signs up for. Exactly the "tailor a shared sub-story to a different main story" reuse the
+player asked for when this whole system was designed.
+
+`breakawayPromotion` (`engine/world/breakawayPromotion.ts`) is the one that needed real new machinery: a
+genuine chunk of an existing rival's own roster walks out together and founds a brand-new company mid-save.
+Read `engine/world/newPromotions.ts` first — the other half of the business-creation cycle (an outside
+investor opening a company into a talent glut) already existed in full, complete with `foundPromotion` for a
+company's first day and the exact "sign them, strip them off the free-agent list, push the new company into
+`world.rivals`" sequence already proven in `resolveWeek`'s own "companies are born" block. This story reuses
+`foundPromotion` verbatim and mirrors that same sequence rather than inventing a second way to bring a company
+into existence — the only real new logic is *whose* roster splinters and *who* goes, which is
+`pickShakeupReleases` again.
+
+`farewellTour` (`engine/world/farewellTour.ts`) is the one major story with a genuine player decision, and the
+one that doesn't fit the registry's "roll it, apply it, done" shape the other five use: it needs to *raise* a
+decision, not resolve one outright. Solved by treating the registry roll as only the trigger — picking it just
+opens `world.pendingFarewellTour`, non-blocking and expiring, the exact shape `pendingContractRaid` already
+established last slice (and `pendingChampionCall` before that): host a stop for a real fee and a real,
+once-in-a-save rating and reputation gain, or let it happen somewhere else. Deliberately unnamed — a "legend
+of the business" rather than a specific Hall of Famer — for the same reason `uninvitedLegend` was: nothing in
+this engine resolves a world story into a specific *retired* wrestler, only the active roster, and building
+that resolution path was more machinery than one event was worth.
+
+A real store.test.ts regression surfaced during this slice's own verification, from the *previous* slice's
+`worldStories.test.ts`: "only ever returns something actually eligible" hardcoded `['merger', 'succession']`
+as the only legal outcomes, which was true when it was written and stopped being true the moment six more
+stories joined the pool. Re-expressed against the registry's own `eligibleWorldStories(ctx)` rather than a
+frozen id list — the real, timeless claim the test name makes — so it stays correct for whatever story joins
+next, rather than needing a manual update every time this pool grows again.
+
+All six brainstormed major stories are now shipped: merger, succession, network realignment, owner rivalry,
+rogue turn, scandal, breakaway promotion, farewell tour. (Eight, not six — merger and succession shipped in
+an earlier slice before this brainstorm's other four were scoped out.)
+
+Verified: `tsc --noEmit` clean, full `vitest run` (171 files, 3092 tests, 0 failures — new coverage in
+`scandal.test.ts`, `breakawayPromotion.test.ts`, `farewellTour.test.ts` for the pure logic and
+`worldStoriesD2.store.test.ts` for the real weekly-dispatch round trip on all three, including the farewell
+tour's raise/answer/expiry cycle), `npm run build` clean, and a 3-seed/180-week probe run (extended past
+breakaway's own late week gate) with all three saves surviving and no regressions to the existing
+injury/morale/show/money baselines.
+
+---
+
 ## Three more major stories: network realignment, owner rivalry, rogue turn — shipped
 
 Fourth slice of "build it all," and the first half of the six brainstormed major stories. Split deliberately:

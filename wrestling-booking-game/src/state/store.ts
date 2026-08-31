@@ -449,6 +449,9 @@ import { rollContractRaid, type ContractRaidOptionId } from '../engine/world/con
 import { pickNetworkRealignmentTarget, applyNetworkRealignment } from '../engine/world/networkRealignment';
 import { pickOwnerRivalryPair, applyOwnerRivalry } from '../engine/world/ownerRivalry';
 import { pickRogueTarget, applyRogueTurn } from '../engine/world/rogueTurn';
+import { pickScandalTarget, applyScandal } from '../engine/world/scandal';
+import { pickBreakawaySource } from '../engine/world/breakawayPromotion';
+import type { FarewellTourOptionId } from '../engine/world/farewellTour';
 import {
   compassionateLeave,
   leaveLine,
@@ -723,6 +726,7 @@ export interface GameStore {
   answerRingCall: (choice: RingCallOptionId) => void;
   answerTruckCall: (choice: TruckCallOptionId) => void;
   answerContractRaid: (choice: ContractRaidOptionId) => void;
+  answerFarewellTour: (choice: FarewellTourOptionId) => void;
   /** A booked wrestler never showed up. Same "answering runs the show" shape as the weather call. */
   answerNoShowCall: (choice: NoShowChoiceId) => void;
   /** A rival made a signing worth reacting to. Non-blocking — answer it whenever, or never. */
@@ -4617,6 +4621,84 @@ export const useGameStore = create<GameStore>()(
             const outcome = applyRogueTurn(storyRng, rival, world.settings);
             world.worldStoryHappenedFor = { ...world.worldStoryHappenedFor, rogueTurn: [...already, rival.id] };
             world.weeklyNews.push(wire('business', outcome.line, world.week, 'lead'));
+          } else if (picked?.id === 'scandal') {
+            const already = world.worldStoryHappenedFor['scandal'] ?? [];
+            const rival = pickScandalTarget(storyRng, livingRivals, already);
+            const outcome = applyScandal(rival, world.settings);
+            world.worldStoryHappenedFor = { ...world.worldStoryHappenedFor, scandal: [...already, rival.id] };
+            world.weeklyNews.push(wire('ownership', outcome.line, world.week, 'lead'));
+
+            // The fallout: people who want nothing to do with it walk —
+            // the same shared sub-story succession's weak branch uses.
+            const releaseIds = pickShakeupReleases(storyRng, rival.rosterIds, world.settings);
+            const releasedNames: string[] = [];
+            for (const id of releaseIds) {
+              const person = world.wrestlers[id];
+              if (!person) continue;
+              releaseFromShakeup(world, person, rival.id);
+              releasedNames.push(person.name);
+            }
+            if (releasedNames.length > 0) {
+              world.weeklyNews.push(
+                wire(
+                  'talent',
+                  `Nobody at ${rival.name} wants to be anywhere near this one — ${releasedNames.join(', ')} are all suddenly free agents.`,
+                  world.week,
+                  'normal',
+                ),
+              );
+            }
+          } else if (picked?.id === 'breakawayPromotion') {
+            const already = world.worldStoryHappenedFor['breakawayPromotion'] ?? [];
+            const source = pickBreakawaySource(storyRng, livingRivals, already, world.settings);
+            const defectorIds = pickShakeupReleases(storyRng, source.rosterIds, world.settings);
+            const defectors = defectorIds.map((id) => world.wrestlers[id]).filter((w) => Boolean(w));
+            if (defectors.length > 0) {
+              for (const w of defectors) releaseFromShakeup(world, w!, source.id);
+              const openingCtx = {
+                alive: [world.promotion, ...world.rivals].filter((p) => p.closedWeek === null),
+                unemployed: 0,
+                takenNames: new Set([world.promotion, ...world.rivals].map((p) => p.name.toLowerCase())),
+                currentWeek: world.week,
+              };
+              const newCo = foundPromotion(storyRng, openingCtx, world.territories.map((t) => t.id), world.settings);
+              for (const w of defectors) {
+                w!.promotionId = newCo.id;
+                w!.contract = createStandardContract(
+                  w!,
+                  world.settings,
+                  world.settings.startingYear + Math.floor(world.week / 52),
+                );
+                newCo.rosterIds.push(w!.id);
+                world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== w!.id);
+              }
+              world.rivals.push(newCo);
+              world.worldStoryHappenedFor = {
+                ...world.worldStoryHappenedFor,
+                breakawayPromotion: [...already, source.id],
+              };
+              source.rating = clamp(source.rating - world.settings.breakawayRatingDropForOldRival, 0, 100);
+              const names = defectors.map((w) => w!.name);
+              world.weeklyNews.push(
+                wire(
+                  'ownership',
+                  `A real chunk of ${source.name}'s own locker room just walked out together and founded ${newCo.name} — ${names.join(', ')} are gone from ${source.name} tonight, signed to the new company instead.`,
+                  world.week,
+                  'lead',
+                ),
+              );
+            }
+          } else if (picked?.id === 'farewellTour') {
+            world.worldStoryHappenedFor = { ...world.worldStoryHappenedFor, farewellTour: ['global'] };
+            world.pendingFarewellTour = { week: world.week };
+            world.weeklyNews.push(
+              wire(
+                'talent',
+                'A real legend of this business just announced a farewell tour — one last run, and everybody in the industry wants a piece of it.',
+                world.week,
+                'lead',
+              ),
+            );
           }
         }
 
@@ -5271,6 +5353,20 @@ export const useGameStore = create<GameStore>()(
             wire('contract', 'Nobody up top ever answered for the contracts that got raided. The locker room clocked that too.', world.week, 'normal'),
           );
           world.pendingContractRaid = null;
+        }
+
+        // A farewell-tour offer that sat unanswered too long goes to
+        // somebody else — same expiring shape as the contract raid above.
+        if (world.pendingFarewellTour && world.week - world.pendingFarewellTour.week >= world.settings.farewellTourGraceWeeks) {
+          world.promotion.reputation = clamp(
+            world.promotion.reputation - world.settings.farewellTourDeclineReputationCost,
+            0,
+            100,
+          );
+          world.weeklyNews.push(
+            wire('talent', 'The farewell tour offer went unanswered too long, and it moved on without this building.', world.week, 'normal'),
+          );
+          world.pendingFarewellTour = null;
         }
 
         // A rival's lawyers find real holes in a run of contracts, and the

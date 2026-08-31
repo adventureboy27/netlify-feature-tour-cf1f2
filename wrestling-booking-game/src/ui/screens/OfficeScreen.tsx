@@ -42,6 +42,7 @@ import { loanTermsFor, LOAN_TIER_LABELS, type LoanTier } from '../../engine/econ
 import { RIVAL_MOVE_OPTIONS, type RivalMoveChoiceId } from '../../engine/world/rivalMove';
 import { CONFRONTATION_CALL_OPTIONS, type ConfrontationCallChoiceId } from '../../engine/world/confrontationCall';
 import { CONTRACT_RAID_OPTIONS, type ContractRaidOptionId } from '../../engine/world/contractRaid';
+import { FAREWELL_TOUR_OPTIONS, type FarewellTourOptionId } from '../../engine/world/farewellTour';
 import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
 import { GIMMICKS, gimmickCategories } from '../../data/gimmicks';
@@ -287,6 +288,7 @@ function DeskTab() {
       <TitleMemorialPanel />
       <RivalMovePanel />
       <ContractRaidPanel />
+      <FarewellTourPanel />
       <ConfrontationCallPanel />
       <LoanOfferPanel />
       <ActiveLoanNotice />
@@ -2539,6 +2541,56 @@ function ContractRaidPanel() {
           choices={CONTRACT_RAID_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
           onChoose={(optionId) => {
             answer(optionId as ContractRaidOptionId);
+            setOpen(false);
+          }}
+          theme={promotionTheme(world.promotion.identity)}
+          promotionName={world.promotion.name}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+/**
+ * A legend's farewell tour offer — once ever, a real player decision, same
+ * non-blocking, expiring shape as ContractRaidPanel.
+ */
+function FarewellTourPanel() {
+  const world = useGameStore((s) => s.world);
+  const answer = useGameStore((s) => s.answerFarewellTour);
+  const [open, setOpen] = useState(false);
+  if (!world?.pendingFarewellTour) return null;
+
+  const call = world.pendingFarewellTour;
+  const weeksLeft = world.settings.farewellTourGraceWeeks - (world.week - call.week);
+
+  return (
+    <section className="mb-3 rounded-lg border border-amber-800 bg-amber-950/20 p-3" data-testid="farewell-tour">
+      <div className="text-xs uppercase tracking-wide text-amber-400">A legend's farewell tour</div>
+      <h2 className="mt-1 text-sm font-semibold">One last run through the business</h2>
+      <p className="mt-1 text-[11px] text-neutral-500">
+        {weeksLeft <= 1
+          ? 'Decide this week, or the tour moves on without this building.'
+          : `${weeksLeft} weeks left to book a stop before the tour moves on.`}
+      </p>
+      <button
+        type="button"
+        data-testid="farewell-tour-talk"
+        onClick={() => setOpen(true)}
+        className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:bg-neutral-700"
+      >
+        Decide
+      </button>
+
+      {open && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName="A voice from the past"
+          body="I want one more run before I'm done — a real one, not a cameo. Give me a night, and I'll give this building something it won't forget."
+          choices={FAREWELL_TOUR_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
+          onChoose={(optionId) => {
+            answer(optionId as FarewellTourOptionId);
             setOpen(false);
           }}
           theme={promotionTheme(world.promotion.identity)}

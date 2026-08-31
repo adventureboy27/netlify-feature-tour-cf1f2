@@ -977,6 +977,24 @@ export function defaultWorldSettings(): WorldSettings {
     rogueRatingSwing: 10,
     rogueViolenceBoost: 30,
 
+    scandalEarliestWeek: 70,
+    scandalChancePerWeek: 0.008,
+    scandalRatingDrop: 14,
+    scandalReputationDrop: 16,
+
+    breakawayEarliestWeek: 120,
+    breakawayChancePerWeek: 0.006,
+    breakawayMinRosterSize: 12,
+    breakawayRatingDropForOldRival: 10,
+
+    farewellTourEarliestWeek: 100,
+    farewellTourChancePerWeek: 0.01,
+    farewellTourGraceWeeks: 3,
+    farewellTourHostFee: 15000,
+    farewellTourHostRatingGain: 10,
+    farewellTourHostReputationGain: 8,
+    farewellTourDeclineReputationCost: 2,
+
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,

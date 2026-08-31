@@ -87,14 +87,28 @@ describe('rolling one', () => {
 
   it('only ever returns something actually eligible', () => {
     const rivals = [promotion({ id: 'r1' }), promotion({ id: 'r2' }), promotion({ id: 'r3' })];
+    // Every story's own chance forced to certain, so this actually exercises
+    // the whole pool rather than just the two oldest entries — the real
+    // claim this test makes is "whatever comes back was eligible," not
+    // "only these two ids ever exist."
     const ctx = ctxFor({
       week: settings.mergerEarliestWeek,
       livingRivals: rivals,
-      settings: { ...settings, mergerChancePerWeek: 1, successionChancePerWeek: 1 },
+      settings: {
+        ...settings,
+        mergerChancePerWeek: 1,
+        successionChancePerWeek: 1,
+        networkRealignmentChancePerWeek: 1,
+        ownerRivalryChancePerWeek: 1,
+        rogueChancePerWeek: 1,
+        scandalChancePerWeek: 1,
+        breakawayChancePerWeek: 1,
+        farewellTourChancePerWeek: 1,
+      },
     });
     for (let i = 0; i < 30; i++) {
       const picked = rollWorldStory(rngFromSeed(`roll-${i}`), ctx);
-      if (picked) expect(['merger', 'succession']).toContain(picked.id);
+      if (picked) expect(eligibleWorldStories(ctx).map((d) => d.id)).toContain(picked.id);
     }
   });
 });

@@ -2738,6 +2738,34 @@ export interface WorldSettings {
   rogueRatingSwing: number;
   rogueViolenceBoost: number;
 
+  // Scandal collapse — once per rival, real and immediate; the aftermath
+  // reuses ownershipShakeup.ts's pickShakeupReleases for who quits in
+  // disgust, the same shared sub-story succession's weak branch already
+  // uses.
+  scandalEarliestWeek: number;
+  scandalChancePerWeek: number;
+  scandalRatingDrop: number;
+  scandalReputationDrop: number;
+
+  // Breakaway promotion — a real chunk of an existing rival's own roster
+  // walks out together and founds a brand-new company. Once per source
+  // rival.
+  breakawayEarliestWeek: number;
+  breakawayChancePerWeek: number;
+  breakawayMinRosterSize: number;
+  breakawayRatingDropForOldRival: number;
+
+  // A legend's farewell tour — once ever, business-wide, and the one major
+  // story with a real player decision: host a stop for real money and a
+  // real boost, or let it happen somewhere else.
+  farewellTourEarliestWeek: number;
+  farewellTourChancePerWeek: number;
+  farewellTourGraceWeeks: number;
+  farewellTourHostFee: number;
+  farewellTourHostRatingGain: number;
+  farewellTourHostReputationGain: number;
+  farewellTourDeclineReputationCost: number;
+
   supershowEagerAt: number;
   supershowCautiousAt: number;
   supershowPublicRefusalChance: number;

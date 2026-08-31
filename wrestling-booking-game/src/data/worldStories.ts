@@ -11,6 +11,9 @@ import { eligibleForSuccession } from '../engine/world/succession';
 import { eligibleForNetworkRealignment } from '../engine/world/networkRealignment';
 import { eligibleForOwnerRivalry } from '../engine/world/ownerRivalry';
 import { eligibleForRogueTurn } from '../engine/world/rogueTurn';
+import { eligibleForScandal } from '../engine/world/scandal';
+import { eligibleForBreakaway } from '../engine/world/breakawayPromotion';
+import { eligibleForFarewellTour } from '../engine/world/farewellTour';
 
 export interface WorldStoryDefinition {
   id: string;
@@ -58,6 +61,29 @@ export const WORLD_STORIES: WorldStoryDefinition[] = [
     chancePerWeek: (s) => s.rogueChancePerWeek,
     eligible: (ctx) =>
       eligibleForRogueTurn(ctx.week, ctx.livingRivals, ctx.happenedFor['rogueTurn'] ?? [], ctx.settings),
+  },
+  {
+    id: 'scandal',
+    category: 'ownership',
+    weight: 4,
+    chancePerWeek: (s) => s.scandalChancePerWeek,
+    eligible: (ctx) =>
+      eligibleForScandal(ctx.week, ctx.livingRivals, ctx.happenedFor['scandal'] ?? [], ctx.settings),
+  },
+  {
+    id: 'breakawayPromotion',
+    category: 'ownership',
+    weight: 3,
+    chancePerWeek: (s) => s.breakawayChancePerWeek,
+    eligible: (ctx) =>
+      eligibleForBreakaway(ctx.week, ctx.livingRivals, ctx.happenedFor['breakawayPromotion'] ?? [], ctx.settings),
+  },
+  {
+    id: 'farewellTour',
+    category: 'talent',
+    weight: 3,
+    chancePerWeek: (s) => s.farewellTourChancePerWeek,
+    eligible: (ctx) => eligibleForFarewellTour(ctx.week, (ctx.happenedFor['farewellTour'] ?? []).length > 0, ctx.settings),
   },
 ];
 

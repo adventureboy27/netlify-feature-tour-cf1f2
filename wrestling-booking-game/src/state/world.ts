@@ -56,6 +56,7 @@ import type { WeatherCall } from '../engine/world/weatherCall';
 import type { RingCall, RingCallOptionId } from '../engine/world/ringCall';
 import type { TruckCall, TruckCallOptionId } from '../engine/world/truckBreakdown';
 import type { ContractRaidCall } from '../engine/world/contractRaid';
+import type { FarewellTourCall } from '../engine/world/farewellTour';
 import type { NoShowCall, NoShowChoiceId } from '../engine/world/noShowCall';
 import type { TitleMemorial } from '../engine/world/titleMemorial';
 import type { RivalMove } from '../engine/world/rivalMove';
@@ -352,6 +353,12 @@ export interface World {
    * pendingChampionCall: does not hold the week open, but does expire.
    */
   pendingContractRaid: ContractRaidCall | null;
+  /**
+   * A legend's farewell tour offer — raised by the world-story registry,
+   * resolved the same non-blocking, expiring way as pendingContractRaid.
+   * Once ever, business-wide.
+   */
+  pendingFarewellTour: FarewellTourCall | null;
   /**
    * A champion died holding one of this promotion's belts. Unlike the
    * tribute show (applied automatically) this is a real decision — what
@@ -1187,6 +1194,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     noShowChoice: null,
     pendingChampionCall: null,
     pendingContractRaid: null,
+    pendingFarewellTour: null,
     pendingTitleMemorial: null,
     pendingRivalMove: null,
     pendingConfrontationCall: null,
