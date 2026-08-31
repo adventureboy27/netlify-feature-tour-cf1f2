@@ -346,3 +346,34 @@ describe('how often they happen', () => {
     expect(a).toBe(b);
   });
 });
+
+describe('a mistake going viral', () => {
+  it('never fires without a botch or a pyro burn tonight', () => {
+    const ctx = ctxFor({ rating: 92, isMainEvent: true });
+    expect(eligibleIncidents(ctx).map((d) => d.id)).not.toContain('viralBotch');
+    expect(eligibleIncidents(ctx).map((d) => d.id)).not.toContain('luckyPyroAccident');
+  });
+
+  it('picks the botcher, gives real upside, and still costs them something', () => {
+    const base = ctxFor({ isMainEvent: true });
+    const botcherId = base.competitors[0]!.wrestler.id;
+    const ctx = { ...base, botchedById: botcherId };
+    expect(eligibleIncidents(ctx).map((d) => d.id)).toContain('viralBotch');
+    const incident = forced(ctx, 'viral-botch')!;
+    expect(incident.involvedIds).toEqual([botcherId]);
+    expect(incident.effects.some((e) => e.kind === 'popularity' && e.delta > 0)).toBe(true);
+    expect(incident.effects.some((e) => e.kind === 'companyRating' && e.delta > 0)).toBe(true);
+    expect(incident.effects.some((e) => e.kind === 'morale' && e.delta < 0)).toBe(true);
+  });
+
+  it('picks the one the pyro burned, same real upside and real cost', () => {
+    const base = ctxFor({ isMainEvent: true });
+    const burnedId = base.competitors[1]!.wrestler.id;
+    const ctx = { ...base, pyroBurnedById: burnedId };
+    expect(eligibleIncidents(ctx).map((d) => d.id)).toContain('luckyPyroAccident');
+    const incident = forced(ctx, 'lucky-pyro')!;
+    expect(incident.involvedIds).toEqual([burnedId]);
+    expect(incident.effects.some((e) => e.kind === 'popularity' && e.delta > 0)).toBe(true);
+    expect(incident.effects.some((e) => e.kind === 'morale' && e.delta < 0)).toBe(true);
+  });
+});

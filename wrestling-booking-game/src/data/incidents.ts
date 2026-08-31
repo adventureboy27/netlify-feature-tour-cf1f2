@@ -486,6 +486,63 @@ export const INCIDENTS: IncidentDefinition[] = [
       };
     },
   },
+
+  // ---------------------------------------------------------- goes viral
+  // Occasionally what should have just cost the match something instead
+  // becomes the story the internet actually cares about — real upside for
+  // the company, layered on top of (not instead of) the mistake's own
+  // ordinary cost, and a real personal-embarrassment downside for whoever
+  // it happened to.
+
+  {
+    id: 'viralBotch',
+    kind: 'Viral',
+    weight: 5,
+    when: (ctx) => Boolean(ctx.botchedById) && (ctx.isMainEvent || ctx.titleOnTheLine),
+    build: (ctx, rng) => {
+      const worker = ctx.competitors.find((c) => c.wrestler.id === ctx.botchedById)?.wrestler;
+      if (!worker) return null;
+      return {
+        id: 'viralBotch',
+        headline: pick(rng, [
+          `${nameOf(worker)}'s blown spot tonight is already everywhere online, and for once that is a good thing — clips of it are racking up views the broadcast itself never got.`,
+          `Whatever went wrong for ${nameOf(worker)} out there tonight, the internet has decided it is hilarious rather than a disaster, and the clip is spreading fast.`,
+          `${nameOf(worker)} blew it, and somehow that is the story people are sharing tonight instead of anything that actually went right.`,
+        ]),
+        involvedIds: [worker.id],
+        effects: [
+          { kind: 'popularity', wrestlerId: worker.id, delta: ctx.settings.incidentViralPopularity },
+          { kind: 'companyRating', delta: ctx.settings.incidentViralCompanyLift },
+          { kind: 'morale', wrestlerId: worker.id, delta: -ctx.settings.incidentViralEmbarrassmentMorale },
+        ],
+      };
+    },
+  },
+
+  {
+    id: 'luckyPyroAccident',
+    kind: 'Viral',
+    weight: 4,
+    when: (ctx) => Boolean(ctx.pyroBurnedById) && (ctx.isMainEvent || ctx.titleOnTheLine),
+    build: (ctx, rng) => {
+      const worker = ctx.competitors.find((c) => c.wrestler.id === ctx.pyroBurnedById)?.wrestler;
+      if (!worker) return null;
+      return {
+        id: 'luckyPyroAccident',
+        headline: pick(rng, [
+          `The pyro that caught ${nameOf(worker)} on the way to the ring is somehow the best thing that happened to this show's numbers tonight — it is everywhere online already.`,
+          `Nobody meant for that fireball to get anywhere near ${nameOf(worker)}, and yet the clip of it is doing more for this promotion tonight than the rest of the card combined.`,
+          `${nameOf(worker)} got burned walking out, and this business being what it is, that mistake is turning into the single most-shared thing all night.`,
+        ]),
+        involvedIds: [worker.id],
+        effects: [
+          { kind: 'popularity', wrestlerId: worker.id, delta: ctx.settings.incidentViralPopularity },
+          { kind: 'companyRating', delta: ctx.settings.incidentViralCompanyLift },
+          { kind: 'morale', wrestlerId: worker.id, delta: -ctx.settings.incidentViralEmbarrassmentMorale },
+        ],
+      };
+    },
+  },
 ];
 
 /** Did the winning side go over as heels? Used by the post-match beatdown. */

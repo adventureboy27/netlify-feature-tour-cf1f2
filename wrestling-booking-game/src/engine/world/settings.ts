@@ -1351,6 +1351,9 @@ export function defaultWorldSettings(): WorldSettings {
     incidentOvationPopularity: 4,
     incidentHijackRating: 25,
     incidentHijackPopularity: 3,
+    incidentViralPopularity: 7,
+    incidentViralCompanyLift: 3,
+    incidentViralEmbarrassmentMorale: 5,
 
     // Rankings. The contender list is deliberately twitchy — momentum is the
     // biggest single term, so a hot streak genuinely earns a title shot. The

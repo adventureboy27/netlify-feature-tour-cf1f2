@@ -73,7 +73,9 @@ export type EventEffect =
   /** A one-off line on the wire — for something that happened off the regular results path (a dark-match debut, say). */
   | { kind: 'wire'; wireKind: WireKind; text: string }
   /** Drains resentment off a rival's grudge against you — see engine/world/grudges.ts. Positive delta, always a reduction. */
-  | { kind: 'grudgeRelief'; promotionId: Id; delta: number };
+  | { kind: 'grudgeRelief'; promotionId: Id; delta: number }
+  /** Takes somebody out of the business for good — routes through the existing career/retirement.ts retire(). */
+  | { kind: 'retire'; wrestlerId: Id };
 
 /**
  * One choice the player can make. `gains` and `costs` are the honest,

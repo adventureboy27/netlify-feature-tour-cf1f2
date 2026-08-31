@@ -5,6 +5,50 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## The rest of the standalone random events pool — shipped
+
+Second slice of "build it all." Went through the brainstormed random-events pool item by item rather than
+building blind: `familyEmergency` (misfortunes.ts) and the shoot/post-match-beatdown pair (`itWentReal`/
+`postMatchBeatdown` in incidents.ts) turned out to already exist, so those were left alone. What was
+genuinely missing, and where each landed:
+
+**Five new creative events** (`data/events.ts`, reusing the existing engine wholesale — no new plumbing):
+`sponsorPullout` (a committed sponsor bails, three real options: eat it, chase a fast replacement gamble, or
+burn the relationship publicly for a reputation/credibility trade), `liveRetirement` (a veteran or legend
+wants to call it live, on the show — grant it or talk them out of it), `uninvitedLegend` (a name out of the
+record books wants a spot on tonight's card — deliberately unnamed/generic rather than pulling a real Hall of
+Famer, since the event scheduler's subject resolution only ever draws from the *active* roster; inventing a
+second resolution path for a retired name was more machinery than this one event was worth), `protestNoShow`
+(gated on real reputation trouble — a boycotted house, apologize publicly or dig in), and
+`schedulingCollision` (a rival deliberately books your date — push through as a real gamble or pay to move
+it). Every option was checked against the library's own house rule (`events.test.ts`'s "no option is free") —
+a certain downside or a real chance of failure, never pure upside.
+
+`liveRetirement`'s "give them the send-off" needed a capability the closed `EventEffect` vocabulary didn't
+have: `{kind: 'retire', wrestlerId}` (new, routes straight through the existing, already-battle-tested
+`career/retirement.ts` `retire()` + `leaveTheBusiness()` — no new retirement logic, just a new door into it).
+
+**Two new incidents** (`data/incidents.ts`), for the ones that only make sense as a reaction to something the
+sim already produced rather than a weekly card-draw: `viralBotch` and `luckyPyroAccident`. Read
+`simulateMatch.ts` first — `MatchSimResult.botchedById` already existed and was already unused by any caller;
+the pyro burn's worker id was sitting in a `'pyroBurn'`-kind beat's `actorId`, also unread. Both incidents are
+layered *on top of* the mistake's own already-applied cost rather than undoing it — the botch or the burn
+still cost what it always cost, but the internet occasionally decides it's the story of the night anyway, and
+that same viral moment also personally embarrasses whoever it happened to (a real morale hit alongside the
+real popularity/rating gain) — upside and downside both genuine, matching the plan's own rule. `IncidentContext`
+gained `botchedById`/`pyroBurnedById`, populated only at the player's own show's incident-roll call site (the
+same "player-only" precedent already set by `incidentReduction`/`potentialInvaders`) — a rival's own show
+summarizes match results without carrying beat-level detail that far, and reaching it would have meant
+touching `rivalBooking.ts`'s summarization for a scope this small.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (161 files, 3002 tests, 0 failures — new coverage in
+`incidents.test.ts` for the two viral incidents and `retireEffect.test.ts` for the new `EventEffect`, plus the
+five new events already covered automatically by `events.test.ts`'s library-wide well-formedness and
+no-free-option checks), `npm run build` clean, and a 3-seed/160-week probe run with all three saves surviving
+and no regressions to the existing injury/morale/show/money baselines.
+
+---
+
 ## The truck breaks down: Arena Floor, a new unlockable stipulation — shipped
 
 First slice of "build it all" on the rest of the brainstormed pool. Asked specifically for this one: the

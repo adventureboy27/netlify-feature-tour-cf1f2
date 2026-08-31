@@ -1162,6 +1162,212 @@ export const CREATIVE_EVENTS: CreativeEvent[] = [
       },
     ],
   },
+
+  // ---------------------------------------------------------------
+  // The remaining "Rival Booker Battle" random-event brainstorm, built
+  // through this same engine rather than a new one — each already carries a
+  // real choice, gains, costs, and a genuine beginning and end.
+
+  {
+    id: 'sponsorPullout',
+    category: 'business',
+    title: 'A sponsor just walked',
+    speaker: 'narrator',
+    body: [
+      'The money that was supposed to land this month never did. The rep stopped returning calls a week ago, and now it is official.',
+      'Whatever changed at the top of that company, it changed fast — the sponsorship that was signed, sealed, and budgeted for is gone.',
+      'The check that was supposed to clear this week bounced with a one-line explanation: priorities changed.',
+    ],
+    weight: 8,
+    cooldownWeeks: 30,
+    conditions: { minWeek: 10 },
+    options: [
+      {
+        id: 'eatIt',
+        label: 'Eat the loss',
+        gains: 'No further entanglement with people who bail this easily',
+        costs: 'The money that was budgeted for this month just is not coming',
+        effects: () => [
+          { kind: 'money', delta: -14000 },
+          { kind: 'reputation', delta: 2 },
+        ],
+      },
+      {
+        id: 'chase',
+        label: 'Chase a replacement, fast',
+        gains: 'A real shot at plugging the hole before it is felt',
+        costs: 'Whoever you land will not pay what the last one promised, and it might not work at all',
+        effects: () => [{ kind: 'money', delta: -2000 }],
+        gamble: {
+          chance: ({ promotion }) => 0.35 + (promotion.reputation / 100) * 0.4,
+          onSuccess: () => [{ kind: 'money', delta: 9000 }],
+          onFailure: () => [{ kind: 'reputation', delta: -3 }],
+        },
+      },
+      {
+        id: 'callOut',
+        label: 'Call them out on the way out the door',
+        gains: 'The boys respect you for not just eating it quietly, and it plays well on the wire',
+        costs: 'Burns the relationship for good, and touchy sponsors talk to each other',
+        effects: () => [
+          { kind: 'money', delta: -14000 },
+          { kind: 'reputation', delta: 5 },
+          { kind: 'bookingCredibility', delta: 3 },
+          { kind: 'wire', wireKind: 'business', text: 'The office went public about a sponsor pulling out mid-deal — made sure everybody in the business heard exactly how it happened.' },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'liveRetirement',
+    category: 'personal',
+    title: '{primary} wants to go out on top',
+    speaker: 'primary',
+    body: [
+      'I want to call it. Right there, in the ring, in front of the people who have been with me the whole way.',
+      'I have been thinking about this for a while now. I want my last night to actually mean something.',
+      'There is no better way to leave than saying it myself, out loud, before somebody else says it for me.',
+    ],
+    weight: 6,
+    cooldownWeeks: 60,
+    conditions: { minWeek: 40, primary: (_w, status) => status === 'veteran' || status === 'legend' },
+    options: [
+      {
+        id: 'grant',
+        label: 'Give them the send-off',
+        gains: 'A genuine, emotional moment the crowd remembers for years, and a real rating bump on the night it happens',
+        costs: 'They are gone for good — no swerve, no surprise return next month — and a proper send-off costs real production money',
+        effects: ({ primary }) => [
+          { kind: 'retire', wrestlerId: primary!.id },
+          { kind: 'money', delta: -8000 },
+          { kind: 'companyRating', delta: 4 },
+          { kind: 'rosterMorale', delta: 5 },
+        ],
+      },
+      {
+        id: 'talkThemOut',
+        label: 'Talk them into staying',
+        gains: 'You keep a name the card still needs',
+        costs: 'They are working through a decision they had already made, and it shows out there',
+        effects: ({ primary }) => [
+          { kind: 'morale', wrestlerId: primary!.id, delta: -10 },
+          { kind: 'momentum', wrestlerId: primary!.id, delta: -6 },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'uninvitedLegend',
+    category: 'personal',
+    title: 'A name out of the record books wants a spot on the show',
+    speaker: 'narrator',
+    body: [
+      'Somebody who has not laced up in years called the office this week, out of nowhere, wanting one more night under the lights.',
+      "A voice from a completely different era of this business is on the phone, asking for a spot on tonight's card like it is the most natural thing in the world.",
+      'Word came in through a manager nobody had heard from in a decade: a genuine name from the past wants back in the building, just for one night.',
+    ],
+    weight: 6,
+    cooldownWeeks: 40,
+    conditions: { minWeek: 30 },
+    options: [
+      {
+        id: 'giveThemTheSpot',
+        label: 'Give them the segment',
+        gains: 'A real nostalgia pop, and a story the wire runs with',
+        costs: 'It is a spot that could have gone to somebody on your own roster building toward something, and it does not come cheap',
+        effects: () => [
+          { kind: 'companyRating', delta: 5 },
+          { kind: 'money', delta: -6000 },
+          { kind: 'rosterMorale', delta: -3 },
+        ],
+      },
+      {
+        id: 'turnThemAway',
+        label: 'Turn them away politely',
+        gains: 'The card stays exactly what you already built it to be',
+        costs: 'Word travels fast about who does and does not respect the old guard',
+        effects: () => [{ kind: 'reputation', delta: -2 }],
+      },
+    ],
+  },
+
+  {
+    id: 'protestNoShow',
+    category: 'business',
+    title: 'The building is half empty, and it is not an accident',
+    speaker: 'narrator',
+    body: [
+      'A real chunk of the crowd stayed home tonight — organized, and loud about why, online, all week leading up to the show.',
+      'The advance ticket numbers cratered the moment the internet decided it did not like a decision this office made.',
+      'Whatever goodwill was left after that last decision, it just cost a real dent in tonight\'s house.',
+    ],
+    weight: 6,
+    cooldownWeeks: 26,
+    conditions: { minWeek: 8, promotion: (p) => p.reputation < 40 },
+    options: [
+      {
+        id: 'apologize',
+        label: 'Address it publicly',
+        gains: 'A real chance to start winning some of it back',
+        costs: 'Admitting fault in public costs you something with everybody who agreed with the decision in the first place',
+        effects: () => [
+          { kind: 'reputation', delta: 6 },
+          { kind: 'bookingCredibility', delta: -3 },
+        ],
+      },
+      {
+        id: 'digIn',
+        label: 'Say nothing and keep booking your show',
+        gains: 'You do not look like you are bending to pressure',
+        costs: 'The people staying home tonight are not obligated to come back on their own',
+        effects: () => [{ kind: 'companyRating', delta: -3 }],
+      },
+    ],
+  },
+
+  {
+    id: 'schedulingCollision',
+    category: 'rival',
+    title: '{rival} just booked their own show for your date',
+    speaker: 'narrator',
+    body: [
+      'The announcement went up an hour ago: {rival} moved their next show to go head to head with yours, on purpose.',
+      'This is not a coincidence. {rival} saw your date on the calendar and booked right on top of it.',
+      'Somebody at {rival} wants a real answer to whose audience actually shows up. They just forced the question.',
+    ],
+    weight: 7,
+    cooldownWeeks: 34,
+    conditions: { minWeek: 16, needsRival: true },
+    options: [
+      {
+        id: 'pushThrough',
+        label: 'Run it exactly as booked',
+        gains: 'You do not blink, and the show you built stays the show you built',
+        costs: 'A real chance the gate splits and both companies take a hit that night',
+        effects: () => [{ kind: 'reputation', delta: 2 }],
+        gamble: {
+          chance: ({ promotion }) => 0.4 + (promotion.rating / 100) * 0.4,
+          onSuccess: () => [{ kind: 'companyRating', delta: 5 }],
+          onFailure: () => [
+            { kind: 'money', delta: -9000 },
+            { kind: 'companyRating', delta: -3 },
+          ],
+        },
+      },
+      {
+        id: 'moveDate',
+        label: 'Move your date',
+        gains: 'You avoid the head-to-head entirely',
+        costs: 'Rebooking costs real money and reads as backing down',
+        effects: () => [
+          { kind: 'money', delta: -5000 },
+          { kind: 'reputation', delta: -2 },
+        ],
+      },
+    ],
+  },
 ];
 
 export function eventById(id: string): CreativeEvent | undefined {

@@ -3104,6 +3104,10 @@ export interface WorldSettings {
   incidentOvationPopularity: number;
   incidentHijackRating: number;
   incidentHijackPopularity: number;
+  /** A blown spot or a pyro mishap that goes viral instead of just costing rating — real upside, alongside a real personal-embarrassment cost. */
+  incidentViralPopularity: number;
+  incidentViralCompanyLift: number;
+  incidentViralEmbarrassmentMorale: number;
 
   // Rankings. Contenders are about form; the world list is about a career.
   rankMomentumWeight: number;

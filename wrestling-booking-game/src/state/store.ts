@@ -2532,6 +2532,8 @@ export const useGameStore = create<GameStore>()(
               hasReferee: Boolean(assignedReferee) && !segment.guestRefereeId,
               availableReturns: couldTurnUp(world, world.promotion.id, bookedTonight, participantIds),
               potentialInvaders: couldInvade(world, world.promotion.id, bookedTonight, participantIds),
+              botchedById: result.botchedById,
+              pyroBurnedById: result.beats.find((b) => b.kind === 'pyroBurn')?.actorId ?? null,
             }),
           );
           if (incident) {

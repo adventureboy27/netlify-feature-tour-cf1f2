@@ -83,6 +83,10 @@ export interface IncidentContext {
    * read it.
    */
   incidentReduction?: number;
+  /** Whoever blew a spot tonight, if anybody did — see simulateMatch.ts's own botchedById. */
+  botchedById?: Id | null;
+  /** Whoever the entrance pyro burned tonight, if it burned anybody — read off the pyroBurn beat's actorId. */
+  pyroBurnedById?: Id | null;
 }
 
 /** Something that happened that nobody booked. */

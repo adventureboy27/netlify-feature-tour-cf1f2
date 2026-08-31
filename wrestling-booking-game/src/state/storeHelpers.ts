@@ -47,7 +47,8 @@ import { resolveConfrontation } from '../engine/sim/confrontation';
 import { promoShowContribution } from '../engine/sim/promo';
 import { gradeFromLength, severityOf } from '../engine/sim/casualties';
 import { recordInjury } from '../engine/career/theBody';
-import { wire, biddingOpenedLine, biddingSettledLine } from '../engine/world/wire';
+import { wire, biddingOpenedLine, biddingSettledLine, retirementLine } from '../engine/world/wire';
+import { retire } from '../engine/career/retirement';
 import { createStandardContract, askingRate, desiredContractWeeks } from '../engine/economy/contracts';
 import { exitTerms, canBeSigned, guaranteedShareFor } from '../engine/economy/termination';
 import { releaseStigmaActive, releaseStigmaTerms } from '../engine/economy/releaseStigma';
@@ -1574,6 +1575,16 @@ export function applyEffect(world: World, rng: Rng, effect: EventEffect): number
       world.weeklyNews.push(wire(effect.wireKind, effect.text, world.week, 'minor'));
       break;
     }
+    case 'retire': {
+      const w = at(effect.wrestlerId);
+      if (w && w.careerStatus !== 'retired' && !w.deceased) {
+        retire(w);
+        leaveTheBusiness(world, w.id, 'retired');
+        world.thisYear.retirements.push({ wrestlerId: w.id, reason: 'live on the show' });
+        world.weeklyNews.push(retirementLine(w.name, 'Called it live, in front of the whole building.', world.week));
+      }
+      break;
+    }
     case 'grudgeRelief': {
       const existing = grudgeAgainst(world.grudges, effect.promotionId);
       if (existing) {
@@ -1634,6 +1645,10 @@ export function incidentContextFor(
      * defaults to 0, same as before this field existed.
      */
     incidentReduction?: number;
+    /** Whoever blew a spot tonight, if anybody did — see MatchSimResult.botchedById. */
+    botchedById?: Id | null;
+    /** Whoever the entrance pyro burned tonight, if it burned anybody. */
+    pyroBurnedById?: Id | null;
   },
 ): IncidentContext {
   const inMatch = new Set(match.competitors.map((c) => c.wrestler.id));
@@ -1667,6 +1682,8 @@ export function incidentContextFor(
     potentialInvaders: match.potentialInvaders ?? [],
     settings: world.settings,
     incidentReduction: match.incidentReduction ?? 0,
+    botchedById: match.botchedById ?? null,
+    pyroBurnedById: match.pyroBurnedById ?? null,
   };
 }
 
