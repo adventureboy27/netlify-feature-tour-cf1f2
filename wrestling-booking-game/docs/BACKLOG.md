@@ -5,6 +5,50 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## The pricing dashboard: rival ticket/merch/PPV prices, deliberately inconsistent — shipped
+
+Sixth slice of "build it all." Scope trimmed on purpose from the brainstorm doc's full description: this
+ships the *dashboard and rival pricing* half in full, and leaves new player-settable merch/PPV price levers
+out entirely rather than inventing a second economic subsystem this backlog item never actually named. The
+player's own ticket price already has a real, deep reaction model (`economy/showBudget.ts`'s
+`fairTicketPrice`/`priceReaction`); giving the player independent merch and PPV prices would mean building
+two more of those from scratch, complete with their own attendance-curve balance risk, for a feature titled
+"pricing dashboard with rival pricing + randomness" that never asked for it. That stays a real, separately
+worth-scoping follow-up if the player wants it — not silently bundled in here.
+
+What actually shipped: `engine/world/pricing.ts`'s `RivalPricing` (ticket, merch, PPV) and
+`randomRivalPricing`, drawing each of the three numbers *independently* off its own settings range
+(`rivalTicketPriceMin/Max`, `rivalMerchPriceMin/Max`, `rivalPpvPriceMin/Max` — deliberately wide and uneven
+bands) — directly answering the player's own earlier request that rival pricing be unpredictable enough that
+"the user can't pick up on a pattern." A rival cheap at the door can still be robbing the merch table; nothing
+here correlates.
+
+Stored in a brand-new `World.rivalPricing: Record<Id, RivalPricing>` map rather than on the `Promotion` type
+itself — deliberately, to avoid touching the dozens of `promotion()` test-fixture helpers scattered across the
+suite for a field the type itself never needed. Display-only: `rivalEconomy.ts`'s actual revenue math is
+untouched, still the standing/form summary it has always been (see its own header comment on why a rival's
+books are a summary and not an invented ledger) — this never feeds it, and never will unless that's a
+separate, deliberate call.
+
+Populated at every point a rival can come into existence: `createInitialWorld` (both the plan and
+random-rival paths converge before this runs, so one call site covers both), the ordinary weekly "companies
+are born" roll, and `breakawayPromotion`'s new-company path — all three seeded off `rngFromSeed(\`rival-pricing:${id}\`)`,
+the entity-seeded pattern from CLAUDE.md's own RNG trap warning, rather than the shared stream, since this is
+a brand-new insertion point at every one of those sites and drawing from the shared `rng` there would have
+shifted every seeded roll downstream of it.
+
+UI: a new "What the competition charges" table on `PromotionScreen`, sitting right under the player's own
+ticket-price slider — every living rival's three prices, in dollars, with the player's own ticket price as
+the top row for comparison (merch/PPV cells read "—" for the player, since those levers don't exist yet).
+
+Verified: `tsc --noEmit` clean, full `vitest run` (173 files / 3100 tests — new coverage in
+`pricing.test.ts` for the pure helper's bounds, determinism, and item-independence, and
+`pricing.store.test.ts` for the three real wiring points), `npm run build` clean, and a 3-seed/104-week probe
+run with no crashes and baseline numbers unchanged (this feature reads and writes nothing any existing system
+touches).
+
+---
+
 ## The last three major stories: scandal, breakaway promotion, farewell tour — shipped
 
 Fifth slice of "build it all" — the second half of the six brainstormed major stories, finishing the pool.

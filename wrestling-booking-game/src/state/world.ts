@@ -57,6 +57,8 @@ import type { RingCall, RingCallOptionId } from '../engine/world/ringCall';
 import type { TruckCall, TruckCallOptionId } from '../engine/world/truckBreakdown';
 import type { ContractRaidCall } from '../engine/world/contractRaid';
 import type { FarewellTourCall } from '../engine/world/farewellTour';
+import type { RivalPricing } from '../engine/world/pricing';
+import { randomRivalPricingFor } from '../engine/world/pricing';
 import type { NoShowCall, NoShowChoiceId } from '../engine/world/noShowCall';
 import type { TitleMemorial } from '../engine/world/titleMemorial';
 import type { RivalMove } from '../engine/world/rivalMove';
@@ -188,6 +190,14 @@ export interface World {
   stables: Stable[];
   /** AI promotions competing for the same audience. */
   rivals: Promotion[];
+  /**
+   * What each rival charges — ticket, merch, PPV — for the pricing dashboard
+   * only. Randomised once per rival (engine/world/pricing.ts) and never read
+   * by rivalEconomy.ts's actual revenue math, same as everything else about
+   * a rival's books being a summary rather than a ledger. Keyed by rival id;
+   * a folded rival's entry is simply never looked at again.
+   */
+  rivalPricing: Record<Id, RivalPricing>;
   /**
    * Last week's sheet, kept so this week's can show which way people moved.
    * The current one is derived on read — only the comparison needs storing.
@@ -1147,6 +1157,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     tournaments: [],
     stables,
     rivals,
+    rivalPricing: randomRivalPricingFor(rivals.map((r) => r.id), settings),
     rivalShows: [],
     lastIncidents: [],
     lastPublication: null,

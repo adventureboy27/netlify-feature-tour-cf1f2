@@ -137,6 +137,7 @@ export function PromotionScreen() {
 
   if (!world || !projection) return null;
   const { venue } = projection;
+  const livingRivals = world.rivals.filter((r) => r.closedWeek === null);
 
   return (
     <div className="p-3 pb-6 text-neutral-100">
@@ -210,6 +211,55 @@ export function PromotionScreen() {
             and the town remembers what it was charged long after the night is over.
           </span>
         </label>
+      </section>
+
+      {/* ---- rival pricing ----------------------------------------------
+          Display only — a rival's actual revenue is still the standing/form
+          summary rivalEconomy.ts has always used, this never feeds it. Each
+          rival's three numbers are drawn independently (engine/world/pricing.ts),
+          so there is no pattern to read off — a company can undercut everybody
+          at the door and still be robbing the merch table. */}
+      <section className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">
+        <h2 className="mb-1 text-sm font-medium">What the competition charges</h2>
+        <p className="mb-2 text-[11px] text-neutral-500">
+          Nobody in this business prices the same way twice. A company cheap on the door can still gouge on
+          shirts — there is no pattern here, only what each promoter decided this was worth.
+        </p>
+        {livingRivals.length === 0 ? (
+          <p className="text-[11px] text-neutral-600">No other companies left standing.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-neutral-500">
+                  <th className="pb-1 pr-3 font-normal">Promotion</th>
+                  <th className="pb-1 pr-3 font-normal">Ticket</th>
+                  <th className="pb-1 pr-3 font-normal">Merch</th>
+                  <th className="pb-1 font-normal">PPV buy</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-neutral-800 text-neutral-300">
+                  <td className="py-1 pr-3">{world.promotion.name} (you)</td>
+                  <td className="py-1 pr-3 font-mono">${world.showSetup.ticketPrice}</td>
+                  <td className="py-1 pr-3 text-neutral-600">—</td>
+                  <td className="py-1 text-neutral-600">—</td>
+                </tr>
+                {livingRivals.map((rival) => {
+                  const pricing = world.rivalPricing[rival.id];
+                  return (
+                    <tr key={rival.id} className="border-t border-neutral-800 text-neutral-300">
+                      <td className="py-1 pr-3">{rival.name}</td>
+                      <td className="py-1 pr-3 font-mono">{pricing ? `$${pricing.ticketPrice}` : '—'}</td>
+                      <td className="py-1 pr-3 font-mono">{pricing ? `$${pricing.merchPrice}` : '—'}</td>
+                      <td className="py-1 font-mono">{pricing ? `$${pricing.ppvPrice}` : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {/* ---- per-show extras ------------------------------------------- */}

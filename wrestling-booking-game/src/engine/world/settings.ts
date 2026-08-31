@@ -995,6 +995,18 @@ export function defaultWorldSettings(): WorldSettings {
     farewellTourHostReputationGain: 8,
     farewellTourDeclineReputationCost: 2,
 
+    // Wide, uneven bands on purpose. The player's own opening ticket price
+    // (fairTicketPrice off ticketFairPriceBase/Range) lands somewhere around
+    // $8-$42; rivals are allowed to sit well outside that on any one item, so
+    // "cheap" or "steep" is a real, visible read rather than noise around the
+    // player's own number.
+    rivalTicketPriceMin: 5,
+    rivalTicketPriceMax: 90,
+    rivalMerchPriceMin: 8,
+    rivalMerchPriceMax: 60,
+    rivalPpvPriceMin: 10,
+    rivalPpvPriceMax: 80,
+
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,

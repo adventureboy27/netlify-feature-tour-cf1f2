@@ -2766,6 +2766,19 @@ export interface WorldSettings {
   farewellTourHostReputationGain: number;
   farewellTourDeclineReputationCost: number;
 
+  // What a rival charges — a ticket, a shirt, a pay-per-view buy. Randomised
+  // once per rival (engine/world/pricing.ts's randomRivalPricing), each item
+  // drawn independently so the three numbers for any one company never form
+  // a pattern the player can learn. Display-only: this never feeds a rival's
+  // actual revenue, which stays the standing/form summary rivalEconomy.ts
+  // has always used.
+  rivalTicketPriceMin: number;
+  rivalTicketPriceMax: number;
+  rivalMerchPriceMin: number;
+  rivalMerchPriceMax: number;
+  rivalPpvPriceMin: number;
+  rivalPpvPriceMax: number;
+
   supershowEagerAt: number;
   supershowCautiousAt: number;
   supershowPublicRefusalChance: number;

@@ -452,6 +452,7 @@ import { pickRogueTarget, applyRogueTurn } from '../engine/world/rogueTurn';
 import { pickScandalTarget, applyScandal } from '../engine/world/scandal';
 import { pickBreakawaySource } from '../engine/world/breakawayPromotion';
 import type { FarewellTourOptionId } from '../engine/world/farewellTour';
+import { randomRivalPricing } from '../engine/world/pricing';
 import {
   compassionateLeave,
   leaveLine,
@@ -4673,6 +4674,7 @@ export const useGameStore = create<GameStore>()(
                 world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== w!.id);
               }
               world.rivals.push(newCo);
+              world.rivalPricing[newCo.id] = randomRivalPricing(rngFromSeed(`rival-pricing:${newCo.id}`), world.settings);
               world.worldStoryHappenedFor = {
                 ...world.worldStoryHappenedFor,
                 breakawayPromotion: [...already, source.id],
@@ -6003,6 +6005,7 @@ export const useGameStore = create<GameStore>()(
               world.freeAgents = world.freeAgents.filter((a) => a.wrestlerId !== person.id);
             }
             world.rivals.push(company);
+            world.rivalPricing[company.id] = randomRivalPricing(rngFromSeed(`rival-pricing:${company.id}`), world.settings);
             world.weeklyNews.push(
               wire('signing', openingLine(company, founding.length), world.week, 'lead'),
             );
