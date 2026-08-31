@@ -3,11 +3,15 @@
 // wrestler, right there in the editor); this is the other one, for
 // somebody who has a folder of real photos and a roster to match them to.
 //
-// Every match is a suggestion, never a decision. A filename that reads as
-// one wrestler's name pre-selects that row, but nothing is written until
-// the booker hits Apply, and every row shows exactly who it is about to
-// land on — name and gender both — so a batch never quietly puts the wrong
-// photo on the wrong person.
+// Gender is never guessed, from a filename or from anything else. The file
+// has to declare it: M-<name> or F-<name>, e.g. "M-Doomsday.png" or
+// "F-Wren Stillwater.jpg" — any number of words in the name, spaces or
+// underscores both fine. A file with no valid prefix gets no match and
+// cannot be applied, full stop, until it's renamed. Once the gender is
+// declared, matching against the roster is exact-name-within-that-gender —
+// never a fuzzy substring guess between two similarly named people — and
+// the picker for that row is filtered to the declared gender too, so even
+// a manual override cannot cross genders.
 
 import { useState } from 'react';
 import { useGameStore } from '../../state/store';
@@ -19,33 +23,41 @@ interface Row {
   key: string;
   fileName: string;
   previewUrl: string | null;
-  error: string | null;
+  loadError: string | null;
+  declaredGender: Wrestler['gender'] | null;
   wrestlerId: Id | '';
   suggested: boolean;
 }
 
+const GENDER_LABEL: Record<Wrestler['gender'], string> = { m: 'M', f: 'F' };
+const NAMING_HELP = 'Name the file starting with M- or F- (e.g. "M-Doomsday.png") — gender is never guessed.';
+
 /** Strip the extension, fold separators to spaces, drop anything that isn't a letter or digit. */
-function normalize(s: string): string {
+function normalizeName(s: string): string {
   return s
     .toLowerCase()
-    .replace(/\.[a-z0-9]+$/i, '')
     .replace(/[_-]+/g, ' ')
     .replace(/[^a-z0-9 ]/g, '')
     .trim();
 }
 
-/** Exactly one confident match, or none at all — this never guesses between two candidates. */
-function suggestMatch(fileName: string, roster: readonly Wrestler[]): Id | null {
-  const norm = normalize(fileName);
-  if (!norm) return null;
-  const candidates = roster.filter((w) => {
-    const wn = normalize(w.name);
-    return wn.length > 0 && (wn === norm || norm.includes(wn) || wn.includes(norm));
-  });
-  return candidates.length === 1 ? candidates[0]!.id : null;
+/** Pulls the declared gender and the name off the front of a filename. Null gender means it wasn't declared — never inferred. */
+function parseFileName(fileName: string): { gender: Wrestler['gender'] | null; name: string } {
+  const stem = fileName.replace(/\.[a-z0-9]+$/i, '');
+  const match = stem.match(/^([mf])-(.+)$/i);
+  if (!match) return { gender: null, name: stem };
+  return { gender: match[1]!.toLowerCase() as Wrestler['gender'], name: match[2]! };
 }
 
-const GENDER_LABEL: Record<Wrestler['gender'], string> = { m: 'M', f: 'F' };
+/** Exactly one exact-name match within the declared gender, or none — never a fuzzy guess, never across genders. */
+function matchForFile(fileName: string, roster: readonly Wrestler[]): { gender: Wrestler['gender'] | null; wrestlerId: Id | '' } {
+  const { gender, name } = parseFileName(fileName);
+  if (!gender) return { gender: null, wrestlerId: '' };
+  const norm = normalizeName(name);
+  if (!norm) return { gender, wrestlerId: '' };
+  const candidates = roster.filter((w) => w.gender === gender && normalizeName(w.name) === norm);
+  return { gender, wrestlerId: candidates.length === 1 ? candidates[0]!.id : '' };
+}
 
 export function BatchPhotoImport() {
   const world = useGameStore((s) => s.world);
@@ -63,14 +75,18 @@ export function BatchPhotoImport() {
   async function handleFiles(files: FileList) {
     setResult(null);
     const picked = Array.from(files);
-    const newRows: Row[] = picked.map((file, i) => ({
-      key: `${Date.now()}-${i}-${file.name}`,
-      fileName: file.name,
-      previewUrl: null,
-      error: null,
-      wrestlerId: suggestMatch(file.name, roster) ?? '',
-      suggested: suggestMatch(file.name, roster) !== null,
-    }));
+    const newRows: Row[] = picked.map((file, i) => {
+      const { gender, wrestlerId } = matchForFile(file.name, roster);
+      return {
+        key: `${Date.now()}-${i}-${file.name}`,
+        fileName: file.name,
+        previewUrl: null,
+        loadError: null,
+        declaredGender: gender,
+        wrestlerId,
+        suggested: wrestlerId !== '',
+      };
+    });
     setRows((prev) => [...prev, ...newRows]);
 
     await Promise.all(
@@ -81,7 +97,7 @@ export function BatchPhotoImport() {
           setRows((prev) => prev.map((r) => (r.key === key ? { ...r, previewUrl: dataUrl } : r)));
         } catch (err) {
           const message = err instanceof Error ? err.message : 'That file could not be used.';
-          setRows((prev) => prev.map((r) => (r.key === key ? { ...r, error: message } : r)));
+          setRows((prev) => prev.map((r) => (r.key === key ? { ...r, loadError: message } : r)));
         }
       }),
     );
@@ -108,12 +124,12 @@ export function BatchPhotoImport() {
     if (r.wrestlerId) countByWrestler.set(r.wrestlerId, (countByWrestler.get(r.wrestlerId) ?? 0) + 1);
   }
 
-  const ready = rows.filter((r) => r.previewUrl && r.wrestlerId);
+  const ready = rows.filter((r) => r.previewUrl && r.wrestlerId && r.declaredGender);
 
   function apply() {
     let applied = 0;
     for (const r of rows) {
-      if (r.previewUrl && r.wrestlerId) {
+      if (r.previewUrl && r.wrestlerId && r.declaredGender) {
         setWrestlerPhoto(r.wrestlerId, r.previewUrl);
         applied++;
       }
@@ -121,7 +137,7 @@ export function BatchPhotoImport() {
     const skipped = rows.length - applied;
     setResult(
       `${applied} photo${applied === 1 ? '' : 's'} applied.` +
-        (skipped > 0 ? ` ${skipped} left with no wrestler picked — nothing happened to those.` : ''),
+        (skipped > 0 ? ` ${skipped} left unmatched — nothing happened to those.` : ''),
     );
     setRows([]);
   }
@@ -129,8 +145,12 @@ export function BatchPhotoImport() {
   return (
     <div>
       <p className="mb-2 text-[11px] text-neutral-500">
-        Pick as many photos at once as you like. Each one gets a best-guess match from its filename — nothing is
-        saved until you hit Apply, and every row shows exactly who it is about to land on before it does.
+        Pick as many photos at once as you like. Name each file starting with <span className="text-neutral-300">M-</span> or{' '}
+        <span className="text-neutral-300">F-</span> and then the wrestler's name — e.g.{' '}
+        <span className="text-neutral-300">M-Doomsday.png</span> or{' '}
+        <span className="text-neutral-300">F-Wren Stillwater.jpg</span>. Gender is never guessed: a file with no
+        prefix gets no match. Nothing is saved until you hit Apply, and every row shows exactly who it is about to
+        land on before it does.
       </p>
 
       <label className="mb-2 inline-block cursor-pointer rounded bg-neutral-800 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-700">
@@ -161,7 +181,7 @@ export function BatchPhotoImport() {
               >
                 {row.previewUrl ? (
                   <PaperDoll photoDataUrl={row.previewUrl} name={row.fileName} size="thumb" />
-                ) : row.error ? (
+                ) : row.loadError ? (
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-rose-950 text-[9px] text-rose-400">
                     failed
                   </div>
@@ -173,8 +193,10 @@ export function BatchPhotoImport() {
 
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[11px] text-neutral-500">{row.fileName}</div>
-                  {row.error ? (
-                    <p className="text-[11px] text-rose-400">{row.error}</p>
+                  {row.loadError ? (
+                    <p className="text-[11px] text-rose-400">{row.loadError}</p>
+                  ) : !row.declaredGender ? (
+                    <p className="text-[11px] text-amber-400">{NAMING_HELP}</p>
                   ) : (
                     <select
                       data-testid={`batch-photo-select-${row.key}`}
@@ -183,16 +205,18 @@ export function BatchPhotoImport() {
                       className="mt-0.5 w-full rounded border border-neutral-800 bg-neutral-950 px-1.5 py-1 text-xs text-neutral-200"
                     >
                       <option value="">Nobody — skip this one</option>
-                      {roster.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name} — {GENDER_LABEL[w.gender]}
-                        </option>
-                      ))}
+                      {roster
+                        .filter((w) => w.gender === row.declaredGender)
+                        .map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.name} — {GENDER_LABEL[w.gender]}
+                          </option>
+                        ))}
                     </select>
                   )}
                   {chosen && (
                     <p className="mt-0.5 text-[10px] text-neutral-500">
-                      {row.suggested ? 'Guessed from the filename — ' : ''}
+                      {row.suggested ? 'Matched from the filename — ' : ''}
                       going on <span className="text-neutral-300">{chosen.name}</span>, listed{' '}
                       {GENDER_LABEL[chosen.gender]}.
                       {duplicated && (
