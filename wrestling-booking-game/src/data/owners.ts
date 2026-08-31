@@ -117,6 +117,22 @@ export const OWNER_PROFILES: OwnerProfile[] = [
       'I want a face on that poster people actually recognize.',
     ],
   },
+  {
+    id: 'nostalgic',
+    name: 'the true believer',
+    blurb: 'Genuinely, radiantly certain that the right familiar face brings the old magic back. Never once less than delighted, however it actually goes.',
+    weights: {
+      signWrestler: 4,
+      titleOnWrestler: 3,
+      pushTalent: 2,
+      reachRating: 1,
+    },
+    greetings: [
+      'Isn\'t this wonderful? We are going to give people something to remember.',
+      'I have the most marvelous idea, and it involves somebody you have not thought about in years.',
+      'Trust me completely on this one. I have never once been wrong about magic.',
+    ],
+  },
 ];
 
 export function ownerProfile(personality: OwnerPersonality): OwnerProfile {

@@ -5,6 +5,50 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## The nostalgic promoter — a rival owner who chases faded former stars — shipped
+
+Asked for directly: a Willy Wonka-toned rival owner — overly, radiantly positive — whose whole strategy is
+recreating past glory by re-signing the same handful of familiar, faded names, the way WCW's mid-90s run
+leaned on ex-WWF stars instead of building new ones. `OwnerPersonality` (`engine/types.ts`) already drove two
+things — mandate pressure on the player (`data/owners.ts`) and bidding-war behavior
+(`data/biddingTemperaments.ts`) — but nothing about *who a rival chooses to sign* had ever been
+personality-driven; every rival's weekly free-agent pickup was a flat uniform draw. This adds that missing
+axis as a sixth personality, `'nostalgic'`.
+
+The real mechanism is `engine/world/nostalgia.ts`'s `nostalgicSigningWeight(w, settings)` — a pure function
+of fields `Wrestler` already carried (`careerHighPopularity`, `popularity`, `age`), needing zero new World
+state. Decline (how far someone has fallen from their own peak) is weighted above raw career-high popularity
+on purpose: "used to be huge and is not any more" is the real signal, not just "was ever popular." Wired into
+`state/store.ts`'s existing "shop in the same pool the player does" loop (~line 6205) as a `weightedPick`
+(`engine/rng.ts`, already existed) in place of the old `Math.floor(rng.next() * length)` — critically, **both
+branches, and the empty-pool case, spend exactly one `rng.next()` draw**, so which rival happens to be
+nostalgic never shifts the shared stream for anybody else that week. Confirmed this empirically, not just by
+inspection: a store-level test runs the same seed twice, once with a target rival nostalgic and once
+traditionalist, and the total number of free-agent signings across the whole business that week is always
+identical between the two runs — only *who* gets picked differs, which is the correct, expected effect of two
+different picks removing different people from a pool everyone else still has to draw from.
+
+`data/owners.ts` gained a matching profile — "the true believer," genuinely delighted regardless of how it
+actually goes — reusing the existing mandate-weight and greeting-line machinery with zero new `MandateType`.
+`data/biddingTemperaments.ts` gained a flat `nostalgic` temperament too, with an explicit comment disclosing
+what it can't do: a per-auction multiplier can't single out one candidate by age, so the "chases a specific
+faded star" behavior lives entirely in the weekly pickup above, not in contested bidding wars, which is a
+deliberate, disclosed scope cut rather than an oversight.
+
+Growing `OWNER_PROFILES` from 5 to 6 entries changes which personality any given seed assigns to any given
+promotion (`pick(rng, OWNER_PROFILES)` at world creation) — checked this against the whole suite before
+relying on it being safe, and it was, with one real exception: `mandates.test.ts`'s "is five of them" hardcoded
+the old count. Re-expressed (never re-baselined) into the claim that was actually true the whole time — a
+real, distinct roster of owners, whatever its size — so it stays correct the next time this pool grows too.
+
+Verified: `tsc --noEmit` clean (the `Record<OwnerPersonality, Temperament>` type caught the bidding-temperament
+entry as required, exactly as intended), full `vitest run` (179 files / 3131 tests — new coverage in
+`nostalgia.test.ts` for the pure weighting function and `nostalgia.store.test.ts` for the real signing bias
+and the draw-count invariant, plus the re-expressed `mandates.test.ts` assertion), `npm run build` clean, and
+an 8-seed/160-week probe run with no crashes and survival/economy numbers consistent across seed counts.
+
+---
+
 ## A general unlockables system — shipped, and "build it all" is done
 
 Eighth and final slice of "build it all." Arena Floor (Slice A) proved the unlock *mechanism* —

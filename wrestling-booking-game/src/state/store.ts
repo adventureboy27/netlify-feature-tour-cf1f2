@@ -163,6 +163,7 @@ import {
   teamSplitLine,
   teamFormedLine,
   rivalSigningLine,
+  nostalgicSigningLine,
   deathLine,
   retirementLine,
   comebackLine,
@@ -342,7 +343,7 @@ import { rollForNickname } from '../engine/generate/nickname';
 import { rollWeeklyEvent, recordFired } from '../engine/events/scheduler';
 import { CREATIVE_EVENTS } from '../data/events';
 import type { Passing, Wrestler } from '../engine/types';
-import { clamp, pick, chance, randInt } from '../engine/rng';
+import { clamp, pick, chance, randInt, weightedPick } from '../engine/rng';
 import { defaultWorldSettings } from '../engine/world/settings';
 import {
   stipulationById,
@@ -535,6 +536,7 @@ import { noShowCallFrom, resolveNoShowCall, type NoShowChoiceId } from '../engin
 import { RIVAL_WEATHER_CATASTROPHE_LINES, RIVAL_NO_SHOW_CATASTROPHE_LINES } from '../data/misfortunes';
 import type { TitleMemorialChoiceId } from '../engine/world/titleMemorial';
 import type { RivalMoveChoiceId } from '../engine/world/rivalMove';
+import { nostalgicSigningWeight } from '../engine/world/nostalgia';
 import type { ConfrontationCallChoiceId } from '../engine/world/confrontationCall';
 import type { LoanTier } from '../engine/economy/loan';
 import {
@@ -6202,8 +6204,25 @@ export const useGameStore = create<GameStore>()(
           // One signing a week each. A rival that refilled a whole roster in
           // an afternoon read as a batch job, not as a competitor.
           if (short <= 0) continue;
-          const index = Math.floor(rng.next() * world.freeAgents.length);
-          const agent = world.freeAgents[index];
+          // A nostalgic owner does not shop this pool uniformly — see
+          // engine/world/nostalgia.ts. Either branch spends exactly one
+          // rng.next() draw, same as the empty-pool case below, so which
+          // rival happens to be nostalgic never shifts the shared stream for
+          // anybody else this loop still has to get through this week.
+          let agent: (typeof world.freeAgents)[number] | undefined;
+          if (world.freeAgents.length === 0) {
+            rng.next();
+          } else if (rival.ownerPersonality === 'nostalgic') {
+            agent = weightedPick(
+              rng,
+              world.freeAgents.map(
+                (a) => [a, nostalgicSigningWeight(world.wrestlers[a.wrestlerId]!, world.settings)] as const,
+              ),
+            );
+          } else {
+            const index = Math.floor(rng.next() * world.freeAgents.length);
+            agent = world.freeAgents[index];
+          }
           const signing = agent ? world.wrestlers[agent.wrestlerId] : undefined;
           // Finished is finished. Checking only 'retired' let a promotion sign
           // a retired hall of famer off the free agent list, because induction
@@ -6213,7 +6232,7 @@ export const useGameStore = create<GameStore>()(
           // release. The ninety days binds the whole business, which is the
           // point of trading a payout for it.
           if (!canBeSigned(signing)) continue;
-          world.freeAgents.splice(index, 1);
+          world.freeAgents = world.freeAgents.filter((a) => a !== agent);
           signing.promotionId = rival.id;
           signing.contract = createStandardContract(
             signing,
@@ -6222,7 +6241,11 @@ export const useGameStore = create<GameStore>()(
           );
           rival.rosterIds.push(signing.id);
           // You released him; you get to watch somebody else sign him.
-          world.weeklyNews.push(rivalSigningLine(signing.name, rival.name, world.week));
+          world.weeklyNews.push(
+            rival.ownerPersonality === 'nostalgic'
+              ? nostalgicSigningLine(signing.name, rival.name, world.week)
+              : rivalSigningLine(signing.name, rival.name, world.week),
+          );
           // Worth an actual reaction, not just a line on the wire, only when
           // it's a name that would move the needle. See rivalMove.ts.
           if (!world.pendingRivalMove && signing.popularity >= world.settings.rivalMoveReactionPopularity) {

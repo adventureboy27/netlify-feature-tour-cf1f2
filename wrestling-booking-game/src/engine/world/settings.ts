@@ -349,6 +349,17 @@ export function defaultWorldSettings(): WorldSettings {
     rivalMoveReactionPopularity: 65,
     rivalNewTitleWeeklyChance: 0.003,
 
+    // A nostalgic owner's weekly free-agent pick is a weighted draw, not a
+    // uniform one — see engine/world/nostalgia.ts. Base keeps everybody in
+    // with some chance; decline is weighted above raw career-high popularity
+    // on purpose, since "used to be huge and isn't any more" is the real
+    // signal, not just "was ever popular."
+    nostalgicBaseWeight: 5,
+    nostalgicCareerHighWeight: 0.6,
+    nostalgicDeclineWeight: 1.2,
+    nostalgicAgeWeight: 1.0,
+    nostalgicAgeFloor: 32,
+
     // Contracts, scaled to a promotion running small buildings: a jobber is
     // around $25/wk, a midcarder around $160, a genuine draw around $750.
     // The curve is what makes a star cost multiples of a midcarder.

@@ -121,6 +121,25 @@ const TEMPERAMENTS: Record<OwnerPersonality, Temperament> = {
     prudence: 0.9,
     nerve: 0.05,
   },
+  // Overpays for a name and does not care what somebody might become — but
+  // note what this temperament *cannot* do: it is a flat multiplier applied
+  // to whoever happens to be in the auction, so it cannot single anybody out
+  // by age or how far they have faded the way this owner actually behaves
+  // week to week. That real bias — chasing a specific faded former star off
+  // the free-agent pool — lives in engine/world/nostalgia.ts's
+  // nostalgicSigningWeight, not here. This only shapes how this owner bids
+  // once they are already in a room fighting for someone, which is a
+  // secondary, contested part of the character, not its core.
+  nostalgic: {
+    label: 'chases a name they remember',
+    stretch: 1.35,
+    future: 0.1,
+    generosity: 0.75,
+    bonusAppetite: 0.6,
+    termBias: 0.75,
+    prudence: 0.35,
+    nerve: 0.1,
+  },
 };
 
 export function temperamentOf(personality: OwnerPersonality): Temperament {

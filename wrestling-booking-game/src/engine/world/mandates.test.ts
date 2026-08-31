@@ -69,9 +69,12 @@ function ctxFor(over: Partial<MandateContext> = {}): MandateContext {
 const issue = (over: Partial<MandateContext> = {}, seed = 'mandate') => issueMandate(rngFromSeed(seed), ctxFor(over));
 
 describe('the owners', () => {
-  it('is five of them and they all want different things', () => {
-    expect(OWNER_PROFILES).toHaveLength(5);
-    expect(new Set(OWNER_PROFILES.map((p) => p.id)).size).toBe(5);
+  it('is a real roster of distinct owners who all want different things', () => {
+    // Not a fixed headcount — the real claim is that every profile is
+    // unique and none of them is a placeholder. New owners join over time
+    // (see 'nostalgic'), and this should stay true without a manual bump.
+    expect(OWNER_PROFILES.length).toBeGreaterThanOrEqual(5);
+    expect(new Set(OWNER_PROFILES.map((p) => p.id)).size).toBe(OWNER_PROFILES.length);
     for (const profile of OWNER_PROFILES) {
       expect(Object.keys(profile.weights).length).toBeGreaterThan(2);
       expect(profile.greetings.length).toBeGreaterThan(0);

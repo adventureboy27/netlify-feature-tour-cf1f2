@@ -150,6 +150,15 @@ export function rivalSigningLine(name: string, promotionName: string, week: numb
   return wire('signing', `${promotionName} have signed ${name}.`, week);
 }
 
+/** A nostalgic promoter's own signing announcement — see engine/world/nostalgia.ts. */
+export function nostalgicSigningLine(name: string, promotionName: string, week: number): WireItem {
+  return wire(
+    'signing',
+    `${promotionName} have brought back ${name} — "getting the band back together," is how they put it, and they mean every word.`,
+    week,
+  );
+}
+
 export function deathLine(name: string, age: number, cause: string, week: number): WireItem {
   return wire('death', `${name} has died at ${age}. ${cause}`, week, 'lead');
 }

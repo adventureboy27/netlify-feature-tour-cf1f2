@@ -2038,6 +2038,14 @@ export interface WorldSettings {
   /** Chance, per rival per week, that they launch a whole new championship. */
   rivalNewTitleWeeklyChance: number;
 
+  // A nostalgic owner's pull toward a faded former star when picking who to
+  // sign off the free-agent pool — see engine/world/nostalgia.ts.
+  nostalgicBaseWeight: number;
+  nostalgicCareerHighWeight: number;
+  nostalgicDeclineWeight: number;
+  nostalgicAgeWeight: number;
+  nostalgicAgeFloor: number;
+
   // Contracts (engine/economy/contracts.ts)
   contractBaseWeeklyRate: number;
   contractRateRange: number;
@@ -4290,7 +4298,7 @@ export type WorldPresetName = 'territoryDays' | 'standard' | 'bigMoney' | 'sinkO
 // §17 — Owner and mandates (types only; system lands in M5)
 // ============================================================================
 
-export type OwnerPersonality = 'traditionalist' | 'showman' | 'pennyPincher' | 'hardcore' | 'starChaser';
+export type OwnerPersonality = 'traditionalist' | 'showman' | 'pennyPincher' | 'hardcore' | 'starChaser' | 'nostalgic';
 
 export type MandateType =
   | 'signWrestler'
