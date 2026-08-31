@@ -454,6 +454,7 @@ import { pickBreakawaySource } from '../engine/world/breakawayPromotion';
 import type { FarewellTourOptionId } from '../engine/world/farewellTour';
 import { randomRivalPricing } from '../engine/world/pricing';
 import { pickPricingWarTarget, slashedPricing, pricingWarStartLine, pricingWarEndLine } from '../engine/world/pricingWar';
+import { checkUnlocks } from '../engine/world/unlocks';
 import {
   compassionateLeave,
   leaveLine,
@@ -7259,6 +7260,17 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(wire('business', pricingWarEndLine(rival?.name ?? 'The company'), world.week, 'minor'));
             world.pricingWar = null;
           }
+        }
+
+        // ---- unlockables — real milestones, no dice --------------------
+        // See engine/world/unlocks.ts. Checked every week, not gated by any
+        // random roll: these are earned, not rolled for.
+        for (const unlocked of checkUnlocks(world.unlockedStipulationIds, {
+          companyRating: world.promotion.rating,
+          showsRun: world.showHistory.length,
+        })) {
+          world.unlockedStipulationIds = [...world.unlockedStipulationIds, unlocked.stipulationId];
+          world.weeklyNews.push(wire('houseShow', unlocked.earnedLine, world.week, 'minor'));
         }
 
         // ---- can you still pay for this? -------------------------------

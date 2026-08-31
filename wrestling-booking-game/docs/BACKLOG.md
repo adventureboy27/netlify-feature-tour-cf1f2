@@ -5,6 +5,51 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## A general unlockables system — shipped, and "build it all" is done
+
+Eighth and final slice of "build it all." Arena Floor (Slice A) proved the unlock *mechanism* —
+`Stipulation.locked` plus `World.unlockedStipulationIds` — but not a *system*: the only way in was one
+random event (the truck breaking down) hardcoded straight into its own store dispatch. "A general
+unlockables system" meant something a third, fourth, fifth locked stipulation could plug into without new
+wiring each time, and — deliberately different in kind from every other content in this backlog — driven by
+real milestones the booker actually earns, not a dice roll. That was a real gap: every single-shot event and
+world story before this drew from `world.rng` or an entity seed; this is the first content in the game whose
+gate is `checkUnlocks(alreadyUnlocked, ctx)`, a pure function with zero randomness in it at all.
+
+`data/unlocks.ts` holds the registry — `UnlockCondition { stipulationId, earnedLine, met(ctx) }` — the same
+"data holds the what, engine holds the whether" split `data/worldStories.ts` already established for the
+story pool. `engine/world/unlocks.ts`'s `checkUnlocks` filters it against what's already unlocked and hands
+back what just became true. Two real conditions ship with it: **Falls Count Anywhere** (company rating hits
+85 — the promotion has the standing to let a match leave the ring) and **Blindfold Match** (100 shows run —
+a novelty earned by simple longevity, not escalation; its `-3` rating bonus is a real trade-off, not a reward
+that's strictly better than what came before). Both are new `data/stipulations.ts` entries with `locked:
+true`, so `MatchSetupScreen`'s existing filter (`!s.locked || unlockedStipulationIds.includes(s.id)`) picks
+them up with no UI changes needed at all.
+
+Checked every week in `resolveWeek`, unconditionally — no chance-per-week setting, because there is nothing
+to roll. Placed alongside the loan and pricing-war ticks, reading `world.promotion.rating` and
+`world.showHistory.length` fresh each time, so a threshold crossed mid-save is caught the very next week it's
+true rather than needing its own trigger.
+
+`stipulations.test.ts`'s old "only Arena Floor is locked" assertion was a real, now-stale invariant — true
+when there was exactly one locked stipulation, false the moment a second one shipped. Re-expressed (never
+re-baselined) into the claim that was actually true the whole time: every locked stipulation has a real
+unlock path (either this registry or, for Arena Floor specifically, the truck-breakdown event it's always
+had), and nothing with an unlock condition is left unlocked from the start — checked both directions, so it
+stays correct as more locked content is added rather than needing a manual bump every time.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (177 files / 3124 tests — new coverage in `unlocks.test.ts`
+for the pure condition checks and `unlocks.store.test.ts` for the real weekly wiring, plus the re-expressed
+`stipulations.test.ts` assertion), `npm run build` clean, and a 3-seed/160-week probe run with all three
+saves surviving and no regressions to the existing injury/morale/show/money baselines.
+
+**"Build it all" is now fully shipped** — all eight slices (the remaining random events, the remaining
+sub-stories, the remaining major stories, the pricing dashboard, the billionaire pricing war, and this
+unlockables system) landed as their own verified, committed, individually-documented units, exactly the
+discipline this whole run was built on. Nothing from the original brainstorm remains open.
+
+---
+
 ## The billionaire below-cost pricing war — shipped
 
 Seventh slice of "build it all," and the sub-story explicitly promised alongside the pricing dashboard

@@ -356,6 +356,40 @@ export const STIPULATIONS: Stipulation[] = [
       submission: 'cranked {loser} into it on the cement with nowhere to go and no rope to reach for',
     },
   },
+  {
+    id: 'fallsCountAnywhere',
+    name: 'Falls Count Anywhere',
+    blurb: 'Wherever this one ends up, the count still works. Locked until the promotion has the standing to let a match leave the ring.',
+    ratingBonus: 8,
+    violenceLevel: 2,
+    injuryMult: 1.6,
+    heatRequirement: 45,
+    archetypeFit: [],
+    locked: true,
+    impliedRules: { countOuts: 'none' },
+    finishWeights: { countOut: 0, cleanPin: 2, knockout: 1.5, submission: 1, disqualification: 0.3 },
+    finishFlavor: {
+      cleanPin: 'chased {loser} out past the barricades and pinned them cold wherever the fight actually ended',
+      knockout: 'finished it far from the ring, with nobody around to make a ten count matter',
+      submission: 'dragged {loser} down somewhere the referee had to run to reach, and wrung the tap out right there',
+    },
+  },
+  {
+    id: 'blindfoldMatch',
+    name: 'Blindfold Match',
+    blurb: 'Both competitors go in unable to see a thing. Locked until the promotion has been around long enough to risk looking silly.',
+    ratingBonus: -3,
+    violenceLevel: 1,
+    injuryMult: 1.1,
+    archetypeFit: ['showman'],
+    locked: true,
+    finishWeights: { cleanPin: 2, rollup: 1, knockout: 0.3, submission: 0.2 },
+    finishFlavor: {
+      cleanPin: 'stumbled into {loser} by pure luck and somehow made the pin count',
+      rollup: 'got tangled up with {loser} in the dark and came out the one with the shoulders down',
+      knockout: 'swung blind and connected anyway, which is more than {loser} can say for their night',
+    },
+  },
 ];
 
 export function stipulationById(id: string): Stipulation | undefined {

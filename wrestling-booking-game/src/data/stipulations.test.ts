@@ -8,6 +8,7 @@ import {
   stipulationConsequence,
   stipulationConsequenceLine,
 } from './stipulations';
+import { UNLOCK_CONDITIONS } from './unlocks';
 
 describe('STIPULATIONS', () => {
   it('every entry has a unique id', () => {
@@ -32,9 +33,20 @@ describe('STIPULATIONS', () => {
   it('Arena Floor starts locked, unlike everything a fresh save already has', () => {
     const arenaFloor = stipulationById('arenaFloor')!;
     expect(arenaFloor.locked).toBe(true);
-    for (const s of STIPULATIONS) {
-      if (s.id === 'arenaFloor') continue;
-      expect(s.locked).toBeFalsy();
+  });
+
+  it('every locked stipulation has a real way to unlock it, and nothing unlockable starts open', () => {
+    const lockedIds = new Set(STIPULATIONS.filter((s) => s.locked).map((s) => s.id));
+    // arenaFloor is the one exception — it's won mid-crisis, from the truck
+    // breaking down (engine/world/truckBreakdown.ts), not a real milestone,
+    // so it never appears in data/unlocks.ts's own list.
+    const milestoneIds = new Set(UNLOCK_CONDITIONS.map((c) => c.stipulationId));
+    for (const id of lockedIds) {
+      if (id === 'arenaFloor') continue;
+      expect(milestoneIds.has(id), `${id} is locked but has no unlock condition`).toBe(true);
+    }
+    for (const id of milestoneIds) {
+      expect(lockedIds.has(id), `${id} has an unlock condition but the stipulation isn't locked`).toBe(true);
     }
   });
 });
