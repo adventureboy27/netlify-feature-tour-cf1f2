@@ -976,6 +976,21 @@ export function defaultWorldSettings(): WorldSettings {
     contractRaidRetaliateGrudge: 15,
     contractRaidDoNothingMorale: -8,
 
+    // A network you already signed with wants a say in who's on the card —
+    // more common than a contract raid, since it's meant to read as a
+    // recurring cost of the deal rather than a rare disaster.
+    networkDemandEarliestWeek: 20,
+    networkDemandChancePerWeek: 0.02,
+    networkDemandMinRoster: 8,
+    networkDemandKeepOffAirShare: 0.5,
+    networkDemandGraceWeeks: 2,
+    networkDemandComplyBonus: 8000,
+    networkDemandRefuseCost: 10000,
+    networkDemandFeatureResentment: 5,
+    networkDemandBenchedMorale: 8,
+    networkDemandStoodUpMorale: 6,
+    networkDemandRefuseRoomMorale: 4,
+
     // Three more world-story registry entries, all rival-side only.
     networkRealignmentEarliestWeek: 40,
     networkRealignmentChancePerWeek: 0.012,

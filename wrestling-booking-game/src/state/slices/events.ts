@@ -5,7 +5,7 @@
 
 import type { StateCreator } from 'zustand';
 import { rng, type GameStore } from '../store';
-import { applyEffect } from '../storeHelpers';
+import { applyEffect, applyNetworkDemand } from '../storeHelpers';
 import { eventById } from '../../data/events';
 import { resolveOption } from '../../engine/events/apply';
 import { substitute } from '../../engine/events/scheduler';
@@ -15,6 +15,7 @@ import { clampMorale } from '../../engine/career/morale';
 import { gradeFromLength, severityOf } from '../../engine/sim/casualties';
 import { recordInjury } from '../../engine/career/theBody';
 import { resolveContractRaid, type ContractRaidOptionId } from '../../engine/world/contractRaid';
+import type { NetworkDemandChoice } from '../../engine/world/networkDemand';
 import { resolveFarewellTour, type FarewellTourOptionId } from '../../engine/world/farewellTour';
 import { wire } from '../../engine/world/wire';
 import { addGrudge, grudgeAgainst } from '../../engine/world/grudges';
@@ -32,6 +33,7 @@ type EventsSlice = Pick<
   | 'answerRivalMove'
   | 'answerConfrontationCall'
   | 'answerContractRaid'
+  | 'answerNetworkDemand'
   | 'answerFarewellTour'
 >;
 
@@ -174,6 +176,14 @@ export const createEventsSlice: StateCreator<GameStore, [['zustand/immer', never
 
       world.weeklyNews.push(wire('contract', outcome.line, world.week, 'normal'));
       world.pendingContractRaid = null;
+    });
+  },
+
+  answerNetworkDemand: (choice: NetworkDemandChoice) => {
+    set((state) => {
+      const world = state.world;
+      if (!world?.pendingNetworkDemand) return;
+      applyNetworkDemand(world, choice);
     });
   },
 

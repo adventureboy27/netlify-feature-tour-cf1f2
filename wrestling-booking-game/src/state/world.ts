@@ -56,6 +56,7 @@ import type { WeatherCall } from '../engine/world/weatherCall';
 import type { RingCall, RingCallOptionId } from '../engine/world/ringCall';
 import type { TruckCall, TruckCallOptionId } from '../engine/world/truckBreakdown';
 import type { ContractRaidCall } from '../engine/world/contractRaid';
+import type { NetworkDemandCall } from '../engine/world/networkDemand';
 import type { FarewellTourCall } from '../engine/world/farewellTour';
 import type { RivalPricing } from '../engine/world/pricing';
 import { randomRivalPricingFor } from '../engine/world/pricing';
@@ -369,6 +370,12 @@ export interface World {
    * pendingChampionCall: does not hold the week open, but does expire.
    */
   pendingContractRaid: ContractRaidCall | null;
+  /**
+   * A network you already signed with wants a say in who's on the card —
+   * same non-blocking, expiring shape as pendingContractRaid. Only ever
+   * rolled while broadcastDealId is set.
+   */
+  pendingNetworkDemand: NetworkDemandCall | null;
   /**
    * A legend's farewell tour offer — raised by the world-story registry,
    * resolved the same non-blocking, expiring way as pendingContractRaid.
@@ -1212,6 +1219,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     noShowChoice: null,
     pendingChampionCall: null,
     pendingContractRaid: null,
+    pendingNetworkDemand: null,
     pendingFarewellTour: null,
     pendingTitleMemorial: null,
     pendingRivalMove: null,

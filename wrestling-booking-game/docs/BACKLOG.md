@@ -5,6 +5,35 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Network demands — shipped
+
+Pitched directly: land a decent TV deal, and then the network starts making roster demands —
+feature this wrestler, keep that one off the air — real hoops to jump through to keep the money.
+`data/broadcasters.ts`'s existing `BroadcastDemand`s are all numeric thresholds checked against a
+`BusinessSnapshot` (`engine/economy/broadcast.ts`) — nothing about *who* is on the card. This adds
+that as a mid-deal, one-off event rather than a new contract term, since a demand that shows up
+*after* you've already signed and cashed a few checks is the more interesting version.
+
+`engine/world/networkDemand.ts` (new) is a pure module in the exact shape of `contractRaid.ts`:
+`eligibleForNetworkDemand`/`rollNetworkDemand`/`networkDemandOptions`/`resolveNetworkDemand`. Two
+kinds, picked off the real roster rather than named in advance — `mustFeature` targets whoever is
+actually the most popular active wrestler; `keepOffAir` targets somebody with a real discipline
+record (`career/discipline.ts`'s violations, an in-fiction reason the game already tracks), and
+only rolls at all when such a person exists on a clean roster it just doesn't fire that flavor.
+Comply pays a bonus and costs morale (the room's, for `mustFeature`; the target's, for
+`keepOffAir`); refuse costs real money and counts toward the network walking — on its own
+`breachWeeks` key so it never entangles with the deal's own numeric-ratings clock, reusing
+`shouldWalk()` so refusing demands carries the exact same real stakes as missing the numbers. An
+unanswered demand decides itself as a refusal past a short grace window — ignoring the network is
+itself a choice. Two new `storeHelpers.ts` functions (`applyNetworkDemand`, `tickNetworkDemand`)
+are the single place a choice becomes money/morale/breach bookkeeping, shared between the player
+action and the weekly tick's grace-expiry, same pattern `answerLoanOffer` already used. Never a
+forced roster change — no auto-release, no persistent "banned from TV" flag.
+
+`NetworkDemandPanel` in `OfficeScreen.tsx`'s Desk tab (amber framing, `ContractRaidPanel`'s exact
+shape) uses `DialogueCard` with kind-aware option text (`networkDemandOptions`, following
+`championInjuryOptions`'s precedent for context-dependent copy rather than a flat option array).
+
 ## Morale: the full reasons breakdown — shipped
 
 Asked what else the morale system could use; the pick was surfacing the full reasons breakdown,

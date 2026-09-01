@@ -64,6 +64,9 @@ import { creditPay } from '../engine/career/ledger';
 import { ledgerOf } from '../engine/career/ledgerAccess';
 import { crossPromoStakes } from '../engine/world/supershow';
 import { clampMorale } from '../engine/career/morale';
+import { broadcasterById } from '../data/broadcasters';
+import { shouldWalk } from '../engine/economy/broadcast';
+import { rollNetworkDemand, resolveNetworkDemand, type NetworkDemandChoice } from '../engine/world/networkDemand';
 import {
   askingMinimum,
   decideBids,
@@ -1146,6 +1149,88 @@ export function answerLoanOffer(world: World, tier: LoanTier | null): void {
       };
     }
   }
+}
+
+/**
+ * The booker answers a network's demand — comply or refuse. Shared between
+ * the player action and the weekly tick's grace-expiry (silence reads as a
+ * refusal), so there is exactly one place that turns a choice into money,
+ * morale, and whether it counts against the deal.
+ */
+export function applyNetworkDemand(world: World, choice: NetworkDemandChoice): void {
+  const call = world.pendingNetworkDemand;
+  if (!call) return;
+  world.pendingNetworkDemand = null;
+
+  const outcome = resolveNetworkDemand(call, choice, world.settings);
+  world.promotion.bankBalance += outcome.moneyDelta;
+
+  const target = world.wrestlers[call.targetId];
+  if (target && outcome.targetMoraleDelta !== 0) {
+    target.morale = clampMorale(target.morale + outcome.targetMoraleDelta, world.settings);
+  }
+  if (outcome.roomMoraleDelta !== 0) {
+    for (const id of world.promotion.rosterIds) {
+      const w = world.wrestlers[id];
+      if (w) w.morale = clampMorale(w.morale + outcome.roomMoraleDelta, world.settings);
+    }
+  }
+
+  // Refusing a demand counts toward the same grace a numeric ratings breach
+  // does — on its own key, so the two clocks never entangle. Complying
+  // resets it: a network that just got its way is not still holding the
+  // last refusal against you.
+  const key = `${call.dealId}:demand`;
+  if (outcome.breach) {
+    const weeks = (world.breachWeeks[key] ?? 0) + 1;
+    world.breachWeeks[key] = weeks;
+    if (shouldWalk(weeks, world.settings)) {
+      world.lastDealsLost.push({ name: call.dealName, reason: 'Too many demands turned down.' });
+      delete world.breachWeeks[key];
+      world.broadcastDealId = null;
+    }
+  } else {
+    delete world.breachWeeks[key];
+  }
+
+  world.weeklyNews.push(wire('broadcast', outcome.line, world.week, 'normal'));
+}
+
+/**
+ * The weekly tick: a stale demand decides itself as a refusal (ignoring the
+ * network is itself a choice), then a new one can roll — only ever while a
+ * deal is actually in force. If the deal itself was just dropped this same
+ * week for missing the numbers, whatever was pending goes with it unanswered
+ * rather than being charged as a refusal on top.
+ */
+export function tickNetworkDemand(world: World, rng: Rng): void {
+  if (world.pendingNetworkDemand && !world.broadcastDealId) {
+    world.pendingNetworkDemand = null;
+  }
+  if (world.pendingNetworkDemand && world.week - world.pendingNetworkDemand.week >= world.settings.networkDemandGraceWeeks) {
+    applyNetworkDemand(world, 'refuse');
+  }
+  if (world.pendingNetworkDemand || !world.broadcastDealId) return;
+
+  const deal = broadcasterById(world.broadcastDealId);
+  if (!deal) return;
+  const roster = world.promotion.rosterIds
+    .map((id) => world.wrestlers[id])
+    .filter((w): w is Wrestler => Boolean(w) && !w!.deceased);
+  const demand = rollNetworkDemand(rng, world.week, deal, roster, world.settings);
+  if (!demand) return;
+
+  world.pendingNetworkDemand = demand;
+  world.weeklyNews.push(
+    wire(
+      'broadcast',
+      demand.kind === 'mustFeature'
+        ? `${demand.dealName} wants ${demand.targetName} featured more. They have noticed who moves the needle, and they want a say in it.`
+        : `${demand.dealName} does not want ${demand.targetName} on their air, and they were plain about why.`,
+      world.week,
+      'lead',
+    ),
+  );
 }
 
 /**

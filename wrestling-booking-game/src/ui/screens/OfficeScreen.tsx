@@ -44,6 +44,7 @@ import { loanTermsFor, LOAN_TIER_LABELS, type LoanTier } from '../../engine/econ
 import { RIVAL_MOVE_OPTIONS, type RivalMoveChoiceId } from '../../engine/world/rivalMove';
 import { CONFRONTATION_CALL_OPTIONS, type ConfrontationCallChoiceId } from '../../engine/world/confrontationCall';
 import { CONTRACT_RAID_OPTIONS, type ContractRaidOptionId } from '../../engine/world/contractRaid';
+import { networkDemandOptions, type NetworkDemandChoice } from '../../engine/world/networkDemand';
 import { FAREWELL_TOUR_OPTIONS, type FarewellTourOptionId } from '../../engine/world/farewellTour';
 import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
@@ -290,6 +291,7 @@ function DeskTab() {
       <TitleMemorialPanel />
       <RivalMovePanel />
       <ContractRaidPanel />
+      <NetworkDemandPanel />
       <FarewellTourPanel />
       <ConfrontationCallPanel />
       <LoanOfferPanel />
@@ -2600,6 +2602,66 @@ function ContractRaidPanel() {
           choices={CONTRACT_RAID_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
           onChoose={(optionId) => {
             answer(optionId as ContractRaidOptionId);
+            setOpen(false);
+          }}
+          theme={promotionTheme(world.promotion.identity)}
+          promotionName={world.promotion.name}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+/**
+ * A network you already signed with wants a say in the card — same
+ * non-blocking, expiring shape as ContractRaidPanel, but amber rather than
+ * rose: this is a demand with a real choice still in front of you, not
+ * damage already done.
+ */
+function NetworkDemandPanel() {
+  const world = useGameStore((s) => s.world);
+  const answer = useGameStore((s) => s.answerNetworkDemand);
+  const [open, setOpen] = useState(false);
+  if (!world?.pendingNetworkDemand) return null;
+
+  const call = world.pendingNetworkDemand;
+  const weeksLeft = world.settings.networkDemandGraceWeeks - (world.week - call.week);
+  const body =
+    call.kind === 'mustFeature'
+      ? `${call.dealName} has noticed who moves the needle for them, and they want ${call.targetName} featured more. What does the office tell them?`
+      : `${call.dealName} does not want ${call.targetName} on their air, and they were plain about why. What does the office tell them?`;
+
+  return (
+    <section className="mb-3 rounded-lg border border-amber-800 bg-amber-950/20 p-3" data-testid="network-demand">
+      <div className="text-xs uppercase tracking-wide text-amber-400">
+        {call.dealName} wants a say
+      </div>
+      <h2 className="mt-1 text-sm font-semibold">
+        {call.kind === 'mustFeature' ? `Feature ${call.targetName} more` : `Keep ${call.targetName} off the air`}
+      </h2>
+      <p className="mt-1 text-[11px] text-neutral-500">
+        {weeksLeft <= 1
+          ? 'Decide this week, or the office answers by saying nothing at all.'
+          : `${weeksLeft} weeks left to decide how the office responds.`}
+      </p>
+      <button
+        type="button"
+        data-testid="network-demand-talk"
+        onClick={() => setOpen(true)}
+        className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:bg-neutral-700"
+      >
+        Decide how to respond
+      </button>
+
+      {open && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName={call.dealName}
+          body={body}
+          choices={networkDemandOptions(call)}
+          onChoose={(optionId) => {
+            answer(optionId as NetworkDemandChoice);
             setOpen(false);
           }}
           theme={promotionTheme(world.promotion.identity)}

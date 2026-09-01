@@ -65,6 +65,7 @@ import {
   openSigningTalk,
   letThemGo,
   releaseFromShakeup,
+  tickNetworkDemand,
 } from './storeHelpers';
 import { createCardBuilderSlice } from './slices/cardBuilder';
 import { createEventsSlice } from './slices/events';
@@ -447,6 +448,7 @@ import { rollWorldStory, type WorldStoryContext } from '../engine/sim/worldStori
 import { ringCallFrom, resolveRingCall, type RingCallOptionId } from '../engine/world/ringCall';
 import { truckBreakdownFrom, resolveTruckCall, type TruckCallOptionId } from '../engine/world/truckBreakdown';
 import { rollContractRaid, type ContractRaidOptionId } from '../engine/world/contractRaid';
+import type { NetworkDemandChoice } from '../engine/world/networkDemand';
 import { pickNetworkRealignmentTarget, applyNetworkRealignment } from '../engine/world/networkRealignment';
 import { pickOwnerRivalryPair, applyOwnerRivalry } from '../engine/world/ownerRivalry';
 import { pickRogueTarget, applyRogueTurn } from '../engine/world/rogueTurn';
@@ -735,6 +737,8 @@ export interface GameStore {
   answerRingCall: (choice: RingCallOptionId) => void;
   answerTruckCall: (choice: TruckCallOptionId) => void;
   answerContractRaid: (choice: ContractRaidOptionId) => void;
+  /** A network you already signed with wants a say in the card — comply, or tell them no. */
+  answerNetworkDemand: (choice: NetworkDemandChoice) => void;
   answerFarewellTour: (choice: FarewellTourOptionId) => void;
   /** A booked wrestler never showed up. Same "answering runs the show" shape as the weather call. */
   answerNoShowCall: (choice: NoShowChoiceId) => void;
@@ -7100,6 +7104,11 @@ export const useGameStore = create<GameStore>()(
             world.sponsorIds = world.sponsorIds.filter((id) => id !== sponsor.id);
           });
         }
+
+        // A network you already signed with wants a say in the card —
+        // see engine/world/networkDemand.ts. Runs after the breach checks
+        // above, so it never rolls the same week a deal was just dropped.
+        tickNetworkDemand(world, rngFromSeed(`networkDemand:${world.week}`));
 
         // And who is offering. Both are answered by the player, not taken
         // automatically — a national deal you cannot honour is worse than no

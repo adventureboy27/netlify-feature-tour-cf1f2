@@ -2743,6 +2743,26 @@ export interface WorldSettings {
   contractRaidRetaliateGrudge: number;
   contractRaidDoNothingMorale: number;
 
+  // A network you already signed with wants a say in who's on the card —
+  // see engine/world/networkDemand.ts. Only fires with an active broadcast
+  // deal; refusing counts toward the same grace period (broadcastWeeksOfGrace)
+  // a numeric ratings breach does, on its own key so it never entangles with
+  // that clock.
+  networkDemandEarliestWeek: number;
+  networkDemandChancePerWeek: number;
+  /** Never fires against a roster too thin to spare the ask. */
+  networkDemandMinRoster: number;
+  /** Chance a demand is "keep this one off the air" rather than "feature our favorite", when a roster member with a real discipline record exists to target. */
+  networkDemandKeepOffAirShare: number;
+  /** Weeks the dialogue stays open before an unanswered demand decides itself as a refusal. */
+  networkDemandGraceWeeks: number;
+  networkDemandComplyBonus: number;
+  networkDemandRefuseCost: number;
+  networkDemandFeatureResentment: number;
+  networkDemandBenchedMorale: number;
+  networkDemandStoodUpMorale: number;
+  networkDemandRefuseRoomMorale: number;
+
   // Three more world-story registry entries — see data/worldStories.ts.
   // Each is rival-side only: real, but never a player decision.
   networkRealignmentEarliestWeek: number;
