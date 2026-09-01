@@ -5,6 +5,28 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Fixed: the economy's own wording read stilted, not like natural US English
+
+Flagged directly: "the statement about the economy is worded funny." Passed over every
+player-facing string the economic-cycle feature added — the five `economicClimateShiftLine`
+label-crossing sentences, both `economicClimateSharpMoveLine` outlier warnings, and the
+`CLIMATE_NOTE` lines on the Free Agents screen — and rewrote the ones that read stiff or
+redundant on a second read. The worst offenders were the sharp-move warnings ("Something just
+went wrong in the wider business, fast... This did not build up slowly; it happened." — clunky,
+vague, and "fast" placed awkwardly) and the Downturn shift line ("...and some of them are
+noticing right along with it" — redundant, said the same thing twice). Rewrote both, plus a
+smaller pass over the rest for natural spoken cadence (e.g. "wait a year like this out" ->
+"ride out a year like this").
+
+No behavior changed — every rewritten string is still produced by the same functions the tests
+already call directly (`economicClimateShiftLine`, `economicClimateSharpMoveLine`), so the
+store-level tests that assert against those functions' output needed no changes at all. Verified
+the new wording live across the whole climate range (Recession through Boom) via the dev store
+handle, reading each one back before shipping.
+
+`tsc --noEmit` clean; full suite 190 files / 3,226 tests passing, unchanged; `npm run build`
+clean.
+
 ## Added: a real gauge, boom-side ego, and recap-page warnings for the economy
 
 Three follow-ups on the business-cycle feature just below, all asked for in the same message:

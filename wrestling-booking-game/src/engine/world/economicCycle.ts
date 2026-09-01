@@ -46,8 +46,8 @@ export function isSharpEconomicMove(before: number, after: number, settings: Wor
 /** The recap-page warning for a real one-week lurch — reported as Breaking News, not folded into the ordinary feed. */
 export function economicClimateSharpMoveLine(before: number, after: number): string {
   return after > before
-    ? "Something just moved fast in the wider business — a real jump in one week, not the usual drift. Whatever it is, the market noticed all at once."
-    : 'Something just went wrong in the wider business, fast — a real drop in one week, not the usual drift. This did not build up slowly; it happened.';
+    ? "The wider business just had a real jump — a one-week swing far bigger than the usual drift. Whatever's behind it, the whole market felt it at once."
+    : "The wider business just took a real hit — a one-week drop far bigger than the usual drift. Whatever caused it, the whole market felt it at once.";
 }
 
 export type EconomicClimateLabel = 'Recession' | 'Downturn' | 'Steady' | 'Growing' | 'Boom';
@@ -71,13 +71,13 @@ export function economicClimateLabel(climate: number): EconomicClimateLabel {
 export function economicClimateShiftLine(label: EconomicClimateLabel): string {
   switch (label) {
     case 'Recession':
-      return 'The whole business has gone cold. Gates are down industry-wide, and everybody in the locker room knows it — this is not a good year to be asking for a raise.';
+      return "The whole business has gone cold. Gates are down across the board, and everybody in the locker room knows it — this is not the year to ask for a raise.";
     case 'Downturn':
-      return "Business has softened across the board. Nothing dramatic, but the free-agent market is starting to notice — and some of them are noticing right along with it.";
+      return "Business has cooled off some. Nothing dramatic yet, but free agents are starting to feel it.";
     case 'Steady':
-      return 'The wider business has settled back to normal. No tailwind, no headwind — just an ordinary market again.';
+      return "The wider business has settled back to normal — no tailwind, no headwind, just an ordinary market.";
     case 'Growing':
-      return 'Business is picking up industry-wide. Money is moving again, and the ones with any leverage at all can feel it.';
+      return "Business is picking up. Money's moving again, and anyone with real leverage can feel it.";
     case 'Boom':
       return "The whole business is red-hot right now. Every promotion in the country is spending, and free agents everywhere know exactly what that means for them.";
   }

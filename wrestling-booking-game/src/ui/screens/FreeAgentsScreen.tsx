@@ -118,11 +118,11 @@ export function FreeAgentsScreen({
   };
   const CLIMATE_NOTE: Record<typeof climateLabel, string> = {
     Recession:
-      "the market's cold — the humbler names on this list are settling for a lot less, though the ones with real leverage haven't budged an inch. A lot of bookers just wait a year like this out",
-    Downturn: "business is soft — some of these people are pricing that in",
-    Steady: 'an ordinary market, nothing pushing rates either way',
-    Growing: "business is picking up — even the modest ones are asking for a bit more",
-    Boom: "the market's red hot, and the ones with any ego at all know it — they want a bigger piece of it than the market alone would give them",
+      "the market's cold — the humbler names on this list are settling for a lot less, though the ones with real leverage haven't budged an inch. A lot of bookers just ride out a year like this",
+    Downturn: 'business is soft, and some of these people are pricing that in',
+    Steady: 'an ordinary market — nothing pushing rates either way',
+    Growing: 'business is picking up, so even the modest ones are asking for a bit more',
+    Boom: "the market's red hot, and anyone with an ego knows it — they want a bigger piece of it than the market alone would give them",
   };
 
   return (
