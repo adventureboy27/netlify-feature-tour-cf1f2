@@ -5,6 +5,20 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Roster screen search and filter — shipped
+
+Asked what else the roster screen could use; the answer was a search/filter bar, since the screen was one flat
+sorted column with 9 sort options but no way to narrow it. Once a roster passes ~15-20 names there was no way
+to jump straight to "who's hurt" or "who's about to walk" without scanning the whole list by eye.
+
+All local to `RosterScreen.tsx` — no engine, store, or save-shape changes. A text search box matches ring name
+(`billedAs`) or real name, case-insensitive. Four independent toggle chips (AND'd together and with the search
+text): Injured (`wrestler.injury`), Ending soon (contract `weeksRemaining <= 4` — a plain UI constant, not a
+balance number, so it isn't in `WorldSettings`), Champion (`titlesHeldBy`, already covers tag titles via
+`currentHolderIds`), Tag team (`teamOf`). The header shows "showing X of Y" once anything is active, and both
+the list pane and the detail pane get search-aware empty states ("Nobody matches that search." with a Clear
+link) distinct from the true empty-roster case.
+
 ## Real uploaded photos for the promotion logo and the owner — shipped
 
 Asked for directly: a way to upload a real promotion logo, and a real photo for the promoter, rather than the

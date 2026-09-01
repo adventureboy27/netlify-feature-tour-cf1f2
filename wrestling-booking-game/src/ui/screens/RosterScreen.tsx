@@ -15,8 +15,21 @@ import { MotivationKey, WrestlerRow } from '../components/WrestlerRow';
 import { WrestlerDetailBody } from '../components/WrestlerDetail';
 import { canFormTeam, teamOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
 import { titlesHeldBy } from '../../data/titles';
+import { billedAs } from '../../engine/generate/nickname';
 import { Money } from '../components/display';
 import type { Id, Wrestler } from '../../engine/types';
+
+/** A deal this close to its last week reads as "ending soon" in the roster filter. UI-only judgment call, not a balance number. */
+const ENDING_SOON_WEEKS = 4;
+
+type FilterKey = 'injured' | 'endingSoon' | 'champion' | 'tagTeam';
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'injured', label: 'Injured' },
+  { key: 'endingSoon', label: 'Ending soon' },
+  { key: 'champion', label: 'Champion' },
+  { key: 'tagTeam', label: 'Tag team' },
+];
 
 const SORTS = {
   popularity: { label: 'Popularity', of: (w: Wrestler) => w.popularity },
@@ -45,15 +58,46 @@ export function RosterScreen({
   const world = useGameStore((s) => s.world);
   const [sort, setSort] = useState<SortKey>('popularity');
   const [selectedId, setSelectedId] = useState<Id | null>(null);
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState<Set<FilterKey>>(new Set());
+
+  function toggleFilter(key: FilterKey) {
+    setFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function clearSearch() {
+    setQuery('');
+    setFilters(new Set());
+  }
+
+  const fullRoster = useMemo(() => {
+    if (!world) return [];
+    return world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean);
+  }, [world]);
 
   const roster = useMemo(() => {
     if (!world) return [];
-    const list = world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean);
-    if (sort === 'name') return [...list].sort((a, b) => a.name.localeCompare(b.name));
-    return [...list].sort((a, b) => SORTS[sort].of(b) - SORTS[sort].of(a));
-  }, [world, sort]);
+    const q = query.trim().toLowerCase();
+    const filtered = fullRoster.filter((w) => {
+      if (q && !billedAs(w).toLowerCase().includes(q) && !w.name.toLowerCase().includes(q)) return false;
+      if (filters.has('injured') && !w.injury) return false;
+      if (filters.has('endingSoon') && !(w.contract && w.contract.weeksRemaining <= ENDING_SOON_WEEKS)) return false;
+      if (filters.has('champion') && titlesHeldBy(world.titles, w.id).length === 0) return false;
+      if (filters.has('tagTeam') && !teamOf(world.stables, w.id)) return false;
+      return true;
+    });
+    if (sort === 'name') return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    return [...filtered].sort((a, b) => SORTS[sort].of(b) - SORTS[sort].of(a));
+  }, [world, fullRoster, sort, query, filters]);
 
   if (!world) return null;
+
+  const searchActive = query.trim() !== '' || filters.size > 0;
 
   const rosterIds = new Set(roster.map((w) => w.id));
   // The selection re-clamps to the top of the (possibly re-sorted) list
@@ -72,7 +116,10 @@ export function RosterScreen({
     <div className="p-6 text-neutral-100">
       <div className="mb-3 flex items-end justify-between gap-2">
         <h1 className="text-xl font-black tracking-tight">
-          Roster <span className="text-neutral-500">— {roster.length}</span>
+          Roster{' '}
+          <span className="text-neutral-500">
+            {searchActive ? `— showing ${roster.length} of ${fullRoster.length}` : `— ${roster.length}`}
+          </span>
         </h1>
         <span className="rounded-md border border-neutral-800 bg-neutral-900 px-2 py-1 text-[11px] font-medium text-neutral-400">
           wages <Money amount={roster.reduce((sum, w) => sum + (w.contract?.weeklyRate ?? 0), 0)} />
@@ -97,25 +144,74 @@ export function RosterScreen({
         ))}
       </div>
 
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <input
+          type="text"
+          data-testid="roster-search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name"
+          className="w-48 rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs placeholder:text-neutral-600"
+        />
+        {FILTERS.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            data-testid={`roster-filter-${key}`}
+            onClick={() => toggleFilter(key)}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all duration-150 active:scale-95 ${
+              filters.has(key)
+                ? 'bg-emerald-600 text-white shadow-[0_0_0_1px_rgb(5,150,105),0_0_12px_-2px_rgb(5,150,105)]'
+                : 'bg-neutral-900 text-neutral-400 ring-1 ring-inset ring-neutral-800 hover:text-neutral-200'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+        {searchActive && (
+          <button
+            type="button"
+            data-testid="roster-clear-search"
+            onClick={clearSearch}
+            className="text-[11px] text-neutral-500 underline decoration-dotted hover:text-neutral-300"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
       <TagTeamPanel />
       <MotivationKey />
 
       <div className="grid grid-cols-[380px_1fr] gap-4">
         <div className="flex max-h-[75vh] flex-col gap-1.5 overflow-y-auto pr-1">
-          {roster.map((w) => (
-            <div key={w.id} data-testid={`roster-${w.id}`}>
-              <WrestlerRow
-                wrestler={w}
-                settings={world.settings}
-                titles={world.titles}
-                territoryId={world.showSetup.territoryId}
-                territoryName={world.territories.find((t) => t.id === world.showSetup.territoryId)?.name}
-                compact
-                selected={w.id === activeId}
-                onClick={() => setSelectedId(w.id)}
-              />
+          {roster.length === 0 && fullRoster.length > 0 ? (
+            <div className="rounded border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-500">
+              Nobody matches that search.{' '}
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="text-emerald-400 underline decoration-dotted hover:text-emerald-300"
+              >
+                Clear filters
+              </button>
             </div>
-          ))}
+          ) : (
+            roster.map((w) => (
+              <div key={w.id} data-testid={`roster-${w.id}`}>
+                <WrestlerRow
+                  wrestler={w}
+                  settings={world.settings}
+                  titles={world.titles}
+                  territoryId={world.showSetup.territoryId}
+                  territoryName={world.territories.find((t) => t.id === world.showSetup.territoryId)?.name}
+                  compact
+                  selected={w.id === activeId}
+                  onClick={() => setSelectedId(w.id)}
+                />
+              </div>
+            ))
+          )}
         </div>
 
         <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
@@ -130,7 +226,9 @@ export function RosterScreen({
               />
             </div>
           ) : (
-            <p className="text-sm text-neutral-500">Nobody on the roster yet.</p>
+            <p className="text-sm text-neutral-500">
+              {fullRoster.length === 0 ? 'Nobody on the roster yet.' : 'Nobody matches that search.'}
+            </p>
           )}
         </div>
       </div>
