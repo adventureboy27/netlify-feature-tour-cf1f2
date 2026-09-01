@@ -2870,6 +2870,19 @@ export interface WorldSettings {
   /** Share of each roster frozen, independently per wrestler — roughly two-thirds. */
   paperworkLockoutFreezeShare: number;
 
+  // A "Chance card" — a small, one-off windfall or setback that isn't part
+  // of any bigger story, sized off the promotion's own bank balance. See
+  // engine/world/moneyEvents.ts.
+  moneyEventEarliestWeek: number;
+  moneyEventChancePerWeek: number;
+  /** Floors the reference balance an amount is a share of, so a struggling or negative bank still gets a real number. */
+  moneyEventReferenceFloor: number;
+  /** What share of the (floored) bank balance a card is built around, before jitter and the hard clamp below. */
+  moneyEventShareOfBank: number;
+  moneyEventMinAmount: number;
+  /** Hard ceiling — no single card can move the needle at any bank balance, however rich. */
+  moneyEventMaxAmount: number;
+
   supershowEagerAt: number;
   supershowCautiousAt: number;
   supershowPublicRefusalChance: number;

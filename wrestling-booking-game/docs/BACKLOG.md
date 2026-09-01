@@ -5,6 +5,53 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Added: "Chance card" pool — small, sporadic, one-off money swings
+
+Asked for directly: a Monopoly-Chance-card-style layer of random windfalls and setbacks, distinct
+from both the major world stories (mergers, pricing wars — rare, permanent, story-shaped) and the
+branching dialogue events (`data/events.ts` — every option there costs something by design, so a
+true no-choice "something just happened" card does not fit that engine at all). Brainstormed a
+list of 22 ideas with the player first, got explicit approval on all of them plus the two shaping
+constraints — "sporadic but not weekly" and "make sure it won't cause a money problem either way" —
+before writing any code.
+
+**New module**: `engine/world/moneyEvents.ts` — a pool of 21 flavor entries (10 windfalls, 11
+setbacks; one brainstormed idea, "the bank freezes a transaction for a week," was a delay rather
+than a real gain/loss and didn't fit this shape, so it was dropped rather than forced in), each a
+plain `{ id, weight, sign, line(amount) }`. Slots into the exact pattern the codebase already uses
+for this: one new entry (`id: 'moneyEvent'`) in the `data/worldStories.ts` registry, competing in
+the same "at most one major story per week" roll every other story already uses — so a chance card
+never lands the same week as a merger or a pricing war and buries it. Given the lowest weight (2)
+in the pool on purpose: this fires far more often than any real story
+(`moneyEventChancePerWeek: 0.06`, averaging about once every 17 weeks — several times a year, never
+weekly), so on the rare week both a real story and a chance card are eligible, the tie-break still
+leans toward the story.
+
+**Sizing, the actual "won't cause a money problem" work**: the amount is a share
+(`moneyEventShareOfBank: 0.035`) of whatever the promotion currently has on hand — floored at
+`moneyEventReferenceFloor: 20,000` so a struggling or negative bank balance still gets a real,
+proportionate number instead of something trivial or nonsensical — then jittered ±30% and
+hard-clamped to `[moneyEventMinAmount: 300, moneyEventMaxAmount: 15,000]`. The clamp is the actual
+safety net: no single card can ever be a rounding error (min) or a real problem in either direction
+(max), regardless of how rich or how broke the promotion is. Verified this holds directly: a unit
+test sweeps bank balances from -$500k to $25M through the amount function and asserts every result
+stays inside the clamp; a store test forces a $5M bank and confirms the same.
+
+**Verified live, not just in tests**, per the project's own "measure in a played save" rule: an
+80-week autofill-driven save (`window.__store`, forced `moneyEventChancePerWeek: 1` for a cadence
+check, then the real default rate for the actual play) produced real, well-formed wire lines with
+correctly-clamped amounts — a $2,825 tourism grant against a healthy $110k bank, a $900 viral-merch
+bump against an already-negative bank (the $20k reference floor keeping it a real number rather
+than near-zero) — at roughly the expected once-per-17-weeks cadence. That save also happened to
+fold around week 20, but not from a chance card: the same trace showed `Promotion.deferredShowDebt`
+(the earlier fix, see the entry below) compounding every week as gate revenue collapsed from an
+unrelated autofill roster/morale spiral, and a loan offer the script's own blocker-clearing helper
+auto-declined — a testing-harness artifact, not a chance card doing it. Worth a second look on its
+own if the player wants to chase it, but it is not this feature.
+
+`tsc --noEmit` clean; full suite 188 files / 3,202 tests passing (new: `moneyEvents.test.ts`,
+`moneyEvent.store.test.ts`); `npm run build` clean.
+
 ## Fixed: a $1-2M bankroll carried real risk in name only — WCW-checkbook problem
 
 Asked directly: "is climbing to 1 or 2 million too easy? what's the risk with that kind of money?"

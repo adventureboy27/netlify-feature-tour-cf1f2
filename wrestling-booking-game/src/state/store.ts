@@ -458,6 +458,7 @@ import type { FarewellTourOptionId } from '../engine/world/farewellTour';
 import { randomRivalPricing } from '../engine/world/pricing';
 import { pickPricingWarTarget, slashedPricing, pricingWarStartLine, pricingWarEndLine } from '../engine/world/pricingWar';
 import { rollPaperworkFreezes, paperworkLockoutStartLine, paperworkLockoutEndLine } from '../engine/world/paperworkLockout';
+import { pickMoneyEvent, moneyEventAmount } from '../engine/world/moneyEvents';
 import { checkUnlocks } from '../engine/world/unlocks';
 import {
   compassionateLeave,
@@ -4806,6 +4807,11 @@ export const useGameStore = create<GameStore>()(
                 'lead',
               ),
             );
+          } else if (picked?.id === 'moneyEvent') {
+            const card = pickMoneyEvent(storyRng);
+            const amount = moneyEventAmount(storyRng, world.promotion.bankBalance, world.settings);
+            world.promotion.bankBalance += card.sign * amount;
+            world.weeklyNews.push(wire('business', card.line(amount), world.week, 'minor'));
           }
         }
 

@@ -1069,6 +1069,18 @@ export function defaultWorldSettings(): WorldSettings {
     paperworkLockoutDurationWeeks: 6,
     paperworkLockoutFreezeShare: 0.667,
 
+    // Sporadic, not weekly: ~6%/week averages one card roughly every 17
+    // weeks, a few times a year rather than a fixture. Skips the first few
+    // weeks so a brand new save doesn't open with a random check. The share
+    // and clamp together are the actual safety net — see moneyEvents.ts's
+    // header for why this can never be a real problem in either direction.
+    moneyEventEarliestWeek: 6,
+    moneyEventChancePerWeek: 0.06,
+    moneyEventReferenceFloor: 20_000,
+    moneyEventShareOfBank: 0.035,
+    moneyEventMinAmount: 300,
+    moneyEventMaxAmount: 15_000,
+
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,

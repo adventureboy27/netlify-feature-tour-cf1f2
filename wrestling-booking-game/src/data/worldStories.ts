@@ -16,6 +16,7 @@ import { eligibleForBreakaway } from '../engine/world/breakawayPromotion';
 import { eligibleForFarewellTour } from '../engine/world/farewellTour';
 import { eligibleForPricingWar } from '../engine/world/pricingWar';
 import { eligibleForPaperworkLockout } from '../engine/world/paperworkLockout';
+import { eligibleForMoneyEvent } from '../engine/world/moneyEvents';
 
 export interface WorldStoryDefinition {
   id: string;
@@ -100,6 +101,18 @@ export const WORLD_STORIES: WorldStoryDefinition[] = [
     weight: 3,
     chancePerWeek: (s) => s.paperworkLockoutChancePerWeek,
     eligible: (ctx) => eligibleForPaperworkLockout(ctx.week, ctx.paperworkLockoutActive, ctx.settings),
+  },
+  {
+    id: 'moneyEvent',
+    category: 'business',
+    // Deliberately the lowest weight in the pool. This fires far more often
+    // than any real story (see moneyEventChancePerWeek), so on the rare week
+    // a real story is also eligible and also rolls true, the low weight
+    // keeps the tie-break leaning toward the story rather than the chance
+    // card burying it.
+    weight: 2,
+    chancePerWeek: (s) => s.moneyEventChancePerWeek,
+    eligible: (ctx) => eligibleForMoneyEvent(ctx.week, ctx.settings),
   },
 ];
 
