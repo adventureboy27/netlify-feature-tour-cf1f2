@@ -152,6 +152,11 @@ export function BatchPhotoImport() {
         prefix gets no match. Nothing is saved until you hit Apply, and every row shows exactly who it is about to
         land on before it does.
       </p>
+      <p className="mb-2 text-[11px] text-neutral-500">
+        Any common image format works — JPEG, PNG, WebP, GIF, and so on — at whatever size and shape the photo
+        already is. No cropping or resizing needed first: each one is centred, cropped to a square, and scaled
+        down to a small 96×96 thumbnail automatically. There's no file size limit on this end.
+      </p>
 
       <label className="mb-2 inline-block cursor-pointer rounded bg-neutral-800 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-700">
         Add photos

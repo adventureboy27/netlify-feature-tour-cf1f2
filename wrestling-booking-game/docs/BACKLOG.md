@@ -5,6 +5,29 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Small cleanup pass: task list, a stale bug note, and a missing bit of copy
+
+Three quick items, none of them worth their own section:
+
+- The ring-crowding overlap noted a few entries down ("Also found, not fixed") turned out to
+  already be fixed — the very next entry in this file, "Follow-up: fixed the ring crowding —
+  sides, not a shared circle," replaced the circular layout that caused it with the two-rail
+  layout `MatchViewerScreen.tsx` still uses today. Confirmed live with an 8-way battle royal
+  (`setSegmentStipulation`/`setSegmentParticipant` via the dev store handle): six resting
+  portraits stack cleanly down the rail with no overlap, mid-match and at the finish alike. That
+  BACKLOG entry was stale, not the code — nothing to fix, just a correction on the record.
+- `BatchPhotoImport.tsx` (the batch photo utility, Settings → Photos) explained the M-/F- naming
+  convention but never said what it would actually accept. Added a second line: any common format
+  (JPEG, PNG, WebP, GIF, …) at any size or shape, no size limit enforced — accurate to what
+  `photoUpload.ts`'s `resizeToDataUrl` actually does (centre-crop to a square, scale to a 96×96
+  thumbnail, no validation on input dimensions or file size).
+- Cleaned up two stale task-tracker entries left over from earlier in the session:
+  "Update events.test.ts for branching + full verification pass" (already true — 133 passing
+  tests, suite green) and "Brainstorm doc: Rival major/sub stories + Random events" (superseded —
+  the tasks that doc was meant to scope were all implemented directly, no separate doc needed).
+
+`tsc --noEmit` clean; full suite 185 files / 3,183 tests passing; `npm run build` clean.
+
 ## Fixed: company rating stayed numb to a real, sustained collapse
 
 Asked for "checks and balances and fail-safes" after playing an 80-week save turned up a longer-
