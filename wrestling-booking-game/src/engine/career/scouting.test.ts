@@ -49,6 +49,24 @@ describe('can he work tonight', () => {
     expect(theCatch(hurt, settings)).toContain('4 weeks');
   });
 
+  it('leads with a paperwork lockout, ahead of an injury', () => {
+    const frozenAndHurt = someone({
+      paperworkFrozen: true,
+      injury: {
+        severity: 'moderate',
+        grade: 35,
+        description: 'Torn shoulder',
+        sufferedWeek: 3,
+        totalWeeks: 6,
+        weeksRemaining: 4,
+        permanentStatLoss: {},
+        earlyReturnWeeksUsed: 0,
+      },
+    });
+    expect(availability(frozenAndHurt, settings)).toMatchObject({ flag: 'frozen', tone: 'bad' });
+    expect(availability(someone({ paperworkFrozen: false }), settings).flag).not.toBe('frozen');
+  });
+
   it('ranks worst-first, so the thing that decides tonight wins', () => {
     // Somebody exhausted AND unhappy is an exhaustion problem first.
     const both = someone({ fatigueDebt: 90, morale: 10 });

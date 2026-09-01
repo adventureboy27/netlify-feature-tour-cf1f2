@@ -48,6 +48,7 @@ function ctxFor(overrides: Partial<WorldStoryContext> = {}): WorldStoryContext {
     successionHappenedFor: [],
     happenedFor: {},
     pricingWarActive: false,
+    paperworkLockoutActive: false,
     settings,
     ...overrides,
   };

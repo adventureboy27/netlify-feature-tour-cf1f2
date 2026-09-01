@@ -457,6 +457,7 @@ import { pickBreakawaySource } from '../engine/world/breakawayPromotion';
 import type { FarewellTourOptionId } from '../engine/world/farewellTour';
 import { randomRivalPricing } from '../engine/world/pricing';
 import { pickPricingWarTarget, slashedPricing, pricingWarStartLine, pricingWarEndLine } from '../engine/world/pricingWar';
+import { rollPaperworkFreezes, paperworkLockoutStartLine, paperworkLockoutEndLine } from '../engine/world/paperworkLockout';
 import { checkUnlocks } from '../engine/world/unlocks';
 import {
   compassionateLeave,
@@ -3498,7 +3499,13 @@ export const useGameStore = create<GameStore>()(
         // §14's 50% expense cap applies to *show* expenses, not to wages:
         // capping the wage bill made the bank rise every week no matter what,
         // because the overflow was silently discarded.
-        const signed = world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean);
+        // A paperwork-frozen wrestler draws no pay this week, retainer or
+        // appearance — excluded here rather than after, so they post no
+        // ledger entry for a week they were never paid at all. See
+        // engine/world/paperworkLockout.ts.
+        const signed = world.promotion.rosterIds
+          .map((id) => world.wrestlers[id]!)
+          .filter((w) => Boolean(w) && !w.paperworkFrozen);
         const mainEventIds = new Set(
           (world.currentCard[world.currentCard.length - 1]?.participants ?? []).map((p) => p.wrestlerId),
         );
@@ -3535,7 +3542,10 @@ export const useGameStore = create<GameStore>()(
           creditPay(ledgerOf(member), gross - takenByAgent - ownTravel);
           if (rep && takenByAgent > 0) {
             const agent = world.wrestlers[rep.managerId];
-            if (agent) creditPay(ledgerOf(agent), takenByAgent);
+            // Looked up independently of `signed`, so a frozen agent needs
+            // its own check — his client's cut does not reach him either
+            // while his own paperwork is stuck. See paperworkLockout.ts.
+            if (agent && !agent.paperworkFrozen) creditPay(ledgerOf(agent), takenByAgent);
           }
           return sum + paid;
         }, 0);
@@ -4569,6 +4579,10 @@ export const useGameStore = create<GameStore>()(
         // otherwise its first week of "N weeks" would be shaved off before
         // the player ever saw it.
         const pricingWarActiveBeforeThisWeek = world.pricingWar !== null;
+        // Same care as pricingWar's own guard above: captured before the
+        // roll, so a lockout that starts this same week doesn't have its
+        // first week shaved off by the tick further down this same pass.
+        const paperworkLockoutActiveBeforeThisWeek = world.paperworkLockout !== null;
         {
           const livingRivals = world.rivals.filter((r) => r.closedWeek === null);
           const storyCtx: WorldStoryContext = {
@@ -4578,6 +4592,7 @@ export const useGameStore = create<GameStore>()(
             successionHappenedFor: world.successionHappenedFor,
             happenedFor: world.worldStoryHappenedFor,
             pricingWarActive: pricingWarActiveBeforeThisWeek,
+            paperworkLockoutActive: paperworkLockoutActiveBeforeThisWeek,
             settings: world.settings,
           };
           const storyRng = rngFromSeed(`worldStory:${world.week}`);
@@ -4734,6 +4749,28 @@ export const useGameStore = create<GameStore>()(
             world.pricingWar = { rivalId: target.id, weeksRemaining: world.settings.pricingWarDurationWeeks };
             target.rating = clamp(target.rating + world.settings.pricingWarRatingBoost, 0, 100);
             world.weeklyNews.push(wire('business', pricingWarStartLine(target.name), world.week, 'lead'));
+          } else if (picked?.id === 'paperworkLockout') {
+            const everyRosterId = [
+              ...world.promotion.rosterIds,
+              ...world.rivals.filter((r) => r.closedWeek === null).flatMap((r) => r.rosterIds),
+            ];
+            const candidates = everyRosterId
+              .map((id) => world.wrestlers[id])
+              .filter((w): w is Wrestler => Boolean(w) && w!.role === 'wrestler');
+            const frozenIds = rollPaperworkFreezes(storyRng, candidates, world.settings);
+            for (const id of frozenIds) {
+              const w = world.wrestlers[id];
+              if (w) w.paperworkFrozen = true;
+            }
+            world.paperworkLockout = { weeksRemaining: world.settings.paperworkLockoutDurationWeeks };
+            world.weeklyNews.push(
+              wire(
+                'business',
+                paperworkLockoutStartLine(frozenIds.length, candidates.length, world.settings.paperworkLockoutDurationWeeks),
+                world.week,
+                'lead',
+              ),
+            );
           }
         }
 
@@ -4780,8 +4817,14 @@ export const useGameStore = create<GameStore>()(
             : idleWearUnit(unit, tier);
         });
 
-        // Deals run down whether or not anybody was booked.
-        const expired = expireContracts(world.promotion.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean));
+        // Deals run down whether or not anybody was booked — except a
+        // paperwork-frozen wrestler's clock, which pauses along with them.
+        // See engine/world/paperworkLockout.ts.
+        const expired = expireContracts(
+          world.promotion.rosterIds
+            .map((id) => world.wrestlers[id]!)
+            .filter((w) => Boolean(w) && !w.paperworkFrozen),
+        );
 
         // ---- who wants out, and who is still sitting out ------------------
         // A release request is never a surprise: morale is on the roster card
@@ -5772,7 +5815,10 @@ export const useGameStore = create<GameStore>()(
         const spokenFor = new Set(world.secretSignings.map((s2) => s2.wrestlerId));
         for (const rival of world.rivals) {
           const roster = rival.rosterIds.map((id) => world.wrestlers[id]!).filter(Boolean);
-          for (const id of expireContracts(roster)) {
+          // A paperwork-frozen wrestler's contract clock pauses here too —
+          // the freeze is industry-wide, not something only the player's
+          // roster feels. See engine/world/paperworkLockout.ts.
+          for (const id of expireContracts(roster.filter((w) => !w.paperworkFrozen))) {
             // Their own office does the obvious thing, unless somebody got
             // there first — in which case the lapse is the whole point and
             // the block above will collect him next week.
@@ -5909,7 +5955,12 @@ export const useGameStore = create<GameStore>()(
             person.energy = clamp(person.energy + week.energy, 0, 100);
             person.morale = clampMorale(person.morale + week.morale, world.settings);
             person.gimmickFreshness = clamp(person.gimmickFreshness - week.freshnessCost, 0, 100);
-            if (week.earned > 0) {
+            // A paperwork-frozen wrestler still gets their off-week gym/media
+            // assignment (stats, morale, freshness all move normally — see
+            // the scope note in engine/world/paperworkLockout.ts), just none
+            // of the money it would have earned: "didn't wrestle, doesn't get
+            // paid" covers every income stream, not only the show payroll.
+            if (week.earned > 0 && !person.paperworkFrozen) {
               promotion.bankBalance += week.earned;
               creditPay(ledgerOf(person), week.earned);
             }
@@ -7300,6 +7351,21 @@ export const useGameStore = create<GameStore>()(
             );
             world.weeklyNews.push(wire('business', pricingWarEndLine(rival?.name ?? 'The company'), world.week, 'minor'));
             world.pricingWar = null;
+          }
+        }
+
+        // ---- the paperwork lockout, if one is running -------------------
+        // See engine/world/paperworkLockout.ts. Every frozen wrestler shares
+        // this one clock, so lifting it is a single sweep rather than a
+        // per-wrestler tick.
+        if (world.paperworkLockout && paperworkLockoutActiveBeforeThisWeek) {
+          world.paperworkLockout.weeksRemaining -= 1;
+          if (world.paperworkLockout.weeksRemaining <= 0) {
+            for (const w of Object.values(world.wrestlers)) {
+              if (w?.paperworkFrozen) w.paperworkFrozen = false;
+            }
+            world.weeklyNews.push(wire('business', paperworkLockoutEndLine(), world.week, 'lead'));
+            world.paperworkLockout = null;
           }
         }
 

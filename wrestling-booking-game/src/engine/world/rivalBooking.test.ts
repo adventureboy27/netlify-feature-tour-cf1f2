@@ -77,6 +77,12 @@ describe('who a rival can book', () => {
     ).toBe(false);
   });
 
+  it('will not book somebody whose paperwork is stuck in a lockout, however healthy they are', () => {
+    const [w] = roster(1);
+    expect(canWork({ ...w!, health: 100, injury: null, paperworkFrozen: true }, settings)).toBe(false);
+    expect(canWork({ ...w!, health: 100, injury: null, paperworkFrozen: false }, settings)).toBe(true);
+  });
+
   it('will not book the retired or the dead', () => {
     const [w] = roster(1);
     expect(canWork({ ...w!, careerStatus: 'retired' }, settings)).toBe(false);

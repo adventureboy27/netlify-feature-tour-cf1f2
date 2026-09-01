@@ -5,6 +5,64 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Papers Held Up — an industry-wide licensing lockout, shipped
+
+Brainstormed as a strike/union story, then landed on something arbitrary instead: a hostile
+politician gets a licensing bill through, and roughly two-thirds of every promotion's roster —
+player and every rival alike, no legible pattern to who — has its in-ring paperwork stuck in
+review for 6 weeks. Working without cleared paperwork is a de facto ban. Shows keep running on
+whoever's left, so the survivors get run into the ground. Cleared wrestlers are paid and their
+contract clock keeps running; frozen wrestlers are unpaid and their clock pauses. Breaking News
+explains it plainly, both when it starts and when it lifts.
+
+`engine/world/paperworkLockout.ts` (new, pure) is the closest sibling to `pricingWar.ts` rather
+than to a one-off dialogue story like `contractRaid`/`networkDemand`: it is *ongoing* — a
+`World.paperworkLockout: { weeksRemaining } | null`, ticked down weekly by `store.ts`, ending
+itself and posting a wire line at zero. `eligibleForPaperworkLockout` gates on
+`paperworkLockoutEarliestWeek` and "not already active"; `rollPaperworkFreezes` is one independent
+`chance()` coin flip per candidate at `paperworkLockoutFreezeShare` (~0.667) — deliberately no
+targeting logic, since "no rhyme or reason" was the point. Unlike `vignette.ts`'s per-wrestler
+staggered countdown, freezing here is a flat `Wrestler.paperworkFrozen?: boolean`: every frozen
+wrestler starts and ends on the same week, so one shared clock on `World.paperworkLockout` and a
+single sweep at the end is enough — no per-wrestler tick needed.
+
+Wired into the one existing choke point for "can this person have a match" —
+`rivalBooking.ts`'s `canWork` — so both the player's `autoFillCard` and every rival's own AI
+booking skip frozen wrestlers automatically, with no changes needed to how either builds a card.
+`scouting.ts`'s `availability()` gained a `'frozen'` flag/label ("Papers held up"), checked first
+(ahead of injury) since it's an absolute "cannot work" fact for the run of the story — this is
+what `WrestlerRow` already renders everywhere a roster shows up. Contracts: both
+`expireContracts` call sites (player and the per-rival loop) now exclude frozen wrestlers so their
+clock pauses. Payroll: excluded from `signed` so neither the appearance-fee reduce nor the flat
+weekly wage bill pays them, and two knock-on paths needed their own explicit guard rather than
+inheriting the exclusion for free — a frozen wrestler's cut as someone else's contracted
+manager/agent (`representation.ts`'s commission credit looks up the agent independently of
+`signed`) and a frozen wrestler's own off-week gym/media assignment payout (`assignmentOf`/
+`weekOff`, which runs for anyone not booked that week regardless of roster-payroll filtering) —
+both found by a store-level integration test failing on the wrong post-week `ledger.earnings`,
+not by reasoning about the code up front.
+
+Manual booking (`SlotRosterPicker`) does **not** gate on `canWork` — turns out it never did, for
+injuries either; you can already manually add an injured, uncleared wrestler to a card today, and
+whatever that costs is on the booker. `paperworkFrozen` sits in `canWork` right alongside
+`injury`, so it inherits that same pre-existing permissiveness rather than getting bespoke
+UI-level blocking — consistent with "the game never warns the player before a bad decision."
+
+Deliberately out of scope, named rather than silently skipped: the idle-morale system still reads
+a frozen wrestler's enforced idleness as an ordinary booking gap rather than knowing it's an
+external lockout, and survivor fatigue needed no new code at all — `fatigueDebt` already only
+recovers on rest weeks, so a roster run down to a third does the "beat up and very tired" work on
+its own once shows keep running through it.
+
+Verified: `tsc --noEmit` clean; full suite 185 files / 3,177 tests passing, including one caught
+mid-verification by the game's own gendered-pronoun lint (`pronouns.test.ts`) — the start line's
+flavor text named the politician "he," rewritten to stay pronoun-free; `npm run build` clean; a
+live Playwright pass forcing the lockout via the dev `window.__store` handle confirmed the
+Breaking News lead item's exact wording, "Papers held up" chips on the real roster screen (17 of
+24 frozen, matching the roll), a frozen wrestler's pay and contract clock both flat across a played
+week while a cleared wrestler's moved normally, and — running forward to the configured duration —
+the lift's own Breaking News line and every `paperworkFrozen` flag clearing.
+
 ## Network demands — shipped
 
 Pitched directly: land a decent TV deal, and then the network starts making roster demands —

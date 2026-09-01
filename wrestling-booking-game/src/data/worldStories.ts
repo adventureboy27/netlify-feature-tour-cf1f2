@@ -15,6 +15,7 @@ import { eligibleForScandal } from '../engine/world/scandal';
 import { eligibleForBreakaway } from '../engine/world/breakawayPromotion';
 import { eligibleForFarewellTour } from '../engine/world/farewellTour';
 import { eligibleForPricingWar } from '../engine/world/pricingWar';
+import { eligibleForPaperworkLockout } from '../engine/world/paperworkLockout';
 
 export interface WorldStoryDefinition {
   id: string;
@@ -92,6 +93,13 @@ export const WORLD_STORIES: WorldStoryDefinition[] = [
     weight: 3,
     chancePerWeek: (s) => s.pricingWarChancePerWeek,
     eligible: (ctx) => eligibleForPricingWar(ctx.week, ctx.livingRivals, ctx.pricingWarActive, ctx.settings),
+  },
+  {
+    id: 'paperworkLockout',
+    category: 'business',
+    weight: 3,
+    chancePerWeek: (s) => s.paperworkLockoutChancePerWeek,
+    eligible: (ctx) => eligibleForPaperworkLockout(ctx.week, ctx.paperworkLockoutActive, ctx.settings),
   },
 ];
 

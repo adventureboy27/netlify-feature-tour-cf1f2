@@ -623,6 +623,15 @@ export interface Wrestler {
    */
   vignette?: Vignette | null;
   /**
+   * The politician's paperwork lockout has this person's license stuck in
+   * review — cannot be booked, cannot be paid, and the contract clock does
+   * not run against them either, until the whole industry-wide freeze lifts.
+   * See engine/world/paperworkLockout.ts. Unlike vignette this is never
+   * staggered per-wrestler: everyone frozen shares the one clock on
+   * World.paperworkLockout, so a flat boolean is enough.
+   */
+  paperworkFrozen?: boolean;
+  /**
    * A death the locker room lays at his door rather than the office's. While
    * it is fresh nobody will work with him. See career/onOurWatch.ts.
    */
@@ -2828,6 +2837,16 @@ export interface WorldSettings {
   pricingWarSlashFraction: number;
   /** Immediate rating gain for the rival buying market share this way. */
   pricingWarRatingBoost: number;
+
+  // A hostile politician's licensing bill leaves roughly two-thirds of every
+  // promotion's roster with their paperwork stuck in review — industry-wide,
+  // no pattern to who. See World.paperworkLockout, engine/world/paperworkLockout.ts.
+  paperworkLockoutEarliestWeek: number;
+  paperworkLockoutChancePerWeek: number;
+  /** How long the freeze runs before it lifts on its own. */
+  paperworkLockoutDurationWeeks: number;
+  /** Share of each roster frozen, independently per wrestler — roughly two-thirds. */
+  paperworkLockoutFreezeShare: number;
 
   supershowEagerAt: number;
   supershowCautiousAt: number;

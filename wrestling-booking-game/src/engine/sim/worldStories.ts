@@ -25,6 +25,8 @@ export interface WorldStoryContext {
   happenedFor: Readonly<Record<string, readonly Id[]>>;
   /** Whether a billionaire pricing war is already running — see World.pricingWar. */
   pricingWarActive: boolean;
+  /** Whether a paperwork lockout is already running — see World.paperworkLockout. */
+  paperworkLockoutActive: boolean;
   settings: WorldSettings;
 }
 

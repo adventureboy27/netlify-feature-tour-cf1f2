@@ -25,6 +25,7 @@ const pronouns = pronounsFor;
 
 /** Ranked worst-first: the flag that most affects tonight wins. */
 export type AvailabilityFlag =
+  | 'frozen'
   | 'injured'
   | 'exhausted'
   | 'unhappy'
@@ -47,6 +48,11 @@ export interface Availability {
  * a row nobody reads; the whole point is that the eye lands on one thing.
  */
 export function availability(wrestler: Wrestler, settings: WorldSettings): Availability {
+  // An absolute "cannot work, full stop" outranks everything else here —
+  // see engine/world/paperworkLockout.ts.
+  if (wrestler.paperworkFrozen) {
+    return { flag: 'frozen', label: 'Papers held up', tone: 'bad' };
+  }
   if (wrestler.injury) {
     const weeks = wrestler.injury.weeksRemaining;
     return {

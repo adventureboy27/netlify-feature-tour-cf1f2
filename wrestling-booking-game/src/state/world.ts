@@ -206,6 +206,14 @@ export interface World {
    */
   pricingWar: { rivalId: Id; weeksRemaining: number } | null;
   /**
+   * A hostile politician's licensing bill — roughly two-thirds of every
+   * promotion's roster frozen at once, industry-wide (engine/world/
+   * paperworkLockout.ts). Null when nobody is caught up in one; only one can
+   * run at a time. Which wrestlers are frozen lives on each Wrestler's own
+   * paperworkFrozen, since every frozen wrestler shares this one clock.
+   */
+  paperworkLockout: { weeksRemaining: number } | null;
+  /**
    * Last week's sheet, kept so this week's can show which way people moved.
    * The current one is derived on read — only the comparison needs storing.
    */
@@ -1172,6 +1180,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     rivals,
     rivalPricing: randomRivalPricingFor(rivals.map((r) => r.id), settings),
     pricingWar: null,
+    paperworkLockout: null,
     rivalShows: [],
     lastIncidents: [],
     lastPublication: null,

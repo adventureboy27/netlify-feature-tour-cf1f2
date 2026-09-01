@@ -1042,6 +1042,14 @@ export function defaultWorldSettings(): WorldSettings {
     pricingWarSlashFraction: 0.35,
     pricingWarRatingBoost: 6,
 
+    // A hostile politician's licensing bill — industry-wide, no rival or
+    // conglomerate needed, so the only real gate is a modest week floor
+    // rather than anything tied to how the business has developed.
+    paperworkLockoutEarliestWeek: 30,
+    paperworkLockoutChancePerWeek: 0.015,
+    paperworkLockoutDurationWeeks: 6,
+    paperworkLockoutFreezeShare: 0.667,
+
     supershowEagerAt: 65,
     supershowCautiousAt: 38,
     supershowPublicRefusalChance: 0.35,

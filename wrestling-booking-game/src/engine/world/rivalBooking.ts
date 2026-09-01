@@ -202,6 +202,10 @@ export function canWork(w: Wrestler, settings: WorldSettings, week?: number): bo
   // An injured wrestler sits, unless the booker has explicitly signed off on
   // them working hurt — which today only happens when a champion is sent out
   // to defend rather than vacate. See world/titleDefence.ts.
+  // Paperwork stuck in review by an industry-wide licensing lockout — a flat
+  // boolean rather than a countdown, since everyone caught in it shares one
+  // clock. See engine/world/paperworkLockout.ts.
+  if (w.paperworkFrozen) return false;
   if (w.injury && !w.clearedToWorkHurt) return false;
   // Away, and there is nothing wrong with him. The company sent him home
   // after somebody died in the ring with him and it is not negotiable —
