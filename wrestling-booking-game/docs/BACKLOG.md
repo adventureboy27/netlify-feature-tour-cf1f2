@@ -5,6 +5,65 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Fixed: a $1-2M bankroll carried real risk in name only — WCW-checkbook problem
+
+Asked directly: "is climbing to 1 or 2 million too easy? what's the risk with that kind of money?"
+Investigated with a real cost breakdown (contracts, venues, crew/travel, the bank-scaled weekly
+overhead tax) rather than guessing, and the honest answer was yes — for a specific, fixable reason,
+not just "the player got good." Two separate problems, both fixed on the same request ("fix it
+all... I don't want an unfair struggle like racing with a rubber band effect, but they do need
+hardships and to earn it"):
+
+**1. The venue ladder's own "rent is a bet, not a purchase" design had no teeth.** §14's 50%-of-
+revenue expense cap (`computeShowExpenseSplit` in `economy/payroll.ts`) was always implemented
+correctly, but at its only call site (`store.ts`, the show-resolution block) the function's
+`deferred` return value — the overflow past the cap — was destructured out and silently discarded.
+A promotion that rented a room way bigger than its draw paid the capped share and the rest simply
+vanished. Renting a stadium you cannot fill was supposed to be the actual risk in the game and it
+cost nothing past the cap.
+
+Fixed by giving `deferredShowDebt` a real home: a new optional field on `Promotion` (old-save-safe,
+same pattern as `paperworkFrozen`), folded into next week's own show-cost total before the cap runs
+again, so it either gets paid down as revenue opens up room under the cap or keeps growing if the
+overspending continues. Announced both ways — a wire line the week debt first appears
+("...rolls over as debt against next week") and again the week it clears — plus a standing
+`ShowDebtNotice` on the Office screen next to the existing loan notice, so it is never a status icon
+nobody explains. Verified live via a Playwright + `window.__store` pass: one realistic overreach (a
+starting 16-roster promotion booking Hockey Arena, several tiers over what it could support) left a
+real but recoverable $26,574.50 of debt that a booker who then ran sensible venues paid off cleanly
+over two weeks and never saw again — a genuine consequence, not a death spiral. A deliberately
+reckless stress test (the same promotion running the Domed Stadium two weeks running) built real,
+slow-clearing debt in the hundreds of thousands, confirmed to still shrink rather than being written
+off, just slowly — proportionate to how badly it was earned, and never simply forgiven.
+
+**2. Signing anybody, even the biggest star in the business, was never actually expensive.**
+`contracts.ts`'s `askingRate` curve (`contractBaseWeeklyRate: 60`, `contractRateRange: 2200`,
+`contractRateCurve: 2`) topped out a shade over $2,200/wk for the single most maxed-out phenom the
+generator can produce — cheap enough that a $1-2M bankroll could staff an entire roster of
+top-shelf stars without feeling it, the exact "opened the checkbook for everyone at any price"
+complaint. Raised on explicit request, to a real ceiling near $5,000/wk
+(`contractRateRange: 2480`, `contractRateCurve: 2.3` — the curve steepened, not just the range, so
+this widens the gap between "very good" and "the one guy everybody wants" rather than inflating
+what an ordinary roster costs to carry). An average midcarder still asks in the low hundreds; a
+very good veteran draw is up near $1,800; the absolute ceiling — young, maxed popularity, in-ring
+stats and hype all at once — reaches toward $5,000. Combined with the existing retainer-share
+mechanic (`retainerShareBase`/`Range`, unchanged), a maxed star's *guaranteed* weekly retainer alone
+now lands around $3,400 whether booked or not, so stacking two or three of them against a deep
+roster is a real, felt tradeoff rather than a rounding error.
+
+Deliberately left alone: `weeklyExpenseRate` (the flat 2%-of-cash weekly overhead tax) and the
+existing hype/talent "bust" system (`career/hype.ts` — a hyped young prospect can already turn out
+to have nothing behind them, which is the game's existing "swing and miss" on a signing). Both
+already do real work and touching either risked exactly the "rubber band" the request explicitly
+ruled out — a flat cash tax punishes success itself rather than a specific bad decision, and the
+bust system already makes overpaying for hype a real gamble without any changes needed. The fix is
+aimed at the two places a booker's own choices — a venue too big for the draw, a spending spree on
+star power — should cost something and previously didn't.
+
+`tsc --noEmit` clean; full suite 186 files / 3,189 tests passing (new: `deferredShowDebt.store.test.ts`,
+plus two new cases in `contracts.test.ts` pinning the new floor and ceiling); `npm run build` clean;
+verified live in the browser as described above.
+
 ## Small cleanup pass: task list, a stale bug note, and a missing bit of copy
 
 Three quick items, none of them worth their own section:

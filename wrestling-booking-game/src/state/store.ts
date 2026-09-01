@@ -3564,14 +3564,43 @@ export const useGameStore = create<GameStore>()(
         // which on a cancelled night is nothing, so the cap is skipped: it
         // exists to stop a show eating its own gate, not to make a washout
         // free.
-        const { payable: showPayable } = callOutcome
+        //
+        // Last week's own shortfall, if any, is folded into tonight's total
+        // before the cap runs again — it used to be computed and discarded,
+        // which is why an oversized venue never actually cost anything past
+        // the cap. See Promotion.deferredShowDebt. A cancelled or
+        // storm-shortened night bypasses the cap entirely (see above), so the
+        // carried debt just sits unchanged through those rather than being
+        // folded into a cost model that was never built for it.
+        const debtBefore = world.promotion.deferredShowDebt ?? 0;
+        const { payable: showPayable, deferred: showDeferred } = callOutcome
           ? {
               payable:
                 Math.round(showCosts.total * callOutcome.costShare) + callOutcome.extraCost,
+              deferred: debtBefore,
             }
           : night.cancelled
-            ? { payable: cancellationCost(showCosts.total, world.settings) }
-            : computeShowExpenseSplit(showCosts.total, revenue.total, world.settings.expenseCapPctOfRevenue);
+            ? { payable: cancellationCost(showCosts.total, world.settings), deferred: debtBefore }
+            : computeShowExpenseSplit(
+                showCosts.total + debtBefore,
+                revenue.total,
+                world.settings.expenseCapPctOfRevenue,
+              );
+        world.promotion.deferredShowDebt = showDeferred;
+        if (showDeferred > 0 && debtBefore <= 0) {
+          world.weeklyNews.push(
+            wire(
+              'business',
+              `Tonight's show cost more than the books could absorb — $${Math.round(showDeferred).toLocaleString()} rolls over as debt against next week.`,
+              world.week + 1,
+              'minor',
+            ),
+          );
+        } else if (showDeferred <= 0 && debtBefore > 0) {
+          world.weeklyNews.push(
+            wire('business', `Last week's shortfall is paid off. The books are square again.`, world.week + 1, 'minor'),
+          );
+        }
         // Clauses you agreed to have a weekly price of their own, and so does
         // the jet.
         const clauseBill = world.promotion.rosterIds.reduce((sum, id) => {

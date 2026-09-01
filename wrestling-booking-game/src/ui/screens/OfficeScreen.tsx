@@ -296,6 +296,7 @@ function DeskTab() {
       <ConfrontationCallPanel />
       <LoanOfferPanel />
       <ActiveLoanNotice />
+      <ShowDebtNotice />
       <BuyoutOfferPanel />
 
       {picture.length > 0 && (
@@ -2451,6 +2452,33 @@ function ActiveLoanNotice() {
       <p className="mt-1 text-[10px] leading-snug text-neutral-500">
         Withdrawn automatically, every single time. It cannot be deferred, and missing payroll on top of it will
         not stop it.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * A shortfall from a show that cost more than the §14 cap would let the
+ * books absorb in one week — a room too big for the draw, most often. Shown
+ * the same honest way the loan is: what it is, and that it does not go away
+ * on its own. See Promotion.deferredShowDebt.
+ */
+function ShowDebtNotice() {
+  const world = useGameStore((s) => s.world);
+  const debt = world?.promotion.deferredShowDebt ?? 0;
+  if (debt <= 0) return null;
+
+  return (
+    <section className="mb-3 rounded border border-amber-900 bg-amber-950/20 px-3 py-2" data-testid="show-debt-notice">
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="text-amber-300">Show debt carried</span>
+        <span className="text-amber-500">
+          <Money amount={debt} />
+        </span>
+      </div>
+      <p className="mt-1 text-[10px] leading-snug text-neutral-500">
+        A show cost more than the books could take in one week. It rolls onto next week's expenses and keeps
+        rolling until there is room under the cap to pay it down — nobody forgives it for you.
       </p>
     </section>
   );

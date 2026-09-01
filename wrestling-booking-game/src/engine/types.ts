@@ -1538,6 +1538,19 @@ export interface Promotion {
   recentShowQuality: number;
   /** Consecutive weeks under water. Past the grace period, they close. */
   weeksInTheRed: number;
+  /**
+   * Real, carried debt from show costs that blew past §14's expense cap in a
+   * previous week — see economy/payroll.ts's computeShowExpenseSplit. The
+   * overflow used to be computed and thrown away, so a promotion that rented
+   * a room too big for its draw paid the capped share and the rest simply
+   * vanished — the one place the venue ladder's own "rent is a bet" design
+   * had no teeth. It is folded back into next week's own show-cost total
+   * before the cap is applied again, so it either gets paid down as room
+   * opens up under the cap or keeps growing if the overspending continues.
+   * Optional/old-save-safe, same pattern as paperworkFrozen — player-only,
+   * rivals use a separate simplified economy.
+   */
+  deferredShowDebt?: number;
   /** Set when the company closes. A closed company runs no shows. */
   closedWeek: number | null;
   /**

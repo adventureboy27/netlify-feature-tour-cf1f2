@@ -369,12 +369,21 @@ export function defaultWorldSettings(): WorldSettings {
     nostalgicAgeWeight: 1.0,
     nostalgicAgeFloor: 32,
 
-    // Contracts, scaled to a promotion running small buildings: a jobber is
-    // around $25/wk, a midcarder around $160, a genuine draw around $750.
-    // The curve is what makes a star cost multiples of a midcarder.
+    // Contracts. Enhancement talent sits near the $60 floor, an ordinary
+    // roster midcarder asks somewhere around $500/wk, a genuine veteran draw
+    // is up near $1,800, and the absolute ceiling — a young wrestler maxed
+    // on popularity, in-ring stats and hype all at once — tops out around
+    // $5,000/wk. That ceiling used to sit closer to $2,200 (curve 2, range
+    // 2200): raised on request, because at the old numbers a $1-2M bankroll
+    // could staff an entire roster of top guys without feeling it. The curve
+    // was steepened too (2 -> 2.3), not just the range, so this widens the
+    // gap between "very good" and "the one guy everybody wants" rather than
+    // inflating what an average roster costs — signing your real stars
+    // should be the sacrifice, not carrying depth. See economy/contracts.ts's
+    // askingRate.
     contractBaseWeeklyRate: 60,
-    contractRateRange: 2200,
-    contractRateCurve: 2,
+    contractRateRange: 2480,
+    contractRateCurve: 2.3,
     // Pay splits into a retainer everybody draws and an appearance fee only
     // the booked collect. An enhancement talent is on 30% guaranteed and
     // works for the rest; a genuine draw is on 75% and gets paid to exist.

@@ -56,6 +56,32 @@ describe('what somebody costs', () => {
     expect(floor).toBeGreaterThan(0);
     expect(ceiling).toBeGreaterThan(floor * 8);
   });
+
+  // The absolute ceiling: a young wrestler maxed on popularity, every in-ring
+  // stat, and hype at once. Raised on explicit request — the old curve
+  // topped out a shade over $2,200/wk, cheap enough that a $1-2M bankroll
+  // never felt signing several of these at once. Real money now, so signing
+  // the one everybody wants is a real roster decision rather than a line
+  // item.
+  it('lets a maxed-out young phenom reach up toward $5,000/wk', () => {
+    const phenom = w({
+      popularity: 100,
+      skill: 100,
+      agility: 100,
+      stamina: 100,
+      strength: 100,
+      hype: 100,
+      age: 22,
+    });
+    const rate = askingRate(phenom, settings);
+    expect(rate).toBeGreaterThan(4500);
+    expect(rate).toBeLessThanOrEqual(5050);
+  });
+
+  it('still prices an ordinary roster wrestler in the low hundreds, not thousands', () => {
+    const ordinary = w({ popularity: 45, skill: 50, agility: 50, stamina: 50, strength: 50, age: 30 });
+    expect(askingRate(ordinary, settings)).toBeLessThan(700);
+  });
 });
 
 describe('the wage bill', () => {
