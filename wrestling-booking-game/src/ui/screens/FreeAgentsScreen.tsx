@@ -39,7 +39,22 @@ import { CAREER_STATUS_LABELS } from '../../engine/career/status';
 import { Money } from '../components/display';
 import { WrestlerRow } from '../components/WrestlerRow';
 import { WrestlerDetailBody } from '../components/WrestlerDetail';
-import type { Id } from '../../engine/types';
+import type { FreeAgent } from '../../engine/world/freeAgents';
+import type { Id, Wrestler, WorldSettings } from '../../engine/types';
+
+type SortEntry = { label: string; of: (agent: FreeAgent, w: Wrestler, settings: WorldSettings) => number };
+
+/** How the pool can be reordered — narrowing (the reason chips) is a separate concern from ordering (these). */
+const SORTS = {
+  popularity: { label: 'Popularity', of: (_a, w) => w.popularity } as SortEntry,
+  // Negated so every column reads "biggest number of merit first," same convention as RosterScreen's age/contract sorts.
+  cost: { label: 'Cost', of: (a, _w, s) => -currentAskingRate(a, s) } as SortEntry,
+  age: { label: 'Age', of: (_a, w) => -w.age } as SortEntry,
+  weeksUnsigned: { label: 'Weeks unsigned', of: (a) => a.weeksUnsigned } as SortEntry,
+  name: { label: 'Name', of: () => 0 } as SortEntry,
+} as const;
+
+type SortKey = keyof typeof SORTS;
 
 export function FreeAgentsScreen({
   onNavigate,
@@ -52,11 +67,21 @@ export function FreeAgentsScreen({
   const sign = useGameStore((s) => s.signFreeAgent);
   const [selectedId, setSelectedId] = useState<Id | null>(null);
   const [reasonFilter, setReasonFilter] = useState<AvailabilityReason | 'all'>('all');
+  const [sort, setSort] = useState<SortKey>('popularity');
 
   const ranked = useMemo(() => {
     if (!world) return [];
-    return rankPool(world.freeAgents, (id) => world.wrestlers[id]);
-  }, [world]);
+    if (sort === 'popularity') return rankPool(world.freeAgents, (id) => world.wrestlers[id]);
+    const withWrestlers = world.freeAgents
+      .map((agent) => ({ agent, w: world.wrestlers[agent.wrestlerId] }))
+      .filter((pair): pair is { agent: FreeAgent; w: Wrestler } => Boolean(pair.w));
+    if (sort === 'name') {
+      return withWrestlers.sort((a, b) => a.w.name.localeCompare(b.w.name)).map((pair) => pair.agent);
+    }
+    return withWrestlers
+      .sort((a, b) => SORTS[sort].of(b.agent, b.w, world.settings) - SORTS[sort].of(a.agent, a.w, world.settings))
+      .map((pair) => pair.agent);
+  }, [world, sort]);
 
   if (!world) return null;
 
@@ -79,6 +104,26 @@ export function FreeAgentsScreen({
         <p className="text-xs text-neutral-500">
           Bank <Money amount={world.promotion.bankBalance} /> · roster {world.promotion.rosterIds.length}
         </p>
+      </div>
+
+      {/* Order is a separate question from which reasons are showing — the
+          two rows are one "narrow and order" toolbar read top to bottom. */}
+      <div className="mb-1.5 flex flex-wrap gap-1.5">
+        {(Object.keys(SORTS) as SortKey[]).map((key) => (
+          <button
+            key={key}
+            type="button"
+            data-testid={`fa-sort-${key}`}
+            onClick={() => setSort(key)}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+              sort === key
+                ? 'bg-emerald-600 text-white'
+                : 'bg-neutral-900 text-neutral-400 ring-1 ring-inset ring-neutral-800 hover:text-neutral-200'
+            }`}
+          >
+            {SORTS[key].label}
+          </button>
+        ))}
       </div>
 
       {/* Who's available and why is the whole decision on this screen —

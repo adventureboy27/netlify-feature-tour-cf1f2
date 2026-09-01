@@ -5,6 +5,21 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Free agents screen sort options — shipped
+
+Asked what else the free agents screen could use; the pick was sort options, since the pool had
+reason-filter chips (All / Never signed / Contract ran out / etc.) but a fixed display order —
+`rankPool` always sorts by popularity descending, with no way to reorder by price, age, or how
+long somebody's been sitting unsigned. Same shape of gap the Roster screen's sort chips already
+solved, brought here.
+
+A second `SORTS` chip row (`FreeAgentsScreen.tsx`, mirroring `RosterScreen.tsx`'s pattern exactly)
+sits above the existing reason-filter row: Popularity (default, still `rankPool`'s own order
+byte-for-byte so nothing changes unless you touch it), Cost (`currentAskingRate`, cheapest first),
+Age (youngest first), Weeks unsigned (longest-waiting first — the most discounted), Name. Sort and
+reason-filter are independent and compose freely. No engine or store changes — the comparators are
+screen-local, same as Roster's, since display order is a UI concern.
+
 ## Roster screen search and filter — shipped
 
 Asked what else the roster screen could use; the answer was a search/filter bar, since the screen was one flat
