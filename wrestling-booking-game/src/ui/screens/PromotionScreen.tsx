@@ -32,6 +32,7 @@ import { weeklyWageBill } from '../../engine/economy/contracts';
 import { followingOf } from '../../engine/world/territories';
 import { identityOf, PROMOTION_ARCHETYPES } from '../../data/promotionIdentity';
 import { PromotionMark } from '../components/PromotionMark';
+import { resizeToDataUrl } from '../paperdoll/photoUpload';
 import { fanTasteHighlights } from '../../engine/world/fanTaste';
 import { STYLE_LABEL } from '../../data/styles';
 import { titlesOf } from '../../data/titles';
@@ -502,7 +503,9 @@ export function PromotionScreen() {
 function IdentityPanel() {
   const world = useGameStore((s) => s.world);
   const setIdentity = useGameStore((s) => s.setPromotionIdentity);
+  const setPromotionLogo = useGameStore((s) => s.setPromotionLogo);
   const [draftName, setDraftName] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   if (!world) return null;
   const locked = world.showHistory.length > 0;
@@ -511,6 +514,17 @@ function IdentityPanel() {
   const belts = titlesOf(world.titles, world.promotion.id);
   const retireTitle = useGameStore((s) => s.retireTitle);
   const editTitle = useGameStore((s) => s.editTitle);
+  const logoDataUrl = world.promotion.logoDataUrl;
+
+  async function handleLogoFile(file: File | null) {
+    if (!file) return;
+    try {
+      setPromotionLogo(await resizeToDataUrl(file, 160));
+      setLogoError(null);
+    } catch (err) {
+      setLogoError(err instanceof Error ? err.message : 'That file could not be used.');
+    }
+  }
 
   return (
     <section className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">
@@ -522,7 +536,7 @@ function IdentityPanel() {
       </div>
 
       <div className="mb-2 flex items-center gap-2">
-        <PromotionMark name={name} archetype={world.promotion.identity} size="small" />
+        <PromotionMark name={name} archetype={world.promotion.identity} size="small" logoDataUrl={logoDataUrl} />
         <input
           type="text"
           value={name}
@@ -535,6 +549,33 @@ function IdentityPanel() {
           }}
           className="w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1 text-sm disabled:opacity-60"
         />
+      </div>
+
+      <div className="mb-2 flex items-center gap-2">
+        <label className="cursor-pointer rounded bg-neutral-800 px-2 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700">
+          {logoDataUrl ? 'Replace logo' : 'Upload logo'}
+          <input
+            type="file"
+            accept="image/*"
+            data-testid="promotion-logo-upload"
+            className="hidden"
+            onChange={(e) => {
+              void handleLogoFile(e.target.files?.[0] ?? null);
+              e.target.value = '';
+            }}
+          />
+        </label>
+        {logoDataUrl && (
+          <button
+            type="button"
+            data-testid="promotion-logo-remove"
+            onClick={() => setPromotionLogo(null)}
+            className="rounded bg-neutral-800 px-2 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700"
+          >
+            Remove logo
+          </button>
+        )}
+        {logoError && <span className="text-[11px] text-rose-400">{logoError}</span>}
       </div>
 
       <div className="mb-2 flex flex-wrap gap-1">

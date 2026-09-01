@@ -5,6 +5,49 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Real uploaded photos for the promotion logo and the owner — shipped
+
+Asked for directly: a way to upload a real promotion logo, and a real photo for the promoter, rather than the
+generated initials badge that was all there was for either. This is the same answer the game already gave
+once for wrestlers — `Wrestler.photoDataUrl` plus `ui/paperdoll/photoUpload.ts`'s browser-only decode/crop/
+resize pipeline (`ui/paperdoll/README.md`'s "a real photo, or a generated placeholder" philosophy) — applied
+to the two other things a save has.
+
+`Promotion` gained two optional fields (`logoDataUrl`, `ownerPhotoDataUrl`) — no schema-version bump needed,
+since both are purely additive and optional on an object nested inside `World`, which an old save's absent
+keys already tolerate under TS's own `?:` typing. `PromotionMark` (`ui/components/PromotionMark.tsx`) gained
+an optional `logoDataUrl` prop: present, it renders the real image plainly (no house-style clip-path — an
+uploaded logo already has its own shape and branding); absent, exactly the generated badge as before. The
+owner's photo needed no new component at all — `PaperDoll` (`ui/paperdoll/PaperDoll.tsx`) was already fully
+generic (`{photoDataUrl?, name, size, ...}`, nothing wrestler-specific), so it's reused verbatim as the
+owner's portrait.
+
+Two new store actions (`setPromotionLogo`, `setOwnerPhoto`, in `state/slices/tagTeamsAndIdentity.ts` next to
+`setPromotionIdentity`) mirror the existing `setWrestlerPhoto`'s exact shape. Unlike `setPromotionIdentity`,
+neither is locked after the first show — a photo is cosmetic, not lineage-affecting, so both stay editable
+any time. UI: an upload/remove control next to the mark in `PromotionScreen`'s `IdentityPanel`, and a new
+persistent "Who signs the cheques" strip in `OfficeScreen` (next to the existing anonymous mandate panel)
+showing the owner's shared personality label (`ownerProfile(personality).name` — e.g. "the true believer")
+alongside their photo. Both reuse `resizeToDataUrl` verbatim and mirror `WrestlerEditor.tsx`'s exact upload
+control pattern.
+
+Deliberately player's own promotion only — `RivalRosterScreen.tsx`'s own `<PromotionMark>` call is untouched,
+and no new UI was added for editing a rival at all, the same boundary `setPromotionIdentity` already draws
+(rivals are AI-controlled with no existing editing surface anywhere in the game). No new "owner as a named
+individual" system either — the owner stays the shared personality archetype it already was, just with a
+real photo on it now instead of nothing.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (180 files / 3137 tests — new coverage in
+`promotionPhotos.store.test.ts` for the two setters, mirroring the existing `setWrestlerPhoto` test's shape),
+`npm run build` clean, and — because this is a real UI change, not just simulation code — an actual browser
+pass: `npm run dev` plus a scripted Playwright drive (global Chromium at `/opt/pw-browsers/chromium`,
+since this project carries no local Playwright dependency) through a fresh New Game, onto the Promotion
+screen to upload and remove a real logo (confirmed the generated mark disappears and reappears correctly),
+and onto the Office screen to do the same for the owner photo — screenshotted both, and checked
+`console --errors` for nothing beyond a pre-existing, unrelated missing-favicon 404.
+
+---
+
 ## The nostalgic promoter — a rival owner who chases faded former stars — shipped
 
 Asked for directly: a Willy Wonka-toned rival owner — overly, radiantly positive — whose whole strategy is

@@ -27,6 +27,8 @@ type TagTeamsAndIdentitySlice = Pick<
   | 'setWrestlerPhoto'
   | 'retireWrestler'
   | 'setPromotionIdentity'
+  | 'setPromotionLogo'
+  | 'setOwnerPhoto'
 >;
 
 export const createTagTeamsAndIdentitySlice: StateCreator<
@@ -164,6 +166,22 @@ export const createTagTeamsAndIdentitySlice: StateCreator<
         title.colorway = fresh.colorway;
         title.signatureStipulationId = fresh.signatureStipulationId;
       });
+    });
+  },
+
+  setPromotionLogo: (logoDataUrl) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      world.promotion.logoDataUrl = logoDataUrl ?? undefined;
+    });
+  },
+
+  setOwnerPhoto: (photoDataUrl) => {
+    set((state) => {
+      const world = state.world;
+      if (!world) return;
+      world.promotion.ownerPhotoDataUrl = photoDataUrl ?? undefined;
     });
   },
 });

@@ -714,6 +714,10 @@ export interface GameStore {
   changeRole: (wrestlerId: Id, role: TransitionRole) => { ok: boolean; reason: string | null };
   /** Name the company and pick its house style. Locked once you run a show. */
   setPromotionIdentity: (name: string, archetype: PromotionArchetype) => void;
+  /** A real uploaded logo, or null to go back to the generated mark. Never locked — cosmetic only. */
+  setPromotionLogo: (logoDataUrl: string | null) => void;
+  /** A real uploaded photo of the owner, or null to go back to the generated placeholder. */
+  setOwnerPhoto: (photoDataUrl: string | null) => void;
   // Roster moves
   signFreeAgent: (wrestlerId: Id) => void;
   /**

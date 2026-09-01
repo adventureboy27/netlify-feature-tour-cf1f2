@@ -1,11 +1,14 @@
-// A promotion's own mark — initials on a house-style-coloured badge. Same
-// idea as PaperDoll's placeholder for a wrestler with no photo: no art
-// asset, just a name and a shape, generated rather than uploaded. Every
+// A promotion's own mark — initials on a house-style-coloured badge, or a
+// real uploaded logo once the booker has one. Same idea as PaperDoll's
+// placeholder for a wrestler with no photo: no art asset, just a name and a
+// shape, generated rather than uploaded, until a real image exists. Every
 // house style gets its own colour (chrome.tsx's promotionTheme) and its own
 // badge shape, so two promotions never read as the same logo before either
-// one has run a single show — and the mark updates live as the booker types
-// a name or changes house style, in NewGameScreen and everywhere else it's
-// shown.
+// one has run a single show — and the generated mark updates live as the
+// booker types a name or changes house style, in NewGameScreen and
+// everywhere else it's shown. A real uploaded logo is shown plainly instead
+// — it already has its own shape and branding, so it is never forced
+// through the house-style clip-path the generated badge uses.
 
 import { promotionTheme } from './chrome';
 import type { PromotionArchetype } from '../../engine/types';
@@ -53,16 +56,32 @@ export function PromotionMark({
   archetype,
   size = 'medium',
   className,
+  logoDataUrl,
 }: {
   /** The promotion's own name — initials are pulled straight from it, live. */
   name: string;
   archetype: PromotionArchetype | undefined;
   size?: MarkSize;
   className?: string;
+  /** A real uploaded logo, as a data URI. Absent for almost everyone. */
+  logoDataUrl?: string;
 }) {
   const theme = promotionTheme(archetype);
   const px = SIZE_PX[size];
   const clip = archetype ? SHAPE_CLIP[archetype] : undefined;
+
+  if (logoDataUrl) {
+    return (
+      <img
+        src={logoDataUrl}
+        alt={`${name.trim() || 'This promotion'}'s logo`}
+        width={px}
+        height={px}
+        className={`shrink-0 rounded-xl object-cover ${className ?? ''}`}
+        style={{ width: px, height: px }}
+      />
+    );
+  }
 
   return (
     <div

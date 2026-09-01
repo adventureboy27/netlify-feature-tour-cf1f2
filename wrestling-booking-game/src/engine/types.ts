@@ -1534,6 +1534,10 @@ export interface Promotion {
   ownerId: Id; // a Wrestler record with role 'owner'
   /** What the person signing the cheques is like. Biases what they demand. */
   ownerPersonality: OwnerPersonality;
+  /** A real uploaded photo of the owner. Absent for almost everyone — see ui/paperdoll/README.md's philosophy. */
+  ownerPhotoDataUrl?: string;
+  /** A real uploaded promotion logo. Absent means PromotionMark falls back to the generated badge. */
+  logoDataUrl?: string;
   /**
    * The men this company killed. Kept because the business keeps it: it
    * prices the roster and the free-agent market for two years afterwards.

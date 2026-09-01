@@ -36,6 +36,8 @@ import {
 import { egoLabel } from '../../engine/career/ego';
 import { awardById } from '../../engine/career/awards';
 import { strikeWarning } from '../../engine/world/mandates';
+import { ownerProfile } from '../../data/owners';
+import { resizeToDataUrl } from '../paperdoll/photoUpload';
 import { championInjuryOptions, championCallLine, type ChampionInjuryChoice } from '../../engine/world/titleDefence';
 import { TITLE_MEMORIAL_OPTIONS, type TitleMemorialChoiceId } from '../../engine/world/titleMemorial';
 import { loanTermsFor, LOAN_TIER_LABELS, type LoanTier } from '../../engine/economy/loan';
@@ -624,6 +626,62 @@ function DealOffers() {
  * before a bad decision and it does not hold your hand through a good one.
  * What it does say, loudly, is how much rope is left.
  */
+function OwnerStrip() {
+  const world = useGameStore((s) => s.world);
+  const setOwnerPhoto = useGameStore((s) => s.setOwnerPhoto);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  if (!world) return null;
+
+  const profile = ownerProfile(world.promotion.ownerPersonality);
+  const photoDataUrl = world.promotion.ownerPhotoDataUrl;
+
+  async function handlePhotoFile(file: File | null) {
+    if (!file) return;
+    try {
+      setOwnerPhoto(await resizeToDataUrl(file));
+      setPhotoError(null);
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : 'That file could not be used.');
+    }
+  }
+
+  return (
+    <section className="mb-3 flex items-center gap-3 rounded border border-neutral-800 bg-neutral-900 p-3">
+      <PaperDoll photoDataUrl={photoDataUrl} name={profile.name} size="thumb" />
+      <div className="min-w-0 flex-1">
+        <div className="text-xs uppercase tracking-wide text-neutral-500">Who signs the cheques</div>
+        <div className="truncate text-sm font-medium">{profile.name}</div>
+        {photoError && <div className="text-[11px] text-rose-400">{photoError}</div>}
+      </div>
+      <div className="flex shrink-0 gap-2">
+        <label className="cursor-pointer rounded bg-neutral-800 px-2 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700">
+          {photoDataUrl ? 'Replace photo' : 'Upload photo'}
+          <input
+            type="file"
+            accept="image/*"
+            data-testid="owner-photo-upload"
+            className="hidden"
+            onChange={(e) => {
+              void handlePhotoFile(e.target.files?.[0] ?? null);
+              e.target.value = '';
+            }}
+          />
+        </label>
+        {photoDataUrl && (
+          <button
+            type="button"
+            data-testid="owner-photo-remove"
+            onClick={() => setOwnerPhoto(null)}
+            className="rounded bg-neutral-800 px-2 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function Mandate() {
   const world = useGameStore((s) => s.world);
   const dismissMandateOutcome = useGameStore((s) => s.dismissMandateOutcome);
@@ -634,6 +692,7 @@ function Mandate() {
 
   return (
     <>
+      <OwnerStrip />
       {outcome && (
         <section
           data-testid="mandate-outcome"
