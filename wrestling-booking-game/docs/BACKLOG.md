@@ -5,6 +5,31 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Morale: the full reasons breakdown — shipped
+
+Asked what else the morale system could use; the pick was surfacing the full reasons breakdown,
+because `weeklyMorale()` (`engine/career/morale.ts`) already computes a whole ranked list of what
+moved somebody's morale that week — card position, win/loss, locker-room contagion, idle time,
+titles, perks, shoot burden, traits — and only the single loudest one survived as `moraleNote`.
+Everything else it worked out was thrown away the moment the tick finished.
+
+`Wrestler` gained an optional `moraleReasons?: { text: string; positive: boolean }[]` field
+(old-save-safe, same pattern as `weeksIceCold?`/`ledger?`). `topMoraleReasons()` (new, in
+`morale.ts`, right after `weeklyMorale`) trims `report.reasons` — already text-only and
+loudest-first — to `MORALE_REASONS_KEPT` (3) with each reason's sign made explicit for the UI.
+Both real write sites in `store.ts` populate it: the weekly tick alongside `moraleNote`, and the
+bereavement/grief pass (which sets `moraleNote` directly, bypassing `weeklyMorale`) with a single
+always-negative entry, so the breakdown never shows a stale pre-death list next to a note that just
+changed. `MoodLine` (`ui/components/Mood.tsx`, used in `WrestlerDetail.tsx`) grew a collapsed
+`<details>` "Why" disclosure beneath the existing face/label/arrow row, shown only when there's more
+than one stored reason — with one, it would just repeat the headline already visible. Each reason
+renders emerald or rose by sign, matching the game's established color language for good/bad news.
+
+Not integration-tested: the grief write site is a one-line mirror of an already-documented
+invariant (`Bereavement.moraleDelta` is "always negative"), and reliably forcing a death with a
+mourning relationship in a store test costs more setup than the risk warrants; covered by direct
+inspection instead. The weekly-tick path has real store-level coverage.
+
 ## Free agents screen sort options — shipped
 
 Asked what else the free agents screen could use; the pick was sort options, since the pool had

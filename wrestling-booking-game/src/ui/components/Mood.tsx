@@ -160,21 +160,43 @@ export function MoodLine({
   const band = moodBand(wrestler.morale, settings);
   const look = LOOKS[band];
   const moved = wrestler.moraleLastDelta;
+  const reasons = wrestler.moraleReasons ?? [];
   return (
-    <div className="mt-1 flex items-center gap-1.5">
-      <MoodFace wrestler={wrestler} settings={settings} size={size} />
-      <span className={`shrink-0 text-[10px] font-semibold ${look.ink}`}>{moodLabel(band)}</span>
-      {Math.abs(moved) >= 0.5 && (
-        <span
-          className={`shrink-0 text-[10px] ${moved > 0 ? 'text-emerald-400' : 'text-rose-400'}`}
-          title={moved > 0 ? 'Happier than last week' : 'Unhappier than last week'}
-          aria-label={moved > 0 ? 'improving' : 'worsening'}
-        >
-          {moved > 0 ? '▲' : '▼'}
-        </span>
-      )}
-      {wrestler.moraleNote && (
-        <span className="truncate text-[10px] text-neutral-400">{wrestler.moraleNote}</span>
+    <div>
+      <div className="mt-1 flex items-center gap-1.5">
+        <MoodFace wrestler={wrestler} settings={settings} size={size} />
+        <span className={`shrink-0 text-[10px] font-semibold ${look.ink}`}>{moodLabel(band)}</span>
+        {Math.abs(moved) >= 0.5 && (
+          <span
+            className={`shrink-0 text-[10px] ${moved > 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+            title={moved > 0 ? 'Happier than last week' : 'Unhappier than last week'}
+            aria-label={moved > 0 ? 'improving' : 'worsening'}
+          >
+            {moved > 0 ? '▲' : '▼'}
+          </span>
+        )}
+        {wrestler.moraleNote && (
+          <span className="truncate text-[10px] text-neutral-400">{wrestler.moraleNote}</span>
+        )}
+      </div>
+      {/* The rest of what this week actually did to them — weeklyMorale works
+          out several things and only the loudest survives as moraleNote
+          above. With one reason this would just repeat that line, so it only
+          shows once there is something more to say. */}
+      {reasons.length > 1 && (
+        <details className="mt-0.5" data-testid="morale-breakdown">
+          <summary className="cursor-pointer text-[10px] text-neutral-600 hover:text-neutral-400">Why</summary>
+          <ul className="mt-0.5 flex flex-col gap-0.5 pl-3">
+            {reasons.map((r, i) => (
+              <li
+                key={i}
+                className={`text-[10px] leading-snug ${r.positive ? 'text-emerald-400/80' : 'text-rose-400/80'}`}
+              >
+                {r.text}
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
     </div>
   );

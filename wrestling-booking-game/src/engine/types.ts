@@ -419,6 +419,13 @@ export interface Wrestler {
   moraleNote: string | null;
   /** Which way it moved last week, for the trend arrow. */
   moraleLastDelta: number;
+  /**
+   * The full ranked list behind this week's headline, loudest first — the
+   * same data `weeklyMorale` computed, just not discarded after the one-line
+   * summary was picked. Optional: absent on a save from before this existed,
+   * and an empty array is a legitimate "nothing worth naming happened" week.
+   */
+  moraleReasons?: { text: string; positive: boolean }[];
   momentum: number; // 0-100
   cardStatus: CardStatus;
   /**

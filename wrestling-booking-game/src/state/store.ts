@@ -111,7 +111,7 @@ import {
 } from '../engine/world/faction';
 import { inventRumour, rumourTweets, type Rumour } from '../engine/world/rumours';
 import { demandsDelivered, deliveryBonus, fanDemands } from '../engine/world/fanDemand';
-import { clampMorale, deliveredTo, moraleContext, weeklyMorale } from '../engine/career/morale';
+import { clampMorale, deliveredTo, moraleContext, topMoraleReasons, weeklyMorale } from '../engine/career/morale';
 import { absenceDecay, cardDrawIn, localStanding, setLocal, workingGain } from '../engine/career/reach';
 import {
   advance,
@@ -1606,6 +1606,10 @@ export const useGameStore = create<GameStore>()(
             if (!mourner) continue;
             mourner.morale = clampMorale(mourner.morale + grief.moraleDelta, world.settings);
             mourner.moraleNote = grief.note;
+            // Grief is always negative (see Bereavement's own doc comment) — a
+            // single-entry breakdown so it never shows a stale pre-death list
+            // next to a note that just changed.
+            mourner.moraleReasons = [{ text: grief.note, positive: false }];
           }
           const said = mourningLine(felt);
           if (said) world.weeklyNews.push(wire('death', said, world.week, 'normal'));
@@ -5213,6 +5217,7 @@ export const useGameStore = create<GameStore>()(
           member.morale = clampMorale(member.morale + report.delta, world.settings);
           member.moraleLastDelta = report.delta;
           member.moraleNote = report.headline?.text ?? null;
+          member.moraleReasons = topMoraleReasons(report);
         }
         for (const id of world.promotion.rosterIds) {
           const member = world.wrestlers[id];

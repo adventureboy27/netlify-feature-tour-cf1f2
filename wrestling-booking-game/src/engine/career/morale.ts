@@ -614,6 +614,18 @@ export function weeklyMorale(
   return { delta, reasons: said, headline };
 }
 
+/** How many of the week's reasons are worth keeping on the wrestler record. */
+export const MORALE_REASONS_KEPT = 3;
+
+/**
+ * The breakdown a "why" disclosure shows: loudest first, sign made explicit
+ * for the UI rather than re-derived from the sentence. `report.reasons` is
+ * already text-only and already sorted — this only trims and reshapes it.
+ */
+export function topMoraleReasons(report: MoraleReport): { text: string; positive: boolean }[] {
+  return report.reasons.slice(0, MORALE_REASONS_KEPT).map((r) => ({ text: r.text, positive: r.delta > 0 }));
+}
+
 /**
  * The one line the roster card shows.
  *

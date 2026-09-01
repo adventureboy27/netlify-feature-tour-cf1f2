@@ -7,6 +7,8 @@ import {
   moodLabel,
   moraleContext,
   moraleSummary,
+  MORALE_REASONS_KEPT,
+  topMoraleReasons,
   troubleInTheRoom,
   weeklyMorale,
   type MoraleContext,
@@ -323,6 +325,38 @@ describe('every point of it says why', () => {
     expect(moraleSummary(person({ moraleNote: 'Main evented the show.' }), settings)).toBe(
       'Main evented the show.',
     );
+  });
+});
+
+describe('the breakdown kept for the "why" disclosure', () => {
+  it('trims to MORALE_REASONS_KEPT and keeps the loudest-first order', () => {
+    const report = weeklyMorale(
+      person({ popularity: 85, ego: 75 }),
+      week({ slot: 0, outcome: 'lost', beatenByPopularity: 5, workedWithEnemies: 1, showRating: 20 }),
+      settings,
+    );
+    expect(report.reasons.length).toBeGreaterThan(MORALE_REASONS_KEPT);
+    const kept = topMoraleReasons(report);
+    expect(kept).toHaveLength(MORALE_REASONS_KEPT);
+    expect(kept.map((r) => r.text)).toEqual(report.reasons.slice(0, MORALE_REASONS_KEPT).map((r) => r.text));
+  });
+
+  it("marks each reason's sign to match its delta", () => {
+    const report = weeklyMorale(
+      person({ popularity: 85, ego: 75 }),
+      week({ slot: 0, outcome: 'lost', beatenByPopularity: 5, workedWithEnemies: 1, showRating: 20 }),
+      settings,
+    );
+    const kept = topMoraleReasons(report);
+    for (const [i, r] of kept.entries()) {
+      expect(r.positive).toBe(report.reasons[i]!.delta > 0);
+    }
+  });
+
+  it('never returns more than there were to begin with', () => {
+    const quiet = weeklyMorale(person(), week(), settings);
+    const kept = topMoraleReasons(quiet);
+    expect(kept.length).toBeLessThanOrEqual(quiet.reasons.length);
   });
 });
 
