@@ -14,6 +14,20 @@ export function defaultWorldSettings(): WorldSettings {
     ticketPriceBase: 4,
     ticketPricePerSegment: 1,
     salaryInflation: 0.01,
+    // A slow, real boom-and-bust swing. Mean reversion 0.02/week gives the
+    // climate a roughly 35-week half-life once it wanders off neutral — a
+    // real up-cycle or down-cycle holds for the better part of a year, not a
+    // month, before drifting back. Volatility 0.03/week against that
+    // reversion rate settles into a stationary spread where an ordinary
+    // "mild downturn/growth" week is common and a real, share-your-books
+    // recession or boom is rare — see engine/world/economicCycle.ts's label
+    // ladder, tuned against this exact spread.
+    economicClimateVolatility: 0.03,
+    economicClimateMeanReversion: 0.02,
+    // At a real recession (climate around -0.4) a fully humble, zero-ego free
+    // agent settles for roughly 16% less than they'd otherwise ask; a
+    // maximum-ego one asks exactly the same regardless of the economy.
+    climateAskingRateSwing: 0.4,
     bankruptcyGraceWeeks: 4,
     tvDealsEnabled: true,
     arenaTiersEnabled: true,

@@ -10,7 +10,7 @@
 // key, and it is where the opening roster comes from.
 
 import type { Rng } from '../rng';
-import { chance, randInt } from '../rng';
+import { chance, clamp, randInt } from '../rng';
 import type { Wrestler, WorldSettings } from '../types';
 import { generateWrestlers } from '../generate/wrestler';
 import { askingRate, desiredContractWeeks, isAffordable } from '../economy/contracts';
@@ -107,13 +107,29 @@ export function generateFreeAgentPool(
 }
 
 /**
- * Somebody nobody has signed in a long time will take less. This is what
- * makes patience a strategy and what keeps the pool from being a static
- * price list.
+ * What somebody actually wants right now — the stored base ask, moved by
+ * everything that has changed since they hit the pool.
+ *
+ * Two live adjustments, stacked: shelf time (somebody nobody has signed in a
+ * long time will take less — what makes patience a strategy and keeps the
+ * pool from being a static price list) and the wider economy. The second one
+ * is not flat across everybody: how far it moves a given wrestler depends on
+ * their own ego. A humble one reads the room — asks for real money less in a
+ * downturn, and just as honestly asks for more in a hot market. A wrestler
+ * who thinks they are the exception is unmoved either way; ego, not the
+ * calendar, decides what they are owed. See engine/world/economicCycle.ts.
  */
-export function currentAskingRate(agent: FreeAgent, settings: WorldSettings): number {
+export function currentAskingRate(
+  agent: FreeAgent,
+  wrestler: Wrestler,
+  economicClimate: number,
+  settings: WorldSettings,
+): number {
   const decay = Math.min(agent.weeksUnsigned * settings.freeAgentRateDecayPerWeek, settings.freeAgentMaxDiscount);
-  return Math.max(settings.contractBaseWeeklyRate, Math.round((agent.askingRate * (1 - decay)) / 25) * 25);
+  const humility = 1 - clamp(wrestler.ego, 0, 100) / 100;
+  const climateSwing = clamp(economicClimate, -1, 1) * settings.climateAskingRateSwing * humility;
+  const adjusted = agent.askingRate * (1 - decay) * (1 + climateSwing);
+  return Math.max(settings.contractBaseWeeklyRate, Math.round(adjusted / 25) * 25);
 }
 
 /** Can this promotion actually take them on? */

@@ -214,6 +214,14 @@ export interface World {
    */
   paperworkLockout: { weeksRemaining: number } | null;
   /**
+   * The wrestling business's own boom-and-bust cycle, -1 (deep recession) to
+   * +1 (boom). Ticks a little every week (engine/world/economicCycle.ts) but
+   * mean-reverts slowly, so a real up-cycle or down-cycle holds for months at
+   * a time rather than flickering week to week. Read by free-agent pricing —
+   * see engine/world/freeAgents.ts's currentAskingRate.
+   */
+  economicClimate: number;
+  /**
    * Last week's sheet, kept so this week's can show which way people moved.
    * The current one is derived on read — only the comparison needs storing.
    */
@@ -1181,6 +1189,9 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     rivalPricing: randomRivalPricingFor(rivals.map((r) => r.id), settings),
     pricingWar: null,
     paperworkLockout: null,
+    // Neutral at the start of every save — nobody opens mid-recession or
+    // mid-boom by default. See engine/world/economicCycle.ts.
+    economicClimate: 0,
     rivalShows: [],
     lastIncidents: [],
     lastPublication: null,

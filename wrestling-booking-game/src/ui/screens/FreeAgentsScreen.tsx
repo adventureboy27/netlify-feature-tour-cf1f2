@@ -22,6 +22,7 @@ import {
   type AvailabilityReason,
 } from '../../engine/world/freeAgents';
 import { contractLengthLine } from '../../engine/economy/contracts';
+import { economicClimateLabel } from '../../engine/world/economicCycle';
 import { leverageReason } from '../../engine/career/leverage';
 import { stanceOn, bodyLine } from '../../engine/career/theBody';
 import { pronounsFor } from '../../engine/career/pronouns';
@@ -42,13 +43,16 @@ import { WrestlerDetailBody } from '../components/WrestlerDetail';
 import type { FreeAgent } from '../../engine/world/freeAgents';
 import type { Id, Wrestler, WorldSettings } from '../../engine/types';
 
-type SortEntry = { label: string; of: (agent: FreeAgent, w: Wrestler, settings: WorldSettings) => number };
+type SortEntry = {
+  label: string;
+  of: (agent: FreeAgent, w: Wrestler, settings: WorldSettings, economicClimate: number) => number;
+};
 
 /** How the pool can be reordered — narrowing (the reason chips) is a separate concern from ordering (these). */
 const SORTS = {
   popularity: { label: 'Popularity', of: (_a, w) => w.popularity } as SortEntry,
   // Negated so every column reads "biggest number of merit first," same convention as RosterScreen's age/contract sorts.
-  cost: { label: 'Cost', of: (a, _w, s) => -currentAskingRate(a, s) } as SortEntry,
+  cost: { label: 'Cost', of: (a, w, s, c) => -currentAskingRate(a, w, c, s) } as SortEntry,
   age: { label: 'Age', of: (_a, w) => -w.age } as SortEntry,
   weeksUnsigned: { label: 'Weeks unsigned', of: (a) => a.weeksUnsigned } as SortEntry,
   name: { label: 'Name', of: () => 0 } as SortEntry,
@@ -79,7 +83,11 @@ export function FreeAgentsScreen({
       return withWrestlers.sort((a, b) => a.w.name.localeCompare(b.w.name)).map((pair) => pair.agent);
     }
     return withWrestlers
-      .sort((a, b) => SORTS[sort].of(b.agent, b.w, world.settings) - SORTS[sort].of(a.agent, a.w, world.settings))
+      .sort(
+        (a, b) =>
+          SORTS[sort].of(b.agent, b.w, world.settings, world.economicClimate) -
+          SORTS[sort].of(a.agent, a.w, world.settings, world.economicClimate),
+      )
       .map((pair) => pair.agent);
   }, [world, sort]);
 
@@ -97,12 +105,36 @@ export function FreeAgentsScreen({
   const activeAgent = visible.find((a) => a.wrestlerId === activeAgentId);
   const activeWrestler = activeAgentId ? world.wrestlers[activeAgentId] : undefined;
 
+  // The wider economy, not this company's own fortunes — see
+  // engine/world/economicCycle.ts. Shown here rather than buried in a
+  // finance tab because it's the market this screen is actually shopping in.
+  const climateLabel = economicClimateLabel(world.economicClimate);
+  const CLIMATE_TONE: Record<typeof climateLabel, string> = {
+    Recession: 'text-rose-400',
+    Downturn: 'text-amber-400',
+    Steady: 'text-neutral-500',
+    Growing: 'text-emerald-400',
+    Boom: 'text-emerald-400',
+  };
+  const CLIMATE_NOTE: Record<typeof climateLabel, string> = {
+    Recession:
+      "the market's cold — the humbler names on this list are settling for a lot less, though the ones with real leverage haven't budged an inch. A lot of bookers just wait a year like this out",
+    Downturn: "business is soft — some of these people are pricing that in",
+    Steady: 'an ordinary market, nothing pushing rates either way',
+    Growing: "business is picking up — even the modest ones are asking for a bit more",
+    Boom: "the market's red hot — anybody realistic about it knows exactly what that means for their price",
+  };
+
   return (
     <div className="p-6 text-neutral-100">
       <div className="mb-3">
         <h1 className="text-base font-semibold">Free agents — {ranked.length}</h1>
         <p className="text-xs text-neutral-500">
           Bank <Money amount={world.promotion.bankBalance} /> · roster {world.promotion.rosterIds.length}
+        </p>
+        <p className="mt-0.5 text-xs" data-testid="fa-economic-climate">
+          The market: <span className={CLIMATE_TONE[climateLabel]}>{climateLabel}</span>
+          <span className="text-neutral-500"> — {CLIMATE_NOTE[climateLabel]}</span>
         </p>
       </div>
 
@@ -193,7 +225,11 @@ export function FreeAgentsScreen({
             {visible.map((agent) => {
               const wrestler = world.wrestlers[agent.wrestlerId];
               if (!wrestler) return null;
-              const rate = ourPrice(currentAskingRate(agent, world.settings), heldAgainstUs, world.settings);
+              const rate = ourPrice(
+                currentAskingRate(agent, wrestler, world.economicClimate, world.settings),
+                heldAgainstUs,
+                world.settings,
+              );
               // He is not sitting out a no-compete; he simply will not work here.
               const refuses = buried && wontWorkForUs(wrestler, heldAgainstUs, world.settings)
                 ? refusalLine(wrestler.name, buried.name, pronounsFor(wrestler))

@@ -5,6 +5,58 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Added: a real business cycle, and free-agent asks that read the room
+
+Asked for directly: "cyclical trends... where it downturns and may need to hold off on new
+hires... free agent salaries should not only inflate or deflate based on skills, age,
+motivation, but the less egotistical may realize that in a rough economy they may need to ask
+for less."
+
+**A real cycle, not noise.** New `World.economicClimate` (-1 deep recession to +1 boom, 0
+neutral), ticked weekly by `engine/world/economicCycle.ts`'s `tickEconomicClimate` — a
+mean-reverting random walk (an Ornstein-Uhlenbeck process, the standard way to model a real
+business cycle), not a sine wave and not per-week noise. Mean reversion 0.02/week gives it
+roughly a 35-week half-life once displaced, so an up-cycle or down-cycle genuinely holds for
+the better part of a year before drifting back — confirmed live in an 80-week played save
+(`window.__store`): the climate crossed into a real, sustained Downturn at week 18, stayed
+there (with real texture, not a flat line) until nearly touching the Recession threshold around
+week 34, then took another ~50 weeks to fully recover to Steady. Read as words, never a number
+(`economicClimateLabel`: Recession/Downturn/Steady/Growing/Boom), and only announced on the
+wire — `economicClimateShiftLine` — the week the *label* actually crosses a line, not every
+week's small wobble; boundaries are tuned against the settings' own stationary spread so
+"Steady" is the common case and "Recession"/"Boom" are genuinely rare, matching real cycles.
+
+**Where it bites: free-agent asking rates, weighted by ego.** `engine/world/freeAgents.ts`'s
+`currentAskingRate` — already the live "shelf-time discount" function, the one place a stored
+base ask gets adjusted for what has changed since — now takes the wrestler and the climate too.
+A wrestler's own `ego` (0-100, already a real, established stat — see `career/ego.ts`) decides
+how much they read the room: `humility = 1 - ego/100`, and the swing is
+`climate * climateAskingRateSwing * humility`. A fully humble free agent asks up to ~16% less
+in a real recession and just as honestly asks for more in a real boom; a maximum-ego one is
+completely unmoved either way, boom or bust — ego, not the calendar, decides what they think
+they're owed, exactly as asked. Verified directly: a zero-ego wrestler's price swings with the
+climate in both directions; a hundred-ego wrestler's price is bit-for-bit identical at
+climate -1, 0, and +1; a mid-ego wrestler's swing sits strictly between the two.
+
+**"May need to hold off on new hires"**: satisfied by that same asymmetry rather than by a
+separate mechanic — during a downturn, humble depth gets genuinely cheap while anybody with real
+leverage still costs exactly what they always did, so a booker chasing a name during a real
+recession is paying full price for it regardless; the market note on the Free Agents screen says
+this in-fiction ("the ones with real leverage haven't budged an inch — a lot of bookers just
+wait a year like this out"). Deliberately did not touch demand, attendance, or the weekly
+expense tax to build this — those formulas are carefully tuned and this request was specifically
+about hiring and free-agent pricing; broadening it to overall revenue is a separate, larger
+change if wanted later.
+
+Also visible on the Free Agents screen itself: a "The market: <label>" line under the bank/roster
+summary, color-toned by severity, with a short note explaining what it means for this week's
+prices — never buried in a finance tab, since this is the screen that's actually shopping in
+that market.
+
+`tsc --noEmit` clean; full suite 190 files / 3,219 tests passing (new: `economicCycle.test.ts`,
+`economicCycle.store.test.ts`, plus a new "the wider economy" suite in `freeAgents.test.ts`);
+`npm run build` clean; verified live in the browser as described above.
+
 ## Added: "Chance card" pool — small, sporadic, one-off money swings
 
 Asked for directly: a Monopoly-Chance-card-style layer of random windfalls and setbacks, distinct

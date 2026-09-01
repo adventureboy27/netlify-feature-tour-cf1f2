@@ -459,6 +459,7 @@ import { randomRivalPricing } from '../engine/world/pricing';
 import { pickPricingWarTarget, slashedPricing, pricingWarStartLine, pricingWarEndLine } from '../engine/world/pricingWar';
 import { rollPaperworkFreezes, paperworkLockoutStartLine, paperworkLockoutEndLine } from '../engine/world/paperworkLockout';
 import { pickMoneyEvent, moneyEventAmount } from '../engine/world/moneyEvents';
+import { tickEconomicClimate, economicClimateLabel, economicClimateShiftLine } from '../engine/world/economicCycle';
 import { checkUnlocks } from '../engine/world/unlocks';
 import {
   compassionateLeave,
@@ -4602,6 +4603,23 @@ export const useGameStore = create<GameStore>()(
 
         // And rival bookers slowly forget what you did to them on a joint card.
         world.grudges = decayGrudges(world.grudges, world.settings);
+
+        // The wider economy's own weekly drift — a real boom-and-bust cycle
+        // sitting underneath every company's own fortunes, not any one
+        // company's own health. Its own seeded stream, same reasoning as the
+        // story roll below: never touch the shared one. Announced only when
+        // the label actually crosses a line, not every week's small wobble —
+        // see engine/world/economicCycle.ts.
+        const climateLabelBefore = economicClimateLabel(world.economicClimate);
+        world.economicClimate = tickEconomicClimate(
+          world.economicClimate,
+          rngFromSeed(`economicClimate:${world.week}`),
+          world.settings,
+        );
+        const climateLabelAfter = economicClimateLabel(world.economicClimate);
+        if (climateLabelAfter !== climateLabelBefore) {
+          world.weeklyNews.push(wire('business', economicClimateShiftLine(climateLabelAfter), world.week, 'normal'));
+        }
 
         // The major-story pool — a weekly sibling to per-match incidents.
         // At most one of these fires a week, whichever wins the roll (see

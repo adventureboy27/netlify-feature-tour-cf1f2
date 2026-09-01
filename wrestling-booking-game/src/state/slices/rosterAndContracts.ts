@@ -213,7 +213,11 @@ export const createRosterAndContractsSlice: StateCreator<
       const held = stillHeldAgainstUs(world.promotion.deathsOnOurWatch ?? [], world.week, world.settings);
       if (wontWorkForUs(wrestler, held, world.settings)) return;
 
-      const weeklyRate = ourPrice(currentAskingRate(agent, world.settings), held, world.settings);
+      const weeklyRate = ourPrice(
+        currentAskingRate(agent, wrestler, world.economicClimate, world.settings),
+        held,
+        world.settings,
+      );
       // Not what a person still holds against us (onOurWatch.ts, above) —
       // what the market thinks of this promotion's own recent behaviour.
       // See economy/releaseStigma.ts.

@@ -10,6 +10,8 @@ import {
 } from './freeAgents';
 import { defaultWorldSettings } from './settings';
 import { rngFromSeed } from '../rng';
+import { generateWrestler } from '../generate/wrestler';
+import type { Wrestler } from '../types';
 
 const settings = defaultWorldSettings();
 
@@ -17,6 +19,11 @@ function pool(seed = 'fa') {
   const { wrestlers, freeAgents } = generateFreeAgentPool(rngFromSeed(seed), settings);
   const byId = new Map(wrestlers.map((w) => [w.id, w]));
   return { wrestlers, freeAgents, byId, get: (id: string) => byId.get(id) };
+}
+
+/** A plain, ego-neutral wrestler for tests that only care about the shelf-time discount, not the market. */
+function neutralWrestler(over: Partial<Wrestler> = {}): Wrestler {
+  return { ...generateWrestler(rngFromSeed('fa-neutral'), new Set()), ego: 50, ...over };
 }
 
 describe('the pool', () => {
@@ -63,14 +70,59 @@ describe('sitting on the shelf', () => {
     weeksUnsigned,
   });
 
+  const w = neutralWrestler();
+
   it('makes somebody cheaper the longer nobody signs them', () => {
-    expect(currentAskingRate(agent(40), settings)).toBeLessThan(currentAskingRate(agent(0), settings));
+    expect(currentAskingRate(agent(40), w, 0, settings)).toBeLessThan(currentAskingRate(agent(0), w, 0, settings));
   });
 
   it('stops discounting at the floor, so patience is not infinite', () => {
-    const veryStale = currentAskingRate(agent(500), settings);
+    const veryStale = currentAskingRate(agent(500), w, 0, settings);
     expect(veryStale).toBeGreaterThanOrEqual(settings.contractBaseWeeklyRate);
     expect(veryStale).toBeGreaterThanOrEqual(1000 * (1 - settings.freeAgentMaxDiscount) - 25);
+  });
+});
+
+describe('the wider economy', () => {
+  const agent: FreeAgent = { wrestlerId: 'x', reason: 'released', askingRate: 1000, wantsWeeks: 52, weeksUnsigned: 0 };
+
+  it('a humble free agent asks for less in a downturn and more in a boom', () => {
+    const humble = neutralWrestler({ ego: 0 });
+    const steady = currentAskingRate(agent, humble, 0, settings);
+    const recession = currentAskingRate(agent, humble, -1, settings);
+    const boom = currentAskingRate(agent, humble, 1, settings);
+    expect(recession).toBeLessThan(steady);
+    expect(boom).toBeGreaterThan(steady);
+  });
+
+  it('a maximum-ego free agent asks the same regardless of the economy', () => {
+    const egotist = neutralWrestler({ ego: 100 });
+    const steady = currentAskingRate(agent, egotist, 0, settings);
+    const recession = currentAskingRate(agent, egotist, -1, settings);
+    const boom = currentAskingRate(agent, egotist, 1, settings);
+    expect(recession).toBe(steady);
+    expect(boom).toBe(steady);
+  });
+
+  it('a mid-ego free agent moves less than a fully humble one, for the same climate', () => {
+    const humble = neutralWrestler({ ego: 0 });
+    const middling = neutralWrestler({ ego: 50 });
+    const humbleSwing = Math.abs(currentAskingRate(agent, humble, -1, settings) - currentAskingRate(agent, humble, 0, settings));
+    const middlingSwing = Math.abs(
+      currentAskingRate(agent, middling, -1, settings) - currentAskingRate(agent, middling, 0, settings),
+    );
+    expect(middlingSwing).toBeLessThan(humbleSwing);
+  });
+
+  it('never moves anybody below the floor even in the deepest recession', () => {
+    const humble = neutralWrestler({ ego: 0 });
+    expect(currentAskingRate(agent, humble, -1, settings)).toBeGreaterThanOrEqual(settings.contractBaseWeeklyRate);
+  });
+
+  it('clamps an out-of-range climate value rather than extrapolating past the ceiling', () => {
+    const humble = neutralWrestler({ ego: 0 });
+    expect(currentAskingRate(agent, humble, 5, settings)).toBe(currentAskingRate(agent, humble, 1, settings));
+    expect(currentAskingRate(agent, humble, -5, settings)).toBe(currentAskingRate(agent, humble, -1, settings));
   });
 });
 
@@ -101,18 +153,20 @@ describe('a week in the pool', () => {
   it('is what brings a price down, so patience is a strategy', () => {
     // The whole reason the shelf-time is counted. Without the ageing this was
     // a frozen price list and waiting somebody out did nothing at all.
-    const { freeAgents } = pool();
+    const { freeAgents, get } = pool();
     const agent = freeAgents[0]!;
+    const w = get(agent.wrestlerId)!;
     let aged = [agent];
     for (let week = 0; week < 30; week++) aged = agePool(aged);
-    expect(currentAskingRate(aged[0]!, settings)).toBeLessThan(currentAskingRate(agent, settings));
+    expect(currentAskingRate(aged[0]!, w, 0, settings)).toBeLessThan(currentAskingRate(agent, w, 0, settings));
   });
 
   it('stops discounting somewhere — he is not eventually free', () => {
-    const { freeAgents } = pool();
+    const { freeAgents, get } = pool();
+    const w = get(freeAgents[0]!.wrestlerId)!;
     let aged = [freeAgents[0]!];
     for (let week = 0; week < 5000; week++) aged = agePool(aged);
-    expect(currentAskingRate(aged[0]!, settings)).toBeGreaterThanOrEqual(settings.contractBaseWeeklyRate);
+    expect(currentAskingRate(aged[0]!, w, 0, settings)).toBeGreaterThanOrEqual(settings.contractBaseWeeklyRate);
   });
 
   it('changes nothing else about anybody', () => {

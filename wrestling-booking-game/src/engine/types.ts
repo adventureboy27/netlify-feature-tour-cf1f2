@@ -1722,6 +1722,17 @@ export interface WorldSettings {
   ticketPriceBase: number;
   ticketPricePerSegment: number;
   salaryInflation: number;
+  // The wrestling economy's own boom-and-bust cycle — distinct from
+  // salaryInflation above (a one-way secular drift that nothing currently
+  // reads). This is a real, two-way, slow-moving swing: World.economicClimate
+  // drifts up and down over many months at a time rather than jumping around
+  // week to week. See engine/world/economicCycle.ts.
+  /** How hard the climate can swing week to week, before mean reversion pulls it back. */
+  economicClimateVolatility: number;
+  /** How fast the climate is pulled back toward neutral (0) each week. */
+  economicClimateMeanReversion: number;
+  /** Max swing a fully humble (zero-ego) free agent's asking rate takes at climate = +-1. */
+  climateAskingRateSwing: number;
   bankruptcyGraceWeeks: number;
   tvDealsEnabled: boolean;
   arenaTiersEnabled: boolean;
