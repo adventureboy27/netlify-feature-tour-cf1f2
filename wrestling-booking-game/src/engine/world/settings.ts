@@ -139,6 +139,15 @@ export function defaultWorldSettings(): WorldSettings {
     // Standing is lost at two fifths the speed it is won. See
     // stepCompanyRatingTowardTarget.
     ratingLadderFallMultiplier: 0.4,
+    // The flat fall above is blind to how big the gap actually is — found
+    // playing a save past a year, where a company that had run its roster
+    // into the ground (shows routinely rating 0, nobody left to fill a card)
+    // still sat at a 90+ rating twenty weeks later. 5% of the gap a week
+    // barely changes an ordinary few-point dip (the flat rate above still
+    // wins there) but a 79-point gap like that one now closes for real
+    // within a normal campaign instead of staying numb to it for over a
+    // year. See stepCompanyRatingTowardTarget.
+    ratingLadderFallProportional: 0.05,
     // Show stars -> the company rating those shows are worth. See the DESIGN
     // note on targetCompanyRatingForStars: §13's own table put the floor at
     // 60 and paid 80 for an ordinary night, which made the ladder's stated

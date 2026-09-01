@@ -119,4 +119,34 @@ describe('stepCompanyRatingTowardTarget', () => {
   it('holds steady once at the target', () => {
     expect(stepCompanyRatingTowardTarget(80, 80, 1, false)).toBe(80);
   });
+
+  describe('fallProportional', () => {
+    // Real defaults: ratingLadderFallMultiplier 0.4, ratingLadderFallProportional 0.05.
+    it('leaves an ordinary, small gap falling close to the old flat rate', () => {
+      // Gap of 15 (docs/BALANCE.md's own "ordinary shows shed fifteen points"
+      // example): 15 * 0.05 = 0.75, close to (if a touch more than) the flat
+      // term's own 0.4, so an ordinary dip is still a gentle, gradual thing.
+      expect(stepCompanyRatingTowardTarget(95, 80, 1, false, 0.4, 0.05)).toBe(94.25);
+    });
+
+    it('makes a huge, sustained gap correct far faster than the flat rate alone would', () => {
+      // The played-save number this was built for: a company sitting at 99
+      // while the shows it has actually been running deserve a 20.
+      const flatOnly = stepCompanyRatingTowardTarget(99, 20, 1, false, 0.4, 0);
+      const withProportional = stepCompanyRatingTowardTarget(99, 20, 1, false, 0.4, 0.05);
+      expect(flatOnly).toBe(98.6);
+      expect(withProportional).toBeCloseTo(95.05, 5);
+      expect(withProportional).toBeLessThan(flatOnly - 3);
+    });
+
+    it('never overshoots the target even when the proportional term would blow past it', () => {
+      expect(stepCompanyRatingTowardTarget(20.5, 20, 1, false, 0.4, 1.5)).toBe(20);
+    });
+
+    it('doubles on a PPV, same as the flat term', () => {
+      const tv = stepCompanyRatingTowardTarget(99, 20, 1, false, 0.4, 0.05);
+      const ppv = stepCompanyRatingTowardTarget(99, 20, 1, true, 0.4, 0.05);
+      expect(99 - ppv).toBeCloseTo((99 - tv) * 2, 5);
+    });
+  });
 });

@@ -5,6 +5,49 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Fixed: company rating stayed numb to a real, sustained collapse
+
+Asked for "checks and balances and fail-safes" after playing an 80-week save turned up a longer-
+horizon version of the attendance bug just below: a promotion that had spent months earning its
+way to a 90+ rating, then had its roster ground down by unmanaged retirements until shows were
+routinely rating a literal 0 (an empty card, nobody left to fill it), still sat at 90+ twenty weeks
+later — bank still climbing, no visible sign anything was wrong. Following (the fix below) was
+behaving correctly the whole time; the culprit was a second, separate ratchet on the same demand
+formula: `showRating.ts`'s company-rating ladder climbs a flat point a week but only *falls* at
+0.4x that speed (`ratingLadderFallMultiplier`), regardless of how big the gap between the rating
+and what the shows actually deserve has gotten. That flat rate was itself a deliberate, documented
+fix for the opposite failure mode — an unslowed ladder once folded companies in ten weeks with no
+warning — so tightening it blindly risked reintroducing that exact bug.
+
+`stepCompanyRatingTowardTarget` (`showRating.ts`) now takes a second, optional fall term,
+`fallProportional` — a share of the *gap itself*, combined with the existing flat term by taking
+whichever is larger, never both. A small, ordinary gap (a few points) still falls at essentially
+the old flat rate, so a normal bad week is exactly as forgettable as before — the "time to notice
+and react" promise stays intact. A huge, sustained gap (the played save's 79-point one) now
+corrects for real: at the shipped default (`ratingLadderFallProportional: 0.05`), a 90+ rating
+against shows that deserve a 20 now falls several points a week instead of 0.4, closing within a
+normal campaign instead of staying stuck for over a year. Wired into both the player's own
+resolveWeek call and the rival tick (rivals already fell at the full flat rate with no multiplier
+at all — left that half alone, only added the new proportional term on top, since rebalancing rival
+difficulty wasn't what was asked).
+
+The existing flat-rate tests (`showRating.test.ts`, `store.test.ts`) needed no changes at all —
+`fallProportional` defaults to 0, so every call site that doesn't pass it is byte-for-byte the old
+function. New tests cover the actual promise: an ordinary 15-point gap barely moves past the flat
+rate, a 79-point gap corrects several times faster, the term never overshoots the target even when
+it would blow straight past it, and it doubles on a PPV same as the flat term always did.
+
+Replayed the exact save that exposed the bug (same seed, same 80+ weeks): the healthy first third
+(weeks 2-21) came out essentially identical to the unfixed run — company rating, following, bank
+all tracking within noise, confirming ordinary play is untouched. Past week 36, where the roster
+collapse actually starts, the two runs diverge hard: the old run held at rating 90+ and a climbing
+$2.5M bank through 20+ weeks of literal 0-rated shows; the fixed run's rating and following both
+visibly crater alongside the roster (rating 65 → 15, following 100 → 0, bank turning over and
+declining from its $1.5M peak) — the promotion is now honestly, visibly in trouble instead of
+coasting on stale numbers, with the bank still healthy enough at that point that a player watching
+would have real runway to notice and fix it before it became fatal. `tsc --noEmit` clean; full
+suite 185 files / 3,183 tests passing; `npm run build` clean.
+
 ## Fixed: attendance stopped answering to show quality once a town was won over
 
 Found playing a save through the paperwork lockout above: ratings collapsed for six straight

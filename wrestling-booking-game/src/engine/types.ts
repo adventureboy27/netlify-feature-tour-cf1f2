@@ -1839,6 +1839,15 @@ export interface WorldSettings {
   ratingLadderStepPerWeek: number;
   /** How much slower the rating falls than it climbs. */
   ratingLadderFallMultiplier: number;
+  /**
+   * Share of the gap between current rating and target charged as an
+   * additional fall, on top of (not stacked with — the larger wins) the flat
+   * `ratingLadderFallMultiplier` fall. Lets a small, ordinary gap keep
+   * correcting at roughly the old flat rate while a huge, sustained one (a
+   * company coasting on a stale reputation through a real, prolonged
+   * disaster) actually closes. See stepCompanyRatingTowardTarget.
+   */
+  ratingLadderFallProportional: number;
   /** Show stars -> target company rating, interpolated between anchors. */
   ratingLadderAnchors: [stars: number, target: number][];
   defaultMatchLength: number;

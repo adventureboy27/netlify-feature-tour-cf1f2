@@ -3943,6 +3943,7 @@ export const useGameStore = create<GameStore>()(
           // direction. It is the night people judge you on.
           isPPV,
           world.settings.ratingLadderFallMultiplier,
+          world.settings.ratingLadderFallProportional,
         );
 
         world.showHistory.push({
@@ -4247,6 +4248,11 @@ export const useGameStore = create<GameStore>()(
             targetCompanyRatingForStars(show.showStars, world.settings),
             world.settings.ratingLadderStepPerWeek,
             false,
+            // Rivals already fell at the full flat rate (no fallMultiplier
+            // passed here), so this only adds the new gap-proportional
+            // fail-safe — see ratingLadderFallProportional.
+            1,
+            world.settings.ratingLadderFallProportional,
           );
         }
 

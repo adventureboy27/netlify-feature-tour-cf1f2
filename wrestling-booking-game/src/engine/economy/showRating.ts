@@ -88,13 +88,23 @@ export function targetCompanyRatingForStars(stars: number, settings: WorldSettin
  * on ordinary shows shed fifteen rating points in nine weeks, and because the
  * audience curve is steep that is an eighty-eight per cent collapse in the
  * gate. Companies folded inside ten weeks with the player given no time to
- * notice, let alone react.
+ * notice, let alone react. `fallMultiplier` slowed that flat per-week fall
+ * down to fix it.
  *
- * Reputation is stickier than that in both directions, but especially
- * downward — people keep turning up out of habit long after the shows stop
- * being worth it. Slower to lose than to win still leaves a bad run
- * expensive; it just makes it a decline you can see coming and fight, rather
- * than a trapdoor.
+ * That flat fall has its own failure mode at the other end, found playing a
+ * save out past a year: a promotion that had spent months earning its way to
+ * a 90+ rating, then ran a roster into the ground until shows were routinely
+ * rating 0 (an empty card, no wrestlers left to fill it), still sat at 90+
+ * twenty weeks later. A flat per-week fall does not care how big the gap is —
+ * it takes exactly as long to correct a company that is 5 points optimistic
+ * about itself as one that is 79. `fallProportional` adds a second term, a
+ * share of the *gap itself*, so an ordinary bad patch (a small gap) still
+ * corrects at roughly the old flat rate — the "time to notice and react"
+ * promise above still holds — while a genuinely severe, sustained collapse
+ * (the gap `fallMultiplier` was never big enough to touch) closes for real
+ * within a normal campaign's timescale instead of staying numb to it for
+ * over a year. The two terms are combined with the larger one winning, not
+ * added, so a small gap is never charged both.
  */
 export function stepCompanyRatingTowardTarget(
   current: number,
@@ -102,9 +112,15 @@ export function stepCompanyRatingTowardTarget(
   stepPerWeek: number,
   isPPV: boolean,
   fallMultiplier = 1,
+  fallProportional = 0,
 ): number {
   const step = isPPV ? stepPerWeek * 2 : stepPerWeek;
   if (current < target) return Math.min(target, current + step);
-  if (current > target) return Math.max(target, current - step * fallMultiplier);
+  if (current > target) {
+    const gap = current - target;
+    const flatFall = step * fallMultiplier;
+    const proportionalFall = gap * fallProportional * (isPPV ? 2 : 1);
+    return Math.max(target, current - Math.max(flatFall, proportionalFall));
+  }
   return current;
 }
