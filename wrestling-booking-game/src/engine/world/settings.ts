@@ -416,10 +416,11 @@ export function defaultWorldSettings(): WorldSettings {
     // remembers, and it remembers the price rather than the empty seats, so
     // it still stings on a night that sold out.
     //
-    // Calibrated against territoryFollowingPerStar (1.6): a four-star show
-    // earns 6.4 following. At 1.5x fair the gouge takes 5.6 of it back, so a
-    // great card barely holds its ground. At 2x it takes 12.6 and the town
-    // goes backwards however good the wrestling was.
+    // Calibrated against territoryFollowingPerStar (4, off the neutral line
+    // at territoryFollowingNeutralStars): a four-star show earns 4 following.
+    // At 1.5x fair the gouge takes 5.6 of it back — a great card already goes
+    // backwards. At 2x it takes 12.6 and there is no card good enough to
+    // cover it.
     priceGougeForgiveness: 0.1,
     priceGougeGoodwillPenalty: 14,
     priceBargainGoodwillBonus: 3,
@@ -1733,7 +1734,16 @@ export function defaultWorldSettings(): WorldSettings {
     // Territories. A five-star show is worth 8 following; a week away costs
     // 1.2 — so a town you run monthly holds roughly steady and a town you
     // abandon has forgotten you inside a year.
-    territoryFollowingPerStar: 1.6,
+    territoryFollowingNeutralStars: 3,
+    // Rescaled from the old flat-from-zero 1.6 so a 5-star show still earns
+    // exactly what it always did — (5-3)*4 = 8, same as the old 5*1.6 — while
+    // now a show below the neutral line actively costs following instead of
+    // just gaining less of it. See territoryFollowingNeutralStars.
+    territoryFollowingPerStar: 4,
+    // On par with the away-decay rate rather than a mirror of the gain rate —
+    // see territoryFollowingLossPerStar's doc comment for why a steeper one
+    // ran a save into the ground.
+    territoryFollowingLossPerStar: 1,
     territoryFollowingDecayPerWeek: 1.2,
     territoryFitRatingWeight: 9,
     territoryHardcoreFullViolence: 6,

@@ -5,6 +5,51 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Fixed: attendance stopped answering to show quality once a town was won over
+
+Found playing a save through the paperwork lockout above: ratings collapsed for six straight
+weeks and the house stayed pinned at the venue's exact capacity the entire time. Traced it to
+`territories.ts`'s `followingGain` — home-town following only ever climbed while a promotion kept
+returning (decay, in the same file, only bites towns you did *not* run in that week), so it
+saturated at 100 within about two months of ordinary touring and then just sat there, permanently,
+through any run of bad shows after that. It feeds `economy/showBudget.ts`'s `computeDemand` as a
+1.5x multiplier at the max, and that multiplier alone was enough to push demand over the point
+where the audience curve (steep by design, `demandAudienceCurve: 6.5`) blows straight past a
+modest venue's capacity — so once a town was won over, quality stopped mattering to the gate at
+all, for as long as the promotion kept showing up.
+
+`followingGain` now pivots on a new `territoryFollowingNeutralStars` (3 — already documented
+elsewhere in this file, in `showRating.ts`, as the game's own definition of "ordinary": the anchor
+comment there reads "3.0★ (ordinary) -> 50 mid-table"). Above it, following builds; at it, nothing
+moves; below it, following is *lost*, not just gained slower. First pass used the same rate in both
+directions (rescaled so a 5-star show still earns exactly the 8 following it always did) and it
+was a genuine bug of its own: attendance, demand and following all feed each other (a thin house
+drags the next show's own rating down via `attendanceRatingModifier`), so a symmetric rate closed
+a real reinforcing loop — verified by playing `store.test.ts`'s own year-long save through it,
+which spiralled into bankruptcy by week 32 with ratings sitting in an ordinary 40s-50s the whole
+time, nothing like the disaster that should cost a promotion its business. The loss side now uses
+its own much gentler rate (`territoryFollowingLossPerStar: 1`, on par with the existing away-decay
+rate rather than a mirror of the gain rate) — a bad night costs roughly what staying home would
+have, not more. Re-ran the same year-long save afterward: it now reaches the turn of the year with
+the bank over $1M and no fold, and the four `store.test.ts` tests the symmetric version broke
+(three "awards night" tests plus one "officials" test, all long-running simulated saves that
+happened to hit the death spiral) pass again untouched.
+
+Two calibration comments that cited the old numbers got updated to match (a settings.ts comment
+on `priceGougeGoodwillPenalty`, calibrated against following-per-star; a `showBudget.test.ts` test
+that reimplemented the old flat formula inline rather than calling `followingGain`, fixed to call
+the real function instead of hand-rolling a stale copy). `territories.test.ts`'s `following`
+describe block re-expressed rather than re-baselined — the old `followingGain(0) === 0` assertion
+protected "quality matters," which is still true, just now expressed as "a 0-star show actively
+loses ground" rather than "a 0-star show earns nothing."
+
+Verified live in the browser: forced the same paperwork-lockout scenario as the story's own
+verification above and played 13 weeks through it. A 0.5-star show four weeks into the lockout
+drew 86 people (bank $235,976, company rating still 72 off the good run beforehand) — down hard
+from a venue-capping ~1600 in the healthy weeks before the story hit, and continuing to fall in
+step with the still-worsening ratings rather than sitting at a ceiling. `tsc --noEmit` clean; full
+suite 185 files / 3,179 tests passing; `npm run build` clean.
+
 ## Papers Held Up — an industry-wide licensing lockout, shipped
 
 Brainstormed as a strike/union story, then landed on something arbitrary instead: a hostile

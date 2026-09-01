@@ -24,10 +24,28 @@ export function followingOf(territory: Territory, promotionId: Id): number {
 
 /**
  * What running here tonight did for you. Following is earned by the show, not
- * by showing up — a bad card in a good town moves almost nothing.
+ * by showing up — and a genuinely bad card in a good town costs you standing
+ * there, not just gains less of it.
+ *
+ * Pivots on territoryFollowingNeutralStars (3, the same show that's neutral
+ * on the company-rating ladder): above it you build following, below it you
+ * lose it, at it nothing moves. Without a floor of some kind, home following
+ * only ever climbed while a promotion kept returning — decay (below) only
+ * bites the towns you didn't run in — so it saturated permanently within a
+ * couple of months and stayed there through any run of bad shows after that:
+ * the demand multiplier this feeds (see economy/showBudget.ts's `computeDemand`)
+ * stayed pinned at its ceiling regardless of how the shows were actually
+ * going, and attendance stopped answering to quality at all. This is what
+ * keeps that link real.
+ *
+ * The two directions use different rates (territoryFollowingLossPerStar,
+ * much gentler than territoryFollowingPerStar) rather than one shared number
+ * — see that field's own comment for the real feedback loop a symmetric rate
+ * closed and how it played out in a played save.
  */
 export function followingGain(showStars: number, settings: WorldSettings): number {
-  return showStars * settings.territoryFollowingPerStar;
+  const distance = showStars - settings.territoryFollowingNeutralStars;
+  return distance * (distance >= 0 ? settings.territoryFollowingPerStar : settings.territoryFollowingLossPerStar);
 }
 
 /**

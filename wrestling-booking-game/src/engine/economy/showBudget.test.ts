@@ -14,6 +14,7 @@ import {
   priceReaction,
   priceReactionLine,
 } from './showBudget';
+import { followingGain } from '../world/territories';
 import { VENUES, venueById, availableVenues } from '../../data/venues';
 import { PRODUCTION_ASSETS, SHOW_EXTRAS, availableExtras, productionAssetById, showExtraById } from '../../data/production';
 import { defaultWorldSettings } from '../world/settings';
@@ -380,9 +381,9 @@ describe('what greed costs', () => {
   });
 
   it('outweighs a great card once the price is a real gouge', () => {
-    // A four-star show earns four stars' worth of following. Doubling the
+    // A four-star show earns real following of its own. Doubling the
     // ticket has to take more than that back, or gouging is still free.
-    const earned = 4 * settings.territoryFollowingPerStar;
+    const earned = followingGain(4, settings);
     expect(earned + priceGoodwill(2, settings)).toBeLessThan(0);
   });
 

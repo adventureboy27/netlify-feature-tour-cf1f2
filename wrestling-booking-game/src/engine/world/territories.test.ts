@@ -108,15 +108,25 @@ describe('the map', () => {
 describe('following', () => {
   it('is earned by the show, not by showing up', () => {
     expect(followingGain(5, settings)).toBeGreaterThan(followingGain(1, settings));
-    expect(followingGain(0, settings)).toBe(0);
+  });
+
+  it('pivots on the neutral line: nothing moves at it, and a real disaster costs you standing there', () => {
+    // Without this, a promotion parked in its home town forever only ever
+    // gained following (decay only bites towns you did NOT run in that
+    // week), so it saturated permanently and a bad stretch had nothing left
+    // to erode — the demand multiplier stayed pinned at its ceiling no
+    // matter how the shows actually went. A below-neutral show has to lose
+    // ground for that link to mean anything.
+    expect(followingGain(settings.territoryFollowingNeutralStars, settings)).toBe(0);
+    expect(followingGain(0, settings)).toBeLessThan(0);
+    expect(followingGain(5, settings)).toBeGreaterThan(0);
   });
 
   it('drains every week you are not there', () => {
     expect(followingDecay(settings)).toBeGreaterThan(0);
   });
 
-  it('drains slower than a good show builds, but a bad one loses ground', () => {
-    // A great night is worth several weeks away; a one-star night is not.
+  it('a great night is worth several weeks away; a bad one is worth none at all', () => {
     expect(followingGain(5, settings)).toBeGreaterThan(followingDecay(settings) * 4);
     expect(followingGain(1, settings)).toBeLessThan(followingDecay(settings) * 2);
   });

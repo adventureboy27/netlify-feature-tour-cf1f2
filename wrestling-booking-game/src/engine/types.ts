@@ -3646,8 +3646,34 @@ export interface WorldSettings {
 
   // Territories — §16. The decay is the load-bearing number: it is what stops
   // the player finding one big market and running there forever.
-  /** Following earned per star of show quality. */
+  /**
+   * Star rating a show has to clear before it earns any following at all —
+   * below it, following is lost, not just gained slower. Without this, home
+   * following only ever climbed while a promotion kept returning (decay only
+   * applies to towns you didn't run in), so it saturated permanently within a
+   * couple of months and a long bad stretch had nothing left to erode: the
+   * demand multiplier stayed pinned at its ceiling no matter how bad the
+   * shows got. 3 matches ratingLadderAnchors' own midpoint — the same show
+   * that's neutral for company rating is neutral here too.
+   */
+  territoryFollowingNeutralStars: number;
+  /** Following earned per star of show quality above territoryFollowingNeutralStars. */
   territoryFollowingPerStar: number;
+  /**
+   * Following lost per star of show quality below territoryFollowingNeutralStars.
+   *
+   * Deliberately much gentler than the gain rate, not a mirror of it. Local
+   * following also feeds back into demand (economy/showBudget.ts's
+   * computeDemand), demand into attendance, and a thin house drags the next
+   * show's own rating down (attendanceRatingModifier) — so a symmetric rate
+   * closes a real feedback loop: a bad night costs following, which costs
+   * demand, which empties the house further, which costs the following show
+   * too. Tried at the same 4/star as the gain rate first and it span a save
+   * into the ground inside 30 weeks with no way back, ratings in the 40s the
+   * whole time — this is the number that lets a bad stretch cost you
+   * something real without being able to feed itself.
+   */
+  territoryFollowingLossPerStar: number;
   /** Following lost every week in every town you did not run. */
   territoryFollowingDecayPerWeek: number;
   /** What a town's taste is worth on the show rating, at a weight of 1. */
