@@ -38,6 +38,13 @@ export const createCardBuilderSlice: StateCreator<GameStore, [['zustand/immer', 
     set((state) => {
       const segment = state.world?.currentCard[slot];
       if (!segment) return;
+      // Unlike an injury, which the booker can send a man out on anyway (§0
+      // never warns before a bad decision), a paperwork freeze is a real
+      // legal bar — there is no "book him hurt" equivalent for a license
+      // stuck in review. The picker already keeps a frozen name off the
+      // list; this is the backstop for anything that calls the action
+      // directly. See engine/world/paperworkLockout.ts.
+      if (state.world?.wrestlers[wrestlerId]?.paperworkFrozen) return;
       // A wrestler occupies exactly one slot in a segment at a time.
       segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
       segment.participants.push({ wrestlerId, side, role: 'competitor' });
@@ -56,6 +63,8 @@ export const createCardBuilderSlice: StateCreator<GameStore, [['zustand/immer', 
     set((state) => {
       const segment = state.world?.currentDarkMatches[slot];
       if (!segment) return;
+      // Same hard bar as the main card — see setSegmentParticipant above.
+      if (state.world?.wrestlers[wrestlerId]?.paperworkFrozen) return;
       segment.participants = segment.participants.filter((p) => p.wrestlerId !== wrestlerId);
       segment.participants.push({ wrestlerId, side, role: 'competitor' });
     });

@@ -60,6 +60,9 @@ export function DarkMatchSlots() {
               <option value="">Nobody</option>
               {roster
                 .filter((w) => w.id === current?.id || !bookedIds.has(w.id))
+                // A paperwork freeze is a hard bar — no dark matches either.
+                // See engine/world/paperworkLockout.ts.
+                .filter((w) => w.id === current?.id || !w.paperworkFrozen)
                 .map((w) => (
                   <option key={w.id} value={w.id}>
                     {billedAs(w)}

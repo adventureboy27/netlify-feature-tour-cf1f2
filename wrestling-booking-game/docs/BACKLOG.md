@@ -42,17 +42,42 @@ manager/agent (`representation.ts`'s commission credit looks up the agent indepe
 both found by a store-level integration test failing on the wrong post-week `ledger.earnings`,
 not by reasoning about the code up front.
 
-Manual booking (`SlotRosterPicker`) does **not** gate on `canWork` — turns out it never did, for
-injuries either; you can already manually add an injured, uncleared wrestler to a card today, and
-whatever that costs is on the booker. `paperworkFrozen` sits in `canWork` right alongside
-`injury`, so it inherits that same pre-existing permissiveness rather than getting bespoke
-UI-level blocking — consistent with "the game never warns the player before a bad decision."
-
 Deliberately out of scope, named rather than silently skipped: the idle-morale system still reads
 a frozen wrestler's enforced idleness as an ordinary booking gap rather than knowing it's an
 external lockout, and survivor fatigue needed no new code at all — `fatigueDebt` already only
 recovers on rest weeks, so a roster run down to a third does the "beat up and very tired" work on
 its own once shows keep running through it.
+
+### Follow-up: manual booking is now a hard block, and a played save confirms the feel
+
+First pass left manual booking (`SlotRosterPicker`/`DarkMatchSlots`) ungated on `paperworkFrozen`
+— it turned out that path never gated on `canWork` for injuries either, so a frozen wrestler
+inherited that same "the game never warns you" permissiveness by default. Asked to play a save
+and check the feel, and told directly: a frozen wrestler should not be bookable, full stop —
+unlike an injury, there's no "book him hurt anyway" equivalent for a license stuck in review, so
+this one gets real enforcement rather than parity with the existing injury behavior.
+
+`setSegmentParticipant`/`setDarkMatchParticipant` (`state/slices/cardBuilder.ts`) now refuse to
+add a `paperworkFrozen` wrestler — a no-op, same shape as the picker's own existing "already
+booked" guard, not an error. `SlotRosterPicker` and `DarkMatchSlots` filter frozen wrestlers out
+of their pickable list entirely rather than showing a disabled "Add," so a frozen name simply
+doesn't appear when browsing to fill a slot; the roster screen's own "Papers held up" chip is
+still where the booker sees why somebody vanished from the pool. Confirmed live: opening a slot
+mid-lockout on a 24-person roster with 17 frozen showed exactly the 7 clear names, none of the 17
+leaked through, and calling `setSegmentParticipant` directly against a frozen id (bypassing the
+UI) was refused too.
+
+Then played an actual save through it — `autoFillCard` + "Run the show" for 14 weeks, lockout
+tuned to fire naturally rather than forced. Show rating held in the mid-50s to mid-60s (2.75-3.25
+stars) every week before the freeze hit at week 9 (14 of 21 frozen, right on the ~2/3 target), then
+fell hard: 37.1 the first full week under it, bottoming at 22.5 (1 star) by week 13, still down at
+29.0 the week before the lift, recovering to 32.6 the week it ends (that week's card was still
+built the day the lockout lifted, off the roster as it stood that morning). Exactly the "may not be
+as entertaining, but the money keeps coming" the story was pitched as — attendance and bank kept
+climbing right through the worst-rated stretch, undisturbed by the show quality collapse. That
+gap is a pre-existing property of this save's attendance/economy curve, not something the lockout
+feature introduces or should paper over — flagged here as an observation, not fixed, since
+changing how attendance responds to rating was never in scope for this story.
 
 Verified: `tsc --noEmit` clean; full suite 185 files / 3,177 tests passing, including one caught
 mid-verification by the game's own gendered-pronoun lint (`pronouns.test.ts`) — the start line's

@@ -45,6 +45,12 @@ export function SlotRosterPicker({
   const bookedIds = new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)));
   const available = roster
     .filter((w) => !bookedIds.has(w.id))
+    // Unlike an injury, a paperwork freeze is a hard bar to working at all —
+    // there is no "book him anyway" for a license stuck in review. Off the
+    // picker entirely rather than shown-but-blocked; the roster screen's own
+    // "Papers held up" chip is where the booker sees why. See
+    // engine/world/paperworkLockout.ts.
+    .filter((w) => !w.paperworkFrozen)
     .filter((w) => w.name.toLowerCase().includes(search.toLowerCase()));
 
   const bySide = (s: number): Wrestler[] =>

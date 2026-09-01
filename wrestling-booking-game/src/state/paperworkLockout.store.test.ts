@@ -147,6 +147,24 @@ describe('the paperwork lockout', () => {
     }
   });
 
+  it('refuses to manually book a frozen wrestler, on the main card or in a dark match', () => {
+    useGameStore.setState((s) => {
+      s.world!.settings.paperworkLockoutChancePerWeek = 1;
+      s.world!.week = s.world!.settings.paperworkLockoutEarliestWeek;
+    });
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    const frozenId = world.promotion.rosterIds.find((id) => world.wrestlers[id]?.paperworkFrozen);
+    expect(frozenId).toBeDefined();
+
+    useGameStore.getState().setSegmentParticipant(0, frozenId!, 0);
+    expect(useGameStore.getState().world!.currentCard[0]!.participants).toHaveLength(0);
+
+    useGameStore.getState().setDarkMatchParticipant(0, frozenId!, 0);
+    expect(useGameStore.getState().world!.currentDarkMatches[0]!.participants).toHaveLength(0);
+  });
+
   it('clears every frozen flag and announces the end after its duration runs out', () => {
     useGameStore.setState((s) => {
       s.world!.settings.paperworkLockoutChancePerWeek = 1;
