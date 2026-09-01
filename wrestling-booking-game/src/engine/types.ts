@@ -1731,8 +1731,18 @@ export interface WorldSettings {
   economicClimateVolatility: number;
   /** How fast the climate is pulled back toward neutral (0) each week. */
   economicClimateMeanReversion: number;
-  /** Max swing a fully humble (zero-ego) free agent's asking rate takes at climate = +-1. */
+  /** Baseline swing everybody's asking rate takes at climate = +-1, before the ego adjustment below. */
   climateAskingRateSwing: number;
+  /**
+   * On the boom side only: how much extra a maximum-ego free agent leverages
+   * on top of the baseline swing — 0.75 means a max-ego wrestler's boom-time
+   * ask moves 75% further than the baseline. On the downturn side, ego does
+   * the opposite job — see climateAskingRateSwing's humility term in
+   * engine/world/freeAgents.ts's currentAskingRate.
+   */
+  climateBoomEgoPremium: number;
+  /** A single week's |climate delta| at or above this counts as a real outlier worth its own Breaking News warning, not just an ordinary wobble. */
+  climateSharpMoveThreshold: number;
   bankruptcyGraceWeeks: number;
   tvDealsEnabled: boolean;
   arenaTiersEnabled: boolean;

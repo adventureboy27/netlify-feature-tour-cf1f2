@@ -26,8 +26,19 @@ export function defaultWorldSettings(): WorldSettings {
     economicClimateMeanReversion: 0.02,
     // At a real recession (climate around -0.4) a fully humble, zero-ego free
     // agent settles for roughly 16% less than they'd otherwise ask; a
-    // maximum-ego one asks exactly the same regardless of the economy.
+    // maximum-ego one asks exactly the same regardless of the economy. In a
+    // real boom (climate around +0.4) the same baseline swing runs the other
+    // way for everybody, and a maximum-ego wrestler leverages an extra 75%
+    // on top of it (climateBoomEgoPremium) — wanting a bigger piece of the
+    // pie specifically because they can, not because the market alone earned
+    // it for them.
     climateAskingRateSwing: 0.4,
+    climateBoomEgoPremium: 0.75,
+    // ~2.3x the weekly volatility above — a real one-week outlier, not the
+    // ordinary drift. At this threshold a sharp move is rare enough to read
+    // as a genuine event (roughly once or twice in a long save) rather than
+    // firing on an unremarkable week.
+    climateSharpMoveThreshold: 0.07,
     bankruptcyGraceWeeks: 4,
     tvDealsEnabled: true,
     arenaTiersEnabled: true,

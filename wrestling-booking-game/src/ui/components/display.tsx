@@ -15,6 +15,7 @@ import type { RatingBreakdownEntry, Wrestler, WorldSettings } from '../../engine
 import { oddsLabel } from '../../engine/sim/oddsLabel';
 import { heatLabel, shootLabel } from '../../engine/sim/rivalry';
 import { freshnessLabel, heatIcon, isStale } from '../../engine/sim/freshness';
+import { economicClimateLabel } from '../../engine/world/economicCycle';
 
 export function StatBar({ label, value, tone = 'neutral' }: { label: string; value: number; tone?: 'neutral' | 'health' }) {
   const pct = Math.max(0, Math.min(100, value));
@@ -127,6 +128,31 @@ export function GimmickHeatMeter({ wrestler, settings }: { wrestler: Wrestler; s
       <span className={`w-24 shrink-0 truncate text-[10px] ${isStale(wrestler, settings) ? 'text-amber-400' : 'text-neutral-500'}`}>
         {heatIcon(wrestler, settings)} {freshnessLabel(wrestler, settings)}
       </span>
+    </div>
+  );
+}
+
+/**
+ * The wrestling economy's own boom-and-bust cycle — "a state of the economy
+ * scale and a marker on current position," as asked for. Same shape as
+ * GimmickHeatMeter above: a marker on a fixed spectrum, Recession on one end
+ * and Boom on the other, because this is a position on a cycle, not a
+ * depleting resource. Recession/Boom, not raw -1..+1 — the number is never
+ * shown, same rule as everything else on this page.
+ */
+export function EconomicClimateMeter({ climate }: { climate: number }) {
+  const pct = Math.max(0, Math.min(100, ((Math.max(-1, Math.min(1, climate)) + 1) / 2) * 100));
+  const label = economicClimateLabel(climate);
+  return (
+    <div className="flex items-center gap-1.5" title={`The wrestling economy: ${label}`}>
+      <span className="text-[10px] leading-none text-rose-400">Recession</span>
+      <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-gradient-to-r from-rose-500 via-neutral-700 to-emerald-500">
+        <div
+          className="absolute top-1/2 h-2.5 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow"
+          style={{ left: `${pct}%` }}
+        />
+      </div>
+      <span className="text-[10px] leading-none text-emerald-400">Boom</span>
     </div>
   );
 }

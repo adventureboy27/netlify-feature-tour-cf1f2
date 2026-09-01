@@ -113,11 +113,14 @@ export function generateFreeAgentPool(
  * Two live adjustments, stacked: shelf time (somebody nobody has signed in a
  * long time will take less — what makes patience a strategy and keeps the
  * pool from being a static price list) and the wider economy. The second one
- * is not flat across everybody: how far it moves a given wrestler depends on
- * their own ego. A humble one reads the room — asks for real money less in a
- * downturn, and just as honestly asks for more in a hot market. A wrestler
- * who thinks they are the exception is unmoved either way; ego, not the
- * calendar, decides what they are owed. See engine/world/economicCycle.ts.
+ * is not flat across everybody, and deliberately not symmetric either. A
+ * downturn is read by humility: a humble wrestler settles for real money
+ * less, a maximum-ego one does not move at all — stubborn, not realistic.
+ * A boom runs the other way: everybody's price drifts up a little because
+ * the market genuinely improved, but a high-ego wrestler leverages a hot
+ * market hard on top of that baseline and wants a bigger piece of it than
+ * the market alone earned them. Same trait, opposite jobs depending on which
+ * way the wind is blowing — see engine/world/economicCycle.ts.
  */
 export function currentAskingRate(
   agent: FreeAgent,
@@ -126,8 +129,12 @@ export function currentAskingRate(
   settings: WorldSettings,
 ): number {
   const decay = Math.min(agent.weeksUnsigned * settings.freeAgentRateDecayPerWeek, settings.freeAgentMaxDiscount);
-  const humility = 1 - clamp(wrestler.ego, 0, 100) / 100;
-  const climateSwing = clamp(economicClimate, -1, 1) * settings.climateAskingRateSwing * humility;
+  const climate = clamp(economicClimate, -1, 1);
+  const egoShare = clamp(wrestler.ego, 0, 100) / 100;
+  const climateSwing =
+    climate >= 0
+      ? climate * settings.climateAskingRateSwing * (1 + egoShare * settings.climateBoomEgoPremium)
+      : climate * settings.climateAskingRateSwing * (1 - egoShare);
   const adjusted = agent.askingRate * (1 - decay) * (1 + climateSwing);
   return Math.max(settings.contractBaseWeeklyRate, Math.round(adjusted / 25) * 25);
 }

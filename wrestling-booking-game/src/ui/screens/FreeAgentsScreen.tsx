@@ -37,7 +37,7 @@ import {
 import { noCompeteLabel } from '../../engine/economy/termination';
 import { releaseStigmaActive } from '../../engine/economy/releaseStigma';
 import { CAREER_STATUS_LABELS } from '../../engine/career/status';
-import { Money } from '../components/display';
+import { Money, EconomicClimateMeter } from '../components/display';
 import { WrestlerRow } from '../components/WrestlerRow';
 import { WrestlerDetailBody } from '../components/WrestlerDetail';
 import type { FreeAgent } from '../../engine/world/freeAgents';
@@ -122,7 +122,7 @@ export function FreeAgentsScreen({
     Downturn: "business is soft — some of these people are pricing that in",
     Steady: 'an ordinary market, nothing pushing rates either way',
     Growing: "business is picking up — even the modest ones are asking for a bit more",
-    Boom: "the market's red hot — anybody realistic about it knows exactly what that means for their price",
+    Boom: "the market's red hot, and the ones with any ego at all know it — they want a bigger piece of it than the market alone would give them",
   };
 
   return (
@@ -136,6 +136,9 @@ export function FreeAgentsScreen({
           The market: <span className={CLIMATE_TONE[climateLabel]}>{climateLabel}</span>
           <span className="text-neutral-500"> — {CLIMATE_NOTE[climateLabel]}</span>
         </p>
+        <div className="mt-1 max-w-xs">
+          <EconomicClimateMeter climate={world.economicClimate} />
+        </div>
       </div>
 
       {/* Order is a separate question from which reasons are showing — the

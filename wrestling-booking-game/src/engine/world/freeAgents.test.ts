@@ -95,13 +95,21 @@ describe('the wider economy', () => {
     expect(boom).toBeGreaterThan(steady);
   });
 
-  it('a maximum-ego free agent asks the same regardless of the economy', () => {
+  it('a maximum-ego free agent is stubborn in a recession — asks exactly the same as steady times', () => {
     const egotist = neutralWrestler({ ego: 100 });
     const steady = currentAskingRate(agent, egotist, 0, settings);
     const recession = currentAskingRate(agent, egotist, -1, settings);
-    const boom = currentAskingRate(agent, egotist, 1, settings);
     expect(recession).toBe(steady);
-    expect(boom).toBe(steady);
+  });
+
+  it('a maximum-ego free agent leverages a boom for more than the market alone would give a humble one', () => {
+    const egotist = neutralWrestler({ ego: 100 });
+    const humble = neutralWrestler({ ego: 0 });
+    const steady = currentAskingRate(agent, egotist, 0, settings);
+    const egotistBoom = currentAskingRate(agent, egotist, 1, settings);
+    const humbleBoom = currentAskingRate(agent, humble, 1, settings);
+    expect(egotistBoom).toBeGreaterThan(steady);
+    expect(egotistBoom).toBeGreaterThan(humbleBoom);
   });
 
   it('a mid-ego free agent moves less than a fully humble one, for the same climate', () => {

@@ -12,9 +12,13 @@
 // recession) to +1 (boom), 0 neutral.
 //
 // Read today by free-agent asking rates (see engine/world/freeAgents.ts's
-// currentAskingRate) — the humbler a wrestler is, the more they read the
-// room and adjust what they ask for; a wrestler who thinks they're the
-// exception does not.
+// currentAskingRate) — asymmetrically, on purpose. A downturn is read by
+// humility: a humble wrestler settles for real money less, a max-ego one
+// does not move an inch. A boom is read by ego instead: everybody's price
+// drifts up a little because the market genuinely got better, but a
+// high-ego wrestler leverages a hot market hard and wants a bigger piece of
+// it than the market alone would give them — stubborn on the way down,
+// opportunistic on the way up.
 
 import type { Rng } from '../rng';
 import { clamp, gaussian } from '../rng';
@@ -25,6 +29,25 @@ export function tickEconomicClimate(current: number, rng: Rng, settings: WorldSe
   const reverted = current + (0 - current) * settings.economicClimateMeanReversion;
   const nudged = reverted + gaussian(rng, 0, settings.economicClimateVolatility);
   return clamp(nudged, -1, 1);
+}
+
+/**
+ * A single week's move big enough to be a real outlier against the settings'
+ * own week-to-week spread, not just an ordinary wobble. Reported separately
+ * from the label crossing above — a run of small steps can cross a label
+ * quietly, but a real one-week lurch is worth a warning on its own even if
+ * it doesn't cross a line, and a label crossing that landed via a run of
+ * small steps doesn't need one.
+ */
+export function isSharpEconomicMove(before: number, after: number, settings: WorldSettings): boolean {
+  return Math.abs(after - before) >= settings.climateSharpMoveThreshold;
+}
+
+/** The recap-page warning for a real one-week lurch — reported as Breaking News, not folded into the ordinary feed. */
+export function economicClimateSharpMoveLine(before: number, after: number): string {
+  return after > before
+    ? "Something just moved fast in the wider business — a real jump in one week, not the usual drift. Whatever it is, the market noticed all at once."
+    : 'Something just went wrong in the wider business, fast — a real drop in one week, not the usual drift. This did not build up slowly; it happened.';
 }
 
 export type EconomicClimateLabel = 'Recession' | 'Downturn' | 'Steady' | 'Growing' | 'Boom';

@@ -7,7 +7,13 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { useGameStore } from './store';
 import { defaultWorldSettings } from '../engine/world/settings';
 import { rngFromSeed } from '../engine/rng';
-import { tickEconomicClimate, economicClimateLabel, economicClimateShiftLine } from '../engine/world/economicCycle';
+import {
+  tickEconomicClimate,
+  economicClimateLabel,
+  economicClimateShiftLine,
+  isSharpEconomicMove,
+  economicClimateSharpMoveLine,
+} from '../engine/world/economicCycle';
 
 function freshSettings(overrides: Partial<ReturnType<typeof defaultWorldSettings>> = {}) {
   return {
@@ -82,6 +88,30 @@ describe('the economic climate, wired into a real week', () => {
       (n) => n.kind === 'business' && n.week === world.week && n.text === economicClimateShiftLine(labelAfter),
     );
     expect(shiftLinePosted).toBe(labelAfter !== labelBefore);
+  });
+
+  it('gives a real one-week outlier its own lead-weight Breaking News warning, matching the pure detector exactly', () => {
+    const startClimate = 0.1;
+    useGameStore.setState((s) => {
+      s.world!.economicClimate = startClimate;
+      s.world!.week = 20;
+    });
+    const settings = useGameStore.getState().world!.settings;
+    const expectedClimate = tickEconomicClimate(startClimate, rngFromSeed('economicClimate:21'), settings);
+    const expectSharp = isSharpEconomicMove(startClimate, expectedClimate, settings);
+
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    expect(world.economicClimate).toBeCloseTo(expectedClimate, 10);
+    const sharpLinePosted = world.weeklyNews.some(
+      (n) =>
+        n.kind === 'business' &&
+        n.week === world.week &&
+        n.weight === 'lead' &&
+        n.text === economicClimateSharpMoveLine(startClimate, expectedClimate),
+    );
+    expect(sharpLinePosted).toBe(expectSharp);
   });
 
   it('a deep recession genuinely charges a humble free agent less than a neutral economy would', () => {

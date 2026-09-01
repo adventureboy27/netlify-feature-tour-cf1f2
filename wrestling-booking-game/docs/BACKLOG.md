@@ -5,6 +5,55 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Added: a real gauge, boom-side ego, and recap-page warnings for the economy
+
+Three follow-ups on the business-cycle feature just below, all asked for in the same message:
+"same for a great economy, they may want bigger pieces of the pie"; "a state of the economy
+scale and a marker on current position"; "warnings on the weekly recap page if the economy...
+moves so many points beyond a normal range."
+
+**The boom side is ego-driven now, not humility-capped.** `currentAskingRate`'s climate swing was
+symmetric — humility (`1 - ego/100`) gated both directions, so a max-ego wrestler was simply
+unmoved by climate either way. Reworked to be asymmetric on purpose: a downturn is still read by
+humility (a humble wrestler settles for less, a stubborn one doesn't move), but a boom is read by
+ego instead — everybody's price drifts up a little because the market genuinely improved
+(`climateAskingRateSwing`, unchanged baseline), and a high-ego wrestler leverages that hot market
+for an *additional* premium on top (`climateBoomEgoPremium: 0.75` — a max-ego wrestler's boom-time
+ask moves 75% further than the baseline). Same trait, opposite job depending on which way the wind
+blows. Verified directly: a max-ego wrestler is still bit-for-bit flat in a recession, but strictly
+outbids a humble one in a boom — re-expressed the old "flat both directions" test into "flat in a
+recession" + "leverages more than a humble one in a boom" rather than deleting the coverage.
+
+**A real gauge — `EconomicClimateMeter`** (`ui/components/display.tsx`), same shape as the existing
+`GimmickHeatMeter`: a marker on a fixed Recession-to-Boom gradient track, because this is a
+position on a cycle, not a depleting resource. The number itself is never shown, same rule as
+every other stat in the game. Placed in two places: a persistent, always-visible
+`EconomicClimateSummary` section at the top of the Office screen (the general state-of-the-business
+home), and inline on the Free Agents screen next to the existing market-note line, since that's the
+screen actually shopping in that market. Both confirmed live via Playwright screenshots.
+
+**Kept the underlying tick weekly, not monthly** — a deliberate call, not an oversight. The
+mean-reverting walk is already smooth by construction (a real cycle holds for the better part of a
+year), so a weekly tick doesn't read as jittery; aggregating to monthly would add real complexity
+(a "weeks per month" concept nothing else currently needs) for no visible benefit, since the value
+displayed already moves gently. Flagged here rather than silently decided, per the open question in
+the request.
+
+**Recap-page warnings for a real one-week outlier.** New `isSharpEconomicMove`/
+`economicClimateSharpMoveLine` in `economicCycle.ts`: a single week's `|climate delta|` at or above
+`climateSharpMoveThreshold` (0.07 — roughly 2.3x the weekly volatility, tuned to be a genuine rarity
+rather than firing on an ordinary week) gets its own wire line, separate from and in addition to the
+existing label-crossing announcement. Given `weight: 'lead'` rather than the label-crossing line's
+`'normal'` — which, with zero new UI code, makes it render inside `ShowResults.tsx`'s existing
+`BreakingNews` section (already gated on `kind: 'business'` + `weight: 'lead'`), the same prominent
+rose-bordered callout a merger or a pricing war gets. Verified live: forced the threshold down to
+guarantee a hit, ran a week, and confirmed the exact line appeared in Breaking News on the recap
+page, distinctly worded for a jump vs. a drop.
+
+`tsc --noEmit` clean; full suite 190 files / 3,226 tests passing (new: sharp-move coverage in
+`economicCycle.test.ts` and `economicCycle.store.test.ts`, re-expressed boom-side coverage in
+`freeAgents.test.ts`); `npm run build` clean; verified live in the browser as described above.
+
 ## Added: a real business cycle, and free-agent asks that read the room
 
 Asked for directly: "cyclical trends... where it downturns and may need to hold off on new

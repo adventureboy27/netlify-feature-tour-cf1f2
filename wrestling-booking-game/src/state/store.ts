@@ -459,7 +459,13 @@ import { randomRivalPricing } from '../engine/world/pricing';
 import { pickPricingWarTarget, slashedPricing, pricingWarStartLine, pricingWarEndLine } from '../engine/world/pricingWar';
 import { rollPaperworkFreezes, paperworkLockoutStartLine, paperworkLockoutEndLine } from '../engine/world/paperworkLockout';
 import { pickMoneyEvent, moneyEventAmount } from '../engine/world/moneyEvents';
-import { tickEconomicClimate, economicClimateLabel, economicClimateShiftLine } from '../engine/world/economicCycle';
+import {
+  tickEconomicClimate,
+  economicClimateLabel,
+  economicClimateShiftLine,
+  isSharpEconomicMove,
+  economicClimateSharpMoveLine,
+} from '../engine/world/economicCycle';
 import { checkUnlocks } from '../engine/world/unlocks';
 import {
   compassionateLeave,
@@ -4607,18 +4613,30 @@ export const useGameStore = create<GameStore>()(
         // The wider economy's own weekly drift — a real boom-and-bust cycle
         // sitting underneath every company's own fortunes, not any one
         // company's own health. Its own seeded stream, same reasoning as the
-        // story roll below: never touch the shared one. Announced only when
-        // the label actually crosses a line, not every week's small wobble —
-        // see engine/world/economicCycle.ts.
-        const climateLabelBefore = economicClimateLabel(world.economicClimate);
+        // story roll below: never touch the shared one. See
+        // engine/world/economicCycle.ts.
+        const climateBefore = world.economicClimate;
+        const climateLabelBefore = economicClimateLabel(climateBefore);
         world.economicClimate = tickEconomicClimate(
-          world.economicClimate,
+          climateBefore,
           rngFromSeed(`economicClimate:${world.week}`),
           world.settings,
         );
         const climateLabelAfter = economicClimateLabel(world.economicClimate);
+        // The ordinary case: announced only when the label actually crosses
+        // a line, not every week's small wobble.
         if (climateLabelAfter !== climateLabelBefore) {
           world.weeklyNews.push(wire('business', economicClimateShiftLine(climateLabelAfter), world.week, 'normal'));
+        }
+        // The rare case: a genuine one-week outlier, big enough on its own
+        // to be worth a warning regardless of whether it happened to cross a
+        // label line. 'lead' weight puts it in Breaking News on the recap
+        // page (see ShowResults.tsx's BreakingNews, gated on business+lead)
+        // rather than folded into the ordinary feed.
+        if (isSharpEconomicMove(climateBefore, world.economicClimate, world.settings)) {
+          world.weeklyNews.push(
+            wire('business', economicClimateSharpMoveLine(climateBefore, world.economicClimate), world.week, 'lead'),
+          );
         }
 
         // The major-story pool — a weekly sibling to per-match incidents.

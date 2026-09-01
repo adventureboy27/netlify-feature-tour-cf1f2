@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { rngFromSeed } from '../rng';
 import { defaultWorldSettings } from './settings';
-import { tickEconomicClimate, economicClimateLabel, economicClimateShiftLine } from './economicCycle';
+import {
+  tickEconomicClimate,
+  economicClimateLabel,
+  economicClimateShiftLine,
+  isSharpEconomicMove,
+  economicClimateSharpMoveLine,
+} from './economicCycle';
 
 const settings = defaultWorldSettings();
 
@@ -76,5 +82,35 @@ describe('economicClimateShiftLine', () => {
     for (const label of ['Recession', 'Downturn', 'Steady', 'Growing', 'Boom'] as const) {
       expect(economicClimateShiftLine(label).length).toBeGreaterThan(20);
     }
+  });
+});
+
+describe('isSharpEconomicMove', () => {
+  it('is false for an ordinary small step', () => {
+    expect(isSharpEconomicMove(0, 0.02, settings)).toBe(false);
+  });
+
+  it('is true once the move reaches the configured threshold, in either direction', () => {
+    expect(isSharpEconomicMove(0, settings.climateSharpMoveThreshold, settings)).toBe(true);
+    expect(isSharpEconomicMove(0, -settings.climateSharpMoveThreshold, settings)).toBe(true);
+  });
+
+  it('cares about the size of the move, not which way the climate itself is pointing', () => {
+    expect(isSharpEconomicMove(0.5, 0.5 + settings.climateSharpMoveThreshold, settings)).toBe(true);
+    expect(isSharpEconomicMove(-0.5, -0.5 - settings.climateSharpMoveThreshold, settings)).toBe(true);
+  });
+
+  it('is just under the line one step below the threshold', () => {
+    expect(isSharpEconomicMove(0, settings.climateSharpMoveThreshold - 0.001, settings)).toBe(false);
+  });
+});
+
+describe('economicClimateSharpMoveLine', () => {
+  it('says something real, and differently for a jump than a drop', () => {
+    const up = economicClimateSharpMoveLine(0, 0.5);
+    const down = economicClimateSharpMoveLine(0, -0.5);
+    expect(up.length).toBeGreaterThan(20);
+    expect(down.length).toBeGreaterThan(20);
+    expect(up).not.toBe(down);
   });
 });

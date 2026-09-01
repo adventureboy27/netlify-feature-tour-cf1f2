@@ -52,7 +52,8 @@ import { GIMMICKS, gimmickCategories } from '../../data/gimmicks';
 import { GROUP_GIMMICKS, tagTeamGimmicks, factionGimmicks } from '../../data/groupGimmicks';
 import { canFormGroup, groupOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
 import { PaperDoll } from '../paperdoll/PaperDoll';
-import { Money } from '../components/display';
+import { Money, EconomicClimateMeter } from '../components/display';
+import { economicClimateLabel, type EconomicClimateLabel } from '../../engine/world/economicCycle';
 import { promotionTheme } from '../components/chrome';
 import { billedAs } from '../../engine/generate/nickname';
 import { DialogueCard } from '../dialogue/DialogueCard';
@@ -287,6 +288,7 @@ function DeskTab() {
 
   return (
     <>
+      <EconomicClimateSummary />
       <ChampionCallPanel />
       <TitleMemorialPanel />
       <RivalMovePanel />
@@ -2453,6 +2455,39 @@ function ActiveLoanNotice() {
         Withdrawn automatically, every single time. It cannot be deferred, and missing payroll on top of it will
         not stop it.
       </p>
+    </section>
+  );
+}
+
+const CLIMATE_TONE: Record<EconomicClimateLabel, string> = {
+  Recession: 'text-rose-400',
+  Downturn: 'text-amber-400',
+  Steady: 'text-neutral-500',
+  Growing: 'text-emerald-400',
+  Boom: 'text-emerald-400',
+};
+
+/**
+ * "A state of the economy scale and a marker on current position" — the
+ * wider business's own boom-and-bust cycle, always shown here rather than
+ * only where it happens to bite (free-agent pricing). See
+ * engine/world/economicCycle.ts. Not conditional like the notices below —
+ * this is background, always worth a glance, not an alert.
+ */
+function EconomicClimateSummary() {
+  const world = useGameStore((s) => s.world);
+  if (!world) return null;
+  const label = economicClimateLabel(world.economicClimate);
+
+  return (
+    <section className="mb-3 rounded border border-neutral-800 bg-neutral-900 px-3 py-2" data-testid="economic-climate-summary">
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="text-neutral-400">The wrestling economy</span>
+        <span className={CLIMATE_TONE[label]}>{label}</span>
+      </div>
+      <div className="mt-1.5">
+        <EconomicClimateMeter climate={world.economicClimate} />
+      </div>
     </section>
   );
 }
