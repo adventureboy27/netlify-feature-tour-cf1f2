@@ -50,6 +50,51 @@ from a venue-capping ~1600 in the healthy weeks before the story hit, and contin
 step with the still-worsening ratings rather than sitting at a ceiling. `tsc --noEmit` clean; full
 suite 185 files / 3,179 tests passing; `npm run build` clean.
 
+### Follow-up: the neutral line itself was still wrong, found by a second played save
+
+Asked to play another save and check the feel. Fresh seed, default settings, nothing forced — no
+paperwork lockout, no deliberate crisis, just `autoFillCard` for 26 straight weeks. It folded. Bank
+went negative by week 21, following bled from 54 to exactly 0, attendance crashed from ~1000 to
+single digits, and every one of those 26 weeks came from ordinary, unmanaged autofill — not a
+disaster story, not a bad decision, just coasting. That is a far worse regression than the bug this
+was meant to fix: the old behaviour was "attendance ignores a real disaster," the first fix's actual
+behaviour was "an ordinary save reliably bankrupts itself within six months."
+
+The neutral line was the miscalibration. `territoryFollowingNeutralStars: 3` came from
+`showRating.ts`'s own "ordinary" anchor, but that comment turned out to describe an aspiration, not
+the measured baseline — `docs/BALANCE.md` has an actual measured number sitting a few sections down
+in this same file: "Mean show rating, player: 41," which is 2 stars, not 3. The played save
+confirmed it directly: pure autofill on this seed averaged rating ~38 (also ~2 stars) — a full star
+under the line that was supposed to be "ordinary," which meant *most* unmanaged weeks were already
+below neutral before any bad luck at all, and the loss side (however gentle) never had a chance to
+net out to flat.
+
+Moved the pivot to 2 — what autofill actually produces, confirmed twice now rather than assumed —
+and dropped `territoryFollowingLossPerStar` further, from 1 (matched the away-decay rate) to 0.5
+(half of it), since sitting the pivot exactly at the real baseline means ordinary variance alone
+puts close to half of any save's weeks below the line, not just a mismanaged one, and the
+attendance/following/next-show-rating loop is still real at any nonzero loss rate. Replayed the
+exact save that folded: it now reaches week 27 with the bank over $1.16M, following capped at 100,
+and company rating climbing to 90 — the same autofill, the same seed, the same 26 weeks, healthy
+instead of bankrupt. Replayed the paperwork-lockout scenario too, to make sure the fix hadn't been
+loosened back into the original bug: attendance still visibly tracks the crash (1600 -> 1250 -> 1049
+-> 652 -> 501 across the lockout's second half, ratings crushed to 0.75-1.75 stars the whole time)
+rather than sitting at a ceiling — the responsiveness this was built for is still there, just no
+longer strong enough to fold a promotion that was never actually mismanaged.
+
+A promoted, well-run save (the "store-test" year-long simulated save `store.test.ts` already runs)
+was checked too: several genuinely rough patches mid-year (ratings in the 8-30 range for stretches)
+left attendance sitting at the venue cap throughout, because those patches were surrounded by
+strong weeks that had already built following past what a temporary dip could meaningfully erode at
+the new, gentler loss rate. Read as a feature rather than a residual bug: an established
+promotion's reputation should have real inertia against noisy variance, and only a *sustained*
+collapse — the six-week lockout, not a rough month inside an otherwise strong year — should cost
+real ground. `territoryFollowingPerStar`'s comment and the `priceGougeGoodwillPenalty` calibration
+comment both updated to the new numbers (a four-star show now earns 8 following, not 4, since it
+sits two stars off the lower pivot instead of one). `tsc --noEmit` clean; full suite 185 files /
+3,179 tests passing (untouched — the recalibration needed no test changes, only constants and their
+comments); `npm run build` clean.
+
 ## Papers Held Up — an industry-wide licensing lockout, shipped
 
 Brainstormed as a strike/union story, then landed on something arbitrary instead: a hostile

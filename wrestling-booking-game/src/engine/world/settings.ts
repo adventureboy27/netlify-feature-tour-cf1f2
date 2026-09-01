@@ -417,10 +417,10 @@ export function defaultWorldSettings(): WorldSettings {
     // it still stings on a night that sold out.
     //
     // Calibrated against territoryFollowingPerStar (4, off the neutral line
-    // at territoryFollowingNeutralStars): a four-star show earns 4 following.
-    // At 1.5x fair the gouge takes 5.6 of it back — a great card already goes
-    // backwards. At 2x it takes 12.6 and there is no card good enough to
-    // cover it.
+    // at territoryFollowingNeutralStars): a four-star show earns 8 following.
+    // At 1.5x fair the gouge takes 5.6 of it back — a great card barely holds
+    // its ground. At 2x it takes 12.6 and the town goes backwards however
+    // good the wrestling was.
     priceGougeForgiveness: 0.1,
     priceGougeGoodwillPenalty: 14,
     priceBargainGoodwillBonus: 3,
@@ -1731,19 +1731,37 @@ export function defaultWorldSettings(): WorldSettings {
     newsGreatShowRating: 78,
     newsPoorShowRating: 35,
 
-    // Territories. A five-star show is worth 8 following; a week away costs
+    // Territories. A five-star show is worth 12 following; a week away costs
     // 1.2 — so a town you run monthly holds roughly steady and a town you
     // abandon has forgotten you inside a year.
-    territoryFollowingNeutralStars: 3,
-    // Rescaled from the old flat-from-zero 1.6 so a 5-star show still earns
-    // exactly what it always did — (5-3)*4 = 8, same as the old 5*1.6 — while
-    // now a show below the neutral line actively costs following instead of
-    // just gaining less of it. See territoryFollowingNeutralStars.
+    //
+    // The neutral line was first set at 3 (showRating.ts's own "ordinary"
+    // anchor) and it was wrong: docs/BALANCE.md's own measured baseline for
+    // an unmanaged, auto-filled save is a mean show rating of 41 — 2 stars,
+    // not 3 — and a played save at 3 confirmed it live: pure autoFillCard,
+    // no crisis, no player mismanagement, still bled following to zero and
+    // folded the company by week 27. 2 matches what the sim actually
+    // produces with nobody making booking decisions, so coasting on
+    // autofill now roughly holds a town rather than being a guaranteed,
+    // silent loss the player never sees coming.
+    territoryFollowingNeutralStars: 2,
+    // (5-2)*4 = 12. See territoryFollowingNeutralStars for why the pivot
+    // moved and territoryFollowingLossPerStar for why the two directions
+    // don't share a rate.
     territoryFollowingPerStar: 4,
-    // On par with the away-decay rate rather than a mirror of the gain rate —
-    // see territoryFollowingLossPerStar's doc comment for why a steeper one
-    // ran a save into the ground.
-    territoryFollowingLossPerStar: 1,
+    // Well under the gain rate, and under the away-decay rate too — the
+    // pivot sitting at the real autofill baseline (rather than a star above
+    // it) means roughly half of any played save's weeks land below neutral
+    // by ordinary variance alone, not mismanagement, and attendance,
+    // following and the next show's own rating (attendanceRatingModifier)
+    // all feed each other. A rate on par with decay (1) was still enough to
+    // spiral an ordinary autofill save — ratings sitting in the high 20s to
+    // low 50s the whole time, nothing like a disaster — into bankruptcy by
+    // week 27. This is what actually held that same save roughly flat while
+    // still letting a real, sustained crisis (the six-week paperwork
+    // lockout, ratings crushed to well under a star for most of it) cost
+    // real, visible ground.
+    territoryFollowingLossPerStar: 0.5,
     territoryFollowingDecayPerWeek: 1.2,
     territoryFitRatingWeight: 9,
     territoryHardcoreFullViolence: 6,
