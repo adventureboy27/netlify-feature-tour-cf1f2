@@ -594,6 +594,21 @@ export interface World {
   /** Rival promotion ids that have already been through succession (engine/world/succession.ts) — can happen once per rival, not once ever. */
   successionHappenedFor: Id[];
   /**
+   * Whether the one-time sponsor-forced "Breakfast Belt" story
+   * (engine/world/breakfastBelt.ts) has already happened this save —
+   * player's own promotion only, and never fires twice. See
+   * WorldSettings.breakfastBeltEarliestWeek.
+   */
+  breakfastBeltHappened: boolean;
+  /**
+   * The title it created, and the week its six-month mockery/merch window
+   * closes — both null until the story fires, then set once and never
+   * cleared. Read by the per-match morale hook and the champion's weekly
+   * merch-royalty tick; nothing else needs to track how long it's been.
+   */
+  breakfastBeltTitleId: Id | null;
+  breakfastBeltMockeryEndWeek: number | null;
+  /**
    * Generic per-story "already happened to this rival" tracking, keyed by
    * world-story id — the same shape as successionHappenedFor, generalized
    * rather than adding a new dedicated array field for every story that
@@ -1307,6 +1322,9 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     meetings: {},
     mergerHappened: false,
     successionHappenedFor: [],
+    breakfastBeltHappened: false,
+    breakfastBeltTitleId: null,
+    breakfastBeltMockeryEndWeek: null,
     worldStoryHappenedFor: {},
     unlockedStipulationIds: [],
     nextId: 1,

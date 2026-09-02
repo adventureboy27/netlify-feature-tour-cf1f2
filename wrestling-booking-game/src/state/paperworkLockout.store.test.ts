@@ -26,6 +26,7 @@ function freshSettings(overrides: Partial<ReturnType<typeof defaultWorldSettings
     farewellTourChancePerWeek: 0,
     pricingWarChancePerWeek: 0,
     paperworkLockoutChancePerWeek: 0,
+    breakfastBeltChancePerWeek: 0,
     ...overrides,
   };
 }

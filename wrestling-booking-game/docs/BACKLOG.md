@@ -4757,3 +4757,107 @@ transcript before the ExitPlanMode approval.
   confirmed the graceful-exit line with the bump still intact and the free-agent landing, then a
   separate fresh run confirming the exactly-once 90-day extension line and the eventual one-year bust
   release with no stat bump at all.
+
+## "The Breakfast Belt" — a sponsor forces an embarrassing title on the promotion
+
+Player's own pitch, worked through before any code was touched: a major sponsor's deal comes with
+strings — the promotion has to create a title, and the sponsor picked the name. It's mocked, a
+one-night tournament crowns the first champion the same night it's announced, and for about six months
+every match that puts it on the line costs everybody in it real morale just for being caught near it.
+Fans tweet about how bad the name is. The upside: whoever holds it sees their own merch move for real
+while all that attention is on them. Confirmed with the player: player's own promotion only, and
+one-time — happens at most once per save, like merger/succession, not rare-recurring like paperwork
+lockout or Family Business. The name, picked together after a shortlist: **"The Rise & Grind Breakfast
+Blend Championship,"** universally just **"the Breakfast Belt."**
+
+- **`engine/tournament/bracket.ts`'s `reward: 'title'`** had existed since the tournament engine was
+  first built and never had a consumer — every real caller (`cupRun.ts`'s annual Cup) uses `'trophy'`.
+  This story is its first use: purpose-built for exactly "a tournament that crowns a real champion of a
+  real belt."
+- **`engine/world/breakfastBelt.ts`** (new, pure): `eligibleForBreakfastBelt` mirrors
+  `World.mergerHappened`'s one-time "never fires twice" shape rather than the rare-recurring
+  "currently active" shape Family Business/paperwork lockout use — there's only one target (the
+  player), so a plain boolean is enough. `pickTournamentEntrants` filters the roster through
+  `canWork()` (the same eligibility check rival booking already uses) and samples up to
+  `breakfastBeltEntrantCount`. `runBreakfastBeltTournament` is a trimmed, single-promotion sibling of
+  `cupRun.ts`'s `runCup` — same night-fatigue treatment (`nightFatigueMultiplier` on a per-tie copy,
+  `nightHealthCost` charged to the real person once the bracket's done), none of the Cup's
+  cross-company purse/reign bookkeeping this story doesn't need.
+- **Three new `World` fields** (`state/world.ts`), not on the title itself: `breakfastBeltHappened`
+  (mirrors `mergerHappened`), `breakfastBeltTitleId`, `breakfastBeltMockeryEndWeek` — both null until
+  the story fires, then set once and never cleared. Six new `WorldSettings` fields alongside the
+  existing one-time-story clusters.
+- **The dispatch branch builds the title by hand, not through the usual belt-naming pipeline.**
+  `createStartingTitles(promotionId, promotionName, archetype, [blueprint])` (the same function every
+  rival's own mid-save title roll already uses) names a belt `` `${beltPrefix(promotionName)}
+  ${blueprint.suffix}` `` — correct for every other title in the game, wrong here on purpose, since the
+  whole joke is a sponsor's name landing on the belt with zero relationship to how the promotion names
+  its own titles. So the dispatch branch calls it for everything else worth reusing (prestige-by-tier,
+  colorway-by-tier, `holdersRequired` defaults) and overrides `.name` to the fixed sponsor name
+  afterward — same override pattern the rival auto-title roll already uses for `.id`. Division `'open'`,
+  deliberately: `eligibleTitles()` drops a `mens`/`womens` title from a match whose participants don't
+  all match that gender (the exact trap Family Business's own test hit), and a sponsor belt has no
+  reason to be gendered in the first place.
+- **Crowning reuses `commitTitleChange`** (`storeHelpers.ts`) — the same helper Family Business's own
+  title-win hook uses — rather than reinventing reign bookkeeping.
+- **The morale hit is a direct per-segment mutation**, not routed through the weekly
+  `weeklyMorale`/`moraleContext` accumulator: applied once per match that puts the belt on the line,
+  win/lose/draw alike, the same discrete-cost pattern already used for a guest referee's irritation or
+  a blown call's victim. Lives in the player's own show-resolution loop right where
+  `participantWrestlers`/`titlesOnTheLine` are already assembled, well before either
+  `commitTitleChange` call site.
+- **The merch payoff is a real personal royalty, not an invented number.** There's no per-wrestler
+  merch-sales figure anywhere in the game (merch today is one show-level number in
+  `computeShowRevenue`, driven by roster-average popularity) — rather than add a parallel, unconsumed
+  stat, the weekly tick pays whoever currently holds the belt a flat royalty straight into their own
+  `Ledger.earnings` via `creditPay`, the same mechanism the Cup already uses to pay its winner
+  personally. Whoever holds the belt collects it, not just whoever won it first — if it changes hands
+  mid-window, the new champion picks the royalty straight up, no special-casing needed since the tick
+  just reads `currentHolderIds` fresh every week.
+- **Fan tweets**: a new `MOCKED_TITLE_TWEETS` pool in `data/fanVoices.ts` and a leading loop in
+  `generateFanReaction` mirroring `TITLE_CHANGE_TWEETS`'s own — any rated segment that put the belt on
+  the line, while the window's open, gets a shot at a tweet ribbing the name specifically.
+- **A recurring bug, not a new one — the registry's real maintenance cost.** Exactly the same failure
+  BACKLOG already documents for Family Business's own addition: a 13th `WORLD_STORIES` entry broke
+  `worldStoriesD.store.test.ts`'s `rogueTurn` test again, because `breakfastBeltChancePerWeek` (a real,
+  nonzero default) wasn't in that file's zeroed-fields list — my new story rolled true independently on
+  that seed and, at a higher registry weight than `rogueTurn`, won the tie-break and pre-empted it
+  outright. Fixed the same way as last time: added `breakfastBeltChancePerWeek: 0` to every test
+  fixture in `src/state/` that already carries this defensive "zero every competing story" block
+  (`worldStoriesD`, `deferredShowDebt`, `economicCycle`, `moneyEvent`, `paperworkLockout` — the five
+  that already zero `familyBusinessChancePerWeek`/`paperworkLockoutChancePerWeek`), not just the one
+  that happened to fail on this run. Every new `WORLD_STORIES` entry going forward will need the same
+  treatment across this same set of files.
+- **Two store-test economics lessons, both from measuring against a live, noisy economy rather than a
+  bare function.** (1) A quiet, unbooked week is not a zero-income week — `weekOff()`'s off-week
+  appearance fee (popularity-driven, no RNG) runs every week a contracted wrestler isn't booked, so
+  "confirm earnings don't move once the window closes" can't be a raw before/after equality check.
+  Fixed by pinning the champion's `assignment` to `'appearances'` for both measurements (making that
+  baseline deterministic and roughly stable across the two, since nothing else touches their stats in
+  between) and comparing the *delta* between an open-window week and a closed-window week, not the
+  absolute totals. (2) A real booked match moves morale on its own (win/loss reaction, contagion) —
+  proving the belt-specific hit has stopped firing needed the hit's own signature to be unmistakable
+  against that noise, not buried under a 6-point default. Bumped `breakfastBeltMoraleHit` to 40 for
+  that one assertion only (the earlier test already covers the real configured size firing correctly
+  while the window is open) rather than trying to isolate a 6-point signal from an unbounded one.
+- **Deliberately out of scope**, confirmed with the player before building: rivals never get one of
+  these; no multi-week player-booked bracket (the whole thing resolves the same week it fires, matching
+  how the Cup and every other one-time story already resolve immediately, and `Tournament.multiWeek`
+  has no existing implementation anywhere to build on); no new UI — from the moment it's crowned the
+  belt is an ordinary, bookable title, and the story is told entirely through Breaking News, the
+  tweets, and the felt morale/ledger numbers; the belt name itself is fixed, not a data pool, since the
+  player picked exactly one name for a one-time event.
+- Tests: `engine/world/breakfastBelt.test.ts` (11 tests — eligibility gating, entrant selection
+  respecting `canWork`/role and the entrant cap, the tournament always crowning a real entrant,
+  `wornOut` costs landing only on people who worked more than once, the wire lines) and
+  `state/breakfastBelt.store.test.ts` (6 tests — the week gate, a forced roll creating the exact fixed
+  belt name and crowning a real roster member, never firing twice, the morale hit landing on every
+  participant regardless of outcome, the weekly royalty following whoever currently holds it, and the
+  whole thing stopping cleanly once the window closes with the fade line posting exactly once).
+- Verified: `tsc --noEmit` clean; full suite 194 files / 3,263 tests passing (worldStoriesD's `rogueTurn`
+  test caught and fixed as above); `npm run build` clean; a full live Playwright pass against the real
+  dev server — forced the roll and confirmed the exact belt name and the announcement line landing in
+  Breaking News with a real roster member crowned, booked a real title match and confirmed morale
+  dropped for both participants, confirmed the champion's ledger earnings jumped well past the
+  configured royalty over that week, then jumped straight to the mockery window's close and confirmed
+  the fade line posted with the right text at the right week.

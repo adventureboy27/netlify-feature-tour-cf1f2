@@ -131,6 +131,19 @@ export const TITLE_CHANGE_TWEETS: TweetTemplate[] = [
 ];
 
 /**
+ * The sponsor-forced Breakfast Belt, defended on this week's card — {champ}
+ * the current holder, {title} the belt's own name, which is the whole joke.
+ */
+export const MOCKED_TITLE_TWEETS: TweetTemplate[] = [
+  { text: 'they said "{title}" out loud on live television again and i felt that in my whole chest', tone: 'joke' },
+  { text: 'genuinely cannot believe {champ} has to say "i am the {title}" with a straight face every single week', tone: 'joke' },
+  { text: 'the {title} match was actually great, shame about the name they are stuck saying six times a segment', tone: 'contrarian' },
+  { text: 'imagine winning a real championship and it is called the {title}. imagine.', tone: 'criticism' },
+  { text: '{champ} defending the {title} tonight and somehow still has more dignity than whoever named it', tone: 'praise' },
+  { text: 'i will never not laugh at the {title}. never. not once. six more months of this and counting.', tone: 'joke' },
+];
+
+/**
  * A new signee's debut gimmick — {name} the wrestler, {gimmick} the
  * character the booker gave them.
  */

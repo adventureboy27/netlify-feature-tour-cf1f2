@@ -30,6 +30,7 @@ function freshSettings(overrides: Partial<ReturnType<typeof defaultWorldSettings
     pricingWarChancePerWeek: 0,
     paperworkLockoutChancePerWeek: 0,
     familyBusinessChancePerWeek: 0,
+    breakfastBeltChancePerWeek: 0,
     moneyEventChancePerWeek: 0,
     ...overrides,
   };

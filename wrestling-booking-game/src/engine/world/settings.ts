@@ -954,6 +954,16 @@ export function defaultWorldSettings(): WorldSettings {
     // earned resentment — this is not a company being merely reluctant.
     mergerCrossPromotionResistance: 40,
 
+    // A sponsor mandate is mundane compared to a merger — it can plausibly
+    // land well before the business is merger-sized, so this gate sits much
+    // earlier than mergerEarliestWeek/successionEarliestWeek.
+    breakfastBeltEarliestWeek: 40,
+    breakfastBeltChancePerWeek: 0.02,
+    breakfastBeltEntrantCount: 8,
+    breakfastBeltMockeryWeeks: 26,
+    breakfastBeltMoraleHit: 6,
+    breakfastBeltMerchWeeklyBonus: 400,
+
     // Two years — earlier than the merger, since this is a lighter, more
     // ordinary kind of change and can happen to more than one rival.
     successionEarliestWeek: 104,

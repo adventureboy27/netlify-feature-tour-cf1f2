@@ -22,6 +22,7 @@ import {
   SHOW_TWEETS,
   MATCH_TWEETS,
   TITLE_CHANGE_TWEETS,
+  MOCKED_TITLE_TWEETS,
   GIMMICK_DEBUT_TWEETS,
   GIMMICK_PAIRING_TWEETS,
   GIMMICK_RELAUNCH_TWEETS,
@@ -61,6 +62,8 @@ export interface FanReactionContext {
   worstMatch?: { rating: number; winnerName: string; loserName: string } | null;
   /** Belts that changed hands tonight. */
   titleChanges?: { titleName: string; championName: string }[];
+  /** Breakfast Belt matches tonight, while its mockery window is still open — see World.breakfastBeltMockeryEndWeek. */
+  mockedTitleMatches?: { titleName: string; championName: string }[];
   /** Gimmick decisions waiting for the crowd's reaction. See GimmickReactionSubject. */
   gimmickReactions?: GimmickReactionSubject[];
   settings: WorldSettings;
@@ -138,6 +141,23 @@ export function generateFanReaction(rng: Rng, ctx: FanReactionContext): Tweet[] 
     tweets.push({
       handle,
       text: template.text.replace(/\{champ\}/g, change.championName).replace(/\{title\}/g, change.titleName),
+      tone: template.tone,
+      likes: Math.round(1 + rng.next() * ctx.settings.fanTweetLikesScale * 1.5),
+    });
+  }
+
+  // The Breakfast Belt gets ribbed every time it shows up, same "leads, but
+  // stays inside the count" treatment as a title change above.
+  for (const match of ctx.mockedTitleMatches ?? []) {
+    if (tweets.length >= count) break;
+    const options = MOCKED_TITLE_TWEETS.filter((t) => !usedText.has(t.text));
+    if (options.length === 0) continue;
+    const template = pick(rng, options);
+    usedText.add(template.text);
+    const handle = handles.splice(Math.floor(rng.next() * handles.length), 1)[0] ?? 'wrestlingfan';
+    tweets.push({
+      handle,
+      text: template.text.replace(/\{champ\}/g, match.championName).replace(/\{title\}/g, match.titleName),
       tone: template.tone,
       likes: Math.round(1 + rng.next() * ctx.settings.fanTweetLikesScale * 1.5),
     });

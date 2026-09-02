@@ -469,6 +469,13 @@ import {
   familyBusinessGracefulExitLine,
   familyBusinessBustExitLine,
 } from '../engine/world/familyBusiness';
+import {
+  BREAKFAST_BELT_NAME,
+  pickTournamentEntrants,
+  runBreakfastBeltTournament,
+  breakfastBeltAnnouncementLine,
+  breakfastBeltMockeryFadesLine,
+} from '../engine/world/breakfastBelt';
 import { pickMoneyEvent, moneyEventAmount } from '../engine/world/moneyEvents';
 import {
   tickEconomicClimate,
@@ -1870,6 +1877,22 @@ export const useGameStore = create<GameStore>()(
               stipulationId: segment.stipulation,
             },
           );
+
+          // Every wrestler in this match pays for being caught anywhere near
+          // the Breakfast Belt while the mockery window is open — win, lose,
+          // or draw. A direct, discrete cost applied once per segment, same
+          // treatment as the guest-referee/missed-call morale hits elsewhere
+          // in this loop, not routed through the weekly drift accumulator.
+          if (
+            world.breakfastBeltTitleId &&
+            world.breakfastBeltMockeryEndWeek !== null &&
+            world.week < world.breakfastBeltMockeryEndWeek &&
+            titlesOnTheLine.some((t) => t.id === world.breakfastBeltTitleId)
+          ) {
+            for (const w of participantWrestlers) {
+              w.morale = clampMorale(w.morale - world.settings.breakfastBeltMoraleHit, world.settings);
+            }
+          }
 
           // Who is defending, captured now — commitTitleChange rewrites the
           // holder in place, so after the finish there is no way back to it.
@@ -4158,6 +4181,30 @@ export const useGameStore = create<GameStore>()(
               })),
           );
 
+        // Every rated segment that put the Breakfast Belt on the line gets a
+        // chance at a tweet ribbing the name, same idea as titleChanges above
+        // — but only while its own mockery window is still open (checked
+        // against the pre-increment world.week, matching the per-segment
+        // morale hook earlier in this same pass).
+        const breakfastBeltOpen =
+          world.breakfastBeltTitleId !== null &&
+          world.breakfastBeltMockeryEndWeek !== null &&
+          world.week < world.breakfastBeltMockeryEndWeek;
+        const breakfastBeltTitle = breakfastBeltOpen
+          ? world.titles.find((t) => t.id === world.breakfastBeltTitleId)
+          : undefined;
+        const mockedTitleMatches = breakfastBeltTitle
+          ? ratedSegments
+              .filter((entry) => entry.segment.titleIds.includes(breakfastBeltTitle.id))
+              .map(() => ({
+                titleName: breakfastBeltTitle.name,
+                championName: breakfastBeltTitle.currentHolderIds
+                  .map((id) => world.wrestlers[id]?.name)
+                  .filter(Boolean)
+                  .join(' & '),
+              }))
+          : [];
+
         if (ratedSegments.length > 0) {
           world.lastFanReaction = {
             week: world.week,
@@ -4168,6 +4215,7 @@ export const useGameStore = create<GameStore>()(
               bestMatch: describe(byRating[0]),
               worstMatch: describe(byRating[byRating.length - 1]),
               titleChanges,
+              mockedTitleMatches,
               gimmickReactions: world.pendingGimmickReactions,
               settings: world.settings,
             }),
@@ -4766,6 +4814,7 @@ export const useGameStore = create<GameStore>()(
             pricingWarActive: pricingWarActiveBeforeThisWeek,
             paperworkLockoutActive: paperworkLockoutActiveBeforeThisWeek,
             familyBusinessActive: familyBusinessActiveBeforeThisWeek,
+            breakfastBeltHappened: world.breakfastBeltHappened,
             settings: world.settings,
           };
           const storyRng = rngFromSeed(`worldStory:${world.week}`);
@@ -4973,6 +5022,59 @@ export const useGameStore = create<GameStore>()(
             world.weeklyNews.push(
               wire('signing', familyBusinessArrivesLine(signee.name, weeklyRate), world.week, 'lead'),
             );
+          } else if (picked?.id === 'breakfastBelt') {
+            const roster = world.promotion.rosterIds
+              .map((id) => world.wrestlers[id])
+              .filter((w): w is Wrestler => Boolean(w));
+            const entrantIds = pickTournamentEntrants(storyRng, roster, world.settings);
+            if (entrantIds.length >= 2) {
+              const byId = new Map(entrantIds.map((id) => [id, world.wrestlers[id]!]));
+              const result = runBreakfastBeltTournament(storyRng, entrantIds, byId, world.settings, world.week);
+              if (result) {
+                for (const worn of result.wornOut) {
+                  const person = world.wrestlers[worn.wrestlerId];
+                  if (person) person.health = clamp(person.health - worn.cost, 0, 100);
+                }
+
+                const blueprint: TitleBlueprint = {
+                  suffix: BREAKFAST_BELT_NAME,
+                  blurb: 'Forced onto the promotion by a sponsor who paid for the naming rights and used them.',
+                  tier: 'tertiary',
+                  division: 'open',
+                  weightClass: 'open',
+                  signatureStipulationId: null,
+                };
+                const title = createStartingTitles(
+                  world.promotion.id,
+                  world.promotion.name,
+                  world.promotion.identity,
+                  [blueprint],
+                )[0]!;
+                title.id = `${world.promotion.id}-title-${world.week}-${world.titles.length}`;
+                title.name = BREAKFAST_BELT_NAME;
+                title.lastDefendedWeek = world.week;
+                world.titles.push(title);
+                world.promotion.titleIds.push(title.id);
+
+                const titleIndex = world.titles.length - 1;
+                commitTitleChange(world, titleIndex, [result.winnerId]);
+                world.breakfastBeltHappened = true;
+                world.breakfastBeltTitleId = title.id;
+                world.breakfastBeltMockeryEndWeek = world.week + world.settings.breakfastBeltMockeryWeeks;
+
+                const champion = world.wrestlers[result.winnerId];
+                if (champion) {
+                  world.weeklyNews.push(
+                    wire(
+                      'title',
+                      breakfastBeltAnnouncementLine(world.promotion.name, champion.name),
+                      world.week,
+                      'lead',
+                    ),
+                  );
+                }
+              }
+            }
           } else if (picked?.id === 'moneyEvent') {
             const card = pickMoneyEvent(storyRng);
             const amount = moneyEventAmount(storyRng, world.promotion.bankBalance, world.settings);
@@ -7600,6 +7702,28 @@ export const useGameStore = create<GameStore>()(
               world.promotion.bankBalance -= terms.severance;
               letThemGo(world, w, { ...terms, text: familyBusinessBustExitLine(w.name) });
             }
+          }
+        }
+
+        // ---- the Breakfast Belt's merch royalty + mockery fade ---------
+        // See engine/world/breakfastBelt.ts. Whoever currently holds it
+        // banks a real weekly royalty for as long as the window is open —
+        // the belt can change hands more than once inside those six months,
+        // and each new holder picks the royalty straight up, no special
+        // casing needed since this just reads currentHolderIds fresh every
+        // week. The fade line fires exactly once, the week the window closes
+        // (breakfastBeltMockeryEndWeek is set once and never moved again).
+        if (world.breakfastBeltTitleId !== null && world.breakfastBeltMockeryEndWeek !== null) {
+          if (world.week < world.breakfastBeltMockeryEndWeek) {
+            const title = world.titles.find((t) => t.id === world.breakfastBeltTitleId);
+            if (title) {
+              for (const id of title.currentHolderIds) {
+                const holder = world.wrestlers[id];
+                if (holder) creditPay(ledgerOf(holder), world.settings.breakfastBeltMerchWeeklyBonus);
+              }
+            }
+          } else if (world.week === world.breakfastBeltMockeryEndWeek) {
+            world.weeklyNews.push(wire('title', breakfastBeltMockeryFadesLine(), world.week, 'normal'));
           }
         }
 

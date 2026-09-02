@@ -29,6 +29,8 @@ export interface WorldStoryContext {
   paperworkLockoutActive: boolean;
   /** Whether an owner's relative is already somewhere in their life cycle on the player's roster — see Wrestler.familyBusiness. */
   familyBusinessActive: boolean;
+  /** Whether the sponsor-forced Breakfast Belt story has already happened this save — see World.breakfastBeltHappened. */
+  breakfastBeltHappened: boolean;
   settings: WorldSettings;
 }
 

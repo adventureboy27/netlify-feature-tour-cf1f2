@@ -2757,6 +2757,21 @@ export interface WorldSettings {
   /** Added straight onto the resentment term a supershow proposal is judged against, for anybody who isn't their own sibling. */
   mergerCrossPromotionResistance: number;
 
+  // The Breakfast Belt — a one-time story, player's own promotion only. A
+  // sponsor forces a horribly-named title on the company; a one-night
+  // tournament crowns the first champion. See engine/world/breakfastBelt.ts.
+  /** No sponsor mandate before the company's had this long to attract one. */
+  breakfastBeltEarliestWeek: number;
+  breakfastBeltChancePerWeek: number;
+  /** How many eligible roster members get thrown into the one-night tournament — fewer if the roster doesn't have that many. */
+  breakfastBeltEntrantCount: number;
+  /** How long the belt stays a punchline: morale cost on defending it, merch royalty for holding it. ~6 months. */
+  breakfastBeltMockeryWeeks: number;
+  /** Flat morale cost to every participant in a match that puts the belt on the line, while the window is open. */
+  breakfastBeltMoraleHit: number;
+  /** Flat personal weekly royalty (via creditPay) to whoever currently holds the belt, while the window is open. */
+  breakfastBeltMerchWeeklyBonus: number;
+
   // Succession — a rival's founder dies or steps back. Lighter and more
   // common than the merger; can happen to more than one rival across a long
   // save, tracked per-promotion rather than once ever.
