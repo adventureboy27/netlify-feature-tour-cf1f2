@@ -5,6 +5,34 @@ import { defaultWorldSettings } from '../world/settings';
 import { simulateMatch, type SimParticipant, type SimulateMatchContext } from './simulateMatch';
 import { stipulationById } from '../../data/stipulations';
 import type { MatchRules, Stipulation, Wrestler } from '../types';
+import type { RingsideTotals } from './ringside';
+
+/** A `RingsideTotals` guaranteed to land a distraction against `victimSide`, naming a specific manager by id. */
+function forcedDistraction(managerId: string, managerName: string, victimSide: number): RingsideTotals {
+  return {
+    ratingBonus: 0,
+    screwyFinishWeight: 1,
+    interferenceWeight: 1,
+    decisiveFinishWeight: 1,
+    injuryMultiplier: 1,
+    hasOfficial: true,
+    cost: 0,
+    winShift: {},
+    caughtRisk: {},
+    caughtBy: {},
+    caughtById: {},
+    distractionChance: { [victimSide]: 1 },
+    distractionPenalty: { [victimSide]: 0.1 },
+    distractionBy: { [victimSide]: managerName },
+    distractionById: { [victimSide]: managerId },
+    popularityMultipliers: {},
+    injuryShield: {},
+    muggingChance: {},
+    muggingDamage: {},
+    muggingBy: {},
+    muggingDistractor: {},
+  };
+}
 
 function stipWith(overrides: Partial<Stipulation> = {}): Stipulation {
   return {
@@ -467,5 +495,30 @@ describe('simulateMatch', () => {
       }
     }
     expect(sawEliminationBeat).toBe(true);
+  });
+
+  it('stamps the interference beat with the manager who caused it and a real wrestler as the target', () => {
+    const roster = makeRoster(6, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+
+    const result = simulateMatch(
+      rngFromSeed('interference-test'),
+      participants,
+      byId,
+      baseContext({ ringside: forcedDistraction('mgr-1', 'The Suit', 1) }),
+    );
+
+    const interferenceBeat = result.beats.find((b) => b.kind === 'interference');
+    expect(interferenceBeat).toBeDefined();
+    // A manager's id, not a competitor's — matchPlayback.ts must not guess
+    // this one over, and the Match Viewer needs it to find the right
+    // portrait, neither of which is possible if this ever regresses to null.
+    expect(interferenceBeat!.actorId).toBe('mgr-1');
+    expect(interferenceBeat!.targetId).toBe(roster[1]!.id);
+    expect(interferenceBeat!.text).toContain('The Suit');
   });
 });

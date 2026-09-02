@@ -41,8 +41,8 @@ export default {
         },
         'ring-whip': {
           '0%': { transform: 'translateX(0)' },
-          '45%': { transform: 'translateX(140px)' },
-          '70%': { transform: 'translateX(150px)' },
+          '45%': { transform: 'translateX(210px)' },
+          '70%': { transform: 'translateX(220px)' },
           '100%': { transform: 'translateX(0)' },
         },
         'ring-strike': {
@@ -74,6 +74,39 @@ export default {
           '50%': { transform: 'translateY(-24px) rotate(120deg) scale(0.9)', opacity: '0.9' },
           '100%': { transform: 'translateY(30px) rotate(200deg) scale(0.7)', opacity: '0.4' },
         },
+        // A near-fall's target — knocked down and left lying, not the full
+        // lift-and-flip a signature/finisher gets (that's ring-slam). One
+        // hit, a stagger, and down on their side.
+        'ring-knockdown': {
+          '0%': { transform: 'translateX(0) translateY(0) rotate(0deg)' },
+          '30%': { transform: 'translateX(8px) translateY(-4px) rotate(20deg)' },
+          '100%': { transform: 'translateX(-4px) translateY(10px) rotate(90deg)' },
+        },
+        // Ringside manager runs the ring, throws the shot, and gets back to
+        // his corner before anyone official-looking notices — mirrored pair
+        // because unlike the centre-stage poses above, this one travels from
+        // a real left/right rest position rather than an already-shared spot.
+        'ring-interfere-left': {
+          '0%, 100%': { transform: 'translateX(0) scale(1)' },
+          '35%': { transform: 'translateX(70px) scale(1.05)' },
+          '55%': { transform: 'translateX(80px) scale(1.1)' },
+          '80%': { transform: 'translateX(20px) scale(1.02)' },
+        },
+        'ring-interfere-right': {
+          '0%, 100%': { transform: 'translateX(0) scale(1)' },
+          '35%': { transform: 'translateX(-70px) scale(1.05)' },
+          '55%': { transform: 'translateX(-80px) scale(1.1)' },
+          '80%': { transform: 'translateX(-20px) scale(1.02)' },
+        },
+        // Applied to the ring panel itself, not a portrait — a beat with real
+        // impact rattles the camera, not just the person in it.
+        'ring-shake': {
+          '0%, 100%': { transform: 'translate(0, 0)' },
+          '20%': { transform: 'translate(-6px, 2px)' },
+          '40%': { transform: 'translate(5px, -3px)' },
+          '60%': { transform: 'translate(-4px, 3px)' },
+          '80%': { transform: 'translate(3px, -2px)' },
+        },
       },
       animation: {
         'rise-in': 'rise-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both',
@@ -86,6 +119,10 @@ export default {
         'ring-slam': 'ring-slam 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both',
         'callout-pop': 'callout-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both',
         'ring-eliminated': 'ring-eliminated 0.8s cubic-bezier(0.34, 1.2, 0.64, 1) both',
+        'ring-knockdown': 'ring-knockdown 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) both',
+        'ring-interfere-left': 'ring-interfere-left 0.9s ease-in-out both',
+        'ring-interfere-right': 'ring-interfere-right 0.9s ease-in-out both',
+        'ring-shake': 'ring-shake 0.4s ease-in-out both',
       },
     },
   },

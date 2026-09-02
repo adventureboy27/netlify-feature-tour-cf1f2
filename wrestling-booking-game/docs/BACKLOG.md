@@ -5025,3 +5025,84 @@ one. `OfficeScreen` gained `GroupTurnCallPanel`, a direct sibling of `Confrontat
   injury landed, the group shrank to the remaining two, a shoot-origin rivalry opened with both axes
   seeded, and the wire posted — plus a screenshot of the generalized roster panel and the
   `WrestlerDetail` kick control rendering correctly.
+
+## Match viewer, part 3 — ringside managers, and an interference beat that finally has an actor
+
+The match viewer (see above) already played a decided match back beat-by-beat with the two
+competitors on rest rails and the current beat's actor/target spotlighted centre stage. It showed
+nothing at ringside — no managers, present or otherwise — and the interference beat, despite its own
+prose naming a specific manager, wasn't really about anyone: `matchPlayback.ts`'s existing
+"no clean actor" fallback (its own comment already flagged this as unfinished) guessed an actor from
+whichever *competitor* happened to be on top, because the `MatchBeat` itself carried no id — only
+text. The interference beat has been visually lying since it shipped.
+
+The real gap traced back one more layer than the UI: `ringside.ts`'s `ringsideTotals()` already had
+the real `Manager` object in scope when it wrote `distractionBy[side] = manager.name`, right next to
+an unused `manager.id`. Fixed by threading the id the same way the name already travels —
+`RingsideTotals.distractionById`, `simulateMatch.ts`'s interference-beat construction stamping
+`actorId`/`targetId` from it and from the already-built `sideMembers` map, and `matchPlayback.ts`
+changed to stop discarding a beat's own given id just because it doesn't resolve to one of the
+match's competitors (it now only falls back to the rotation guess when a beat has neither id at all —
+the pre-existing "rotates the spotlight across a tag team" test, which covers exactly that true no-id
+case, was run before and after and needed no changes).
+
+**A real id-namespace trap, caught by reading the call chain before writing any UI code, not by a
+failed test.** A manager who is one of the player's own wrestlers moved into a suit doesn't keep
+their wrestler id as their manager id — `store.ts` resolves every `segment.managerIds` entry through
+`findManager()` before anything reaches `ringsideTotals()`, and `findManager`'s wrestler branch
+(`managerFromWrestler`) stamps a synthetic `` `mgr-of-${wrestler.id}` `` onto the returned `Manager`.
+That synthetic id is what actually flows into `distractionById` and the beat's `actorId` — a UI
+resolver that just read `segment.managerIds[].managerId` off the segment directly would have looked
+right in every manual test with a purely-hired manager and then silently never matched for a
+wrestler-turned-manager. `MatchViewerScreen.tsx`'s own resolver (`resolveRingsideManagers`, mirroring
+`findManager`'s two-step lookup locally rather than importing from `state/storeHelpers.ts`, which no
+UI file does today) derives the same synthetic id for that case.
+
+**New ringside rail**: both managers assigned to the segment (`segment.managerIds`, classified
+`'a'`/`'b'` by a new `sideARawSides` set `deriveSides` now also returns, since sideA is "the winners,"
+not always raw side 0) render at `size="thumb"` (48px — smaller than the wrestler rail's `bust`, 80px,
+per the request to size them "noticeably smaller but not too small," and reusing an existing
+`PaperDollSize` rather than adding a fourth). They sit at rest for the whole match, not just when
+something happens to them. When the current beat's pose is `'interference'` and its `actorId` matches
+one of them, that manager's own portrait — and only that one — plays a new run-in/blast/run-out
+keyframe (`ring-interfere-left`/`-right`, mirrored by side, 0.9s), remounted via `key={beatIndex}`
+exactly like every other one-shot pose in this file. The target wrestler needed no new plumbing at
+all: `current.targetId` is now a real competitor id, so it flows through the exact same
+`isTarget`/spotlight path every other beat already uses. `calloutText` gained an `'INTERFERENCE!'`
+line, safe to show unconditionally now that the pose only ever fires for a real named event.
+
+**Scope note, decided with the player before writing anything**: this animates the distraction beat
+specifically (a manager pulling attention at exactly the wrong moment — already a real, working part
+of the sim, tied to deviousness/presence), not the separate "mugging" mechanic (two managers, a real
+physical hit with real damage) — mugging isn't part of the match's beat timeline at all today; it logs
+to a separate `tonightsBeats` array the viewer never sees, and wiring it in would be new plumbing on a
+larger scale than this pass.
+
+**A mid-request scope call, also decided with the player rather than guessed at**: asked to add
+"grunts and groans (male and female)," audio was explicitly skipped and the player was told why before
+any code was written — the repo has zero audio directories, zero sound assets, and no audio
+dependencies, the game is offline-only by design, and synthesizing a human voice from raw Web Audio
+oscillators would not sound like one. The rest of that request — move-specific animation, a distinct
+knocked-down pose, ring shake on big beats — was in scope and built: the Irish whip's existing
+keyframe was amplified (`translateX(140px)`→`210px`), a new `ring-knockdown` pose replaces `ring-slam`
+as the near-fall target's animation (a slam stays reserved for the bigger lift-and-flip of a
+signature/finisher), and a new `ring-shake` keyframe applies to the ring container itself — not a
+portrait — whenever the current beat is a signature, finish, or the interference beat, via a
+`key={`shake-${beatIndex}`}` remount identical in spirit to every other one-shot pose here.
+
+- Tests: `engine/sim/ringside.test.ts` — new case confirming `distractionById[side]` carries the real
+  manager id alongside `distractionBy[side]`'s name, same corner, same roll.
+  `engine/sim/simulateMatch.test.ts` — new case forcing a guaranteed distraction (a synthetic
+  `RingsideTotals` fixture with `distractionChance` pinned to 1) and asserting the resulting beat's
+  `actorId` is the manager's id, not a competitor's, and `targetId` is a real wrestler actually on the
+  victim side. `engine/sim/matchPlayback.test.ts` — new case: a beat with an `actorId` that belongs to
+  nobody in the match (simulating the manager case) survives unchanged rather than being overwritten
+  by the rotation guess; the pre-existing tag-team-rotation test was re-run, unmodified, and still
+  passes.
+- Verified: `tsc --noEmit` clean; the three touched test files pass (99 tests); full suite passes
+  clean in the background; `npm run build` clean (331 modules); a live Playwright pass via
+  `window.__store` — forced a manager's distraction to land, resolved the week, confirmed the
+  interference beat's `actorId` was the manager's real (synthetic, wrestler-derived) id and its
+  `targetId` a real wrestler, then drove the actual Match Viewer UI to that beat and screenshotted it:
+  the "INTERFERENCE!" callout showing, the target wrestler spotlighted centre stage, and the manager's
+  ringside portrait mid-run-in toward the ring.

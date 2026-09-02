@@ -23,19 +23,30 @@ const BEAT_PACE_MS = 1400;
 /** Never show more than this many portraits on the rail — beyond it, a "+N more" chip stands in. */
 const MAX_VISIBLE = 12;
 
-/** The same reduction `commentary.ts` uses for a multi-man match: the eventual winners are one corner, everyone else is the other. A draw falls back to the two sides as booked. */
+/**
+ * The same reduction `commentary.ts` uses for a multi-man match: the eventual
+ * winners are one corner, everyone else is the other. A draw falls back to
+ * the two sides as booked.
+ *
+ * Also reports which raw booking `side` numbers (0/1, what `Segment.participants`
+ * and `Segment.managerIds` are actually keyed by) ended up as sideA — a
+ * manager assigned to booking-side 0 needs to render on whichever rail that
+ * side actually landed on here, which is not always sideA (sideA is always
+ * the *winners*, not always side 0).
+ */
 function deriveSides(
   competitors: SegmentRole[],
   result: SegmentResult,
   wrestlers: Record<Id, Wrestler | undefined>,
-): { sideA: Wrestler[]; sideB: Wrestler[]; winningSide: 'a' | 'b' | null } {
+): { sideA: Wrestler[]; sideB: Wrestler[]; winningSide: 'a' | 'b' | null; sideARawSides: ReadonlySet<number> } {
   const resolve = (ids: Id[]) => ids.map((id) => wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
 
   if (result.winnerSide !== null && result.winnerWrestlerIds.length > 0) {
     const winnerIds = new Set(result.winnerWrestlerIds);
-    const sideA = resolve(competitors.filter((p) => winnerIds.has(p.wrestlerId)).map((p) => p.wrestlerId));
+    const winners = competitors.filter((p) => winnerIds.has(p.wrestlerId));
+    const sideA = resolve(winners.map((p) => p.wrestlerId));
     const sideB = resolve(competitors.filter((p) => !winnerIds.has(p.wrestlerId)).map((p) => p.wrestlerId));
-    return { sideA, sideB, winningSide: 'a' };
+    return { sideA, sideB, winningSide: 'a', sideARawSides: new Set(winners.map((p) => p.side)) };
   }
 
   // A draw or no-contest — no winner group to build a corner from.
@@ -44,7 +55,51 @@ function deriveSides(
   const sideB = resolve(
     competitors.filter((p) => p.side === (sideNumbers[1] ?? sideNumbers[0])).map((p) => p.wrestlerId),
   );
-  return { sideA, sideB, winningSide: null };
+  return { sideA, sideB, winningSide: null, sideARawSides: new Set(sideNumbers[0] !== undefined ? [sideNumbers[0]] : []) };
+}
+
+interface RingsideManager {
+  id: Id;
+  name: string;
+  photoDataUrl?: string;
+  side: 'a' | 'b';
+}
+
+/**
+ * The same two-step lookup `state/storeHelpers.ts`'s `findManager` already
+ * does (a signed manager on staff, or one of the player's own wrestlers
+ * moved into a suit) — mirrored locally rather than imported, since no UI
+ * file reaches into `state/storeHelpers.ts` today and this is small enough
+ * not to be the first. The id has to match exactly what `findManager` would
+ * have produced too, not just who the person is: `store.ts` resolves
+ * `segment.managerIds` through `findManager` before it ever reaches
+ * `ringsideTotals`, and for a wrestler moved into a suit that synthesizes a
+ * `mgr-of-${wrestler.id}` id (`career/transition.ts`'s `managerFromWrestler`)
+ * — the interference beat's `actorId` is stamped with *that* id, not the
+ * wrestler's own, so this has to derive the same one or the two would never
+ * match. A purely hired manager has no photo source at all; `PaperDoll`
+ * already falls back to initials.
+ */
+function resolveRingsideManagers(
+  managerIds: readonly { managerId: Id; forSide: number }[] | undefined,
+  staffManagers: readonly { id: Id; name: string }[],
+  wrestlers: Record<Id, Wrestler | undefined>,
+  sideARawSides: ReadonlySet<number>,
+): RingsideManager[] {
+  if (!managerIds) return [];
+  const out: RingsideManager[] = [];
+  for (const { managerId, forSide } of managerIds) {
+    const side: 'a' | 'b' = sideARawSides.has(forSide) ? 'a' : 'b';
+    const staff = staffManagers.find((m) => m.id === managerId);
+    if (staff) {
+      out.push({ id: staff.id, name: staff.name, side });
+      continue;
+    }
+    const person = wrestlers[managerId];
+    if (!person || person.role !== 'manager') continue;
+    out.push({ id: `mgr-of-${person.id}`, name: person.name, photoDataUrl: person.photoDataUrl, side });
+  }
+  return out;
 }
 
 const ANIM: Record<PlaybackBeat['pose'], { actor: string; target: string }> = {
@@ -52,7 +107,7 @@ const ANIM: Record<PlaybackBeat['pose'], { actor: string; target: string }> = {
   whip: { actor: 'animate-ring-strike', target: 'animate-ring-whip' },
   control: { actor: 'animate-ring-strike', target: 'animate-ring-strike' },
   comeback: { actor: 'animate-ring-surge', target: 'animate-ring-strike' },
-  nearFall: { actor: 'animate-ring-surge', target: 'animate-ring-slam' },
+  nearFall: { actor: 'animate-ring-surge', target: 'animate-ring-knockdown' },
   signature: { actor: 'animate-ring-surge', target: 'animate-ring-slam' },
   interference: { actor: 'animate-ring-strike', target: 'animate-ring-strike' },
   botch: { actor: 'animate-ring-jostle', target: '' },
@@ -79,9 +134,9 @@ export function MatchViewerScreen({
   const result = segment?.result;
 
   const competitors = segment?.participants.filter((p) => p.role === 'competitor') ?? [];
-  const { sideA, sideB, winningSide } = result
+  const { sideA, sideB, winningSide, sideARawSides } = result
     ? deriveSides(competitors, result, world!.wrestlers)
-    : { sideA: [], sideB: [], winningSide: null as 'a' | 'b' | null };
+    : { sideA: [], sideB: [], winningSide: null as 'a' | 'b' | null, sideARawSides: new Set<number>() };
   const timeline = result ? buildPlaybackTimeline(result.beats, sideA, sideB, winningSide) : [];
   const commentary = result?.commentary ?? [];
 
@@ -127,6 +182,19 @@ export function MatchViewerScreen({
   const combined = [...sideA, ...sideB];
   const visible = combined.slice(0, MAX_VISIBLE);
   const overflow = combined.length - visible.length;
+
+  // Whoever's at ringside for this match — present the whole way through,
+  // not just when something happens to them.
+  const ringsideManagers = resolveRingsideManagers(
+    segment.managerIds,
+    world.staffManagers,
+    world.wrestlers,
+    sideARawSides,
+  );
+  const interferingManager =
+    current?.pose === 'interference' ? ringsideManagers.find((m) => m.id === current.actorId) : undefined;
+  // A beat with real impact rattles the camera, not just the person in it.
+  const bigBeat = current && (current.pose === 'signature' || current.pose === 'finish' || Boolean(interferingManager));
 
   // Every elimination beat played so far, tallied fresh each render rather
   // than tracked as its own state — `timeline`/`beatIndex` already say
@@ -201,6 +269,23 @@ export function MatchViewerScreen({
     );
   }
 
+  /** One ringside manager — smaller than a competitor, present the whole way through. */
+  function renderRingsideManager(manager: RingsideManager, side: 'left' | 'right') {
+    const isInterfering = interferingManager?.id === manager.id;
+    const animClass = isInterfering ? (side === 'left' ? 'animate-ring-interfere-left' : 'animate-ring-interfere-right') : '';
+
+    return (
+      <div key={manager.id} className={`flex items-center gap-1 ${isInterfering ? 'z-10' : 'opacity-75'}`}>
+        <div key={beatIndex} className={animClass}>
+          <PaperDoll photoDataUrl={manager.photoDataUrl} name={manager.name} size="thumb" flip={side === 'right'} />
+        </div>
+        <span className="max-w-[70px] truncate rounded bg-neutral-950/80 px-1 py-0.5 text-[9px] leading-tight text-neutral-400">
+          {manager.name}
+        </span>
+      </div>
+    );
+  }
+
   const calloutText =
     current?.pose === 'finish'
       ? finishCallout(result.finish)
@@ -208,11 +293,13 @@ export function MatchViewerScreen({
         ? 'ELIMINATED!'
         : current?.pose === 'nearFall'
           ? '1... 2...'
-          : current?.moveName
-            ? current.moveName.toUpperCase()
-            : current?.pose === 'signature'
-              ? 'BIG MOVE!'
-              : null;
+          : interferingManager
+            ? 'INTERFERENCE!'
+            : current?.moveName
+              ? current.moveName.toUpperCase()
+              : current?.pose === 'signature'
+                ? 'BIG MOVE!'
+                : null;
 
   return (
     <div className="flex h-full flex-col p-6 text-neutral-100">
@@ -249,7 +336,10 @@ export function MatchViewerScreen({
         style={{ background: 'radial-gradient(ellipse at 50% 42%, rgba(255,255,255,0.05), transparent 60%)' }}
         data-testid="match-ring"
       >
-        <div className="relative h-full min-h-[420px] w-full">
+        <div
+          key={`shake-${beatIndex}`}
+          className={`relative h-full min-h-[420px] w-full ${bigBeat ? 'animate-ring-shake' : ''}`}
+        >
           {/* The ring itself — a mat, three rope lines, and four corner
               turnbuckles, tinted to the promotion's own colour so it doesn't
               feel like a placeholder. Sized generously now that nobody has to
@@ -285,6 +375,21 @@ export function MatchViewerScreen({
           </div>
           <div className="absolute inset-y-0 right-2 flex max-w-[90px] flex-col items-center justify-center gap-2 overflow-y-auto py-3">
             {restingB.map((wrestler) => renderRingWrestler(wrestler, 'right'))}
+          </div>
+
+          {/* Ringside — anyone attending, present for the whole match, not
+              just when something happens to them. Pinned to the bottom
+              corners rather than sharing the wrestler rail: this is who's
+              *at* the show, not *in* the match. */}
+          <div className="absolute bottom-2 left-2 flex flex-col items-start gap-1.5">
+            {ringsideManagers
+              .filter((m) => m.side === 'a')
+              .map((manager) => renderRingsideManager(manager, 'left'))}
+          </div>
+          <div className="absolute bottom-2 right-2 flex flex-col items-end gap-1.5">
+            {ringsideManagers
+              .filter((m) => m.side === 'b')
+              .map((manager) => renderRingsideManager(manager, 'right'))}
           </div>
 
           {/* Centre stage — whoever the beat is about, dead centre over the

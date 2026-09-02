@@ -193,12 +193,21 @@ export function simulateMatch(
   // sim/ringside.ts.
   const distracted: Record<number, number> = {};
   let distractedName: string | null = null;
+  // Who did it, and who it happened to — the write-up already named the
+  // manager, but nothing pointed the Match Viewer at an actual portrait for
+  // either of them. `side` here is the victim's own side (ringsideTotals
+  // keys distractionBy/distractionById by the victim, not the manager's own
+  // corner), and sideMembers already holds real Wrestler[] per side.
+  let distractedById: Id | null = null;
+  let distractedTargetId: Id | null = null;
   for (const key of Object.keys(ctx.ringside?.distractionChance ?? {})) {
     const side = Number(key);
     const odds = ctx.ringside?.distractionChance?.[side] ?? 0;
     if (odds <= 0 || !chance(rng, odds)) continue;
     distracted[side] = -(ctx.ringside?.distractionPenalty?.[side] ?? 0);
     distractedName = ctx.ringside?.distractionBy?.[side] ?? distractedName;
+    distractedById = ctx.ringside?.distractionById?.[side] ?? distractedById;
+    distractedTargetId = sideMembers.get(side)?.[0]?.id ?? distractedTargetId;
   }
 
   const ringsideShifts = ctx.ringside?.winShift ?? {};
@@ -424,6 +433,8 @@ export function simulateMatch(
         {
           kind: 'interference' as const,
           significant: true,
+          actorId: distractedById,
+          targetId: distractedTargetId,
           text: `${distractedName} pulled the attention at ringside at exactly the wrong moment.`,
         },
       ]

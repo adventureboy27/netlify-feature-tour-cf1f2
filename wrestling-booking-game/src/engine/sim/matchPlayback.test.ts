@@ -130,6 +130,18 @@ describe('buildPlaybackTimeline', () => {
       if (pb.actorId) expect([a.id, c.id, b.id, d.id]).toContain(pb.actorId);
     }
   });
+
+  it('keeps a real given id even when it belongs to nobody in the match — a manager, not a guess', () => {
+    const [a, b] = pair();
+    // simulateMatch.ts stamps the interference beat's actorId with a
+    // manager's id, which never appears among the match's own competitors —
+    // this must survive untouched rather than being overwritten by the
+    // onTop/inTrouble rotation guess the way a truly id-less beat would be.
+    const interferenceBeat: MatchBeat = { kind: 'interference', text: 'A mouthpiece got involved.', significant: true, actorId: 'mgr-not-a-competitor', targetId: b.id };
+    const timeline = buildPlaybackTimeline([interferenceBeat], [a], [b], 'a');
+    expect(timeline[0]!.actorId).toBe('mgr-not-a-competitor');
+    expect(timeline[0]!.targetId).toBe(b.id);
+  });
 });
 
 describe('finishCallout', () => {

@@ -115,19 +115,26 @@ export function buildPlaybackTimeline(
 
     const pose = poseFor(beat.kind, index);
 
-    let actor = beat.actorId ? (byId.get(beat.actorId) ?? null) : null;
-    let target = beat.targetId ? (byId.get(beat.targetId) ?? null) : null;
-    if (!actor && !target && !NO_ACTOR_KINDS.has(beat.kind) && onTop.length > 0 && inTrouble.length > 0) {
-      actor = onTop[index % onTop.length]!;
-      target = inTrouble[index % inTrouble.length]!;
+    const actor = beat.actorId ? (byId.get(beat.actorId) ?? null) : null;
+    const target = beat.targetId ? (byId.get(beat.targetId) ?? null) : null;
+    // Guess only when the beat truly gave nothing — checked against the raw
+    // ids, not the resolved wrestlers. An interference beat can carry a real
+    // manager id that will never resolve against `byId` (competitors only),
+    // and that id is still meaningful to the viewer; guessing over it would
+    // throw away a real actor for a fake one.
+    let resolvedActor = actor;
+    let resolvedTarget = target;
+    if (!beat.actorId && !beat.targetId && !NO_ACTOR_KINDS.has(beat.kind) && onTop.length > 0 && inTrouble.length > 0) {
+      resolvedActor = onTop[index % onTop.length]!;
+      resolvedTarget = inTrouble[index % inTrouble.length]!;
     }
 
     let moveName: string | null = null;
-    if (actor) {
+    if (resolvedActor) {
       if (pose === 'finish') {
-        moveName = actor.moveSet.finisher.name;
-      } else if (pose === 'signature' && actor.moveSet.signatures.length > 0) {
-        moveName = actor.moveSet.signatures[index % actor.moveSet.signatures.length]!.name;
+        moveName = resolvedActor.moveSet.finisher.name;
+      } else if (pose === 'signature' && resolvedActor.moveSet.signatures.length > 0) {
+        moveName = resolvedActor.moveSet.signatures[index % resolvedActor.moveSet.signatures.length]!.name;
       }
     }
 
@@ -136,8 +143,11 @@ export function buildPlaybackTimeline(
       pose,
       text: beat.text,
       significant: beat.significant,
-      actorId: actor?.id ?? null,
-      targetId: target?.id ?? null,
+      // A raw id that never resolved against `byId` (a manager, for the
+      // interference beat) is still real and worth keeping — only fall
+      // through to the guessed wrestler when the beat gave nothing at all.
+      actorId: beat.actorId ?? resolvedActor?.id ?? null,
+      targetId: beat.targetId ?? resolvedTarget?.id ?? null,
       moveName,
     };
   });

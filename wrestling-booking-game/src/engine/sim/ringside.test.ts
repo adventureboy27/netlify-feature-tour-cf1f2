@@ -326,6 +326,21 @@ describe('the combination: a mouthpiece and a heavy in one corner', () => {
     expect(totals.muggingChance[0] ?? 0).toBe(0);
   });
 
+  it('names the distracting manager by id as well as by name', () => {
+    // distractor's own corner (side 0) is where his distraction chance
+    // comes from; who it costs is the *other* side (1) — same convention
+    // distractionBy already uses.
+    const totals = ringsideTotals({
+      managers: [{ manager: distractor, client, side: 0 }],
+      referee: null,
+      guestReferee: null,
+      settings,
+    });
+    expect(totals.distractionChance[1]).toBeGreaterThan(0);
+    expect(totals.distractionBy[1]).toBe(distractor.name);
+    expect(totals.distractionById[1]).toBe(distractor.id);
+  });
+
   it('is thinner when either of them is spread across a full book', () => {
     const focused = ringsideTotals({
       managers: [

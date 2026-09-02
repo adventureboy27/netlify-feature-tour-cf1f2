@@ -449,6 +449,8 @@ export interface RingsideTotals {
   distractionChance: Record<number, number>;
   distractionPenalty: Record<number, number>;
   distractionBy: Record<number, string>;
+  /** The same, by id — the write-up names them, the Match Viewer needs to find their portrait. */
+  distractionById: Record<number, Id>;
   /** Per client id: the multiplier on what tonight does for their standing. */
   popularityMultipliers: Record<string, number>;
   /** Per client id: how much of the damage somebody else takes for them. */
@@ -513,6 +515,7 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   const distractionChance: Record<number, number> = {};
   const distractionPenalty: Record<number, number> = {};
   const distractionBy: Record<number, string> = {};
+  const distractionById: Record<number, Id> = {};
   /** Per client: what tonight is worth to them for having a mouthpiece. */
   const popularityMultipliers: Record<string, number> = {};
   /** Per client: how much of the night's damage his second takes for him. */
@@ -555,6 +558,7 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
         distractionChance[1 - side] = Math.max(distractionChance[1 - side] ?? 0, effect.distractionChance);
         distractionPenalty[1 - side] = Math.max(distractionPenalty[1 - side] ?? 0, effect.opponentPenalty);
         distractionBy[1 - side] = manager.name;
+        distractionById[1 - side] = manager.id;
       }
       // ...and the chance the official sees him do it, which costs his man
       // the match rather than costing the manager anything. Kept per side so
@@ -645,6 +649,7 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
     distractionChance,
     distractionPenalty,
     distractionBy,
+    distractionById,
     popularityMultipliers,
     injuryShield,
     muggingChance: muggingChanceBySide,
