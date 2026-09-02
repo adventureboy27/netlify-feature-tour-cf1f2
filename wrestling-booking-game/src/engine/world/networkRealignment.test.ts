@@ -42,15 +42,29 @@ function promotion(overrides: Partial<Promotion> = {}): Promotion {
 
 describe('eligibleForNetworkRealignment', () => {
   it('will not fire before the week gate', () => {
-    expect(eligibleForNetworkRealignment(settings.networkRealignmentEarliestWeek - 1, [promotion()], settings)).toBe(false);
+    expect(eligibleForNetworkRealignment(settings.networkRealignmentEarliestWeek - 1, [promotion()], [], settings)).toBe(
+      false,
+    );
   });
 
   it('will not fire with no living rival', () => {
-    expect(eligibleForNetworkRealignment(settings.networkRealignmentEarliestWeek, [], settings)).toBe(false);
+    expect(eligibleForNetworkRealignment(settings.networkRealignmentEarliestWeek, [], [], settings)).toBe(false);
   });
 
   it('fires once the gate clears with a real rival', () => {
-    expect(eligibleForNetworkRealignment(settings.networkRealignmentEarliestWeek, [promotion()], settings)).toBe(true);
+    expect(eligibleForNetworkRealignment(settings.networkRealignmentEarliestWeek, [promotion()], [], settings)).toBe(true);
+  });
+
+  it('has nothing left once it has already happened to every living rival', () => {
+    const rivals = [promotion({ id: 'r1' }), promotion({ id: 'r2' })];
+    expect(eligibleForNetworkRealignment(settings.networkRealignmentEarliestWeek, rivals, ['r1', 'r2'], settings)).toBe(
+      false,
+    );
+  });
+
+  it('can still happen to whoever it has not happened to yet', () => {
+    const rivals = [promotion({ id: 'r1' }), promotion({ id: 'r2' })];
+    expect(eligibleForNetworkRealignment(settings.networkRealignmentEarliestWeek, rivals, ['r1'], settings)).toBe(true);
   });
 });
 
@@ -79,8 +93,16 @@ describe('applyNetworkRealignment', () => {
   it('always picks a rival actually in the list', () => {
     const rivals = [promotion({ id: 'r1' }), promotion({ id: 'r2' })];
     for (let i = 0; i < 10; i++) {
-      const picked = pickNetworkRealignmentTarget(rngFromSeed(`pick-${i}`), rivals);
+      const picked = pickNetworkRealignmentTarget(rngFromSeed(`pick-${i}`), rivals, []);
       expect(rivals.some((r) => r.id === picked.id)).toBe(true);
+    }
+  });
+
+  it('never picks somebody it has already happened to', () => {
+    const rivals = [promotion({ id: 'r1' }), promotion({ id: 'r2' }), promotion({ id: 'r3' })];
+    for (let i = 0; i < 15; i++) {
+      const picked = pickNetworkRealignmentTarget(rngFromSeed(`pick-${i}`), rivals, ['r1', 'r2']);
+      expect(picked.id).toBe('r3');
     }
   });
 });

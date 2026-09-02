@@ -4861,3 +4861,65 @@ Blend Championship,"** universally just **"the Breakfast Belt."**
   dropped for both participants, confirmed the champion's ledger earnings jumped well past the
   configured royalty over that week, then jumped straight to the mockery window's close and confirmed
   the fade line posted with the right text at the right week.
+
+## Every save was living the same story calendar — a real seed bug caught by playing, not by tests
+
+Player asked two questions in a row about the world-story system: how many major stories exist, and
+roughly how far into a save the game would take to surface all of them. Answering the second one
+honestly meant actually playing it out rather than reasoning from `chancePerWeek` alone, so — at the
+player's own prompting ("run the probe") — this ran `tools/probe.mjs`'s own approach (a real dev
+server, `window.__store`, many seeds, many played weeks) with one-off temporary instrumentation
+logging which story won each week's roll. The numbers were wrong in a way that mattered: 15 different
+seeds almost all landed on the *exact same week* for the *exact same story* — not clustered near it,
+identical. Six of the twelve real stories (merger, Rogue Turn, Breakaway Promotion, Farewell Tour,
+Pricing War, Family Business) never fired even once across 15 seeds x 450 played weeks.
+
+- **Root cause: the story roll was never seeded with the save itself.**
+  `state/store.ts`'s dispatch region built `storyRng` as `rngFromSeed(\`worldStory:${world.week}\`)` —
+  week number only. Every other roll in this codebase follows the entity+week convention CLAUDE.md
+  documents specifically to avoid the shared-stream trap (`` rngFromSeed(`blame:${person.id}:${world.week}`) ``);
+  this one had no entity in it at all, which meant *the save itself* was the missing entity — two
+  different saves at the same calendar week drew from an identical PRNG sequence and got an identical
+  outcome, as long as their eligibility lined up (which it usually does early in a save, since nothing
+  seed-dependent has had time to diverge yet). Fixed by adding the one missing piece:
+  `` rngFromSeed(`worldStory:${world.settings.seed}:${world.week}`) ``.
+- **A second, independent problem the same probe run surfaced: two stories had no cooldown at all.**
+  Every entry in `WORLD_STORIES` blocks itself from re-firing — a "currently active" flag
+  (paperworkLockout/pricingWar/familyBusiness) or a "happened to this rival already" list
+  (rogueTurn/scandal/breakawayPromotion/succession) — except `ownerRivalry` and `networkRealignment`,
+  which could re-roll the instant they were next eligible, forever. Combined with the seed bug fixing
+  *which* week belonged to which story, ownerRivalry alone accounted for 423 of the roughly 721 total
+  story firings across the 15-seed probe run — more than every other story in the pool combined.
+  Fixed the same way rogueTurn/scandal/breakawayPromotion already do it: both now take an
+  `alreadyHappenedIds` list (reusing the existing generic `World.worldStoryHappenedFor` record, no new
+  field) and are excluded from future picks once they've happened — `ownerRivalry` marks *both* rivals
+  in the pair, since either side having already been through one is enough to keep them out of a
+  second. Re-running the same probe after both fixes: ownerRivalry dropped to 25 firings across the
+  same 15 seeds, in line with its self-gating siblings (networkRealignment 26, paperworkLockout 24),
+  and every story's first-occurrence week now genuinely differs seed to seed (breakfastBelt alone
+  ranged from week 41 to week 126 depending on the seed, instead of landing on week 70 for all of
+  them).
+- **The seed fix's real fallout: a pile of test files that had been quietly relying on the bug.**
+  Re-seeding the roll changes which story wins any given week for any test that doesn't fully isolate
+  the one it's testing — and it turned out most of the older world-story test files didn't. Six files
+  (`merger.store.test.ts` — which had *no* isolation at all, relying entirely on lucky old-seed
+  determinism; `worldStoriesD.store.test.ts`, `worldStoriesD2.store.test.ts`,
+  `deferredShowDebt.store.test.ts`, `familyBusiness.store.test.ts`, `paperworkLockout.store.test.ts` —
+  each missing one or more newer stories' `*ChancePerWeek` field from their zeroed-fields list, the
+  same trap already documented earlier in this file for Family Business's and the Breakfast Belt's own
+  additions) needed the same defensive full-zero treatment. One more failure was subtler: a
+  `breakfastBelt.store.test.ts` morale assertion at the *default* 6-point hit size, which had been
+  passing by coincidence against whichever specific wrestler the old deterministic seed happened to
+  crown — reseeded, the tournament now crowns someone else, whose own stats produce a slightly
+  different natural match-morale swing that can outweigh a signal that small. Fixed the same way a
+  sibling assertion in the same file already handled this exact risk: bump the hit to a large,
+  test-only override (40, well clear of ordinary match-morale noise) for that one check, since the
+  test's job is confirming the hit fires and stops, not re-verifying its configured size.
+- Tests: `engine/world/networkRealignment.test.ts` and `engine/world/ownerRivalry.test.ts` both gained
+  cooldown-specific cases mirroring `rogueTurn.test.ts`'s own ("never picks somebody it has already
+  happened to"); `worldStoriesD.store.test.ts` gained a store-level case per story confirming the
+  `World.worldStoryHappenedFor` entry is written correctly (length 1 for networkRealignment, length 2
+  — both sides — for ownerRivalry).
+- Verified: `tsc --noEmit` clean; full suite 194 files / 3,270 tests passing; `npm run build` clean; the
+  story-pacing probe re-run against the fixed code, confirming both the per-seed divergence and the
+  ownerRivalry recurrence fix with real numbers (above).

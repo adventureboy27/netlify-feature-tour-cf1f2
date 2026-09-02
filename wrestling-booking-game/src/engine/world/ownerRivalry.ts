@@ -1,6 +1,14 @@
 // Two existing rivals go after each other, publicly — nothing to do with
 // the player at all. Purely flavor with a real, asymmetric consequence: one
 // side wins the exchange and gets a real bump, the other pays for it.
+//
+// Once per rival, either side: reuses the same "happenedFor" tracking shape
+// as rogueTurn/scandal/breakawayPromotion (World.worldStoryHappenedFor),
+// both promotions in the pair marked so neither is picked into a second
+// rivalry. Originally had no cooldown at all — combined with the story-roll
+// seed bug (see state/store.ts), this one in particular ended up firing far
+// more than any other story in the registry, confirmed by playing many
+// seeds out with tools/probe.mjs.
 
 import type { Rng } from '../rng';
 import { chance, clamp, shuffle } from '../rng';
@@ -9,14 +17,21 @@ import type { Promotion, WorldSettings } from '../types';
 export function eligibleForOwnerRivalry(
   week: number,
   livingRivals: readonly Promotion[],
+  alreadyHappenedIds: readonly string[],
   settings: WorldSettings,
 ): boolean {
-  return week >= settings.ownerRivalryEarliestWeek && livingRivals.length >= 2;
+  const eligible = livingRivals.filter((r) => !alreadyHappenedIds.includes(r.id));
+  return week >= settings.ownerRivalryEarliestWeek && eligible.length >= 2;
 }
 
-/** Two distinct rivals, picked at random. */
-export function pickOwnerRivalryPair(rng: Rng, livingRivals: readonly Promotion[]): [Promotion, Promotion] {
-  const [a, b] = shuffle(rng, livingRivals);
+/** Two distinct rivals, neither already through a rivalry, picked at random. */
+export function pickOwnerRivalryPair(
+  rng: Rng,
+  livingRivals: readonly Promotion[],
+  alreadyHappenedIds: readonly string[],
+): [Promotion, Promotion] {
+  const eligible = livingRivals.filter((r) => !alreadyHappenedIds.includes(r.id));
+  const [a, b] = shuffle(rng, eligible);
   return [a!, b!];
 }
 

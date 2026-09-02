@@ -74,6 +74,18 @@ describe('networkRealignment', () => {
     expect(after).not.toEqual(before);
     expect(world.weeklyNews.some((n) => n.kind === 'business' && n.week === world.week)).toBe(true);
   });
+
+  it('permanently marks the rival it happened to and cannot repeat for them', () => {
+    useGameStore.setState((s) => {
+      s.world!.settings.networkRealignmentChancePerWeek = 1;
+      s.world!.week = s.world!.settings.networkRealignmentEarliestWeek;
+    });
+    runWeek();
+    const world = useGameStore.getState().world!;
+    const happened = world.worldStoryHappenedFor['networkRealignment'] ?? [];
+    expect(happened).toHaveLength(1);
+    expect(world.rivals.some((r) => r.id === happened[0])).toBe(true);
+  });
 });
 
 describe('ownerRivalry', () => {
@@ -100,6 +112,18 @@ describe('ownerRivalry', () => {
     const after = world.rivals.map((r) => r.rating);
     expect(after).not.toEqual(before);
     expect(world.weeklyNews.some((n) => n.kind === 'ownership' && n.week === world.week)).toBe(true);
+  });
+
+  it('permanently marks both rivals it happened to, on either side, and cannot repeat for them', () => {
+    useGameStore.setState((s) => {
+      s.world!.settings.ownerRivalryChancePerWeek = 1;
+      s.world!.week = s.world!.settings.ownerRivalryEarliestWeek;
+    });
+    runWeek();
+    const world = useGameStore.getState().world!;
+    const happened = world.worldStoryHappenedFor['ownerRivalry'] ?? [];
+    expect(happened).toHaveLength(2);
+    for (const id of happened) expect(world.rivals.some((r) => r.id === id)).toBe(true);
   });
 });
 

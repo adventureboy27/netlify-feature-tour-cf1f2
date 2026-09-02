@@ -21,6 +21,18 @@ function freshSettings(overrides: Partial<ReturnType<typeof defaultWorldSettings
     scandalChancePerWeek: 0,
     breakawayChancePerWeek: 0,
     farewellTourChancePerWeek: 0,
+    // The rest of the world-story registry, zeroed for real isolation — see
+    // worldStoriesD.store.test.ts's own comment on this exact trap. This file
+    // predates several of these and had been silently relying on the old
+    // week-only story-roll seed happening to favor scandal/breakawayPromotion/
+    // farewellTour at the exact weeks it forces; reseeding the roll with the
+    // save's own seed (fixing a real cross-save determinism bug) changed the
+    // draw and exposed the gap.
+    pricingWarChancePerWeek: 0,
+    paperworkLockoutChancePerWeek: 0,
+    familyBusinessChancePerWeek: 0,
+    breakfastBeltChancePerWeek: 0,
+    moneyEventChancePerWeek: 0,
     ...overrides,
   };
 }

@@ -50,14 +50,16 @@ export const WORLD_STORIES: WorldStoryDefinition[] = [
     category: 'business',
     weight: 4,
     chancePerWeek: (s) => s.networkRealignmentChancePerWeek,
-    eligible: (ctx) => eligibleForNetworkRealignment(ctx.week, ctx.livingRivals, ctx.settings),
+    eligible: (ctx) =>
+      eligibleForNetworkRealignment(ctx.week, ctx.livingRivals, ctx.happenedFor['networkRealignment'] ?? [], ctx.settings),
   },
   {
     id: 'ownerRivalry',
     category: 'ownership',
     weight: 4,
     chancePerWeek: (s) => s.ownerRivalryChancePerWeek,
-    eligible: (ctx) => eligibleForOwnerRivalry(ctx.week, ctx.livingRivals, ctx.settings),
+    eligible: (ctx) =>
+      eligibleForOwnerRivalry(ctx.week, ctx.livingRivals, ctx.happenedFor['ownerRivalry'] ?? [], ctx.settings),
   },
   {
     id: 'rogueTurn',

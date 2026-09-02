@@ -28,6 +28,7 @@ function freshSettings(overrides: Partial<ReturnType<typeof defaultWorldSettings
     paperworkLockoutChancePerWeek: 0,
     familyBusinessChancePerWeek: 0,
     breakfastBeltChancePerWeek: 0,
+    moneyEventChancePerWeek: 0,
     ...overrides,
   };
 }
@@ -126,9 +127,17 @@ describe('the Breakfast Belt', () => {
     )!;
     expect(challengerId).toBeDefined();
 
+    // Bumped for this one check, same reason as the "stops" test's own
+    // override below: whichever wrestler the tournament crowns has real
+    // stats, and a real match's own win/loss morale reaction can land a
+    // point or two either way on top of the flat hit — at the default
+    // 6-point size that organic swing can occasionally outweigh it. A large
+    // override makes the hit's signature unmistakable regardless of who was
+    // crowned; nothing here checks the hit's actual configured size.
     useGameStore.setState((s) => {
-      s.world!.wrestlers[championId]!.morale = 80;
-      s.world!.wrestlers[challengerId]!.morale = 80;
+      s.world!.settings.breakfastBeltMoraleHit = 40;
+      s.world!.wrestlers[championId]!.morale = 95;
+      s.world!.wrestlers[challengerId]!.morale = 95;
     });
 
     useGameStore.getState().setSegmentParticipant(0, championId, 0);
@@ -137,9 +146,8 @@ describe('the Breakfast Belt', () => {
     runWeek();
 
     const after = useGameStore.getState().world!;
-    const hit = after.settings.breakfastBeltMoraleHit;
-    expect(after.wrestlers[championId]!.morale).toBeLessThanOrEqual(80 - hit);
-    expect(after.wrestlers[challengerId]!.morale).toBeLessThanOrEqual(80 - hit);
+    expect(after.wrestlers[championId]!.morale).toBeLessThanOrEqual(95 - 40 + 10);
+    expect(after.wrestlers[challengerId]!.morale).toBeLessThanOrEqual(95 - 40 + 10);
   });
 
   it("pays the current champion a real weekly royalty while the window is open, whoever's holding it", () => {

@@ -15,6 +15,25 @@ function freshSettings() {
     seed: 'merger-store-test',
     startingRosterSize: TEST_ROSTER_SIZE,
     ownerMandatesEnabled: false,
+    // The rest of the world-story registry, zeroed for real isolation — see
+    // worldStoriesD.store.test.ts's own comment on this exact trap. This file
+    // predates that convention and had been silently relying on the old
+    // week-only story-roll seed happening to favor merger at
+    // mergerEarliestWeek; reseeding the roll with the save's own seed (a real
+    // bug fix — every save used to see the identical story at the identical
+    // week) changed the draw and exposed the gap.
+    successionChancePerWeek: 0,
+    networkRealignmentChancePerWeek: 0,
+    ownerRivalryChancePerWeek: 0,
+    rogueChancePerWeek: 0,
+    scandalChancePerWeek: 0,
+    breakawayChancePerWeek: 0,
+    farewellTourChancePerWeek: 0,
+    pricingWarChancePerWeek: 0,
+    paperworkLockoutChancePerWeek: 0,
+    familyBusinessChancePerWeek: 0,
+    breakfastBeltChancePerWeek: 0,
+    moneyEventChancePerWeek: 0,
   };
 }
 

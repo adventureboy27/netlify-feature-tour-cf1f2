@@ -4817,7 +4817,12 @@ export const useGameStore = create<GameStore>()(
             breakfastBeltHappened: world.breakfastBeltHappened,
             settings: world.settings,
           };
-          const storyRng = rngFromSeed(`worldStory:${world.week}`);
+          // Was seeded on the week alone, with no per-save component — every
+          // save landed on the exact same story at the exact same week,
+          // confirmed by playing many seeds out with tools/probe.mjs. Fixed
+          // the same way every other roll in this codebase avoids the shared
+          // stream: entity-seeded, here the save itself is the entity.
+          const storyRng = rngFromSeed(`worldStory:${world.settings.seed}:${world.week}`);
           const picked = rollWorldStory(storyRng, storyCtx);
 
           if (picked?.id === 'merger') {
@@ -4870,12 +4875,22 @@ export const useGameStore = create<GameStore>()(
               }
             }
           } else if (picked?.id === 'networkRealignment') {
-            const rival = pickNetworkRealignmentTarget(storyRng, livingRivals);
+            const already = world.worldStoryHappenedFor['networkRealignment'] ?? [];
+            const rival = pickNetworkRealignmentTarget(storyRng, livingRivals, already);
             const outcome = applyNetworkRealignment(storyRng, rival, world.settings);
+            world.worldStoryHappenedFor = {
+              ...world.worldStoryHappenedFor,
+              networkRealignment: [...already, rival.id],
+            };
             world.weeklyNews.push(wire('business', outcome.line, world.week, 'lead'));
           } else if (picked?.id === 'ownerRivalry') {
-            const [a, b] = pickOwnerRivalryPair(storyRng, livingRivals);
+            const already = world.worldStoryHappenedFor['ownerRivalry'] ?? [];
+            const [a, b] = pickOwnerRivalryPair(storyRng, livingRivals, already);
             const outcome = applyOwnerRivalry(storyRng, a, b, world.settings);
+            world.worldStoryHappenedFor = {
+              ...world.worldStoryHappenedFor,
+              ownerRivalry: [...already, a.id, b.id],
+            };
             world.weeklyNews.push(wire('ownership', outcome.line, world.week, 'lead'));
           } else if (picked?.id === 'rogueTurn') {
             const already = world.worldStoryHappenedFor['rogueTurn'] ?? [];
