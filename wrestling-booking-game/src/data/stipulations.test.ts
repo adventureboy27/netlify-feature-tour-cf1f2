@@ -37,12 +37,15 @@ describe('STIPULATIONS', () => {
 
   it('every locked stipulation has a real way to unlock it, and nothing unlockable starts open', () => {
     const lockedIds = new Set(STIPULATIONS.filter((s) => s.locked).map((s) => s.id));
-    // arenaFloor is the one exception — it's won mid-crisis, from the truck
-    // breaking down (engine/world/truckBreakdown.ts), not a real milestone,
-    // so it never appears in data/unlocks.ts's own list.
+    // arenaFloor is won mid-crisis, from the truck breaking down
+    // (engine/world/truckBreakdown.ts), not a real milestone. factionDestroyer
+    // is never unlocked at all — see engine/world/factionDestroyer.ts's doc
+    // comment: it's exclusively system-forced, and its id is deliberately
+    // never added to world.unlockedStipulationIds. Both are locked forever
+    // to the ordinary booking picker without appearing in data/unlocks.ts.
     const milestoneIds = new Set(UNLOCK_CONDITIONS.map((c) => c.stipulationId));
     for (const id of lockedIds) {
-      if (id === 'arenaFloor') continue;
+      if (id === 'arenaFloor' || id === 'factionDestroyer') continue;
       expect(milestoneIds.has(id), `${id} is locked but has no unlock condition`).toBe(true);
     }
     for (const id of milestoneIds) {

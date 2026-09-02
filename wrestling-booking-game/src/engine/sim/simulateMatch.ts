@@ -25,6 +25,7 @@ import type { RingsideTotals } from './ringside';
 import { ruleAdjustedWeights, kayfabeScore } from './kayfabe';
 import { pairWinProbability, multiManWinProbabilities } from './winProbability';
 import { orderEliminations, pickEliminators } from './battleRoyal';
+import { orderFactionEliminations, pickFactionEliminators } from './factionDestroyer';
 import { rollFinish, isDrawFinish, isNonDecisiveFinish } from './finish';
 import { computeMatchRating } from './matchRating';
 import { paceEffect } from './pacing';
@@ -135,6 +136,14 @@ export interface MatchSimResult {
   heatChange: HeatChange | null;
   /** Which owned match-prop unit gave out, if the finish was 'equipmentFailure'. */
   gearFailureUnitId?: Id | null;
+  /**
+   * The full chronological elimination order for a per-member elimination
+   * match (Faction Destroyer only) — `beats` above is a highlight reel,
+   * capped and evenly spread across the real order, so it cannot answer
+   * "who went out first, second, third." Only set when `finish` is
+   * 'lastFactionStanding'.
+   */
+  factionEliminationOrder?: Id[];
 }
 
 function mean(values: number[]): number {
@@ -241,6 +250,12 @@ export function simulateMatch(
     winnerSide = weightedPick(rng, sides.map((s, i) => [s, probs[i]!] as const));
   }
 
+  // Faction Destroyer: No-DQ, no rules — there is no disqualification path
+  // to catch a manager into, and eliminations below are computed off this
+  // winnerSide, so nothing may flip it afterward. Declared this early so it
+  // can guard the caught-manager roll immediately below as well.
+  const isFactionDestroyer = ctx.stipulation?.id === 'factionDestroyer';
+
   // The manager gets caught.
   //
   // Rolled here, before anything derives from who won, so the members, the
@@ -253,7 +268,7 @@ export function simulateMatch(
   let caughtManager: string | null = null;
   let caughtManagerId: string | null = null;
   const cornerRisk = ctx.ringside?.caughtRisk?.[winnerSide] ?? 0;
-  if (cornerRisk > 0 && sides.length === 2 && rng.next() < cornerRisk) {
+  if (!isFactionDestroyer && cornerRisk > 0 && sides.length === 2 && rng.next() < cornerRisk) {
     caughtManager = ctx.ringside?.caughtBy?.[winnerSide] ?? null;
     caughtManagerId = ctx.ringside?.caughtById?.[winnerSide] ?? null;
     winnerSide = sides.find((sd) => sd !== winnerSide) ?? winnerSide;
@@ -265,18 +280,62 @@ export function simulateMatch(
   const loserMembers = sides.filter((s) => s !== winnerSide).flatMap((s) => sideMembers.get(s)!);
   const winnerIsTechnician = winnerMembers.some((w) => w.archetype === 'technician');
 
+  // Faction Destroyer only: elimination happens per MEMBER, not per SIDE — a
+  // side can lose members and keep fighting until the other side has
+  // nobody left, exactly like a traditional Survivor Series elimination
+  // match. See sim/factionDestroyer.ts. Computed up front because it
+  // decides who the "winner" and "pinned/pinner" actually are for the rest
+  // of this function — the winning SIDE and the surviving MEMBERS are not
+  // the same thing here.
+  const factionElimination = isFactionDestroyer
+    ? (() => {
+        const loserSide = sides.find((s) => s !== winnerSide)!;
+        const order = orderFactionEliminations(
+          rng,
+          loserMembers,
+          winnerMembers,
+          winProbabilitiesBySide[loserSide] ?? 0.01,
+          winnerProbability,
+        );
+        const eliminatorMap = pickFactionEliminators(order.order, order.survivorIds, ctx.week);
+        const events: EliminationEvent[] = order.order.map((eliminatedId) => {
+          const eliminatorId = eliminatorMap.get(eliminatedId) ?? null;
+          const eliminated = wrestlerById.get(eliminatedId)!;
+          const eliminator = eliminatorId ? wrestlerById.get(eliminatorId) : null;
+          return {
+            eliminatedId: eliminated.id,
+            eliminatedName: eliminated.name,
+            eliminatorId: eliminator?.id ?? null,
+            eliminatorName: eliminator?.name ?? null,
+          };
+        });
+        const survivors = order.survivorIds.map((id) => wrestlerById.get(id)!);
+        const lastEliminatedId = order.order[order.order.length - 1] ?? null;
+        const lastEliminatorId = lastEliminatedId ? (eliminatorMap.get(lastEliminatedId) ?? null) : null;
+        return { events, survivors, lastEliminatedId, lastEliminatorId };
+      })()
+    : null;
+  // Whoever actually made it to the end, for a Faction Destroyer match —
+  // "the winner" downstream (the finish line, winnerWrestlerIds) means a
+  // genuine survivor, not just anyone on the side that happened to win.
+  const effectiveWinnerMembers = factionElimination?.survivors ?? winnerMembers;
+
   // Who specifically took the fall, and who specifically delivered it — for
   // a 1v1 match this degenerates to the only member of each side; for a tag
   // team or a battle royal's final two, this used to be silently "whoever
   // is listed first," which was never a decision, just array position. Each
   // pick is its own entity-seeded stream, not the shared `rng` — a tag
   // match's pinned member cannot shift a single other roll in this match.
-  const pinnedId =
-    loserMembers.length > 1
+  // Faction Destroyer: the "pin" is the last elimination — whoever put the
+  // final member of the losing side away.
+  const pinnedId = factionElimination
+    ? (factionElimination.lastEliminatedId ?? undefined)
+    : loserMembers.length > 1
       ? pick(rngFromSeed(`pinned:${loserMembers.map((w) => w.id).sort().join(',')}:${ctx.week}`), loserMembers).id
       : loserMembers[0]?.id;
-  const pinnerId =
-    winnerMembers.length > 1
+  const pinnerId = factionElimination
+    ? (factionElimination.lastEliminatorId ?? undefined)
+    : winnerMembers.length > 1
       ? pick(rngFromSeed(`pinner:${winnerMembers.map((w) => w.id).sort().join(',')}:${ctx.week}`), winnerMembers).id
       : winnerMembers[0]?.id;
 
@@ -286,26 +345,28 @@ export function simulateMatch(
   // instead of an instant multi-way roll with extra bodies in it. See
   // sim/battleRoyal.ts.
   const eliminationOrder =
-    isMultiMan && ctx.stipulation?.id === 'battleRoyal'
+    !isFactionDestroyer && isMultiMan && ctx.stipulation?.id === 'battleRoyal'
       ? orderEliminations(rng, sides, winnerSide, winProbabilitiesBySide)
       : null;
   const eliminatorsBySide = eliminationOrder ? pickEliminators(eliminationOrder, sideMembers, ctx.week) : null;
-  const eliminations: EliminationEvent[] | undefined = eliminationOrder
-    ? eliminationOrder.slice(0, -1).flatMap((side): EliminationEvent[] => {
-        const eliminated = sideMembers.get(side)?.[0];
-        if (!eliminated) return [];
-        const eliminatorId = eliminatorsBySide?.get(side) ?? null;
-        const eliminator = eliminatorId ? wrestlerById.get(eliminatorId) : null;
-        return [
-          {
-            eliminatedId: eliminated.id,
-            eliminatedName: eliminated.name,
-            eliminatorId: eliminator?.id ?? null,
-            eliminatorName: eliminator?.name ?? null,
-          },
-        ];
-      })
-    : undefined;
+  const eliminations: EliminationEvent[] | undefined = factionElimination
+    ? factionElimination.events
+    : eliminationOrder
+      ? eliminationOrder.slice(0, -1).flatMap((side): EliminationEvent[] => {
+          const eliminated = sideMembers.get(side)?.[0];
+          if (!eliminated) return [];
+          const eliminatorId = eliminatorsBySide?.get(side) ?? null;
+          const eliminator = eliminatorId ? wrestlerById.get(eliminatorId) : null;
+          return [
+            {
+              eliminatedId: eliminated.id,
+              eliminatedName: eliminated.name,
+              eliminatorId: eliminator?.id ?? null,
+              eliminatorName: eliminator?.name ?? null,
+            },
+          ];
+        })
+      : undefined;
 
   // What the pace is worth here, and what it costs. Worked out once and used
   // by the finish roll, the rating and the aftermath — the same call has to
@@ -325,10 +386,15 @@ export function simulateMatch(
     ? (ctx.gearFailureChance ?? 0) * ctx.settings.equipmentFailureWeightScale
     : 0;
 
-  const finish: FinishType = caughtManager
-    ? // Nothing else it can be. The official saw it.
-      'disqualification'
-    : rollFinish(rng, {
+  const finish: FinishType = isFactionDestroyer
+    ? // The match ends the instant one side has nobody left — never rolled,
+      // same non-negotiable as every other finish, just decided structurally
+      // instead of by rollFinish.
+      'lastFactionStanding'
+    : caughtManager
+      ? // Nothing else it can be. The official saw it.
+        'disqualification'
+      : rollFinish(rng, {
     rules,
     violenceLevel: ctx.stipulation?.violenceLevel ?? 0,
     winnerIsTechnician,
@@ -454,7 +520,7 @@ export function simulateMatch(
   const beats = generateBeats(
     rng,
     {
-      winnerMembers,
+      winnerMembers: effectiveWinnerMembers,
       loserMembers,
       finish,
       stars,
@@ -482,7 +548,7 @@ export function simulateMatch(
 
   return {
     winnerSide: draw ? null : winnerSide,
-    winnerWrestlerIds: draw ? [] : winnerMembers.map((w) => w.id),
+    winnerWrestlerIds: draw ? [] : effectiveWinnerMembers.map((w) => w.id),
     finish,
     rating: finalRating,
     stars: finalStars,
@@ -493,6 +559,7 @@ export function simulateMatch(
     /** Which owned unit gave out, if the finish was 'equipmentFailure'. The caller applies the consequence. */
     gearFailureUnitId: gearFailure?.unitId ?? null,
     caughtManagerId,
+    factionEliminationOrder: factionElimination?.events.map((e) => e.eliminatedId),
     winProbabilitiesBySide,
     injuryMultiplier:
       (ctx.stipulation?.injuryMult ?? 1) *

@@ -73,11 +73,12 @@ export const GROUP_TURN_CALL_OPTIONS: GroupTurnCallOption[] = [
   },
 ];
 
-export type GroupKickProblem = 'notInGroup' | 'alreadyDisbanded';
+export type GroupKickProblem = 'notInGroup' | 'alreadyDisbanded' | 'factionLocked';
 
 export const GROUP_KICK_PROBLEM_TEXT: Record<GroupKickProblem, string> = {
   notInGroup: 'They are not in this group',
   alreadyDisbanded: 'This group already split up',
+  factionLocked: 'Nobody leaves this group while the story is live',
 };
 
 export interface GroupKickCheck {
@@ -85,13 +86,22 @@ export interface GroupKickCheck {
   problem: GroupKickProblem | null;
 }
 
-/** Whether this member can be kicked from this group right now. */
+/**
+ * Whether this member can be kicked from this group right now. `locked` is
+ * true while this stable is one of the two locked into an active Faction
+ * Destroyer story — see engine/world/factionDestroyer.ts and store.ts's
+ * kickFromGroup call site, which computes it from world.factionDestroyer.
+ * A temporary rule, not a permanent one: additions are still allowed, and
+ * the lock lifts the moment the story resolves.
+ */
 export function canKickFromGroup(
   stable: { memberIds: readonly Id[]; disbandedWeek: number | null },
   memberId: Id,
+  locked = false,
 ): GroupKickCheck {
   if (stable.disbandedWeek !== null) return { ok: false, problem: 'alreadyDisbanded' };
   if (!stable.memberIds.includes(memberId)) return { ok: false, problem: 'notInGroup' };
+  if (locked) return { ok: false, problem: 'factionLocked' };
   return { ok: true, problem: null };
 }
 

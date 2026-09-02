@@ -42,6 +42,7 @@ const FINISH_TEXT: Record<FinishType, string> = {
   injuryStoppage: 'stopped through injury',
   escape: 'by escape',
   equipmentFailure: 'no-contest — the gear gave out',
+  lastFactionStanding: 'last one standing',
 };
 
 export function ShowResults({

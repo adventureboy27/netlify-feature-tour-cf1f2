@@ -5169,3 +5169,120 @@ seed), plus a duplicate-scheduling guard.
   confirmation the mechanism runs uniformly across every team and faction in the world, not just a
   player-formed one), screenshotted `GroupTurnCallPanel` rendering it correctly in the Office, answered
   it, and confirmed the group shrank and a rivalry opened exactly as a staged turn would.
+
+## Faction Destroyer — an unlockable elimination war between two factions, and the general-purpose ideas it raised
+
+Player-requested main-event story, refined over several rounds of design questions this session. Once
+the player has two factions (4+ member `Stable`s) at once, it locks onto that pair and starts a 6-week
+countdown. Every week featuring a match involving a member of either faction ticks it down by one; a
+quiet week just doesn't move it. Membership of both factions is fully frozen for the duration — no kicks,
+no quiet defection, no spontaneous implosion — additions are still allowed, so the booker can even up
+lopsided sides. When the countdown hits zero, the match is forced onto the next show as the main event,
+no booker choice: a No-DQ, no-time-limit, all-members-at-once elimination war between the two full
+rosters, uneven sides allowed. The first two wrestlers eliminated — whichever side, and including anyone
+added mid-countdown — are fired with the existing 90-day no-compete freeze. The match ends the instant
+one side has nobody left; that side's faction disbands outright, and if the winning side itself loses
+enough members to the releases that it drops below 4, it re-kinds down to an officially named team
+instead of a faction (or fully disbands if it would drop below 2 — structurally unreachable today given
+the numbers, but built exactly as asked since it's harmless and correct if the thresholds ever change).
+One-time per save: a new `factionDestroyerHappened` flag latches the moment it first triggers and is
+checked alongside `factionDestroyer === null`, so a later pair of factions never starts a second one —
+added after the original build, in response to the player asking "one-time or regular?" and leaning
+one-time.
+
+**The one genuinely new piece of match-sim logic**: elimination in this codebase is per-*side*
+(`sim/battleRoyal.ts`'s `orderEliminations` — one weighted draw eliminates a whole side atomically), but
+Faction Destroyer needed a side to lose *some* members while continuing to fight, ending only when a side
+hits zero. New `sim/factionDestroyer.ts`: reserve one random guaranteed survivor from the winning side up
+front (excluded from the draw entirely), pool everyone else (all losers + remaining winners) weighted by
+`1 / their own side's win probability`, draw repeatedly without replacement until the loser's full
+membership has been drawn — provably terminates correctly since the loser's members are a strict subset
+of a finite no-replacement pool. `simulateMatch.ts` branches into this instead of the ordinary multi-man
+path via a literal `stipulation?.id === 'factionDestroyer'` check, same pattern
+`stipulationConsequence()` already uses for `loserLeaves`/`hairVsHair`. New `FinishType:
+'lastFactionStanding'`, bypassing the normal weighted finish roll entirely — the match ends the instant a
+side hits zero, never scripted.
+
+**A real correctness bug caught by the new store-integration tests, not assumed away**: the first
+implementation read "who was eliminated first and second" off `SegmentResult.beats` — but `beats` is a
+narrative highlight reel, capped at `ELIMINATION_BEATS_MAX = 4` and evenly spread across the real
+elimination order (so a 7-elimination match might only surface 2-4 of them, not necessarily the earliest
+ones). A live test run under-released people because of exactly this. Fixed by adding a new
+`SegmentResult.factionEliminationOrder?: Id[]` field — the actual full chronological order, populated
+only for this stipulation — and pointing `resolveFactionDestroyer` at that instead of `beats`.
+
+**A second bug, the exact trap CLAUDE.md documents by name**: the post-match release/disband wire lines
+were being pushed with a plain `world.week` timestamp from *inside* the per-segment resolution loop, which
+runs *before* `world.week += 1` — so by the time the end-of-week prune (`item.week >= world.week`) ran,
+the lines were already "last week's news" and got silently dropped, exactly like the six §0 lines
+CLAUDE.md's trap section describes losing before. Fixed by stamping `world.week + 1`, matching the
+existing documented convention right above it in the same file
+(`applyFamilyBusinessTitleChange`'s own doc comment).
+
+**Two more real bugs surfaced only by a live Playwright run**, not by the unit suite: the game's existing
+"who no-showed tonight" and "stand-in fills the gap" systems (misfortune/absence, and a separate
+catastrophe-driven no-show call) can swap *any* card participant for a substitute — including, previously,
+a locked Faction Destroyer competitor. A substitute standing in for one week is a stranger to the story:
+eliminating or releasing them would be eliminating or releasing somebody who was never actually in either
+faction. Fixed both: the ordinary stand-in loop now always takes the "no replacement, fight short-handed"
+path for a `systemForced: 'factionDestroyer'` segment (uneven sides are explicitly fine per the design),
+and the no-show catastrophe's candidate pool now excludes that segment's participants entirely so it can
+never be picked as the one who didn't turn up.
+
+**A mid-build design question, addressed for real rather than assumed**: "what if a contract
+expires during the six weeks?" The existing contract-expiry tick (`expireContracts`) already had a
+precedent for pausing a wrestler's clock — `paperworkFrozen` — but that flag *also* blocks a wrestler from
+working, which is exactly backwards here: the countdown requires locked members to keep working. Added a
+second, narrower exclusion right beside the existing one: a locked Faction Destroyer member's contract
+simply doesn't tick down while the story is live, but they can still be booked. `WrestlerDetail.tsx` now
+shows "Contract Frozen" in place of the normal urgency badge for a locked member, per the player's own
+follow-up ask, so the freeze is never a silent state change.
+
+**Two other player questions turned out to already be true of the existing design**, and needed no code
+change: "can you auto-populate the main event so nobody can leave a favorite out?" — `buildForcedSegment`
+already puts every current member of both stables on the card with zero player selection. "Can the match
+have both genders?" — nothing anywhere in the trigger, the forced-segment builder, or the match sim
+restricts the two factions to matching genders; that check only applies within a single group at
+formation time.
+
+**Design calls made explicitly, not left implicit**:
+- Countdown: a missed week just doesn't count down — no punishment, matching "a turn does not need a
+  casualty."
+- Which two factions, once 3+ exist: locks onto the first two that ever coexist, in stable array order —
+  a later faction simply isn't eligible until the active story resolves.
+- The player's first instinct for the freeze — "warn them before they kick someone, since it'll end the
+  story" — was flagged against CLAUDE.md's own non-negotiable ("the game never warns the player before a
+  bad decision") before being built. The player's own next answer resolved it better than either original
+  option: block the removal outright as a temporary rule while the story is live, rather than warn before
+  it. Membership additions were left untouched, since evening up lopsided sides was the whole point.
+- `Segment.systemForced?: 'factionDestroyer'` is the first "locked segment" concept in the codebase —
+  `BookingScreen.tsx`'s card overview renders that one slot as a plain, non-clickable div instead of a
+  button, with a rose "Faction Destroyer — locked" badge. Deeper editor screens weren't separately locked
+  — blocking the one realistic entry point was judged sufficient given the effort/time tradeoff.
+- The stipulation itself is `locked: true` and its id is never added to `world.unlockedStipulationIds` —
+  exclusively system-forced, never player-selectable, modeled on Arena Floor's own "unlocked, never
+  scheduled by choice" precedent. Both are exempted from `stipulations.test.ts`'s "every locked
+  stipulation has a real unlock milestone" check for the same reason arenaFloor already was.
+
+- Tests: `engine/sim/factionDestroyer.test.ts` (10) — the elimination algorithm's survivor guarantee
+  under extreme skew, full loser accounting, uneven sides, eliminator RNG hygiene. `engine/world/
+  factionDestroyer.test.ts` (14) — trigger pairing, week-qualification, forced-segment shape,
+  `resolveFactionDestroyer`'s release/disband decisions including the "first two released reads the real
+  chronological order, not the beat reel" case. `state/factionDestroyer.store.test.ts` (10, new this
+  pass) — the full weekly-tick integration: trigger and one-time-only latch, quiet vs. qualifying weeks,
+  the forced main-event insertion, membership-lock refusals for both kick and disband while leaving an
+  unrelated group free, the contract-freeze precisely (drives a member's `weeksRemaining` to 1, runs three
+  more weeks, confirms it never reaches zero), and full post-match resolution (releases read off the real
+  elimination order rather than scanning for a null `promotionId`, since the match's own violence can
+  separately injure or retire somebody who was never eliminated, and a mid-countdown recruit can be among
+  the first two without ever appearing in the original roster snapshot).
+- Verified: `tsc --noEmit` clean; the three new/touched test files pass in isolation and full suite
+  (199 files / 3,351 tests) passes clean twice — once before, once after the `stipulations.test.ts`
+  finishFlavor/unlock-exemption fixes the new stipulation needed; `npm run build` clean. A live Playwright
+  pass via `window.__store`, twice — the first run is what actually caught the two stand-in/no-show bugs
+  above (a real substitute standing in for a locked member, live, not simulated): formed two factions,
+  triggered the story, confirmed a manual kick was refused, drove the countdown to zero, watched the
+  match force onto the next main event with every current member (including one recruit added
+  mid-countdown) on the card, resolved it, and confirmed the loser disbanded with its wire line landing at
+  the correct week, the winner survived with an extra recruit aboard, and the story never re-triggers
+  afterward even once a fresh pair of factions coexists.

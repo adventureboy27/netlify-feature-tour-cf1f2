@@ -94,6 +94,13 @@ export function WrestlerDetailBody({
   const belts = titlesHeldBy(world.titles, w.id);
   const alignment = alignmentOf(w);
   const group = groupOf(world.stables, w.id);
+  // A locked Faction Destroyer member's contract clock is paused (see
+  // store.ts's expireContracts call site) for as long as the countdown or
+  // the forced match is live — the deal itself never runs out mid-story.
+  const factionDestroyerLocked =
+    world.factionDestroyer !== null &&
+    group !== undefined &&
+    (world.factionDestroyer.stableAId === group.id || world.factionDestroyer.stableBId === group.id);
   const pressure = retirementPressure(w, { currentYear, settings: world.settings });
   // What ending this deal early would cost. Zero for most of the card; a
   // year of a draw's wages for the ones you built up.
@@ -490,17 +497,23 @@ export function WrestlerDetailBody({
                 <span className="text-neutral-600">/wk</span>
                 <span className="ml-1 text-neutral-600">· {w.contract.weeksRemaining}w left</span>
               </span>
-              <span
-                className={
-                  contractUrgency(w.contract) === 'Expiring'
-                    ? 'text-rose-400'
-                    : contractUrgency(w.contract) === 'Running down'
-                      ? 'text-amber-400'
-                      : 'text-neutral-600'
-                }
-              >
-                {contractUrgency(w.contract)}
-              </span>
+              {factionDestroyerLocked ? (
+                <span className="text-amber-400" title="Nobody's clock runs out while the story is live">
+                  Contract Frozen
+                </span>
+              ) : (
+                <span
+                  className={
+                    contractUrgency(w.contract) === 'Expiring'
+                      ? 'text-rose-400'
+                      : contractUrgency(w.contract) === 'Running down'
+                        ? 'text-amber-400'
+                        : 'text-neutral-600'
+                  }
+                >
+                  {contractUrgency(w.contract)}
+                </span>
+              )}
             </>
           ) : (
             <span className="text-rose-400">No contract</span>

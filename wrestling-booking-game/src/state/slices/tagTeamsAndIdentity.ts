@@ -64,6 +64,14 @@ export const createTagTeamsAndIdentitySlice: StateCreator<
       const world = state.world;
       const team = world?.stables.find((t) => t.id === teamId && t.disbandedWeek === null);
       if (!world || !team) return;
+      // Temporary rule, not a permanent one: neither of the two factions
+      // locked into an active Faction Destroyer story can be disbanded by
+      // hand — see engine/world/factionDestroyer.ts. The story itself
+      // disbands the loser (and, if it comes to that, the winner) when the
+      // match actually resolves.
+      if (world.factionDestroyer && (world.factionDestroyer.stableAId === teamId || world.factionDestroyer.stableBId === teamId)) {
+        return;
+      }
 
       // A team that has split cannot defend a belt it held together. The
       // belt goes vacant with the split on the record, which is how it goes.

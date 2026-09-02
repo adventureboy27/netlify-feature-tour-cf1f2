@@ -115,6 +115,9 @@ const FINISH_SATISFACTION: Record<FinishType, number> = {
   // nothing happening — the crowd saw something dramatic, it just wasn't a
   // finish.
   equipmentFailure: -6,
+  // The whole crowd watches a side get wiped out one at a time until nobody's
+  // left — a real spectacle finish, rated above an ordinary clean pin.
+  lastFactionStanding: 4.5,
 };
 
 function mean(values: number[]): number {

@@ -19,10 +19,21 @@ export function KickFromGroupControl({
   alreadyStaged: boolean;
 }) {
   const kick = useGameStore((s) => s.kickFromGroup);
+  const factionDestroyer = useGameStore((s) => s.world?.factionDestroyer ?? null);
   const [open, setOpen] = useState(false);
 
   if (alreadyStaged) {
     return <span className="text-[10px] text-amber-400">Turning next show</span>;
+  }
+
+  // Temporary rule, not a permanent one: nobody leaves either of the two
+  // factions locked into an active Faction Destroyer story — see
+  // engine/world/factionDestroyer.ts. A live locked state, not a
+  // pre-action warning: the button is simply gone while it's true.
+  const locked =
+    factionDestroyer !== null && (factionDestroyer.stableAId === stableId || factionDestroyer.stableBId === stableId);
+  if (locked) {
+    return <span className="text-[10px] text-amber-400">Nobody leaves this group while the story is live</span>;
   }
 
   if (!open) {

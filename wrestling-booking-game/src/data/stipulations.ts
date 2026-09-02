@@ -390,6 +390,34 @@ export const STIPULATIONS: Stipulation[] = [
       knockout: 'swung blind and connected anyway, which is more than {loser} can say for their night',
     },
   },
+  {
+    id: 'factionDestroyer',
+    name: 'Faction Destroyer',
+    blurb:
+      'Two full factions, no rules, no time limit, everybody in at once. The match ends the instant one side has nobody left. Never scheduled by choice — this only ever happens when a story forces it.',
+    ratingBonus: 14,
+    violenceLevel: 4,
+    injuryMult: 1.8,
+    archetypeFit: [],
+    locked: true,
+    // Mirrors what engine/world/factionDestroyer.ts's buildForcedSegment
+    // already sets directly on the segment's own rules — belt-and-braces,
+    // since picking a stipulation is supposed to *be* the rule change, not
+    // a separate switch the booker also has to remember. See stipulations.ts's
+    // impliedRules doc comment.
+    impliedRules: { ruleStrictness: 'none', countOuts: 'none', timeLimit: 0, aim: 'lastStanding', falls: 'anyMeans' },
+    // No finishWeights: this stipulation never reaches the ordinary
+    // rollFinish path — simulateMatch.ts branches into
+    // sim/factionDestroyer.ts's own elimination math instead, and always
+    // ends with the single 'lastFactionStanding' FinishType. finishFlavor
+    // still runs (narrative.ts reads it off ctx.finish regardless of how
+    // the finish was decided), so it gets its own line here rather than
+    // falling through to the generic FINISH_LINES text.
+    finishFlavor: {
+      lastFactionStanding:
+        "was still standing once the other side didn't have anybody left to send out",
+    },
+  },
 ];
 
 export function stipulationById(id: string): Stipulation | undefined {

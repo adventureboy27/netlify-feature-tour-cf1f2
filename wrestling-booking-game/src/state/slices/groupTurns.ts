@@ -74,7 +74,14 @@ export const createGroupTurnsSlice: StateCreator<
       if (!world) return;
       const stable = world.stables.find((s) => s.id === stableId);
       if (!stable) return;
-      const check = canKickFromGroup(stable, memberId);
+      // Temporary rule, not a permanent one: nobody leaves either of the two
+      // factions locked into an active Faction Destroyer story — see
+      // engine/world/factionDestroyer.ts. Lifts the moment the story
+      // resolves; additions are never blocked by it.
+      const locked =
+        world.factionDestroyer !== null &&
+        (world.factionDestroyer.stableAId === stableId || world.factionDestroyer.stableBId === stableId);
+      const check = canKickFromGroup(stable, memberId, locked);
       if (!check.ok) return;
 
       if (mode === 'staged') {

@@ -1298,7 +1298,14 @@ export type FinishType =
    * booked stipulation actually needs owned hardware; see gearFamilyId and
    * sim/gearFailure.ts.
    */
-  | 'equipmentFailure';
+  | 'equipmentFailure'
+  /**
+   * Faction Destroyer only: the match ends the instant one whole side has
+   * nobody left. Narrow and single-purpose on the same footing as 'escape'
+   * and 'equipmentFailure' above — never reachable from an ordinary finish
+   * roll, only from engine/sim/factionDestroyer.ts.
+   */
+  | 'lastFactionStanding';
 
 export interface RatingBreakdownEntry {
   label: string;
@@ -1355,6 +1362,14 @@ export interface SegmentResult {
   stars: number; // 0.5-5.0, half-star granularity
   ratingBreakdown: RatingBreakdownEntry[];
   beats: MatchBeat[];
+  /**
+   * The full chronological elimination order for a per-member elimination
+   * match (Faction Destroyer only) — `beats` above is a highlight reel,
+   * capped and evenly spread across the real order, so it cannot answer
+   * "who went out first, second, third." Only set when `finish` is
+   * 'lastFactionStanding'.
+   */
+  factionEliminationOrder?: Id[];
   titleChanged: boolean;
   /**
    * Everybody hurt in this match, with the sentence explaining how — see
@@ -1460,6 +1475,13 @@ export interface Segment {
    * looks like: no physical prop to break, so no equipment-failure risk.
    */
   gearUnitIds?: Id[];
+  /**
+   * Set when this segment was force-booked by a story rather than picked by
+   * the booker — see engine/world/factionDestroyer.ts. The booking UI reads
+   * this to lock participants/stipulation from editing; undefined on every
+   * ordinary segment, same "absent means normal" convention as `dark`.
+   */
+  systemForced?: 'factionDestroyer';
 }
 
 /** What a town made of what it was charged. See economy/showBudget.ts. */
@@ -3459,6 +3481,13 @@ export interface WorldSettings {
    * escalates into a real on-screen turn instead of a quiet walkout.
    */
   groupImplosionChance: number;
+
+  // Faction Destroyer — see world/factionDestroyer.ts. Always exactly two
+  // factions — the match itself is a pairwise war, not something that
+  // generalizes to a third side — so there's no "how many factions"
+  // setting; only the buildup length is a real tunable.
+  /** How many weeks the buildup runs once triggered, only ticking down on a week with a qualifying match. */
+  factionDestroyerCountdownWeeks: number;
 
   // Secret signings — see world/secretSigning.ts.
   /**

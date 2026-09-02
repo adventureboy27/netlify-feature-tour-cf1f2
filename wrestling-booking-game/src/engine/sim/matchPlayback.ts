@@ -181,5 +181,7 @@ export function finishCallout(finish: FinishType): string {
       return 'ESCAPE!';
     case 'equipmentFailure':
       return 'IT BROKE!';
+    case 'lastFactionStanding':
+      return "THAT'S EVERYONE!";
   }
 }

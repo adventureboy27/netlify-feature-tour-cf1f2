@@ -65,6 +65,7 @@ import type { TitleMemorial } from '../engine/world/titleMemorial';
 import type { RivalMove } from '../engine/world/rivalMove';
 import type { ConfrontationCall } from '../engine/world/confrontationCall';
 import type { GroupTurnCall, ScheduledGroupTurn } from '../engine/world/teamBreakup';
+import type { FactionDestroyerStory } from '../engine/world/factionDestroyer';
 import type { BiddingResult, BiddingWar } from '../engine/economy/bidding';
 import type { WeatherCallOptionId } from '../data/weatherCalls';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
@@ -431,6 +432,21 @@ export interface World {
    * whether it lands for real is on the booker, same as a confrontation call.
    */
   pendingGroupTurnCall: GroupTurnCall | null;
+  /**
+   * A locked-in Faction Destroyer buildup, or null when none is active —
+   * see engine/world/factionDestroyer.ts. Goes back to null once the match
+   * resolves, but the story is one-time-per-save: see
+   * factionDestroyerHappened below, which is what actually stops it from
+   * firing again for a later pair of factions.
+   */
+  factionDestroyer: FactionDestroyerStory | null;
+  /**
+   * True once a Faction Destroyer story has ever been triggered, win, lose,
+   * or draw. Faction Destroyer is a one-time event per save — this flag (not
+   * `factionDestroyer` itself, which clears back to null on resolution) is
+   * what the trigger check reads to make sure it never fires a second time.
+   */
+  factionDestroyerHappened: boolean;
   /**
    * The one auction the business runs in the open. Rare: it takes a real star
    * hitting the market, or a phenom out of the school, plus at least two other
@@ -1274,6 +1290,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     pendingConfrontationCall: null,
     scheduledGroupTurns: [],
     pendingGroupTurnCall: null,
+    factionDestroyer: null,
+    factionDestroyerHappened: false,
     pendingBiddingWar: null,
     pendingSupershow: null,
     pendingSupershowCard: null,

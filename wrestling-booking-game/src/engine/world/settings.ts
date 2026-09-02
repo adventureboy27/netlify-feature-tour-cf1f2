@@ -1585,6 +1585,7 @@ export function defaultWorldSettings(): WorldSettings {
     // happen quietly become a real on-screen turn instead, so the story
     // actually shows up in a played save rather than sitting dormant.
     groupImplosionChance: 0.4,
+    factionDestroyerCountdownWeeks: 6,
     // A quarter of a year: long enough that a handful of people are always in
     // the window, short enough that you cannot simply agree deals with a
     // rival's whole roster and wait.

@@ -67,6 +67,7 @@ import {
   letThemGo,
   releaseFromShakeup,
   tickNetworkDemand,
+  vacateTeamHeldTitles,
 } from './storeHelpers';
 import { createCardBuilderSlice } from './slices/cardBuilder';
 import { createEventsSlice } from './slices/events';
@@ -569,7 +570,28 @@ import type { RivalMoveChoiceId } from '../engine/world/rivalMove';
 import { nostalgicSigningWeight } from '../engine/world/nostalgia';
 import type { ConfrontationCallChoiceId } from '../engine/world/confrontationCall';
 import type { GroupTurnCallChoiceId } from '../engine/world/teamBreakup';
-import { availableAttackers, managerAvailable, rollBeatdownInjuryWeeks, buildGroupTurnCall } from '../engine/world/teamBreakup';
+import {
+  availableAttackers,
+  managerAvailable,
+  rollBeatdownInjuryWeeks,
+  buildGroupTurnCall,
+  kindForSize,
+  nextLeaderAfterKick,
+} from '../engine/world/teamBreakup';
+import {
+  eligiblePair as factionDestroyerEligiblePair,
+  beginFactionDestroyer,
+  weekQualifies as factionDestroyerWeekQualifies,
+  buildForcedSegment as buildFactionDestroyerSegment,
+  resolveFactionDestroyer,
+} from '../engine/world/factionDestroyer';
+import {
+  factionDestroyerTriggeredLine,
+  factionDestroyerScheduledLine,
+  factionDestroyerLoserDisbandedLine,
+  factionDestroyerWinnerSurvivesAsTeamLine,
+  factionDestroyerWinnerCollapsedLine,
+} from '../data/factionDestroyer';
 import type { LoanTier } from '../engine/economy/loan';
 import {
   slotExpectedPopularities,
@@ -1312,7 +1334,17 @@ export const useGameStore = create<GameStore>()(
           catastrophe.targetPromotionId === world.promotion.id &&
           !world.pendingNoShowCall
         ) {
-          const bookedIds = [...new Set(world.currentCard.flatMap((s) => s.participants.map((p) => p.wrestlerId)))];
+          // A Faction Destroyer segment never offers up a no-show target —
+          // same reasoning as its stand-in exemption further down: pulling
+          // or replacing one of its participants would mean releasing or
+          // eliminating somebody who was never actually in the story.
+          const bookedIds = [
+            ...new Set(
+              world.currentCard
+                .filter((s) => s.systemForced !== 'factionDestroyer')
+                .flatMap((s) => s.participants.map((p) => p.wrestlerId)),
+            ),
+          ];
           const bookedWrestlers = bookedIds
             .map((id) => world.wrestlers[id])
             .filter((w): w is Wrestler => Boolean(w));
@@ -1544,7 +1576,13 @@ export const useGameStore = create<GameStore>()(
                   (w): w is Wrestler =>
                     Boolean(w) && !bookedNow.has(w!.id) && !missingTonight.has(w!.id) && canWork(w!, world.settings, world.week),
                 );
-              const standIn = pickReplacement(rng, absent, available, world.settings);
+              // Faction Destroyer never takes a stand-in: the whole point is
+              // "everybody currently in either faction, right now" — a
+              // substitute would mean releasing or eliminating somebody who
+              // was never actually in the story. An absent member just
+              // fights this one short-handed, same as any other uneven side.
+              const standIn =
+                segment.systemForced === 'factionDestroyer' ? null : pickReplacement(rng, absent, available, world.settings);
               if (!standIn) {
                 // Nobody left. The match comes off rather than going on a man
                 // short, and the results page says why.
@@ -2898,6 +2936,7 @@ export const useGameStore = create<GameStore>()(
             stars: result.stars,
             ratingBreakdown: result.ratingBreakdown,
             beats: result.beats,
+            factionEliminationOrder: result.factionEliminationOrder,
             titleChanged,
             injuries: injuriesTonight,
             refereeMisses: misses,
@@ -2937,6 +2976,72 @@ export const useGameStore = create<GameStore>()(
                 significant: true,
                 text: stipulationConsequenceLine(consequence, lineRng, loser.name),
               });
+            }
+          }
+
+          // Faction Destroyer's own consequences — first two eliminated
+          // released with the 90-day freeze, the losing faction disbanded
+          // outright, and the winning faction taking the same hit to its own
+          // membership if either release happened to land on its side. See
+          // engine/world/factionDestroyer.ts's resolveFactionDestroyer for
+          // the pure decision; this carries it out, same split
+          // stipulationConsequence()'s own consumer above already uses.
+          // This region runs before world.week += 1, so wire pushes here
+          // stamp world.week + 1 — same convention as
+          // applyFamilyBusinessTitleChange's doc comment above.
+          if (stipulation?.id === 'factionDestroyer' && world.factionDestroyer) {
+            const story = world.factionDestroyer;
+            const outcome = resolveFactionDestroyer(result, story.stableAId, story.stableBId);
+            if (outcome) {
+              for (const releasedId of outcome.releasedIds) {
+                const released = world.wrestlers[releasedId];
+                if (!released) continue;
+                const releaseTerms = exitTerms(released, 'fired', world.settings, world.promotion.name);
+                world.promotion.bankBalance -= releaseTerms.severance;
+                letThemGo(world, released, releaseTerms);
+              }
+
+              const loserStable = world.stables.find((s) => s.id === outcome.loserStableId);
+              if (loserStable && loserStable.disbandedWeek === null) {
+                vacateTeamHeldTitles(world, loserStable.memberIds);
+                loserStable.disbandedWeek = world.week;
+                world.weeklyNews.push(
+                  wire('team', factionDestroyerLoserDisbandedLine(loserStable.name), world.week + 1, 'lead'),
+                );
+              }
+
+              const winnerStable = world.stables.find((s) => s.id === outcome.winnerStableId);
+              if (winnerStable && winnerStable.disbandedWeek === null) {
+                const releasedFromWinner = outcome.releasedIds.filter((id) => winnerStable.memberIds.includes(id));
+                if (releasedFromWinner.length > 0) {
+                  const remainingIds = winnerStable.memberIds.filter((id) => !releasedFromWinner.includes(id));
+                  if (remainingIds.length < 2) {
+                    const survivorName = remainingIds[0] ? (world.wrestlers[remainingIds[0]]?.name ?? 'The one left') : 'nobody';
+                    vacateTeamHeldTitles(world, winnerStable.memberIds);
+                    winnerStable.disbandedWeek = world.week;
+                    world.weeklyNews.push(
+                      wire('team', factionDestroyerWinnerCollapsedLine(winnerStable.name, survivorName), world.week + 1, 'lead'),
+                    );
+                  } else {
+                    const remainingMembers = remainingIds
+                      .map((id) => world.wrestlers[id])
+                      .filter((w): w is NonNullable<typeof w> => Boolean(w));
+                    winnerStable.memberIds = remainingIds;
+                    for (const departedId of releasedFromWinner) {
+                      winnerStable.leaderId = nextLeaderAfterKick(winnerStable, remainingMembers, departedId);
+                    }
+                    winnerStable.kind = kindForSize(remainingIds.length);
+                    world.weeklyNews.push(
+                      wire('team', factionDestroyerWinnerSurvivesAsTeamLine(winnerStable.name), world.week + 1, 'lead'),
+                    );
+                  }
+                }
+              }
+
+              // The lock lifts the moment the match resolves — win or lose,
+              // whatever's left of either side is free to add or lose members
+              // through the ordinary channels again.
+              world.factionDestroyer = null;
             }
           }
 
@@ -5205,12 +5310,23 @@ export const useGameStore = create<GameStore>()(
         });
 
         // Deals run down whether or not anybody was booked — except a
-        // paperwork-frozen wrestler's clock, which pauses along with them.
-        // See engine/world/paperworkLockout.ts.
+        // paperwork-frozen wrestler's clock, which pauses along with them
+        // (see engine/world/paperworkLockout.ts), and a locked Faction
+        // Destroyer member's clock, which pauses the same way for the same
+        // reason: the countdown requires them to keep working, so a contract
+        // that expired mid-story would strand the match with a member who
+        // no longer has a roster spot to fight from. Unlike paperworkFrozen
+        // this does NOT stop them from working — only the expiry clock stops.
+        const factionDestroyerLockedIds = world.factionDestroyer
+          ? new Set([
+              ...(world.stables.find((s) => s.id === world.factionDestroyer!.stableAId)?.memberIds ?? []),
+              ...(world.stables.find((s) => s.id === world.factionDestroyer!.stableBId)?.memberIds ?? []),
+            ])
+          : null;
         const expired = expireContracts(
           world.promotion.rosterIds
             .map((id) => world.wrestlers[id]!)
-            .filter((w) => Boolean(w) && !w.paperworkFrozen),
+            .filter((w) => Boolean(w) && !w.paperworkFrozen && !factionDestroyerLockedIds?.has(w.id)),
         );
 
         // ---- who wants out, and who is still sitting out ------------------
@@ -5980,7 +6096,17 @@ export const useGameStore = create<GameStore>()(
           // for the dramatic escalation below, but see the isDuo guard
           // further down: a duo can still never quietly walk itself apart —
           // only a real on-screen turn ends one on its own.
-          for (const member of members) {
+          //
+          // Unless this faction is one of the two locked into an active
+          // Faction Destroyer story — see engine/world/factionDestroyer.ts.
+          // A temporary rule, not a permanent one: membership can only grow
+          // during that story, never shrink by any means, so this whole
+          // departure pass is skipped entirely (not even a rumour) for
+          // either locked faction until the story resolves.
+          const factionDestroyerLocked =
+            world.factionDestroyer !== null &&
+            (world.factionDestroyer.stableAId === faction.id || world.factionDestroyer.stableBId === faction.id);
+          for (const member of factionDestroyerLocked ? [] : members) {
             if (!member) continue;
             const risk = defectionRisk(member, standing, world.settings);
             if (risk <= 0) continue;
@@ -6038,6 +6164,56 @@ export const useGameStore = create<GameStore>()(
                 'lead',
               ),
             );
+          }
+        }
+
+        // ---- Faction Destroyer ---------------------------------------------
+        // A locked-in buildup between two factions, or the trigger check for
+        // starting one — see engine/world/factionDestroyer.ts. Player's own
+        // promotion only, same scope as every other story/lifecycle check in
+        // this section. One-time per save: factionDestroyerHappened latches
+        // true the moment it triggers and is never cleared, so a later pair
+        // of factions never starts a second one.
+        if (!world.factionDestroyer && !world.factionDestroyerHappened) {
+          const pair = factionDestroyerEligiblePair(world.stables);
+          if (pair) {
+            const [stableA, stableB] = pair;
+            world.factionDestroyer = beginFactionDestroyer(
+              stableA,
+              stableB,
+              world.week,
+              world.settings.factionDestroyerCountdownWeeks,
+            );
+            world.factionDestroyerHappened = true;
+            world.weeklyNews.push(
+              wire(
+                'team',
+                factionDestroyerTriggeredLine(stableA.name, stableB.name, world.settings.factionDestroyerCountdownWeeks),
+                world.week,
+                'lead',
+              ),
+            );
+          }
+        } else if (world.factionDestroyer && world.factionDestroyer.matchScheduledForWeek === null) {
+          const story = world.factionDestroyer;
+          const memberIds = new Set([
+            ...(world.stables.find((s) => s.id === story.stableAId)?.memberIds ?? []),
+            ...(world.stables.find((s) => s.id === story.stableBId)?.memberIds ?? []),
+          ]);
+          // world.week is already the new week here (the increment happened
+          // earlier in resolveWeek) — the show that just aired is stamped
+          // with world.week - 1.
+          const resolvedSegments = world.showHistory
+            .filter((s) => s.promotionId === world.promotion.id && s.week === world.week - 1)
+            .flatMap((s) => s.segments);
+          if (factionDestroyerWeekQualifies(memberIds, resolvedSegments)) {
+            story.weeksRemaining -= 1;
+            if (story.weeksRemaining <= 0) {
+              story.matchScheduledForWeek = world.week + 1;
+              world.weeklyNews.push(
+                wire('team', factionDestroyerScheduledLine(story.stableAName, story.stableBName), world.week, 'lead'),
+              );
+            }
           }
         }
 
@@ -7902,6 +8078,26 @@ export const useGameStore = create<GameStore>()(
             world,
           ),
         );
+
+        // The Faction Destroyer countdown just hit zero — force the match
+        // onto this week's main event slot (the last one; see Segment.slot's
+        // own "0 = opener ... last = main event" doc comment). No player
+        // choice, per the story: whoever's currently in each faction, right
+        // now — additions during the countdown are exactly how a lopsided
+        // pair gets evened up before this moment.
+        if (world.factionDestroyer && world.factionDestroyer.matchScheduledForWeek === world.week) {
+          const story = world.factionDestroyer;
+          const stableA = world.stables.find((s) => s.id === story.stableAId);
+          const stableB = world.stables.find((s) => s.id === story.stableBId);
+          if (stableA && stableB && world.currentCard.length > 0) {
+            const mainEventSlot = world.currentCard.length - 1;
+            world.currentCard[mainEventSlot] = {
+              ...world.currentCard[mainEventSlot]!,
+              ...buildFactionDestroyerSegment(mainEventSlot, stableA, stableB),
+            };
+          }
+        }
+
         world.currentPromos = createEmptyPromoSlots(world.settings.promoSlotsPerCard);
         world.currentDarkMatches = createEmptyDarkMatches(world.settings.darkMatchSlots);
 

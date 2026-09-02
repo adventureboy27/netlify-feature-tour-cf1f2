@@ -240,7 +240,14 @@ const SLOT_KEY = 'wbg.save.v1';
 // a staged team/faction breakup and the beatdown decision it fires, see
 // engine/world/teamBreakup.ts. A version-67 save has neither field; the
 // resolution loop reads scheduledGroupTurns every segment without a guard.
-const SCHEMA_VERSION = 68;
+//
+// Version 69 adds World.factionDestroyer and World.factionDestroyerHappened
+// — the locked-in pair of factions and countdown for the Faction Destroyer
+// story, plus the one-time-per-save latch that stops it firing a second
+// time, see engine/world/factionDestroyer.ts. A version-68 save has neither
+// field; the weekly tick and the membership-lock guards both read them
+// without a guard.
+const SCHEMA_VERSION = 69;
 
 export interface SaveFile {
   schema: number;

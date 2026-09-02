@@ -340,14 +340,19 @@ function TagTeamPanel() {
                           </span>
                         )}
                       </span>
-                      <button
-                        type="button"
-                        data-testid={`disband-${group.id}`}
-                        onClick={() => disband(group.id)}
-                        className="shrink-0 rounded bg-neutral-800 px-2 py-1 text-[10px] text-neutral-300 hover:bg-rose-900/70"
-                      >
-                        Disband entirely
-                      </button>
+                      {world.factionDestroyer &&
+                      (world.factionDestroyer.stableAId === group.id || world.factionDestroyer.stableBId === group.id) ? (
+                        <span className="shrink-0 text-[10px] text-amber-400">Locked while the story is live</span>
+                      ) : (
+                        <button
+                          type="button"
+                          data-testid={`disband-${group.id}`}
+                          onClick={() => disband(group.id)}
+                          className="shrink-0 rounded bg-neutral-800 px-2 py-1 text-[10px] text-neutral-300 hover:bg-rose-900/70"
+                        >
+                          Disband entirely
+                        </button>
+                      )}
                     </div>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {members.map((m) => (

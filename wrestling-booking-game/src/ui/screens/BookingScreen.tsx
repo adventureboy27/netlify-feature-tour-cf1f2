@@ -305,6 +305,7 @@ export function BookingScreen({
                   index={index}
                   total={world.currentCard.length}
                   summary={summary}
+                  locked={segment.systemForced === 'factionDestroyer'}
                   onOpen={() => onOpenSlot(index, cast)}
                 />
               );
@@ -333,6 +334,7 @@ export function BookingScreen({
           <SupershowPanel />
           <BiddingWarPanel />
           <Stories />
+          <FactionDestroyerPanel />
           <WhatTheyWant />
           <BeltsOnTheClock />
         </div>
@@ -346,24 +348,39 @@ function SlotCard({
   index,
   total,
   summary,
+  locked,
   onOpen,
 }: {
   index: number;
   total: number;
   summary: ReturnType<typeof summarizeSegment>;
+  /** Forced by the Faction Destroyer story — see Segment.systemForced. Not editable, not tappable. */
+  locked?: boolean;
   onOpen: () => void;
 }) {
   const scheduledGroupTurns = useGameStore((s) => s.world?.scheduledGroupTurns ?? []);
   const turn = scheduledGroupTurns.find((t) => summary.participants.some((p) => p.wrestler.id === t.departingId));
 
+  const Tag = locked ? 'div' : 'button';
+
   return (
-    <button
-      type="button"
+    <Tag
+      {...(locked ? {} : { type: 'button', onClick: onOpen })}
       data-testid={`segment-${index}`}
-      onClick={onOpen}
-      className="flex flex-col gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-left transition hover:border-neutral-600"
+      className={`flex flex-col gap-1.5 rounded-lg border p-3 text-left transition ${
+        locked
+          ? 'border-rose-900/60 bg-rose-950/20'
+          : 'border-neutral-800 bg-neutral-900 hover:border-neutral-600'
+      }`}
     >
-      <div className="text-[11px] uppercase tracking-wide text-neutral-500">{slotLabel(index, total)}</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[11px] uppercase tracking-wide text-neutral-500">{slotLabel(index, total)}</div>
+        {locked && (
+          <span className="rounded bg-rose-950 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-rose-300">
+            Faction Destroyer — locked
+          </span>
+        )}
+      </div>
       <div className="text-sm font-medium">
         {summary.participants.length === 0 ? (
           <span className="text-neutral-600">Empty</span>
@@ -404,7 +421,7 @@ function SlotCard({
         </div>
       )}
       {summary.participants.length > 0 && <span className="text-[10px] text-neutral-500">{summary.officialLabel}</span>}
-    </button>
+    </Tag>
   );
 }
 
@@ -508,6 +525,43 @@ function RestOfTheWeek({ bookedIds }: { bookedIds: Set<string> }) {
  * ignoring it and losing the title. A deadline you cannot see is a hidden
  * rule rather than a difficulty — see engine/world/titleDefence.ts.
  */
+
+/**
+ * The Faction Destroyer countdown — the explicit ask was "a counter... on
+ * each card that tells them how many left." Shows while a story is active
+ * and not yet scheduled; once the match is forced onto the main event slot,
+ * the card itself already says so (see SlotCard's locked state above), so
+ * this switches to a plain confirmation instead of a countdown that's stuck
+ * at zero.
+ */
+function FactionDestroyerPanel() {
+  const world = useGameStore((s) => s.world);
+  if (!world?.factionDestroyer) return null;
+  const story = world.factionDestroyer;
+
+  return (
+    <div className="rounded-lg border border-rose-900/60 bg-rose-950/20 p-2.5" data-testid="faction-destroyer-panel">
+      <div className="text-[10px] uppercase tracking-wider text-rose-400">
+        {story.matchScheduledForWeek !== null ? 'Faction Destroyer' : 'Faction Destroyer building'}
+      </div>
+      <div className="mt-1 text-[11px] leading-snug text-neutral-300">
+        {story.stableAName} vs. {story.stableBName}
+        {story.matchScheduledForWeek !== null ? (
+          <> headlines this show. No rules, no time limit — it's over when one side has nobody left.</>
+        ) : (
+          <>
+            {' — '}
+            <span className="font-semibold text-rose-300">
+              {story.weeksRemaining} {story.weeksRemaining === 1 ? 'week' : 'weeks'} left
+            </span>
+            . A member of either side needs to work every week, or the clock simply doesn't move.
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BeltsOnTheClock() {
   const world = useGameStore((s) => s.world);
   if (!world) return null;
