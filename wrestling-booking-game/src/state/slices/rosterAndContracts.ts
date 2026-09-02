@@ -214,7 +214,7 @@ export const createRosterAndContractsSlice: StateCreator<
       if (wontWorkForUs(wrestler, held, world.settings)) return;
 
       const weeklyRate = ourPrice(
-        currentAskingRate(agent, wrestler, world.economicClimate, world.settings),
+        currentAskingRate(agent, wrestler, world.economicClimate, world.settings, world.week),
         held,
         world.settings,
       );

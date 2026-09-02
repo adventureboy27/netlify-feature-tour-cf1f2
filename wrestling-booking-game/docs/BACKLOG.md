@@ -5,6 +5,87 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Fixed: a promotion could book the biggest room in the game forever and never actually go broke
+
+Player's own framing: "we do need some playthroughs that squeeze the promotion and bankrupt
+them. we may need to tighten the reigns some more" — an explicit ask to adversarially stress-test
+the financial systems built this session, not just play them normally.
+
+**Found by deliberately trying to bankrupt a save**, not by the test suite (per this file's own
+long-standing rule: measure in a played save). Wrote a Playwright script that books `domeStadium`
+— the single most expensive venue in the game — every week for 60+ weeks, declining every loan
+offer along the way. Result: `Promotion.deferredShowDebt` (the earlier fix this session, meant to
+give an oversized bankroll real risk — see below) climbed to **$14,725,142 by week 61**, while
+`bankBalance` stayed healthy and *growing* ($80k -> $237k+) and `weeksInTheRed` never left zero.
+The debt was completely cosmetic.
+
+**Root cause**: the deferred-debt code folded last week's carried debt (`debtBefore`) back into
+*this week's own* cap-checked total — `computeShowExpenseSplit(showCosts.total + debtBefore,
+revenue.total, cap%)` — and ran the whole thing through §14's expense cap together. That meant old
+debt was only ever paid down out of whatever room happened to be left under the cap once tonight's
+fresh costs took their share, and once debt was large enough to fill that room on its own, it
+stopped costing anything further — a promotion could book the biggest room in the game every week
+forever and the debt number would climb into the millions while the bank barely noticed, because
+the cap kept absorbing it for free.
+
+**Fixed** by making old debt bypass the cap entirely and become an unconditional bill the very
+next week — modeled on the existing `activeLoan` mechanic's own established language ("cannot be
+deferred, and missing payroll on top of it will not stop it," quoted from `OfficeScreen.tsx`'s
+`ActiveLoanNotice`). Only *that week's own fresh overspend* still runs through
+`computeShowExpenseSplit` and can still be deferred under the cap. This bounds
+`deferredShowDebt` to at most one week's worth of overflow at any time, and makes it a real cash
+hit the following week — both halves (an old debt paid off, a new one dug) can land the same week
+and are announced independently. Re-ran the exact adversarial script against the fix: the same
+save now goes negative by week 3, `weeksInTheRed` climbs every week after, and the promotion
+genuinely folds by week 7 ("The money ran out. Creditors closed the promotion."), with debt
+staying bounded around $240k-260k the whole time instead of spiraling.
+
+**Also stress-tested a second angle** — signing every free agent the game will currently allow
+(the `isAffordable` gate) every single week for 80 weeks, refusing every loan — and found it is
+*not* a bankruptcy vector: the bank grew to $1.4M by week 81. The per-signing affordability gate
+plus the extra revenue a bigger roster draws already keeps serial reckless signing safe by design;
+no change made there.
+
+`deferredShowDebt.store.test.ts` re-expressed (not re-baselined) around the corrected invariants:
+old debt is a real unconditional bill next week, it never compounds past one week of overflow even
+under sustained overspending, and both a payoff and a fresh overspend can be announced the same
+week.
+
+`tsc --noEmit` clean; full suite 190 files / 3,227 tests passing; `npm run build` clean; both
+adversarial playthroughs re-run live via Playwright against the fix.
+
+## Fixed: `salaryInflation` was declared, defaulted, and read by nothing
+
+Flagged by me while auditing this session's economy work, then confirmed by the player ("yes look
+at salary inflation gap too"). `WorldSettings.salaryInflation` (default `0.01`) had zero
+consumers anywhere in `engine/` or `state/` — a one-way secular wage drift that was never wired to
+anything, sitting right next to the real (two-way, cyclical) `economicClimate` fields its own doc
+comment explicitly distinguished itself from.
+
+Wired it into `currentAskingRate` (`engine/world/freeAgents.ts`) as a genuine, separate multiplier
+on top of shelf-time decay and the climate swing: `1 + salaryInflation * (week / 52)`, linear per
+year rather than compounding per week — a long save's prices climb steadily instead of running
+away to an absurd number the way unbounded growth already bit this game once this session (the
+deferred-debt bug just above). `week` is a new optional fifth parameter defaulting to `0` (no
+drift), so every existing caller and test that only cares about decay or climate needed no changes
+at all; the two real call sites (`signFreeAgent` in `rosterAndContracts.ts`, the displayed price on
+`FreeAgentsScreen.tsx`) now pass `world.week`. Deliberately scoped to free-agent pricing only, not
+threaded through `askingRate` itself (30+ call sites across bidding wars, trades, renewals, roster
+valuation) or into contract renewals — the settings comment sits specifically beside the free-agent
+climate fields, and a broader repricing of the whole system wasn't what was asked.
+
+Verified live: same wrestler, same seed (so identical base ask and shelf-time decay), flat climate
+— signing them at week 1 costs $1,350/wk; the identical signing at week 300 costs $1,450/wk, purely
+from the new drift.
+
+New tests in `freeAgents.test.ts`: defaults to no drift when `week` is omitted; the market asks for
+more the further a save runs even with climate flat; the drift is linear per year, not compounding
+(doubling elapsed weeks roughly doubles the gain, not quadruples it); a negative week never reads
+as a discount.
+
+`tsc --noEmit` clean; full suite 190 files / 3,231 tests passing; `npm run build` clean; live
+verification via the dev store handle.
+
 ## Fixed: the economy's own wording read stilted, not like natural US English
 
 Flagged directly: "the statement about the economy is worded funny." Passed over every

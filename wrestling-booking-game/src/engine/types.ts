@@ -1539,16 +1539,21 @@ export interface Promotion {
   /** Consecutive weeks under water. Past the grace period, they close. */
   weeksInTheRed: number;
   /**
-   * Real, carried debt from show costs that blew past §14's expense cap in a
-   * previous week — see economy/payroll.ts's computeShowExpenseSplit. The
-   * overflow used to be computed and thrown away, so a promotion that rented
-   * a room too big for its draw paid the capped share and the rest simply
-   * vanished — the one place the venue ladder's own "rent is a bet" design
-   * had no teeth. It is folded back into next week's own show-cost total
-   * before the cap is applied again, so it either gets paid down as room
-   * opens up under the cap or keeps growing if the overspending continues.
-   * Optional/old-save-safe, same pattern as paperworkFrozen — player-only,
-   * rivals use a separate simplified economy.
+   * Real, carried debt from show costs that blew past §14's expense cap the
+   * previous week — see economy/payroll.ts's computeShowExpenseSplit. Always
+   * paid off in full the following week, bypassing the cap entirely — the
+   * same "cannot be deferred" rule the active loan already uses — so it can
+   * never grow past one week's own overflow before it comes due for real.
+   *
+   * That bypass replaced an earlier version that folded old debt back into
+   * the next week's cap-checked total, which sounded stricter but wasn't:
+   * once the debt was large enough to fill whatever room was left under the
+   * cap, it stopped costing anything further, and a promotion could book the
+   * biggest room in the game every week forever for free — found by
+   * deliberately trying to bankrupt a save, where debt hit $14.7M by week 61
+   * while the bank stayed solvent and kept growing. Optional/old-save-safe,
+   * same pattern as paperworkFrozen — player-only, rivals use a separate
+   * simplified economy.
    */
   deferredShowDebt?: number;
   /** Set when the company closes. A closed company runs no shows. */
@@ -1721,12 +1726,22 @@ export interface WorldSettings {
   expenseCapPctOfRevenue: number;
   ticketPriceBase: number;
   ticketPricePerSegment: number;
+  /**
+   * A one-way secular wage drift, applied linearly per year (52 weeks) in
+   * freeAgents.ts's currentAskingRate, on top of everything else that moves
+   * a free agent's price — shelf-time decay and the climate swing below.
+   * Distinct from economicClimate: this never reverses, it just keeps
+   * nudging the whole market's floor up the longer a save runs, the way
+   * real wages do regardless of where the business cycle sits. Kept linear
+   * rather than compounding on purpose, so a long save's numbers climb
+   * steadily instead of running away the way unbounded growth already bit
+   * this game once (see Promotion.deferredShowDebt).
+   */
   salaryInflation: number;
   // The wrestling economy's own boom-and-bust cycle — distinct from
-  // salaryInflation above (a one-way secular drift that nothing currently
-  // reads). This is a real, two-way, slow-moving swing: World.economicClimate
-  // drifts up and down over many months at a time rather than jumping around
-  // week to week. See engine/world/economicCycle.ts.
+  // salaryInflation above. This is a real, two-way, slow-moving swing:
+  // World.economicClimate drifts up and down over many months at a time
+  // rather than jumping around week to week. See engine/world/economicCycle.ts.
   /** How hard the climate can swing week to week, before mean reversion pulls it back. */
   economicClimateVolatility: number;
   /** How fast the climate is pulled back toward neutral (0) each week. */

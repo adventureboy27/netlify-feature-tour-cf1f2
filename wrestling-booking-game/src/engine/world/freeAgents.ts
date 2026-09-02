@@ -127,6 +127,7 @@ export function currentAskingRate(
   wrestler: Wrestler,
   economicClimate: number,
   settings: WorldSettings,
+  week = 0,
 ): number {
   const decay = Math.min(agent.weeksUnsigned * settings.freeAgentRateDecayPerWeek, settings.freeAgentMaxDiscount);
   const climate = clamp(economicClimate, -1, 1);
@@ -135,7 +136,15 @@ export function currentAskingRate(
     climate >= 0
       ? climate * settings.climateAskingRateSwing * (1 + egoShare * settings.climateBoomEgoPremium)
       : climate * settings.climateAskingRateSwing * (1 - egoShare);
-  const adjusted = agent.askingRate * (1 - decay) * (1 + climateSwing);
+  // Secular wage drift: the whole market's floor creeps up over the years
+  // regardless of where the boom-and-bust cycle above happens to sit at the
+  // moment — see WorldSettings.salaryInflation, which used to be declared
+  // and defaulted but read by nothing. Linear per year rather than
+  // compounding per week, so a long save's prices climb steadily without
+  // running away to an absurd number the way unbounded growth already bit
+  // this game once this session (see Promotion.deferredShowDebt).
+  const inflation = 1 + settings.salaryInflation * (Math.max(0, week) / 52);
+  const adjusted = agent.askingRate * (1 - decay) * (1 + climateSwing) * inflation;
   return Math.max(settings.contractBaseWeeklyRate, Math.round(adjusted / 25) * 25);
 }
 

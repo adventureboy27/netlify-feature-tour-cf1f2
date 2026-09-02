@@ -3573,29 +3573,52 @@ export const useGameStore = create<GameStore>()(
         // exists to stop a show eating its own gate, not to make a washout
         // free.
         //
-        // Last week's own shortfall, if any, is folded into tonight's total
-        // before the cap runs again — it used to be computed and discarded,
-        // which is why an oversized venue never actually cost anything past
-        // the cap. See Promotion.deferredShowDebt. A cancelled or
-        // storm-shortened night bypasses the cap entirely (see above), so the
-        // carried debt just sits unchanged through those rather than being
-        // folded into a cost model that was never built for it.
+        // Last week's own shortfall, if any, is a real bill this week — not
+        // subject to the cap at all, the same way the active loan already
+        // works in this game ("cannot be deferred, and missing payroll on
+        // top of it will not stop it"). Only *tonight's* fresh overspend can
+        // still be pushed to next week under the cap.
+        //
+        // This used to fold old debt into tonight's total and run the whole
+        // thing through the cap together, which meant old debt was only ever
+        // paid down out of whatever room happened to be left under the cap —
+        // and once debt was large enough to fill that room on its own, it
+        // stopped costing anything further: a promotion could book the
+        // biggest room in the game every single week forever and the debt
+        // number would climb into the millions while the bank barely
+        // noticed, because the cap kept absorbing it for free. Found by
+        // deliberately trying to bankrupt a save (biggest venue, every week,
+        // every loan refused): debt hit $14.7M by week 61 and the bank was
+        // still solvent and growing. Old debt bypassing the cap entirely
+        // closes that — it can never grow past one week's own overflow
+        // before it comes due for real, which is what actually makes an
+        // oversized venue a bet rather than a free number that never gets
+        // called in.
         const debtBefore = world.promotion.deferredShowDebt ?? 0;
-        const { payable: showPayable, deferred: showDeferred } = callOutcome
+        const { payable: tonightsPayable, deferred: showDeferred } = callOutcome
           ? {
-              payable:
-                Math.round(showCosts.total * callOutcome.costShare) + callOutcome.extraCost,
-              deferred: debtBefore,
+              payable: Math.round(showCosts.total * callOutcome.costShare) + callOutcome.extraCost,
+              deferred: 0,
             }
           : night.cancelled
-            ? { payable: cancellationCost(showCosts.total, world.settings), deferred: debtBefore }
-            : computeShowExpenseSplit(
-                showCosts.total + debtBefore,
-                revenue.total,
-                world.settings.expenseCapPctOfRevenue,
-              );
+            ? { payable: cancellationCost(showCosts.total, world.settings), deferred: 0 }
+            : computeShowExpenseSplit(showCosts.total, revenue.total, world.settings.expenseCapPctOfRevenue);
+        const showPayable = tonightsPayable + debtBefore;
         world.promotion.deferredShowDebt = showDeferred;
-        if (showDeferred > 0 && debtBefore <= 0) {
+        // Both can be true the same week — paid off what was owed and still
+        // dug a new hole doing it again — so these are independent lines,
+        // not an either/or.
+        if (debtBefore > 0) {
+          world.weeklyNews.push(
+            wire(
+              'business',
+              `Last week's shortfall — $${Math.round(debtBefore).toLocaleString()} — got paid off in full this week, no matter what else was going on.`,
+              world.week + 1,
+              'minor',
+            ),
+          );
+        }
+        if (showDeferred > 0) {
           world.weeklyNews.push(
             wire(
               'business',
@@ -3603,10 +3626,6 @@ export const useGameStore = create<GameStore>()(
               world.week + 1,
               'minor',
             ),
-          );
-        } else if (showDeferred <= 0 && debtBefore > 0) {
-          world.weeklyNews.push(
-            wire('business', `Last week's shortfall is paid off. The books are square again.`, world.week + 1, 'minor'),
           );
         }
         // Clauses you agreed to have a weekly price of their own, and so does

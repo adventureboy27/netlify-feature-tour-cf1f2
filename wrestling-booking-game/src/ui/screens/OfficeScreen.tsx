@@ -2512,8 +2512,8 @@ function ShowDebtNotice() {
         </span>
       </div>
       <p className="mt-1 text-[10px] leading-snug text-neutral-500">
-        A show cost more than the books could take in one week. It rolls onto next week's expenses and keeps
-        rolling until there is room under the cap to pay it down — nobody forgives it for you.
+        A show cost more than the books could take in one week. This comes due in full next week regardless — the
+        same way loan payments do. Nobody forgives it for you.
       </p>
     </section>
   );

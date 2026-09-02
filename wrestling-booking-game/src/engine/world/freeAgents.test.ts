@@ -134,6 +134,36 @@ describe('the wider economy', () => {
   });
 });
 
+describe('secular salary inflation', () => {
+  const agent: FreeAgent = { wrestlerId: 'x', reason: 'released', askingRate: 1000, wantsWeeks: 52, weeksUnsigned: 0 };
+  const w = neutralWrestler({ ego: 50 });
+
+  it('defaults to no drift when no week is given, matching week zero', () => {
+    expect(currentAskingRate(agent, w, 0, settings)).toBe(currentAskingRate(agent, w, 0, settings, 0));
+  });
+
+  it('makes the whole market ask for more the further a save runs, even with the climate flat', () => {
+    const early = currentAskingRate(agent, w, 0, settings, 10);
+    const late = currentAskingRate(agent, w, 0, settings, 300);
+    expect(late).toBeGreaterThan(early);
+  });
+
+  it('is linear per year, not compounding — doubling the weeks roughly doubles the drift', () => {
+    const inflatedSettings = { ...settings, salaryInflation: 0.5 };
+    const base = currentAskingRate(agent, w, 0, inflatedSettings, 0);
+    const oneYear = currentAskingRate(agent, w, 0, inflatedSettings, 52);
+    const twoYears = currentAskingRate(agent, w, 0, inflatedSettings, 104);
+    const firstYearGain = oneYear - base;
+    const secondYearGain = twoYears - oneYear;
+    expect(secondYearGain).toBeGreaterThan(firstYearGain * 0.8);
+    expect(secondYearGain).toBeLessThan(firstYearGain * 1.2);
+  });
+
+  it('never reads a negative week as a discount', () => {
+    expect(currentAskingRate(agent, w, 0, settings, -50)).toBe(currentAskingRate(agent, w, 0, settings, 0));
+  });
+});
+
 describe('signing', () => {
   const { wrestlers } = pool();
   const cheap = [...wrestlers].sort((a, b) => a.popularity - b.popularity)[0]!;

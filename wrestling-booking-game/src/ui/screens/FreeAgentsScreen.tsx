@@ -229,7 +229,7 @@ export function FreeAgentsScreen({
               const wrestler = world.wrestlers[agent.wrestlerId];
               if (!wrestler) return null;
               const rate = ourPrice(
-                currentAskingRate(agent, wrestler, world.economicClimate, world.settings),
+                currentAskingRate(agent, wrestler, world.economicClimate, world.settings, world.week),
                 heldAgainstUs,
                 world.settings,
               );
