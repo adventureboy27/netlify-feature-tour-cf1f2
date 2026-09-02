@@ -5975,8 +5975,13 @@ export const useGameStore = create<GameStore>()(
 
           // And the door swings the other way. A group that has stopped
           // drawing starts losing the people whose egos brought them.
+          //
+          // Duos are considered here too (unlike before) so they're eligible
+          // for the dramatic escalation below, but see the isDuo guard
+          // further down: a duo can still never quietly walk itself apart —
+          // only a real on-screen turn ends one on its own.
           for (const member of members) {
-            if (!member || faction.memberIds.length <= 2) continue;
+            if (!member) continue;
             const risk = defectionRisk(member, standing, world.settings);
             if (risk <= 0) continue;
             // Seeded from the man and the week rather than drawn from the
@@ -5993,6 +5998,37 @@ export const useGameStore = create<GameStore>()(
               });
               continue;
             }
+
+            // Roll succeeded: this member is leaving one way or another.
+            // Whether it's a quiet roster edit or a real on-screen turn is a
+            // second, independently-seeded roll — never correlated with the
+            // first (same trap as above: an extra draw off the shared stream
+            // shifts every seeded roll downstream).
+            const isDuo = faction.memberIds.length <= 2;
+            const alreadyScheduled = world.scheduledGroupTurns.some(
+              (t) => t.stableId === faction.id && t.departingId === member.id,
+            );
+            if (
+              !alreadyScheduled &&
+              chance(rngFromSeed(`implode:${member.id}:${world.week}`), world.settings.groupImplosionChance)
+            ) {
+              // DESIGN: a duo is exempt from the quiet walkout just below,
+              // but not from this — a real, booker-interruptible turn is the
+              // only way a two-person team ends on its own. See BACKLOG.md.
+              world.scheduledGroupTurns.push({
+                id: `groupturn-${world.nextId++}`,
+                stableId: faction.id,
+                stableName: faction.name,
+                departingId: member.id,
+                departingName: member.name,
+                scheduledWeek: world.week,
+              });
+              continue;
+            }
+            // A duo never quietly dissolves — only the escalation above can
+            // end one, and this week it didn't fire.
+            if (isDuo) continue;
+
             faction.memberIds = faction.memberIds.filter((id) => id !== member.id);
             world.weeklyNews.push(
               wire(

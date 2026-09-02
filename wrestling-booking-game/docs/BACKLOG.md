@@ -5106,3 +5106,66 @@ portrait — whenever the current beat is a signature, finish, or the interferen
   `targetId` a real wrestler, then drove the actual Match Viewer UI to that beat and screenshotted it:
   the "INTERFERENCE!" callout showing, the target wrestler spotlighted centre stage, and the manager's
   ringside portrait mid-run-in toward the ring.
+
+## Spontaneous team/faction implosions — the group turns on itself, no booker required
+
+Brainstormed alongside the group-turn feature above: what stories does a real team/faction system make
+possible? "Implosion" (a faction blowing up from within) and "betrayal" (a duo/trio splitting) were the
+two picked as the strongest starting points — and it turned out the game already had almost everything
+needed to tell them.
+
+`engine/world/faction.ts` runs a full weekly lifecycle for every team **and** faction (`store.ts`'s own
+loop doesn't check `kind` — a duo and an eight-man stable both go through it): heat, standing, ego drift,
+recruitment, and `defectionRisk` — a member whose morale is low and ego is high, in a group that's stopped
+drawing, has a real seeded weekly chance to just quietly walk out. That's the exact moment a player asked
+about — the game already knows a group is about to blow up, it just used to resolve the moment as a
+one-line roster edit (`faction.memberIds = faction.memberIds.filter(...)`, a plain wire line) rather than
+a story.
+
+Separately, this session's own group-turn feature already built the entire dramatic machinery — staging a
+kick produces a real on-screen beatdown, a booker decision (`letItHappen`/`breakItUp`), a possible injury,
+and a rivalry — but it was 100% player-initiated: nothing ever scheduled a turn on its own.
+
+**The fix**: when the existing defection roll already says "this member is leaving," a second,
+independently-seeded roll (new `groupImplosionChance` setting, default 0.4) now decides whether it's the
+quiet walkout (unchanged) or a real escalation — the departure is pushed onto `world.scheduledGroupTurns`,
+the *exact* array a staged kick uses. Nothing downstream needed to change at all: the fire hook in
+`store.ts`'s player-show loop, `buildGroupTurnCall`, `pendingGroupTurnCall`, `GroupTurnCallPanel`, and
+`answerGroupTurnCall`'s injury/rivalry resolution are all completely agnostic to how an entry got onto
+that array. Confirmed live: an organically-scheduled turn rendered in `GroupTurnCallPanel` with the exact
+same copy a staged one gets ("The rest of X is standing by tonight. The office has not said one word
+about what happens next.") and resolved identically.
+
+**One real design call, made explicitly rather than left implicit**: `faction.memberIds.length <= 2` was
+an existing guard exempting duos from defection entirely — a player-formed pair could never randomly
+dissolve. A two-person tag team turning on itself is also the classic version of this story (the
+"betrayal" pitch specifically). Rather than lift the guard everywhere, it's loosened only for the dramatic
+path: a duo is still never quietly walked apart, but can now end via a real, telegraphed, booker-
+interruptible on-screen turn — the only way a two-person team ends on its own. Flagged with a `// DESIGN:`
+comment in `store.ts` per CLAUDE.md's ambiguous-spec rule, and covered directly by two tests (a duo
+escalating; a duo staying fully intact when the escalation roll fails, proving the old protection
+survives).
+
+**Deliberately reused, not rebuilt**: no new pure function, no new UI, no new wire copy. The whole feature
+is a `groupImplosionChance: number` field (`engine/types.ts`, defaulted in `engine/world/settings.ts`)
+and about 30 lines in `store.ts`'s existing defection loop — a second `chance(rngFromSeed(\`implode:...\`),
+...)` roll, seeded independently from the existing `defect:` roll (same trap CLAUDE.md documents: an
+extra draw off the shared stream shifts every seeded roll downstream, so this one gets its own entity
+seed), plus a duplicate-scheduling guard.
+
+- Tests: new `describe('spontaneous implosions and betrayals')` block in `state/groupTurns.store.test.ts`
+  (6 cases) — escalates instead of walking quietly when the second roll fires; falls back to the exact
+  pre-existing quiet-walkout behavior when it doesn't (the regression guard); a duo escalates into a real
+  betrayal; a duo never quietly dissolves even at maximum defection risk across several weeks; no
+  duplicate scheduling for a member who already has a turn pending; and an organically-scheduled turn
+  fires through the exact same pending-call pipeline a staged one uses, reusing the existing "fires a
+  pending call once the departing member is actually booked" pattern already in the file.
+- Verified: `tsc --noEmit` clean; the new tests plus `engine/world/teamBreakup.test.ts` and
+  `engine/world/faction.test.ts` (regression, unaffected) all pass; full suite 196 files / 3,317 tests
+  passing; `npm run build` clean; a live Playwright pass via `window.__store` — forced defection risk to
+  its cap, ran the week, watched a real `ScheduledGroupTurn` appear for a player-formed trio, booked the
+  departing member into a match, confirmed a `pendingGroupTurnCall` fired (for a different, AI-seeded
+  team whose own member happened to be defecting too, under the same forced settings — itself a nice
+  confirmation the mechanism runs uniformly across every team and faction in the world, not just a
+  player-formed one), screenshotted `GroupTurnCallPanel` rendering it correctly in the Office, answered
+  it, and confirmed the group shrank and a rivalry opened exactly as a staged turn would.

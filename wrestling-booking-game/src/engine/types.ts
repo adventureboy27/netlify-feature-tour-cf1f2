@@ -3454,6 +3454,11 @@ export interface WorldSettings {
   /** Protecting talent has its own cost and its own credit, same as pulling apart a confrontation. */
   groupTurnBreakItUpCredibilityCost: number;
   groupTurnBreakItUpReputationGain: number;
+  /**
+   * Chance an already-decided defection (see faction.ts's defectionRisk)
+   * escalates into a real on-screen turn instead of a quiet walkout.
+   */
+  groupImplosionChance: number;
 
   // Secret signings — see world/secretSigning.ts.
   /**

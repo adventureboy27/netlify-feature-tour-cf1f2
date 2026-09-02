@@ -345,3 +345,127 @@ describe('answering a group turn call', () => {
     expect(world.representations.some((r) => r.clientId === a && r.managerId === managerId)).toBe(false);
   });
 });
+
+describe('spontaneous implosions and betrayals', () => {
+  // A group's weekly defection roll (faction.ts's defectionRisk, fired from
+  // store.ts's own weekly tick — see the "what the group does to the people
+  // in it" section) can now escalate into a real on-screen turn instead of
+  // always being a quiet walkout. These force the underlying risk to its cap
+  // (deterministic — no rng-seed guessing) and drive groupImplosionChance
+  // directly to isolate the new branch from the roll it sits behind.
+  function forcedDefectionSettings(overrides: Partial<ReturnType<typeof defaultWorldSettings>> = {}) {
+    return {
+      factionDefectionWeight: 10,
+      factionDefectionCap: 1,
+      factionChurnWeeks: 1,
+      // Never let the group overshadow the company — that would zero the
+      // risk out entirely ('running the place'/'out of control' standings).
+      factionOvershadowMargin: 1000,
+      ...overrides,
+    };
+  }
+
+  function makeMiserable(id: string) {
+    useGameStore.setState((s) => {
+      const w = s.world!.wrestlers[id]!;
+      w.morale = 0;
+      w.ego = 100;
+    });
+  }
+
+  it('escalates into a scheduled turn instead of a quiet walkout when it fires', () => {
+    newGame(forcedDefectionSettings({ groupImplosionChance: 1 }));
+    const [a, b, c] = wrestlerRoster();
+    useGameStore.getState().formGroup([a!, b!, c!], 'The Trio');
+    const groupId = useGameStore.getState().world!.stables.find((s) => s.memberIds.includes(a!))!.id;
+    makeMiserable(a!);
+
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    expect(world.scheduledGroupTurns.some((t) => t.stableId === groupId && t.departingId === a)).toBe(true);
+    expect(world.stables.find((s) => s.id === groupId)!.memberIds).toContain(a);
+  });
+
+  it('falls back to the pre-existing quiet walkout when the escalation roll fails', () => {
+    newGame(forcedDefectionSettings({ groupImplosionChance: 0 }));
+    const [a, b, c] = wrestlerRoster();
+    useGameStore.getState().formGroup([a!, b!, c!], 'The Trio');
+    const groupId = useGameStore.getState().world!.stables.find((s) => s.memberIds.includes(a!))!.id;
+    makeMiserable(a!);
+
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    expect(world.scheduledGroupTurns.some((t) => t.stableId === groupId && t.departingId === a)).toBe(false);
+    expect(world.stables.find((s) => s.id === groupId)!.memberIds).not.toContain(a);
+    expect(world.weeklyNews.some((n) => n.text.includes('walked clean out'))).toBe(true);
+  });
+
+  it('lets a duo escalate into a real betrayal, which a quiet walkout could never do', () => {
+    newGame(forcedDefectionSettings({ groupImplosionChance: 1 }));
+    const [a, b] = wrestlerRoster();
+    useGameStore.getState().formGroup([a!, b!]);
+    const groupId = useGameStore.getState().world!.stables.find((s) => s.memberIds.includes(a!))!.id;
+    makeMiserable(a!);
+
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    expect(world.scheduledGroupTurns.some((t) => t.stableId === groupId && t.departingId === a)).toBe(true);
+    expect(world.stables.find((s) => s.id === groupId)!.memberIds).toEqual([a, b]);
+  });
+
+  it('never lets a duo quietly dissolve on its own, even at full defection risk', () => {
+    newGame(forcedDefectionSettings({ groupImplosionChance: 0 }));
+    const [a, b] = wrestlerRoster();
+    useGameStore.getState().formGroup([a!, b!]);
+    const groupId = useGameStore.getState().world!.stables.find((s) => s.memberIds.includes(a!))!.id;
+    makeMiserable(a!);
+
+    runWeek();
+    runWeek();
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    expect(world.scheduledGroupTurns.some((t) => t.stableId === groupId)).toBe(false);
+    const group = world.stables.find((s) => s.id === groupId)!;
+    expect(group.disbandedWeek).toBeNull();
+    expect(group.memberIds).toEqual([a, b]);
+  });
+
+  it('does not queue a second scheduled turn for a member who already has one pending', () => {
+    newGame(forcedDefectionSettings({ groupImplosionChance: 1 }));
+    const [a, b, c] = wrestlerRoster();
+    useGameStore.getState().formGroup([a!, b!, c!], 'The Trio');
+    const groupId = useGameStore.getState().world!.stables.find((s) => s.memberIds.includes(a!))!.id;
+    makeMiserable(a!);
+
+    runWeek();
+    runWeek();
+
+    const world = useGameStore.getState().world!;
+    expect(world.scheduledGroupTurns.filter((t) => t.stableId === groupId && t.departingId === a)).toHaveLength(1);
+  });
+
+  it('fires an organically scheduled turn through the exact same pending-call pipeline as a staged one', () => {
+    newGame(forcedDefectionSettings({ groupImplosionChance: 1 }));
+    const [a, b, c] = wrestlerRoster();
+    useGameStore.getState().formGroup([a!, b!, c!], 'The Trio');
+    const groupId = useGameStore.getState().world!.stables.find((s) => s.memberIds.includes(a!))!.id;
+    makeMiserable(a!);
+
+    runWeek(); // schedules the turn, nobody booked yet — should stay pending
+
+    const opponent = wrestlerRoster().find((id) => ![a, b, c].includes(id))!;
+    useGameStore.getState().setSegmentParticipant(0, a!, 0);
+    useGameStore.getState().setSegmentParticipant(0, opponent, 1);
+    runWeek(); // the departing member is booked — the fire hook should pick it up
+
+    const call = useGameStore.getState().world!.pendingGroupTurnCall;
+    expect(call).not.toBeNull();
+    expect(call!.stableId).toBe(groupId);
+    expect(call!.departingId).toBe(a);
+    expect([...call!.attackerIds].sort()).toEqual([b, c].sort());
+  });
+});

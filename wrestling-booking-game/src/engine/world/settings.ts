@@ -1581,6 +1581,10 @@ export function defaultWorldSettings(): WorldSettings {
     groupTurnBreakItUpShootHeat: 3,
     groupTurnBreakItUpCredibilityCost: 3,
     groupTurnBreakItUpReputationGain: 2,
+    // A coin flip weighted toward drama: most defections that would already
+    // happen quietly become a real on-screen turn instead, so the story
+    // actually shows up in a played save rather than sitting dormant.
+    groupImplosionChance: 0.4,
     // A quarter of a year: long enough that a handful of people are always in
     // the window, short enough that you cannot simply agree deals with a
     // rival's whole roster and wait.
