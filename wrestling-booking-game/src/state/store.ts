@@ -22,6 +22,7 @@ import type {
   Segment,
   SegmentResult,
   RefereeMissRecord,
+  Title,
   TitleBlueprint,
   WorldSettings,
   WrestlingStyle,
@@ -458,6 +459,16 @@ import type { FarewellTourOptionId } from '../engine/world/farewellTour';
 import { randomRivalPricing } from '../engine/world/pricing';
 import { pickPricingWarTarget, slashedPricing, pricingWarStartLine, pricingWarEndLine } from '../engine/world/pricingWar';
 import { rollPaperworkFreezes, paperworkLockoutStartLine, paperworkLockoutEndLine } from '../engine/world/paperworkLockout';
+import {
+  generateFamilyBusinessSignee,
+  familyBusinessWage,
+  familyBusinessTitleWinSurge,
+  familyBusinessArrivesLine,
+  familyBusinessExtendedLine,
+  familyBusinessWinsTitleLine,
+  familyBusinessGracefulExitLine,
+  familyBusinessBustExitLine,
+} from '../engine/world/familyBusiness';
 import { pickMoneyEvent, moneyEventAmount } from '../engine/world/moneyEvents';
 import {
   tickEconomicClimate,
@@ -910,6 +921,63 @@ export interface GameStore {
  * wrestler who does not work here.
  */
 // dropFromCard .. couldTurnUp moved to ./storeHelpers.ts
+
+/**
+ * The two moments a "family business" signee's story can turn, both reached
+ * from inside the title-resolution loop in resolveWeek — called right after
+ * each of the two commitTitleChange call sites, with `previousHolders`
+ * captured immediately before that call (commitTitleChange computes the same
+ * list internally but doesn't return it).
+ *
+ * Win: apply the stat bump once, set titleWonWeek, and stop — ego is
+ * deliberately left alone here; the existing weekly driftEgo/targetEgo tick
+ * already reads their new popularity and title reign and grows it on its own
+ * over the following weeks. Loss (only possible once they've already proven
+ * themselves): a graceful, self-authored exit to free agency.
+ *
+ * This region of resolveWeek runs before world.week += 1, so wire pushes
+ * here stamp world.week + 1 — matching the equipment-failure branch two
+ * lines above either call site.
+ */
+function applyFamilyBusinessTitleChange(
+  world: World,
+  title: Title,
+  previousHolders: readonly Id[],
+  newHolderIds: readonly Id[],
+): void {
+  // Singles only — confirmed with the player, no pairing-with-a-carry-
+  // partner shortcut through a tag or trios title.
+  if (title.tier === 'tag' || title.tier === 'trios') return;
+
+  for (const id of newHolderIds) {
+    const champion = world.wrestlers[id];
+    if (!champion?.familyBusiness || champion.familyBusiness.titleWonWeek !== null) continue;
+    const surge = familyBusinessTitleWinSurge(world.settings);
+    champion.strength = clamp(champion.strength + surge.strength, 0, 100);
+    champion.skill = clamp(champion.skill + surge.skill, 0, 100);
+    champion.agility = clamp(champion.agility + surge.agility, 0, 100);
+    champion.stamina = clamp(champion.stamina + surge.stamina, 0, 100);
+    champion.familyBusiness.titleWonWeek = world.week;
+    world.weeklyNews.push(
+      wire('title', familyBusinessWinsTitleLine(champion.name, title.name), world.week + 1, 'lead'),
+    );
+  }
+
+  for (const id of previousHolders) {
+    if (newHolderIds.includes(id)) continue;
+    const former = world.wrestlers[id];
+    if (!former?.familyBusiness || former.familyBusiness.titleWonWeek === null) continue;
+    const terms = exitTerms(former, 'fired', world.settings, world.promotion.name);
+    world.promotion.bankBalance -= terms.severance;
+    // letThemGo pushes its own departure wire, but always stamps it plain
+    // world.week — correct for its many post-increment callers, off by one
+    // here. Correct the item it just pushed rather than forking the helper.
+    const newsCountBefore = world.weeklyNews.length;
+    letThemGo(world, former, { ...terms, text: familyBusinessGracefulExitLine(former.name, title.name) });
+    const pushed = world.weeklyNews[newsCountBefore];
+    if (pushed) pushed.week = world.week + 1;
+  }
+}
 
 export const useGameStore = create<GameStore>()(
   immer((set, get, api) => ({
@@ -2527,14 +2595,20 @@ export const useGameStore = create<GameStore>()(
               const winners = outcome.newHolderIds ?? result.winnerWrestlerIds;
               closeInterimClaim(world, title, winners);
               titleChanged = true;
+              const previousHolders = [...title.currentHolderIds];
               commitTitleChange(world, index, winners);
+              applyFamilyBusinessTitleChange(world, title, previousHolders, winners);
               continue;
             }
 
             if (!outcome.changed || !outcome.newHolderIds) continue;
 
             titleChanged = true;
-            commitTitleChange(world, index, outcome.newHolderIds);
+            {
+              const previousHolders = [...title.currentHolderIds];
+              commitTitleChange(world, index, outcome.newHolderIds);
+              applyFamilyBusinessTitleChange(world, title, previousHolders, outcome.newHolderIds);
+            }
           }
 
           // Something nobody booked. Rolled after the finish is settled and
@@ -4674,6 +4748,13 @@ export const useGameStore = create<GameStore>()(
         // roll, so a lockout that starts this same week doesn't have its
         // first week shaved off by the tick further down this same pass.
         const paperworkLockoutActiveBeforeThisWeek = world.paperworkLockout !== null;
+        // No World-level clock for this one — the life cycle lives on
+        // whichever wrestler was signed (see Wrestler.familyBusiness), so
+        // "already active" is just "is anybody on the roster still living
+        // it," true from the week they're signed until whichever exit fires.
+        const familyBusinessActiveBeforeThisWeek = world.promotion.rosterIds.some(
+          (id) => world.wrestlers[id]?.familyBusiness,
+        );
         {
           const livingRivals = world.rivals.filter((r) => r.closedWeek === null);
           const storyCtx: WorldStoryContext = {
@@ -4684,6 +4765,7 @@ export const useGameStore = create<GameStore>()(
             happenedFor: world.worldStoryHappenedFor,
             pricingWarActive: pricingWarActiveBeforeThisWeek,
             paperworkLockoutActive: paperworkLockoutActiveBeforeThisWeek,
+            familyBusinessActive: familyBusinessActiveBeforeThisWeek,
             settings: world.settings,
           };
           const storyRng = rngFromSeed(`worldStory:${world.week}`);
@@ -4861,6 +4943,35 @@ export const useGameStore = create<GameStore>()(
                 world.week,
                 'lead',
               ),
+            );
+          } else if (picked?.id === 'familyBusiness') {
+            const existingNames = new Set(
+              Object.values(world.wrestlers)
+                .filter((w): w is Wrestler => Boolean(w))
+                .map((w) => w.name.trim().toLowerCase()),
+            );
+            const currentYear = world.settings.startingYear + Math.floor(world.week / 52);
+            const signee = generateFamilyBusinessSignee(storyRng, existingNames, currentYear, world.settings);
+            const topEarnerRate = world.promotion.rosterIds.reduce(
+              (best, id) => Math.max(best, world.wrestlers[id]?.contract?.weeklyRate ?? 0),
+              0,
+            );
+            const weeklyRate = familyBusinessWage(topEarnerRate, world.settings);
+            signee.promotionId = world.promotion.id;
+            signee.contract = {
+              ...createStandardContract(signee, world.settings, currentYear),
+              weeklyRate,
+            };
+            signee.familyBusiness = {
+              signedWeek: world.week,
+              deadlineWeek: world.week + world.settings.familyBusinessProvingWindowWeeks,
+              extended: false,
+              titleWonWeek: null,
+            };
+            world.wrestlers[signee.id] = signee;
+            world.promotion.rosterIds.push(signee.id);
+            world.weeklyNews.push(
+              wire('signing', familyBusinessArrivesLine(signee.name, weeklyRate), world.week, 'lead'),
             );
           } else if (picked?.id === 'moneyEvent') {
             const card = pickMoneyEvent(storyRng);
@@ -7466,6 +7577,29 @@ export const useGameStore = create<GameStore>()(
             }
             world.weeklyNews.push(wire('business', paperworkLockoutEndLine(), world.week, 'lead'));
             world.paperworkLockout = null;
+          }
+        }
+
+        // ---- the family business signee, if one is still chasing a title --
+        // See engine/world/familyBusiness.ts. A champion (titleWonWeek
+        // already set) has no deadline left here at all — only the natural
+        // title loss handled in the resolution loop above ends their story.
+        if (familyBusinessActiveBeforeThisWeek) {
+          for (const id of [...world.promotion.rosterIds]) {
+            const w = world.wrestlers[id];
+            if (!w) continue;
+            const fb = w.familyBusiness;
+            if (!fb || fb.titleWonWeek !== null) continue;
+            if (world.week < fb.deadlineWeek) continue;
+            if (!fb.extended) {
+              fb.extended = true;
+              fb.deadlineWeek = fb.signedWeek + world.settings.familyBusinessTotalWeeks;
+              world.weeklyNews.push(wire('talent', familyBusinessExtendedLine(w.name), world.week, 'normal'));
+            } else {
+              const terms = exitTerms(w, 'fired', world.settings, world.promotion.name);
+              world.promotion.bankBalance -= terms.severance;
+              letThemGo(world, w, { ...terms, text: familyBusinessBustExitLine(w.name) });
+            }
           }
         }
 

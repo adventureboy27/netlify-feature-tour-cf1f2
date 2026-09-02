@@ -16,6 +16,7 @@ import { eligibleForBreakaway } from '../engine/world/breakawayPromotion';
 import { eligibleForFarewellTour } from '../engine/world/farewellTour';
 import { eligibleForPricingWar } from '../engine/world/pricingWar';
 import { eligibleForPaperworkLockout } from '../engine/world/paperworkLockout';
+import { eligibleForFamilyBusiness } from '../engine/world/familyBusiness';
 import { eligibleForMoneyEvent } from '../engine/world/moneyEvents';
 
 export interface WorldStoryDefinition {
@@ -101,6 +102,13 @@ export const WORLD_STORIES: WorldStoryDefinition[] = [
     weight: 3,
     chancePerWeek: (s) => s.paperworkLockoutChancePerWeek,
     eligible: (ctx) => eligibleForPaperworkLockout(ctx.week, ctx.paperworkLockoutActive, ctx.settings),
+  },
+  {
+    id: 'familyBusiness',
+    category: 'talent',
+    weight: 3,
+    chancePerWeek: (s) => s.familyBusinessChancePerWeek,
+    eligible: (ctx) => eligibleForFamilyBusiness(ctx.week, ctx.familyBusinessActive, ctx.settings),
   },
   {
     id: 'moneyEvent',

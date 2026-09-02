@@ -27,6 +27,8 @@ export interface WorldStoryContext {
   pricingWarActive: boolean;
   /** Whether a paperwork lockout is already running — see World.paperworkLockout. */
   paperworkLockoutActive: boolean;
+  /** Whether an owner's relative is already somewhere in their life cycle on the player's roster — see Wrestler.familyBusiness. */
+  familyBusinessActive: boolean;
   settings: WorldSettings;
 }
 

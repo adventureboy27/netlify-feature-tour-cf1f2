@@ -49,6 +49,7 @@ function ctxFor(overrides: Partial<WorldStoryContext> = {}): WorldStoryContext {
     happenedFor: {},
     pricingWarActive: false,
     paperworkLockoutActive: false,
+    familyBusinessActive: false,
     settings,
     ...overrides,
   };

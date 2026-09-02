@@ -4669,3 +4669,91 @@ degrees away; the more entrants a battle royal had, the worse it got.
   re-ran the normal 2-sided case too and confirmed it renders identically to before (both always centred,
   rails empty, nothing regressed). `tsc --noEmit` clean; full suite 152 files / 2,942 tests passing (no test
   covers this screen — presentation, caught only by watching it); `npm run build` clean.
+
+## "Family Business" — an owner's relative gets thrown on the roster
+
+Player's own pitch, worked through over several turns before any code was touched: a niece or nephew
+of "someone important" gets forced onto the player's own roster — nobody else's, this is a personal
+booking headache, not a world event — signed at a wage way past what their stats justify, no
+negotiation, stats a genuine bust across the board. They get 90 days to win *any* singles title. Miss
+it, and the clock extends once: stuck on the books at the same inflated rate for a full year total. If
+they still haven't won anything by then, they get bored and leave for free agency, a pure loss. If they
+win a title at any point, it flips into a real success — a permanent stat bump — and, left to the
+game's existing ego-drift system rather than forced, they naturally grow into "a fairly decent
+egotistical champion" over the following weeks. Whenever they eventually and naturally lose that belt
+(no special timer — that's just wrestling), they claim they meant to and walk to free agency on their
+own terms. Player's promotion only; singles titles only, no tag-team shortcut; can recur later in a
+long save, rare, one at a time. Full plan (research, design, and every call made) is in this session's
+transcript before the ExitPlanMode approval.
+
+- **`Wrestler.familyBusiness`** (`engine/types.ts`) carries the whole life cycle on the signee
+  themselves rather than on `World` — `signedWeek`, `deadlineWeek` (overwritten in place, once, from
+  the 90-day mark to the one-year mark if the first deadline passes with no title), `extended`,
+  `titleWonWeek` (`null` until they win any singles title; once set, there is no further deadline).
+  Six new `WorldSettings` fields alongside it: `familyBusinessChancePerWeek`, `...EarliestWeek` (20),
+  `...ProvingWindowWeeks` (13, ~90 days), `...TotalWeeks` (52), `...WageMultiplier` (1.25x the
+  player's own current top earner), `...StatBump` (20, flat per-stat on a title win), `...StatCeiling`
+  (20, how bad the bust is), `...StartingEgo` (80).
+- **`engine/world/familyBusiness.ts`** (new, pure): `eligibleForFamilyBusiness` gates on the earliest
+  week and "is anybody already living this story" (derived at the call site from the roster, not a new
+  `World` field — the flag leaves with them at either exit). `generateFamilyBusinessSignee` floors
+  strength/skill/agility/stamina/popularity toward the ceiling and spikes `ego` at construction time —
+  construction, not a live mutation, so it doesn't need to go through the weekly ego-drift system the
+  way a later change would have to. `familyBusinessWage` scales off a given top-earner rate;
+  `familyBusinessTitleWinSurge` returns the flat per-stat bump struct (same shape as `cup.ts`'s
+  `crownSurge` precedent). Five plain-string wire-line generators.
+- **Registered in the world-story pool** (`data/worldStories.ts`) exactly like `merger`/`pricingWar`/
+  `paperworkLockout` — one more `WorldStoryDefinition` entry, `WorldStoryContext` gains
+  `familyBusinessActive: boolean`.
+- **`state/store.ts` wiring, three places**: the dispatch branch generates the signee, computes the
+  wage off the real top earner, and adds them directly to the roster (skipping `world.freeAgents`
+  entirely — they never sat in the pool, they were thrown straight on) with a `wire('signing', ...)`.
+  A new private helper, `applyFamilyBusinessTitleChange` — the store's first true module-level private
+  function, called from both `commitTitleChange` call sites in the title-resolution loop with
+  `previousHolders` captured just before each call (`commitTitleChange` computes the same list
+  internally but doesn't return it) — applies the stat bump and sets `titleWonWeek` on a win, or calls
+  `letThemGo` with a custom "I meant to lose it" line on a loss. Explicitly gated `tier === 'tag' ||
+  tier === 'trios'` to return early — caught this one myself while writing the store test, before any
+  test run exposed it: without the gate a tag-title win would have counted, directly contradicting the
+  confirmed "singles only" design. A weekly tick alongside the `pricingWar`/`paperworkLockout` ticks
+  handles the extension (once) and the eventual bust release.
+- **A real off-by-one bug, caught by the tests, not by review.** `letThemGo`'s departure wire always
+  stamps plain `world.week` — correct for its many post-increment callers, but the title-resolution
+  loop this feature's loss-branch runs from is *before* `world.week += 1` (same trap CLAUDE.md already
+  documents for this exact region). The graceful-exit line was silently dropped by the `weeklyNews`
+  filter every single time until this was caught: fixed by correcting the just-pushed item's `.week`
+  to `world.week + 1` right after the `letThemGo` call, rather than forking the shared helper for one
+  caller.
+- **A second real bug, this one in a completely unrelated, pre-existing test file.** Adding a twelfth
+  entry to the `WORLD_STORIES` registry broke `worldStoriesD.store.test.ts`'s `rogueTurn` test — not
+  a regression in `rogueTurn` itself, but that test's `freshSettings()` never fully isolated the story
+  under test: several other stories' `*ChancePerWeek` fields (`scandal`, `breakaway`, `farewellTour`,
+  `pricingWar`, `paperworkLockout`, and now `familyBusiness`) were left at their real, nonzero
+  defaults, and `chance()` always draws from the shared RNG stream even at the eventual `p=0` this
+  session tried first — so every new eligible-that-week story shifts the exact draw sequence a
+  from-nowhere-obvious seeded test had been quietly relying on. Fixed by actually isolating: zeroing
+  every competing chance field in that file's fixture, matching the convention every newer world-story
+  test file already followed. Re-expressed, not re-baselined — same assertions, same behavior, just an
+  isolation the test should have had from the start.
+- **Deliberately out of scope**, confirmed with the player before building: rivals never get one of
+  these (player's promotion only); no tag-team shortcut to the title requirement; no new UI — the
+  signee is an ordinary, bookable, releasable roster member, and the story is told entirely through
+  Breaking News and the wage number itself, the same way paperwork lockout and pricing war both work.
+- Tests: `engine/world/familyBusiness.test.ts` (10 tests — eligibility gating, bust-stat generation,
+  wage scaling, the title-win surge, the wire lines) and `state/familyBusiness.store.test.ts` (5 tests
+  — the week gate, the forced signing at the scaled wage with no free-agent detour, no second signee
+  while one is still live, the full extend-then-bust life cycle including "no stat bump on a bust,"
+  and a real booked title match driving both the win branch and the later loss branch, bump intact
+  through the release). The title-match test initially picked whichever title `Array.find` happened to
+  land on first, which was `division: 'mens'` — `eligibleTitles()` silently drops a `mens`/`womens`
+  title from a match if any participant's generated gender doesn't match, so the match kept resolving
+  clean but the title itself just never entered the resolution at all. Fixed by picking a `division:
+  'open'` title explicitly, removing the gender dependency rather than working around it.
+- Verified: `tsc --noEmit` clean; full suite 192 files / 3,246 tests passing; `npm run build` clean;
+  a full live Playwright pass through every phase against the real dev server and the real UI — forced
+  the roll and confirmed the inflated-wage signing line on the Results feed and the new roster count on
+  the Roster screen, forced a real booked title match (heavy stat mismatch, sim still decided) and
+  confirmed the win line plus the stat bump landing (clamped to 100), forced the follow-up loss and
+  confirmed the graceful-exit line with the bump still intact and the free-agent landing, then a
+  separate fresh run confirming the exactly-once 90-day extension line and the eventual one-year bust
+  release with no stat bump at all.

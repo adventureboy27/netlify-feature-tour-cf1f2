@@ -632,6 +632,24 @@ export interface Wrestler {
    */
   paperworkFrozen?: boolean;
   /**
+   * The whole life cycle of an owner-relative signing forced onto the
+   * player's roster — see engine/world/familyBusiness.ts. `deadlineWeek`
+   * starts at the ninety-day mark and gets overwritten in place, once, to
+   * the one-year mark if the first deadline passes with no title —
+   * only one deadline is ever live at a time, so a second field would just
+   * be one more thing to keep in sync. `titleWonWeek` stays null until they
+   * win any singles title; once set, there is no further deadline — they
+   * are only released the natural way, whenever they eventually lose the
+   * belt. Player-only, same reasoning as paperworkFrozen's own note: rivals
+   * use a separate, simplified economy.
+   */
+  familyBusiness?: {
+    signedWeek: number;
+    deadlineWeek: number;
+    extended: boolean;
+    titleWonWeek: number | null;
+  };
+  /**
    * A death the locker room lays at his door rather than the office's. While
    * it is fresh nobody will work with him. See career/onOurWatch.ts.
    */
@@ -2891,6 +2909,24 @@ export interface WorldSettings {
   paperworkLockoutDurationWeeks: number;
   /** Share of each roster frozen, independently per wrestler — roughly two-thirds. */
   paperworkLockoutFreezeShare: number;
+
+  // An owner's niece or nephew gets thrown onto the player's own roster,
+  // overpaid and expected to win a title. Player-only — see
+  // Wrestler.familyBusiness, engine/world/familyBusiness.ts.
+  familyBusinessChancePerWeek: number;
+  familyBusinessEarliestWeek: number;
+  /** The original clock: win any singles title within this many weeks. */
+  familyBusinessProvingWindowWeeks: number;
+  /** The one extension, measured from the week they were signed, not from the first deadline. */
+  familyBusinessTotalWeeks: number;
+  /** Their weekly rate, as a multiple of the player's own current top earner's. */
+  familyBusinessWageMultiplier: number;
+  /** Flat bump to each of skill/agility/stamina/strength the moment they win a title. */
+  familyBusinessStatBump: number;
+  /** Ceiling their starting skill/agility/stamina/strength/popularity are generated under — a real bust. */
+  familyBusinessStatCeiling: number;
+  /** Ego they start with, before any of it is earned. */
+  familyBusinessStartingEgo: number;
 
   // A "Chance card" — a small, one-off windfall or setback that isn't part
   // of any bigger story, sized off the promotion's own bank balance. See

@@ -1079,6 +1079,24 @@ export function defaultWorldSettings(): WorldSettings {
     paperworkLockoutDurationWeeks: 6,
     paperworkLockoutFreezeShare: 0.667,
 
+    // Rare enough that it reads as a real event rather than a fixture — this
+    // one also self-gates by staying "active" (see eligibleForFamilyBusiness)
+    // for however long the signee's whole life cycle takes, which can itself
+    // run a year or more if they never win anything.
+    familyBusinessChancePerWeek: 0.01,
+    familyBusinessEarliestWeek: 20,
+    familyBusinessProvingWindowWeeks: 13,
+    familyBusinessTotalWeeks: 52,
+    // 25% past the current top earner — always absurd, whatever stage the
+    // promotion is at, because it is relative rather than a flat number.
+    familyBusinessWageMultiplier: 1.25,
+    // On top of the flat titleWinPopularity/titleWinMomentum every new
+    // champion already gets from commitTitleChange — this is what actually
+    // makes them "no longer a fraud" rather than merely surviving.
+    familyBusinessStatBump: 20,
+    familyBusinessStatCeiling: 20,
+    familyBusinessStartingEgo: 80,
+
     // Sporadic, not weekly: ~6%/week averages one card roughly every 17
     // weeks, a few times a year rather than a fixture. Skips the first few
     // weeks so a brand new save doesn't open with a random check. The share

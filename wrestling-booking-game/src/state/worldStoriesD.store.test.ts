@@ -18,6 +18,19 @@ function freshSettings(overrides: Partial<ReturnType<typeof defaultWorldSettings
     networkRealignmentChancePerWeek: 0,
     ownerRivalryChancePerWeek: 0,
     rogueChancePerWeek: 0,
+    // The rest of the world-story registry, zeroed for real isolation. At
+    // rogueEarliestWeek (80) every one of these is also old enough to be
+    // "eligible," and chance() always draws from the shared rng stream even
+    // at p=0 — so leaving any of them at their nonzero default both risks
+    // weightedPick actually picking one of them instead of rogueTurn, and
+    // (regardless of that risk) shifts every seeded roll after it.
+    scandalChancePerWeek: 0,
+    breakawayChancePerWeek: 0,
+    farewellTourChancePerWeek: 0,
+    pricingWarChancePerWeek: 0,
+    paperworkLockoutChancePerWeek: 0,
+    familyBusinessChancePerWeek: 0,
+    moneyEventChancePerWeek: 0,
     ...overrides,
   };
 }
