@@ -185,7 +185,12 @@ export function contractDemand(
   // number is what moves them, so the number is what they push hardest on.
   // Everybody else carries the lever's default of 1 and this term does
   // nothing to them.
-  const egoFactor = 1 + (wrestler.ego / 100) * settings.egoRateMultiplierMax * leverWeight(wrestler, 'money', settings);
+  //
+  // demandStrictness scales the whole premium on top of that — a knob for
+  // how hard-nosed the business is this save, at 1 by default so it changes
+  // nothing unless a preset turns it up or down.
+  const egoFactor =
+    1 + (wrestler.ego / 100) * settings.egoRateMultiplierMax * leverWeight(wrestler, 'money', settings) * settings.demandStrictness;
   const asked = baseRate * egoFactor;
   // Ego says what he wants. Leverage says what he is going to settle for, and
   // a name past its prime settles for a good deal less than it wants — unless
@@ -197,7 +202,18 @@ export function contractDemand(
   // his ego entitles him to both — which is what makes signing the same person
   // at twenty-five and at thirty-three two different conversations.
   const appetite = dealAppetite(wrestler, wrestler.injuryHistory ?? [], settings);
-  const entitled = CLAUSE_LADDER.filter((entry) => wrestler.ego >= entry.egoRequired);
+  // clauseAvailability is a whole-business knob on top of the ego gate below:
+  // 'none' means nobody negotiates clauses at all this save, 'starsOnly'
+  // means only a genuine draw or main eventer gets to, and 'all' (the
+  // default) changes nothing — everybody still goes through the ego ladder
+  // exactly as before.
+  const clausesOffered =
+    settings.clauseAvailability === 'none'
+      ? false
+      : settings.clauseAvailability === 'starsOnly'
+        ? status === 'draw' || status === 'mainEventer'
+        : true;
+  const entitled = clausesOffered ? CLAUSE_LADDER.filter((entry) => wrestler.ego >= entry.egoRequired) : [];
   // What he wants comes first; the clauses everybody wants fill what is left.
   // Preference rather than a filter, because a man can want the cover *and*
   // the guarantee — he simply asks for the cover first.

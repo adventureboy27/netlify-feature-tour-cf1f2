@@ -5,6 +5,101 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Audit: 34 more `WorldSettings` fields declared and defaulted but read by nothing
+
+Direct follow-up to the `salaryInflation` fix just below — the player asked to "look at salary
+inflation gap too," which turned into checking whether it had siblings. It did: a scripted sweep of
+every `WorldSettings` field for a real consumer anywhere outside `types.ts`/`settings.ts` turned up
+34 more. Then, per the player ("if it needs to be done let's work through it"), went through all 34
+one at a time rather than batch-guessing from field names — the two turned out to need genuinely
+different answers, and guessing wrong in either direction (wiring in something that should have
+stayed dead, or deleting something that had a real home waiting) would have been worse than the
+original gap.
+
+**17 fields removed as genuinely dead** — each one checked individually, and each dead for a
+different, specific reason rather than "nobody got around to it":
+
+- `mergerStoryWeight` / `successionStoryWeight` — `data/worldStories.ts`'s `weight` field is a plain
+  hardcoded literal for all 11 registry entries, which is the correct, established convention (CLAUDE.md:
+  content/constants belong in `data/`, not settings). Only these two of eleven stories happened to
+  have a matching unused settings field; wiring just those two in would have made the registry
+  inconsistent for no benefit.
+- `clauseTitlePushWeeks`, `clauseTitlePushMoraleDrain`, `clauseTitlePushNoticeWeeks`,
+  `clauseNoJobbingMoraleHit` — found `engine/types.ts` already carrying an explicit note that
+  `titlePush` and `noJobbing` were removed from the `Clause` union entirely in an earlier pass,
+  specifically because they were "offered and paid for, and neither was ever enforced anywhere...
+  removed rather than implemented: a clause list is a promise about what the game models, and nine
+  tenths of a promise is worse than a shorter one." These four settings were the leftover cost
+  parameters for a feature that was deliberately cut, not overlooked.
+- `broadcastWindowTV` / `broadcastWindowPPV` — real broadcast-runtime minutes (120/180, a 2-hour TV
+  show and a 3-hour PPV) sitting next to `segmentsPerTV`/`segmentsPerPPV` with no formula ever
+  connecting them. The game has no real-time-duration concept anywhere in the sim for these to gate;
+  building one would be a new feature, not a wiring fix.
+- `ticketPricePerSegment` — the pre-dashboard ticket pricing formula's per-segment term. Superseded
+  when the full player/rival pricing dashboard shipped (`ticketFairPriceBase`/`ticketFairPriceRange`,
+  a whole different, already-wired formula with a comment explicitly naming itself the replacement).
+- `workingHurtInjuryMultiplier` — the old flat multiplier for a hurt wrestler's re-injury risk.
+  `sim/casualties.ts`'s `riskFromGrade` is its explicitly-documented replacement (grade-scaled rather
+  than flat), with a comment naming the exact old mechanism it replaced.
+- `biddingHeadroomWeeks` — a flat "weeks of payroll to enter an auction" number, superseded by
+  `biddingRunwayWeeksMin`/`biddingRunwayWeeksRange`, a temperament-scaled version of the same idea
+  already fully wired into `bidCeiling`.
+- `poachOfferWeeksToRespond` — an exact duplicate of the already-wired `poachOfferWeeks`, same
+  doc comment, same job, different name.
+- `academyDebutAgeMax` — a narrow 19-25 debut window superseded by the wider, carefully-reasoned
+  `[academyDebutAgeMin, academyMaxAge]` late-starter clamp built for "Cap the school's intake age and
+  add walk-ons" (a big comment in `academy.ts` explains exactly why a school takes late starters up
+  to 34 — wiring the narrower field back in would have directly undone that).
+- `secondGenResemblance` — "chance each heritable appearance trait comes from the parent." Belonged
+  to the generated-sprite-appearance system from the very start of this project; CLAUDE.md itself
+  documents that system was later "removed wholesale, not extended" in favor of real uploaded photos.
+  There is no appearance-trait concept left on `Wrestler` for this to attach to.
+- `freeAgentRivalSigningChance` — `freeAgents.ts`'s own doc comment explains this one directly: an
+  older `tickPool` used to also have rivals sign out of the free-agent pool, and that duplicate was
+  cut rather than wired, in the comment's own words, because "the store already has short-handed
+  rivals signing from the pool, and two systems quietly doing the same thing is how a business ends
+  up with a rule nobody can find." This setting was that duplicate's leftover parameter.
+- `ownerPatience` — default value (3) exactly matches `mandateStrikesBeforeFiring`'s default, which
+  already varies per owner personality (2 to 5 strikes across different presets) — a fully-built,
+  more granular version of the same "how many failures before the owner fires you" concept.
+
+**5 fields wired in for real**, each into an existing, already-functioning system that was simply
+missing this one input:
+
+- `rivalryHeatRatingBonus` — `sim/matchRating.ts` had `chemistry += (ctx.rivalryHeat / 100) * 12`, a
+  bare literal whose value (12) exactly matched this setting's default. Replaced the literal with the
+  setting.
+- `tournamentFinalRatingBonus` — The Crucible's bracket final already got the ordinary main-event
+  treatment (`isMainEvent: true`) but nothing extra for being a final specifically. Added the bonus on
+  top, in `engine/world/cupRun.ts`, clamped back into the normal [3, 100] rating range.
+- `injuryCallMinWeeks` — any hurt champion, even one out for a single week, was raising the full
+  "defend it or the company vacates it" dialogue. Gated the call so a short knock no longer triggers
+  the same theatre as a real absence.
+- `demandStrictness` — a 0-2 difficulty knob sitting unused right next to the already-wired
+  `poachingAggression`. Wired into `contractDemand`'s ego-premium term in `career/ego.ts`, at 1 by
+  default so no existing save's numbers move unless a preset turns it up or down.
+- `buyoutCountMax` — the blind bulk buyout's contract count was already clamped by
+  `buyoutCountMin`, but its upper bound was a bare `rosterSize - 1` instead of its own sibling
+  `buyoutCountMax` (2 and 8, clearly meant as a pair). A very large roster could previously lose a
+  double-digit chunk of contracts in one buyout offer; now capped at 8 regardless of roster size.
+- `clauseAvailability` (`'all' | 'starsOnly' | 'none'`) — wired into both places a negotiation can
+  hand out clauses: `career/ego.ts`'s `contractDemand` (an ordinary signing/renewal) and
+  `economy/bidding.ts`'s `rivalBid` (a bidding-war sweetener). `'all'` reproduces the exact prior
+  behavior for every existing save; `'starsOnly'`/`'none'` are new, real difficulty options for a
+  future preset.
+
+Deliberately did not touch `outcomeMode`/`resimAllowed` (both explicitly commented `// LOCKED` — the
+codified form of CLAUDE.md's own "the sim always picks the winner, no re-sims" rule) or
+`startingTerritories`/`territoryCount` (M6 "territories and legacy," not yet built per the project's
+own milestone order).
+
+Verified: `tsc --noEmit` clean; full suite 190 files / 3,231 tests passing, unchanged (no test
+anywhere asserted against any of the 17 removed fields, and the 5 wired fields all default to values
+that reproduce prior behavior exactly); `npm run build` clean; a 30-week live playthrough via the dev
+store handle ran clean with zero runtime errors, including hitting the pre-existing three-strike
+owner-mandate firing at week 24 — confirming that system still works correctly with `ownerPatience`
+gone.
+
 ## Fixed: a promotion could book the biggest room in the game forever and never actually go broke
 
 Player's own framing: "we do need some playthroughs that squeeze the promotion and bankrupt

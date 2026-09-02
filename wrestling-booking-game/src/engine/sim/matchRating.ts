@@ -159,7 +159,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
   const hasFace = buckets.includes('face');
   const hasHeel = buckets.includes('heel');
   let chemistry = hasFace && hasHeel ? 13 : -6;
-  chemistry += (ctx.rivalryHeat / 100) * 12;
+  chemistry += (ctx.rivalryHeat / 100) * ctx.settings.rivalryHeatRatingBonus;
   if (ctx.titlePrestige !== null) chemistry += (ctx.titlePrestige / 100) * 8;
   if (ctx.isPPV) chemistry += 4;
   term('Chemistry', chemistry);

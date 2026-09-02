@@ -5503,6 +5503,10 @@ export const useGameStore = create<GameStore>()(
               .map((id) => world.wrestlers[id])
               .find((w) => w?.injury && !w.clearedToWorkHurt);
             if (!hurt?.injury) continue;
+            // A knock that clears up in a week or two is not a call — it is
+            // not worth "defend it or lose it" theatre for something that
+            // heals before the belt could realistically change hands.
+            if (hurt.injury.weeksRemaining < world.settings.injuryCallMinWeeks) continue;
             world.pendingChampionCall = {
               titleId: title.id,
               titleName: title.name,

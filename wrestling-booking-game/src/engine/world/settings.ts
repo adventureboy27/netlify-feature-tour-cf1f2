@@ -12,7 +12,6 @@ export function defaultWorldSettings(): WorldSettings {
     weeklyExpenseRate: 0.02,
     expenseCapPctOfRevenue: 50,
     ticketPriceBase: 4,
-    ticketPricePerSegment: 1,
     salaryInflation: 0.01,
     // A slow, real boom-and-bust swing. Mean reversion 0.02/week gives the
     // climate a roughly 35-week half-life once it wanders off neutral — a
@@ -158,8 +157,6 @@ export function defaultWorldSettings(): WorldSettings {
     matchRatingWorkrateWeight: 42,
     segmentsPerTV: 6,
     segmentsPerPPV: 10,
-    broadcastWindowTV: 120,
-    broadcastWindowPPV: 180,
     ratingLadderStepPerWeek: 1,
     // Standing is lost at two fifths the speed it is won. See
     // stepCompanyRatingTowardTarget.
@@ -575,7 +572,6 @@ export function defaultWorldSettings(): WorldSettings {
     poachResponseMoneyEffect: 0.45,
     poachResponseMoneyRaise: 1.35,
     poachResponsePushEffect: 0.3,
-    poachOfferWeeksToRespond: 1,
 
     // Ego. Rises roughly twice as fast as it falls — you can make somebody in
     // a season and spend two bringing them back down.
@@ -596,15 +592,6 @@ export function defaultWorldSettings(): WorldSettings {
     egoRosterFrictionMax: 6,
 
     // What agreed clauses cost every week.
-    // Half a year to make good on a promised title run before they start
-    // souring. Long enough to book it properly, short enough to remember.
-    clauseTitlePushWeeks: 26,
-    // What a broken promise, or a loss for somebody who was told they would
-    // not lose, costs in morale every week.
-    clauseTitlePushMoraleDrain: 1.6,
-    // How long the wire keeps mentioning a promise that has come due.
-    clauseTitlePushNoticeWeeks: 2,
-    clauseNoJobbingMoraleHit: 9,
     clauseInsuranceRate: 0.18,
     clauseTravelCost: 120,
     clauseGuaranteedDatesRate: 0.25,
@@ -966,13 +953,11 @@ export function defaultWorldSettings(): WorldSettings {
     // A supershow proposal has to clear the same climb as facing down real,
     // earned resentment — this is not a company being merely reluctant.
     mergerCrossPromotionResistance: 40,
-    mergerStoryWeight: 5,
 
     // Two years — earlier than the merger, since this is a lighter, more
     // ordinary kind of change and can happen to more than one rival.
     successionEarliestWeek: 104,
     successionChancePerWeek: 0.02,
-    successionStoryWeight: 5,
     successionRatingBoostSharp: 10,
     successionReputationBoostSharp: 8,
     successionRatingDropWeak: 12,
@@ -1219,7 +1204,6 @@ export function defaultWorldSettings(): WorldSettings {
     // Free agents
     freeAgentRateDecayPerWeek: 0.008,
     freeAgentMaxDiscount: 0.4,
-    freeAgentRivalSigningChance: 0.05,
 
     // Ringside personnel. A manager is a small rating bump and a large heat
     // bump for somebody who cannot talk; a guest referee is star power at the
@@ -1368,7 +1352,6 @@ export function defaultWorldSettings(): WorldSettings {
     // Chaos
     chaosLevel: 1,
     ownerMandatesEnabled: true,
-    ownerPatience: 3,
 
     // Championships. Prestige follows the matches: a belt defended in
     // five-star main events is worth more than one defended in the opener.
@@ -1538,7 +1521,6 @@ export function defaultWorldSettings(): WorldSettings {
     titleDefenceNoticeWeeks: 4,
     titleDefenceWarningWeeks: 1,
     championInjuryGraceWeeks: 3,
-    workingHurtInjuryMultiplier: 2.6,
     titleSignatureHonoured: 4,
     titleSignatureIgnored: 7,
     confrontationCharismaWeight: 0.62,
@@ -1765,7 +1747,6 @@ export function defaultWorldSettings(): WorldSettings {
     // against the school's 81%, and the street produces *more* managers than
     // the school does (29% against 17%) — which is the point of the door.
     academyDebutAgeMin: 19,
-    academyDebutAgeMax: 25,
 
     // Nicknames. Four years in and getting over: about a year of eligible
     // weeks before one lands, so they trickle in across a career.
@@ -2338,7 +2319,6 @@ export function defaultWorldSettings(): WorldSettings {
     biddingPhenomTalentFloor: 90,
     biddingPhenomPopularity: 38,
     biddingMinRivals: 2,
-    biddingHeadroomWeeks: 26,
     biddingWantsThreshold: 0.85,
 
     // What the business reckons somebody is worth. A wrestler exactly average
@@ -2472,7 +2452,6 @@ export function defaultWorldSettings(): WorldSettings {
     secondGenInheritedCap: 55,
     secondGenTownShare: 0.55,
     secondGenCharismaPull: 0.35,
-    secondGenResemblance: 0.6,
     // A year and a half of television. Long enough that squandering it is a
     // decision rather than an accident.
     secondGenPatienceWeeks: 78,

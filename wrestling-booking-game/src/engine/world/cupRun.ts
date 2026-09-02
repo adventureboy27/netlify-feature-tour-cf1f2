@@ -9,6 +9,7 @@
 // seed, bye and advance. Nothing here re-implements that; this walks it.
 
 import type { Rng } from '../rng';
+import { clamp } from '../rng';
 import type { Id, MatchRules, Tournament, Wrestler, WorldSettings, Promotion } from '../types';
 import { simulateMatch, type SimParticipant } from '../sim/simulateMatch';
 import {
@@ -173,6 +174,7 @@ export function runCup(rng: Rng, ctx: CupRunContext): CupResult | null {
       tonight.set(a.id, tired(a));
       tonight.set(b.id, tired(b));
 
+      const isFinalTie = tie.round === totalRounds(tournament) - 1;
       const result = simulateMatch(rng, participants, tonight, {
         rules: CUP_RULES,
         stipulation: null,
@@ -185,7 +187,7 @@ export function runCup(rng: Rng, ctx: CupRunContext): CupResult | null {
         hardcoreSaturation: 0,
         // No belts on this card, for the same reason as the joint shows.
         titles: [],
-        isMainEvent: tie.round === totalRounds(tournament) - 1,
+        isMainEvent: isFinalTie,
         isOpener: tie.round === 0,
       });
 
@@ -194,13 +196,19 @@ export function runCup(rng: Rng, ctx: CupRunContext): CupResult | null {
       workedTonight.set(aId, (workedTonight.get(aId) ?? 0) + 1);
       workedTonight.set(bId, (workedTonight.get(bId) ?? 0) + 1);
 
+      // On top of whatever isMainEvent already earns it: the crowd knows this
+      // one crowns somebody, which an ordinary main event does not carry.
+      const rating = isFinalTie
+        ? clamp(result.rating + ctx.settings.tournamentFinalRatingBonus, 3, 100)
+        : result.rating;
+
       bouts.push({
         round: tie.round,
         roundLabel: roundName(tie.round, totalRounds(tournament)),
         aId,
         bId,
         winnerId,
-        rating: result.rating,
+        rating,
         finish: result.finish,
       });
 

@@ -568,7 +568,11 @@ export function rivalBid(
   // rather than the default — linear, a typical rival handed over three
   // clauses on almost every bid, which saturated the sweetener axis for the
   // whole field and left the player no way to win with money at all.
-  const affordable = CLAUSE_LADDER.filter((entry) => wrestler.ego >= entry.egoRequired);
+  // 'none' turns off clause sweeteners here too. 'starsOnly' is a no-op in
+  // this path specifically — worthAnAuction already restricts who gets a
+  // bidding war at all to real draws and clear phenom prospects, so the
+  // population here is already the "stars" that setting means to single out.
+  const affordable = s.clauseAvailability === 'none' ? [] : CLAUSE_LADDER.filter((entry) => wrestler.ego >= entry.egoRequired);
   const appetite = want * mood.generosity;
   const count = Math.min(affordable.length, Math.round(appetite * appetite * s.biddingRivalMaxClauses));
   // `slice(-0)` is `slice(0)` — the whole array. Left as a bare slice, the one

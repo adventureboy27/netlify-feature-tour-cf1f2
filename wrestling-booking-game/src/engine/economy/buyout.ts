@@ -50,8 +50,12 @@ export function rollBuyoutTerms(
 ): BuyoutTerms {
   const fraction = randFloat(rng, settings.buyoutCountFractionMin, settings.buyoutCountFractionMax);
   // Never the whole roster and never nobody — there always has to be a
-  // company left on the other side of this decision.
-  const count = clamp(Math.round(rosterSize * fraction), settings.buyoutCountMin, Math.max(1, rosterSize - 1));
+  // company left on the other side of this decision. And never more than
+  // buyoutCountMax outright, whatever the roster's size: a buyout is a
+  // chunk taken out of the company, not a way to gut an oversized roster in
+  // one offer.
+  const upperBound = Math.min(settings.buyoutCountMax, Math.max(1, rosterSize - 1));
+  const count = clamp(Math.round(rosterSize * fraction), settings.buyoutCountMin, upperBound);
   const multiplier = randFloat(rng, settings.buyoutPriceMultiplierMin, settings.buyoutPriceMultiplierMax);
   const price = Math.max(1, Math.round(weeklyPayroll * multiplier));
   return { count, price };

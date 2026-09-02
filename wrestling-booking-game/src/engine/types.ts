@@ -1725,7 +1725,6 @@ export interface WorldSettings {
   weeklyExpenseRate: number;
   expenseCapPctOfRevenue: number;
   ticketPriceBase: number;
-  ticketPricePerSegment: number;
   /**
    * A one-way secular wage drift, applied linearly per year (52 weeks) in
    * freeAgents.ts's currentAskingRate, on top of everything else that moves
@@ -1846,6 +1845,7 @@ export interface WorldSettings {
   clauseAvailability: ClauseAvailability;
   buyoutsEnabled: boolean;
   poachingAggression: number; // 0-2
+  /** Scales the ego premium in career/ego.ts's contractDemand — 1 is neutral, 0 asks nothing extra, 2 asks double. */
   demandStrictness: number; // 0-2
 
   // Booking and simulation
@@ -1883,8 +1883,6 @@ export interface WorldSettings {
    * cardSizeFor.
    */
   startingCardSizeTierId?: Id;
-  broadcastWindowTV: number;
-  broadcastWindowPPV: number;
   ratingLadderStepPerWeek: number;
   /** How much slower the rating falls than it climbs. */
   ratingLadderFallMultiplier: number;
@@ -2296,8 +2294,6 @@ export interface WorldSettings {
   poachResponseMoneyEffect: number;
   poachResponseMoneyRaise: number;
   poachResponsePushEffect: number;
-  /** Weeks an offer sits open before it resolves. */
-  poachOfferWeeksToRespond: number;
 
   // Ego and the cost of success (engine/career/ego.ts)
   egoFromStanding: number;
@@ -2320,13 +2316,6 @@ export interface WorldSettings {
   egoRosterFrictionMax: number;
 
   // Ongoing cost of agreed clauses
-  /** Weeks to make good on a promised title run before they start souring. */
-  clauseTitlePushWeeks: number;
-  clauseTitlePushMoraleDrain: number;
-  /** Weeks the wire keeps mentioning a title promise that has come due. */
-  clauseTitlePushNoticeWeeks: number;
-  /** What a loss costs somebody who was promised they would not take one. */
-  clauseNoJobbingMoraleHit: number;
   clauseInsuranceRate: number;
   clauseTravelCost: number;
   clauseGuaranteedDatesRate: number;
@@ -2749,15 +2738,12 @@ export interface WorldSettings {
   mergerBankInjection: number;
   /** Added straight onto the resentment term a supershow proposal is judged against, for anybody who isn't their own sibling. */
   mergerCrossPromotionResistance: number;
-  /** Relative weight against other world stories eligible the same week — see data/worldStories.ts. */
-  mergerStoryWeight: number;
 
   // Succession — a rival's founder dies or steps back. Lighter and more
   // common than the merger; can happen to more than one rival across a long
   // save, tracked per-promotion rather than once ever.
   successionEarliestWeek: number;
   successionChancePerWeek: number;
-  successionStoryWeight: number;
   successionRatingBoostSharp: number;
   successionReputationBoostSharp: number;
   successionRatingDropWeak: number;
@@ -2996,8 +2982,6 @@ export interface WorldSettings {
   freeAgentRateDecayPerWeek: number;
   /** Floor on that discount. */
   freeAgentMaxDiscount: number;
-  /** Weekly chance a desirable free agent is signed by somebody else. */
-  freeAgentRivalSigningChance: number;
 
   // Ringside personnel (engine/sim/ringside.ts)
   managerRatingBonusMax: number;
@@ -3110,7 +3094,6 @@ export interface WorldSettings {
   // Chaos
   chaosLevel: number; // 0-3
   ownerMandatesEnabled: boolean;
-  ownerPatience: number;
 
   /** How fast a belt's prestige chases the rating of its last defence. */
   titlePrestigeDrift: number;
@@ -3372,8 +3355,6 @@ export interface WorldSettings {
   titleDefenceWarningWeeks: number;
   /** Weeks a hurt-champion decision can sit unanswered before the belt vacates itself. */
   championInjuryGraceWeeks: number;
-  /** How much more likely a fresh injury is for somebody the booker sent out hurt. */
-  workingHurtInjuryMultiplier: number;
   /** Rating points for defending a belt under the stipulation it is known for. */
   titleSignatureHonoured: number;
   /** Rating points lost for ignoring that tradition. Deliberately the larger. */
@@ -3689,7 +3670,6 @@ export interface WorldSettings {
   /** Nobody has heard of them. This is the spread of "nobody". */
   walkOnPopularitySpread: number;
   academyDebutAgeMin: number;
-  academyDebutAgeMax: number;
 
   // Nicknames. Earned over years, never handed out at signing.
   /** Years in the business before anybody starts calling you something. */
@@ -4300,8 +4280,6 @@ export interface WorldSettings {
   biddingPhenomPopularity: number;
   /** Fewer interested companies than this and it is a negotiation, not an auction. */
   biddingMinRivals: number;
-  /** Weeks of payroll a company must keep covered to enter one. */
-  biddingHeadroomWeeks: number;
   /** How far above a company's own rating somebody has to be to interest them. */
   biddingWantsThreshold: number;
 
@@ -4419,8 +4397,6 @@ export interface WorldSettings {
   secondGenTownShare: number;
   /** How far the child's charisma is pulled toward the parent's. */
   secondGenCharismaPull: number;
-  /** Chance each heritable appearance trait comes from the parent. */
-  secondGenResemblance: number;
   /** How long the crowd gives them on the name alone. */
   secondGenPatienceWeeks: number;
   /** Matches before the record is worth reading. */
