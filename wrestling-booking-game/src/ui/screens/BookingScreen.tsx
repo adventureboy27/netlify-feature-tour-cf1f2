@@ -353,6 +353,9 @@ function SlotCard({
   summary: ReturnType<typeof summarizeSegment>;
   onOpen: () => void;
 }) {
+  const scheduledGroupTurns = useGameStore((s) => s.world?.scheduledGroupTurns ?? []);
+  const turn = scheduledGroupTurns.find((t) => summary.participants.some((p) => p.wrestler.id === t.departingId));
+
   return (
     <button
       type="button"
@@ -393,6 +396,11 @@ function SlotCard({
       {summary.storyline && (
         <div className="truncate text-[10px] text-sky-400" title={summary.storyline.name}>
           Advances: {summary.storyline.name}
+        </div>
+      )}
+      {turn && (
+        <div className="truncate text-[10px] text-amber-400" title={`${turn.stableName} is set to jump ${turn.departingName} after this one.`}>
+          Turn: {turn.departingName} gets jumped after this one
         </div>
       )}
       {summary.participants.length > 0 && <span className="text-[10px] text-neutral-500">{summary.officialLabel}</span>}

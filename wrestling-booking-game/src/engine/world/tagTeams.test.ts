@@ -4,11 +4,15 @@ import {
   teamIdFactory,
   availableTeams,
   teamOf,
+  groupOf,
   recordTeamResult,
   disbandBrokenTeams,
   teamStrength,
   weeksTogether,
   teamName,
+  kindForSize,
+  canFormGroup,
+  createPlayerGroup,
 } from './tagTeams';
 import { rngFromSeed } from '../rng';
 import { generateWrestlers } from '../generate/wrestler';
@@ -152,5 +156,60 @@ describe('how good a team is', () => {
     const team = build(people, 1)[0]!;
     const members = team.memberIds.map((id) => people.find((w) => w.id === id)!);
     expect(teamStrength(team, members, 0.5)).toBeGreaterThan(0);
+  });
+});
+
+describe('forming a player group of any size', () => {
+  it('draws the team/faction line at four', () => {
+    expect(kindForSize(2)).toBe('tagTeam');
+    expect(kindForSize(3)).toBe('tagTeam');
+    expect(kindForSize(4)).toBe('stable');
+    expect(kindForSize(8)).toBe('stable');
+  });
+
+  it('refuses a single person — there is nobody to team with', () => {
+    const [a] = roster(1);
+    expect(canFormGroup([a], [], new Set([a!.id]), '').ok).toBe(false);
+    expect(canFormGroup([a], [], new Set([a!.id]), '').problem).toBe('tooFewMembers');
+  });
+
+  it('refuses an empty pick', () => {
+    expect(canFormGroup([], [], new Set(), '').problem).toBe('tooFewMembers');
+  });
+
+  it('allows a real trio once everybody is real, on the roster, and unattached', () => {
+    const people = roster(3);
+    const rosterIds = new Set(people.map((w) => w.id));
+    expect(canFormGroup(people, [], rosterIds, 'The Trio').ok).toBe(true);
+  });
+
+  it('creates a tagTeam-kind act for two or three people and a stable-kind act for four or more', () => {
+    const trio = roster(3);
+    const group = createPlayerGroup(rngFromSeed('g'), trio, 5, 'grp-1', new Set(), 'The Trio');
+    expect(group.kind).toBe('tagTeam');
+    expect(group.memberIds).toEqual(trio.map((w) => w.id));
+    expect(group.name).toBe('The Trio');
+
+    const four = roster(4);
+    const faction = createPlayerGroup(rngFromSeed('g'), four, 5, 'grp-2', new Set(), 'The Faction');
+    expect(faction.kind).toBe('stable');
+  });
+
+  it('fronts the group with whoever is most popular', () => {
+    const people = roster(4); // popularity descends by index in roster()
+    const group = createPlayerGroup(rngFromSeed('g'), people, 5, 'grp-3', new Set(), 'Leaders');
+    expect(group.leaderId).toBe(people[0]!.id);
+  });
+
+  it('auto-generates a name for a pair the same way createTeam does, but requires one for a bigger group to be chosen by the caller', () => {
+    const pair = roster(2);
+    const group = createPlayerGroup(rngFromSeed('g'), pair, 5, 'grp-4', new Set());
+    expect(group.name.length).toBeGreaterThan(0);
+  });
+
+  it('groupOf finds a faction the same way it finds a team', () => {
+    const four = roster(4);
+    const stables = [createPlayerGroup(rngFromSeed('g'), four, 5, 'grp-5', new Set(), 'The Faction')];
+    expect(groupOf(stables, four[0]!.id)?.id).toBe('grp-5');
   });
 });

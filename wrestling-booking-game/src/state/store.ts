@@ -71,6 +71,7 @@ import {
 import { createCardBuilderSlice } from './slices/cardBuilder';
 import { createEventsSlice } from './slices/events';
 import { createTagTeamsAndIdentitySlice } from './slices/tagTeamsAndIdentity';
+import { createGroupTurnsSlice } from './slices/groupTurns';
 import { createBusinessDealsSlice } from './slices/businessDeals';
 import { createShowAndProductionSlice } from './slices/showAndProduction';
 import { createOfficialsAndScheduleSlice } from './slices/officialsAndSchedule';
@@ -567,6 +568,8 @@ import type { TitleMemorialChoiceId } from '../engine/world/titleMemorial';
 import type { RivalMoveChoiceId } from '../engine/world/rivalMove';
 import { nostalgicSigningWeight } from '../engine/world/nostalgia';
 import type { ConfrontationCallChoiceId } from '../engine/world/confrontationCall';
+import type { GroupTurnCallChoiceId } from '../engine/world/teamBreakup';
+import { availableAttackers, managerAvailable, rollBeatdownInjuryWeeks, buildGroupTurnCall } from '../engine/world/teamBreakup';
 import type { LoanTier } from '../engine/economy/loan';
 import {
   slotExpectedPopularities,
@@ -881,6 +884,22 @@ export interface GameStore {
   /** Split a team up. Any tag belts they were carrying go vacant. */
   disbandTagTeam: (teamId: Id) => void;
   /**
+   * Put an arbitrary group of your people together — two or three is a team,
+   * four or more is a faction. Empty name is only allowed for a team; a
+   * faction needs one, since there is no sensible way to generate a name for
+   * four-plus people at once.
+   */
+  formGroup: (memberIds: Id[], name?: string) => { ok: boolean; reason: string | null };
+  /**
+   * Remove one member from a team or faction. `immediate` takes effect right
+   * now, same as disbandTagTeam always did. `staged` leaves the group intact
+   * and schedules an on-screen turn for the next time the departing member
+   * is actually booked — see engine/world/teamBreakup.ts.
+   */
+  kickFromGroup: (stableId: Id, memberId: Id, mode: 'immediate' | 'staged') => void;
+  /** A staged turn just fired. Let the beatdown land for real, or pull them apart. */
+  answerGroupTurnCall: (choice: GroupTurnCallChoiceId) => void;
+  /**
    * Pin what somebody does with a week they are not booked for, or hand them
    * back to the office with 'auto'. See career/assignment.ts.
    */
@@ -997,6 +1016,7 @@ export const useGameStore = create<GameStore>()(
     ...createCardBuilderSlice(set, get, api),
     ...createEventsSlice(set, get, api),
     ...createTagTeamsAndIdentitySlice(set, get, api),
+    ...createGroupTurnsSlice(set, get, api),
     ...createBusinessDealsSlice(set, get, api),
     ...createShowAndProductionSlice(set, get, api),
     ...createOfficialsAndScheduleSlice(set, get, api),
@@ -2675,6 +2695,49 @@ export const useGameStore = create<GameStore>()(
               promotionName: world.promotion.name,
               incident,
             });
+          }
+
+          // A staged team/faction turn, waiting on the departing member's
+          // next booking — see engine/world/teamBreakup.ts. Fires the first
+          // time they turn up on a match card; left scheduled and tried
+          // again next time if nobody's available to do the turning tonight,
+          // or if a pending call is already occupied this week (one open
+          // decision at a time, same guard the confrontation casualty call
+          // uses at storeHelpers.ts). Player's own show only, same as that
+          // call — a rival's show is a result in a newspaper.
+          if (!world.pendingGroupTurnCall) {
+            const due = world.scheduledGroupTurns.find((t) => participantIds.includes(t.departingId));
+            const stable = due ? world.stables.find((s) => s.id === due.stableId && s.disbandedWeek === null) : null;
+            const departing = due ? wrestlerById.get(due.departingId) : undefined;
+            if (due && stable && departing) {
+              const attackers = availableAttackers(stable.memberIds, due.departingId, world.wrestlers, (w) =>
+                canWork(w, world.settings, world.week),
+              );
+              if (attackers.length > 0) {
+                const rep = representativeOf(world.representations, due.departingId);
+                const managerCandidate = rep ? world.wrestlers[rep.managerId] : undefined;
+                const manager = managerCandidate && managerAvailable(managerCandidate) ? managerCandidate : null;
+                // A conditional draw inserted into the shared weekly stream
+                // shifts every seeded roll after it (CLAUDE.md) — seeded
+                // from the stable and the departing member instead, so
+                // whether this fires this week never moves anything else.
+                const turnRng = rngFromSeed(`groupTurn:${stable.id}:${due.departingId}:${world.week}`);
+                const injuryWeeks = rollBeatdownInjuryWeeks(
+                  turnRng,
+                  world.settings.groupTurnInjuryWeeksMin,
+                  world.settings.groupTurnInjuryWeeksMax,
+                );
+                world.pendingGroupTurnCall = buildGroupTurnCall(
+                  world.week,
+                  stable.id,
+                  stable.name,
+                  departing,
+                  attackers,
+                  manager,
+                  injuryWeeks,
+                );
+              }
+            }
           }
 
           const injuriesTonight = hurtTonight.map((casualty) => ({

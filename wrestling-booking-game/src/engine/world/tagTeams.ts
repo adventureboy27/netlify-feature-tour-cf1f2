@@ -109,7 +109,8 @@ export type TeamFormationProblem =
   | 'notOnYourRoster'
   | 'alreadyInATeam'
   | 'differentDivisions'
-  | 'nameTaken';
+  | 'nameTaken'
+  | 'tooFewMembers';
 
 export const TEAM_PROBLEM_TEXT: Record<TeamFormationProblem, string> = {
   samePerson: 'Somebody cannot team with themselves',
@@ -117,7 +118,13 @@ export const TEAM_PROBLEM_TEXT: Record<TeamFormationProblem, string> = {
   alreadyInATeam: 'One of them is already in a team',
   differentDivisions: 'The divisions are separate',
   nameTaken: 'Another team already has that name',
+  tooFewMembers: 'A team needs at least two people',
 };
+
+/** Two to three of these is a team; four or more is a faction. Nothing else decides it. */
+export function kindForSize(size: number): 'tagTeam' | 'stable' {
+  return size >= 4 ? 'stable' : 'tagTeam';
+}
 
 export interface TeamFormationCheck {
   ok: boolean;
@@ -210,6 +217,7 @@ export function canFormGroup(
 ): TeamFormationCheck {
   const fail = (problem: TeamFormationProblem): TeamFormationCheck => ({ ok: false, problem });
 
+  if (members.length < 2) return fail('tooFewMembers');
   if (members.some((m) => !m)) return fail('notOnYourRoster');
   const real = members as Wrestler[];
   if (new Set(real.map((m) => m.id)).size !== real.length) return fail('samePerson');
@@ -238,6 +246,38 @@ export function formGroupGimmickStable(members: readonly Wrestler[], group: Grou
     id,
     name: group.name,
     kind: group.kind,
+    memberIds: members.map((w) => w.id),
+    leaderId: leader.id,
+    formedWeek: week,
+    disbandedWeek: null,
+    record: { wins: 0, losses: 0, draws: 0 },
+  };
+}
+
+/**
+ * `createTeam` generalized to any group size — the booker forming a team or
+ * a faction from the existing roster, rather than the signing-meeting's
+ * fixed-gimmick pairing. `kind` follows purely from how many people are in
+ * it (`kindForSize`); a name is required by the caller for anything bigger
+ * than a pair, since `teamName`'s pool is pair-flavored and has nothing
+ * sensible to say about four people at once.
+ */
+export function createPlayerGroup(
+  rng: Rng,
+  members: readonly Wrestler[],
+  week: number,
+  id: Id,
+  taken: ReadonlySet<string>,
+  name?: string,
+): Stable {
+  const leader = members.reduce((best, w) => (w.popularity > best.popularity ? w : best), members[0]!);
+  const wanted = name?.trim();
+  const autoName =
+    wanted || (members.length === 2 ? teamName(rng, members[0]!, members[1]!, taken) : surnamePair(members[0]!.name, members[1]!.name));
+  return {
+    id,
+    name: autoName,
+    kind: kindForSize(members.length),
     memberIds: members.map((w) => w.id),
     leaderId: leader.id,
     formedWeek: week,

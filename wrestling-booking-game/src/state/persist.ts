@@ -235,7 +235,12 @@ const SLOT_KEY = 'wbg.save.v1';
 // engine/economy/matchProps.ts. A version-58 save has no such field, and
 // both the booking gate (stipulationRequirementsMet) and the weekly
 // use/idle wear tick read it without a guard.
-const SCHEMA_VERSION = 67;
+//
+// Version 68 adds World.scheduledGroupTurns and World.pendingGroupTurnCall —
+// a staged team/faction breakup and the beatdown decision it fires, see
+// engine/world/teamBreakup.ts. A version-67 save has neither field; the
+// resolution loop reads scheduledGroupTurns every segment without a guard.
+const SCHEMA_VERSION = 68;
 
 export interface SaveFile {
   schema: number;

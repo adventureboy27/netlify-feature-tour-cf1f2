@@ -64,6 +64,7 @@ import type { NoShowCall, NoShowChoiceId } from '../engine/world/noShowCall';
 import type { TitleMemorial } from '../engine/world/titleMemorial';
 import type { RivalMove } from '../engine/world/rivalMove';
 import type { ConfrontationCall } from '../engine/world/confrontationCall';
+import type { GroupTurnCall, ScheduledGroupTurn } from '../engine/world/teamBreakup';
 import type { BiddingResult, BiddingWar } from '../engine/economy/bidding';
 import type { WeatherCallOptionId } from '../data/weatherCalls';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
@@ -418,6 +419,18 @@ export interface World {
    * the booker's next office visit — nothing forces an answer.
    */
   pendingConfrontationCall: ConfrontationCall | null;
+  /**
+   * A staged breakup, waiting on the departing member's next booking — see
+   * teamBreakup.ts. The group stays intact until it actually fires; nothing
+   * about the split takes effect just because it was scheduled.
+   */
+  scheduledGroupTurns: ScheduledGroupTurn[];
+  /**
+   * A staged breakup just fired — the departing member's match resolved, the
+   * rest of the group (and their manager, if any) is ready to turn — and
+   * whether it lands for real is on the booker, same as a confrontation call.
+   */
+  pendingGroupTurnCall: GroupTurnCall | null;
   /**
    * The one auction the business runs in the open. Rare: it takes a real star
    * hitting the market, or a phenom out of the school, plus at least two other
@@ -1259,6 +1272,8 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     pendingTitleMemorial: null,
     pendingRivalMove: null,
     pendingConfrontationCall: null,
+    scheduledGroupTurns: [],
+    pendingGroupTurnCall: null,
     pendingBiddingWar: null,
     pendingSupershow: null,
     pendingSupershowCard: null,

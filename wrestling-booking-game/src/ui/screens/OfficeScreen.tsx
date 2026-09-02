@@ -43,6 +43,7 @@ import { TITLE_MEMORIAL_OPTIONS, type TitleMemorialChoiceId } from '../../engine
 import { loanTermsFor, LOAN_TIER_LABELS, type LoanTier } from '../../engine/economy/loan';
 import { RIVAL_MOVE_OPTIONS, type RivalMoveChoiceId } from '../../engine/world/rivalMove';
 import { CONFRONTATION_CALL_OPTIONS, type ConfrontationCallChoiceId } from '../../engine/world/confrontationCall';
+import { GROUP_TURN_CALL_OPTIONS, type GroupTurnCallChoiceId } from '../../engine/world/teamBreakup';
 import { CONTRACT_RAID_OPTIONS, type ContractRaidOptionId } from '../../engine/world/contractRaid';
 import { networkDemandOptions, type NetworkDemandChoice } from '../../engine/world/networkDemand';
 import { FAREWELL_TOUR_OPTIONS, type FarewellTourOptionId } from '../../engine/world/farewellTour';
@@ -296,6 +297,7 @@ function DeskTab() {
       <NetworkDemandPanel />
       <FarewellTourPanel />
       <ConfrontationCallPanel />
+      <GroupTurnCallPanel />
       <LoanOfferPanel />
       <ActiveLoanNotice />
       <ShowDebtNotice />
@@ -2818,6 +2820,52 @@ function ConfrontationCallPanel() {
           choices={CONFRONTATION_CALL_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
           onChoose={(optionId) => {
             answer(optionId as ConfrontationCallChoiceId);
+            setOpen(false);
+          }}
+          theme={promotionTheme(world.promotion.identity)}
+          promotionName={world.promotion.name}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+function GroupTurnCallPanel() {
+  const world = useGameStore((s) => s.world);
+  const answer = useGameStore((s) => s.answerGroupTurnCall);
+  const [open, setOpen] = useState(false);
+  if (!world?.pendingGroupTurnCall) return null;
+
+  const call = world.pendingGroupTurnCall;
+  const crew = call.managerName ? [...call.attackerNames, call.managerName] : call.attackerNames;
+
+  return (
+    <section className="mb-3 rounded-lg border border-rose-900/60 bg-rose-950/20 p-3" data-testid="group-turn-call">
+      <div className="text-xs uppercase tracking-wide text-rose-400">{call.stableName} is ready to turn</div>
+      <h2 className="mt-1 text-sm font-semibold">
+        {crew.join(', ')} on {call.departingName}
+      </h2>
+      <p className="mt-1 text-[11px] text-neutral-500">
+        The rest of {call.stableName} is standing by tonight. The office has not said one word about what happens next.
+      </p>
+      <button
+        type="button"
+        data-testid="group-turn-call-decide"
+        onClick={() => setOpen(true)}
+        className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:bg-neutral-700"
+      >
+        Decide how far it goes
+      </button>
+
+      {open && (
+        <DialogueCard
+          speaker={{ kind: 'narrator' }}
+          speakerName={call.stableName}
+          body={`${crew.join(', ')} are ready to turn on ${call.departingName} tonight. The office can let it play out or pull them apart right now.`}
+          choices={GROUP_TURN_CALL_OPTIONS.map((o) => ({ id: o.id, label: o.label, gains: o.gains, costs: o.costs }))}
+          onChoose={(optionId) => {
+            answer(optionId as GroupTurnCallChoiceId);
             setOpen(false);
           }}
           theme={promotionTheme(world.promotion.identity)}

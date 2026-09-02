@@ -30,7 +30,8 @@ import { assignmentById, assignmentOf } from '../../engine/career/assignment';
 import { freshnessLabel, isStale } from '../../engine/sim/freshness';
 import { pronounsFor } from '../../engine/career/pronouns';
 import { retirementPressure } from '../../engine/career/retirement';
-import { teamOf } from '../../engine/world/tagTeams';
+import { groupOf } from '../../engine/world/tagTeams';
+import { KickFromGroupControl } from './KickFromGroupControl';
 import { contractUrgency } from '../../engine/economy/contracts';
 import { canChangeRole, lockLabel, TRANSITION_ROLE_LABELS } from '../../engine/career/transition';
 import { severanceOwed, severanceWeight } from '../../engine/economy/termination';
@@ -91,7 +92,7 @@ export function WrestlerDetailBody({
   const rivalries = activeRivalriesFor(world.rivalries, [w.id]);
   const belts = titlesHeldBy(world.titles, w.id);
   const alignment = alignmentOf(w);
-  const group = teamOf(world.stables, w.id);
+  const group = groupOf(world.stables, w.id);
   const pressure = retirementPressure(w, { currentYear, settings: world.settings });
   // What ending this deal early would cost. Zero for most of the card; a
   // year of a draw's wages for the ones you built up.
@@ -173,13 +174,23 @@ export function WrestlerDetailBody({
         </div>
       </div>
 
-      {/* Tag partner(s) and manager — real, tappable relationships, not
-          inert text. */}
+      {/* Tag partner(s)/stablemates and manager — real, tappable
+          relationships, not inert text. */}
       {partners.length > 0 && (
         <div className="mb-3">
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-            {partners.length > 1 ? 'Tag partners' : 'Tag partner'}
-            {group && <span className="ml-1 text-sky-400">· {group.name}</span>}
+          <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+            <span>
+              {group?.kind === 'stable' ? 'Faction' : partners.length > 1 ? 'Tag partners' : 'Tag partner'}
+              {group && <span className="ml-1 text-sky-400">· {group.name}</span>}
+            </span>
+            {editable && group && (
+              <KickFromGroupControl
+                stableId={group.id}
+                memberId={w.id}
+                memberName={w.name}
+                alreadyStaged={world.scheduledGroupTurns.some((t) => t.departingId === w.id)}
+              />
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             {partners.map((p) => (

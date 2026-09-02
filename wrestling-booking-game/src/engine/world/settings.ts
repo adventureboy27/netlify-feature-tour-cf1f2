@@ -1565,6 +1565,22 @@ export function defaultWorldSettings(): WorldSettings {
     confrontationWinPopularity: 2,
     confrontationLossMomentum: 4,
     confrontationEnergyCost: 5,
+    // A jumping from multiple attackers reads as worse than one twist going
+    // bad in a two-person confrontation ([1,3]/[1,2] there), so the range
+    // sits a little above both.
+    groupTurnInjuryWeeksMin: 1,
+    groupTurnInjuryWeeksMax: 4,
+    // Real animosity when it lands for real — comparable to a confrontation
+    // casualty's own +8 heat bump, split across both axes since this is a
+    // shoot from the start rather than a worked angle that turned real.
+    groupTurnLetItHappenHeat: 10,
+    groupTurnLetItHappenShootHeat: 14,
+    // Pulled apart clean reads as a worked angle: real crowd heat, but the
+    // office visibly protecting everybody keeps genuine animosity low.
+    groupTurnBreakItUpHeat: 12,
+    groupTurnBreakItUpShootHeat: 3,
+    groupTurnBreakItUpCredibilityCost: 3,
+    groupTurnBreakItUpReputationGain: 2,
     // A quarter of a year: long enough that a handful of people are always in
     // the window, short enough that you cannot simply agree deals with a
     // rival's whole roster and wait.

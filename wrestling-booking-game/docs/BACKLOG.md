@@ -4923,3 +4923,105 @@ Pricing War, Family Business) never fired even once across 15 seeds x 450 played
 - Verified: `tsc --noEmit` clean; full suite 194 files / 3,270 tests passing; `npm run build` clean; the
   story-pacing probe re-run against the fixed code, confirming both the per-seed divergence and the
   ownerRivalry recurrence fix with real numbers (above).
+
+## Player-formed tag teams and factions, with immediate or staged breakups
+
+Player's pitch: form official tag teams (duo or trio) and factions from the existing roster, name
+them, and when kicking a member out or dissolving the act — choose how. Immediately, quietly, or
+staged: the departing member gets booked into the next card as normal, and when that match resolves,
+the rest of the group (and their manager, if they had a real signed one) turns on them. The booker
+then gets a call — reuse the existing `letItHappen`/`breakItUp` pattern from confrontations that go
+physical — and whichever way it resolves is itself what seeds how hot the resulting rivalry starts,
+not a coin flip with no narrative weight. Confirmed with the player: 2-3 members is a team, 4+ is a
+faction (a trio stays tagTeam-kind, trios-title-eligible); one collective rivalry (the remaining group
+vs. the departed member), not pairwise; the manager only turns if they hold a real signed
+`Representation` deal with the departing member, and turning ends that deal.
+
+Duo tag teams already existed as a player-facing feature (`RosterScreen`'s `TagTeamPanel` — form,
+name, instant split). This work generalized formation to arbitrary group sizes and added the whole
+staged-breakup mechanic, and along the way fixed two real, previously-shipped bugs discovered while
+building on that code:
+
+- **Trios titles never vacated on disband, through either existing path.** `disbandTagTeam`'s inline
+  vacate loop only ever checked `title.tier === 'tag'`; a trios champion faction disbanding left the
+  belt marked non-vacant, pointed at a team that no longer existed. The *other* existing disband path
+  — the automatic `disbandStable` `EventEffect`, fired by the pre-existing `partnerTurn` incident —
+  didn't vacate anything at all, tag or trios, ever. Both fixed by extracting a single
+  `vacateTeamHeldTitles(world, memberIds)` helper (`storeHelpers.ts`, built on the existing
+  `stripTitle` primitive) covering `tier === 'tag' || tier === 'trios'`, and routing every disband
+  path — the roster-screen action, the incident effect, and the new staged-turn resolution — through
+  it. Regression-tested directly (a trios title now correctly vacates on disband).
+- **A real id-collision bug in the existing team-id scheme.** `formTagTeam`'s id
+  (`` `${promotionId}-team-${world.nextId++}` ``) uses the exact same prefix pattern as
+  `tagTeams.ts`'s `teamIdFactory`, which independently numbers AI-seeded teams from 0 per promotion at
+  world creation — and `world.nextId` starts at 1. The very first player-formed team in a fresh save
+  collides with an AI-seeded one under the same id, and any later id-keyed lookup (`.find(s => s.id
+  === groupId)`) silently resolves to whichever one the array happens to hit first. Caught live by
+  this feature's own store-integration tests, not by inspection. Fixed narrowly, for the new code
+  only: `formGroup` uses a distinct `-playergroup-` segment instead of `-team-`, guaranteed not to
+  collide with `teamIdFactory`'s own namespace. `formTagTeam` itself was left untouched — same latent
+  bug, but out of scope for this pass and lower risk in practice (a player rarely forms their first
+  team in week one, when `nextId` is still small).
+
+**New engine module `engine/world/teamBreakup.ts`** (pure): `kindForSize(size)` — the single place the
+2-3/4+ rule lives, also used to fix the `formStable` `EventEffect` handler's own inline size check;
+`GroupTurnCall`/`GROUP_TURN_CALL_OPTIONS`/`GroupTurnCallChoiceId` mirroring `confrontationCall.ts`'s
+exact shape; `ScheduledGroupTurn` (deliberately thin — who's available to attack is re-derived at fire
+time, not frozen when the turn is staged, since a roster changes in the weeks between); `canKickFromGroup`,
+`nextLeaderAfterKick`, `availableAttackers` (the real `canWork` gate, so "unless injured or something"
+is the actual availability check, not a guess), `managerAvailable` (the physical-condition checks
+`canWork` covers, without its `role === 'wrestler'` gate, which would always reject a real manager),
+`rollBeatdownInjuryWeeks`, `buildGroupTurnCall`.
+
+**`engine/world/tagTeams.ts` extended**, not duplicated: `createPlayerGroup` generalizes `createTeam`
+to N members (leader = highest popularity, same reduce `formGroupGimmickStable` already used;
+`kindForSize` decides `kind`; name auto-generated via the existing `teamName`/`surnamePair` for 2-3,
+required by the caller for 4+, since there's no sensible auto-name source for a faction).
+`canFormGroup` (already N-size-generic from the signing-meeting `GroupGimmick` flow, but had a latent
+gap — nothing rejected a single-member list) got an explicit minimum-size check and a
+`tooFewMembers` problem.
+
+**Store wiring**: new `state/slices/groupTurns.ts` — `formGroup(memberIds, name?)`, `kickFromGroup(stableId,
+memberId, 'immediate' | 'staged')`, `answerGroupTurnCall(choice)`. The staged path leaves `memberIds`
+untouched until the turn actually fires and is answered — nothing happens off-screen just because it
+was scheduled. The fire hook lives in `store.ts`'s player-show segment-resolution loop, right beside
+the existing `rollIncident` call (same scope: player's own show only, never a rival's): for each
+resolved segment, check whether a participant is a `departingId` due, skip if a `pendingGroupTurnCall`
+is already occupied this week (or if nobody's left available to do the turning — the entry just stays
+scheduled, nothing happened so nothing needs reporting), otherwise resolve real attackers and a real
+signed manager and build the call. The injury-length roll uses its own entity-seeded RNG
+(`` rngFromSeed(`groupTurn:${stableId}:${departingId}:${world.week}`) ``), not the shared stream —
+CLAUDE.md's own documented trap, deliberately avoided this time rather than caught after the fact.
+`answerGroupTurnCall` mirrors `answerConfrontationCall`'s structure: `letItHappen` applies the
+pre-rolled injury and opens a `shoot`-origin rivalry (both `heat` and `shootHeat` seeded — `createRivalry`
+only ever seeds the one axis its origin implies, so the other is set directly on the fresh object);
+`breakItUp` opens a `worked`-origin one instead, with a `bookingCredibility`/`reputation` trade-off
+matching the confrontation call's own shape. Either way the manager's `Representation` deal ends via
+`endRepresentation` if they were part of it.
+
+**UI**: `RosterScreen`'s `TagTeamPanel` generalized to list both kinds (labeled Team/Faction), fixed
+its belt-display filter to include trios, replaced the single instant "Split them up" with "Disband
+entirely" plus a shared `KickFromGroupControl` per member (immediate vs. staged), and replaced the
+two-`<select>` duo-only form with a tap-to-pick multi-select feeding `formGroup`. `WrestlerDetail`'s
+partners block was widened from `teamOf` (tag-team-only) to `groupOf` (both kinds) — factions were
+previously invisible there entirely — and gained the same kick control plus a "turning next show"
+status chip. `BookingScreen`'s card-slot summary gained a turn note alongside the existing storyline
+one. `OfficeScreen` gained `GroupTurnCallPanel`, a direct sibling of `ConfrontationCallPanel`.
+
+- Tests: `engine/world/teamBreakup.test.ts` (new, 15 tests) — `kindForSize`, `canKickFromGroup`,
+  `nextLeaderAfterKick`, `availableAttackers` (including the everyone-unavailable case),
+  `managerAvailable`, `rollBeatdownInjuryWeeks` bounds, `buildGroupTurnCall`. `engine/world/tagTeams.test.ts`
+  extended (8 new cases) — the size-line, the fixed minimum-size gap, `createPlayerGroup` for team and
+  faction sizes, leader selection, `groupOf` on a faction. `state/groupTurns.store.test.ts` (new, 15
+  tests) — formation for 2/3/4+ (including the faction-needs-a-name gate); immediate kick both down to
+  full disband and shrinking a faction to a team in place; the trios-title-vacate regression case
+  directly; staging without touching membership; the full fire-and-answer lifecycle for both
+  `letItHappen` and `breakItUp`; the no-attackers-available case staying scheduled rather than firing
+  empty; the manager-only-if-really-signed case.
+- Verified: `tsc --noEmit` clean; full suite 196 files / 3,308 tests passing; `npm run build` clean; a
+  live Playwright pass via the dev-only `window.__store` handle — formed a real trio, staged a kick,
+  booked the departing member into a match, ran the week, confirmed `pendingGroupTurnCall` carried the
+  right two attackers and no manager (none signed), answered `letItHappen`, and confirmed a real
+  injury landed, the group shrank to the remaining two, a shoot-origin rivalry opened with both axes
+  seeded, and the wire posted — plus a screenshot of the generalized roster panel and the
+  `WrestlerDetail` kick control rendering correctly.

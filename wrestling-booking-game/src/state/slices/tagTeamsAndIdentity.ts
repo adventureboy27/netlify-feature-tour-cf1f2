@@ -6,7 +6,7 @@
 
 import type { StateCreator } from 'zustand';
 import { rng, type GameStore } from '../store';
-import { leaveTheBusiness } from '../storeHelpers';
+import { leaveTheBusiness, vacateTeamHeldTitles } from '../storeHelpers';
 import { saveGame } from '../persist';
 import { canFormTeam, createTeam } from '../../engine/world/tagTeams';
 import {
@@ -65,27 +65,9 @@ export const createTagTeamsAndIdentitySlice: StateCreator<
       const team = world?.stables.find((t) => t.id === teamId && t.disbandedWeek === null);
       if (!world || !team) return;
 
-      // A team that has split cannot defend the tag titles. The belts go
-      // vacant with the split on the record, which is how it goes.
-      for (const title of world.titles) {
-        if (title.vacant || title.tier !== 'tag') continue;
-        if (!team.memberIds.every((id) => title.currentHolderIds.includes(id))) continue;
-
-        const last = title.history[title.history.length - 1];
-        if (last && last.endWeek === null) {
-          last.endWeek = world.week;
-          last.endMethod = 'vacatedByBooker';
-        }
-        for (const id of title.currentHolderIds) {
-          const open = world.wrestlers[id]?.titleReigns.find((r) => r.titleId === title.id && r.endWeek === null);
-          if (open) {
-            open.endWeek = world.week;
-            open.endMethod = 'vacatedByBooker';
-          }
-        }
-        title.vacant = true;
-        title.currentHolderIds = [];
-      }
+      // A team that has split cannot defend a belt it held together. The
+      // belt goes vacant with the split on the record, which is how it goes.
+      vacateTeamHeldTitles(world, team.memberIds);
 
       team.disbandedWeek = world.week;
     });

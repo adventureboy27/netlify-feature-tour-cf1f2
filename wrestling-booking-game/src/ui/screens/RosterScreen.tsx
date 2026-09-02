@@ -13,10 +13,11 @@ import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { MotivationKey, WrestlerRow } from '../components/WrestlerRow';
 import { WrestlerDetailBody } from '../components/WrestlerDetail';
-import { canFormTeam, teamOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
+import { teamOf, groupOf, canFormGroup, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
 import { titlesHeldBy } from '../../data/titles';
 import { billedAs } from '../../engine/generate/nickname';
 import { Money } from '../components/display';
+import { KickFromGroupControl } from '../components/KickFromGroupControl';
 import type { Id, Wrestler } from '../../engine/types';
 
 /** A deal this close to its last week reads as "ending soon" in the roster filter. UI-only judgment call, not a balance number. */
@@ -237,47 +238,53 @@ export function RosterScreen({
 }
 
 /**
- * Forming and splitting tag teams.
+ * Forming and splitting teams and factions.
  *
  * The AI does this on its own for every promotion, so leaving the player
  * unable to do it was the odd gap: you could watch Northern Combat League
  * build a tag division and not build your own. Collapsed by default because
  * most weeks you are not thinking about it.
  *
- * Splitting a team that holds the belts vacates them, which is the honest
- * consequence — and the game does not warn you before you do it.
+ * Two or three people is a team, four or more a faction — kindForSize is the
+ * one place that rule lives. Splitting a group that holds the belts vacates
+ * them, which is the honest consequence — and the game does not warn you
+ * before you do it. Kicking one member out of a group of three or more,
+ * rather than dissolving the whole act, can be staged as a turn instead of
+ * happening quietly — see KickFromGroupControl.
  */
 function TagTeamPanel() {
   const world = useGameStore((s) => s.world);
-  const formTeam = useGameStore((s) => s.formTagTeam);
+  const formGroup = useGameStore((s) => s.formGroup);
   const disband = useGameStore((s) => s.disbandTagTeam);
 
   const [open, setOpen] = useState(false);
-  const [partnerA, setPartnerA] = useState('');
-  const [partnerB, setPartnerB] = useState('');
+  const [picked, setPicked] = useState<Id[]>([]);
   const [name, setName] = useState('');
 
   if (!world) return null;
 
   const rosterIds = new Set(world.promotion.rosterIds);
-  const teams = world.stables.filter(
-    (t) => t.kind === 'tagTeam' && t.disbandedWeek === null && t.memberIds.every((id) => rosterIds.has(id)),
+  const groups = world.stables.filter(
+    (t) => t.disbandedWeek === null && t.memberIds.every((id) => rosterIds.has(id)),
   );
   const unattached = world.promotion.rosterIds
     .map((id) => world.wrestlers[id])
-    .filter((w): w is Wrestler => Boolean(w) && !teamOf(world.stables, w!.id));
+    .filter((w): w is Wrestler => Boolean(w) && !groupOf(world.stables, w!.id));
 
-  const a = world.wrestlers[partnerA];
-  const b = world.wrestlers[partnerB];
-  const check = canFormTeam(a, b, world.stables, rosterIds, name);
-  // Only complain once they have actually picked two people.
-  const problem = partnerA && partnerB && !check.ok ? check.problem : null;
+  const members = picked.map((id) => world.wrestlers[id]);
+  const check = canFormGroup(members, world.stables, rosterIds, name);
+  const needsName = picked.length > 2 && !name.trim();
+  // Only complain once at least two people are picked.
+  const problem = picked.length >= 2 && !check.ok ? check.problem : null;
+
+  function togglePick(id: Id) {
+    setPicked((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+  }
 
   function submit() {
-    if (!check.ok) return;
-    formTeam(partnerA, partnerB, name);
-    setPartnerA('');
-    setPartnerB('');
+    if (!check.ok || needsName) return;
+    formGroup(picked, name);
+    setPicked([]);
     setName('');
   }
 
@@ -290,74 +297,97 @@ function TagTeamPanel() {
         className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
       >
         <span className="text-sm font-medium">
-          Tag teams
-          <span className="ml-2 text-xs text-neutral-500">{teams.length}</span>
+          Teams &amp; factions
+          <span className="ml-2 text-xs text-neutral-500">{groups.length}</span>
         </span>
         <span className="text-neutral-600">{open ? '▾' : '▸'}</span>
       </button>
 
       {open && (
         <div className="border-t border-neutral-800 p-3">
-          {teams.length > 0 && (
+          {groups.length > 0 && (
             <ul className="mb-3 flex flex-col gap-1">
-              {teams.map((team) => {
-                const members = team.memberIds.map((id) => world.wrestlers[id]).filter(Boolean);
-                const belts = titlesHeldBy(world.titles, team.memberIds[0] ?? '').filter((t) => t.tier === 'tag');
+              {groups.map((group) => {
+                const members = group.memberIds.map((id) => world.wrestlers[id]).filter(Boolean);
+                const belts = titlesHeldBy(world.titles, group.memberIds[0] ?? '').filter(
+                  (t) => t.tier === 'tag' || t.tier === 'trios',
+                );
                 return (
                   <li
-                    key={team.id}
-                    data-testid={`team-${team.id}`}
-                    className="flex items-center gap-2 rounded bg-neutral-950 p-2"
+                    key={group.id}
+                    data-testid={`team-${group.id}`}
+                    className="rounded bg-neutral-950 p-2"
                   >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-medium">{team.name}</span>
-                      <span className="block truncate text-[10px] text-neutral-500">
-                        {members.map((m) => m!.name).join(' & ')}
-                        <span className="ml-1 text-neutral-600">
-                          {team.record.wins}-{team.record.losses}
-                          {team.record.draws > 0 && `-${team.record.draws}`}
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-medium">
+                          {group.name}
+                          <span className="ml-1.5 text-[9px] uppercase tracking-wide text-neutral-600">
+                            {group.kind === 'stable' ? 'Faction' : 'Team'}
+                          </span>
                         </span>
+                        <span className="block truncate text-[10px] text-neutral-500">
+                          {members.map((m) => m!.name).join(', ')}
+                          <span className="ml-1 text-neutral-600">
+                            {group.record.wins}-{group.record.losses}
+                            {group.record.draws > 0 && `-${group.record.draws}`}
+                          </span>
+                        </span>
+                        {belts.length > 0 && (
+                          <span className="block truncate text-[10px] text-amber-500/90">
+                            {belts.map((belt) => belt.name).join(', ')}
+                          </span>
+                        )}
                       </span>
-                      {belts.length > 0 && (
-                        <span className="block truncate text-[10px] text-amber-500/90">
-                          {belts.map((belt) => belt.name).join(', ')}
+                      <button
+                        type="button"
+                        data-testid={`disband-${group.id}`}
+                        onClick={() => disband(group.id)}
+                        className="shrink-0 rounded bg-neutral-800 px-2 py-1 text-[10px] text-neutral-300 hover:bg-rose-900/70"
+                      >
+                        Disband entirely
+                      </button>
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {members.map((m) => (
+                        <span
+                          key={m!.id}
+                          className="flex items-center gap-1 rounded bg-neutral-900 px-1.5 py-0.5 text-[10px] text-neutral-400"
+                        >
+                          {m!.name}
+                          <KickFromGroupControl
+                            stableId={group.id}
+                            memberId={m!.id}
+                            memberName={m!.name}
+                            alreadyStaged={world.scheduledGroupTurns.some((t) => t.departingId === m!.id)}
+                          />
                         </span>
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      data-testid={`disband-${team.id}`}
-                      onClick={() => disband(team.id)}
-                      className="shrink-0 rounded bg-neutral-800 px-2 py-1 text-[10px] text-neutral-300 hover:bg-rose-900/70"
-                    >
-                      Split them up
-                    </button>
+                      ))}
+                    </div>
                   </li>
                 );
               })}
             </ul>
           )}
 
-          <div className="text-[11px] uppercase tracking-wide text-neutral-500">Put a team together</div>
-          <div className="mt-1 grid gap-1 sm:grid-cols-2">
-            {[
-              { value: partnerA, set: setPartnerA, label: 'First' },
-              { value: partnerB, set: setPartnerB, label: 'Second' },
-            ].map((slot) => (
-              <select
-                key={slot.label}
-                data-testid={`partner-${slot.label.toLowerCase()}`}
-                value={slot.value}
-                onChange={(e) => slot.set(e.target.value)}
-                className="rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs text-neutral-100"
+          <div className="text-[11px] uppercase tracking-wide text-neutral-500">
+            Put a team or faction together — two or three is a team, four or more a faction
+          </div>
+          <div className="mt-1 flex max-h-32 flex-wrap gap-1 overflow-y-auto">
+            {unattached.map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                data-testid={`pick-${w.id}`}
+                onClick={() => togglePick(w.id)}
+                className={`rounded px-2 py-1 text-[10px] ${
+                  picked.includes(w.id)
+                    ? 'bg-emerald-700 text-white'
+                    : 'bg-neutral-950 text-neutral-400 hover:bg-neutral-800'
+                }`}
               >
-                <option value="">{slot.label} — nobody</option>
-                {unattached.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
+                {w.name}
+              </button>
             ))}
           </div>
 
@@ -366,7 +396,11 @@ function TagTeamPanel() {
             data-testid="team-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Team name — leave it blank and the announcers will absolutely handle it"
+            placeholder={
+              picked.length > 2
+                ? 'Faction name — required for four or more'
+                : 'Team name — leave it blank and the announcers will absolutely handle it'
+            }
             className="mt-1 w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs placeholder:text-neutral-600"
           />
 
@@ -374,22 +408,25 @@ function TagTeamPanel() {
             <button
               type="button"
               data-testid="form-team"
-              disabled={!check.ok}
+              disabled={!check.ok || needsName}
               onClick={submit}
               className={`rounded px-3 py-1 text-xs ${
-                check.ok
+                check.ok && !needsName
                   ? 'bg-emerald-600 text-white hover:bg-emerald-500'
                   : 'bg-neutral-800 text-neutral-600'
               }`}
             >
-              Form the team
+              {picked.length > 2 ? 'Form the faction' : 'Form the team'}
             </button>
             {problem && <span className="text-[11px] text-amber-400">{TEAM_PROBLEM_TEXT[problem]}</span>}
+            {!problem && needsName && (
+              <span className="text-[11px] text-amber-400">A faction needs a name</span>
+            )}
           </div>
 
           {unattached.length < 2 && (
             <p className="mt-2 text-[11px] text-neutral-600">
-              Every single body on this roster is already spoken for on a team.
+              Every single body on this roster is already spoken for on a team or faction.
             </p>
           )}
         </div>

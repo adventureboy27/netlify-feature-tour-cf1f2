@@ -59,6 +59,7 @@ import { isFired } from '../engine/world/mandates';
 import { StatementBuilder } from '../engine/economy/statement';
 import { runSupershow } from '../engine/world/supershowRun';
 import { canWork } from '../engine/world/rivalBooking';
+import { kindForSize } from '../engine/world/tagTeams';
 import { grudgeAgainst, grudgeLine, rememberNight } from '../engine/world/grudges';
 import { creditPay } from '../engine/career/ledger';
 import { ledgerOf } from '../engine/career/ledgerAccess';
@@ -157,6 +158,26 @@ export function stripTitle(world: World, title: Title, method: TitleReignEndMeth
   title.interimHolderIds = [];
   title.interimSinceWeek = null;
   title.lastDefendedWeek = world.week;
+}
+
+/**
+ * A team or faction just broke up. Any title it was holding together goes
+ * vacant with the split on the record — a team that has split cannot defend
+ * a belt held by more than one of its own members.
+ *
+ * Both `tag` and `trios` titles are team-held; the original version of this
+ * (inline in disbandTagTeam) only ever checked `tag`, so a trios champion
+ * faction disbanding never vacated its belt at all. Fixed here, once, so
+ * every caller — the roster-screen disband, an immediate kick down to
+ * nothing, a staged turn resolving, and the `disbandStable` EventEffect
+ * (which previously vacated nothing whatsoever) — gets it right the same way.
+ */
+export function vacateTeamHeldTitles(world: World, memberIds: readonly Id[]): void {
+  for (const title of world.titles) {
+    if (title.vacant || (title.tier !== 'tag' && title.tier !== 'trios')) continue;
+    if (!memberIds.every((id) => title.currentHolderIds.includes(id))) continue;
+    stripTitle(world, title, 'vacatedByBooker');
+  }
 }
 
 /**
@@ -1586,7 +1607,7 @@ export function applyEffect(world: World, rng: Rng, effect: EventEffect): number
       world.stables.push({
         id: `stable-${world.nextId++}`,
         name: `${founder.name}'s ${effect.name === 'faction' ? 'Faction' : 'Team'}`,
-        kind: effect.memberIds.length > 2 ? 'stable' : 'tagTeam',
+        kind: kindForSize(effect.memberIds.length),
         memberIds: [...effect.memberIds],
         leaderId: founder.id,
         formedWeek: world.week,
@@ -1599,7 +1620,10 @@ export function applyEffect(world: World, rng: Rng, effect: EventEffect): number
       // Marked as broken up rather than deleted — the tag division's history
       // is the point of keeping teams around at all.
       const team = world.stables.find((t) => t.id === effect.stableId);
-      if (team && team.disbandedWeek === null) team.disbandedWeek = world.week;
+      if (team && team.disbandedWeek === null) {
+        team.disbandedWeek = world.week;
+        vacateTeamHeldTitles(world, team.memberIds);
+      }
       break;
     }
     case 'relationship': {

@@ -3441,6 +3441,20 @@ export interface WorldSettings {
   /** Talking is work. Both of them pay it. */
   confrontationEnergyCost: number;
 
+  // Group turns — a staged team/faction breakup, see world/teamBreakup.ts.
+  /** How long the beatdown's injury lasts, if the booker lets it happen. */
+  groupTurnInjuryWeeksMin: number;
+  groupTurnInjuryWeeksMax: number;
+  /** Rivalry heat/shootHeat seeded when the beatdown lands for real. */
+  groupTurnLetItHappenHeat: number;
+  groupTurnLetItHappenShootHeat: number;
+  /** Rivalry heat/shootHeat seeded when the office steps in instead. */
+  groupTurnBreakItUpHeat: number;
+  groupTurnBreakItUpShootHeat: number;
+  /** Protecting talent has its own cost and its own credit, same as pulling apart a confrontation. */
+  groupTurnBreakItUpCredibilityCost: number;
+  groupTurnBreakItUpReputationGain: number;
+
   // Secret signings — see world/secretSigning.ts.
   /**
    * How close to the end of somebody's deal you can reach an understanding.
