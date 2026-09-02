@@ -101,6 +101,7 @@ export function RivalRosterScreen({
                     <WrestlerRow
                       wrestler={w}
                       settings={world.settings}
+                      stables={world.stables}
                       compact
                       selected={w.id === activeId}
                       onClick={() => setSelectedWrestlerId(w.id)}

@@ -11,13 +11,14 @@
 // problem. Every coloured thing on this row also says its meaning in words,
 // so it survives being colourblind or simply new.
 
-import type { Id, Title, Wrestler, WorldSettings } from '../../engine/types';
+import type { Id, Stable, Title, Wrestler, WorldSettings } from '../../engine/types';
 import { scout, alignmentLabel, type Availability } from '../../engine/career/scouting';
 import { billedAs } from '../../engine/generate/nickname';
 import { MoodFace } from './Mood';
 import { MiniStats } from './MiniStats';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { motivationLegend } from '../../engine/career/motivation';
+import { groupOf } from '../../engine/world/tagTeams';
 
 const AVAILABILITY_STYLE: Record<Availability['tone'], string> = {
   bad: 'border-rose-900 bg-rose-950/50 text-rose-200',
@@ -49,6 +50,7 @@ export function WrestlerRow({
   territoryId,
   territoryName,
   titles,
+  stables,
 }: {
   wrestler: Wrestler;
   settings: WorldSettings;
@@ -63,9 +65,18 @@ export function WrestlerRow({
   territoryName?: string;
   /** Belts in play, so the row can say who is carrying one. */
   titles?: readonly Title[];
+  /**
+   * Live teams and factions, so the row can say whose act this person is
+   * part of — a browsing list is exactly where "these two are a team"
+   * changes whether you'd book them separately. Omitted screens (free
+   * agents can never be in one; a detail page's own partner list already
+   * says the group name once, in its header) just don't pass this.
+   */
+  stables?: readonly Stable[];
 }) {
   const read = scout(wrestler, settings);
   const alignment = alignmentLabel(wrestler.alignment);
+  const group = stables ? groupOf(stables, wrestler.id) : undefined;
   const body = (
     <>
       <PaperDoll photoDataUrl={wrestler.photoDataUrl} name={wrestler.name} size="thumb" />
@@ -79,6 +90,11 @@ export function WrestlerRow({
           <Tag className={ALIGNMENT_STYLE[alignment] ?? ALIGNMENT_STYLE.Tweener!}>{alignment}</Tag>
           <Tag className={AVAILABILITY_STYLE[read.availability.tone]}>{read.availability.label}</Tag>
         </div>
+        {group && (
+          <span className="block truncate text-[10px] text-sky-400">
+            {group.kind === 'stable' ? 'Faction' : 'Team'}: {group.name}
+          </span>
+        )}
         {!compact && (
           <div className="mt-0.5 flex flex-col gap-px">
             {/* The meters go in the row itself, not only on the roster card.

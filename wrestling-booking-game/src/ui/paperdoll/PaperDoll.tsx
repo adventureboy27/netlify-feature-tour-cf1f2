@@ -1,12 +1,15 @@
 // A wrestler's portrait — a real uploaded photo, or an initials placeholder
 // if nobody has given them one yet. See README.md for what this replaced.
 
-export type PaperDollSize = 'large' | 'bust' | 'thumb';
+export type PaperDollSize = 'large' | 'bust' | 'thumb' | 'tiny';
 
 const SIZE_PX: Record<PaperDollSize, number> = {
   large: 120,
   bust: 80,
   thumb: 48,
+  // For a strip of "these people are associated" chips — small enough that
+  // a row of them reads as a group at a glance, not a list to scan.
+  tiny: 24,
 };
 
 /** First letter of up to two words — the same idea as the commentator avatars in the match viewer. */

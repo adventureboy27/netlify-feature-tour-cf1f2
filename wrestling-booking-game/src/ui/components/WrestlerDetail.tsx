@@ -31,6 +31,7 @@ import { freshnessLabel, isStale } from '../../engine/sim/freshness';
 import { pronounsFor } from '../../engine/career/pronouns';
 import { retirementPressure } from '../../engine/career/retirement';
 import { groupOf } from '../../engine/world/tagTeams';
+import { billedAs } from '../../engine/generate/nickname';
 import { KickFromGroupControl } from './KickFromGroupControl';
 import { contractUrgency } from '../../engine/economy/contracts';
 import { canChangeRole, lockLabel, TRANSITION_ROLE_LABELS } from '../../engine/career/transition';
@@ -192,9 +193,21 @@ export function WrestlerDetailBody({
               />
             )}
           </div>
-          <div className="flex flex-col gap-1.5">
+          {/* Small on purpose — the group's own header line above already
+              says who they are and what belt they hold; this strip is only
+              here so the association reads at a glance, not a second list
+              to scan. */}
+          <div className="flex flex-wrap gap-1.5">
             {partners.map((p) => (
-              <WrestlerRow key={p.id} wrestler={p} settings={world.settings} compact onClick={() => onNavigateWrestler(p.id)} />
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onNavigateWrestler(p.id)}
+                className="flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900 py-1 pl-1 pr-2.5 hover:border-neutral-600"
+              >
+                <PaperDoll photoDataUrl={p.photoDataUrl} name={p.name} size="tiny" />
+                <span className="max-w-[9rem] truncate text-[11px] text-neutral-300">{billedAs(p)}</span>
+              </button>
             ))}
           </div>
         </div>

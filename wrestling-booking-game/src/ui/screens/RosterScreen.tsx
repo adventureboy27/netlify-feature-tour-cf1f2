@@ -204,6 +204,7 @@ export function RosterScreen({
                   wrestler={w}
                   settings={world.settings}
                   titles={world.titles}
+                  stables={world.stables}
                   territoryId={world.showSetup.territoryId}
                   territoryName={world.territories.find((t) => t.id === world.showSetup.territoryId)?.name}
                   compact
