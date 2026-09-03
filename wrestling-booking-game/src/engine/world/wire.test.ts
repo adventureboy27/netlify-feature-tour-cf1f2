@@ -102,6 +102,32 @@ describe('what leads', () => {
   });
 });
 
+describe('a story of its own — id', () => {
+  it('gives every item a non-empty id, so a breaking-news card can link to it', () => {
+    for (const item of Object.values(SAMPLES)) {
+      expect(item.id.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('is deterministic — the same kind/text/week always produces the same id', () => {
+    const a = wire('story', 'The main event ran long and the crowd loved every minute.', 9, 'lead');
+    const b = wire('story', 'The main event ran long and the crowd loved every minute.', 9, 'lead');
+    expect(a.id).toBe(b.id);
+  });
+
+  it('gives different text a different id, even at the same kind and week', () => {
+    const a = wire('story', 'Bad Blood is over. Duke Rawlins finished it in a cage.', 12, 'lead');
+    const b = wire('story', 'A whole new feud kicked off out of nowhere tonight.', 12, 'lead');
+    expect(a.id).not.toBe(b.id);
+  });
+
+  it('gives the same text a different id across different weeks', () => {
+    const a = wire('houseShow', 'Two house shows on the road this week.', 5, 'minor');
+    const b = wire('houseShow', 'Two house shows on the road this week.', 9, 'minor');
+    expect(a.id).not.toBe(b.id);
+  });
+});
+
 describe('the phrasing', () => {
   it('names both halves of a team that split, and the team', () => {
     const line = teamSplitLine('The Brass Knuckles', ['Duke', 'Cyclone'], 3);

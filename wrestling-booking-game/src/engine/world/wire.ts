@@ -58,6 +58,13 @@ export type WireKind =
 export type WireWeight = 'lead' | 'normal' | 'minor';
 
 export interface WireItem {
+  /**
+   * Stable within a single item — derived from its own kind/week/text, not a
+   * counter — so a "Breaking News" card on the results page can link to a
+   * page of its own (see ui/screens/NewsStoryScreen.tsx) without every one of
+   * this file's ~30 call sites needing to hand one in.
+   */
+  id: string;
   kind: WireKind;
   text: string;
   week: number;
@@ -123,8 +130,21 @@ export function sortWire(items: readonly WireItem[]): WireItem[] {
 }
 
 /** Build one line. A helper so no caller can forget the week or the weight. */
+/**
+ * A small deterministic string hash — no `Math.random`/`Date.now` (engine/
+ * stays pure per CLAUDE.md), just enough spread that two different lines
+ * don't collide in practice. Base36 for a short, readable id.
+ */
+function hashId(input: string): string {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 31 + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 export function wire(kind: WireKind, text: string, week: number, weight: WireWeight = 'normal'): WireItem {
-  return { kind, text, week, weight };
+  return { id: `${kind}-${week}-${hashId(`${kind}:${week}:${text}`)}`, kind, text, week, weight };
 }
 
 // ------------------------------------------------------------- the phrasing

@@ -5,6 +5,67 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Every big event breaks as its own "Breaking News — Sunday Night" story
+
+Player ask: make sure any big event or story runs as real breaking news, first thing on the weekly
+recap, with a page of its own that clearly explains what's happening. That mechanism mostly already
+existed (`ShowResults.tsx`'s `BreakingNews()`), but with a real gap: it only fired for four wire
+kinds (`business`, `ownership`, `contract`, `talent`) via a hardcoded `BREAKING_NEWS_KINDS`
+whitelist, even though `store.ts` stamps `weight: 'lead'` — the game's own "this is a big deal"
+signal — on far more kinds than that: `death`, `title`, `story`, `team`, `signing`, `injury`,
+`misfortune`, `houseShow`, `weather`. A wrestler dying, a title changing hands, a story paying off,
+Faction Destroyer firing, last session's fan-rivalry incident — none of it ran as breaking news
+despite already being tagged exactly the way the system is supposed to detect "this is a big deal."
+That mismatch was the actual bug. Also true: breaking-news cards were plain, unclickable text with
+no detail page, and `WireItem` carried no id, so nothing was individually addressable. And "Sunday
+night" turned out to have zero mechanical backing — `schedule.ts`'s `PREFERRED_NIGHTS` never
+schedules a show on a Sunday, and no resolved `Show` record carries a day at all — confirmed this is
+flavor framing to add, not a day-of-week gate to build.
+
+**`engine/world/wire.ts`**: added `id: string` to `WireItem`, computed inside the single `wire()`
+constructor — every `WireItem` in the codebase (~30+ call sites across `store.ts`/`storeHelpers.ts`/
+`state/slices/*.ts`, all confirmed funneling through this one function or its phrasing wrappers) gets
+a stable id for free, with zero call-site changes. `id` is a small deterministic hash (`hashId()`,
+base36 of a `hash = hash*31 + charCode` loop) of `` `${kind}:${week}:${text}` `` — no
+`Math.random`/`Date.now`, engine/ stays pure.
+
+**`ui/screens/ShowResults.tsx`**: deleted `BREAKING_NEWS_KINDS` — `BreakingNews()`'s filter is now
+just `item.weight === 'lead'`, full stop (`TheWire()`'s exclusion filter mirrors it:
+`item.weight !== 'lead'`, so nothing doubles up). Moved `<BreakingNews />` to render first, above
+even the marquee, not down with the other sibling sections — "breaks first thing" means first on the
+page. Re-branded it "🔴 BREAKING — SUNDAY NIGHT NEWS" (a `// DESIGN:` comment notes this is
+deliberate flavor, not a schedule fact). Each card is now a button —
+`onClick={() => onOpenStory?.(item.id)}`, the same optional-callback shape `onWatch` already uses for
+the match-viewer button.
+
+**New `ui/screens/NewsStoryScreen.tsx`** — the page of its own, modeled directly on
+`WrestlerFeudsScreen.tsx`/`MatchViewerScreen.tsx` (confirmed the only "drill down from a card into a
+full page" precedent in `ui/`; no modal/overlay pattern exists anywhere in this codebase for this
+kind of thing). Looks up `world.weeklyNews.find(n => n.id === storyId)` — a stale/pruned link gets a
+graceful empty state, not a crash. Repeats the "BREAKING — SUNDAY NIGHT NEWS" banner over the full
+wire text in large type — the copy is already a complete, specific sentence (CLAUDE.md's own
+"nothing happens off-screen, and says how" house style), so the page's job is presentation and space,
+not re-deriving facts nothing else tracks. Bonus, best-effort only: cross-links to a live `Storyline`
+that shares this exact headline as one of its beats (`world.storylines.find(s => s.beats.some(b =>
+b.text === item.text))` — the same string is already shared between a wire push and its beat, per
+`fanRivalry`'s and `groupTurns`' own `store.ts` wiring), showing the story's name/stage and clickable
+participant chips through to their Feuds page. Wired into routing the same way as every other
+drill-down screen: `'newsStory'` added to the `Screen` union in `Nav.tsx` (deliberately not added to
+`SIDEBAR_GROUPS`, same as `wrestlerDetail`/`feuds`/`matchViewer`), `NavTarget.params.storyId` in
+`App.tsx`, a render branch mirroring `matchViewer`'s exactly.
+
+Tests: `engine/world/wire.test.ts` — every kind produces a non-empty id; the same `(kind, text,
+week)` call is deterministic; different text or a different week produces a different id. No UI
+tests, per CLAUDE.md ("Tests cover the simulation, not the UI"). Verified live in a played save:
+forced the fan-rivalry incident (a `story`-kind, `weight: 'lead'` item — previously excluded under
+the old whitelist) and confirmed it now runs under "BREAKING — SUNDAY NIGHT NEWS" at the very top of
+the results page (screenshotted, above the marquee), is clickable, opens `NewsStoryScreen` with the
+full text and the correct week, shows the cross-linked "Sable Situation" storyline with both
+participants as clickable chips, and that clicking a chip lands on that wrestler's real Feuds page
+showing the same live storyline. Back navigation confirmed clean in both directions.
+
+---
+
 ## Fan rivalry — a heel slaps a fan, the fan fights back, and it becomes a real feud
 
 Player-specified narrative arc: during a show, a heel woman mocks and slaps somebody in the front

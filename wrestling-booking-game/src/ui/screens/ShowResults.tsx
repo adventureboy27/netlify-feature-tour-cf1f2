@@ -49,11 +49,14 @@ export function ShowResults({
   show,
   onContinue,
   onWatch,
+  onOpenStory,
 }: {
   show: Show;
   onContinue: () => void;
   /** Watch a decided match back — see `MatchViewerScreen`. */
   onWatch?: (slot: number) => void;
+  /** Open a breaking-news story's own page — see `NewsStoryScreen`. */
+  onOpenStory?: (storyId: string) => void;
 }) {
   const world = useGameStore((s) => s.world);
   if (!world) return null;
@@ -111,6 +114,11 @@ export function ShowResults({
 
   return (
     <div className="p-3 pb-6 text-neutral-100">
+      {/* Breaking news runs first, ahead of even the marquee — the whole
+          point of "breaking" is that it's the first thing read, not one more
+          section scrolled past on the way to the ordinary wire. */}
+      <BreakingNews onOpenStory={onOpenStory} />
+
       {/* The marquee.
           Everything below this is detail; this is the answer to the only
           question the player asked when they pressed the button. It used to
@@ -489,7 +497,6 @@ export function ShowResults({
         </section>
       )}
 
-      <BreakingNews />
       <FanReaction />
       <TheWire />
       <AroundTheBusiness />
@@ -574,32 +581,46 @@ function AroundTheBusiness() {
   );
 }
 
-/** Which wire kinds are big enough to run as their own headline rather than folding into the ordinary feed. */
-const BREAKING_NEWS_KINDS = new Set<string>(['business', 'ownership', 'contract', 'talent']);
-
 /**
- * The stories that change the shape of the business — a merger, a
- * succession, a contract raid, a rival throwing money at spite. Run apart
- * from the ordinary week's news rather than blended into it, so a headline
- * this size never reads as just another line in the feed.
+ * The stories big enough to run apart from the ordinary week's news, not
+ * blended into it — a death, a title change, a story paying off, a merger, a
+ * contract raid, anything the game itself already flagged `weight: 'lead'`
+ * (see engine/world/wire.ts's own doc comment on what that means). No kind
+ * whitelist: that used to only cover four business/ownership kinds and quietly
+ * let a death or a story's blow-off run as an ordinary line, which is exactly
+ * the gap that made "breaking news" not mean anything.
+ *
+ * DESIGN: branded "Sunday Night" as pure flavor, not a schedule fact — the
+ * game's own PREFERRED_NIGHTS (schedule.ts) never actually books a show on a
+ * Sunday, and no resolved Show carries a day at all. This is the paper's own
+ * name for its weekly wrap, the way a real dirt sheet has a fixed identity
+ * independent of which night any given card actually happened.
  */
-function BreakingNews() {
+function BreakingNews({ onOpenStory }: { onOpenStory?: (storyId: string) => void }) {
   const world = useGameStore((s) => s.world);
   if (!world) return null;
-  const items = sortWire(world.weeklyNews).filter(
-    (item) => BREAKING_NEWS_KINDS.has(item.kind) && item.weight === 'lead',
-  );
+  const items = sortWire(world.weeklyNews).filter((item) => item.weight === 'lead');
   if (items.length === 0) return null;
 
   return (
-    <section>
-      <SectionHead>Breaking news</SectionHead>
+    <section className="mb-3">
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-rose-500" />
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-400">
+          Breaking — Sunday Night News
+        </span>
+      </div>
       <div className="flex flex-col gap-2">
-        {items.map((item, i) => (
+        {items.map((item) => (
           <article
-            key={`breaking-${item.kind}-${i}`}
+            key={item.id}
             data-testid={`breaking-news-${item.kind}`}
-            className="rounded-lg border border-rose-800/70 bg-rose-950/30 px-3 py-2"
+            className={`rounded-lg border border-rose-800/70 bg-rose-950/30 px-3 py-2 ${
+              onOpenStory ? 'cursor-pointer transition hover:bg-rose-950/50' : ''
+            }`}
+            onClick={onOpenStory ? () => onOpenStory(item.id) : undefined}
+            role={onOpenStory ? 'button' : undefined}
+            tabIndex={onOpenStory ? 0 : undefined}
           >
             <div className="text-[10px] font-semibold uppercase tracking-wide text-rose-400">
               {WIRE_KIND_LABELS[item.kind]}
@@ -624,29 +645,25 @@ function BreakingNews() {
 function TheWire() {
   const world = useGameStore((s) => s.world);
   if (!world || world.weeklyNews.length === 0) return null;
-  const items = sortWire(world.weeklyNews).filter(
-    (item) => !(BREAKING_NEWS_KINDS.has(item.kind) && item.weight === 'lead'),
-  );
+  // Every 'lead' item already ran in Breaking News, above — nothing here
+  // repeats it.
+  const items = sortWire(world.weeklyNews).filter((item) => item.weight !== 'lead');
   if (items.length === 0) return null;
 
   return (
     <section>
       <SectionHead>This week in the business</SectionHead>
       <div className="flex flex-col gap-1.5">
-        {items.map((item, i) => (
+        {items.map((item) => (
           <article
-            key={`${item.kind}-${i}`}
+            key={item.id}
             data-testid={`wire-${item.kind}`}
-            className={`rounded-lg border px-2.5 py-1.5 ${
-              item.weight === 'lead'
-                ? 'border-amber-800/70 bg-amber-950/30'
-                : 'border-neutral-800 bg-neutral-900'
-            }`}
+            className="rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1.5"
           >
             <div className="text-[10px] uppercase tracking-wide text-neutral-500">
               {WIRE_KIND_LABELS[item.kind]}
             </div>
-            <p className={`text-xs ${item.weight === 'lead' ? 'text-amber-200' : 'text-neutral-200'}`}>
+            <p className="text-xs text-neutral-200">
               {item.text}
             </p>
           </article>

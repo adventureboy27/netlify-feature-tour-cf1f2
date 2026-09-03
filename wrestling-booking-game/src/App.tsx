@@ -19,6 +19,7 @@ import { WrestlerDetailScreen } from './ui/screens/WrestlerDetailScreen';
 import { SlotRosterPicker } from './ui/screens/SlotRosterPicker';
 import { MatchSetupScreen } from './ui/screens/MatchSetupScreen';
 import { MatchViewerScreen } from './ui/screens/MatchViewerScreen';
+import { NewsStoryScreen } from './ui/screens/NewsStoryScreen';
 import { NewGameScreen } from './ui/screens/NewGameScreen';
 import { TitleScreen } from './ui/screens/TitleScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
@@ -45,7 +46,7 @@ type PreGameView = 'title' | 'newGame' | 'settings';
 /** One entry on the navigation stack — which screen, and (for a drill-down screen) which id or slot it's about. */
 interface NavTarget {
   screen: Screen;
-  params?: { wrestlerId?: Id; slotIndex?: number; matchWeek?: number; matchSlot?: number };
+  params?: { wrestlerId?: Id; slotIndex?: number; matchWeek?: number; matchSlot?: number; storyId?: string };
 }
 
 export default function App() {
@@ -208,6 +209,7 @@ export default function App() {
                 show={lastShow}
                 onContinue={() => resetTo('booking')}
                 onWatch={(slot) => goTo({ screen: 'matchViewer', params: { matchWeek: lastShow.week, matchSlot: slot } })}
+                onOpenStory={(storyId) => goTo({ screen: 'newsStory', params: { storyId } })}
               />
             ) : (
               <p className="p-6 text-center text-sm text-neutral-500">No show has run yet.</p>
@@ -265,6 +267,13 @@ export default function App() {
           )}
           {screen === 'matchViewer' && params?.matchWeek !== undefined && params?.matchSlot !== undefined && (
             <MatchViewerScreen matchWeek={params.matchWeek} matchSlot={params.matchSlot} onBack={goBack} />
+          )}
+          {screen === 'newsStory' && params?.storyId !== undefined && (
+            <NewsStoryScreen
+              storyId={params.storyId}
+              onBack={goBack}
+              onOpenWrestler={(wrestlerId) => goTo({ screen: 'feuds', params: { wrestlerId } })}
+            />
           )}
         </main>
       </div>

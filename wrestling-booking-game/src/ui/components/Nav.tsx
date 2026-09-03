@@ -46,7 +46,9 @@ export type Screen =
   /** A booked slot's own screen — competitors, stakes, and rules — reached by tapping it from the card overview. */
   | 'matchSetup'
   /** A watch-back of a decided match — reached by the Watch button on the results screen. */
-  | 'matchViewer';
+  | 'matchViewer'
+  /** One breaking-news story's own page — reached by tapping a card under Breaking News on the results screen. */
+  | 'newsStory';
 
 // ---------------------------------------------------------------------------
 // The sidebar
