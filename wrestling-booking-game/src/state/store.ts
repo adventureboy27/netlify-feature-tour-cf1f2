@@ -127,7 +127,7 @@ import {
   storylineBetween,
 } from '../engine/world/storyline';
 import type { StorylineBeatKind } from '../data/storylineBeats';
-import { MATCH_BEAT_LINES } from '../data/storylineBeats';
+import { MATCH_BEAT_LINES, STORYLINE_NAME_PATTERNS } from '../data/storylineBeats';
 import { callTheMatch } from '../engine/sim/commentary';
 import {
   isAlly,
@@ -7199,18 +7199,52 @@ export const useGameStore = create<GameStore>()(
               ending.by === 'client' &&
               wouldEscalate(rngFromSeed(`managerFiring:${ending.rep.clientId}:${world.week}`), ending.reason, world.settings);
             if (escalates) {
-              world.rivalries.push(
-                createRivalry(
-                  `rivalry-${world.nextId++}`,
-                  [client.id, agent.id],
-                  'shoot',
-                  world.week,
-                  world.settings.managerFiringShootHeat,
-                ),
+              const rivalry = createRivalry(
+                `rivalry-${world.nextId++}`,
+                [client.id, agent.id],
+                'shoot',
+                world.week,
+                world.settings.managerFiringShootHeat,
               );
-              world.weeklyNews.push(
-                wire('signing', firingRivalryLine(ending.reason, client.name, agent.name), world.week, 'lead'),
-              );
+              world.rivalries.push(rivalry);
+              const escalationLine = firingRivalryLine(ending.reason, client.name, agent.name);
+              world.weeklyNews.push(wire('signing', escalationLine, world.week, 'lead'));
+
+              // Real enough to carry a name, same as anything the booker
+              // starts by hand (state/slices/storylines.ts's startStoryline)
+              // — so it shows up in the Office's Feuds index, not only as a
+              // heat badge on the two of them. The firing is itself the
+              // opening beat rather than an empty slate: advance() seeds it
+              // with the confrontation immediately instead of waiting on
+              // whatever match happens to pair them next.
+              if (!storylineBetween(world.storylines, [client.id, agent.id])) {
+                const surnames = [client.name, agent.name].map((n) => n.split(' ').slice(-1)[0] ?? n);
+                const pattern = pick(
+                  rngFromSeed(`managerFiringStory:${ending.rep.clientId}:${world.week}`),
+                  STORYLINE_NAME_PATTERNS,
+                );
+                const town = world.territories.find((t) => t.id === world.promotion.homeTerritoryId);
+                const name = pattern
+                  .replace('{a}', surnames[0] ?? 'Them')
+                  .replace('{b}', surnames[1] ?? 'Them')
+                  .replace('{town}', town?.name ?? 'Town');
+                const opening = {
+                  id: `story-${world.week}-${world.storylines.length}`,
+                  name,
+                  participantIds: [client.id, agent.id],
+                  rivalryId: rivalry.id,
+                  stage: 'opening' as const,
+                  startWeek: world.week,
+                  lastAdvancedWeek: world.week,
+                  beats: [],
+                  neglectedWeeks: 0,
+                  resolvedWeek: null,
+                  payoff: null,
+                };
+                world.storylines.push(
+                  advance(opening, { week: world.week, kind: 'confrontation', text: escalationLine }, world.settings),
+                );
+              }
             } else {
               world.weeklyNews.push(
                 wire('signing', splitNote(ending.reason, client.name, agent.name), world.week, 'minor'),

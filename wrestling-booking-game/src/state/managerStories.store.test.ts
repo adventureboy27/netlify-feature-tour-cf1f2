@@ -172,6 +172,18 @@ describe('a client firing his manager, sometimes for real', () => {
     );
     expect(rivalry).toBeDefined();
     expect(rivalry!.shootHeat).toBeGreaterThan(0);
+
+    // Real enough to show up in Office's Feuds index, not only as a heat
+    // badge — see engine/world/storyline.ts's isLive/everyoneWithAStoryline.
+    const story = after.storylines.find(
+      (s) => s.participantIds.includes(manager.id) && s.participantIds.includes('client-c'),
+    );
+    expect(story).toBeDefined();
+    expect(story!.rivalryId).toBe(rivalry!.id);
+    expect(story!.stage).not.toBe('blownOff');
+    expect(story!.stage).not.toBe('fizzled');
+    expect(story!.beats).toHaveLength(1);
+    expect(story!.beats[0]!.kind).toBe('confrontation');
   });
 
   it('stays quiet when the escalation chance is 0', () => {
@@ -191,6 +203,10 @@ describe('a client firing his manager, sometimes for real', () => {
       (r) => r.participantIds.includes(manager.id) && r.participantIds.includes('client-d'),
     );
     expect(rivalry).toBeUndefined();
+    const story = after.storylines.find(
+      (s) => s.participantIds.includes(manager.id) && s.participantIds.includes('client-d'),
+    );
+    expect(story).toBeUndefined();
   });
 });
 

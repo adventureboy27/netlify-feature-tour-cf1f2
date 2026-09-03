@@ -5416,3 +5416,35 @@ fixed by maxing `repWearPenalty` in those fixtures rather than leaving the margi
   `npm run build` clean; a live played-save probe via `window.__store` (a manager seeded onto the roster
   with a real book, run 12 real weeks through `resolveWeek()` with no scripted conditions) confirmed no
   runtime errors and the systems firing in an unscripted save, not just under test.
+
+### Follow-up: a firing-escalated rivalry now shows up in the Feuds tab, not just as a heat badge
+
+Playing the firing story in the browser (Office → Feuds) surfaced a real gap: `world.rivalries` and
+`world.storylines` are two separate systems that don't sync each other. `WrestlerDetail.tsx`'s heat badge
+reads `rivalries` directly, but the Feuds tab (`FeudsTab`, `OfficeScreen.tsx`) reads only `storylines` via
+`everyoneWithAStoryline`/`allStorylinesFor`. The only place `world.storylines.push` happened anywhere in
+the codebase was the player-initiated `startStoryline` action (`state/slices/storylines.ts`) — no
+systemic event, including the pre-existing group-turn rivalry (`state/slices/groupTurns.ts`), had ever
+written to it, so a manager-firing escalation was invisible on that one tab even though it was a completely
+real, live `Rivalry`.
+
+Fixed narrowly for this feature (the group-turn gap is the same shape but out of scope here, not touched):
+the escalation branch in `store.ts` now captures the `Rivalry` it already creates, and — guarded by
+`storylineBetween` so it never double-books a pair already mid-story — pushes a matching `Storyline`
+shaped exactly like `startStoryline`'s own literal (`stage: 'opening'`, empty `neglectedWeeks`/`payoff`,
+`rivalryId` pointing at the rivalry). Named off the same shared `STORYLINE_NAME_PATTERNS` pool
+(`data/storylineBeats.ts`) via a `pick()` seeded off its own distinct entity string (`managerFiringStory:
+...`, not reusing the escalation roll's own seed) — a played save landed on "No Love Lost" for a fired
+manager. Unlike `startStoryline`, which begins with empty `beats: []`, a firing already *is* the opening
+event, so it's seeded with one `confrontation` beat (via the existing `advance()`) carrying the same
+escalation wire line as its text, rather than waiting on whatever match happens to pair the two of them
+next.
+
+- Files: `state/store.ts` (the escalation branch, plus a `STORYLINE_NAME_PATTERNS` import — `advance`,
+  `storylineBetween`, and `pick` were already imported for other systems).
+- Tests: extended `managerStories.store.test.ts`'s two firing-escalation cases — asserts a live storyline
+  exists with the right `rivalryId` and a single `confrontation` beat when it escalates, and asserts none
+  exists when it stays quiet.
+- Verified: `tsc --noEmit` clean; full suite 203 files / 3,393 tests passing; `npm run build` clean; replayed
+  the same live-browser scenario — Office → Feuds now lists both names as "1 current — just started,"
+  and opening either one's feud detail shows "No Love Lost vs. [other]" with the confrontation recap line.
