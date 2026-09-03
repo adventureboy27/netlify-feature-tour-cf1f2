@@ -247,7 +247,11 @@ const SLOT_KEY = 'wbg.save.v1';
 // time, see engine/world/factionDestroyer.ts. A version-68 save has neither
 // field; the weekly tick and the membership-lock guards both read them
 // without a guard.
-const SCHEMA_VERSION = 69;
+//
+// v70 adds managerStables — a manager's named client book, see
+// engine/world/managerStable.ts. A version-69 save has no such field; the
+// weekly formation/dissolution check reads it without a guard.
+const SCHEMA_VERSION = 70;
 
 export interface SaveFile {
   schema: number;

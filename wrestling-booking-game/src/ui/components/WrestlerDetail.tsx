@@ -46,6 +46,7 @@ import { blockedBecause, perkUpkeep } from '../../engine/economy/perks';
 import { hypeLabel } from '../../engine/career/hype';
 import { fitLabel } from '../../engine/career/fit';
 import { bookLine, clientCutLine, representativeOf, wearLabel } from '../../engine/career/representation';
+import { stableOf } from '../../engine/world/managerStable';
 import { recordLabel } from '../../engine/career/discipline';
 import { PERKS } from '../../data/perks';
 import { PaperDoll } from '../paperdoll/PaperDoll';
@@ -321,6 +322,13 @@ export function WrestlerDetailBody({
             {wearLabel(w, world.settings)} — flat-out too many people to be everywhere for
           </div>
         )}
+        {w.role === 'manager' &&
+          (() => {
+            const stable = stableOf(world.managerStables ?? [], w.id);
+            return stable ? (
+              <div className="mt-0.5 truncate text-[10px] font-medium text-sky-300">{stable.name}</div>
+            ) : null;
+          })()}
         {w.role === 'manager' && (
           <div className="mt-0.5 truncate text-[10px] text-sky-400/80">
             {bookLine(

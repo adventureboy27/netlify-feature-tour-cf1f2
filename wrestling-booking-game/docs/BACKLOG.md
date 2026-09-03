@@ -5346,3 +5346,73 @@ constructions entirely, matching what turned out to already be the file's implic
 - Verified: `tsc --noEmit` clean; `commentary.test.ts` 52 → 67 tests, all passing; `matchPlayback.test.ts`,
   `narrative.test.ts`, and the 98-test `store.test.ts` regression suite all pass unaffected; full suite
   199 files / 3,366 tests passing; `npm run build` clean.
+
+## Three manager stories, riding entirely on the existing representation and poaching systems
+
+Three requested gaps, all confirmed at once ("all of the above"): a signed manager jumping ship to a
+rival, a client firing a manager turning into a real feud instead of a clean break, and a manager's
+growing client book being acknowledged as its own thing rather than just a stat line on `bookLine()`.
+
+**Manager poaching reuses `poaching.ts`'s entire pipeline rather than mirroring it.** Research found that
+`world.promotion.rosterIds` and the `roster` array `rollApproaches` already loops over include managers —
+the only reasons a manager was never poachable were `isPoachingTarget`'s wrestling-only `CareerStatus`
+gate and `temptation()`'s wrestling-specific personality-trait terms. Rather than building a parallel
+`ManagerPoachingOffer` type, store field, resolution loop, and UI panel, the new `engine/world/
+managerPoaching.ts` adds `managerPoachingAppeal()`/`managerTemptation()` (book size resists leaving —
+abandoning clients isn't like quitting a job — in place of the three wrestling-only trait pulls) and a
+`rollManagerApproaches()` that feeds the *same* `world.approachOffers` array via the *same*
+`answerApproach` action and the *same* `OfficeScreen` panel a wrestler's offer already uses. The one real
+addition to `poaching.ts` itself is a new `PoachingResponse` kind, `promiseABiggerBook` — the manager-
+flavored answer to `promiseAPush` (can't push a man who doesn't wrestle, so the promise is more clients
+instead), shown in place of "Promise the spot" whenever the target's `role === 'manager'`. When a poach
+succeeds, every client on the departing manager's book loses their rep via a new `managerDepartureClientLines()`
+helper and — per §0 — each gets an individual wire line, not a silent field change.
+
+**A client-fired manager sometimes turns personal**, via a new independently-seeded roll
+(`engine/world/managerFiring.ts`) at the exact call site `clientWouldWalk`/`managerWouldDrop` already
+resolve from weekly (`store.ts`'s representation-ending loop). Only the two *client-initiated* reasons
+(`notWorthTheCut`, `outgrewHim`) can escalate — a manager cutting a client loose for his own book or
+because the money's thin is business, not betrayal. On escalation, a real `Rivalry` is created between the
+two — seeded `shoot` only, deliberately not double-seeding the worked axis the way a group turn does: a
+group turn is staged as an angle the promotion airs, this is two people who used to work together falling
+out off camera, so there's no worked component to seed. New `managerFiringRivalryChance` (0.25) and
+`managerFiringShootHeat` settings; no `DialogueCard` — auto-resolving, same shape as this session's earlier
+group-implosion escalation, since the actual decision (the client walking) already happened.
+
+**A manager's client stable is a name and a moment, deliberately not a `Stable`.** `Stable.memberIds` is
+leaned on everywhere (`bookableRoster()`, faction-destroyer eligibility, `kickFromGroup`, the booking
+screens) as "a unit the booker puts on a card together," which a manager's clients — still booked and paid
+individually — aren't. The new `ManagerStable { managerId, name, formedWeek }` (`engine/world/
+managerStable.ts`) never stores membership at all; it's always `bookOf(representations, managerId)`, read
+fresh, the same source `bookLine()` already renders from. A new weekly check (self-contained, driven off
+`representations` directly rather than depending on where in the week it runs) forms one once a book
+crosses `managerStableFormsAtClients` (3), naming it from a new `data/managerStableNames.ts` pool, and
+dissolves it — with its own wire line — the moment the book drops back under. No new mechanical bonus:
+`attention`/`roadCost`/`condition` already fully price a big book, so this is the name and the announcement
+for a book that got big enough to matter, not a second number layered on top. Shows on `WrestlerDetail.tsx`
+right above the existing `bookLine()` block it already renders next to.
+
+**Test fixtures need a real weekly rate and full rest to isolate the mechanic under test.** The store-level
+integration tests (`managerStories.store.test.ts`) initially failed in confusing ways because synthetic
+client wrestlers had no `contract` at all — `rateOf()`'s `?? 0` fallback made every client's cut compute to
+$0, which made `managerWouldDrop`'s `notEarningEnough` fire and quietly clear the book before the
+mechanic under test ever got a chance to run. And a manager built at the *exact* floating-point boundary
+of `repClientPatience` (full fatigue and zero energy landing presence precisely on 0.45) was a coin flip
+depending on whether an unrelated weekly recovery tick nudged it a hair either side before the check ran —
+fixed by maxing `repWearPenalty` in those fixtures rather than leaving the margin at zero.
+
+- Files: `engine/world/managerPoaching.ts`, `engine/world/managerFiring.ts`, `engine/world/
+  managerStable.ts`, `data/managerStableNames.ts` (new); `engine/world/poaching.ts` (`promiseABiggerBook`);
+  `engine/types.ts`/`world/settings.ts` (7 new `WorldSettings` fields); `state/world.ts` (`managerStables`
+  field) + `state/persist.ts` (schema v69 → v70); `state/store.ts` (manager-approach roll, poach-departure
+  book cleanup, firing-escalation branch, weekly stable form/dissolve check); `ui/screens/OfficeScreen.tsx`
+  (role-aware response option) + `ui/components/WrestlerDetail.tsx` (stable name display).
+- Tests: `managerPoaching.test.ts`, `managerFiring.test.ts`, `managerStable.test.ts` (engine-level, 21
+  cases) plus `state/managerStories.store.test.ts` (6 cases, full weekly-tick integration for all three
+  through the real store) — regression-checked against `poaching.test.ts`, `poaching.store.test.ts`,
+  `representation.test.ts`, and `groupTurns.store.test.ts`, none of which changed behavior.
+- Verified: `tsc --noEmit` clean; full suite 203 files / 3,393 tests passing (including the project-wide
+  no-bare-gendered-pronoun check, which caught and fixed two `promiseABiggerBook`-related strings);
+  `npm run build` clean; a live played-save probe via `window.__store` (a manager seeded onto the roster
+  with a real book, run 12 real weeks through `resolveWeek()` with no scripted conditions) confirmed no
+  runtime errors and the systems firing in an unscripted save, not just under test.

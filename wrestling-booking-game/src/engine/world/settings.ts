@@ -572,6 +572,8 @@ export function defaultWorldSettings(): WorldSettings {
     poachResponseMoneyEffect: 0.45,
     poachResponseMoneyRaise: 1.35,
     poachResponsePushEffect: 0.3,
+    poachResponseBookEffect: 0.3,
+    poachManagerBookResistance: 0.5,
 
     // Ego. Rises roughly twice as fast as it falls — you can make somebody in
     // a season and spend two bringing them back down.
@@ -1287,6 +1289,11 @@ export function defaultWorldSettings(): WorldSettings {
     // a hand's purse and pocket change to a main eventer — which is exactly
     // who ends up with the clause.
     travelOwnCostPerNight: 85,
+    // A client-initiated split turns personal about 1 time in 4 — sharper
+    // than a quiet break, but still the exception, not the rule.
+    managerFiringRivalryChance: 0.25,
+    managerFiringShootHeat: 14,
+    managerStableFormsAtClients: 3,
 
     // Discipline. Two on file before it costs money, four before it costs
     // you a spot on the card — slow enough that one bad night is not a

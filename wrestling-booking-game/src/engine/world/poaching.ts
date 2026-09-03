@@ -46,6 +46,7 @@ export interface PoachingOffer {
 export type PoachingResponse =
   | { kind: 'matchMoney' }
   | { kind: 'promiseAPush' }
+  | { kind: 'promiseABiggerBook' }
   | { kind: 'doNothing' };
 
 export interface ResponseOutcome {
@@ -96,6 +97,18 @@ export function responseOutcome(response: PoachingResponse, settings: WorldSetti
         description: 'You promised them the spot. That is a commitment other people noticed.',
         gains: 'Costs nothing up front, and it is a real commitment they notice',
         costs: 'You are on the hook for the push whether or not they stay',
+      };
+    case 'promiseABiggerBook':
+      return {
+        temptationDelta: -settings.poachResponseBookEffect,
+        rateMultiplier: 1,
+        moraleDelta: 9,
+        momentumDelta: 0,
+        rosterMoraleDelta: -2,
+        reputationDelta: 0,
+        description: 'You told them more clients are coming their way. That is a promise the room heard, too.',
+        gains: 'Costs nothing up front, and it is a real commitment they notice',
+        costs: 'You are on the hook to actually steer clients their way',
       };
     case 'doNothing':
       return {

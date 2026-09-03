@@ -2334,6 +2334,14 @@ export interface WorldSettings {
   poachResponseMoneyEffect: number;
   poachResponseMoneyRaise: number;
   poachResponsePushEffect: number;
+  /** promiseABiggerBook's temptation effect — the manager-flavored answer to promiseAPush. */
+  poachResponseBookEffect: number;
+
+  // A manager's own version of an approach (engine/world/managerPoaching.ts) — reuses
+  // rollApproaches/PoachingOffer/answerApproach wholesale, only the appeal and
+  // temptation math differ from a wrestler's.
+  /** How much a real book (engine/career/representation.ts's bookOf) resists a poach — leaving means abandoning clients, not just a job. */
+  poachManagerBookResistance: number;
 
   // Ego and the cost of success (engine/career/ego.ts)
   egoFromStanding: number;
@@ -3104,6 +3112,12 @@ export interface WorldSettings {
   repMinWorthKeeping: number;
   /** What a night on the road costs the person travelling to it. */
   travelOwnCostPerNight: number;
+  /** Chance a client-initiated split (engine/world/managerFiring.ts) turns into a real rivalry instead of a quiet break. */
+  managerFiringRivalryChance: number;
+  /** Starting shoot heat for that rivalry — this is a real falling-out, not a booked angle, so only the shoot axis is seeded. */
+  managerFiringShootHeat: number;
+  /** Clients on the book at which it becomes a named stable (engine/world/managerStable.ts). */
+  managerStableFormsAtClients: number;
 
   // --- Discipline, engine/career/discipline.ts -----------------------------
   /** How many go on file before a fine, and before a suspension. */

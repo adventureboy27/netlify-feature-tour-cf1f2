@@ -114,6 +114,7 @@ import { defaultSchedule, scheduleForRival, type ShowKind } from '../engine/worl
 import type { ImpromptuShow } from '../engine/world/impromptu';
 import { seedManagerTalent } from '../engine/world/managerTalent';
 import type { Representation } from '../engine/career/representation';
+import type { ManagerStable } from '../engine/world/managerStable';
 import { MANAGERS } from '../data/ringsidePool';
 import { DEFAULT_PACE } from '../data/pacing';
 import type { AttendanceRecord } from '../engine/world/territories';
@@ -566,6 +567,13 @@ export interface World {
    * book rather than from a nightly fee — see engine/career/representation.ts.
    */
   representations: Representation[];
+  /**
+   * A manager's book, once it's gotten big enough to be named — see
+   * engine/world/managerStable.ts. Membership itself is never stored here,
+   * only the name and when it formed; who's actually in it is always
+   * bookOf(representations, managerId), read fresh.
+   */
+  managerStables: ManagerStable[];
   /** Everyone who has died, oldest first. §19's memorial wall. */
   memoriam: Passing[];
   /** The hall of fame, in induction order. */
@@ -1334,6 +1342,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     memoriam: [],
     impromptuShows: [],
     representations: [],
+    managerStables: [],
     hallOfFame: [],
     broadcastDealId: null,
     sponsorIds: [],

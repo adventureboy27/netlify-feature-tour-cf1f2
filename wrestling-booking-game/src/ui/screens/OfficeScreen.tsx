@@ -1673,7 +1673,9 @@ function ContractsTab() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs">
                       {target.name}
-                      <span className="ml-1 text-neutral-500">{CAREER_STATUS_LABELS[target.careerStatus]}</span>
+                      <span className="ml-1 text-neutral-500">
+                        {target.role === 'manager' ? 'Manager' : CAREER_STATUS_LABELS[target.careerStatus]}
+                      </span>
                     </div>
                     <div className="text-[11px] text-neutral-500">
                       {rival?.name ?? 'A rival'} · <span className="text-amber-400">deal running out</span>
@@ -1698,7 +1700,9 @@ function ContractsTab() {
           if (!target) return null;
           const answers: { response: PoachingResponse; label: string }[] = [
             { response: { kind: 'matchMoney' }, label: 'Match the money' },
-            { response: { kind: 'promiseAPush' }, label: 'Promise the spot' },
+            target.role === 'manager'
+              ? { response: { kind: 'promiseABiggerBook' }, label: 'Promise them more clients' }
+              : { response: { kind: 'promiseAPush' }, label: 'Promise the spot' },
             { response: { kind: 'doNothing' }, label: 'Let it ride' },
           ];
           return (

@@ -211,6 +211,9 @@ import {
   travelBill,
   wouldCourt,
 } from '../engine/career/representation';
+import { wouldEscalate, firingRivalryLine } from '../engine/world/managerFiring';
+import { formManagerStable, dissolveManagerStable, stableOf, managerStableLine, managerStableDissolvedLine } from '../engine/world/managerStable';
+import { rollManagerApproaches, managerDepartureClientLines } from '../engine/world/managerPoaching';
 import {
   applySanction,
   disciplineOf,
@@ -7186,9 +7189,65 @@ export const useGameStore = create<GameStore>()(
             world.representations = endRepresentation(world.representations, ending.rep.clientId);
             // §0: money stops leaving somebody's purse, so the week it stops
             // is the week it is reported.
-            world.weeklyNews.push(
-              wire('signing', splitNote(ending.reason, client.name, agent.name), world.week, 'minor'),
-            );
+            //
+            // Most splits end there. A client-initiated one gets a second,
+            // independently-seeded roll (engine/world/managerFiring.ts) for
+            // whether it turns into something the two of them actually carry
+            // into the ring — see that module for why this seeds shootHeat
+            // only, unlike a group turn's worked+shoot double-seed.
+            const escalates =
+              ending.by === 'client' &&
+              wouldEscalate(rngFromSeed(`managerFiring:${ending.rep.clientId}:${world.week}`), ending.reason, world.settings);
+            if (escalates) {
+              world.rivalries.push(
+                createRivalry(
+                  `rivalry-${world.nextId++}`,
+                  [client.id, agent.id],
+                  'shoot',
+                  world.week,
+                  world.settings.managerFiringShootHeat,
+                ),
+              );
+              world.weeklyNews.push(
+                wire('signing', firingRivalryLine(ending.reason, client.name, agent.name), world.week, 'lead'),
+              );
+            } else {
+              world.weeklyNews.push(
+                wire('signing', splitNote(ending.reason, client.name, agent.name), world.week, 'minor'),
+              );
+            }
+          }
+        }
+
+        // A manager's book, once it's grown into something with a name — see
+        // engine/world/managerStable.ts. Driven off representations
+        // directly rather than the roster loop below, so it doesn't depend
+        // on where in the week's checks it runs.
+        {
+          const managerIds = new Set<Id>([
+            ...world.representations.map((r) => r.managerId),
+            ...world.managerStables.map((s) => s.managerId),
+          ]);
+          for (const managerId of managerIds) {
+            const manager = world.wrestlers[managerId];
+            if (!manager || manager.deceased) continue;
+            const bookSize = bookOf(world.representations, managerId).length;
+            const existingStable = stableOf(world.managerStables, managerId);
+            if (!existingStable && bookSize >= world.settings.managerStableFormsAtClients) {
+              const stable = formManagerStable(
+                rngFromSeed(`managerStable:${managerId}:${world.week}`),
+                managerId,
+                manager.name,
+                world.week,
+              );
+              world.managerStables.push(stable);
+              world.weeklyNews.push(wire('signing', managerStableLine(stable, bookSize), world.week, 'minor'));
+            } else if (existingStable && bookSize < world.settings.managerStableFormsAtClients) {
+              world.managerStables = dissolveManagerStable(world.managerStables, managerId);
+              world.weeklyNews.push(
+                wire('signing', managerStableDissolvedLine(existingStable), world.week, 'minor'),
+              );
+            }
           }
         }
 
@@ -7889,6 +7948,24 @@ export const useGameStore = create<GameStore>()(
               'lead',
             ),
           );
+          // A poached manager doesn't leave alone — everybody on the book
+          // loses their manager the same week, and each of them is told,
+          // not left to notice a blank line on their own profile.
+          if (target.role === 'manager') {
+            const { remainingReps, lines } = managerDepartureClientLines(
+              world.representations,
+              target.id,
+              target.name,
+              (wid) => world.wrestlers[wid],
+            );
+            world.representations = remainingReps;
+            for (const line of lines) {
+              world.weeklyNews.push(wire('signing', line, world.week, 'minor'));
+            }
+            if (stableOf(world.managerStables, target.id)) {
+              world.managerStables = dissolveManagerStable(world.managerStables, target.id);
+            }
+          }
         }
         world.approachOffers = world.approachOffers.filter((o) => o.status === 'open');
 
@@ -7907,6 +7984,26 @@ export const useGameStore = create<GameStore>()(
           alreadyCourted.add(fresh.wrestlerId);
           // `rollApproaches` produces the bare attempt; this is the stored,
           // answerable form.
+          world.approachOffers.push({
+            ...fresh,
+            id: `poach-${world.week}-${fresh.wrestlerId}`,
+            openedWeek: world.week,
+            resolvesWeek: world.week + world.settings.poachOfferWeeks,
+            status: 'open',
+          });
+        }
+
+        // A manager can be courted the same way — see
+        // engine/world/managerPoaching.ts. Same offer shape, same table,
+        // same answerApproach; only the appeal and temptation math differ.
+        for (const fresh of rollManagerApproaches(rng, {
+          roster,
+          rivals: world.rivals,
+          reps: world.representations,
+          settings: world.settings,
+        })) {
+          if (alreadyCourted.has(fresh.wrestlerId)) continue;
+          alreadyCourted.add(fresh.wrestlerId);
           world.approachOffers.push({
             ...fresh,
             id: `poach-${world.week}-${fresh.wrestlerId}`,
