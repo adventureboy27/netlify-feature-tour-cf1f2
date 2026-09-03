@@ -10,8 +10,12 @@ read. Roughly in the order it is worth doing.
 Player-specified narrative arc: during a show, a heel woman mocks and slaps somebody in the front
 row, proud of it — the fan grabs her by the hair and flings her down, and security pulls them
 apart. The following week the heel is forced into a promo calling the fan out for an unsanctioned
-match; the week after that they actually fight, the fan turns out to have real talent, and gets
-signed to a contract with the wrestler who started it now a real, ongoing enemy.
+match; the week after that they actually fight, the fan turns out to have real talent, and the
+match's own real, sim-decided result — not this story — decides what happens next: win it and the
+office signs her cheap on the spot, before the rest of the business catches up; lose it and there's
+no free contract just for having been found first — straight to free agency instead, priced at what
+the tape just showed. The heel is left with a real, ongoing enemy either way, whichever roster she
+ends up on, or none at all.
 
 Nothing about individual fans existed before this — the crowd was purely aggregate (`data/fanVoices.ts`'s
 tweet feed, `crowdHijack` in `data/incidents.ts`). The whole feature is built by wiring four existing
@@ -39,33 +43,52 @@ battle royal). New data `data/fanRivalry.ts` for the wire lines. New stipulation
 `heatRequirement` since it's never unlocked-and-booked by the player, only forced — though it's a
 real generic stipulation afterward too, not hidden). New settings `fanIncidentChance` (rolled per
 eligible heel woman in a *resolved match*, not per show — kept low, 0.03, so it reads as a rare,
-memorable incident even on a card-heavy week) and `fanRivalryShootHeat`. Schema 70 → 71.
+memorable incident even on a card-heavy week), `fanRivalryShootHeat`, `fanRivalryWinSignDiscount`
+(below 1 — the cheap-signing multiplier on `askingRate()`), and `fanRivalryLossAskingRateMult` (above
+1 — losing doesn't lower her price, since she still looked like a star doing it). Schema 70 → 71.
 
 Four `store.ts` wiring points, all inside the existing per-segment match-resolution loop or the
 existing card-creation block, right alongside Faction Destroyer's own equivalents: (1) the trigger,
 entity-seeded (`fanIncident:${wrestler.id}:${world.week}`) right after the ordinary `rollIncident`
 call; (2) force the callout promo onto the next card, right after `createEmptyPromoSlots`; (3) force
 the unsanctioned match the week after that, right after Faction Destroyer's own forced-segment block;
-(4) sign her once the match resolves, right after Faction Destroyer's own stipulation-consequence
-block — regardless of `result.winnerWrestlerIds`, which is read only for the write-up, never to
-decide *whether* she gets signed (she always does; the sim decided who won, not this story, per the
-"no scripted finishes" non-negotiable). Steps 2 and 3 abandon the story (`world.fanRivalry = null`)
-rather than leave it stuck forever blocking a future pairing, if a promo slot or a working participant
-isn't available that week. Unlike Faction Destroyer's one-time `factionDestroyerHappened` latch, this
-is deliberately repeatable — `world.fanRivalry` just clears back to `null` once the arc resolves, so a
-fresh eligible heel/fan pairing can start a new instance of the story later.
+(4) the payoff, once the match resolves, right after Faction Destroyer's own stipulation-consequence
+block. Steps 2 and 3 abandon the story (`world.fanRivalry = null`) rather than leave it stuck forever
+blocking a future pairing, if a promo slot or a working participant isn't available that week. Unlike
+Faction Destroyer's one-time `factionDestroyerHappened` latch, this is deliberately repeatable —
+`world.fanRivalry` just clears back to `null` once the arc resolves, so a fresh eligible heel/fan
+pairing can start a new instance of the story later.
+
+**Follow-up, same session:** step 4 originally signed her to the player's roster unconditionally,
+regardless of who won — the player asked whether the result should actually matter, and confirmed
+the free-agency route on a loss deliberately risks losing her to a rival ("let the cards fall... if a
+rival promotion signs her, she has a beef with the heel AND my promotion"). Extracted the decision
+into a pure `resolveFanRivalryPayoff(fan, fanWon, settings, currentYear)` in `fanRivalry.ts` — same
+split `resolveFactionDestroyer` already uses (`store.ts` reads `result.winnerWrestlerIds` only to
+decide which branch, per the "no scripted finishes" non-negotiable; the function itself never sees
+the sim). A win builds a real one-year contract at a discounted `askingRate()` and signs her straight
+to the player's roster; a loss pushes a `FreeAgent` entry (new `AvailabilityReason: 'provedItAnyway'`)
+at a *raised* `askingRate()` instead — priced at what the tape just showed, not discounted for having
+lost. The `Rivalry` opened in week one is untouched either way, so the beef persists onto whichever
+roster she lands on next, or none, exactly as asked.
 
 Tests: `engine/world/fanRivalry.test.ts` (eligibility gating, the gem-tier fan, the week arithmetic,
-both forced-segment builders) and `state/fanRivalry.store.test.ts` (full weekly-tick integration —
-the trigger opens a rivalry+storyline and locks the callout in the same call; a second eligible heel
-woman is ignored while one story is already running; the match gets forced the week after the
-callout resolves; she's signed with a real contract regardless of the seeded outcome; the abandon
-path when there's nowhere to put the callout). Verified live in a played save via `window.__store`:
-forced the trigger chance to 1 for a seeded heel woman, ran the show, watched the incident wire line
-and the new rivalry/storyline appear, the callout get forced onto the following card and resolve,
-the unsanctioned match get forced the week after and resolve, and the fan land on the roster with a
-contract and the original wrestler still tied to her by the same rivalry — all findable afterward
-from the Feuds tab.
+both forced-segment builders, and `resolveFanRivalryPayoff`'s two branches — contract terms on a win,
+free-agent terms on a loss, both against a real `generateRingsideFan` fixture rather than a synthetic
+stub) and `state/fanRivalry.store.test.ts` (full weekly-tick integration — the trigger opens a
+rivalry+storyline and locks the callout in the same call; a second eligible heel woman is ignored
+while one story is already running; the match gets forced the week after the callout resolves; the
+payoff matches whichever branch the sim's own real result says it should, read back out of
+`showHistory` the same way `factionDestroyer.store.test.ts` reads its own forced match; the abandon
+path when there's nowhere to put the callout). Verified live in a played save via `window.__store`,
+twice: once end to end at natural odds (incident → rivalry/storyline → forced callout → forced match →
+win → signed, cheap, one year, shown live on the Feuds tab), and once forcing each payoff branch by
+stacking both wrestlers' stats and `deckStacking.favoredSideIndex` toward each outcome in turn —
+confirmed the win case signs a contract below `askingRate()` and the loss case pushes a `'provedItAnyway'`
+free-agent entry above it, with no contract and no roster spot, and the right wire line either way.
+The first pass also surfaced a real, correct edge case unprompted: the heel came out of her own
+incident-triggering match genuinely injured, and the abandon-on-failure guard in step 3 cleanly bailed
+the story instead of leaving it stuck — confirmed working as designed, not a bug.
 
 ---
 

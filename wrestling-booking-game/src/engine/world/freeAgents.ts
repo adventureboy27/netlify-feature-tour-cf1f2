@@ -27,7 +27,9 @@ export type AvailabilityReason =
   | 'schoolGraduate'
   /** Never trained. Walked in off the street asking for a look — see walkOns.ts. */
   | 'walkOn'
-  | 'returning';
+  | 'returning'
+  /** Lost the unsanctioned payoff match, but looked good enough doing it that the office doesn't get her cheap — see fanRivalry.ts. */
+  | 'provedItAnyway';
 
 export interface FreeAgent {
   wrestlerId: string;
@@ -50,6 +52,7 @@ export const AVAILABILITY_LABELS: Record<AvailabilityReason, string> = {
   schoolGraduate: 'Out of the school',
   walkOn: 'Walked in off the street',
   returning: 'Coming back',
+  provedItAnyway: 'Lost the fight, won the room',
 };
 
 /**

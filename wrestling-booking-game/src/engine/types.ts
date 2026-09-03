@@ -3123,6 +3123,10 @@ export interface WorldSettings {
   fanIncidentChance: number;
   /** Starting shoot heat for the rivalry it opens with — a real scuffle, not a booked angle. */
   fanRivalryShootHeat: number;
+  /** Multiplier on askingRate() for the cheap, short deal she gets for winning the payoff match — below 1. */
+  fanRivalryWinSignDiscount: number;
+  /** Multiplier on askingRate() for the free-agent asking price after losing the payoff match — above 1, since she still looked like a star doing it. */
+  fanRivalryLossAskingRateMult: number;
 
   // --- Discipline, engine/career/discipline.ts -----------------------------
   /** How many go on file before a fine, and before a suspension. */

@@ -3,7 +3,8 @@
 // test file). This file covers the weekly-tick wiring in store.ts: the
 // trigger during match resolution, the rivalry/storyline it opens with, the
 // forced callout promo a week later, the forced unsanctioned match the week
-// after that, and the signing that follows regardless of who won.
+// after that, and the win/lose payoff branch that follows — a cheap contract
+// if she won it, free agency at a raised price if she didn't.
 
 import { describe, expect, it, beforeEach } from 'vitest';
 import { useGameStore } from './store';
@@ -168,7 +169,7 @@ describe('the incident', () => {
 describe('the follow-through', () => {
   beforeEach(() => newGame());
 
-  it('forces the unsanctioned match the week after the callout, then signs her regardless of who won', () => {
+  it('forces the unsanctioned match the week after the callout, then pays off in whichever branch the sim actually decided', () => {
     const heel = addHeelWoman('heel-2');
     triggerIncident(heel.id);
     const fanId = useGameStore.getState().world!.fanRivalry!.fanId;
@@ -185,14 +186,35 @@ describe('the follow-through', () => {
     runWeek(); // resolves the match
 
     world = useGameStore.getState().world!;
-    expect(world.fanRivalry).toBeNull(); // the arc is complete
+    expect(world.fanRivalry).toBeNull(); // the arc is complete either way
     const fan = world.wrestlers[fanId]!;
-    expect(fan.contract).not.toBeNull();
-    expect(fan.promotionId).toBe(world.promotion.id);
-    expect(world.promotion.rosterIds).toContain(fanId);
+
+    // The sim, not this story, decided who won — read the real result back
+    // out of showHistory to know which branch ought to have fired, same
+    // approach factionDestroyer.store.test.ts uses for its own forced match.
+    const show = world.showHistory[world.showHistory.length - 1]!;
+    const seg = show.segments.find((s) => s.stipulation === 'unsanctioned')!;
+    const fanWon = seg.result!.winnerWrestlerIds.includes(fanId);
+
+    if (fanWon) {
+      expect(fan.contract).not.toBeNull();
+      expect(fan.contract!.totalWeeks).toBe(52);
+      expect(fan.promotionId).toBe(world.promotion.id);
+      expect(world.promotion.rosterIds).toContain(fanId);
+      expect(world.freeAgents.some((a) => a.wrestlerId === fanId)).toBe(false);
+    } else {
+      expect(fan.contract).toBeNull();
+      expect(world.promotion.rosterIds).not.toContain(fanId);
+      const entry = world.freeAgents.find((a) => a.wrestlerId === fanId);
+      expect(entry).toBeDefined();
+      expect(entry!.reason).toBe('provedItAnyway');
+    }
+
     expect(world.weeklyNews.some((n) => n.text.includes(fan.name) && n.text.includes(heel.name))).toBe(true);
 
-    // The enemy she ends the story with is the same rivalry the incident opened.
+    // The enemy she ends the story with is the same rivalry the incident
+    // opened, regardless of which promotion — or none — she ends up signed
+    // to.
     expect(world.rivalries.some((r) => r.participantIds.includes(heel.id) && r.participantIds.includes(fanId))).toBe(
       true,
     );

@@ -23,7 +23,12 @@ export function fanMatchScheduledLine(wrestlerName: string, fanName: string): st
   return `It's official for next week: ${wrestlerName} against ${fanName}, unsanctioned. No referee's decision to hide behind, no rulebook for either of them to lean on.`;
 }
 
-/** After the match: whatever happened, the fan can go — and now there's a contract and an enemy waiting on the same night. */
-export function fanSignedLine(fanName: string, wrestlerName: string, promotionName: string): string {
-  return `Whatever anybody expected out of ${fanName}, it wasn't that. ${promotionName} handed over a contract before ${fanName} had even left the building — and ${wrestlerName} is still standing right there waiting.`;
+/** After the match, if the fan won it: signed on the spot, cheap, before the rest of the business catches up. */
+export function fanSignedCheapLine(fanName: string, wrestlerName: string, promotionName: string): string {
+  return `Whatever anybody expected out of ${fanName}, it wasn't that. ${promotionName} had a contract signed before ${fanName} had even left the building — one year, dirt cheap, while nobody else in the business has caught up yet — and ${wrestlerName} is still standing right there waiting.`;
+}
+
+/** After the match, if the fan lost it: no contract offered, straight to free agency at a price that already knows what the tape showed. */
+export function fanFreeAgencyLine(fanName: string, wrestlerName: string): string {
+  return `${fanName} lost that one, but not the argument — every office in the business watched the same tape, and the price just went up. Nobody handed out a contract tonight, but wherever ${fanName} signs next, ${wrestlerName} won't be the only one who remembers how this started.`;
 }

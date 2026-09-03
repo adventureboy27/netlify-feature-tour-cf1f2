@@ -1301,6 +1301,14 @@ export function defaultWorldSettings(): WorldSettings {
     // rather than a recurring gimmick.
     fanIncidentChance: 0.03,
     fanRivalryShootHeat: 14,
+    // DESIGN: the win/lose branch the player asked for — a win gets her
+    // signed before the rest of the business catches up (cheap, and short,
+    // so the discount doesn't haunt the books for two years); a loss sends
+    // her to free agency instead, priced as what she just showed on tape
+    // rather than what a walk-on normally costs — the office doesn't get her
+    // for free just for having found her first.
+    fanRivalryWinSignDiscount: 0.55,
+    fanRivalryLossAskingRateMult: 1.4,
 
     // Discipline. Two on file before it costs money, four before it costs
     // you a spot on the card — slow enough that one bad night is not a

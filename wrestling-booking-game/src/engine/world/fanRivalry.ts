@@ -22,10 +22,12 @@
 // What makes the fan's stats good is entirely engine/world/walkOns.ts's
 // existing 'gem' path — nothing new is rolled for that here.
 
-import type { Id, Wrestler, WorldSettings, Segment, MatchRules, DeckStacking } from '../types';
+import type { Id, Wrestler, WorldSettings, Segment, MatchRules, DeckStacking, Contract } from '../types';
 import type { Rng } from '../rng';
 import { generateWrestler } from '../generate/wrestler';
 import { asWalkOn } from './walkOns';
+import { askingRate, splitRate, desiredContractWeeks } from '../economy/contracts';
+import type { FreeAgent } from './freeAgents';
 import { DEFAULT_PACE } from '../../data/pacing';
 
 export interface FanRivalryStory {
@@ -142,5 +144,56 @@ export function buildFanRivalryMatchSegment(
     } satisfies DeckStacking,
     result: null,
     systemForced: 'fanRivalry',
+  };
+}
+
+export interface FanRivalryPayoff {
+  fanWon: boolean;
+  /** Set only on a win — a real contract, ready to sign her with. */
+  contract: Contract | null;
+  /** Set only on a loss — a free-agent pool entry instead of a contract. */
+  freeAgent: FreeAgent | null;
+}
+
+/**
+ * Win it, and the office signs her cheap, short, before the rest of the
+ * business catches up. Lose it, and she still looked like a star doing it —
+ * no contract for free just for having found her first, straight to free
+ * agency instead, priced at what the tape just showed. Pure decision only,
+ * same split resolveFactionDestroyer's own consumer in store.ts uses — the
+ * sim decided `fanWon` already, this only decides what follows from it.
+ */
+export function resolveFanRivalryPayoff(
+  fan: Wrestler,
+  fanWon: boolean,
+  settings: WorldSettings,
+  currentYear: number,
+): FanRivalryPayoff {
+  if (!fanWon) {
+    return {
+      fanWon: false,
+      contract: null,
+      freeAgent: {
+        wrestlerId: fan.id,
+        reason: 'provedItAnyway',
+        askingRate: askingRate(fan, settings) * settings.fanRivalryLossAskingRateMult,
+        wantsWeeks: desiredContractWeeks(fan, settings),
+        weeksUnsigned: 0,
+      },
+    };
+  }
+  const discountedTotal = askingRate(fan, settings) * settings.fanRivalryWinSignDiscount;
+  return {
+    fanWon: true,
+    contract: {
+      type: 'fullTime',
+      ...splitRate(fan, settings, discountedTotal),
+      weeksRemaining: 52,
+      totalWeeks: 52,
+      clauses: [],
+      guaranteedPct: 0,
+      signedYear: currentYear,
+    },
+    freeAgent: null,
   };
 }

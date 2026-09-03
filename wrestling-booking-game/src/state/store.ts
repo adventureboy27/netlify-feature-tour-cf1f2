@@ -601,12 +601,14 @@ import {
   beginFanRivalryStory,
   buildFanCalloutPromo,
   buildFanRivalryMatchSegment,
+  resolveFanRivalryPayoff,
 } from '../engine/world/fanRivalry';
 import {
   fanIncidentLine,
   fanCalloutScheduledLine,
   fanMatchScheduledLine,
-  fanSignedLine,
+  fanSignedCheapLine,
+  fanFreeAgencyLine,
 } from '../data/fanRivalry';
 import type { LoanTier } from '../engine/economy/loan';
 import {
@@ -3119,35 +3121,44 @@ export const useGameStore = create<GameStore>()(
           }
 
           // Fan rivalry payoff — see engine/world/fanRivalry.ts. The sim
-          // already decided the winner above; that's read here only for the
-          // write-up, never to decide whether she gets signed — she was
-          // always getting signed, win or lose. This region runs before
-          // world.week += 1, so wire pushes stamp world.week + 1, same
-          // convention as Faction Destroyer's own block just above.
+          // already decided the winner above; read here only to branch what
+          // happens next, never to decide it beforehand. Win it, and the
+          // office signs her cheap before the rest of the business catches
+          // up. Lose it, and she still looked like a star doing it — no
+          // contract for free just for being found first, straight to free
+          // agency instead, priced at what the tape just showed. This region
+          // runs before world.week += 1, so wire pushes stamp world.week + 1,
+          // same convention as Faction Destroyer's own block just above.
           if (stipulation?.id === 'unsanctioned' && segment.systemForced === 'fanRivalry' && world.fanRivalry) {
             const story = world.fanRivalry;
             const fan = world.wrestlers[story.fanId];
             if (fan) {
-              fan.contract = createStandardContract(
-                fan,
-                world.settings,
-                world.settings.startingYear + Math.floor(world.week / 52),
-              );
-              fan.promotionId = world.promotion.id;
-              if (!world.promotion.rosterIds.includes(fan.id)) {
-                world.promotion.rosterIds.push(fan.id);
+              const fanWon = result.winnerWrestlerIds.includes(fan.id);
+              const currentYear = world.settings.startingYear + Math.floor(world.week / 52);
+              const payoff = resolveFanRivalryPayoff(fan, fanWon, world.settings, currentYear);
+              let beatText: string;
+              if (payoff.contract) {
+                fan.contract = payoff.contract;
+                fan.promotionId = world.promotion.id;
+                if (!world.promotion.rosterIds.includes(fan.id)) {
+                  world.promotion.rosterIds.push(fan.id);
+                }
+                beatText = fanSignedCheapLine(fan.name, story.wrestlerName, world.promotion.name);
+              } else {
+                world.freeAgents.push(payoff.freeAgent!);
+                beatText = fanFreeAgencyLine(fan.name, story.wrestlerName);
               }
-              const signedText = fanSignedLine(fan.name, story.wrestlerName, world.promotion.name);
+
               const existingStory = world.storylines.find((s) => s.rivalryId === story.rivalryId);
               if (existingStory) {
                 const idx = world.storylines.indexOf(existingStory);
                 world.storylines[idx] = advance(
                   existingStory,
-                  { week: world.week, kind: 'match', text: signedText },
+                  { week: world.week, kind: 'match', text: beatText },
                   world.settings,
                 );
               }
-              world.weeklyNews.push(wire('signing', signedText, world.week + 1, 'lead'));
+              world.weeklyNews.push(wire('signing', beatText, world.week + 1, 'lead'));
             }
             world.fanRivalry = null;
           }

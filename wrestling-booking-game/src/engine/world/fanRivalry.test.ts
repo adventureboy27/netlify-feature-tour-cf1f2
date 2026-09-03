@@ -5,9 +5,11 @@ import {
   beginFanRivalryStory,
   buildFanCalloutPromo,
   buildFanRivalryMatchSegment,
+  resolveFanRivalryPayoff,
 } from './fanRivalry';
 import { defaultWorldSettings } from './settings';
 import { rngFromSeed } from '../rng';
+import { askingRate } from '../economy/contracts';
 import type { Wrestler } from '../types';
 
 const settings = defaultWorldSettings();
@@ -115,5 +117,35 @@ describe('buildFanRivalryMatchSegment', () => {
     expect(seg.rules.ruleStrictness).toBe('none');
     expect(seg.rules.countOuts).toBe('none');
     expect(seg.result).toBeNull();
+  });
+});
+
+describe('resolveFanRivalryPayoff', () => {
+  const fan = generateRingsideFan(rngFromSeed('payoff-fan'), 2024, settings, new Set());
+
+  it('wins: a real, cheap, one-year contract — no free-agent entry', () => {
+    const payoff = resolveFanRivalryPayoff(fan, true, settings, 2024);
+    expect(payoff.fanWon).toBe(true);
+    expect(payoff.freeAgent).toBeNull();
+    expect(payoff.contract).not.toBeNull();
+    expect(payoff.contract!.totalWeeks).toBe(52);
+    expect(payoff.contract!.weeksRemaining).toBe(52);
+    expect(payoff.contract!.signedYear).toBe(2024);
+
+    // Cheap relative to what a standard deal would have paid for the same person.
+    const marketTotal = payoff.contract!.weeklyRate + payoff.contract!.perAppearance;
+    const standardTotal = askingRate(fan, settings);
+    expect(marketTotal).toBeLessThan(standardTotal);
+  });
+
+  it('loses: a free-agent entry at a raised price — no contract', () => {
+    const payoff = resolveFanRivalryPayoff(fan, false, settings, 2024);
+    expect(payoff.fanWon).toBe(false);
+    expect(payoff.contract).toBeNull();
+    expect(payoff.freeAgent).not.toBeNull();
+    expect(payoff.freeAgent!.wrestlerId).toBe(fan.id);
+    expect(payoff.freeAgent!.reason).toBe('provedItAnyway');
+    // Priced above the ordinary ask — she still looked like a star losing.
+    expect(payoff.freeAgent!.askingRate).toBeGreaterThan(askingRate(fan, settings));
   });
 });
