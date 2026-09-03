@@ -24,7 +24,54 @@ import { recordInjury } from '../../engine/career/theBody';
 import { endRepresentation } from '../../engine/career/representation';
 import { teamFormedLine, teamSplitLine, wire } from '../../engine/world/wire';
 import { groupTurnLetItHappenLine, groupTurnBreakItUpLine } from '../../data/groupTurns';
-import { clamp } from '../../engine/rng';
+import { clamp, pick, rngFromSeed } from '../../engine/rng';
+import { advance, storylineBetween } from '../../engine/world/storyline';
+import { STORYLINE_NAME_PATTERNS, type StorylineBeatKind } from '../../data/storylineBeats';
+import type { World } from '../world';
+import type { Id, Rivalry } from '../../engine/types';
+
+/**
+ * A group turn is real enough to carry a name, same as anything the booker
+ * starts by hand (see startStoryline in this directory) — so it shows up in
+ * the Office's Feuds index, not only as a heat badge on everyone involved.
+ * The turn itself is the opening beat rather than an empty slate: advance()
+ * seeds it with the beatdown (or the office stepping in) immediately,
+ * instead of waiting on whatever match happens to pair them next.
+ */
+function startGroupTurnStoryline(
+  world: World,
+  rivalry: Rivalry,
+  participantIds: readonly Id[],
+  aName: string,
+  bName: string,
+  beatKind: StorylineBeatKind,
+  beatText: string,
+): void {
+  if (storylineBetween(world.storylines, participantIds)) return;
+  const pattern = pick(
+    rngFromSeed(`groupTurnStory:${rivalry.id}`),
+    STORYLINE_NAME_PATTERNS,
+  );
+  const town = world.territories.find((t) => t.id === world.promotion.homeTerritoryId);
+  const name = pattern
+    .replace('{a}', aName)
+    .replace('{b}', bName)
+    .replace('{town}', town?.name ?? 'Town');
+  const opening = {
+    id: `story-${world.week}-${world.storylines.length}`,
+    name,
+    participantIds: [...participantIds],
+    rivalryId: rivalry.id,
+    stage: 'opening' as const,
+    startWeek: world.week,
+    lastAdvancedWeek: world.week,
+    beats: [],
+    neglectedWeeks: 0,
+    resolvedWeek: null,
+    payoff: null,
+  };
+  world.storylines.push(advance(opening, { week: world.week, kind: beatKind, text: beatText }, world.settings));
+}
 
 type GroupTurnsSlice = Pick<GameStore, 'formGroup' | 'kickFromGroup' | 'answerGroupTurnCall'>;
 
@@ -185,13 +232,21 @@ export const createGroupTurnsSlice: StateCreator<
         );
         rivalry.heat = clamp(settings.groupTurnLetItHappenHeat, 0, 100);
         world.rivalries.push(rivalry);
-        world.weeklyNews.push(
-          wire(
-            'team',
-            groupTurnLetItHappenLine(call.stableName, call.departingName, call.attackerNames, call.managerName),
-            world.week,
-            'lead',
-          ),
+        const letItHappenLine = groupTurnLetItHappenLine(
+          call.stableName,
+          call.departingName,
+          call.attackerNames,
+          call.managerName,
+        );
+        world.weeklyNews.push(wire('team', letItHappenLine, world.week, 'lead'));
+        startGroupTurnStoryline(
+          world,
+          rivalry,
+          rivalryParticipants,
+          call.departingName.split(' ').slice(-1)[0] ?? call.departingName,
+          call.stableName,
+          'interference',
+          letItHappenLine,
         );
       } else {
         world.promotion.bookingCredibility = clamp(
@@ -209,7 +264,17 @@ export const createGroupTurnsSlice: StateCreator<
         );
         rivalry.shootHeat = clamp(settings.groupTurnBreakItUpShootHeat, 0, 100);
         world.rivalries.push(rivalry);
-        world.weeklyNews.push(wire('team', groupTurnBreakItUpLine(call.stableName, call.departingName), world.week, 'normal'));
+        const breakItUpLine = groupTurnBreakItUpLine(call.stableName, call.departingName);
+        world.weeklyNews.push(wire('team', breakItUpLine, world.week, 'normal'));
+        startGroupTurnStoryline(
+          world,
+          rivalry,
+          rivalryParticipants,
+          call.departingName.split(' ').slice(-1)[0] ?? call.departingName,
+          call.stableName,
+          'confrontation',
+          breakItUpLine,
+        );
       }
 
       world.pendingGroupTurnCall = null;

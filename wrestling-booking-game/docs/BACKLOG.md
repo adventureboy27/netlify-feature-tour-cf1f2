@@ -5448,3 +5448,27 @@ next.
 - Verified: `tsc --noEmit` clean; full suite 203 files / 3,393 tests passing; `npm run build` clean; replayed
   the same live-browser scenario — Office → Feuds now lists both names as "1 current — just started,"
   and opening either one's feud detail shows "No Love Lost vs. [other]" with the confrontation recap line.
+
+### Follow-up: the same gap fixed in groupTurns.ts
+
+The group-turn rivalry (`state/slices/groupTurns.ts`) had the exact same gap the firing fix above closed
+— it already creates a real `Rivalry` for both `letItHappen` and `breakItUp`, and never wrote to
+`world.storylines` either. Fixed with the same shape, factored into one shared local helper
+(`startGroupTurnStoryline`) since group turns have two call sites instead of one. The one real
+difference: a group turn's `rivalryParticipants` can be more than two people (the departing member plus
+however many attackers, plus an optional manager), which `Storyline.participantIds` has no trouble
+holding — `STORYLINE_NAME_PATTERNS`'s `{a}`/`{b}` slots are filled with the departing member's surname and
+the stable's name rather than two people's names, which reads correctly across every pattern in the pool
+("Yarrow Wants The Trio" is what a played save landed on) since a group turn is naturally billed as
+person-vs-group, not person-vs-person. `letItHappen` seeds an `interference` beat (multiple people jumping
+one); `breakItUp` seeds a `confrontation` beat (nobody actually gets hurt in that branch, so `injury` would
+overstate it).
+
+- Files: `state/slices/groupTurns.ts` (new `startGroupTurnStoryline` helper, called from both branches of
+  `answerGroupTurnCall`).
+- Tests: extended `groupTurns.store.test.ts`'s existing `letItHappen`/`breakItUp` cases with the same
+  storyline assertions used for the firing fix.
+- Verified: `tsc --noEmit` clean; full suite 203 files / 3,393 tests passing; `npm run build` clean; a live
+  playthrough (form a same-gender trio, stage a turn, book the departing member, run the show, answer
+  "Let it happen" through the actual `DialogueCard`) confirmed all three participants now show on Office →
+  Feuds as "1 current — just started."

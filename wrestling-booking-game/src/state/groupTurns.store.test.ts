@@ -303,6 +303,16 @@ describe('answering a group turn call', () => {
     expect(rivalry!.shootHeat).toBeGreaterThan(0);
     expect(world.pendingGroupTurnCall).toBeNull();
     expect(world.scheduledGroupTurns.some((t) => t.departingId === departingId)).toBe(false);
+
+    // Real enough to show up in Office's Feuds index, not only as a heat
+    // badge — see engine/world/storyline.ts's isLive/everyoneWithAStoryline.
+    const story = world.storylines.find((s) => s.participantIds.includes(departingId));
+    expect(story).toBeDefined();
+    expect(story!.rivalryId).toBe(rivalry!.id);
+    expect(story!.stage).not.toBe('blownOff');
+    expect(story!.stage).not.toBe('fizzled');
+    expect(story!.beats).toHaveLength(1);
+    expect(story!.beats[0]!.kind).toBe('interference');
   });
 
   it('breakItUp: nobody gets hurt, and the rivalry starts worked instead of shoot', () => {
@@ -317,6 +327,12 @@ describe('answering a group turn call', () => {
     expect(rivalry!.origin).toBe('worked');
     expect(rivalry!.heat).toBeGreaterThan(0);
     expect(world.pendingGroupTurnCall).toBeNull();
+
+    const story = world.storylines.find((s) => s.participantIds.includes(departingId));
+    expect(story).toBeDefined();
+    expect(story!.rivalryId).toBe(rivalry!.id);
+    expect(story!.beats).toHaveLength(1);
+    expect(story!.beats[0]!.kind).toBe('confrontation');
   });
 
   it('ends a real signed representation deal when the manager is part of the turn', () => {
