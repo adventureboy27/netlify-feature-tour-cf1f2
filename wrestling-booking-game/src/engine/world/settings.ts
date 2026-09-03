@@ -788,6 +788,8 @@ export function defaultWorldSettings(): WorldSettings {
     commentaryDeviousManager: 60,
     commentaryStreakRun: 4,
     commentarySlumpRun: 3,
+    commentaryUnderdogMinDecisions: 6,
+    commentaryUnderdogRecordGap: 0.3,
     // Against a ten-week booking memory, four meetings is a pairing nobody
     // would actually book; three is a real feud's cadence. Measured: at four,
     // "they have met this often" fired in 0 of 1246 called matches.

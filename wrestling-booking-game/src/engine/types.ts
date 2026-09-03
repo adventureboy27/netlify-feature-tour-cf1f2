@@ -2623,6 +2623,16 @@ export interface WorldSettings {
   commentaryWeatherDrawHit: number;
   /** Years in the business before the number itself is worth saying out loud. */
   commentaryLongCareerYears: number;
+  /**
+   * Decisive matches (wins + losses, draws not counted) each side of a
+   * singles introduction needs before their record is trustworthy enough to
+   * compare against the other man's — a 2-0 rookie is not "the favorite,"
+   * they are just new. Below this floor the announcers still say the raw
+   * record, they just do not call anybody the underdog off it.
+   */
+  commentaryUnderdogMinDecisions: number;
+  /** Gap in decisive win rate before one side's record makes them the clear underdog. */
+  commentaryUnderdogRecordGap: number;
 
   // Storylines — see world/storyline.ts.
   /** Investment at which an arc stops being new, and at which it is ready. */

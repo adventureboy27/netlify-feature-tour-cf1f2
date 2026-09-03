@@ -47,6 +47,9 @@ import {
   OPENERS,
   STAKES,
   CLOSERS,
+  INTRO_RECORD,
+  INTRO_COLOUR,
+  INTRO_UNDERDOG,
   type ColourTemplate,
   type Leaning,
 } from '../../data/commentaryLines';
@@ -117,7 +120,22 @@ export type CommentaryFact =
   | 'weatherHurtGate'
   | 'bigShow'
   /** Somebody who has been doing this long enough for the number to matter. */
-  | 'longCareer';
+  | 'longCareer'
+  // --- the tale of the tape — computed per wrestler, singles matches only.
+  // See introduceParticipants(). Never set by factsOf(); these live in a
+  // fresh Set built fresh for each side, so the same key means a different
+  // person depending on which side's pass is running.
+  /** Has held a championship in this company at some point in their career. */
+  | 'introFormerChampion'
+  | 'introSecondGeneration'
+  /** Their first match for this company. */
+  | 'introDebut'
+  | 'introHotStreak'
+  | 'introSlump'
+  | 'introVeteran'
+  | 'introRookie'
+  /** This side's record is clearly the weaker of the two coming in. */
+  | 'introUnderdog';
 
 export type Speaker = 'play' | 'colour';
 
@@ -314,6 +332,36 @@ function momentumFacts(ctx: CommentaryContext, momentum: Momentum): Set<Commenta
   return facts;
 }
 
+/** "12-4" — or "12-4-1" once there is a draw worth carrying. */
+export function formatRecord(w: Wrestler): string {
+  const r = w.record;
+  return r.draws > 0 ? `${r.wins}-${r.losses}-${r.draws}` : `${r.wins}-${r.losses}`;
+}
+
+/** Decisive win rate — draws don't move it either way. Null under the sample floor. */
+export function decisiveWinRate(w: Wrestler, minDecisions: number): number | null {
+  const decisions = w.record.wins + w.record.losses;
+  return decisions >= minDecisions ? w.record.wins / decisions : null;
+}
+
+/**
+ * Everything worth saying about *this one wrestler*, independent of who is
+ * across the ring from them. Unlike factsOf() this is never stored on the
+ * match — it is built fresh for each side of a singles introduction, so the
+ * same fact key means somebody different each time it is used.
+ */
+export function introFactsOf(w: Wrestler, s: WorldSettings): Set<CommentaryFact> {
+  const facts = new Set<CommentaryFact>();
+  if (w.titleReigns.length > 0) facts.add('introFormerChampion');
+  if (w.lineage) facts.add('introSecondGeneration');
+  if (w.career.matches === 0) facts.add('introDebut');
+  if (w.career.streak >= s.commentaryStreakRun) facts.add('introHotStreak');
+  if (w.career.streak <= -s.commentarySlumpRun) facts.add('introSlump');
+  if (w.age >= s.scoutOldAge) facts.add('introVeteran');
+  if (w.age <= s.commentaryRookieAge) facts.add('introRookie');
+  return facts;
+}
+
 /**
  * Fill in the names.
  *
@@ -502,10 +550,91 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     lines.push({ speaker: 'colour', name: ctx.team.colourName, text: fill(text, momentum) });
 
   // ---- who, and what for -------------------------------------------------
+  // A genuine one-on-one gets a real tale of the tape below — the debut and
+  // lineage openers would just repeat what that is about to say, so they sit
+  // out for singles matches only. Tag and multi-man keep the plain opener.
+  const isSingles = ctx.sideA.length === 1 && ctx.sideB.length === 1;
   // The call always opens by saying what this is. Without it the first line
   // of action lands on somebody who does not know who is in the ring.
-  const openers = OPENERS.filter((t) => t.needs.every((f) => facts.has(f)));
+  const openers = OPENERS.filter(
+    (t) =>
+      t.needs.every((f) => facts.has(f)) &&
+      !(isSingles && (t.needs.includes('debut') || t.needs.includes('secondGeneration'))),
+  );
   play(pick(rng, openers.length > 0 ? openers : OPENERS.filter((t) => t.needs.length === 0)).text);
+
+  // ---- the tale of the tape -----------------------------------------------
+  // Record, always — even a flat .500 night is worth a sentence, per the
+  // brief. Everything after it is fact-gated the ordinary way: a hot streak,
+  // a slump, a former title, a lineage, an age worth remarking on. Computed
+  // fresh per wrestler rather than off ctx's match-wide single-pick fields,
+  // because those pick the first match found across *both* corners and would
+  // misattribute a fact to the wrong man half the time here.
+  //
+  // DESIGN: scoped to true singles matches. A tag or multi-man introduction
+  // this way would be a wall of biography before a single lock-up — see the
+  // module comment's "IT MUST PERTAIN TO THE MATCH" — so larger fields keep
+  // the original one-line opener and pick up facts the existing way, through
+  // the mid-match colour pool.
+  if (isSingles) {
+    const introFill = (text: string, vars: Readonly<Record<string, string>>): string =>
+      text.replace(/\{(\w+)\}/g, (whole, key: string) => vars[key] ?? whole);
+
+    const introduce = (w: Wrestler, opponent: Wrestler) => {
+      const pronouns = pronounsFor(w);
+      const vars: Record<string, string> = {
+        introName: w.name,
+        introRecord: formatRecord(w),
+        introOpponent: opponent.name,
+        introThey: pronouns.they,
+        introTheir: pronouns.their,
+        introThem: pronouns.them,
+        introStreak: String(Math.max(1, w.career.streak)),
+        introSlump: String(Math.max(1, -w.career.streak)),
+        introParent: w.lineage?.parentName ?? 'their family',
+      };
+
+      play(introFill(pick(rng, INTRO_RECORD).text, vars));
+
+      const wFacts = introFactsOf(w, s);
+      const freshIntro = eligible(INTRO_COLOUR, wFacts, ctx.team.leaning, usedColour, null);
+      const availableIntro =
+        freshIntro.length > 0
+          ? freshIntro
+          : leastWorn(eligible(INTRO_COLOUR, wFacts, ctx.team.leaning, usedThisMatch, null));
+      if (availableIntro.length > 0) {
+        const chosen = pick(rng, availableIntro);
+        remember(chosen.text);
+        colour(introFill(chosen.text, vars));
+      }
+    };
+
+    introduce(ctx.sideA[0]!, ctx.sideB[0]!);
+    introduce(ctx.sideB[0]!, ctx.sideA[0]!);
+
+    // The comparison — only once both records have enough decisions behind
+    // them to mean something. A hot rookie's 2-0 does not make them "the
+    // favorite"; it makes them untested, which the debut/rookie lines above
+    // already cover.
+    const rateA = decisiveWinRate(ctx.sideA[0]!, s.commentaryUnderdogMinDecisions);
+    const rateB = decisiveWinRate(ctx.sideB[0]!, s.commentaryUnderdogMinDecisions);
+    if (rateA !== null && rateB !== null && Math.abs(rateA - rateB) >= s.commentaryUnderdogRecordGap) {
+      const underdog = rateA < rateB ? ctx.sideA[0]! : ctx.sideB[0]!;
+      const favorite = rateA < rateB ? ctx.sideB[0]! : ctx.sideA[0]!;
+      const vars: Record<string, string> = { introName: underdog.name, introOpponent: favorite.name };
+      const underdogFacts = new Set<CommentaryFact>(['introUnderdog']);
+      const freshUnderdog = eligible(INTRO_UNDERDOG, underdogFacts, ctx.team.leaning, usedColour, null);
+      const availableUnderdog =
+        freshUnderdog.length > 0
+          ? freshUnderdog
+          : leastWorn(eligible(INTRO_UNDERDOG, underdogFacts, ctx.team.leaning, usedThisMatch, null));
+      if (availableUnderdog.length > 0) {
+        const chosen = pick(rng, availableUnderdog);
+        remember(chosen.text);
+        colour(introFill(chosen.text, vars));
+      }
+    }
+  }
 
   const freshStakes = eligible(STAKES, facts, ctx.team.leaning, usedColour, null);
   const stakes =
@@ -633,6 +762,10 @@ export function permittedNames(ctx: CommentaryContext): Set<string> {
     // A finisher is a proper noun the call is allowed to say, because it
     // belongs to somebody who is in the match.
     if (w.moveSet?.finisher?.name) names.add(w.moveSet.finisher.name);
+    // The tale of the tape reads lineage straight off each wrestler, not off
+    // ctx's single match-wide secondGenParentName pick — so both parents are
+    // permitted, not just whichever one that pick happened to land on.
+    if (w.lineage?.parentName) names.add(w.lineage.parentName);
   }
   for (const m of ctx.managers) {
     names.add(m.name);

@@ -190,6 +190,111 @@ export const OPENERS: readonly ColourTemplate[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// The tale of the tape. Singles matches only — see commentary.ts's
+// callTheMatch(). Run twice per match, once for each corner, with its own
+// small placeholder vocabulary that has nothing to do with the rest of the
+// call: {introName} is whoever this pass is about, never {onTop}/{sideA}.
+//
+//   {introName} {introRecord}      always known — the record itself
+//   {introOpponent}                the other corner, for a direct comparison
+//   {introThey} {introTheir} {introThem}   pronouns for {introName}
+//   {introStreak}                  needs 'introHotStreak' — a positive number
+//   {introSlump}                   needs 'introSlump' — a positive number
+//   {introParent}                  needs 'introSecondGeneration'
+//
+// INTRO_RECORD is always said — no needs, no gate, per the brief: even a
+// flat .500 record gets a sentence. INTRO_COLOUR is the ordinary fact-gated
+// pool sitting right behind it. INTRO_UNDERDOG only ever fires once per
+// match, after both records are on the table, comparing them directly.
+// ---------------------------------------------------------------------------
+
+export const INTRO_RECORD: readonly ColourTemplate[] = [
+  { text: '{introName} comes into this one at {introRecord}.', needs: [] },
+  { text: 'The record for {introName} heading in: {introRecord}.', needs: [] },
+  { text: 'That is a {introRecord} record for {introName} coming into tonight.', needs: [] },
+  { text: '{introName} steps in here at {introRecord} on the year.', needs: [] },
+];
+
+export const INTRO_COLOUR: readonly ColourTemplate[] = [
+  {
+    text: '{introName} has not lost lately — {introThey} won {introStreak} straight coming in.',
+    needs: ['introHotStreak'],
+  },
+  { text: 'You do not want to run into {introName} right now — {introThey} is hot.', needs: ['introHotStreak'] },
+  {
+    text: '{introName} is in the middle of a real run of form — {introStreak} in a row.',
+    needs: ['introHotStreak'],
+    leaning: 'analyst',
+  },
+  {
+    text: 'It has been a rough stretch for {introName} — {introSlump} straight losses coming in.',
+    needs: ['introSlump'],
+  },
+  {
+    text: '{introName} needs this one. {introThey} has dropped {introSlump} in a row.',
+    needs: ['introSlump'],
+  },
+  {
+    text: 'Not the form you want walking into a match like this — {introName} on a {introSlump}-match slide.',
+    needs: ['introSlump'],
+    leaning: 'analyst',
+  },
+  { text: '{introName} has worn gold in this company before, do not forget that.', needs: ['introFormerChampion'] },
+  {
+    text: 'A former champion right here — {introName} has been to the top of the mountain already.',
+    needs: ['introFormerChampion'],
+  },
+  {
+    text: 'That name should sound familiar — {introName} is the kid of {introParent}.',
+    needs: ['introSecondGeneration'],
+  },
+  {
+    text: '{introName} grew up around this business. {introParent} saw to that.',
+    needs: ['introSecondGeneration'],
+    leaning: 'analyst',
+  },
+  {
+    text: 'First match for this company for {introName}, right here, right now.',
+    needs: ['introDebut'],
+  },
+  { text: 'A debut. {introName} has never worked a match for us before tonight.', needs: ['introDebut'] },
+  {
+    text: '{introName} has been doing this a long time. {introThey} has seen every trick {introOpponent} is about to try.',
+    needs: ['introVeteran'],
+  },
+  {
+    text: 'Experience matters in there, and {introName} has plenty of it.',
+    needs: ['introVeteran'],
+    leaning: 'analyst',
+  },
+  {
+    text: '{introName} is still learning on the job — young, and it shows some nights.',
+    needs: ['introRookie'],
+  },
+  {
+    text: "{introName} is green. Nothing wrong with that, but {introThey} is finding it out the hard way most nights.",
+    needs: ['introRookie'],
+    leaning: 'heel',
+  },
+];
+
+export const INTRO_UNDERDOG: readonly ColourTemplate[] = [
+  {
+    text: 'On paper, {introName} is significantly outmatched here against {introOpponent}.',
+    needs: ['introUnderdog'],
+  },
+  {
+    text: "Let's be honest about the numbers — {introName} is the underdog tonight against {introOpponent}.",
+    needs: ['introUnderdog'],
+    leaning: 'analyst',
+  },
+  {
+    text: '{introName} has a real hill to climb tonight against a record like that.',
+    needs: ['introUnderdog'],
+  },
+];
+
+// ---------------------------------------------------------------------------
 // The stakes. The colour man's first job is to say why this matters, and
 // there is only anything to say when something is actually at stake.
 // ---------------------------------------------------------------------------

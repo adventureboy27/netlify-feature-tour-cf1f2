@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { callTheMatch, factsOf, permittedNames, type CommentaryContext } from './commentary';
+import {
+  callTheMatch,
+  factsOf,
+  permittedNames,
+  introFactsOf,
+  formatRecord,
+  decisiveWinRate,
+  type CommentaryContext,
+} from './commentary';
 import {
   BANTER,
   CLOSERS,
@@ -8,6 +16,9 @@ import {
   OPENERS,
   PLAY_BY_PLAY,
   STAKES,
+  INTRO_RECORD,
+  INTRO_COLOUR,
+  INTRO_UNDERDOG,
   type ColourTemplate,
 } from '../../data/commentaryLines';
 import { COMMENTARY_TEAMS } from '../../data/commentators';
@@ -632,6 +643,164 @@ describe('every fact has something to say about it', () => {
       for (const fact of template.needs) {
         expect(ALL_FACTS, `"${template.text}" needs an unknown fact "${fact}"`).toContain(fact);
       }
+    }
+  });
+});
+
+describe('the tale of the tape', () => {
+  // A fresh placeholder vocabulary, unrelated to the match-wide one above —
+  // introName/introRecord/introOpponent/introThey/introTheir/introThem are
+  // always resolvable (every wrestler has a record and pronouns), the rest
+  // need their matching introXxx fact. Mirrors checkPool's own discipline.
+  const INTRO_ALWAYS_SAFE = new Set(['introName', 'introRecord', 'introOpponent', 'introThey', 'introTheir', 'introThem']);
+  const INTRO_BACKED_BY: Record<string, string[]> = {
+    introParent: ['introSecondGeneration'],
+    introStreak: ['introHotStreak'],
+    introSlump: ['introSlump'],
+  };
+
+  function checkIntroPool(name: string, pool: readonly ColourTemplate[]) {
+    describe(name, () => {
+      it('never uses a placeholder it has not earned', () => {
+        for (const template of pool) {
+          for (const key of placeholdersIn(template.text)) {
+            if (INTRO_ALWAYS_SAFE.has(key)) continue;
+            const backing = INTRO_BACKED_BY[key];
+            expect(backing, `${name}: unknown placeholder {${key}} in "${template.text}"`).toBeDefined();
+            expect(
+              backing!.some((fact) => template.needs.includes(fact as never)),
+              `${name}: "${template.text}" uses {${key}} without declaring ${backing!.join(' or ')}`,
+            ).toBe(true);
+          }
+        }
+      });
+
+      it('reads like a sentence somebody would say', () => {
+        for (const template of pool) {
+          expect(template.text.length, template.text).toBeGreaterThan(12);
+          expect(template.text.trim(), template.text).toBe(template.text);
+        }
+      });
+    });
+  }
+
+  checkIntroPool('the intro record lines', INTRO_RECORD);
+  checkIntroPool('the intro colour lines', INTRO_COLOUR);
+  checkIntroPool('the intro underdog lines', INTRO_UNDERDOG);
+
+  it('has at least one line for every intro fact', () => {
+    const INTRO_FACTS = [
+      'introFormerChampion',
+      'introSecondGeneration',
+      'introDebut',
+      'introHotStreak',
+      'introSlump',
+      'introVeteran',
+      'introRookie',
+      'introUnderdog',
+    ];
+    const everyTemplate = [...INTRO_COLOUR, ...INTRO_UNDERDOG];
+    for (const fact of INTRO_FACTS) {
+      const users = everyTemplate.filter((t) => t.needs.includes(fact as never));
+      expect(users.length, `nothing in the tale of the tape ever mentions "${fact}"`).toBeGreaterThan(0);
+    }
+  });
+
+  function competitor(seed: string, over: Partial<Wrestler> = {}): Wrestler {
+    return person(seed, { record: { wins: 10, losses: 10, draws: 0 }, career: { ...person(seed).career, streak: 0, matches: 20 }, lineage: undefined, titleReigns: [], ...over });
+  }
+
+  it('always states the record, even a flat .500', () => {
+    const a = competitor('tape-a', { name: 'Fenn Ostrander', record: { wins: 10, losses: 10, draws: 0 } });
+    const b = competitor('tape-b', { name: 'Roan Kellerman', record: { wins: 4, losses: 20, draws: 1 } });
+    const ctx = bare({ sideA: [a], sideB: [b] });
+    const text = said(ctx, 'record-check');
+    expect(text).toContain('10-10');
+    expect(text).toContain('4-20-1');
+  });
+
+  it('never runs the tale of the tape for a tag or multi-man match', () => {
+    const a1 = competitor('tag-a1', { name: 'Ames Delacroix' });
+    const a2 = competitor('tag-a2', { name: 'Boone Larkspur' });
+    const b1 = competitor('tag-b1', { name: 'Cass Rutherford' });
+    const b2 = competitor('tag-b2', { name: 'Dax Winslow' });
+    const ctx = bare({ sideA: [a1, a2], sideB: [b1, b2] });
+    for (let seed = 0; seed < 10; seed++) {
+      const text = said(ctx, `tag-${seed}`);
+      expect(text).not.toContain('comes into this one at');
+      expect(text).not.toContain('record heading in');
+      expect(text).not.toContain('steps in here at');
+    }
+  });
+
+  it('attributes a former championship to the right corner, not the other one', () => {
+    const champ = competitor('champ', {
+      name: 'Orin Blackwood',
+      titleReigns: [
+        {
+          titleId: 't1',
+          promotionId: 'p1',
+          holderIds: ['champ'],
+          holderAges: [30],
+          wonFromIds: null,
+          wonByMethod: 'match',
+          startWeek: 1,
+          endWeek: 10,
+          endMethod: null,
+        },
+      ],
+    });
+    const never = competitor('never', { name: 'Piers Callahan', titleReigns: [] });
+    expect(introFactsOf(champ, settings).has('introFormerChampion')).toBe(true);
+    expect(introFactsOf(never, settings).has('introFormerChampion')).toBe(false);
+  });
+
+  it('only calls a hot streak or a slump hot or a slump off the real streak thresholds', () => {
+    const hot = competitor('hot', { career: { ...person('hot').career, streak: settings.commentaryStreakRun, matches: 20 } });
+    const cold = competitor('cold', { career: { ...person('cold').career, streak: -settings.commentarySlumpRun, matches: 20 } });
+    const flat = competitor('flat', { career: { ...person('flat').career, streak: 1, matches: 20 } });
+    expect(introFactsOf(hot, settings).has('introHotStreak')).toBe(true);
+    expect(introFactsOf(cold, settings).has('introSlump')).toBe(true);
+    expect(introFactsOf(flat, settings).has('introHotStreak')).toBe(false);
+    expect(introFactsOf(flat, settings).has('introSlump')).toBe(false);
+  });
+
+  it('formats a record with a draw and without one', () => {
+    expect(formatRecord(competitor('r1', { record: { wins: 5, losses: 3, draws: 0 } }))).toBe('5-3');
+    expect(formatRecord(competitor('r2', { record: { wins: 5, losses: 3, draws: 2 } }))).toBe('5-3-2');
+  });
+
+  it('never trusts a small sample for the underdog comparison', () => {
+    const floor = settings.commentaryUnderdogMinDecisions;
+    const rookie = competitor('rookie-sample', { record: { wins: 2, losses: 0, draws: 0 } });
+    const veteran = competitor('vet-sample', { record: { wins: 40, losses: 5, draws: 0 } });
+    expect(decisiveWinRate(rookie, floor)).toBeNull();
+    expect(decisiveWinRate(veteran, floor)).not.toBeNull();
+  });
+
+  it('calls the weaker record the underdog once both sides clear the sample floor', () => {
+    const weak = competitor('weak-record', { name: 'Gale Thornbury', record: { wins: 5, losses: 25, draws: 0 } });
+    const strong = competitor('strong-record', { name: 'Idris Vance', record: { wins: 30, losses: 5, draws: 0 } });
+    const ctx = bare({ sideA: [weak], sideB: [strong] });
+    let sawUnderdog = false;
+    for (let seed = 0; seed < 15; seed++) {
+      const text = said(ctx, `underdog-${seed}`);
+      if (text.includes('Gale Thornbury') && (text.includes('outmatched') || text.includes('underdog') || text.includes('hill to climb'))) {
+        sawUnderdog = true;
+      }
+      // Whichever side it names, it is never the stronger record.
+      expect(text.includes('Idris Vance is significantly outmatched')).toBe(false);
+    }
+    expect(sawUnderdog).toBe(true);
+  });
+
+  it('does not open on the debut or lineage opener for a singles match — the tale of the tape covers it instead', () => {
+    const debutant = competitor('debutant-open', { name: 'Wren Castellan', career: { ...person('debutant-open').career, matches: 0, streak: 0 } });
+    const veteranOpp = competitor('vet-opp', { name: 'Corbin Ashworth' });
+    const ctx = bare({ sideA: [debutant], sideB: [veteranOpp] });
+    for (let seed = 0; seed < 15; seed++) {
+      const lines = callTheMatch(rngFromSeed(`open-${seed}`), ctx);
+      expect(lines[0]!.text.startsWith('Debut night.')).toBe(false);
     }
   });
 });

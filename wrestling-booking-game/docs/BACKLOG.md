@@ -5286,3 +5286,63 @@ formation time.
   mid-countdown) on the card, resolved it, and confirmed the loser disbanded with its wire line landing at
   the correct week, the winner survived with an extra recruit aboard, and the story never re-triggers
   afterward even once a fresh pair of factions coexists.
+
+## The tale of the tape — commentary that actually introduces the two wrestlers
+
+Player ask: the two-man call (`engine/sim/commentary.ts`) already had a rich fact-gated vocabulary —
+former champions, hot streaks and slumps, lineage, veteran/rookie status, rivalry history — but it never
+once said a win/loss record, and the "introduction" at the top of a call was one generic opener line
+("Here we go — X and Y") plus at most one stakes line. Wanted: the announcers to actually introduce both
+competitors, always stating the record — even a flat .500 night — and free to remark on a hot streak, a
+slump, or a lopsided record framing one side as the clear underdog.
+
+**Turned out to need almost no new plumbing.** `sideA`/`sideB` in `CommentaryContext` are already the full
+`Wrestler` objects, and `record`, `age`, `career.streak`, `career.matches`, and `titleReigns` all live
+directly on them — so a genuinely new per-wrestler fact pass (`introFactsOf`) could be built without
+touching `store.ts`'s context-building at all. The existing single-pick fields there (`formerChampionName`,
+`onATearName`, etc.) pick the first match across *both* corners, which is exactly wrong for an
+introduction that has to say the right thing about the right man — so the tale of the tape recomputes its
+facts fresh per wrestler instead of reading those.
+
+**Scoped to true singles matches only**, called out with a `// DESIGN:` comment per CLAUDE.md's rule: a
+tag or six-man introduced this way would be a wall of biography before a single lock-up, which is exactly
+what the module's own "IT MUST PERTAIN TO THE MATCH" rule exists to prevent. Tag and multi-man matches
+keep the original one-line opener and pick up facts the ordinary way, through the mid-match colour pool.
+
+**Record is unconditional** — a new `INTRO_RECORD` pool (no `needs`, always eligible) states it for both
+corners regardless of how it reads, per the explicit ask ("always mention it, even a plain .500 record").
+Everything else stays fact-gated the existing way: a new `INTRO_COLOUR` pool covers a hot streak, a slump,
+a former title, second-generation lineage, a debut, and veteran/rookie status, each keyed to one of eight
+new `CommentaryFact` values (`introFormerChampion`, `introHotStreak`, `introSlump`, etc.) that are
+deliberately never set by the match-wide `factsOf()` — they only ever exist in a fresh `Set` built once per
+side, so the same key means someone different depending on which corner's pass is running.
+
+**The underdog framing needed real judgement, not just a percentage.** A naive win-rate comparison breaks
+on small samples — a 2-0 rookie facing a 40-5 veteran would read as "the favorite" by raw percentage,
+which is backwards. Gated behind a new `commentaryUnderdogMinDecisions` (6) floor: both sides need that
+many decisive (win+loss, draws excluded) matches before the comparison is trusted at all, otherwise the
+debut/rookie facts already cover the framing instead. Above the floor, a gap past
+`commentaryUnderdogRecordGap` (0.3) triggers exactly one comparison line naming the weaker record.
+
+**Openers deliberately step aside for singles matches.** The existing debut and lineage opener lines would
+just repeat what the tale of the tape is about to say in more detail, so `OPENERS` is filtered to exclude
+those two variants whenever the new pass is going to run — tag matches, which don't get the new pass,
+keep them.
+
+**Caught by the existing "never names nobody who was not part of the match" test, not written for it**: two
+new templates used a directly-appended possessive on a name placeholder (`{introName}'s record...`,
+`{introOpponent}'s`), and the test's word-tokenizer strips the apostrophe, turning "Halvorsen's" into
+"Halvorsens" — a word nobody's allowlist contains. Rewritten to avoid possessive-on-placeholder
+constructions entirely, matching what turned out to already be the file's implicit convention.
+
+- Tests: new `describe('the tale of the tape')` block in `commentary.test.ts` (15 cases) — a placeholder-
+  backing check for the three new template pools (mirroring the existing `checkPool` discipline with its
+  own smaller always-safe/backed-by map), a coverage check that every new fact has at least one line,
+  record always stated (including the draw-suffix and no-draw formats), never said for a tag/multi-man
+  match, a former championship attributed to the wrestler who actually holds one and not the other,
+  hot-streak/slump thresholds matching the existing `commentaryStreakRun`/`commentarySlumpRun` settings,
+  the underdog comparison refusing a small sample and firing once both sides clear the floor and the gap,
+  and the debut opener never firing for a singles match now that the tale of the tape covers it.
+- Verified: `tsc --noEmit` clean; `commentary.test.ts` 52 → 67 tests, all passing; `matchPlayback.test.ts`,
+  `narrative.test.ts`, and the 98-test `store.test.ts` regression suite all pass unaffected; full suite
+  199 files / 3,366 tests passing; `npm run build` clean.
