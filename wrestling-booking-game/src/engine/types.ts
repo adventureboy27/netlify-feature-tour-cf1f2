@@ -1477,11 +1477,12 @@ export interface Segment {
   gearUnitIds?: Id[];
   /**
    * Set when this segment was force-booked by a story rather than picked by
-   * the booker — see engine/world/factionDestroyer.ts. The booking UI reads
-   * this to lock participants/stipulation from editing; undefined on every
-   * ordinary segment, same "absent means normal" convention as `dark`.
+   * the booker — see engine/world/factionDestroyer.ts and
+   * engine/world/fanRivalry.ts. The booking UI reads this to lock
+   * participants/stipulation from editing; undefined on every ordinary
+   * segment, same "absent means normal" convention as `dark`.
    */
-  systemForced?: 'factionDestroyer';
+  systemForced?: 'factionDestroyer' | 'fanRivalry';
 }
 
 /** What a town made of what it was charged. See economy/showBudget.ts. */
@@ -3118,6 +3119,10 @@ export interface WorldSettings {
   managerFiringShootHeat: number;
   /** Clients on the book at which it becomes a named stable (engine/world/managerStable.ts). */
   managerStableFormsAtClients: number;
+  /** Chance, per eligible heel-woman-in-a-resolved-match, that engine/world/fanRivalry.ts's story triggers. */
+  fanIncidentChance: number;
+  /** Starting shoot heat for the rivalry it opens with — a real scuffle, not a booked angle. */
+  fanRivalryShootHeat: number;
 
   // --- Discipline, engine/career/discipline.ts -----------------------------
   /** How many go on file before a fine, and before a suspension. */

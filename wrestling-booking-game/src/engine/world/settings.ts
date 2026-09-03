@@ -1294,6 +1294,13 @@ export function defaultWorldSettings(): WorldSettings {
     managerFiringRivalryChance: 0.25,
     managerFiringShootHeat: 14,
     managerStableFormsAtClients: 3,
+    // DESIGN: rolled per eligible heel woman in a resolved match, not per
+    // show or per week — a company running several shows a week with more
+    // than one heel woman on the roster sees several rolls, so this stays
+    // low enough that the story still reads as a rare, memorable incident
+    // rather than a recurring gimmick.
+    fanIncidentChance: 0.03,
+    fanRivalryShootHeat: 14,
 
     // Discipline. Two on file before it costs money, four before it costs
     // you a spot on the card — slow enough that one bad night is not a

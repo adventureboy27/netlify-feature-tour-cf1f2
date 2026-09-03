@@ -66,6 +66,7 @@ import type { RivalMove } from '../engine/world/rivalMove';
 import type { ConfrontationCall } from '../engine/world/confrontationCall';
 import type { GroupTurnCall, ScheduledGroupTurn } from '../engine/world/teamBreakup';
 import type { FactionDestroyerStory } from '../engine/world/factionDestroyer';
+import type { FanRivalryStory } from '../engine/world/fanRivalry';
 import type { BiddingResult, BiddingWar } from '../engine/economy/bidding';
 import type { WeatherCallOptionId } from '../data/weatherCalls';
 import type { RatingResult, ChartRow } from '../engine/world/tvRatings';
@@ -448,6 +449,14 @@ export interface World {
    * what the trigger check reads to make sure it never fires a second time.
    */
   factionDestroyerHappened: boolean;
+  /**
+   * A heel-slaps-a-fan-who-fights-back story in progress — see
+   * engine/world/fanRivalry.ts. Unlike Faction Destroyer this is not a
+   * one-time latch: it clears back to null once the payoff match resolves
+   * and signs the fan, and a fresh eligible pairing can start a new one
+   * later.
+   */
+  fanRivalry: FanRivalryStory | null;
   /**
    * The one auction the business runs in the open. Rare: it takes a real star
    * hitting the market, or a phenom out of the school, plus at least two other
@@ -1300,6 +1309,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     pendingGroupTurnCall: null,
     factionDestroyer: null,
     factionDestroyerHappened: false,
+    fanRivalry: null,
     pendingBiddingWar: null,
     pendingSupershow: null,
     pendingSupershowCard: null,

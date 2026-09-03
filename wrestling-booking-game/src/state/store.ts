@@ -595,6 +595,19 @@ import {
   factionDestroyerWinnerSurvivesAsTeamLine,
   factionDestroyerWinnerCollapsedLine,
 } from '../data/factionDestroyer';
+import {
+  canTriggerFanIncident,
+  generateRingsideFan,
+  beginFanRivalryStory,
+  buildFanCalloutPromo,
+  buildFanRivalryMatchSegment,
+} from '../engine/world/fanRivalry';
+import {
+  fanIncidentLine,
+  fanCalloutScheduledLine,
+  fanMatchScheduledLine,
+  fanSignedLine,
+} from '../data/fanRivalry';
 import type { LoanTier } from '../engine/economy/loan';
 import {
   slotExpectedPopularities,
@@ -2738,6 +2751,63 @@ export const useGameStore = create<GameStore>()(
             });
           }
 
+          // A fan in the crowd, mocked and slapped by a heel who was proud
+          // of it — and fought back. Rare, entity-seeded, one story running
+          // at a time — see engine/world/fanRivalry.ts. Player's own show
+          // only, same scope as every other story trigger in this loop.
+          if (!world.fanRivalry) {
+            const eligibleHeel = segment.participants
+              .map((p) => wrestlerById.get(p.wrestlerId))
+              .find((w): w is Wrestler => Boolean(w) && canTriggerFanIncident(w!));
+            if (eligibleHeel) {
+              const fanRng = rngFromSeed(`fanIncident:${eligibleHeel.id}:${world.week}`);
+              if (chance(fanRng, world.settings.fanIncidentChance)) {
+                const currentYear = world.settings.startingYear + Math.floor(world.week / 52);
+                const existingNames = new Set(Object.values(world.wrestlers).map((w) => w.name.toLowerCase()));
+                const fan = generateRingsideFan(fanRng, currentYear, world.settings, existingNames);
+                world.wrestlers[fan.id] = fan;
+
+                const rivalry = createRivalry(
+                  `rivalry-${world.nextId++}`,
+                  [eligibleHeel.id, fan.id],
+                  'shoot',
+                  world.week,
+                  world.settings.fanRivalryShootHeat,
+                );
+                world.rivalries.push(rivalry);
+
+                const incidentText = fanIncidentLine(fanRng, eligibleHeel.name, fan.name);
+                if (!storylineBetween(world.storylines, [eligibleHeel.id, fan.id])) {
+                  const pattern = pick(rngFromSeed(`fanRivalryStory:${rivalry.id}`), STORYLINE_NAME_PATTERNS);
+                  const town = world.territories.find((t) => t.id === world.promotion.homeTerritoryId);
+                  const name = pattern
+                    .replace('{a}', eligibleHeel.name.split(' ').slice(-1)[0] ?? eligibleHeel.name)
+                    .replace('{b}', fan.name.split(' ').slice(-1)[0] ?? fan.name)
+                    .replace('{town}', town?.name ?? 'Town');
+                  const opening = {
+                    id: `story-${world.week}-${world.storylines.length}`,
+                    name,
+                    participantIds: [eligibleHeel.id, fan.id],
+                    rivalryId: rivalry.id,
+                    stage: 'opening' as const,
+                    startWeek: world.week,
+                    lastAdvancedWeek: world.week,
+                    beats: [],
+                    neglectedWeeks: 0,
+                    resolvedWeek: null,
+                    payoff: null,
+                  };
+                  world.storylines.push(
+                    advance(opening, { week: world.week, kind: 'confrontation', text: incidentText }, world.settings),
+                  );
+                }
+
+                world.fanRivalry = beginFanRivalryStory(eligibleHeel, fan, rivalry.id, world.week);
+                world.weeklyNews.push(wire('story', incidentText, world.week + 1, 'lead'));
+              }
+            }
+          }
+
           // A staged team/faction turn, waiting on the departing member's
           // next booking — see engine/world/teamBreakup.ts. Fires the first
           // time they turn up on a match card; left scheduled and tried
@@ -3046,6 +3116,40 @@ export const useGameStore = create<GameStore>()(
               // through the ordinary channels again.
               world.factionDestroyer = null;
             }
+          }
+
+          // Fan rivalry payoff — see engine/world/fanRivalry.ts. The sim
+          // already decided the winner above; that's read here only for the
+          // write-up, never to decide whether she gets signed — she was
+          // always getting signed, win or lose. This region runs before
+          // world.week += 1, so wire pushes stamp world.week + 1, same
+          // convention as Faction Destroyer's own block just above.
+          if (stipulation?.id === 'unsanctioned' && segment.systemForced === 'fanRivalry' && world.fanRivalry) {
+            const story = world.fanRivalry;
+            const fan = world.wrestlers[story.fanId];
+            if (fan) {
+              fan.contract = createStandardContract(
+                fan,
+                world.settings,
+                world.settings.startingYear + Math.floor(world.week / 52),
+              );
+              fan.promotionId = world.promotion.id;
+              if (!world.promotion.rosterIds.includes(fan.id)) {
+                world.promotion.rosterIds.push(fan.id);
+              }
+              const signedText = fanSignedLine(fan.name, story.wrestlerName, world.promotion.name);
+              const existingStory = world.storylines.find((s) => s.rivalryId === story.rivalryId);
+              if (existingStory) {
+                const idx = world.storylines.indexOf(existingStory);
+                world.storylines[idx] = advance(
+                  existingStory,
+                  { week: world.week, kind: 'match', text: signedText },
+                  world.settings,
+                );
+              }
+              world.weeklyNews.push(wire('signing', signedText, world.week + 1, 'lead'));
+            }
+            world.fanRivalry = null;
           }
 
           // Did this settle a story? The same test the rivalry system uses —
@@ -8229,7 +8333,52 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
+        // The fan rivalry payoff — see engine/world/fanRivalry.ts. Forced
+        // onto the opener (this is personal, not main-event business), no
+        // player choice. If either of them can't work this week the story
+        // is abandoned rather than left stuck forever blocking the next one.
+        if (world.fanRivalry && world.fanRivalry.matchWeek === world.week) {
+          const story = world.fanRivalry;
+          const heel = world.wrestlers[story.wrestlerId];
+          const fan = world.wrestlers[story.fanId];
+          if (
+            heel &&
+            fan &&
+            canWork(heel, world.settings, world.week) &&
+            canWork(fan, world.settings, world.week) &&
+            world.currentCard.length > 0
+          ) {
+            world.currentCard[0] = {
+              ...world.currentCard[0]!,
+              ...buildFanRivalryMatchSegment(0, heel.id, fan.id),
+            };
+            world.weeklyNews.push(wire('story', fanMatchScheduledLine(heel.name, fan.name), world.week, 'normal'));
+          } else {
+            world.fanRivalry = null;
+          }
+        }
+
         world.currentPromos = createEmptyPromoSlots(world.settings.promoSlotsPerCard);
+
+        // Week 2 of the fan rivalry arc: the callout promo, forced — see
+        // engine/world/fanRivalry.ts. Locked in at trigger time
+        // (calloutWeek), not counted down like Faction Destroyer.
+        if (world.fanRivalry && !world.fanRivalry.calloutDone && world.fanRivalry.calloutWeek === world.week) {
+          const story = world.fanRivalry;
+          if (world.currentPromos.length > 0) {
+            world.currentPromos[0] = {
+              ...world.currentPromos[0]!,
+              ...buildFanCalloutPromo(0, story.wrestlerId, story.fanId),
+            };
+            story.calloutDone = true;
+            world.weeklyNews.push(
+              wire('story', fanCalloutScheduledLine(story.wrestlerName, story.fanName), world.week, 'normal'),
+            );
+          } else {
+            world.fanRivalry = null;
+          }
+        }
+
         world.currentDarkMatches = createEmptyDarkMatches(world.settings.darkMatchSlots);
 
         // A week off the term, and a show against the town's patience if one

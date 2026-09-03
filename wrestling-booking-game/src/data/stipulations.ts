@@ -118,6 +118,29 @@ export const STIPULATIONS: Stipulation[] = [
     titleChangesOnDQ: true,
   },
   {
+    id: 'unsanctioned',
+    name: 'Unsanctioned',
+    blurb: 'No referee, no rulebook, no company backing either of them. This one is personal.',
+    // DESIGN: no heatRequirement, unlike noDQ/streetFight — this stipulation
+    // is never something the booker unlocks and picks, only ever forced onto
+    // a card by engine/world/fanRivalry.ts's payoff week. Left bookable by
+    // hand too rather than hidden, since it's a real, generic stipulation
+    // once it exists.
+    ratingBonus: 5,
+    violenceLevel: 3,
+    injuryMult: 1.6,
+    archetypeFit: [],
+    impliedRules: { ruleStrictness: 'none', countOuts: 'none' },
+    finishWeights: { disqualification: 0, countOut: 0, knockout: 1.6, submission: 0.3 },
+    finishFlavor: {
+      knockout: 'left {loser} laid out with nobody in stripes around to stop it',
+      submission: 'wrenched the hold in with no ropes worth breaking for and no referee to call it early',
+      cleanPin: 'made the count over {loser} out here with no company sanction and no rules to lean on',
+    },
+    // No rules to break, so no protection from breaking them.
+    titleChangesOnDQ: true,
+  },
+  {
     id: 'tables',
     name: 'Tables Match',
     blurb: 'Simple as it sounds: go through a table, and this one is over.',
