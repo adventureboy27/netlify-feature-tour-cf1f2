@@ -66,7 +66,12 @@ export function WrestlerTile({
           : ''
       }`}
     >
-      <PaperDoll photoDataUrl={wrestler.photoDataUrl} name={wrestler.name} size="bust" />
+      <PaperDoll
+        photoDataUrl={wrestler.photoDataUrl}
+        name={wrestler.name}
+        size="bust"
+        lookSubject={{ id: wrestler.id, gender: wrestler.gender, masked: wrestler.masked, gimmickCategory: wrestler.gimmick.category }}
+      />
       <span className="w-full truncate text-xs font-medium text-neutral-100">{billedAs(wrestler)}</span>
       <div className="flex flex-wrap items-center justify-center gap-1">
         <Tag className={GENDER_STYLE[wrestler.gender]}>{GENDER_LABEL[wrestler.gender]}</Tag>

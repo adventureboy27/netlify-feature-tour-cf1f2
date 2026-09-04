@@ -1,5 +1,9 @@
-// A wrestler's portrait — a real uploaded photo, or an initials placeholder
-// if nobody has given them one yet. See README.md for what this replaced.
+// A wrestler's portrait — a real uploaded photo, a composited look built
+// from the paperdoll asset library, or an initials placeholder if neither
+// exists yet. See README.md for what this replaced.
+
+import { assignLook, type LookSubject } from './assignLook';
+import { ComposedPortrait } from './ComposedPortrait';
 
 export type PaperDollSize = 'large' | 'bust' | 'thumb' | 'tiny';
 
@@ -40,9 +44,16 @@ export interface PaperDollProps {
   className?: string;
   /** Mirror horizontally, so two people billed against each other face inward rather than the same way. */
   flip?: boolean;
+  /**
+   * Only what the composited fallback needs to pick a look — not the whole
+   * Wrestler type, so call sites without one (managers, commentators) don't
+   * have to fake one. Omit it and a wrestler with no photo just gets the
+   * plain initials placeholder, same as before this existed.
+   */
+  lookSubject?: LookSubject;
 }
 
-export function PaperDoll({ photoDataUrl, name, size, className, flip = false }: PaperDollProps) {
+export function PaperDoll({ photoDataUrl, name, size, className, flip = false, lookSubject }: PaperDollProps) {
   const px = SIZE_PX[size];
   const style: React.CSSProperties = {
     width: px,
@@ -60,6 +71,15 @@ export function PaperDoll({ photoDataUrl, name, size, className, flip = false }:
         className={`rounded object-cover ${className ?? ''}`}
         style={style}
       />
+    );
+  }
+
+  const look = lookSubject ? assignLook(lookSubject) : null;
+  if (look) {
+    return (
+      <div style={style} className={`overflow-hidden rounded ${className ?? ''}`}>
+        <ComposedPortrait look={look} alt={name} />
+      </div>
     );
   }
 

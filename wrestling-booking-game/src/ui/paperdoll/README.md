@@ -1,7 +1,9 @@
 # Wrestler portraits
 
-Every wrestler shows one flat image: a real photo the booker uploaded, or a
-placeholder if nobody has.
+Every wrestler shows one flat image: a real photo the booker uploaded, a
+composited look built from the paperdoll asset library (see `assets/README.md`)
+if the call site opted in and has one to assign, or a plain initials
+placeholder if neither exists.
 
 This replaced an earlier generated-pixel-art system entirely (procedural
 sprites composited from an indexed atlas, one wrestler at a time, from a
@@ -18,10 +20,20 @@ palettes — all of it, along with anything that only existed to serve it.
   generated (free agents, academy graduates, rival rosters) and nobody is
   uploading a photo for all of them.
 - `PaperDoll.tsx` is still the single render point every screen uses. When
-  `photoDataUrl` is set it draws that image; otherwise it draws a plain
-  colored circle with the wrestler's initials — same idea as the commentator
-  avatars in the match viewer, just generalized. No compositing, no canvas,
-  no atlas to load.
+  `photoDataUrl` is set it draws that image. Otherwise, if the call site
+  passed a `lookSubject` (id, gender, masked, gimmick category) it asks
+  `assignLook.ts` for a composited look built from `assets/` — base body,
+  skin tone, hair, facial hair, a themed prop — and renders that via
+  `ComposedPortrait.tsx`. If neither exists (no photo, no `lookSubject`, or an
+  empty asset library), it falls back to the plain initials circle, same as
+  before this existed — same idea as the commentator avatars in the match
+  viewer, just generalized.
+- The composited look is **not** the old atlas system come back: real art
+  files, supplied by the booker or their artist, drawn once each and reused
+  across the whole roster — not code drawing shapes, and not a swappable-parts
+  engine trying to stay distinct at world-population scale. See
+  `assets/README.md` for the asset spec and naming rules, and
+  `gimmickPropTags.ts` for how a gimmick prefers a themed prop.
 - `photoUpload.ts` is where an uploaded file becomes that data URI: decode →
   draw to an off-screen canvas, centre-cropped to a square → resize → export
   as compressed WebP. Runs entirely in the browser; nothing here is a network

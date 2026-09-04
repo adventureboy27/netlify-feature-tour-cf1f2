@@ -91,7 +91,12 @@ export function WrestlerRow({
   const group = stables ? groupOf(stables, wrestler.id) : undefined;
   const body = (
     <>
-      <PaperDoll photoDataUrl={wrestler.photoDataUrl} name={wrestler.name} size="thumb" />
+      <PaperDoll
+        photoDataUrl={wrestler.photoDataUrl}
+        name={wrestler.name}
+        size="thumb"
+        lookSubject={{ id: wrestler.id, gender: wrestler.gender, masked: wrestler.masked, gimmickCategory: wrestler.gimmick.category }}
+      />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           {/* The face goes first, before the name — when you are scanning a

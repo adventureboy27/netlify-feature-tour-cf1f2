@@ -5,6 +5,68 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Paperdoll asset library — layered portraits, real art in / code out
+
+Follow-up to the wrestler art shot-list generator below, after the player pushed on the same
+problem from a different angle: 300 unique AI-generated portraits (one per wrestler, regenerated
+on every gimmick change) is real, recurring effort. Their instinct — a base male/female model with
+swappable hair, skin tone, and gimmick-themed props like a military cap for an Army gimmick — is
+technically sound, but it's also almost exactly the procedural sprite atlas this codebase already
+tried and killed twice (`f66103e`, `969a455`): bad because the art itself was code drawing shapes,
+and because even the old system's full 20-trait combinatorial space stopped keeping wrestlers
+visually distinct past a few hundred people.
+
+The difference this time: the player supplies real art files (or sources them), and the code only
+does the mechanical stacking, not the drawing — sidestepping the actual documented failure reason
+("Claude's art isn't very good") entirely. New in `ui/paperdoll/`:
+
+- `paperdollAssets.ts` — reads `assets/{base,hair,facial,prop}/` via `import.meta.glob` at
+  build/dev time. Dropping a correctly named file into a folder is the entire way to add an asset;
+  nothing in code needs editing. Vite's glob call requires its options object to be a literal at
+  the call site, not a shared constant — cost one failed dev-server load before catching it.
+- `assignLook.ts` — pure, deterministic per-wrestler assignment (mulberry32 seeded off the
+  wrestler's own `id`, the same convention as `PaperDoll.tsx`'s own `placeholderColor` and the
+  shot-list script), so a look is stable for life and adding new assets later never reshuffles
+  anyone already assigned. A `masked` wrestler gets a mask-tagged prop instead of hair/facial hair,
+  never both; a mask never lands on anyone who isn't supposed to be masked.
+- `skinTones.ts` — six tones as a locked list, applied to the base art in code rather than painted
+  once per tone: `ComposedPortrait.tsx` masks a flat-color layer to the base image's own alpha
+  shape and blends it with `mix-blend-mode: color`, so one base body file serves every tone.
+- `gimmickPropTags.ts` — keyword hints matched against a prop's own filename (e.g.
+  `both-military-cap.png` matches "Military and paramilitary"), keyed by `Gimmick.category` (24
+  values) rather than the ~200 individual gimmicks — most of which already have a `prop` field, but
+  those are hand-held ring items (a wrench, a lasso) that wouldn't even appear inside a bust crop.
+- `PaperDoll.tsx` gained an optional `lookSubject` prop as the new middle tier between a real photo
+  and the initials placeholder; omitting it (every call site not yet migrated) is a no-op. Wired
+  into `WrestlerRow.tsx` and `WrestlerTile.tsx` only for now — the two screens the original
+  density/legibility complaint was about. Full rollout across every `<PaperDoll>` call site is a
+  follow-up.
+- `assets/README.md` — the canvas spec (512×512, transparent, head-centered) and naming rules real
+  art needs to follow, cross-referencing the published crop reference below.
+
+Before any of this: built and published **[The Bust Line](https://claude.ai/code/artifact/c45d358a-8d70-41f0-af39-9cf655115aca)**,
+a line-art reference showing exactly what portion of a wrestler's body ever appears on screen
+today — a gold square frame over a standing figure, solid above the line and faded/dashed below it
+— after confirming via the real current render call sites (17 thumb, 11 bust, 3 large, 1 tiny, zero
+full-body) that this game already relearned the "full body art is invisible everywhere" lesson once
+before, in the same commit that trimmed the old atlas.
+
+Verified with placeholder line-art assets for every slot (2 base bodies, 2 hairstyles, 1 facial
+hair, 3 props including one mask) in a real played save via Playwright: skin tones, hairstyles, and
+a themed military-cap prop all composited and aligned correctly on the actual Roster screen. Full
+`vitest run` (3,414 tests) and `npm run build` both clean afterward.
+
+What real art still needs to happen, from the player, at whatever pace they choose: roughly 35-40
+files total (2 base bodies, ~6 hairstyles per gender, ~5 facial hair, ~10-12 props/headgear) —
+one time, ever, not per wrestler and not per gimmick change. The game keeps working exactly as it
+does today (initials placeholder) until any of it exists; each file added just widens the pool.
+
+Explicitly out of scope for now, flagged rather than silently skipped: hair color is not a tint
+dial the way skin tone is — more hair color variety means more files in the pool, not a second
+color layer. Worth adding the same way if it turns out to matter.
+
+---
+
 ## Wrestler art shot-list generator — `scripts/wrestlerArtPrompts.mjs`
 
 Asked for a zero-additional-cost plan to get real wrestler portraits instead of the initials
