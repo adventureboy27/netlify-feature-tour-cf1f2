@@ -56,6 +56,7 @@ import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Money, EconomicClimateMeter } from '../components/display';
 import { economicClimateLabel, type EconomicClimateLabel } from '../../engine/world/economicCycle';
 import { promotionTheme } from '../components/chrome';
+import { Select } from '../components/Select';
 import { billedAs } from '../../engine/generate/nickname';
 import { DialogueCard } from '../dialogue/DialogueCard';
 import type { PendingEvent } from '../../engine/events/types';
@@ -1140,23 +1141,17 @@ function ContractsTab() {
               body={`A real relaunch for ${person.name} — what's the new direction?`}
               subtext={selected.concept}
               beforeChoices={
-                <select
-                  aria-label="Pick a new gimmick"
-                  data-testid="cold-meeting-gimmick-pick"
+                <Select
+                  ariaLabel="Pick a new gimmick"
+                  testId="cold-meeting-gimmick-pick"
                   value={pickedColdGimmickId}
-                  onChange={(e) => setPickedColdGimmickId(e.target.value)}
-                  className="w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs text-neutral-100"
-                >
-                  {gimmickCategories().map((category) => (
-                    <optgroup key={category} label={category}>
-                      {GIMMICKS.filter((g) => g.category === category).map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                  onChange={setPickedColdGimmickId}
+                  className="w-full"
+                  options={gimmickCategories().map((category) => ({
+                    label: category,
+                    options: GIMMICKS.filter((g) => g.category === category).map((g) => ({ value: g.id, label: g.name })),
+                  }))}
+                />
               }
               choices={[
                 {
@@ -1246,23 +1241,17 @@ function ContractsTab() {
                 body={`Glad to have ${person.name} in the building. What's the character?`}
                 subtext={selected.concept}
                 beforeChoices={
-                  <select
-                    aria-label="Pick a gimmick"
-                    data-testid="signing-gimmick-pick"
+                  <Select
+                    ariaLabel="Pick a gimmick"
+                    testId="signing-gimmick-pick"
                     value={pickedGimmickId}
-                    onChange={(e) => setPickedGimmickId(e.target.value)}
-                    className="w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs text-neutral-100"
-                  >
-                    {gimmickCategories().map((category) => (
-                      <optgroup key={category} label={category}>
-                        {GIMMICKS.filter((g) => g.category === category).map((g) => (
-                          <option key={g.id} value={g.id}>
-                            {g.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
+                    onChange={setPickedGimmickId}
+                    className="w-full"
+                    options={gimmickCategories().map((category) => ({
+                      label: category,
+                      options: GIMMICKS.filter((g) => g.category === category).map((g) => ({ value: g.id, label: g.name })),
+                    }))}
+                  />
                 }
                 choices={[
                   {
@@ -1351,32 +1340,21 @@ function ContractsTab() {
               subtext={selectedGroup?.concept}
               beforeChoices={
                 <div className="flex flex-col gap-2">
-                  <select
-                    aria-label="Pick a shared identity"
-                    data-testid="signing-group-pick"
+                  <Select
+                    ariaLabel="Pick a shared identity"
+                    testId="signing-group-pick"
                     value={pickedGroupId}
-                    onChange={(e) => {
-                      setPickedGroupId(e.target.value);
+                    onChange={(v) => {
+                      setPickedGroupId(v);
                       setPickedPartnerIds([]);
                     }}
-                    className="w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs text-neutral-100"
-                  >
-                    <option value="">Keep them solo…</option>
-                    <optgroup label="Tag teams">
-                      {tagTeamGimmicks().map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Factions">
-                      {factionGimmicks().map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
+                    placeholder="Keep them solo…"
+                    className="w-full"
+                    options={[
+                      { label: 'Tag teams', options: tagTeamGimmicks().map((g) => ({ value: g.id, label: g.name })) },
+                      { label: 'Factions', options: factionGimmicks().map((g) => ({ value: g.id, label: g.name })) },
+                    ]}
+                  />
 
                   {selectedGroup && eligiblePartners.length === 0 && (
                     <p className="text-[11px] text-rose-400">Nobody on this roster fits — needs the same division, and not already spoken for.</p>
@@ -2291,20 +2269,15 @@ function ChampionCallPanel() {
           }))}
           beforeChoices={
             options.some((o) => o.id === 'interim') ? (
-              <select
-                aria-label="Who holds the interim championship"
-                data-testid="interim-pick"
+              <Select
+                ariaLabel="Who holds the interim championship"
+                testId="interim-pick"
                 value={interimId}
-                onChange={(e) => setInterimId(e.target.value)}
-                className="w-full rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs text-neutral-100"
-              >
-                <option value="">Choose who carries it…</option>
-                {candidates.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setInterimId}
+                placeholder="Choose who carries it…"
+                className="w-full"
+                options={candidates.map((w) => ({ value: w.id, label: w.name }))}
+              />
             ) : undefined
           }
           onChoose={(optionId) => {

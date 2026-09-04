@@ -14,6 +14,7 @@ import { CONFRONTATIONS, confrontationById } from '../../data/confrontations';
 import { confrontationAvailable } from '../../engine/sim/confrontation';
 
 import { billedAs } from '../../engine/generate/nickname';
+import { Select } from './Select';
 import type { Wrestler } from '../../engine/types';
 
 export function PromoSlots() {
@@ -69,72 +70,55 @@ export function PromoSlots() {
                 </button>
               </div>
 
-              <select
-                data-testid={`promo-speaker-${index}`}
+              <Select
+                testId={`promo-speaker-${index}`}
                 value={slot.promoSpeakerId ?? ''}
-                onChange={(e) => setPromo(index, { speakerId: e.target.value || null })}
-                className="mb-1 w-full rounded bg-neutral-950 px-2 py-1 text-xs outline-none ring-1 ring-neutral-800"
-              >
-                <option value="">Nobody</option>
-                {roster.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {billedAs(w)}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setPromo(index, { speakerId: v || null })}
+                placeholder="Nobody"
+                className="mb-1 w-full"
+                options={roster.map((w) => ({ value: w.id, label: billedAs(w) }))}
+              />
 
               {slot.kind === 'confrontation' ? (
                 <ConfrontationCast index={index} />
               ) : (
                 <>
-              <select
-                data-testid={`promo-topic-${index}`}
+              <Select
+                testId={`promo-topic-${index}`}
                 value={slot.promoTopicId ?? ''}
-                onChange={(e) => setPromo(index, { topicId: e.target.value || null })}
-                className="mb-1 w-full rounded bg-neutral-950 px-2 py-1 text-xs outline-none ring-1 ring-neutral-800"
-              >
-                <option value="">No topic</option>
-                {PROMO_TOPICS.filter((t) => !t.needsChampion || holdsTitle).map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setPromo(index, { topicId: v || null })}
+                placeholder="No topic"
+                className="mb-1 w-full"
+                options={PROMO_TOPICS.filter((t) => !t.needsChampion || holdsTitle).map((t) => ({
+                  value: t.id,
+                  label: t.name,
+                }))}
+              />
 
               {topic?.needsTarget && (
-                <select
-                  data-testid={`promo-target-${index}`}
+                <Select
+                  testId={`promo-target-${index}`}
                   value={slot.promoTargetId ?? ''}
-                  onChange={(e) => setPromo(index, { targetId: e.target.value || null })}
-                  className="mb-1 w-full rounded bg-neutral-950 px-2 py-1 text-xs outline-none ring-1 ring-neutral-800"
-                >
-                  <option value="">Aimed at nobody</option>
-                  {roster
+                  onChange={(v) => setPromo(index, { targetId: v || null })}
+                  placeholder="Aimed at nobody"
+                  className="mb-1 w-full"
+                  options={roster
                     .filter((w) => w.id !== slot.promoSpeakerId)
-                    .map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {billedAs(w)}
-                      </option>
-                    ))}
-                </select>
+                    .map((w) => ({ value: w.id, label: billedAs(w) }))}
+                />
               )}
 
               {/* The mouthpiece. A monster who cannot talk can be paired with
                   somebody who can, and it rates off *their* mic work. */}
               {speaker && (
-                <select
-                  data-testid={`promo-mouthpiece-${index}`}
+                <Select
+                  testId={`promo-mouthpiece-${index}`}
                   value={slot.promoMouthpieceId ?? ''}
-                  onChange={(e) => setPromo(index, { mouthpieceId: e.target.value || null })}
-                  className="w-full rounded bg-neutral-950 px-2 py-1 text-xs outline-none ring-1 ring-neutral-800"
-                >
-                  <option value="">They speak for themselves</option>
-                  {world.staffManagers.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} speaks for them
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setPromo(index, { mouthpieceId: v || null })}
+                  placeholder="They speak for themselves"
+                  className="w-full"
+                  options={world.staffManagers.map((m) => ({ value: m.id, label: `${m.name} speaks for them` }))}
+                />
               )}
 
               {topic && (
@@ -215,21 +199,14 @@ function ConfrontationCast({ index }: { index: number }) {
       : CONFRONTATIONS.filter((c) => c.requires === 'none');
 
   const pick = (id: string, label: string, value: string | null, onChange: (v: string | null) => void) => (
-    <select
-      data-testid={id}
+    <Select
+      testId={id}
       value={value ?? ''}
-      onChange={(e) => onChange(e.target.value || null)}
-      className="mb-1 w-full rounded bg-neutral-950 px-2 py-1 text-xs outline-none ring-1 ring-neutral-800"
-    >
-      <option value="">{label}</option>
-      {roster
-        .filter((w) => w.id !== slot.promoSpeakerId)
-        .map((w) => (
-          <option key={w.id} value={w.id}>
-            {billedAs(w)}
-          </option>
-        ))}
-    </select>
+      onChange={(v) => onChange(v || null)}
+      placeholder={label}
+      className="mb-1 w-full"
+      options={roster.filter((w) => w.id !== slot.promoSpeakerId).map((w) => ({ value: w.id, label: billedAs(w) }))}
+    />
   );
 
   return (
@@ -238,18 +215,13 @@ function ConfrontationCast({ index }: { index: number }) {
         setConfrontation(index, { oppositeId: v }),
       )}
 
-      <select
-        data-testid={`confrontation-kind-${index}`}
+      <Select
+        testId={`confrontation-kind-${index}`}
         value={slot.confrontationId ?? ''}
-        onChange={(e) => setConfrontation(index, { confrontationId: e.target.value || null })}
-        className="mb-1 w-full rounded bg-neutral-950 px-2 py-1 text-xs outline-none ring-1 ring-neutral-800"
-      >
-        {offered.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
+        onChange={(v) => setConfrontation(index, { confrontationId: v || null })}
+        className="mb-1 w-full"
+        options={offered.map((c) => ({ value: c.id, label: c.name }))}
+      />
 
       {/* In the ring is public and moves the feud further either way.
           Backstage is quieter and much likelier to stop being a performance. */}

@@ -38,6 +38,7 @@
 
 import { useState } from 'react';
 import { defaultHolders, TITLE_COLORWAYS } from '../../data/titles';
+import { Select } from './Select';
 import type { TitleBlueprint, TitleTier } from '../../engine/types';
 
 /** A belt the player added themselves, before they have typed anything. */
@@ -193,25 +194,20 @@ export function TitleBuilder({
               className="min-w-0 flex-1 rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5 text-sm"
             />
 
-            <label className="shrink-0 text-[10px] text-neutral-500">
+            <div className="flex shrink-0 items-center gap-1 text-[10px] text-neutral-500">
               Held by
-              <select
-                aria-label={`How many people hold the ${belt.suffix}`}
-                data-testid={`belt-holders-${index}`}
-                value={holders}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
+              <Select
+                ariaLabel={`How many people hold the ${belt.suffix}`}
+                testId={`belt-holders-${index}`}
+                value={String(holders)}
+                onChange={(v) => {
+                  const next = Number(v);
                   update(index, { holdersRequired: next, tier: tierForHolders(next, belt.tier) });
                 }}
-                className="ml-1 rounded border border-neutral-800 bg-neutral-900 px-1.5 py-1.5 text-xs text-neutral-200"
-              >
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
+                className="w-14"
+                options={[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))}
+              />
+            </div>
 
             <button
               type="button"

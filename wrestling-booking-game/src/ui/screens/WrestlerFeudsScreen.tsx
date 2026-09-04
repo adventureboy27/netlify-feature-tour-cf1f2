@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, SectionHead, Badge } from '../components/chrome';
+import { Select } from '../components/Select';
 import { Money } from '../components/display';
 import {
   allStorylinesFor,
@@ -257,18 +258,13 @@ function StartStoryPanel({ wrestlerId }: { wrestlerId: Id }) {
         Start a story
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
-        <select
+        <Select
           value={opponentId}
-          onChange={(e) => setOpponentId(e.target.value as Id | '')}
-          className="rounded border border-neutral-700 bg-neutral-950 px-1.5 py-1 text-[11px] text-neutral-200"
-        >
-          <option value="">Pick an opponent…</option>
-          {candidates.map((w) => (
-            <option key={w.id} value={w.id}>
-              {billedAs(w)}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => setOpponentId(v as Id | '')}
+          placeholder="Pick an opponent…"
+          className="w-48"
+          options={candidates.map((w) => ({ value: w.id, label: billedAs(w) }))}
+        />
         <button
           type="button"
           data-testid={`start-story-${wrestlerId}`}

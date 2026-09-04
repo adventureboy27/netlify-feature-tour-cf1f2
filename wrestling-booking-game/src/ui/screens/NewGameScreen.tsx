@@ -22,6 +22,7 @@ import { startingBlueprints } from '../../data/titles';
 import { beltPrefix } from '../../data/promotionIdentity';
 import { TitleBuilder, blankTitleBlueprint } from '../components/TitleBuilder';
 import { PromotionMark } from '../components/PromotionMark';
+import { Select } from '../components/Select';
 import { worldSettingsFromPreset, worldSettingsFromCustom } from '../../engine/world/settings';
 import { WORLD_PRESET_INFO, CUSTOM_PRESET_BOUNDS, customSqueezeLine } from '../../data/worldPresets';
 import { rngFromSeed } from '../../engine/rng';
@@ -353,19 +354,16 @@ export function NewGameScreen() {
             <label className="mb-1 block text-xs uppercase tracking-wide text-neutral-500" htmlFor="promotion-count">
               How many promotions are in this world?
             </label>
-            <select
+            <Select
               id="promotion-count"
-              data-testid="promotion-count"
-              value={promotionCount}
-              onChange={(e) => choosePromotionCount(Number(e.target.value))}
-              className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
-            >
-              {Array.from({ length: MAX_PROMOTIONS - MIN_PROMOTIONS + 1 }, (_, i) => i + MIN_PROMOTIONS).map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+              testId="promotion-count"
+              value={String(promotionCount)}
+              onChange={(v) => choosePromotionCount(Number(v))}
+              className="w-20"
+              options={Array.from({ length: MAX_PROMOTIONS - MIN_PROMOTIONS + 1 }, (_, i) => i + MIN_PROMOTIONS).map(
+                (n) => ({ value: String(n), label: String(n) }),
+              )}
+            />
             <p className="mt-1 text-[10px] text-neutral-600">
               One means it is just you out there. More than one means every other slot is a real, running rival
               company from week one.
@@ -581,24 +579,22 @@ export function NewGameScreen() {
                 <p className="mb-2 text-[11px] text-neutral-500">
                   Name them whatever you want. These are what every single card you ever book is built toward.
                 </p>
-                <label className="mb-2 block text-[10px] uppercase tracking-wider text-neutral-500">
+                <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-wider text-neutral-500">
                   How many championships?
-                  <select
-                    data-testid="belt-count"
-                    value={belts.length}
-                    onChange={(e) => {
+                  <Select
+                    testId="belt-count"
+                    value={String(belts.length)}
+                    onChange={(v) => {
                       setTouched(true);
-                      setBelts((prev) => resizeBelts(Number(e.target.value), prev));
+                      setBelts((prev) => resizeBelts(Number(v), prev));
                     }}
-                    className="ml-2 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs normal-case tracking-normal text-neutral-200"
-                  >
-                    {Array.from({ length: MAX_BELTS + 1 }, (_, n) => n).map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    className="w-16 normal-case tracking-normal"
+                    options={Array.from({ length: MAX_BELTS + 1 }, (_, n) => n).map((n) => ({
+                      value: String(n),
+                      label: String(n),
+                    }))}
+                  />
+                </div>
                 <TitleBuilder belts={belts} prefix={prefix} onChange={editBelts} />
               </section>
             </>

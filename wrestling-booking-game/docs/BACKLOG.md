@@ -5,6 +5,41 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Themed `<Select>` — every native dropdown replaced
+
+Player feedback: "the game looks rough, like a DOS game from the 1980s." Asked where to focus first;
+picked styling every dropdown, which an audit had already flagged as the single biggest "this isn't
+really a game" tell — a native `<select>` renders with the OS's own default control, different on
+every platform, matching none of this game's own dark chrome. Found 16 of them across 7 files
+(`PromoSlots.tsx` ×6, `OfficeScreen.tsx` ×4, `NewGameScreen.tsx` ×2, one each in `DarkMatchSlots.tsx`,
+`TitleBuilder.tsx`, `BatchPhotoImport.tsx`, `WrestlerFeudsScreen.tsx`), every single one following the
+exact same shape: a controlled string value (`''` for nothing picked), an `onChange` handed the new
+value, and a flat or `<optgroup>`-grouped list of options — one component, not seven bespoke rebuilds.
+
+**New `ui/components/Select.tsx`** — hand-rolled rather than pulling in a combobox library (this
+project has zero UI dependencies beyond React itself; `Tabs`/`Panel`/`Badge` are all hand-built the
+same way, and the interaction surface here is small enough that a library would be more code to load
+than to write). A trigger button styled to match the app's own surfaces (`shadow-panel`, matches
+`Panel`'s `raised` border), and an options panel built on `Panel elevation="hero"` when open — so the
+dropdown itself looks like a real part of the game instead of an OS-native popup nothing else in the
+app can theme. Supports flat options and named groups (`SelectGroup`) in the same array, a
+`placeholder` for the empty-value state, and an `id` prop so an existing `<label htmlFor>` keeps
+working exactly as it did with the native element it replaced. Trade-off, disclosed in its own header
+comment: click and Escape are covered, but not a native select's free arrow-key roving-focus — a fair
+trade for a single-user desktop game where every one of these lists is short.
+
+All 16 call sites migrated mechanically (`value={x ?? ''}` / `onChange={(e) => setX(e.target.value ||
+null)}` → `value={x ?? ''}` / `onChange={(v) => setX(v || null)}`, `<option>` list → an `options` array
+literal); the two `<optgroup>`-based gimmick pickers in `OfficeScreen.tsx` map straight onto
+`Select`'s `SelectGroup` shape with no loss of grouping. Verified live: opened the promo-speaker
+picker (26 real options), confirmed the dropdown panel now renders as a themed dark card instead of
+the browser's native listbox, picked a name and confirmed the trigger updated correctly, confirmed
+clicking away closes it. `tsc --noEmit` clean, full suite (3414 tests) unaffected — CLAUDE.md is
+explicit tests cover the simulation, not the UI, and this project has zero `.test.tsx` component
+tests to break.
+
+---
+
 ## Sort and filter for the card-slot picker
 
 Player ask: "need ways to sort and filter rosters." Checked every roster-listing screen —

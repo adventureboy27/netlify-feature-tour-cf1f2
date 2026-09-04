@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { resizeToDataUrl } from '../paperdoll/photoUpload';
 import { PaperDoll } from '../paperdoll/PaperDoll';
+import { Select } from './Select';
 import type { Id, Wrestler } from '../../engine/types';
 
 interface Row {
@@ -203,21 +204,16 @@ export function BatchPhotoImport() {
                   ) : !row.declaredGender ? (
                     <p className="text-[11px] text-amber-400">{NAMING_HELP}</p>
                   ) : (
-                    <select
-                      data-testid={`batch-photo-select-${row.key}`}
+                    <Select
+                      testId={`batch-photo-select-${row.key}`}
                       value={row.wrestlerId}
-                      onChange={(e) => setRowWrestler(row.key, e.target.value)}
-                      className="mt-0.5 w-full rounded border border-neutral-800 bg-neutral-950 px-1.5 py-1 text-xs text-neutral-200"
-                    >
-                      <option value="">Nobody — skip this one</option>
-                      {roster
+                      onChange={(v) => setRowWrestler(row.key, v)}
+                      placeholder="Nobody — skip this one"
+                      className="mt-0.5 w-full"
+                      options={roster
                         .filter((w) => w.gender === row.declaredGender)
-                        .map((w) => (
-                          <option key={w.id} value={w.id}>
-                            {w.name} — {GENDER_LABEL[w.gender]}
-                          </option>
-                        ))}
-                    </select>
+                        .map((w) => ({ value: w.id, label: `${w.name} — ${GENDER_LABEL[w.gender]}` }))}
+                    />
                   )}
                   {chosen && (
                     <p className="mt-0.5 text-[10px] text-neutral-500">

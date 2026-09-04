@@ -9,6 +9,7 @@ import { useGameStore } from '../../state/store';
 import { billedAs } from '../../engine/generate/nickname';
 import { findRivalry } from '../../engine/sim/rivalry';
 import { HeatBadge } from './display';
+import { Select } from './Select';
 import type { Wrestler } from '../../engine/types';
 
 export function DarkMatchSlots() {
@@ -48,27 +49,21 @@ export function DarkMatchSlots() {
           const rivalry = a && b ? findRivalry(world.rivalries, [a.id, b.id]) : undefined;
 
           const pick = (side: number, current: Wrestler | undefined) => (
-            <select
-              data-testid={`dark-match-${index}-side-${side}`}
+            <Select
+              testId={`dark-match-${index}-side-${side}`}
               value={current?.id ?? ''}
-              onChange={(e) => {
+              onChange={(v) => {
                 if (current) removeParticipant(index, current.id);
-                if (e.target.value) setParticipant(index, e.target.value, side);
+                if (v) setParticipant(index, v, side);
               }}
-              className="w-full rounded bg-neutral-950 px-2 py-1 text-xs outline-none ring-1 ring-neutral-800"
-            >
-              <option value="">Nobody</option>
-              {roster
+              placeholder="Nobody"
+              options={roster
                 .filter((w) => w.id === current?.id || !bookedIds.has(w.id))
                 // A paperwork freeze is a hard bar — no dark matches either.
                 // See engine/world/paperworkLockout.ts.
                 .filter((w) => w.id === current?.id || !w.paperworkFrozen)
-                .map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {billedAs(w)}
-                  </option>
-                ))}
-            </select>
+                .map((w) => ({ value: w.id, label: billedAs(w) }))}
+            />
           );
 
           return (
