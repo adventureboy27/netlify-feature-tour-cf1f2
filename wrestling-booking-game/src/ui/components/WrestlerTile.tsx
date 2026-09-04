@@ -7,12 +7,21 @@
 // WrestlerRow's own Tag styling and MiniStats's StatusPips (already built to
 // be "the six things a booker asks about somebody before anything else")
 // rather than inventing a second, thinner readout just for this screen.
+//
+// Uses chrome.tsx's own Panel for its surface rather than a hand-rolled
+// border/bg — that's the whole reason Panel exists ("no screen invents its
+// own panel any more"), and a card built outside it is exactly how a
+// clickable thing ends up the same colour as the page around it. The
+// promotion's own accent lights up on hover, real "this is a save with a
+// house style" game-card feedback rather than a grey rectangle that happens
+// to react to the mouse.
 
 import { alignmentLabel } from '../../engine/career/scouting';
 import { billedAs } from '../../engine/generate/nickname';
 import { StatusPips } from './MiniStats';
 import { PaperDoll } from '../paperdoll/PaperDoll';
 import { Tag, GENDER_LABEL } from './WrestlerRow';
+import { Panel, type PromotionTheme } from './chrome';
 import type { Title, Wrestler, WorldSettings } from '../../engine/types';
 
 const ALIGNMENT_STYLE: Record<string, string> = {
@@ -32,6 +41,7 @@ export function WrestlerTile({
   onClick,
   titles,
   trailing,
+  theme,
 }: {
   wrestler: Wrestler;
   settings: WorldSettings;
@@ -39,16 +49,21 @@ export function WrestlerTile({
   titles?: readonly Title[];
   /** The picker's own Add button — sits under the status strip, full width. */
   trailing?: React.ReactNode;
+  /** The save's own accent — lights the tile up on hover. Falls back to a plain neutral highlight without it. */
+  theme?: PromotionTheme;
 }) {
   const alignment = alignmentLabel(wrestler.alignment);
 
   return (
-    <div
+    <Panel
+      elevation="raised"
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 rounded border border-neutral-800 bg-neutral-900 p-2 text-center ${
-        onClick ? 'cursor-pointer transition hover:border-neutral-600' : ''
+      className={`flex flex-col items-center gap-1 p-2 text-center ${
+        onClick
+          ? `cursor-pointer transition hover:-translate-y-0.5 ${theme ? `${theme.hoverEdge} hover:shadow-glow-sm ${theme.glow}` : 'hover:border-neutral-500'}`
+          : ''
       }`}
     >
       <PaperDoll photoDataUrl={wrestler.photoDataUrl} name={wrestler.name} size="bust" />
@@ -63,6 +78,6 @@ export function WrestlerTile({
           {trailing}
         </div>
       )}
-    </div>
+    </Panel>
   );
 }

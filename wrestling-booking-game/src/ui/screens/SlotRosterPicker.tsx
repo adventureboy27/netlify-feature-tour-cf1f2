@@ -13,6 +13,7 @@ import { useGameStore } from '../../state/store';
 import { RowKey } from '../components/WrestlerRow';
 import { WrestlerTile } from '../components/WrestlerTile';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { Panel, promotionTheme } from '../components/chrome';
 import { slotLabel } from '../cardLabels';
 import type { Id, Wrestler } from '../../engine/types';
 
@@ -60,6 +61,8 @@ export function SlotRosterPicker({
       .map((p) => roster.find((w) => w.id === p.wrestlerId))
       .filter((w): w is Wrestler => Boolean(w));
 
+  const theme = promotionTheme(world.promotion.identity);
+
   return (
     <div className="p-6 text-neutral-100">
       <ScreenHeader title={slotLabel(slotIndex, world.currentCard.length)} subtitle="Pick who's in it" onBack={onBack} />
@@ -71,7 +74,7 @@ export function SlotRosterPicker({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search the roster…"
-            className="mb-2 w-full rounded border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
+            className="mb-2 w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-500 focus:outline-none"
           />
           <RowKey />
           {/* As many as the window has room for — a real desktop-sized grid,
@@ -89,6 +92,7 @@ export function SlotRosterPicker({
                   wrestler={w}
                   settings={world.settings}
                   titles={world.titles}
+                  theme={theme}
                   onClick={onNavigateWrestler ? () => onNavigateWrestler(w.id) : undefined}
                   trailing={
                     <button
@@ -115,19 +119,28 @@ export function SlotRosterPicker({
         </div>
 
         {/* The right rail — fixed while the roster list scrolls, so you can
-            always see who's already committed and which side Add targets. */}
+            always see who's already committed and which side Add targets.
+            The side currently receiving Add taps is highlighted in the
+            save's own colour, not just a smaller label on its button — the
+            one thing you need to know before you tap Add on a tile is which
+            side it's going to, and that should be readable without hunting
+            for the right word on a small pill. */}
         <div className="sticky top-3 flex h-fit flex-col gap-3">
           {[0, 1].map((s) => (
-            <div key={s} className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+            <Panel
+              key={s}
+              elevation="raised"
+              className={`p-3 ${side === s ? `${theme.edge} bg-gradient-to-br ${theme.wash} to-neutral-900` : ''}`}
+            >
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[11px] uppercase tracking-wide text-neutral-500">Side {s + 1}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Side {s + 1}</span>
                 <button
                   type="button"
                   data-testid={`side-${s}`}
                   onClick={() => setSide(s)}
-                  className={`rounded px-2 py-0.5 text-[11px] ${side === s ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-400'}`}
+                  className={`rounded px-2 py-0.5 text-[11px] font-semibold ${side === s ? `${theme.action} text-white shadow-panel` : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200'}`}
                 >
-                  {side === s ? 'Adding here' : 'Add here'}
+                  {side === s ? '● Adding here' : 'Add here'}
                 </button>
               </div>
               <div className="flex flex-col gap-1">
@@ -138,7 +151,7 @@ export function SlotRosterPicker({
                 ))}
                 {bySide(s).length === 0 && <p className="text-[12px] text-neutral-600">Nobody yet</p>}
               </div>
-            </div>
+            </Panel>
           ))}
         </div>
       </div>

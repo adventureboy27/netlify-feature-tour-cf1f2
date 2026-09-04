@@ -42,6 +42,19 @@ export interface PromotionTheme {
   edge: string;
   /** Very dark wash behind a hero. */
   wash: string;
+  /**
+   * A coloured shadow, for pairing with shadow-glow-sm — the "this is
+   * interactive and it's yours" pop on a browsing card (see WrestlerTile.tsx).
+   * A literal class, same reason the rest of this object is literal strings.
+   */
+  glow: string;
+  /**
+   * The hover-state border — a whole literal `hover:border-...` string, not
+   * `edge` reused with a prefix concatenated at render time. Tailwind's JIT
+   * only ever sees a class if the complete string appears verbatim somewhere
+   * it scans; `` `hover:${edge}` `` would silently compile to nothing.
+   */
+  hoverEdge: string;
 }
 
 const THEMES: Record<PromotionArchetype, PromotionTheme> = {
@@ -51,6 +64,8 @@ const THEMES: Record<PromotionArchetype, PromotionTheme> = {
     ink: 'text-amber-400',
     edge: 'border-amber-700',
     wash: 'from-amber-950/40',
+    glow: 'shadow-amber-500/40',
+    hoverEdge: 'hover:border-amber-600',
   },
   hardcore: {
     action: 'bg-red-700 hover:bg-red-600',
@@ -58,6 +73,8 @@ const THEMES: Record<PromotionArchetype, PromotionTheme> = {
     ink: 'text-red-400',
     edge: 'border-red-800',
     wash: 'from-red-950/40',
+    glow: 'shadow-red-500/40',
+    hoverEdge: 'hover:border-red-600',
   },
   technical: {
     action: 'bg-sky-700 hover:bg-sky-600',
@@ -65,6 +82,8 @@ const THEMES: Record<PromotionArchetype, PromotionTheme> = {
     ink: 'text-sky-400',
     edge: 'border-sky-800',
     wash: 'from-sky-950/40',
+    glow: 'shadow-sky-500/40',
+    hoverEdge: 'hover:border-sky-600',
   },
   sportsEntertainment: {
     action: 'bg-fuchsia-700 hover:bg-fuchsia-600',
@@ -72,6 +91,8 @@ const THEMES: Record<PromotionArchetype, PromotionTheme> = {
     ink: 'text-fuchsia-400',
     edge: 'border-fuchsia-800',
     wash: 'from-fuchsia-950/40',
+    glow: 'shadow-fuchsia-500/40',
+    hoverEdge: 'hover:border-fuchsia-600',
   },
   lucha: {
     action: 'bg-orange-600 hover:bg-orange-500',
@@ -79,6 +100,8 @@ const THEMES: Record<PromotionArchetype, PromotionTheme> = {
     ink: 'text-orange-400',
     edge: 'border-orange-700',
     wash: 'from-orange-950/40',
+    glow: 'shadow-orange-500/40',
+    hoverEdge: 'hover:border-orange-600',
   },
   oldSchool: {
     action: 'bg-stone-600 hover:bg-stone-500',
@@ -86,6 +109,8 @@ const THEMES: Record<PromotionArchetype, PromotionTheme> = {
     ink: 'text-stone-300',
     edge: 'border-stone-600',
     wash: 'from-stone-900/50',
+    glow: 'shadow-stone-400/30',
+    hoverEdge: 'hover:border-stone-500',
   },
   athletic: {
     action: 'bg-emerald-600 hover:bg-emerald-500',
@@ -93,6 +118,8 @@ const THEMES: Record<PromotionArchetype, PromotionTheme> = {
     ink: 'text-emerald-400',
     edge: 'border-emerald-700',
     wash: 'from-emerald-950/40',
+    glow: 'shadow-emerald-500/40',
+    hoverEdge: 'hover:border-emerald-600',
   },
 };
 
@@ -116,8 +143,12 @@ export type Elevation = 'sunken' | 'raised' | 'hero';
 
 const SURFACE: Record<Elevation, string> = {
   sunken: 'border border-neutral-900 bg-neutral-950',
-  raised: 'border border-neutral-800 bg-neutral-900 shadow-panel',
-  hero: 'border border-neutral-700 bg-neutral-900 shadow-hero',
+  // DESIGN: bumped a step lighter than the original neutral-800 border —
+  // against a neutral-950 page and a neutral-900 sidebar, a neutral-800 edge
+  // read as barely-there. A card is supposed to look like a card, not a
+  // slightly-warmer patch of the same background.
+  raised: 'border border-neutral-700 bg-neutral-900 shadow-panel',
+  hero: 'border border-neutral-600 bg-neutral-900 shadow-hero',
 };
 
 export function Panel({

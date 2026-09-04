@@ -137,17 +137,19 @@ export function WrestlerRow({
   );
 
   if (!onClick) {
-    return <div className="flex items-start gap-2 rounded border border-neutral-800 bg-neutral-900 p-2">{body}</div>;
+    return (
+      <div className="flex items-start gap-2 rounded border border-neutral-700 bg-neutral-900 p-2 shadow-panel">{body}</div>
+    );
   }
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`flex w-full items-start gap-2 rounded border p-2 text-left transition ${
+      className={`flex w-full items-start gap-2 rounded border p-2 text-left shadow-panel transition ${
         selected
           ? 'border-emerald-500 bg-emerald-950/40'
-          : 'border-neutral-800 bg-neutral-900 hover:border-neutral-600'
+          : 'border-neutral-700 bg-neutral-900 hover:border-neutral-500'
       }`}
     >
       {body}

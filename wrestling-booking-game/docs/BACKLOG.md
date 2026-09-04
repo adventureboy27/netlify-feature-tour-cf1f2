@@ -5,6 +5,56 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Contrast/elevation pass — cards were reading as the same colour as the page
+
+Player feedback: "profile buttons" (the wrestler picker tiles) blended into the background, and the
+ask more broadly was to "make everything look like a game app" with real UI/UX polish and clearer
+positioning. Traced the root cause: `chrome.tsx`'s own `Panel` elevation system exists precisely to
+solve this ("no screen invents its own panel any more") but `raised`'s border (`neutral-800` on a
+`neutral-900` fill, against a `neutral-950` page) was subtle to the point of nearly not being there —
+and `WrestlerTile.tsx` (built last session) never actually used `Panel` at all, hand-rolling its own
+flat `border-neutral-800 bg-neutral-900`, so it got none of `Panel`'s shadow depth either. Also found
+a real, unused asset: `tailwind.config`'s `shadow-glow-sm` utility (a coloured glow shadow) had never
+been wired up to a single component anywhere in the app.
+
+**`chrome.tsx`**: bumped `raised`/`hero` elevation borders one step lighter (`neutral-800` →
+`neutral-700` / `neutral-600`) — a change that improves every screen in the app for free, since
+`Panel` is the one shared surface component. Added two new fields to `PromotionTheme`: `glow` (a
+literal `shadow-{colour}-500/40` per archetype, for pairing with `shadow-glow-sm`) and `hoverEdge` (a
+*complete* literal `hover:border-{colour}-600` string — not `` `hover:${edge}` `` built at render
+time, which Tailwind's JIT can't see since it only generates a class from a string it finds verbatim
+somewhere it scans; this bit twice while building it before landing on whole-literal fields, matching
+the file's own existing "Tailwind cannot see class names built at runtime" rule).
+
+**`WrestlerTile.tsx`**: rebuilt on top of `Panel` instead of a hand-rolled surface — real shadow depth
+for free — plus the promotion's own accent lights the tile up on hover (`theme.hoverEdge` +
+`shadow-glow-sm` + `theme.glow`), a lift (`-translate-y-0.5`), so picking a wrestler feels like
+touching a real interactive card instead of a static rectangle that happens to have an onClick.
+
+**`WrestlerRow.tsx`**: same border bump plus `shadow-panel`, so Roster/Free Agents/Rival Roster/Match
+Setup's cast list all get the same real depth, not just the picker.
+
+**`SlotRosterPicker.tsx`** — the "positioning" half of the ask: the side currently receiving Add taps
+was only distinguished by a small label on a small button (`Add here` vs `Adding here`) — easy to
+miss the one thing that matters most right before you tap Add on a tile. The active side's whole
+panel now lights up in the promotion's own accent (`theme.edge` border, a themed gradient wash, a
+solid `● Adding here` pill) so which side gets the next tap is unmistakable without hunting the
+screen for a small word. Search input's border bumped to match the rest of the surface pass.
+
+Verified live in a played save: screenshotted the picker before/after, confirmed materially better
+contrast on every tile, confirmed the hover glow renders in the promotion's own colour (amber for a
+territory-archetype save), confirmed switching sides visibly moves the highlighted panel, and
+confirmed the Roster screen (a different, unrelated screen using the same shared `Panel`/`WrestlerRow`
+components) picked up the same improvement automatically. No new automated tests — a UI/visual
+change, and CLAUDE.md is explicit tests cover the simulation, not the UI.
+
+This was a scoped pass on the shared chrome + the screen the player specifically called out, not a
+redesign of every screen in the app — "make everything look like a game app" is significant enough in
+scope that further screens are worth doing as their own follow-ups with their own feedback, the same
+way this whole session has gone screen by screen.
+
+---
+
 ## Denser, more informative wrestler picker for booking a card
 
 Player feedback after playing a build: the "pick who's in it" screen reached by tapping a card slot
