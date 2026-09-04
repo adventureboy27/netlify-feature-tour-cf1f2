@@ -5,6 +5,30 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Sort and filter for the card-slot picker
+
+Player ask: "need ways to sort and filter rosters." Checked every roster-listing screen —
+`RosterScreen.tsx` and `FreeAgentsScreen.tsx` already have real sort+filter bars, each with its own
+local `SORTS`/filter config suited to that screen's own decision (an established convention — they
+don't share one object). `SlotRosterPicker.tsx` — the card-slot picker rebuilt into a dense tile grid
+last session — was the one gap: search only, nothing else, on a screen that can hold 30+ names.
+
+Added, following the same local-`SORTS`-object and chip-button convention as the other two screens:
+**Sort** (Popularity, Condition, Momentum, Morale, Age, Name) and **Filter** — gender and alignment as
+single-pick segmented rows (nobody is both, so these aren't independent toggles — reuses the gender/
+alignment tags added to `WrestlerTile` last session), plus plain Injured/Champion toggle chips
+(`titlesHeldBy`, same helper `RosterScreen` uses). A `Clear` link appears once anything narrows the
+list, matching `RosterScreen`'s own affordance. Chips use the promotion's own theme colour
+(`theme.action`) rather than the hardcoded emerald the other two screens use, consistent with how
+this screen already went theme-aware last session (the side-panel highlight, the tile hover glow).
+
+Verified live: filtering to F + Heel correctly narrowed a 26-name grid down to the two who actually
+match; Clear correctly restored all 26; sort correctly re-ordered the grid by each of the six keys.
+No new automated tests — a UI/filtering change over data already covered by existing engine tests,
+and CLAUDE.md is explicit tests cover the simulation, not the UI.
+
+---
+
 ## Contrast/elevation pass — cards were reading as the same colour as the page
 
 Player feedback: "profile buttons" (the wrestler picker tiles) blended into the background, and the
