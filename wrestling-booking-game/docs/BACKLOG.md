@@ -5,6 +5,40 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Wrestler art shot-list generator — `scripts/wrestlerArtPrompts.mjs`
+
+Asked for a zero-additional-cost plan to get real wrestler portraits instead of the initials
+placeholder. No image-generation plugin/MCP tool is available in this environment, and the player's
+own instinct — a base male/female model with swappable hair/skin/prop layers, gimmick changes adding
+an accessory — turned out to be almost exactly the procedural sprite-atlas system this project already
+tried and killed (`f66103e`, `969a455`): confirmed via git history that it failed for two concrete,
+documented reasons, not vibes — the composited art itself "isn't very good" (it was code drawing
+shapes, not a trained model), and even the full 20-trait combinatorial space stopped keeping wrestlers
+visually distinct past a few hundred people, exactly this game's roster scale.
+
+The shape that avoids both failure modes: a real image model draws one cohesive image per prompt
+instead of code compositing layers, and variety lives in the prompt text instead of a swappable-parts
+inventory that runs out of combinations. `scripts/wrestlerArtPrompts.mjs` reads a save export
+(Settings -> Export save) and, for every wrestler on `world.promotion.rosterIds` — the only pool
+`BatchPhotoImport.tsx` actually matches against, so no point generating for anyone else yet — writes
+one prompt and one target filename (`M-<name>.png` / `F-<name>.jpg`, matching that importer's naming
+convention exactly, no renaming needed). Traits (skin tone, hair, build, expression) are derived
+deterministically from a hash of the wrestler's own `id`, the same "seed off the entity, never the
+shared stream" rule this codebase already follows for RNG — so re-running the script against a later
+save only adds prompts for new signings; everyone already generated keeps the exact same prompt.
+Gimmick concept/prop feeds directly into the prompt, and `masked` overrides hair entirely with a mask
+description, so a repackage only needs new art when it actually changes what the character looks like.
+
+Verified against a real played save (fresh `newGame()`, exported via the actual store action, piped
+through the script): 26 wrestlers, distinct prompts, deterministic on rerun (byte-identical output
+twice). Caught and fixed one real bug in testing — a "shaved bald" hairstyle roll was still being
+prefixed with a hair-color descriptor ("chestnut brown hair, shaved bald"), self-contradictory as a
+prompt; bald now renders as its own clause with no color. Free agents and rival rosters are out of
+scope for now since the batch importer itself doesn't match against them yet — worth revisiting if
+that importer's matching pool ever widens.
+
+---
+
 ## Themed `<Select>` — every native dropdown replaced
 
 Player feedback: "the game looks rough, like a DOS game from the 1980s." Asked where to focus first;
