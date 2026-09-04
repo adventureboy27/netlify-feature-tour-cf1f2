@@ -5,6 +5,14 @@
 // WebP. Nothing here touches the network — same as the rest of the game.
 
 const OUTPUT_SIZE = 96;
+// WebP over JPEG/PNG: this never touches disk as a file, it lives inline as
+// base64 in every save and in the single-file play build — a photo per
+// wrestler, across a whole roster and every rival's. Lossy WebP compresses
+// noticeably smaller than JPEG at the same visual quality, and far smaller
+// than lossless PNG, which is a poor fit for a photo either way. Every
+// browser this game targets can already encode it straight out of
+// canvas.toDataURL, so it costs nothing over the JPEG sitting right next to
+// it in the same API.
 const WEBP_QUALITY = 0.85;
 
 export function resizeToDataUrl(file: File, size = OUTPUT_SIZE): Promise<string> {

@@ -5,6 +5,46 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Denser, more informative wrestler picker for booking a card
+
+Player feedback after playing a build: the "pick who's in it" screen reached by tapping a card slot
+(`SlotRosterPicker.tsx`) didn't show enough at a glance — "couldn't even tell male or female" — and
+wasted most of the window on a picker capped at 2-3 columns, referencing Wrestling Empire's dense
+grid as the target. Confirmed both against the code: gender was surfaced nowhere in the UI at all
+(not `WrestlerRow`, not `MiniStats`/`StatusPips`, not `PaperDoll`'s placeholder), and `compact` mode
+dropped `MiniStats` entirely, so a picker row was just a face, a name, and two tags — real
+information hidden at exactly the moment density matters most, cutting against CLAUDE.md's own
+"screens use a real window's worth of space" rule.
+
+**`WrestlerRow.tsx`**: added a gender `Tag` (`GENDER_LABEL = { m: 'M', f: 'F' }`, the same convention
+`BatchPhotoImport.tsx` already used for the same field, just never surfaced on a browsing row) next
+to the existing alignment tag, in both compact and full mode — every screen using `WrestlerRow`
+(Roster, Free Agents, Rival Roster, Match Setup's cast list, this picker) gets it for free. `RowKey()`
+updated to explain it.
+
+**New `ui/components/WrestlerTile.tsx`**: a portrait-forward vertical tile for dense browsing grids —
+the actual shape difference a multi-column grid needs, since a wide row tops out around 3 across no
+matter the monitor. `PaperDoll size="bust"` + name + gender/alignment tags + `StatusPips` (imported
+straight from `MiniStats.tsx`, already built, per its own doc comment, to answer "the six things a
+booker asks about somebody before anything else" — champion, injury, tired/worn, mood, contract
+weeks — and never previously used inside compact mode) + a `trailing` slot for the picker's Add
+button. Fully additive — `WrestlerRow`/`MiniStats` are reused wholesale, not changed shape, so every
+other screen is untouched.
+
+**`SlotRosterPicker.tsx`**: swapped the `WrestlerRow compact` grid (`grid-cols-2 xl:grid-cols-3`) for
+`WrestlerTile` in `grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8` — scales
+with the window instead of capping at 3. Kept the sticky right rail (who's committed to each side);
+it no longer competes with the picker for columns since a tile grid reflows around whatever width is
+left. Verified live: ~26 wrestlers visible at once on a 1600px window with zero scrolling (vs. 2-3
+before), every tile readably showing gender, alignment, mood, contract length, and champion status
+without opening anything; Add still books the right person to the right side and returns to the Card
+screen; clicking a tile still opens the wrestler's detail page.
+
+No new automated tests — a UI layout/presentation change, and CLAUDE.md is explicit tests cover the
+simulation, not the UI.
+
+---
+
 ## Every big event breaks as its own "Breaking News — Sunday Night" story
 
 Player ask: make sure any big event or story runs as real breaking news, first thing on the weekly

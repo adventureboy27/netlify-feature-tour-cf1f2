@@ -10,7 +10,8 @@
 
 import { useState } from 'react';
 import { useGameStore } from '../../state/store';
-import { WrestlerRow, RowKey } from '../components/WrestlerRow';
+import { RowKey } from '../components/WrestlerRow';
+import { WrestlerTile } from '../components/WrestlerTile';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { slotLabel } from '../cardLabels';
 import type { Id, Wrestler } from '../../engine/types';
@@ -73,40 +74,31 @@ export function SlotRosterPicker({
             className="mb-2 w-full rounded border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
           />
           <RowKey />
-          <div data-testid="roster-picker" className="grid grid-cols-2 gap-2 xl:grid-cols-3">
+          {/* As many as the window has room for — a real desktop-sized grid,
+              not a capped 2-3 column list, per CLAUDE.md's own "screens use a
+              real window's worth of space" rule. A tile (portrait on top,
+              status strip below) is what actually scales that way; a wide
+              row tops out around 3 across no matter the monitor. */}
+          <div
+            data-testid="roster-picker"
+            className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
+          >
             {available.map((w) => (
-              <div
-                key={w.id}
-                data-testid="roster-pick"
-                // A plain div, not WrestlerRow's own onClick — the row also
-                // needs a real, separate Add button, and WrestlerRow puts
-                // everything including `trailing` inside one <button> once
-                // onClick is set, which would nest a button inside a button.
-                // stopPropagation on Add is what keeps "add" from also
-                // triggering "view detail".
-                role={onNavigateWrestler ? 'button' : undefined}
-                tabIndex={onNavigateWrestler ? 0 : undefined}
-                onClick={onNavigateWrestler ? () => onNavigateWrestler(w.id) : undefined}
-                className={onNavigateWrestler ? 'cursor-pointer' : undefined}
-              >
-                <WrestlerRow
+              <div key={w.id} data-testid="roster-pick">
+                <WrestlerTile
                   wrestler={w}
                   settings={world.settings}
                   titles={world.titles}
-                  stables={world.stables}
-                  territoryId={world.showSetup.territoryId}
-                  territoryName={world.territories.find((t) => t.id === world.showSetup.territoryId)?.name}
-                  compact
+                  onClick={onNavigateWrestler ? () => onNavigateWrestler(w.id) : undefined}
                   trailing={
                     <button
                       type="button"
                       data-testid={`add-${w.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      onClick={() => {
                         setParticipant(slotIndex, w.id, side);
                         onBack();
                       }}
-                      className="rounded bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-500"
+                      className="w-full rounded bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-500"
                     >
                       Add
                     </button>

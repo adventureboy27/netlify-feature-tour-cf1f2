@@ -33,6 +33,18 @@ const ALIGNMENT_STYLE: Record<string, string> = {
   Tweener: 'border-neutral-800 bg-neutral-900 text-neutral-400',
 };
 
+/**
+ * Nowhere on a browsing row said which division somebody was even in — a
+ * player picking a card slot couldn't tell male from female without opening
+ * the detail screen. Same letter/style convention BatchPhotoImport.tsx
+ * already uses for the same field.
+ */
+export const GENDER_LABEL: Record<Wrestler['gender'], string> = { m: 'M', f: 'F' };
+const GENDER_STYLE: Record<Wrestler['gender'], string> = {
+  m: 'border-sky-900 bg-sky-950/40 text-sky-300',
+  f: 'border-pink-900 bg-pink-950/40 text-pink-300',
+};
+
 /** The small word-and-colour badge used for both alignment and condition. */
 export function Tag({ children, className }: { children: React.ReactNode; className: string }) {
   return (
@@ -87,6 +99,7 @@ export function WrestlerRow({
               you are scanning for. */}
           <MoodFace wrestler={wrestler} settings={settings} size="sm" />
           <span className="truncate text-sm font-medium text-neutral-100">{billedAs(wrestler)}</span>
+          <Tag className={GENDER_STYLE[wrestler.gender]}>{GENDER_LABEL[wrestler.gender]}</Tag>
           <Tag className={ALIGNMENT_STYLE[alignment] ?? ALIGNMENT_STYLE.Tweener!}>{alignment}</Tag>
           <Tag className={AVAILABILITY_STYLE[read.availability.tone]}>{read.availability.label}</Tag>
         </div>
@@ -155,6 +168,10 @@ export function RowKey() {
     <details className="mb-2 rounded border border-neutral-800 bg-neutral-950">
       <summary className="cursor-pointer px-2 py-1.5 text-[11px] text-neutral-500">What the tags mean</summary>
       <div className="flex flex-col gap-1.5 px-2 pb-2 text-[11px] text-neutral-400">
+        <p>
+          <Tag className={GENDER_STYLE.m}>M</Tag>
+          <Tag className={GENDER_STYLE.f}>F</Tag> which division they work
+        </p>
         <p>
           <Tag className={ALIGNMENT_STYLE.Face!}>Face</Tag> the crowd cheers ·{' '}
           <Tag className={ALIGNMENT_STYLE.Heel!}>Heel</Tag> the crowd boos ·{' '}
