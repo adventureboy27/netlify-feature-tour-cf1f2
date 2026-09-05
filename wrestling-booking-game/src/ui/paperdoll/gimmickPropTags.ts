@@ -27,7 +27,12 @@ export const GIMMICK_CATEGORY_PROP_KEYWORDS: Record<string, readonly string[]> =
   'More corporate and pop culture': ['tie', 'glasses'],
   'Blue collar': ['hardhat'],
   'More everyday jobs': ['cap'],
-  'Medical': ['surgicalmask'],
+  // Not "mask" — assignLook.ts treats any prop id containing "mask" as a
+  // full face-covering reserved for Wrestler.masked === true, so a medical
+  // prop must avoid that substring or it would silently stop being offered
+  // to anyone who isn't supposed to be masked. Name the actual file
+  // something like "both-surgical-covering--tint.png".
+  'Medical': ['surgical'],
   'Animal and nature acts': ['hood'],
   'Tech and modern': ['visor', 'glasses'],
   'School and education': ['glasses'],
