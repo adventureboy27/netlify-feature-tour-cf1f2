@@ -4,7 +4,8 @@
 // glob re-runs at build/dev time and picks it up.
 //
 // Naming, enforced by the parse below rather than documented and hoped for:
-//   assets/base/m.png / assets/base/f.png            — exactly one each
+//   assets/base/m.png / assets/base/f.png            — exactly one each, tinted to skin tone
+//   assets/base/m-detail.png / f-detail.png          — optional, NEVER tinted (see below)
 //   assets/hair/<m|f|both>-<id>.png                  — e.g. m-buzzcut.png
 //   assets/facial/<m|f|both>-<id>.png                — e.g. m-goatee.png
 //   assets/prop/<m|f|both>-<id>.png                  — e.g. both-military-cap.png
@@ -22,6 +23,18 @@
 // is the whole answer to "can I recolor something before it goes on the
 // bust": paint the shape once, add --tint to the filename, done — no code
 // change, same as adding any other asset.
+//
+// base/m-detail.png (and f-detail.png) is a special optional file: anatomical
+// definition — muscle striations, chest/pec lines, a bust curve — drawn as
+// dark linework on an otherwise fully transparent layer, composited directly
+// on top of the tinted skin layer. It is never tinted, by design: it has to
+// sit on top of whatever skin tone got assigned, and a masked flat recolor
+// would either wash it out or clash with the color beneath it. Painting
+// muscle definition as shaded color on the base body itself doesn't work
+// here — the base's own tintable fill is a full-alpha flat mask, so anything
+// painted into it gets discarded in favor of the assigned skin color, shading
+// included. The detail overlay is the way to keep that definition anyway:
+// it lives on its own layer specifically so it never needs recoloring.
 
 export type AssetGender = 'm' | 'f' | 'both';
 
@@ -80,6 +93,15 @@ export const BASE_BODY: Partial<Record<'m' | 'f', string>> = (() => {
   for (const [path, url] of Object.entries(BASE_FILES)) {
     const name = basename(path);
     if (name === 'm' || name === 'f') out[name] = url;
+  }
+  return out;
+})();
+
+export const BASE_DETAIL: Partial<Record<'m' | 'f', string>> = (() => {
+  const out: Partial<Record<'m' | 'f', string>> = {};
+  for (const [path, url] of Object.entries(BASE_FILES)) {
+    const name = basename(path);
+    if (name === 'm-detail' || name === 'f-detail') out[name.slice(0, 1) as 'm' | 'f'] = url;
   }
   return out;
 })();

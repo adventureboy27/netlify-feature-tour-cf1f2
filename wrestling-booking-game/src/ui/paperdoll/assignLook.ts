@@ -9,7 +9,7 @@
 // already assigned — it only ever widens the pool a *new* wrestler can land
 // in.
 
-import { BASE_BODY, HAIR_ASSETS, FACIAL_ASSETS, PROP_ASSETS, type PaperdollAsset } from './paperdollAssets';
+import { BASE_BODY, BASE_DETAIL, HAIR_ASSETS, FACIAL_ASSETS, PROP_ASSETS, type PaperdollAsset } from './paperdollAssets';
 import { SKIN_TONES } from './skinTones';
 import { HAIR_COLORS } from './hairColors';
 import { ACCENT_COLORS } from './accentColors';
@@ -18,6 +18,8 @@ import { GIMMICK_CATEGORY_PROP_KEYWORDS } from './gimmickPropTags';
 export interface ComposedLook {
   baseUrl: string;
   skinColor: string;
+  /** Anatomical linework over the tinted skin layer — see paperdollAssets.ts. Null if no such file exists yet. */
+  baseDetailUrl: string | null;
   hair: PaperdollAsset | null;
   /** Only set when the hair file opted into `--tint`; otherwise it's drawn exactly as painted. */
   hairColor: string | null;
@@ -70,6 +72,7 @@ const isMaskProp = (p: PaperdollAsset) => p.id.toLowerCase().includes('mask');
 export function assignLook(subject: LookSubject): ComposedLook | null {
   const baseUrl = BASE_BODY[subject.gender];
   if (!baseUrl) return null;
+  const baseDetailUrl = BASE_DETAIL[subject.gender] ?? null;
 
   const rng = mulberry32(hashString(subject.id));
   const skin = pick(rng, SKIN_TONES)!;
@@ -88,6 +91,7 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
     return {
       baseUrl,
       skinColor: skin.color,
+      baseDetailUrl,
       hair: null,
       hairColor: null,
       facial: null,
@@ -112,6 +116,7 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   return {
     baseUrl,
     skinColor: skin.color,
+    baseDetailUrl,
     hair,
     hairColor: hair?.tintable ? hairColor.color : null,
     facial,

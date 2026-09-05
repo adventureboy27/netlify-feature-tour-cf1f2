@@ -55,6 +55,7 @@ export function ComposedPortrait({
   return (
     <div role="img" aria-label={alt} className={`relative h-full w-full overflow-hidden ${className ?? ''}`}>
       <Layer url={look.baseUrl} color={look.skinColor} />
+      {look.baseDetailUrl && <img src={look.baseDetailUrl} alt="" className={LAYER_CLASS} />}
       {look.hair && <Layer url={look.hair.url} color={look.hairColor} />}
       {look.facial && <Layer url={look.facial.url} color={look.facialColor} />}
       {look.prop && <Layer url={look.prop.url} color={look.propColor} />}
