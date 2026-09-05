@@ -1,0 +1,797 @@
+// Two men on a headset, calling a match that has already happened.
+//
+// The player never watches a match — that is the first line of the brief and
+// it is not moving. What was missing is that a highlight write-up is a
+// *report*, and a report is not a broadcast. You read four sentences about a
+// match and you know the result; you never find out what it was like to sit
+// through it.
+//
+// So: a call. A play-by-play voice describing the action, and a colour voice
+// beside them talking about everything else — the manager who has not got off
+// the apron, the official who is about to lose control of this, the belt on
+// the line, the fact that one of these two is very obviously hurt. They talk
+// to each other. One of them likes the villain rather more than he should.
+//
+// Three rules, in the words they were asked for.
+//
+//   IT MUST PERTAIN TO THE MATCH. Not to wrestling in general, not to a
+//   generic near-fall, but to *these* wrestlers, *these* managers, *this*
+//   official, *this* championship. So a colour line is never chosen because
+//   it is time for one — it is chosen because a fact is true, and every
+//   template declares the facts it requires. If nothing is true, nobody says
+//   anything. A quiet call is a better call than one that invents a manager.
+//
+//   IT MUST FLOW. A match has a shape and so does the call: somebody takes
+//   over, somebody fights back, there is a near thing, and then it ends. The
+//   caller tracks who is on top and hands the advantage over at the moment
+//   the simulation says it turned, so consecutive lines describe one
+//   continuous fight rather than a pile of unrelated observations.
+//
+//   IT MUST MAKE SENSE. Which mostly means: nobody on commentary knows how
+//   it ends. Every line before the finish talks about who is in control and
+//   who is in trouble — never about the winner, because at that point in the
+//   night there isn't one yet.
+//
+// The result is decided long before this runs. This narrates it and cannot
+// change it, which is exactly why it can be as dramatic as it likes.
+
+import type { Rng } from '../rng';
+import { pick, chance } from '../rng';
+import { Cap, HE, pronounsFor } from '../career/pronouns';
+import type { FinishType, Id, MatchBeat, MatchBeatKind, Title, Wrestler, WorldSettings } from '../types';
+import {
+  PLAY_BY_PLAY,
+  COLOUR,
+  BANTER,
+  COMEBACKS,
+  OPENERS,
+  STAKES,
+  CLOSERS,
+  INTRO_RECORD,
+  INTRO_COLOUR,
+  INTRO_UNDERDOG,
+  type ColourTemplate,
+  type Leaning,
+} from '../../data/commentaryLines';
+
+/**
+ * Everything a colour line is allowed to be about.
+ *
+ * This list is the contract. A template may only use a placeholder backed by
+ * a fact it has declared, and a fact is only set when the engine has verified
+ * it — so a line about a manager cannot appear in a match with no manager in
+ * it, and a line about a belt cannot appear when nothing is on the line.
+ */
+export type CommentaryFact =
+  | 'manager'
+  | 'deviousManager'
+  | 'referee'
+  | 'refereeMiss'
+  | 'guestReferee'
+  | 'title'
+  | 'titleChange'
+  | 'titleRetained'
+  /** The gear it needed gave out before there was a finish — no defence, no champion walking out with it. */
+  | 'titleVoided'
+  | 'longReign'
+  | 'grudge'
+  | 'injuredInMatch'
+  | 'carryingInjury'
+  | 'incident'
+  | 'stipulation'
+  | 'mainEvent'
+  | 'interference'
+  | 'hotCrowd'
+  | 'flatCrowd'
+  | 'greatMatch'
+  | 'poorMatch'
+  | 'veteran'
+  | 'rookie'
+  | 'sizeGap'
+  | 'upset'
+  | 'tagMatch'
+  // These three depend on where the match is *right now*, not on what was
+  // true before the bell. Without them the colour man says "the kid is
+  // learning something and it is costing him" about the man who is currently
+  // beating somebody up, which is the exact kind of nonsense that makes a
+  // call worse than no call. Recomputed at every beat.
+  | 'rookieInTrouble'
+  | 'vetInTrouble'
+  | 'smallInTrouble'
+  // --- who these people are, beyond tonight ------------------------------
+  /** Held a championship at some point and is not holding one now. */
+  | 'formerChampion'
+  /** Walked in carrying a belt that is not the one on the line. */
+  | 'reigningElsewhere'
+  | 'onATear'
+  | 'slumping'
+  /** First match this company has ever given them. */
+  | 'debut'
+  /** Their father worked, and the crowd remembers the name. */
+  | 'secondGeneration'
+  // --- what has happened between them ------------------------------------
+  | 'firstMeeting'
+  | 'metOften'
+  | 'longFeud'
+  /** The stipulation or the feud says this one settles it. */
+  | 'blowoff'
+  // --- what kind of night this is ----------------------------------------
+  /** The weather took a bite out of the house and everybody can see it. */
+  | 'weatherHurtGate'
+  | 'bigShow'
+  /** Somebody who has been doing this long enough for the number to matter. */
+  | 'longCareer'
+  // --- the tale of the tape — computed per wrestler, singles matches only.
+  // See introduceParticipants(). Never set by factsOf(); these live in a
+  // fresh Set built fresh for each side, so the same key means a different
+  // person depending on which side's pass is running.
+  /** Has held a championship in this company at some point in their career. */
+  | 'introFormerChampion'
+  | 'introSecondGeneration'
+  /** Their first match for this company. */
+  | 'introDebut'
+  | 'introHotStreak'
+  | 'introSlump'
+  | 'introVeteran'
+  | 'introRookie'
+  /** This side's record is clearly the weaker of the two coming in. */
+  | 'introUnderdog';
+
+export type Speaker = 'play' | 'colour';
+
+export interface CommentaryLine {
+  speaker: Speaker;
+  /** Whose mouth it came out of, so the window can put a name on it. */
+  name: string;
+  text: string;
+}
+
+/** Who is on the headset. Stored on the promotion so it never changes mid-run. */
+export interface CommentaryTeam {
+  playByPlayName: string;
+  colourName: string;
+  /** Which way the colour man leans. This is where the arguing comes from. */
+  leaning: Leaning;
+}
+
+export interface CommentaryContext {
+  team: CommentaryTeam;
+  /**
+   * The two corners, in the order they were booked rather than by result.
+   * The call works from these, because at the time it is being called nobody
+   * knows which is which.
+   */
+  sideA: readonly Wrestler[];
+  sideB: readonly Wrestler[];
+  /** Which of the two went over. Used only for the finish and the wrap-up. */
+  winningSide: 'a' | 'b' | null;
+  /** Managers at ringside and whose corner they are in. Empty is common. */
+  managers: readonly { name: string; clientName: string; devious: boolean }[];
+  refereeName: string | null;
+  /** A wrestler in the shirt rather than an official. */
+  guestRefereeName: string | null;
+  /** What the official missed, said plainly. Null when he called it straight. */
+  refereeMiss: string | null;
+  titles: readonly Title[];
+  /** Who walked in holding it, and for how long. */
+  championName: string | null;
+  championWeeks: number;
+  titleChanged: boolean;
+  stipulationName: string | null;
+  /** Real animosity, 0-100. */
+  shootHeat: number;
+  isMainEvent: boolean;
+  finish: FinishType;
+  rating: number;
+  /** The beats the match actually produced. This is the spine of the call. */
+  beats: readonly MatchBeat[];
+  /** Who got hurt in this match, and the sentence about it. */
+  injuries: readonly { name: string; text: string }[];
+  /** Somebody who walked in already carrying something. */
+  hurtComingIn: string | null;
+  /** Something nobody booked. */
+  incidentText: string | null;
+  /** How the building was, from attendance against capacity. */
+  crowd: 'hot' | 'warm' | 'flat';
+  /** The winner was a heavy underdog on paper. */
+  upset: boolean;
+  /**
+   * Who these two are beyond tonight. Every one of these is a name the
+   * engine has looked up, or null — the announcers never guess at a career.
+   */
+  formerChampionName: string | null;
+  formerChampionTitle: string | null;
+  /** Somebody carrying a different belt into a match it is not on the line in. */
+  otherBeltHolderName: string | null;
+  otherBeltName: string | null;
+  onATearName: string | null;
+  /** How long that run is. Announcers deal in exact numbers; bars are for the office. */
+  onATearRun: number;
+  slumpingName: string | null;
+  slumpingRun: number;
+  debutantName: string | null;
+  /**
+   * Somebody in this match whose father was in the business, and his father's
+   * name. Both or neither — the announcers never half-know a lineage.
+   */
+  secondGenName: string | null;
+  secondGenParentName: string | null;
+  /** The most experienced person in the match, and how many years that is. */
+  oldHandName: string | null;
+  oldHandYears: number;
+  /** How many times these two have been in with each other lately. */
+  timesMet: number;
+  /** The feud they are in, if they are in one. */
+  feudWeeks: number;
+  feudMatches: number;
+  isBlowoff: boolean;
+  /** The town. Always known, so always safe to say. */
+  townName: string;
+  /** What the weather did to the house, in the forecast's own words. */
+  weatherLine: string | null;
+  isPPV: boolean;
+  /**
+   * How many times each colour line has been used elsewhere on tonight's
+   * card. The caller adds to it. Counted rather than merely remembered
+   * because once a thin card exhausts what is actually true, the fallback
+   * has to repeat *something* — and it should repeat the thing it has leaned
+   * on least, not whatever the dice hand it. Measured: without the count, a
+   * six-match card produced five duplicate colour lines.
+   */
+  saidTonight?: Map<string, number>;
+  settings: WorldSettings;
+}
+
+/** Which of the fact keys are true of this match. */
+export function factsOf(ctx: CommentaryContext): Set<CommentaryFact> {
+  const s = ctx.settings;
+  const facts = new Set<CommentaryFact>();
+  const everyone = [...ctx.sideA, ...ctx.sideB];
+
+  if (ctx.managers.length > 0) facts.add('manager');
+  if (ctx.managers.some((m) => m.devious)) facts.add('deviousManager');
+  if (ctx.refereeName) facts.add('referee');
+  if (ctx.refereeMiss) facts.add('refereeMiss');
+  if (ctx.guestRefereeName) facts.add('guestReferee');
+  if (ctx.titles.length > 0) facts.add('title');
+  if (ctx.titles.length > 0 && ctx.titleChanged) facts.add('titleChange');
+  // A vacate is not a retain — the gear gave out, nobody defended it for
+  // real, and the belt came off the table entirely. See state/store.ts's
+  // equipmentFailure title-outcome intercept.
+  if (ctx.titles.length > 0 && ctx.finish === 'equipmentFailure') facts.add('titleVoided');
+  if (ctx.titles.length > 0 && !ctx.titleChanged && ctx.championName && ctx.finish !== 'equipmentFailure') {
+    facts.add('titleRetained');
+  }
+  if (ctx.titles.length > 0 && ctx.championName && ctx.championWeeks >= s.commentaryLongReignWeeks) {
+    facts.add('longReign');
+  }
+  if (ctx.shootHeat >= s.commentaryGrudgeHeat) facts.add('grudge');
+  if (ctx.injuries.length > 0) facts.add('injuredInMatch');
+  if (ctx.hurtComingIn) facts.add('carryingInjury');
+  if (ctx.incidentText) facts.add('incident');
+  if (ctx.stipulationName) facts.add('stipulation');
+  if (ctx.isMainEvent) facts.add('mainEvent');
+  if (ctx.finish === 'interference' || ctx.finish === 'disqualification') facts.add('interference');
+  if (ctx.crowd === 'hot') facts.add('hotCrowd');
+  if (ctx.crowd === 'flat') facts.add('flatCrowd');
+  if (ctx.rating >= s.commentaryGreatMatch) facts.add('greatMatch');
+  if (ctx.rating <= s.commentaryPoorMatch) facts.add('poorMatch');
+  if (everyone.some((w) => w.age >= s.scoutOldAge)) facts.add('veteran');
+  if (everyone.some((w) => w.age <= s.commentaryRookieAge)) facts.add('rookie');
+  if (ctx.sideA.length > 1 || ctx.sideB.length > 1) facts.add('tagMatch');
+  if (ctx.upset) facts.add('upset');
+
+  if (ctx.formerChampionName && ctx.formerChampionTitle) facts.add('formerChampion');
+  if (ctx.otherBeltHolderName && ctx.otherBeltName) facts.add('reigningElsewhere');
+  if (ctx.onATearName) facts.add('onATear');
+  if (ctx.slumpingName) facts.add('slumping');
+  if (ctx.debutantName) facts.add('debut');
+  if (ctx.secondGenName && ctx.secondGenParentName) facts.add('secondGeneration');
+  if (ctx.oldHandName && ctx.oldHandYears >= s.commentaryLongCareerYears) facts.add('longCareer');
+  // "They have never met" is only worth saying about two people the crowd
+  // has heard of, which the match having any stature at all stands in for.
+  if (ctx.timesMet === 0 && ctx.rating >= s.commentaryFirstMeetingRating) facts.add('firstMeeting');
+  if (ctx.timesMet >= s.commentaryMetOftenTimes) facts.add('metOften');
+  if (ctx.feudWeeks >= s.commentaryLongFeudWeeks) facts.add('longFeud');
+  if (ctx.isBlowoff) facts.add('blowoff');
+  if (ctx.weatherLine) facts.add('weatherHurtGate');
+  if (ctx.isPPV) facts.add('bigShow');
+
+  // Weight, not billing: two men of the same size do not make a size story.
+  const weights = everyone.map((w) => w.weightLbs).filter((n): n is number => typeof n === 'number');
+  if (weights.length >= 2 && Math.max(...weights) - Math.min(...weights) >= s.commentarySizeGapLbs) {
+    facts.add('sizeGap');
+  }
+
+  return facts;
+}
+
+/** Who is on top at this moment in the match, and who is in trouble. */
+interface Momentum {
+  onTop: readonly Wrestler[];
+  inTrouble: readonly Wrestler[];
+}
+
+/**
+ * The facts that are only true at this instant.
+ *
+ * Everything in factsOf is settled before the bell — there is a manager, a
+ * belt is on the line, one of them is 45 years old. These three are about
+ * who is currently getting beaten up, which changes at the hope spot, so a
+ * line that comments on somebody struggling has to be re-checked every beat.
+ */
+function momentumFacts(ctx: CommentaryContext, momentum: Momentum): Set<CommentaryFact> {
+  const s = ctx.settings;
+  const facts = new Set<CommentaryFact>();
+  const everyone = [...ctx.sideA, ...ctx.sideB];
+  const lightest = [...everyone].sort((a, b) => (a.weightLbs ?? 0) - (b.weightLbs ?? 0))[0];
+
+  if (momentum.inTrouble.some((w) => w.age <= s.commentaryRookieAge)) facts.add('rookieInTrouble');
+  if (momentum.inTrouble.some((w) => w.age >= s.scoutOldAge)) facts.add('vetInTrouble');
+  if (lightest && momentum.inTrouble.some((w) => w.id === lightest.id)) facts.add('smallInTrouble');
+  return facts;
+}
+
+/** "12-4" — or "12-4-1" once there is a draw worth carrying. */
+export function formatRecord(w: Wrestler): string {
+  const r = w.record;
+  return r.draws > 0 ? `${r.wins}-${r.losses}-${r.draws}` : `${r.wins}-${r.losses}`;
+}
+
+/** Decisive win rate — draws don't move it either way. Null under the sample floor. */
+export function decisiveWinRate(w: Wrestler, minDecisions: number): number | null {
+  const decisions = w.record.wins + w.record.losses;
+  return decisions >= minDecisions ? w.record.wins / decisions : null;
+}
+
+/**
+ * Everything worth saying about *this one wrestler*, independent of who is
+ * across the ring from them. Unlike factsOf() this is never stored on the
+ * match — it is built fresh for each side of a singles introduction, so the
+ * same fact key means somebody different each time it is used.
+ */
+export function introFactsOf(w: Wrestler, s: WorldSettings): Set<CommentaryFact> {
+  const facts = new Set<CommentaryFact>();
+  if (w.titleReigns.length > 0) facts.add('introFormerChampion');
+  if (w.lineage) facts.add('introSecondGeneration');
+  if (w.career.matches === 0) facts.add('introDebut');
+  if (w.career.streak >= s.commentaryStreakRun) facts.add('introHotStreak');
+  if (w.career.streak <= -s.commentarySlumpRun) facts.add('introSlump');
+  if (w.age >= s.scoutOldAge) facts.add('introVeteran');
+  if (w.age <= s.commentaryRookieAge) facts.add('introRookie');
+  return facts;
+}
+
+/**
+ * Fill in the names.
+ *
+ * `{onTop}` and `{inTrouble}` are the two the caller can legitimately talk
+ * about mid-match. `{winner}` and `{loser}` exist only for the finish call
+ * and the wrap-up, because before the bell nobody on the headset knows.
+ *
+ * Every other placeholder resolves to something the engine has verified: a
+ * template that uses {manager} declared the 'manager' fact, so the lookup
+ * cannot come back empty for a line that was actually chosen. The fallbacks
+ * exist so a bug produces a slightly flat sentence rather than the word
+ * "undefined" on the player's screen.
+ */
+function filler(ctx: CommentaryContext, rng: Rng) {
+  const winners = ctx.winningSide === 'b' ? ctx.sideB : ctx.sideA;
+  const losers = ctx.winningSide === 'b' ? ctx.sideA : ctx.sideB;
+  const everyone = [...ctx.sideA, ...ctx.sideB];
+  const manager = ctx.managers.length > 0 ? pick(rng, [...ctx.managers]) : null;
+  const byWeight = [...everyone].sort((a, b) => (b.weightLbs ?? 0) - (a.weightLbs ?? 0));
+  const hurt = ctx.injuries[0];
+  // Which corner is actually across from the debutant — found by where their
+  // name sits, not assumed to be a fixed side, since the debutant can be
+  // booked into either corner.
+  const debutantOpponent = ctx.debutantName
+    ? (ctx.sideA.some((w) => w.name === ctx.debutantName) ? ctx.sideB[0] : ctx.sideA[0])
+    : null;
+
+  return (text: string, momentum: Momentum): string => {
+    // Where two people qualify, the one the line is about is the one it is
+    // happening to. "There is a lot of mileage on him" is about the veteran
+    // being worn down, not the veteran doing the wearing.
+    const veteran =
+      momentum.inTrouble.find((w) => w.age >= ctx.settings.scoutOldAge) ??
+      everyone.find((w) => w.age >= ctx.settings.scoutOldAge);
+    const rookie =
+      momentum.inTrouble.find((w) => w.age <= ctx.settings.commentaryRookieAge) ??
+      everyone.find((w) => w.age <= ctx.settings.commentaryRookieAge);
+    const top = momentum.onTop[0] ? pronounsFor(momentum.onTop[0]) : HE;
+    const low = momentum.inTrouble[0] ? pronounsFor(momentum.inTrouble[0]) : HE;
+    const win = winners[0] ? pronounsFor(winners[0]) : HE;
+    const lose = losers[0] ? pronounsFor(losers[0]) : HE;
+
+    return text
+      .replace(/\{town\}/g, ctx.townName)
+      .replace(/\{formerChamp\}/g, ctx.formerChampionName ?? everyone[0]?.name ?? 'them')
+      .replace(/\{formerTitle\}/g, ctx.formerChampionTitle ?? 'a championship')
+      .replace(/\{otherChamp\}/g, ctx.otherBeltHolderName ?? everyone[0]?.name ?? 'them')
+      .replace(/\{otherBelt\}/g, ctx.otherBeltName ?? 'a championship')
+      .replace(/\{streaking\}/g, ctx.onATearName ?? everyone[0]?.name ?? 'them')
+      .replace(/\{tearRun\}/g, String(Math.max(2, ctx.onATearRun)))
+      .replace(/\{slumping\}/g, ctx.slumpingName ?? everyone[0]?.name ?? 'them')
+      .replace(/\{slumpRun\}/g, String(Math.max(2, ctx.slumpingRun)))
+      .replace(/\{oldHand\}/g, ctx.oldHandName ?? everyone[0]?.name ?? 'them')
+      .replace(/\{oldHandYears\}/g, String(Math.max(1, ctx.oldHandYears)))
+      .replace(/\{debutant\}/g, ctx.debutantName ?? everyone[0]?.name ?? 'them')
+      // Whoever the debutant is *not* — resolved from which corner their name
+      // actually sits in, rather than a fixed {sideA}/{sideB} lookup. A debut
+      // line naming both the debutant and "the other corner" used to print
+      // the same name twice whenever the debutant happened to be sideB's own
+      // first name: "{debutant} ... starts against {sideB}" with both
+      // resolving to the same wrestler.
+      .replace(/\{debutantOpponent\}/g, debutantOpponent?.name ?? 'their opponent')
+      .replace(/\{secondGen\}/g, ctx.secondGenName ?? everyone[0]?.name ?? 'them')
+      .replace(/\{secondGenParent\}/g, ctx.secondGenParentName ?? 'their parent')
+      .replace(/\{timesMet\}/g, String(ctx.timesMet))
+      .replace(/\{feudWeeks\}/g, String(Math.max(1, ctx.feudWeeks)))
+      .replace(/\{feudMatches\}/g, String(Math.max(1, ctx.feudMatches)))
+      .replace(/\{weather\}/g, ctx.weatherLine ?? 'the weather')
+      .replace(/\{play\}/g, ctx.team.playByPlayName)
+      .replace(/\{colour\}/g, ctx.team.colourName)
+      // Pronouns for the two people the line can legitimately talk about.
+      // The commentary is the one place where a blind swap cannot work — in
+      // "{onTop} grounds {lowThem}, taking {topTheir} time about it" the two
+      // pronouns are two different wrestlers, and getting them the wrong way
+      // round reverses who is winning the match. So the templates name which
+      // one they mean and this resolves it. See career/pronouns.ts.
+      .replace(/\{topThey\}/g, top.they)
+      .replace(/\{topThem\}/g, top.them)
+      .replace(/\{topTheir\}/g, top.their)
+      .replace(/\{Top\}/g, Cap(top.they))
+      .replace(/\{lowThey\}/g, low.they)
+      .replace(/\{lowThem\}/g, low.them)
+      .replace(/\{lowTheir\}/g, low.their)
+      .replace(/\{Low\}/g, Cap(low.they))
+      .replace(/\{winThey\}/g, win.they)
+      .replace(/\{Win\}/g, Cap(win.they))
+      .replace(/\{loseThem\}/g, lose.them)
+      .replace(/\{onTop\}/g, momentum.onTop[0]?.name ?? 'the person in control')
+      .replace(/\{onTopPartner\}/g, momentum.onTop[1]?.name ?? momentum.onTop[0]?.name ?? 'their partner')
+      .replace(/\{inTrouble\}/g, momentum.inTrouble[0]?.name ?? 'the other one')
+      .replace(
+        /\{inTroublePartner\}/g,
+        momentum.inTrouble[1]?.name ?? momentum.inTrouble[0]?.name ?? 'their partner',
+      )
+      .replace(/\{winner\}/g, winners[0]?.name ?? 'the winner')
+      .replace(/\{loser\}/g, losers[0]?.name ?? 'their opponent')
+      .replace(/\{sideA\}/g, ctx.sideA[0]?.name ?? 'one corner')
+      .replace(/\{sideB\}/g, ctx.sideB[0]?.name ?? 'the other')
+      .replace(/\{finisher\}/g, momentum.onTop[0]?.moveSet?.finisher?.name ?? 'the finish')
+      .replace(/\{winnerFinisher\}/g, winners[0]?.moveSet?.finisher?.name ?? 'the finish')
+      .replace(/\{manager\}/g, manager?.name ?? 'the manager')
+      .replace(/\{managerClient\}/g, manager?.clientName ?? ctx.sideA[0]?.name ?? 'their client')
+      .replace(/\{ref\}/g, ctx.refereeName ?? ctx.guestRefereeName ?? 'the official')
+      .replace(/\{guestRef\}/g, ctx.guestRefereeName ?? 'the guest official')
+      .replace(/\{refMiss\}/g, ctx.refereeMiss ?? 'missed it')
+      .replace(/\{title\}/g, ctx.titles[0]?.name ?? 'the championship')
+      .replace(/\{champion\}/g, ctx.championName ?? ctx.sideA[0]?.name ?? 'the champion')
+      .replace(/\{reign\}/g, String(Math.max(1, ctx.championWeeks)))
+      .replace(/\{stip\}/g, ctx.stipulationName ?? 'this')
+      .replace(/\{hurt\}/g, hurt?.name ?? losers[0]?.name ?? 'somebody')
+      .replace(/\{hurtHow\}/g, hurt?.text ?? 'landed badly')
+      .replace(/\{hurtComingIn\}/g, ctx.hurtComingIn ?? losers[0]?.name ?? 'somebody')
+      .replace(/\{incident\}/g, ctx.incidentText ?? 'that')
+      .replace(/\{vet\}/g, veteran?.name ?? everyone[0]?.name ?? 'the veteran')
+      .replace(/\{rookie\}/g, rookie?.name ?? everyone[0]?.name ?? 'the kid')
+      .replace(/\{big\}/g, byWeight[0]?.name ?? everyone[0]?.name ?? 'the bigger man')
+      .replace(/\{small\}/g, byWeight[byWeight.length - 1]?.name ?? everyone[0]?.name ?? 'the smaller man');
+  };
+}
+
+/** Templates whose every declared fact is true, and which fit this leaning. */
+function eligible(
+  templates: readonly ColourTemplate[],
+  facts: ReadonlySet<CommentaryFact>,
+  leaning: Leaning,
+  used: ReadonlySet<string>,
+  after: MatchBeatKind | null,
+): ColourTemplate[] {
+  return templates.filter((t) => {
+    if (used.has(t.text)) return false;
+    if (t.leaning && t.leaning !== leaning) return false;
+    // A template that only makes sense at a particular point in the match
+    // says so; one with no `after` fits anywhere.
+    if (t.after && (after === null || !t.after.includes(after))) return false;
+    return t.needs.every((fact) => facts.has(fact));
+  });
+}
+
+/**
+ * Call the match.
+ *
+ * Walks the beats the simulation produced, tracking who is on top. Each beat
+ * gets a play-by-play line in the caller's voice; some get a colour line
+ * after, chosen from whatever is actually true; a few of those get answered
+ * back. The order is the match's own order, which is what makes it flow.
+ */
+export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[] {
+  const s = ctx.settings;
+  const fill = filler(ctx, rng);
+  const facts = factsOf(ctx);
+  const lines: CommentaryLine[] = [];
+  // Seeded with whatever the colour man has already said elsewhere tonight.
+  // An observation is only worth making once an evening.
+  const usedColour = new Set<string>(ctx.saidTonight?.keys() ?? []);
+  /** Only what this match has used — the floor the night-wide set falls back to. */
+  const usedThisMatch = new Set<string>();
+  const usedPlay = new Set<string>();
+  const remember = (text: string) => {
+    usedColour.add(text);
+    usedThisMatch.add(text);
+    ctx.saidTonight?.set(text, (ctx.saidTonight.get(text) ?? 0) + 1);
+  };
+  /** Of what is left, whatever he has leaned on least tonight. */
+  const leastWorn = (options: ColourTemplate[]): ColourTemplate[] => {
+    if (options.length === 0) return options;
+    const wear = (t: ColourTemplate) => ctx.saidTonight?.get(t.text) ?? 0;
+    const fewest = Math.min(...options.map(wear));
+    return options.filter((t) => wear(t) === fewest);
+  };
+
+  const winners = ctx.winningSide === 'b' ? ctx.sideB : ctx.sideA;
+  const losers = ctx.winningSide === 'b' ? ctx.sideA : ctx.sideB;
+
+  // The classic shape, and the one the beat list is already written for: the
+  // side that ends up losing takes over first, the other one fights out of
+  // it, and the comeback runs into the finish. Starting with the eventual
+  // winner on top would make the hope spot and the near-fall read backwards.
+  let momentum: Momentum = { onTop: losers, inTrouble: winners };
+  const turnOver = () => {
+    momentum = { onTop: momentum.inTrouble, inTrouble: momentum.onTop };
+  };
+
+  const play = (text: string) =>
+    lines.push({ speaker: 'play', name: ctx.team.playByPlayName, text: fill(text, momentum) });
+  const colour = (text: string) =>
+    lines.push({ speaker: 'colour', name: ctx.team.colourName, text: fill(text, momentum) });
+
+  // ---- who, and what for -------------------------------------------------
+  // A genuine one-on-one gets a real tale of the tape below — the debut and
+  // lineage openers would just repeat what that is about to say, so they sit
+  // out for singles matches only. Tag and multi-man keep the plain opener.
+  const isSingles = ctx.sideA.length === 1 && ctx.sideB.length === 1;
+  // The call always opens by saying what this is. Without it the first line
+  // of action lands on somebody who does not know who is in the ring.
+  const openers = OPENERS.filter(
+    (t) =>
+      t.needs.every((f) => facts.has(f)) &&
+      !(isSingles && (t.needs.includes('debut') || t.needs.includes('secondGeneration'))),
+  );
+  play(pick(rng, openers.length > 0 ? openers : OPENERS.filter((t) => t.needs.length === 0)).text);
+
+  // ---- the tale of the tape -----------------------------------------------
+  // Record, always — even a flat .500 night is worth a sentence, per the
+  // brief. Everything after it is fact-gated the ordinary way: a hot streak,
+  // a slump, a former title, a lineage, an age worth remarking on. Computed
+  // fresh per wrestler rather than off ctx's match-wide single-pick fields,
+  // because those pick the first match found across *both* corners and would
+  // misattribute a fact to the wrong man half the time here.
+  //
+  // DESIGN: scoped to true singles matches. A tag or multi-man introduction
+  // this way would be a wall of biography before a single lock-up — see the
+  // module comment's "IT MUST PERTAIN TO THE MATCH" — so larger fields keep
+  // the original one-line opener and pick up facts the existing way, through
+  // the mid-match colour pool.
+  if (isSingles) {
+    const introFill = (text: string, vars: Readonly<Record<string, string>>): string =>
+      text.replace(/\{(\w+)\}/g, (whole, key: string) => vars[key] ?? whole);
+
+    const introduce = (w: Wrestler, opponent: Wrestler) => {
+      const pronouns = pronounsFor(w);
+      const vars: Record<string, string> = {
+        introName: w.name,
+        introRecord: formatRecord(w),
+        introOpponent: opponent.name,
+        introThey: pronouns.they,
+        introTheir: pronouns.their,
+        introThem: pronouns.them,
+        introStreak: String(Math.max(1, w.career.streak)),
+        introSlump: String(Math.max(1, -w.career.streak)),
+        introParent: w.lineage?.parentName ?? 'their family',
+      };
+
+      play(introFill(pick(rng, INTRO_RECORD).text, vars));
+
+      const wFacts = introFactsOf(w, s);
+      const freshIntro = eligible(INTRO_COLOUR, wFacts, ctx.team.leaning, usedColour, null);
+      const availableIntro =
+        freshIntro.length > 0
+          ? freshIntro
+          : leastWorn(eligible(INTRO_COLOUR, wFacts, ctx.team.leaning, usedThisMatch, null));
+      if (availableIntro.length > 0) {
+        const chosen = pick(rng, availableIntro);
+        remember(chosen.text);
+        colour(introFill(chosen.text, vars));
+      }
+    };
+
+    introduce(ctx.sideA[0]!, ctx.sideB[0]!);
+    introduce(ctx.sideB[0]!, ctx.sideA[0]!);
+
+    // The comparison — only once both records have enough decisions behind
+    // them to mean something. A hot rookie's 2-0 does not make them "the
+    // favorite"; it makes them untested, which the debut/rookie lines above
+    // already cover.
+    const rateA = decisiveWinRate(ctx.sideA[0]!, s.commentaryUnderdogMinDecisions);
+    const rateB = decisiveWinRate(ctx.sideB[0]!, s.commentaryUnderdogMinDecisions);
+    if (rateA !== null && rateB !== null && Math.abs(rateA - rateB) >= s.commentaryUnderdogRecordGap) {
+      const underdog = rateA < rateB ? ctx.sideA[0]! : ctx.sideB[0]!;
+      const favorite = rateA < rateB ? ctx.sideB[0]! : ctx.sideA[0]!;
+      const vars: Record<string, string> = { introName: underdog.name, introOpponent: favorite.name };
+      const underdogFacts = new Set<CommentaryFact>(['introUnderdog']);
+      const freshUnderdog = eligible(INTRO_UNDERDOG, underdogFacts, ctx.team.leaning, usedColour, null);
+      const availableUnderdog =
+        freshUnderdog.length > 0
+          ? freshUnderdog
+          : leastWorn(eligible(INTRO_UNDERDOG, underdogFacts, ctx.team.leaning, usedThisMatch, null));
+      if (availableUnderdog.length > 0) {
+        const chosen = pick(rng, availableUnderdog);
+        remember(chosen.text);
+        colour(introFill(chosen.text, vars));
+      }
+    }
+  }
+
+  const freshStakes = eligible(STAKES, facts, ctx.team.leaning, usedColour, null);
+  const stakes =
+    freshStakes.length > 0
+      ? freshStakes
+      : leastWorn(eligible(STAKES, facts, ctx.team.leaning, usedThisMatch, null));
+  if (stakes.length > 0) {
+    const chosen = pick(rng, stakes);
+    remember(chosen.text);
+    colour(chosen.text);
+  }
+
+  // ---- the match ---------------------------------------------------------
+  const budget = s.commentaryMaxLines;
+  const finishBeat = ctx.beats.find((b) => b.kind === 'finish') ?? null;
+
+  for (const beat of ctx.beats) {
+    if (beat.kind === 'finish') continue;
+    // Two lines held back: the finish call, and something after it.
+    if (lines.length >= budget - 2) break;
+
+    // A hope spot *is* the turn. Handing the advantage over here is the whole
+    // reason consecutive lines read as one fight.
+    if (beat.kind === 'hopeSpot') turnOver();
+
+    const options = (PLAY_BY_PLAY[beat.kind] ?? []).filter((t) => !usedPlay.has(t));
+    if (options.length > 0) {
+      const line = pick(rng, options);
+      usedPlay.add(line);
+      play(line);
+    } else {
+      // Nothing left in the caller's vocabulary for this kind of beat. The
+      // written highlight is still true and still about this match, which
+      // makes it a better fallback than saying the same thing twice.
+      play(beat.text);
+    }
+
+    // And then the man beside him — but only if there is something real to
+    // say. This is the whole discipline: no fact, no line.
+    if (!chance(rng, s.commentaryColourChance)) continue;
+    const nowFacts = new Set([...facts, ...momentumFacts(ctx, momentum)]);
+    // Prefer something he has not said tonight; fall back to the match's own
+    // used-set if the night has exhausted the pool. A hard night-wide block
+    // was systematically silencing him on the last two matches of every card
+    // — which is precisely where the main event is.
+    const fresh = eligible(COLOUR, nowFacts, ctx.team.leaning, usedColour, beat.kind);
+    const available =
+      fresh.length > 0
+        ? fresh
+        : leastWorn(eligible(COLOUR, nowFacts, ctx.team.leaning, usedThisMatch, beat.kind));
+    if (available.length === 0) continue;
+    const chosen = pick(rng, available);
+    remember(chosen.text);
+    colour(chosen.text);
+
+    // Some of what he says is worth arguing with.
+    if (chosen.provocative && lines.length < budget - 2 && chance(rng, s.commentaryComebackChance)) {
+      const comebacks = COMEBACKS.filter(
+        (t) => !usedPlay.has(t.text) && (!t.leaning || t.leaning === ctx.team.leaning),
+      );
+      if (comebacks.length > 0) {
+        const answer = pick(rng, comebacks);
+        usedPlay.add(answer.text);
+        play(answer.text);
+      }
+    }
+  }
+
+  // ---- the finish --------------------------------------------------------
+  // Always called, always by the play-by-play man, always the last of the
+  // action. A call that runs out of room before the finish has failed.
+  momentum = { onTop: winners, inTrouble: losers };
+  const finishCalls = (PLAY_BY_PLAY.finish ?? []).filter((t) => !usedPlay.has(t));
+  play(finishCalls.length > 0 ? pick(rng, finishCalls) : (finishBeat?.text ?? '{winner} takes it.'));
+
+  // ---- and out -----------------------------------------------------------
+  const freshClosers = eligible(CLOSERS, facts, ctx.team.leaning, usedColour, null);
+  const closers =
+    freshClosers.length > 0
+      ? freshClosers
+      : leastWorn(eligible(CLOSERS, facts, ctx.team.leaning, usedThisMatch, null));
+  if (closers.length > 0) {
+    const chosen = pick(rng, closers);
+    remember(chosen.text);
+    if (chosen.speaker === 'play') play(chosen.text);
+    else colour(chosen.text);
+  }
+
+  // A last word, when the night has earned it and there is room. Gated on
+  // facts like everything else — two men agreeing that was a hell of a match
+  // is only worth printing when it was one.
+  if (lines.length < budget && chance(rng, s.commentaryBanterChance)) {
+    const banter = eligible(BANTER, facts, ctx.team.leaning, usedColour, null);
+    if (banter.length > 0) {
+      const chosen = pick(rng, banter);
+      remember(chosen.text);
+      if (chosen.speaker === 'play') play(chosen.text);
+      else colour(chosen.text);
+    }
+  }
+
+  return lines.slice(0, budget);
+}
+
+/** Give a promotion its broadcast team. Deterministic from the world's rng. */
+export function assignCommentaryTeam(
+  rng: Rng,
+  pool: readonly CommentaryTeam[],
+  taken: ReadonlySet<string>,
+): CommentaryTeam {
+  const free = pool.filter((t) => !taken.has(t.playByPlayName));
+  return pick(rng, free.length > 0 ? free : [...pool]);
+}
+
+/**
+ * Every proper noun a call is allowed to contain.
+ *
+ * This is the rule the module exists for, made checkable: if a name appears
+ * in the call that was not in the match, the call is wrong. See the test.
+ */
+export function permittedNames(ctx: CommentaryContext): Set<string> {
+  const names = new Set<Id>();
+  for (const w of [...ctx.sideA, ...ctx.sideB]) {
+    names.add(w.name);
+    // A finisher is a proper noun the call is allowed to say, because it
+    // belongs to somebody who is in the match.
+    if (w.moveSet?.finisher?.name) names.add(w.moveSet.finisher.name);
+    // The tale of the tape reads lineage straight off each wrestler, not off
+    // ctx's single match-wide secondGenParentName pick — so both parents are
+    // permitted, not just whichever one that pick happened to land on.
+    if (w.lineage?.parentName) names.add(w.lineage.parentName);
+  }
+  for (const m of ctx.managers) {
+    names.add(m.name);
+    names.add(m.clientName);
+  }
+  if (ctx.refereeName) names.add(ctx.refereeName);
+  if (ctx.guestRefereeName) names.add(ctx.guestRefereeName);
+  if (ctx.championName) names.add(ctx.championName);
+  if (ctx.hurtComingIn) names.add(ctx.hurtComingIn);
+  for (const t of ctx.titles) names.add(t.name);
+  if (ctx.formerChampionName) names.add(ctx.formerChampionName);
+  if (ctx.secondGenName) names.add(ctx.secondGenName);
+  // The father is a name the announcers are allowed to say even though he is
+  // not in the building — he is the reason the fact exists.
+  if (ctx.secondGenParentName) names.add(ctx.secondGenParentName);
+  if (ctx.formerChampionTitle) names.add(ctx.formerChampionTitle);
+  if (ctx.otherBeltHolderName) names.add(ctx.otherBeltHolderName);
+  if (ctx.otherBeltName) names.add(ctx.otherBeltName);
+  if (ctx.onATearName) names.add(ctx.onATearName);
+  if (ctx.slumpingName) names.add(ctx.slumpingName);
+  if (ctx.debutantName) names.add(ctx.debutantName);
+  if (ctx.oldHandName) names.add(ctx.oldHandName);
+  names.add(ctx.townName);
+  if (ctx.weatherLine) for (const word of ctx.weatherLine.split(/\s+/)) names.add(word);
+  for (const i of ctx.injuries) names.add(i.name);
+  names.add(ctx.team.playByPlayName);
+  names.add(ctx.team.colourName);
+  return names;
+}

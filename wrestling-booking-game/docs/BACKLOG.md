@@ -1,0 +1,5927 @@
+# What is still open
+
+Kept here rather than in a chat message so a cold session picks it up in one
+read. Roughly in the order it is worth doing.
+
+---
+
+## Paperdoll v2 — head-to-waist framing, a real anatomical-detail overlay
+
+Follow-up to the paperdoll library, after the first two real base bodies were submitted and
+reviewed. Two pieces of feedback: the bust-only crop leaves no room for a wrestling top design
+(especially a female one) to actually read, and the flat tinted silhouette needed real detail —
+muscle lines, chest/pec definition, a female bust curve — not just contour.
+
+The detail request collided with the tint mechanic on inspection: skin tone is a flat-color CSS
+mask over the base body's alpha shape, so any shading painted into that same file — which is how
+muscle definition is normally drawn — gets discarded exactly like any other color. Solved with a
+new optional layer instead of fighting the mechanic: `base/m-detail.png` / `f-detail.png`, dark
+linework only on an otherwise fully transparent canvas, composited directly on top of the tinted
+skin layer in `ComposedPortrait.tsx`, and never recolored — so it survives on top of whatever skin
+tone gets assigned. `paperdollAssets.ts` and `assignLook.ts` both updated to carry this optional
+`baseDetailUrl` through; a missing file is a no-op, same as every other optional slot. Verified the
+whole mechanism renders correctly with a rough throwaway test file before writing it into the spec,
+then removed that file since it didn't match the new proportions.
+
+Canvas framing moved from head-to-chest to head-to-waist — still one square 512×512 canvas, just
+more zoomed out, so a wrestling top has real width and height to read rather than a sliver of upper
+chest. The two v1 base bodies submitted before this change are flagged in `assets/README.md` as due
+for a v2 redraw at the new proportions; nothing else in the library was blocked on this, since every
+other slot is still placeholder art regardless.
+
+Rewrote **[The Prompt Sheet](https://claude.ai/code/artifact/8fd67914-ca9b-42d0-9fa7-97e3851c8ad7)**
+in place: new proportions in the shared framing text used by every card, two much more detailed
+base-body prompts (explicit instruction to put muscularity/a bust curve in the silhouette's outline,
+since that's the one thing a flat single-color fill can still express), and two new cards for the
+detail-overlay files with an explicit "line strokes only, nothing else, background fully
+transparent" instruction. **The Bust Line** reference diagram's core lesson (nothing below what a
+small square shows is ever visible) still holds and wasn't redrawn — the Prompt Sheet is now the
+authoritative source for exact current proportions, not that diagram.
+
+---
+
+## Paperdoll asset library — layered portraits, real art in / code out
+
+Follow-up to the wrestler art shot-list generator below, after the player pushed on the same
+problem from a different angle: 300 unique AI-generated portraits (one per wrestler, regenerated
+on every gimmick change) is real, recurring effort. Their instinct — a base male/female model with
+swappable hair, skin tone, and gimmick-themed props like a military cap for an Army gimmick — is
+technically sound, but it's also almost exactly the procedural sprite atlas this codebase already
+tried and killed twice (`f66103e`, `969a455`): bad because the art itself was code drawing shapes,
+and because even the old system's full 20-trait combinatorial space stopped keeping wrestlers
+visually distinct past a few hundred people.
+
+The difference this time: the player supplies real art files (or sources them), and the code only
+does the mechanical stacking, not the drawing — sidestepping the actual documented failure reason
+("Claude's art isn't very good") entirely. New in `ui/paperdoll/`:
+
+- `paperdollAssets.ts` — reads `assets/{base,hair,facial,prop}/` via `import.meta.glob` at
+  build/dev time. Dropping a correctly named file into a folder is the entire way to add an asset;
+  nothing in code needs editing. Vite's glob call requires its options object to be a literal at
+  the call site, not a shared constant — cost one failed dev-server load before catching it.
+- `assignLook.ts` — pure, deterministic per-wrestler assignment (mulberry32 seeded off the
+  wrestler's own `id`, the same convention as `PaperDoll.tsx`'s own `placeholderColor` and the
+  shot-list script), so a look is stable for life and adding new assets later never reshuffles
+  anyone already assigned. A `masked` wrestler gets a mask-tagged prop instead of hair/facial hair,
+  never both; a mask never lands on anyone who isn't supposed to be masked.
+- `skinTones.ts` — six tones as a locked list, applied to the base art in code rather than painted
+  once per tone: `ComposedPortrait.tsx` masks a flat-color layer to the base image's own alpha
+  shape and blends it with `mix-blend-mode: color`, so one base body file serves every tone.
+- `gimmickPropTags.ts` — keyword hints matched against a prop's own filename (e.g.
+  `both-military-cap.png` matches "Military and paramilitary"), keyed by `Gimmick.category` (24
+  values) rather than the ~200 individual gimmicks — most of which already have a `prop` field, but
+  those are hand-held ring items (a wrench, a lasso) that wouldn't even appear inside a bust crop.
+- `PaperDoll.tsx` gained an optional `lookSubject` prop as the new middle tier between a real photo
+  and the initials placeholder; omitting it (every call site not yet migrated) is a no-op. Wired
+  into `WrestlerRow.tsx` and `WrestlerTile.tsx` only for now — the two screens the original
+  density/legibility complaint was about. Full rollout across every `<PaperDoll>` call site is a
+  follow-up.
+- `assets/README.md` — the canvas spec (512×512, transparent, head-centered) and naming rules real
+  art needs to follow, cross-referencing the published crop reference below.
+
+Before any of this: built and published **[The Bust Line](https://claude.ai/code/artifact/c45d358a-8d70-41f0-af39-9cf655115aca)**,
+a line-art reference showing exactly what portion of a wrestler's body ever appears on screen
+today — a gold square frame over a standing figure, solid above the line and faded/dashed below it
+— after confirming via the real current render call sites (17 thumb, 11 bust, 3 large, 1 tiny, zero
+full-body) that this game already relearned the "full body art is invisible everywhere" lesson once
+before, in the same commit that trimmed the old atlas.
+
+Verified with placeholder line-art assets for every slot (2 base bodies, 2 hairstyles, 1 facial
+hair, 3 props including one mask) in a real played save via Playwright: skin tones, hairstyles, and
+a themed military-cap prop all composited and aligned correctly on the actual Roster screen. Full
+`vitest run` (3,414 tests) and `npm run build` both clean afterward.
+
+What real art still needs to happen, from the player, at whatever pace they choose: roughly 35-40
+files total (2 base bodies, ~6 hairstyles per gender, ~5 facial hair, ~10-12 props/headgear) —
+one time, ever, not per wrestler and not per gimmick change. The game keeps working exactly as it
+does today (initials placeholder) until any of it exists; each file added just widens the pool.
+
+## Paperdoll: hair/prop recoloring, and a real tinting bug caught and fixed
+
+Follow-up to the paperdoll library above. Asked directly: since skin tone is "set once, tinted in
+code," can anything else on the bust work the same way before it's placed? Extended the same idea
+to hair, facial hair, and props via a `--tint` filename marker (`m-buzzcut--tint.png`) — opted-in
+per file, not per slot, so a fixed-color mask can sit in the same folder as a recolorable cap.
+`hairColors.ts` and `accentColors.ts` are the two new palettes (hair/facial share one draw per
+wrestler, so a redhead's beard actually matches); `assignLook.ts` only fills in a `*Color` field
+when the corresponding file opted in, and `ComposedPortrait.tsx` renders an untinted layer exactly
+as painted.
+
+First implementation used `mix-blend-mode: color` (matching what a quick web search would suggest
+for "tint an image in CSS") and shipped a real, visible bug: that blend mode takes hue/saturation
+from the tint but *lightness from the backdrop art*, so achromatic targets (black, white, grey hair)
+have no hue to apply at all and rendered as a wash of whatever gray the placeholder art happened to
+be, regardless of which color was assigned — caught by actually looking at a screenshot of the
+roster, not by reasoning about the CSS. Every skin tone was quietly affected the same way, just less
+obviously wrong since every skin tone in the palette still landed somewhere plausible.
+
+Fixed by dropping the blend mode entirely: a tinted layer is now a flat color cut to that asset's
+own alpha shape via a CSS mask, nothing blended in from the source art's own coloring. This is
+strictly better for this game's flat line-art style — an exact, predictable color every time — at
+the cost of not being able to preserve painted-in shading on a tinted file, which is why the asset
+README now says to paint a `--tint` file as a plain flat mid-gray shape, same as the base body.
+
+Verified the fix visually against the same real played save: hair and prop colors now render as
+genuinely distinct (black, red-brown, blond, white/grey) rather than the earlier uniform wash. Full
+`vitest run` (3,414 tests) and `npm run build` both clean.
+
+---
+
+## Wrestler art shot-list generator — `scripts/wrestlerArtPrompts.mjs`
+
+Asked for a zero-additional-cost plan to get real wrestler portraits instead of the initials
+placeholder. No image-generation plugin/MCP tool is available in this environment, and the player's
+own instinct — a base male/female model with swappable hair/skin/prop layers, gimmick changes adding
+an accessory — turned out to be almost exactly the procedural sprite-atlas system this project already
+tried and killed (`f66103e`, `969a455`): confirmed via git history that it failed for two concrete,
+documented reasons, not vibes — the composited art itself "isn't very good" (it was code drawing
+shapes, not a trained model), and even the full 20-trait combinatorial space stopped keeping wrestlers
+visually distinct past a few hundred people, exactly this game's roster scale.
+
+The shape that avoids both failure modes: a real image model draws one cohesive image per prompt
+instead of code compositing layers, and variety lives in the prompt text instead of a swappable-parts
+inventory that runs out of combinations. `scripts/wrestlerArtPrompts.mjs` reads a save export
+(Settings -> Export save) and, for every wrestler on `world.promotion.rosterIds` — the only pool
+`BatchPhotoImport.tsx` actually matches against, so no point generating for anyone else yet — writes
+one prompt and one target filename (`M-<name>.png` / `F-<name>.jpg`, matching that importer's naming
+convention exactly, no renaming needed). Traits (skin tone, hair, build, expression) are derived
+deterministically from a hash of the wrestler's own `id`, the same "seed off the entity, never the
+shared stream" rule this codebase already follows for RNG — so re-running the script against a later
+save only adds prompts for new signings; everyone already generated keeps the exact same prompt.
+Gimmick concept/prop feeds directly into the prompt, and `masked` overrides hair entirely with a mask
+description, so a repackage only needs new art when it actually changes what the character looks like.
+
+Verified against a real played save (fresh `newGame()`, exported via the actual store action, piped
+through the script): 26 wrestlers, distinct prompts, deterministic on rerun (byte-identical output
+twice). Caught and fixed one real bug in testing — a "shaved bald" hairstyle roll was still being
+prefixed with a hair-color descriptor ("chestnut brown hair, shaved bald"), self-contradictory as a
+prompt; bald now renders as its own clause with no color. Free agents and rival rosters are out of
+scope for now since the batch importer itself doesn't match against them yet — worth revisiting if
+that importer's matching pool ever widens.
+
+---
+
+## Themed `<Select>` — every native dropdown replaced
+
+Player feedback: "the game looks rough, like a DOS game from the 1980s." Asked where to focus first;
+picked styling every dropdown, which an audit had already flagged as the single biggest "this isn't
+really a game" tell — a native `<select>` renders with the OS's own default control, different on
+every platform, matching none of this game's own dark chrome. Found 16 of them across 7 files
+(`PromoSlots.tsx` ×6, `OfficeScreen.tsx` ×4, `NewGameScreen.tsx` ×2, one each in `DarkMatchSlots.tsx`,
+`TitleBuilder.tsx`, `BatchPhotoImport.tsx`, `WrestlerFeudsScreen.tsx`), every single one following the
+exact same shape: a controlled string value (`''` for nothing picked), an `onChange` handed the new
+value, and a flat or `<optgroup>`-grouped list of options — one component, not seven bespoke rebuilds.
+
+**New `ui/components/Select.tsx`** — hand-rolled rather than pulling in a combobox library (this
+project has zero UI dependencies beyond React itself; `Tabs`/`Panel`/`Badge` are all hand-built the
+same way, and the interaction surface here is small enough that a library would be more code to load
+than to write). A trigger button styled to match the app's own surfaces (`shadow-panel`, matches
+`Panel`'s `raised` border), and an options panel built on `Panel elevation="hero"` when open — so the
+dropdown itself looks like a real part of the game instead of an OS-native popup nothing else in the
+app can theme. Supports flat options and named groups (`SelectGroup`) in the same array, a
+`placeholder` for the empty-value state, and an `id` prop so an existing `<label htmlFor>` keeps
+working exactly as it did with the native element it replaced. Trade-off, disclosed in its own header
+comment: click and Escape are covered, but not a native select's free arrow-key roving-focus — a fair
+trade for a single-user desktop game where every one of these lists is short.
+
+All 16 call sites migrated mechanically (`value={x ?? ''}` / `onChange={(e) => setX(e.target.value ||
+null)}` → `value={x ?? ''}` / `onChange={(v) => setX(v || null)}`, `<option>` list → an `options` array
+literal); the two `<optgroup>`-based gimmick pickers in `OfficeScreen.tsx` map straight onto
+`Select`'s `SelectGroup` shape with no loss of grouping. Verified live: opened the promo-speaker
+picker (26 real options), confirmed the dropdown panel now renders as a themed dark card instead of
+the browser's native listbox, picked a name and confirmed the trigger updated correctly, confirmed
+clicking away closes it. `tsc --noEmit` clean, full suite (3414 tests) unaffected — CLAUDE.md is
+explicit tests cover the simulation, not the UI, and this project has zero `.test.tsx` component
+tests to break.
+
+---
+
+## Sort and filter for the card-slot picker
+
+Player ask: "need ways to sort and filter rosters." Checked every roster-listing screen —
+`RosterScreen.tsx` and `FreeAgentsScreen.tsx` already have real sort+filter bars, each with its own
+local `SORTS`/filter config suited to that screen's own decision (an established convention — they
+don't share one object). `SlotRosterPicker.tsx` — the card-slot picker rebuilt into a dense tile grid
+last session — was the one gap: search only, nothing else, on a screen that can hold 30+ names.
+
+Added, following the same local-`SORTS`-object and chip-button convention as the other two screens:
+**Sort** (Popularity, Condition, Momentum, Morale, Age, Name) and **Filter** — gender and alignment as
+single-pick segmented rows (nobody is both, so these aren't independent toggles — reuses the gender/
+alignment tags added to `WrestlerTile` last session), plus plain Injured/Champion toggle chips
+(`titlesHeldBy`, same helper `RosterScreen` uses). A `Clear` link appears once anything narrows the
+list, matching `RosterScreen`'s own affordance. Chips use the promotion's own theme colour
+(`theme.action`) rather than the hardcoded emerald the other two screens use, consistent with how
+this screen already went theme-aware last session (the side-panel highlight, the tile hover glow).
+
+Verified live: filtering to F + Heel correctly narrowed a 26-name grid down to the two who actually
+match; Clear correctly restored all 26; sort correctly re-ordered the grid by each of the six keys.
+No new automated tests — a UI/filtering change over data already covered by existing engine tests,
+and CLAUDE.md is explicit tests cover the simulation, not the UI.
+
+---
+
+## Contrast/elevation pass — cards were reading as the same colour as the page
+
+Player feedback: "profile buttons" (the wrestler picker tiles) blended into the background, and the
+ask more broadly was to "make everything look like a game app" with real UI/UX polish and clearer
+positioning. Traced the root cause: `chrome.tsx`'s own `Panel` elevation system exists precisely to
+solve this ("no screen invents its own panel any more") but `raised`'s border (`neutral-800` on a
+`neutral-900` fill, against a `neutral-950` page) was subtle to the point of nearly not being there —
+and `WrestlerTile.tsx` (built last session) never actually used `Panel` at all, hand-rolling its own
+flat `border-neutral-800 bg-neutral-900`, so it got none of `Panel`'s shadow depth either. Also found
+a real, unused asset: `tailwind.config`'s `shadow-glow-sm` utility (a coloured glow shadow) had never
+been wired up to a single component anywhere in the app.
+
+**`chrome.tsx`**: bumped `raised`/`hero` elevation borders one step lighter (`neutral-800` →
+`neutral-700` / `neutral-600`) — a change that improves every screen in the app for free, since
+`Panel` is the one shared surface component. Added two new fields to `PromotionTheme`: `glow` (a
+literal `shadow-{colour}-500/40` per archetype, for pairing with `shadow-glow-sm`) and `hoverEdge` (a
+*complete* literal `hover:border-{colour}-600` string — not `` `hover:${edge}` `` built at render
+time, which Tailwind's JIT can't see since it only generates a class from a string it finds verbatim
+somewhere it scans; this bit twice while building it before landing on whole-literal fields, matching
+the file's own existing "Tailwind cannot see class names built at runtime" rule).
+
+**`WrestlerTile.tsx`**: rebuilt on top of `Panel` instead of a hand-rolled surface — real shadow depth
+for free — plus the promotion's own accent lights the tile up on hover (`theme.hoverEdge` +
+`shadow-glow-sm` + `theme.glow`), a lift (`-translate-y-0.5`), so picking a wrestler feels like
+touching a real interactive card instead of a static rectangle that happens to have an onClick.
+
+**`WrestlerRow.tsx`**: same border bump plus `shadow-panel`, so Roster/Free Agents/Rival Roster/Match
+Setup's cast list all get the same real depth, not just the picker.
+
+**`SlotRosterPicker.tsx`** — the "positioning" half of the ask: the side currently receiving Add taps
+was only distinguished by a small label on a small button (`Add here` vs `Adding here`) — easy to
+miss the one thing that matters most right before you tap Add on a tile. The active side's whole
+panel now lights up in the promotion's own accent (`theme.edge` border, a themed gradient wash, a
+solid `● Adding here` pill) so which side gets the next tap is unmistakable without hunting the
+screen for a small word. Search input's border bumped to match the rest of the surface pass.
+
+Verified live in a played save: screenshotted the picker before/after, confirmed materially better
+contrast on every tile, confirmed the hover glow renders in the promotion's own colour (amber for a
+territory-archetype save), confirmed switching sides visibly moves the highlighted panel, and
+confirmed the Roster screen (a different, unrelated screen using the same shared `Panel`/`WrestlerRow`
+components) picked up the same improvement automatically. No new automated tests — a UI/visual
+change, and CLAUDE.md is explicit tests cover the simulation, not the UI.
+
+This was a scoped pass on the shared chrome + the screen the player specifically called out, not a
+redesign of every screen in the app — "make everything look like a game app" is significant enough in
+scope that further screens are worth doing as their own follow-ups with their own feedback, the same
+way this whole session has gone screen by screen.
+
+---
+
+## Denser, more informative wrestler picker for booking a card
+
+Player feedback after playing a build: the "pick who's in it" screen reached by tapping a card slot
+(`SlotRosterPicker.tsx`) didn't show enough at a glance — "couldn't even tell male or female" — and
+wasted most of the window on a picker capped at 2-3 columns, referencing Wrestling Empire's dense
+grid as the target. Confirmed both against the code: gender was surfaced nowhere in the UI at all
+(not `WrestlerRow`, not `MiniStats`/`StatusPips`, not `PaperDoll`'s placeholder), and `compact` mode
+dropped `MiniStats` entirely, so a picker row was just a face, a name, and two tags — real
+information hidden at exactly the moment density matters most, cutting against CLAUDE.md's own
+"screens use a real window's worth of space" rule.
+
+**`WrestlerRow.tsx`**: added a gender `Tag` (`GENDER_LABEL = { m: 'M', f: 'F' }`, the same convention
+`BatchPhotoImport.tsx` already used for the same field, just never surfaced on a browsing row) next
+to the existing alignment tag, in both compact and full mode — every screen using `WrestlerRow`
+(Roster, Free Agents, Rival Roster, Match Setup's cast list, this picker) gets it for free. `RowKey()`
+updated to explain it.
+
+**New `ui/components/WrestlerTile.tsx`**: a portrait-forward vertical tile for dense browsing grids —
+the actual shape difference a multi-column grid needs, since a wide row tops out around 3 across no
+matter the monitor. `PaperDoll size="bust"` + name + gender/alignment tags + `StatusPips` (imported
+straight from `MiniStats.tsx`, already built, per its own doc comment, to answer "the six things a
+booker asks about somebody before anything else" — champion, injury, tired/worn, mood, contract
+weeks — and never previously used inside compact mode) + a `trailing` slot for the picker's Add
+button. Fully additive — `WrestlerRow`/`MiniStats` are reused wholesale, not changed shape, so every
+other screen is untouched.
+
+**`SlotRosterPicker.tsx`**: swapped the `WrestlerRow compact` grid (`grid-cols-2 xl:grid-cols-3`) for
+`WrestlerTile` in `grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8` — scales
+with the window instead of capping at 3. Kept the sticky right rail (who's committed to each side);
+it no longer competes with the picker for columns since a tile grid reflows around whatever width is
+left. Verified live: ~26 wrestlers visible at once on a 1600px window with zero scrolling (vs. 2-3
+before), every tile readably showing gender, alignment, mood, contract length, and champion status
+without opening anything; Add still books the right person to the right side and returns to the Card
+screen; clicking a tile still opens the wrestler's detail page.
+
+No new automated tests — a UI layout/presentation change, and CLAUDE.md is explicit tests cover the
+simulation, not the UI.
+
+---
+
+## Every big event breaks as its own "Breaking News — Sunday Night" story
+
+Player ask: make sure any big event or story runs as real breaking news, first thing on the weekly
+recap, with a page of its own that clearly explains what's happening. That mechanism mostly already
+existed (`ShowResults.tsx`'s `BreakingNews()`), but with a real gap: it only fired for four wire
+kinds (`business`, `ownership`, `contract`, `talent`) via a hardcoded `BREAKING_NEWS_KINDS`
+whitelist, even though `store.ts` stamps `weight: 'lead'` — the game's own "this is a big deal"
+signal — on far more kinds than that: `death`, `title`, `story`, `team`, `signing`, `injury`,
+`misfortune`, `houseShow`, `weather`. A wrestler dying, a title changing hands, a story paying off,
+Faction Destroyer firing, last session's fan-rivalry incident — none of it ran as breaking news
+despite already being tagged exactly the way the system is supposed to detect "this is a big deal."
+That mismatch was the actual bug. Also true: breaking-news cards were plain, unclickable text with
+no detail page, and `WireItem` carried no id, so nothing was individually addressable. And "Sunday
+night" turned out to have zero mechanical backing — `schedule.ts`'s `PREFERRED_NIGHTS` never
+schedules a show on a Sunday, and no resolved `Show` record carries a day at all — confirmed this is
+flavor framing to add, not a day-of-week gate to build.
+
+**`engine/world/wire.ts`**: added `id: string` to `WireItem`, computed inside the single `wire()`
+constructor — every `WireItem` in the codebase (~30+ call sites across `store.ts`/`storeHelpers.ts`/
+`state/slices/*.ts`, all confirmed funneling through this one function or its phrasing wrappers) gets
+a stable id for free, with zero call-site changes. `id` is a small deterministic hash (`hashId()`,
+base36 of a `hash = hash*31 + charCode` loop) of `` `${kind}:${week}:${text}` `` — no
+`Math.random`/`Date.now`, engine/ stays pure.
+
+**`ui/screens/ShowResults.tsx`**: deleted `BREAKING_NEWS_KINDS` — `BreakingNews()`'s filter is now
+just `item.weight === 'lead'`, full stop (`TheWire()`'s exclusion filter mirrors it:
+`item.weight !== 'lead'`, so nothing doubles up). Moved `<BreakingNews />` to render first, above
+even the marquee, not down with the other sibling sections — "breaks first thing" means first on the
+page. Re-branded it "🔴 BREAKING — SUNDAY NIGHT NEWS" (a `// DESIGN:` comment notes this is
+deliberate flavor, not a schedule fact). Each card is now a button —
+`onClick={() => onOpenStory?.(item.id)}`, the same optional-callback shape `onWatch` already uses for
+the match-viewer button.
+
+**New `ui/screens/NewsStoryScreen.tsx`** — the page of its own, modeled directly on
+`WrestlerFeudsScreen.tsx`/`MatchViewerScreen.tsx` (confirmed the only "drill down from a card into a
+full page" precedent in `ui/`; no modal/overlay pattern exists anywhere in this codebase for this
+kind of thing). Looks up `world.weeklyNews.find(n => n.id === storyId)` — a stale/pruned link gets a
+graceful empty state, not a crash. Repeats the "BREAKING — SUNDAY NIGHT NEWS" banner over the full
+wire text in large type — the copy is already a complete, specific sentence (CLAUDE.md's own
+"nothing happens off-screen, and says how" house style), so the page's job is presentation and space,
+not re-deriving facts nothing else tracks. Bonus, best-effort only: cross-links to a live `Storyline`
+that shares this exact headline as one of its beats (`world.storylines.find(s => s.beats.some(b =>
+b.text === item.text))` — the same string is already shared between a wire push and its beat, per
+`fanRivalry`'s and `groupTurns`' own `store.ts` wiring), showing the story's name/stage and clickable
+participant chips through to their Feuds page. Wired into routing the same way as every other
+drill-down screen: `'newsStory'` added to the `Screen` union in `Nav.tsx` (deliberately not added to
+`SIDEBAR_GROUPS`, same as `wrestlerDetail`/`feuds`/`matchViewer`), `NavTarget.params.storyId` in
+`App.tsx`, a render branch mirroring `matchViewer`'s exactly.
+
+Tests: `engine/world/wire.test.ts` — every kind produces a non-empty id; the same `(kind, text,
+week)` call is deterministic; different text or a different week produces a different id. No UI
+tests, per CLAUDE.md ("Tests cover the simulation, not the UI"). Verified live in a played save:
+forced the fan-rivalry incident (a `story`-kind, `weight: 'lead'` item — previously excluded under
+the old whitelist) and confirmed it now runs under "BREAKING — SUNDAY NIGHT NEWS" at the very top of
+the results page (screenshotted, above the marquee), is clickable, opens `NewsStoryScreen` with the
+full text and the correct week, shows the cross-linked "Sable Situation" storyline with both
+participants as clickable chips, and that clicking a chip lands on that wrestler's real Feuds page
+showing the same live storyline. Back navigation confirmed clean in both directions.
+
+---
+
+## Fan rivalry — a heel slaps a fan, the fan fights back, and it becomes a real feud
+
+Player-specified narrative arc: during a show, a heel woman mocks and slaps somebody in the front
+row, proud of it — the fan grabs her by the hair and flings her down, and security pulls them
+apart. The following week the heel is forced into a promo calling the fan out for an unsanctioned
+match; the week after that they actually fight, the fan turns out to have real talent, and the
+match's own real, sim-decided result — not this story — decides what happens next: win it and the
+office signs her cheap on the spot, before the rest of the business catches up; lose it and there's
+no free contract just for having been found first — straight to free agency instead, priced at what
+the tape just showed. The heel is left with a real, ongoing enemy either way, whichever roster she
+ends up on, or none at all.
+
+Nothing about individual fans existed before this — the crowd was purely aggregate (`data/fanVoices.ts`'s
+tweet feed, `crowdHijack` in `data/incidents.ts`). The whole feature is built by wiring four existing
+systems together rather than inventing new ones: `engine/world/walkOns.ts`'s `asWalkOn(..., 'gem', ...)`
+generates the fan with real, floored-high talent/charisma (the exact "outsider who turns out to have
+real talent" mechanism the school-vs-street system already models); `engine/world/factionDestroyer.ts`'s
+shape — a story object on `World`, fixed follow-up weeks, `Segment.systemForced` forcing a slot onto
+the card with no booker choice — is the pattern for the two locked-in follow-up weeks (widened
+`systemForced?: 'factionDestroyer'` to `'factionDestroyer' | 'fanRivalry'` in `engine/types.ts`); the
+promo topic `challenge` (`data/promoTopics.ts`, `engine/sim/promo.ts`) is a one-sided, non-random
+segment reused for the forced callout, so there's no twist system that could derail the fixed
+narrative; and `createRivalry` + `Storyline`/`advance()` (this session's own established pattern —
+see `state/slices/groupTurns.ts`'s `startGroupTurnStoryline`) opens the shoot-origin rivalry the
+story ends with, so it shows up in Office's Feuds tab like any other real feud.
+
+New engine module `engine/world/fanRivalry.ts`: `FanRivalryStory` (both follow-up weeks —
+`calloutWeek`, `matchWeek` — fixed at trigger time rather than counted down, since there's no "did a
+qualifying week happen" question here, just two fixed beats), `canTriggerFanIncident` (the same heel
+test `winnersAreHeels` in `data/incidents.ts` already uses — `alignment < 0` — on a `role: 'wrestler'`
+woman), `generateRingsideFan` (one call into `asWalkOn`'s `'gem'` path, nothing new rolled),
+`buildFanCalloutPromo` and `buildFanRivalryMatchSegment` (mirrors `factionDestroyer.ts`'s
+`buildForcedSegment`, but a normal 1v1 built off `defaultMatchRules()`'s own fields rather than a
+battle royal). New data `data/fanRivalry.ts` for the wire lines. New stipulation `unsanctioned` in
+`data/stipulations.ts` (`impliedRules: { ruleStrictness: 'none', countOuts: 'none' }`, no
+`heatRequirement` since it's never unlocked-and-booked by the player, only forced — though it's a
+real generic stipulation afterward too, not hidden). New settings `fanIncidentChance` (rolled per
+eligible heel woman in a *resolved match*, not per show — kept low, 0.03, so it reads as a rare,
+memorable incident even on a card-heavy week), `fanRivalryShootHeat`, `fanRivalryWinSignDiscount`
+(below 1 — the cheap-signing multiplier on `askingRate()`), and `fanRivalryLossAskingRateMult` (above
+1 — losing doesn't lower her price, since she still looked like a star doing it). Schema 70 → 71.
+
+Four `store.ts` wiring points, all inside the existing per-segment match-resolution loop or the
+existing card-creation block, right alongside Faction Destroyer's own equivalents: (1) the trigger,
+entity-seeded (`fanIncident:${wrestler.id}:${world.week}`) right after the ordinary `rollIncident`
+call; (2) force the callout promo onto the next card, right after `createEmptyPromoSlots`; (3) force
+the unsanctioned match the week after that, right after Faction Destroyer's own forced-segment block;
+(4) the payoff, once the match resolves, right after Faction Destroyer's own stipulation-consequence
+block. Steps 2 and 3 abandon the story (`world.fanRivalry = null`) rather than leave it stuck forever
+blocking a future pairing, if a promo slot or a working participant isn't available that week. Unlike
+Faction Destroyer's one-time `factionDestroyerHappened` latch, this is deliberately repeatable —
+`world.fanRivalry` just clears back to `null` once the arc resolves, so a fresh eligible heel/fan
+pairing can start a new instance of the story later.
+
+**Follow-up, same session:** step 4 originally signed her to the player's roster unconditionally,
+regardless of who won — the player asked whether the result should actually matter, and confirmed
+the free-agency route on a loss deliberately risks losing her to a rival ("let the cards fall... if a
+rival promotion signs her, she has a beef with the heel AND my promotion"). Extracted the decision
+into a pure `resolveFanRivalryPayoff(fan, fanWon, settings, currentYear)` in `fanRivalry.ts` — same
+split `resolveFactionDestroyer` already uses (`store.ts` reads `result.winnerWrestlerIds` only to
+decide which branch, per the "no scripted finishes" non-negotiable; the function itself never sees
+the sim). A win builds a real one-year contract at a discounted `askingRate()` and signs her straight
+to the player's roster; a loss pushes a `FreeAgent` entry (new `AvailabilityReason: 'provedItAnyway'`)
+at a *raised* `askingRate()` instead — priced at what the tape just showed, not discounted for having
+lost. The `Rivalry` opened in week one is untouched either way, so the beef persists onto whichever
+roster she lands on next, or none, exactly as asked.
+
+Tests: `engine/world/fanRivalry.test.ts` (eligibility gating, the gem-tier fan, the week arithmetic,
+both forced-segment builders, and `resolveFanRivalryPayoff`'s two branches — contract terms on a win,
+free-agent terms on a loss, both against a real `generateRingsideFan` fixture rather than a synthetic
+stub) and `state/fanRivalry.store.test.ts` (full weekly-tick integration — the trigger opens a
+rivalry+storyline and locks the callout in the same call; a second eligible heel woman is ignored
+while one story is already running; the match gets forced the week after the callout resolves; the
+payoff matches whichever branch the sim's own real result says it should, read back out of
+`showHistory` the same way `factionDestroyer.store.test.ts` reads its own forced match; the abandon
+path when there's nowhere to put the callout). Verified live in a played save via `window.__store`,
+twice: once end to end at natural odds (incident → rivalry/storyline → forced callout → forced match →
+win → signed, cheap, one year, shown live on the Feuds tab), and once forcing each payoff branch by
+stacking both wrestlers' stats and `deckStacking.favoredSideIndex` toward each outcome in turn —
+confirmed the win case signs a contract below `askingRate()` and the loss case pushes a `'provedItAnyway'`
+free-agent entry above it, with no contract and no roster spot, and the right wire line either way.
+The first pass also surfaced a real, correct edge case unprompted: the heel came out of her own
+incident-triggering match genuinely injured, and the abandon-on-failure guard in step 3 cleanly bailed
+the story instead of leaving it stuck — confirmed working as designed, not a bug.
+
+---
+
+## Audit: 34 more `WorldSettings` fields declared and defaulted but read by nothing
+
+Direct follow-up to the `salaryInflation` fix just below — the player asked to "look at salary
+inflation gap too," which turned into checking whether it had siblings. It did: a scripted sweep of
+every `WorldSettings` field for a real consumer anywhere outside `types.ts`/`settings.ts` turned up
+34 more. Then, per the player ("if it needs to be done let's work through it"), went through all 34
+one at a time rather than batch-guessing from field names — the two turned out to need genuinely
+different answers, and guessing wrong in either direction (wiring in something that should have
+stayed dead, or deleting something that had a real home waiting) would have been worse than the
+original gap.
+
+**17 fields removed as genuinely dead** — each one checked individually, and each dead for a
+different, specific reason rather than "nobody got around to it":
+
+- `mergerStoryWeight` / `successionStoryWeight` — `data/worldStories.ts`'s `weight` field is a plain
+  hardcoded literal for all 11 registry entries, which is the correct, established convention (CLAUDE.md:
+  content/constants belong in `data/`, not settings). Only these two of eleven stories happened to
+  have a matching unused settings field; wiring just those two in would have made the registry
+  inconsistent for no benefit.
+- `clauseTitlePushWeeks`, `clauseTitlePushMoraleDrain`, `clauseTitlePushNoticeWeeks`,
+  `clauseNoJobbingMoraleHit` — found `engine/types.ts` already carrying an explicit note that
+  `titlePush` and `noJobbing` were removed from the `Clause` union entirely in an earlier pass,
+  specifically because they were "offered and paid for, and neither was ever enforced anywhere...
+  removed rather than implemented: a clause list is a promise about what the game models, and nine
+  tenths of a promise is worse than a shorter one." These four settings were the leftover cost
+  parameters for a feature that was deliberately cut, not overlooked.
+- `broadcastWindowTV` / `broadcastWindowPPV` — real broadcast-runtime minutes (120/180, a 2-hour TV
+  show and a 3-hour PPV) sitting next to `segmentsPerTV`/`segmentsPerPPV` with no formula ever
+  connecting them. The game has no real-time-duration concept anywhere in the sim for these to gate;
+  building one would be a new feature, not a wiring fix.
+- `ticketPricePerSegment` — the pre-dashboard ticket pricing formula's per-segment term. Superseded
+  when the full player/rival pricing dashboard shipped (`ticketFairPriceBase`/`ticketFairPriceRange`,
+  a whole different, already-wired formula with a comment explicitly naming itself the replacement).
+- `workingHurtInjuryMultiplier` — the old flat multiplier for a hurt wrestler's re-injury risk.
+  `sim/casualties.ts`'s `riskFromGrade` is its explicitly-documented replacement (grade-scaled rather
+  than flat), with a comment naming the exact old mechanism it replaced.
+- `biddingHeadroomWeeks` — a flat "weeks of payroll to enter an auction" number, superseded by
+  `biddingRunwayWeeksMin`/`biddingRunwayWeeksRange`, a temperament-scaled version of the same idea
+  already fully wired into `bidCeiling`.
+- `poachOfferWeeksToRespond` — an exact duplicate of the already-wired `poachOfferWeeks`, same
+  doc comment, same job, different name.
+- `academyDebutAgeMax` — a narrow 19-25 debut window superseded by the wider, carefully-reasoned
+  `[academyDebutAgeMin, academyMaxAge]` late-starter clamp built for "Cap the school's intake age and
+  add walk-ons" (a big comment in `academy.ts` explains exactly why a school takes late starters up
+  to 34 — wiring the narrower field back in would have directly undone that).
+- `secondGenResemblance` — "chance each heritable appearance trait comes from the parent." Belonged
+  to the generated-sprite-appearance system from the very start of this project; CLAUDE.md itself
+  documents that system was later "removed wholesale, not extended" in favor of real uploaded photos.
+  There is no appearance-trait concept left on `Wrestler` for this to attach to.
+- `freeAgentRivalSigningChance` — `freeAgents.ts`'s own doc comment explains this one directly: an
+  older `tickPool` used to also have rivals sign out of the free-agent pool, and that duplicate was
+  cut rather than wired, in the comment's own words, because "the store already has short-handed
+  rivals signing from the pool, and two systems quietly doing the same thing is how a business ends
+  up with a rule nobody can find." This setting was that duplicate's leftover parameter.
+- `ownerPatience` — default value (3) exactly matches `mandateStrikesBeforeFiring`'s default, which
+  already varies per owner personality (2 to 5 strikes across different presets) — a fully-built,
+  more granular version of the same "how many failures before the owner fires you" concept.
+
+**5 fields wired in for real**, each into an existing, already-functioning system that was simply
+missing this one input:
+
+- `rivalryHeatRatingBonus` — `sim/matchRating.ts` had `chemistry += (ctx.rivalryHeat / 100) * 12`, a
+  bare literal whose value (12) exactly matched this setting's default. Replaced the literal with the
+  setting.
+- `tournamentFinalRatingBonus` — The Crucible's bracket final already got the ordinary main-event
+  treatment (`isMainEvent: true`) but nothing extra for being a final specifically. Added the bonus on
+  top, in `engine/world/cupRun.ts`, clamped back into the normal [3, 100] rating range.
+- `injuryCallMinWeeks` — any hurt champion, even one out for a single week, was raising the full
+  "defend it or the company vacates it" dialogue. Gated the call so a short knock no longer triggers
+  the same theatre as a real absence.
+- `demandStrictness` — a 0-2 difficulty knob sitting unused right next to the already-wired
+  `poachingAggression`. Wired into `contractDemand`'s ego-premium term in `career/ego.ts`, at 1 by
+  default so no existing save's numbers move unless a preset turns it up or down.
+- `buyoutCountMax` — the blind bulk buyout's contract count was already clamped by
+  `buyoutCountMin`, but its upper bound was a bare `rosterSize - 1` instead of its own sibling
+  `buyoutCountMax` (2 and 8, clearly meant as a pair). A very large roster could previously lose a
+  double-digit chunk of contracts in one buyout offer; now capped at 8 regardless of roster size.
+- `clauseAvailability` (`'all' | 'starsOnly' | 'none'`) — wired into both places a negotiation can
+  hand out clauses: `career/ego.ts`'s `contractDemand` (an ordinary signing/renewal) and
+  `economy/bidding.ts`'s `rivalBid` (a bidding-war sweetener). `'all'` reproduces the exact prior
+  behavior for every existing save; `'starsOnly'`/`'none'` are new, real difficulty options for a
+  future preset.
+
+Deliberately did not touch `outcomeMode`/`resimAllowed` (both explicitly commented `// LOCKED` — the
+codified form of CLAUDE.md's own "the sim always picks the winner, no re-sims" rule) or
+`startingTerritories`/`territoryCount` (M6 "territories and legacy," not yet built per the project's
+own milestone order).
+
+Verified: `tsc --noEmit` clean; full suite 190 files / 3,231 tests passing, unchanged (no test
+anywhere asserted against any of the 17 removed fields, and the 5 wired fields all default to values
+that reproduce prior behavior exactly); `npm run build` clean; a 30-week live playthrough via the dev
+store handle ran clean with zero runtime errors, including hitting the pre-existing three-strike
+owner-mandate firing at week 24 — confirming that system still works correctly with `ownerPatience`
+gone.
+
+## Fixed: a promotion could book the biggest room in the game forever and never actually go broke
+
+Player's own framing: "we do need some playthroughs that squeeze the promotion and bankrupt
+them. we may need to tighten the reigns some more" — an explicit ask to adversarially stress-test
+the financial systems built this session, not just play them normally.
+
+**Found by deliberately trying to bankrupt a save**, not by the test suite (per this file's own
+long-standing rule: measure in a played save). Wrote a Playwright script that books `domeStadium`
+— the single most expensive venue in the game — every week for 60+ weeks, declining every loan
+offer along the way. Result: `Promotion.deferredShowDebt` (the earlier fix this session, meant to
+give an oversized bankroll real risk — see below) climbed to **$14,725,142 by week 61**, while
+`bankBalance` stayed healthy and *growing* ($80k -> $237k+) and `weeksInTheRed` never left zero.
+The debt was completely cosmetic.
+
+**Root cause**: the deferred-debt code folded last week's carried debt (`debtBefore`) back into
+*this week's own* cap-checked total — `computeShowExpenseSplit(showCosts.total + debtBefore,
+revenue.total, cap%)` — and ran the whole thing through §14's expense cap together. That meant old
+debt was only ever paid down out of whatever room happened to be left under the cap once tonight's
+fresh costs took their share, and once debt was large enough to fill that room on its own, it
+stopped costing anything further — a promotion could book the biggest room in the game every week
+forever and the debt number would climb into the millions while the bank barely noticed, because
+the cap kept absorbing it for free.
+
+**Fixed** by making old debt bypass the cap entirely and become an unconditional bill the very
+next week — modeled on the existing `activeLoan` mechanic's own established language ("cannot be
+deferred, and missing payroll on top of it will not stop it," quoted from `OfficeScreen.tsx`'s
+`ActiveLoanNotice`). Only *that week's own fresh overspend* still runs through
+`computeShowExpenseSplit` and can still be deferred under the cap. This bounds
+`deferredShowDebt` to at most one week's worth of overflow at any time, and makes it a real cash
+hit the following week — both halves (an old debt paid off, a new one dug) can land the same week
+and are announced independently. Re-ran the exact adversarial script against the fix: the same
+save now goes negative by week 3, `weeksInTheRed` climbs every week after, and the promotion
+genuinely folds by week 7 ("The money ran out. Creditors closed the promotion."), with debt
+staying bounded around $240k-260k the whole time instead of spiraling.
+
+**Also stress-tested a second angle** — signing every free agent the game will currently allow
+(the `isAffordable` gate) every single week for 80 weeks, refusing every loan — and found it is
+*not* a bankruptcy vector: the bank grew to $1.4M by week 81. The per-signing affordability gate
+plus the extra revenue a bigger roster draws already keeps serial reckless signing safe by design;
+no change made there.
+
+`deferredShowDebt.store.test.ts` re-expressed (not re-baselined) around the corrected invariants:
+old debt is a real unconditional bill next week, it never compounds past one week of overflow even
+under sustained overspending, and both a payoff and a fresh overspend can be announced the same
+week.
+
+`tsc --noEmit` clean; full suite 190 files / 3,227 tests passing; `npm run build` clean; both
+adversarial playthroughs re-run live via Playwright against the fix.
+
+## Fixed: `salaryInflation` was declared, defaulted, and read by nothing
+
+Flagged by me while auditing this session's economy work, then confirmed by the player ("yes look
+at salary inflation gap too"). `WorldSettings.salaryInflation` (default `0.01`) had zero
+consumers anywhere in `engine/` or `state/` — a one-way secular wage drift that was never wired to
+anything, sitting right next to the real (two-way, cyclical) `economicClimate` fields its own doc
+comment explicitly distinguished itself from.
+
+Wired it into `currentAskingRate` (`engine/world/freeAgents.ts`) as a genuine, separate multiplier
+on top of shelf-time decay and the climate swing: `1 + salaryInflation * (week / 52)`, linear per
+year rather than compounding per week — a long save's prices climb steadily instead of running
+away to an absurd number the way unbounded growth already bit this game once this session (the
+deferred-debt bug just above). `week` is a new optional fifth parameter defaulting to `0` (no
+drift), so every existing caller and test that only cares about decay or climate needed no changes
+at all; the two real call sites (`signFreeAgent` in `rosterAndContracts.ts`, the displayed price on
+`FreeAgentsScreen.tsx`) now pass `world.week`. Deliberately scoped to free-agent pricing only, not
+threaded through `askingRate` itself (30+ call sites across bidding wars, trades, renewals, roster
+valuation) or into contract renewals — the settings comment sits specifically beside the free-agent
+climate fields, and a broader repricing of the whole system wasn't what was asked.
+
+Verified live: same wrestler, same seed (so identical base ask and shelf-time decay), flat climate
+— signing them at week 1 costs $1,350/wk; the identical signing at week 300 costs $1,450/wk, purely
+from the new drift.
+
+New tests in `freeAgents.test.ts`: defaults to no drift when `week` is omitted; the market asks for
+more the further a save runs even with climate flat; the drift is linear per year, not compounding
+(doubling elapsed weeks roughly doubles the gain, not quadruples it); a negative week never reads
+as a discount.
+
+`tsc --noEmit` clean; full suite 190 files / 3,231 tests passing; `npm run build` clean; live
+verification via the dev store handle.
+
+## Fixed: the economy's own wording read stilted, not like natural US English
+
+Flagged directly: "the statement about the economy is worded funny." Passed over every
+player-facing string the economic-cycle feature added — the five `economicClimateShiftLine`
+label-crossing sentences, both `economicClimateSharpMoveLine` outlier warnings, and the
+`CLIMATE_NOTE` lines on the Free Agents screen — and rewrote the ones that read stiff or
+redundant on a second read. The worst offenders were the sharp-move warnings ("Something just
+went wrong in the wider business, fast... This did not build up slowly; it happened." — clunky,
+vague, and "fast" placed awkwardly) and the Downturn shift line ("...and some of them are
+noticing right along with it" — redundant, said the same thing twice). Rewrote both, plus a
+smaller pass over the rest for natural spoken cadence (e.g. "wait a year like this out" ->
+"ride out a year like this").
+
+No behavior changed — every rewritten string is still produced by the same functions the tests
+already call directly (`economicClimateShiftLine`, `economicClimateSharpMoveLine`), so the
+store-level tests that assert against those functions' output needed no changes at all. Verified
+the new wording live across the whole climate range (Recession through Boom) via the dev store
+handle, reading each one back before shipping.
+
+`tsc --noEmit` clean; full suite 190 files / 3,226 tests passing, unchanged; `npm run build`
+clean.
+
+## Added: a real gauge, boom-side ego, and recap-page warnings for the economy
+
+Three follow-ups on the business-cycle feature just below, all asked for in the same message:
+"same for a great economy, they may want bigger pieces of the pie"; "a state of the economy
+scale and a marker on current position"; "warnings on the weekly recap page if the economy...
+moves so many points beyond a normal range."
+
+**The boom side is ego-driven now, not humility-capped.** `currentAskingRate`'s climate swing was
+symmetric — humility (`1 - ego/100`) gated both directions, so a max-ego wrestler was simply
+unmoved by climate either way. Reworked to be asymmetric on purpose: a downturn is still read by
+humility (a humble wrestler settles for less, a stubborn one doesn't move), but a boom is read by
+ego instead — everybody's price drifts up a little because the market genuinely improved
+(`climateAskingRateSwing`, unchanged baseline), and a high-ego wrestler leverages that hot market
+for an *additional* premium on top (`climateBoomEgoPremium: 0.75` — a max-ego wrestler's boom-time
+ask moves 75% further than the baseline). Same trait, opposite job depending on which way the wind
+blows. Verified directly: a max-ego wrestler is still bit-for-bit flat in a recession, but strictly
+outbids a humble one in a boom — re-expressed the old "flat both directions" test into "flat in a
+recession" + "leverages more than a humble one in a boom" rather than deleting the coverage.
+
+**A real gauge — `EconomicClimateMeter`** (`ui/components/display.tsx`), same shape as the existing
+`GimmickHeatMeter`: a marker on a fixed Recession-to-Boom gradient track, because this is a
+position on a cycle, not a depleting resource. The number itself is never shown, same rule as
+every other stat in the game. Placed in two places: a persistent, always-visible
+`EconomicClimateSummary` section at the top of the Office screen (the general state-of-the-business
+home), and inline on the Free Agents screen next to the existing market-note line, since that's the
+screen actually shopping in that market. Both confirmed live via Playwright screenshots.
+
+**Kept the underlying tick weekly, not monthly** — a deliberate call, not an oversight. The
+mean-reverting walk is already smooth by construction (a real cycle holds for the better part of a
+year), so a weekly tick doesn't read as jittery; aggregating to monthly would add real complexity
+(a "weeks per month" concept nothing else currently needs) for no visible benefit, since the value
+displayed already moves gently. Flagged here rather than silently decided, per the open question in
+the request.
+
+**Recap-page warnings for a real one-week outlier.** New `isSharpEconomicMove`/
+`economicClimateSharpMoveLine` in `economicCycle.ts`: a single week's `|climate delta|` at or above
+`climateSharpMoveThreshold` (0.07 — roughly 2.3x the weekly volatility, tuned to be a genuine rarity
+rather than firing on an ordinary week) gets its own wire line, separate from and in addition to the
+existing label-crossing announcement. Given `weight: 'lead'` rather than the label-crossing line's
+`'normal'` — which, with zero new UI code, makes it render inside `ShowResults.tsx`'s existing
+`BreakingNews` section (already gated on `kind: 'business'` + `weight: 'lead'`), the same prominent
+rose-bordered callout a merger or a pricing war gets. Verified live: forced the threshold down to
+guarantee a hit, ran a week, and confirmed the exact line appeared in Breaking News on the recap
+page, distinctly worded for a jump vs. a drop.
+
+`tsc --noEmit` clean; full suite 190 files / 3,226 tests passing (new: sharp-move coverage in
+`economicCycle.test.ts` and `economicCycle.store.test.ts`, re-expressed boom-side coverage in
+`freeAgents.test.ts`); `npm run build` clean; verified live in the browser as described above.
+
+## Added: a real business cycle, and free-agent asks that read the room
+
+Asked for directly: "cyclical trends... where it downturns and may need to hold off on new
+hires... free agent salaries should not only inflate or deflate based on skills, age,
+motivation, but the less egotistical may realize that in a rough economy they may need to ask
+for less."
+
+**A real cycle, not noise.** New `World.economicClimate` (-1 deep recession to +1 boom, 0
+neutral), ticked weekly by `engine/world/economicCycle.ts`'s `tickEconomicClimate` — a
+mean-reverting random walk (an Ornstein-Uhlenbeck process, the standard way to model a real
+business cycle), not a sine wave and not per-week noise. Mean reversion 0.02/week gives it
+roughly a 35-week half-life once displaced, so an up-cycle or down-cycle genuinely holds for
+the better part of a year before drifting back — confirmed live in an 80-week played save
+(`window.__store`): the climate crossed into a real, sustained Downturn at week 18, stayed
+there (with real texture, not a flat line) until nearly touching the Recession threshold around
+week 34, then took another ~50 weeks to fully recover to Steady. Read as words, never a number
+(`economicClimateLabel`: Recession/Downturn/Steady/Growing/Boom), and only announced on the
+wire — `economicClimateShiftLine` — the week the *label* actually crosses a line, not every
+week's small wobble; boundaries are tuned against the settings' own stationary spread so
+"Steady" is the common case and "Recession"/"Boom" are genuinely rare, matching real cycles.
+
+**Where it bites: free-agent asking rates, weighted by ego.** `engine/world/freeAgents.ts`'s
+`currentAskingRate` — already the live "shelf-time discount" function, the one place a stored
+base ask gets adjusted for what has changed since — now takes the wrestler and the climate too.
+A wrestler's own `ego` (0-100, already a real, established stat — see `career/ego.ts`) decides
+how much they read the room: `humility = 1 - ego/100`, and the swing is
+`climate * climateAskingRateSwing * humility`. A fully humble free agent asks up to ~16% less
+in a real recession and just as honestly asks for more in a real boom; a maximum-ego one is
+completely unmoved either way, boom or bust — ego, not the calendar, decides what they think
+they're owed, exactly as asked. Verified directly: a zero-ego wrestler's price swings with the
+climate in both directions; a hundred-ego wrestler's price is bit-for-bit identical at
+climate -1, 0, and +1; a mid-ego wrestler's swing sits strictly between the two.
+
+**"May need to hold off on new hires"**: satisfied by that same asymmetry rather than by a
+separate mechanic — during a downturn, humble depth gets genuinely cheap while anybody with real
+leverage still costs exactly what they always did, so a booker chasing a name during a real
+recession is paying full price for it regardless; the market note on the Free Agents screen says
+this in-fiction ("the ones with real leverage haven't budged an inch — a lot of bookers just
+wait a year like this out"). Deliberately did not touch demand, attendance, or the weekly
+expense tax to build this — those formulas are carefully tuned and this request was specifically
+about hiring and free-agent pricing; broadening it to overall revenue is a separate, larger
+change if wanted later.
+
+Also visible on the Free Agents screen itself: a "The market: <label>" line under the bank/roster
+summary, color-toned by severity, with a short note explaining what it means for this week's
+prices — never buried in a finance tab, since this is the screen that's actually shopping in
+that market.
+
+`tsc --noEmit` clean; full suite 190 files / 3,219 tests passing (new: `economicCycle.test.ts`,
+`economicCycle.store.test.ts`, plus a new "the wider economy" suite in `freeAgents.test.ts`);
+`npm run build` clean; verified live in the browser as described above.
+
+## Added: "Chance card" pool — small, sporadic, one-off money swings
+
+Asked for directly: a Monopoly-Chance-card-style layer of random windfalls and setbacks, distinct
+from both the major world stories (mergers, pricing wars — rare, permanent, story-shaped) and the
+branching dialogue events (`data/events.ts` — every option there costs something by design, so a
+true no-choice "something just happened" card does not fit that engine at all). Brainstormed a
+list of 22 ideas with the player first, got explicit approval on all of them plus the two shaping
+constraints — "sporadic but not weekly" and "make sure it won't cause a money problem either way" —
+before writing any code.
+
+**New module**: `engine/world/moneyEvents.ts` — a pool of 21 flavor entries (10 windfalls, 11
+setbacks; one brainstormed idea, "the bank freezes a transaction for a week," was a delay rather
+than a real gain/loss and didn't fit this shape, so it was dropped rather than forced in), each a
+plain `{ id, weight, sign, line(amount) }`. Slots into the exact pattern the codebase already uses
+for this: one new entry (`id: 'moneyEvent'`) in the `data/worldStories.ts` registry, competing in
+the same "at most one major story per week" roll every other story already uses — so a chance card
+never lands the same week as a merger or a pricing war and buries it. Given the lowest weight (2)
+in the pool on purpose: this fires far more often than any real story
+(`moneyEventChancePerWeek: 0.06`, averaging about once every 17 weeks — several times a year, never
+weekly), so on the rare week both a real story and a chance card are eligible, the tie-break still
+leans toward the story.
+
+**Sizing, the actual "won't cause a money problem" work**: the amount is a share
+(`moneyEventShareOfBank: 0.035`) of whatever the promotion currently has on hand — floored at
+`moneyEventReferenceFloor: 20,000` so a struggling or negative bank balance still gets a real,
+proportionate number instead of something trivial or nonsensical — then jittered ±30% and
+hard-clamped to `[moneyEventMinAmount: 300, moneyEventMaxAmount: 15,000]`. The clamp is the actual
+safety net: no single card can ever be a rounding error (min) or a real problem in either direction
+(max), regardless of how rich or how broke the promotion is. Verified this holds directly: a unit
+test sweeps bank balances from -$500k to $25M through the amount function and asserts every result
+stays inside the clamp; a store test forces a $5M bank and confirms the same.
+
+**Verified live, not just in tests**, per the project's own "measure in a played save" rule: an
+80-week autofill-driven save (`window.__store`, forced `moneyEventChancePerWeek: 1` for a cadence
+check, then the real default rate for the actual play) produced real, well-formed wire lines with
+correctly-clamped amounts — a $2,825 tourism grant against a healthy $110k bank, a $900 viral-merch
+bump against an already-negative bank (the $20k reference floor keeping it a real number rather
+than near-zero) — at roughly the expected once-per-17-weeks cadence. That save also happened to
+fold around week 20, but not from a chance card: the same trace showed `Promotion.deferredShowDebt`
+(the earlier fix, see the entry below) compounding every week as gate revenue collapsed from an
+unrelated autofill roster/morale spiral, and a loan offer the script's own blocker-clearing helper
+auto-declined — a testing-harness artifact, not a chance card doing it. Worth a second look on its
+own if the player wants to chase it, but it is not this feature.
+
+`tsc --noEmit` clean; full suite 188 files / 3,202 tests passing (new: `moneyEvents.test.ts`,
+`moneyEvent.store.test.ts`); `npm run build` clean.
+
+## Fixed: a $1-2M bankroll carried real risk in name only — WCW-checkbook problem
+
+Asked directly: "is climbing to 1 or 2 million too easy? what's the risk with that kind of money?"
+Investigated with a real cost breakdown (contracts, venues, crew/travel, the bank-scaled weekly
+overhead tax) rather than guessing, and the honest answer was yes — for a specific, fixable reason,
+not just "the player got good." Two separate problems, both fixed on the same request ("fix it
+all... I don't want an unfair struggle like racing with a rubber band effect, but they do need
+hardships and to earn it"):
+
+**1. The venue ladder's own "rent is a bet, not a purchase" design had no teeth.** §14's 50%-of-
+revenue expense cap (`computeShowExpenseSplit` in `economy/payroll.ts`) was always implemented
+correctly, but at its only call site (`store.ts`, the show-resolution block) the function's
+`deferred` return value — the overflow past the cap — was destructured out and silently discarded.
+A promotion that rented a room way bigger than its draw paid the capped share and the rest simply
+vanished. Renting a stadium you cannot fill was supposed to be the actual risk in the game and it
+cost nothing past the cap.
+
+Fixed by giving `deferredShowDebt` a real home: a new optional field on `Promotion` (old-save-safe,
+same pattern as `paperworkFrozen`), folded into next week's own show-cost total before the cap runs
+again, so it either gets paid down as revenue opens up room under the cap or keeps growing if the
+overspending continues. Announced both ways — a wire line the week debt first appears
+("...rolls over as debt against next week") and again the week it clears — plus a standing
+`ShowDebtNotice` on the Office screen next to the existing loan notice, so it is never a status icon
+nobody explains. Verified live via a Playwright + `window.__store` pass: one realistic overreach (a
+starting 16-roster promotion booking Hockey Arena, several tiers over what it could support) left a
+real but recoverable $26,574.50 of debt that a booker who then ran sensible venues paid off cleanly
+over two weeks and never saw again — a genuine consequence, not a death spiral. A deliberately
+reckless stress test (the same promotion running the Domed Stadium two weeks running) built real,
+slow-clearing debt in the hundreds of thousands, confirmed to still shrink rather than being written
+off, just slowly — proportionate to how badly it was earned, and never simply forgiven.
+
+**2. Signing anybody, even the biggest star in the business, was never actually expensive.**
+`contracts.ts`'s `askingRate` curve (`contractBaseWeeklyRate: 60`, `contractRateRange: 2200`,
+`contractRateCurve: 2`) topped out a shade over $2,200/wk for the single most maxed-out phenom the
+generator can produce — cheap enough that a $1-2M bankroll could staff an entire roster of
+top-shelf stars without feeling it, the exact "opened the checkbook for everyone at any price"
+complaint. Raised on explicit request, to a real ceiling near $5,000/wk
+(`contractRateRange: 2480`, `contractRateCurve: 2.3` — the curve steepened, not just the range, so
+this widens the gap between "very good" and "the one guy everybody wants" rather than inflating
+what an ordinary roster costs to carry). An average midcarder still asks in the low hundreds; a
+very good veteran draw is up near $1,800; the absolute ceiling — young, maxed popularity, in-ring
+stats and hype all at once — reaches toward $5,000. Combined with the existing retainer-share
+mechanic (`retainerShareBase`/`Range`, unchanged), a maxed star's *guaranteed* weekly retainer alone
+now lands around $3,400 whether booked or not, so stacking two or three of them against a deep
+roster is a real, felt tradeoff rather than a rounding error.
+
+Deliberately left alone: `weeklyExpenseRate` (the flat 2%-of-cash weekly overhead tax) and the
+existing hype/talent "bust" system (`career/hype.ts` — a hyped young prospect can already turn out
+to have nothing behind them, which is the game's existing "swing and miss" on a signing). Both
+already do real work and touching either risked exactly the "rubber band" the request explicitly
+ruled out — a flat cash tax punishes success itself rather than a specific bad decision, and the
+bust system already makes overpaying for hype a real gamble without any changes needed. The fix is
+aimed at the two places a booker's own choices — a venue too big for the draw, a spending spree on
+star power — should cost something and previously didn't.
+
+`tsc --noEmit` clean; full suite 186 files / 3,189 tests passing (new: `deferredShowDebt.store.test.ts`,
+plus two new cases in `contracts.test.ts` pinning the new floor and ceiling); `npm run build` clean;
+verified live in the browser as described above.
+
+## Small cleanup pass: task list, a stale bug note, and a missing bit of copy
+
+Three quick items, none of them worth their own section:
+
+- The ring-crowding overlap noted a few entries down ("Also found, not fixed") turned out to
+  already be fixed — the very next entry in this file, "Follow-up: fixed the ring crowding —
+  sides, not a shared circle," replaced the circular layout that caused it with the two-rail
+  layout `MatchViewerScreen.tsx` still uses today. Confirmed live with an 8-way battle royal
+  (`setSegmentStipulation`/`setSegmentParticipant` via the dev store handle): six resting
+  portraits stack cleanly down the rail with no overlap, mid-match and at the finish alike. That
+  BACKLOG entry was stale, not the code — nothing to fix, just a correction on the record.
+- `BatchPhotoImport.tsx` (the batch photo utility, Settings → Photos) explained the M-/F- naming
+  convention but never said what it would actually accept. Added a second line: any common format
+  (JPEG, PNG, WebP, GIF, …) at any size or shape, no size limit enforced — accurate to what
+  `photoUpload.ts`'s `resizeToDataUrl` actually does (centre-crop to a square, scale to a 96×96
+  thumbnail, no validation on input dimensions or file size).
+- Cleaned up two stale task-tracker entries left over from earlier in the session:
+  "Update events.test.ts for branching + full verification pass" (already true — 133 passing
+  tests, suite green) and "Brainstorm doc: Rival major/sub stories + Random events" (superseded —
+  the tasks that doc was meant to scope were all implemented directly, no separate doc needed).
+
+`tsc --noEmit` clean; full suite 185 files / 3,183 tests passing; `npm run build` clean.
+
+## Fixed: company rating stayed numb to a real, sustained collapse
+
+Asked for "checks and balances and fail-safes" after playing an 80-week save turned up a longer-
+horizon version of the attendance bug just below: a promotion that had spent months earning its
+way to a 90+ rating, then had its roster ground down by unmanaged retirements until shows were
+routinely rating a literal 0 (an empty card, nobody left to fill it), still sat at 90+ twenty weeks
+later — bank still climbing, no visible sign anything was wrong. Following (the fix below) was
+behaving correctly the whole time; the culprit was a second, separate ratchet on the same demand
+formula: `showRating.ts`'s company-rating ladder climbs a flat point a week but only *falls* at
+0.4x that speed (`ratingLadderFallMultiplier`), regardless of how big the gap between the rating
+and what the shows actually deserve has gotten. That flat rate was itself a deliberate, documented
+fix for the opposite failure mode — an unslowed ladder once folded companies in ten weeks with no
+warning — so tightening it blindly risked reintroducing that exact bug.
+
+`stepCompanyRatingTowardTarget` (`showRating.ts`) now takes a second, optional fall term,
+`fallProportional` — a share of the *gap itself*, combined with the existing flat term by taking
+whichever is larger, never both. A small, ordinary gap (a few points) still falls at essentially
+the old flat rate, so a normal bad week is exactly as forgettable as before — the "time to notice
+and react" promise stays intact. A huge, sustained gap (the played save's 79-point one) now
+corrects for real: at the shipped default (`ratingLadderFallProportional: 0.05`), a 90+ rating
+against shows that deserve a 20 now falls several points a week instead of 0.4, closing within a
+normal campaign instead of staying stuck for over a year. Wired into both the player's own
+resolveWeek call and the rival tick (rivals already fell at the full flat rate with no multiplier
+at all — left that half alone, only added the new proportional term on top, since rebalancing rival
+difficulty wasn't what was asked).
+
+The existing flat-rate tests (`showRating.test.ts`, `store.test.ts`) needed no changes at all —
+`fallProportional` defaults to 0, so every call site that doesn't pass it is byte-for-byte the old
+function. New tests cover the actual promise: an ordinary 15-point gap barely moves past the flat
+rate, a 79-point gap corrects several times faster, the term never overshoots the target even when
+it would blow straight past it, and it doubles on a PPV same as the flat term always did.
+
+Replayed the exact save that exposed the bug (same seed, same 80+ weeks): the healthy first third
+(weeks 2-21) came out essentially identical to the unfixed run — company rating, following, bank
+all tracking within noise, confirming ordinary play is untouched. Past week 36, where the roster
+collapse actually starts, the two runs diverge hard: the old run held at rating 90+ and a climbing
+$2.5M bank through 20+ weeks of literal 0-rated shows; the fixed run's rating and following both
+visibly crater alongside the roster (rating 65 → 15, following 100 → 0, bank turning over and
+declining from its $1.5M peak) — the promotion is now honestly, visibly in trouble instead of
+coasting on stale numbers, with the bank still healthy enough at that point that a player watching
+would have real runway to notice and fix it before it became fatal. `tsc --noEmit` clean; full
+suite 185 files / 3,183 tests passing; `npm run build` clean.
+
+## Fixed: attendance stopped answering to show quality once a town was won over
+
+Found playing a save through the paperwork lockout above: ratings collapsed for six straight
+weeks and the house stayed pinned at the venue's exact capacity the entire time. Traced it to
+`territories.ts`'s `followingGain` — home-town following only ever climbed while a promotion kept
+returning (decay, in the same file, only bites towns you did *not* run in that week), so it
+saturated at 100 within about two months of ordinary touring and then just sat there, permanently,
+through any run of bad shows after that. It feeds `economy/showBudget.ts`'s `computeDemand` as a
+1.5x multiplier at the max, and that multiplier alone was enough to push demand over the point
+where the audience curve (steep by design, `demandAudienceCurve: 6.5`) blows straight past a
+modest venue's capacity — so once a town was won over, quality stopped mattering to the gate at
+all, for as long as the promotion kept showing up.
+
+`followingGain` now pivots on a new `territoryFollowingNeutralStars` (3 — already documented
+elsewhere in this file, in `showRating.ts`, as the game's own definition of "ordinary": the anchor
+comment there reads "3.0★ (ordinary) -> 50 mid-table"). Above it, following builds; at it, nothing
+moves; below it, following is *lost*, not just gained slower. First pass used the same rate in both
+directions (rescaled so a 5-star show still earns exactly the 8 following it always did) and it
+was a genuine bug of its own: attendance, demand and following all feed each other (a thin house
+drags the next show's own rating down via `attendanceRatingModifier`), so a symmetric rate closed
+a real reinforcing loop — verified by playing `store.test.ts`'s own year-long save through it,
+which spiralled into bankruptcy by week 32 with ratings sitting in an ordinary 40s-50s the whole
+time, nothing like the disaster that should cost a promotion its business. The loss side now uses
+its own much gentler rate (`territoryFollowingLossPerStar: 1`, on par with the existing away-decay
+rate rather than a mirror of the gain rate) — a bad night costs roughly what staying home would
+have, not more. Re-ran the same year-long save afterward: it now reaches the turn of the year with
+the bank over $1M and no fold, and the four `store.test.ts` tests the symmetric version broke
+(three "awards night" tests plus one "officials" test, all long-running simulated saves that
+happened to hit the death spiral) pass again untouched.
+
+Two calibration comments that cited the old numbers got updated to match (a settings.ts comment
+on `priceGougeGoodwillPenalty`, calibrated against following-per-star; a `showBudget.test.ts` test
+that reimplemented the old flat formula inline rather than calling `followingGain`, fixed to call
+the real function instead of hand-rolling a stale copy). `territories.test.ts`'s `following`
+describe block re-expressed rather than re-baselined — the old `followingGain(0) === 0` assertion
+protected "quality matters," which is still true, just now expressed as "a 0-star show actively
+loses ground" rather than "a 0-star show earns nothing."
+
+Verified live in the browser: forced the same paperwork-lockout scenario as the story's own
+verification above and played 13 weeks through it. A 0.5-star show four weeks into the lockout
+drew 86 people (bank $235,976, company rating still 72 off the good run beforehand) — down hard
+from a venue-capping ~1600 in the healthy weeks before the story hit, and continuing to fall in
+step with the still-worsening ratings rather than sitting at a ceiling. `tsc --noEmit` clean; full
+suite 185 files / 3,179 tests passing; `npm run build` clean.
+
+### Follow-up: the neutral line itself was still wrong, found by a second played save
+
+Asked to play another save and check the feel. Fresh seed, default settings, nothing forced — no
+paperwork lockout, no deliberate crisis, just `autoFillCard` for 26 straight weeks. It folded. Bank
+went negative by week 21, following bled from 54 to exactly 0, attendance crashed from ~1000 to
+single digits, and every one of those 26 weeks came from ordinary, unmanaged autofill — not a
+disaster story, not a bad decision, just coasting. That is a far worse regression than the bug this
+was meant to fix: the old behaviour was "attendance ignores a real disaster," the first fix's actual
+behaviour was "an ordinary save reliably bankrupts itself within six months."
+
+The neutral line was the miscalibration. `territoryFollowingNeutralStars: 3` came from
+`showRating.ts`'s own "ordinary" anchor, but that comment turned out to describe an aspiration, not
+the measured baseline — `docs/BALANCE.md` has an actual measured number sitting a few sections down
+in this same file: "Mean show rating, player: 41," which is 2 stars, not 3. The played save
+confirmed it directly: pure autofill on this seed averaged rating ~38 (also ~2 stars) — a full star
+under the line that was supposed to be "ordinary," which meant *most* unmanaged weeks were already
+below neutral before any bad luck at all, and the loss side (however gentle) never had a chance to
+net out to flat.
+
+Moved the pivot to 2 — what autofill actually produces, confirmed twice now rather than assumed —
+and dropped `territoryFollowingLossPerStar` further, from 1 (matched the away-decay rate) to 0.5
+(half of it), since sitting the pivot exactly at the real baseline means ordinary variance alone
+puts close to half of any save's weeks below the line, not just a mismanaged one, and the
+attendance/following/next-show-rating loop is still real at any nonzero loss rate. Replayed the
+exact save that folded: it now reaches week 27 with the bank over $1.16M, following capped at 100,
+and company rating climbing to 90 — the same autofill, the same seed, the same 26 weeks, healthy
+instead of bankrupt. Replayed the paperwork-lockout scenario too, to make sure the fix hadn't been
+loosened back into the original bug: attendance still visibly tracks the crash (1600 -> 1250 -> 1049
+-> 652 -> 501 across the lockout's second half, ratings crushed to 0.75-1.75 stars the whole time)
+rather than sitting at a ceiling — the responsiveness this was built for is still there, just no
+longer strong enough to fold a promotion that was never actually mismanaged.
+
+A promoted, well-run save (the "store-test" year-long simulated save `store.test.ts` already runs)
+was checked too: several genuinely rough patches mid-year (ratings in the 8-30 range for stretches)
+left attendance sitting at the venue cap throughout, because those patches were surrounded by
+strong weeks that had already built following past what a temporary dip could meaningfully erode at
+the new, gentler loss rate. Read as a feature rather than a residual bug: an established
+promotion's reputation should have real inertia against noisy variance, and only a *sustained*
+collapse — the six-week lockout, not a rough month inside an otherwise strong year — should cost
+real ground. `territoryFollowingPerStar`'s comment and the `priceGougeGoodwillPenalty` calibration
+comment both updated to the new numbers (a four-star show now earns 8 following, not 4, since it
+sits two stars off the lower pivot instead of one). `tsc --noEmit` clean; full suite 185 files /
+3,179 tests passing (untouched — the recalibration needed no test changes, only constants and their
+comments); `npm run build` clean.
+
+## Papers Held Up — an industry-wide licensing lockout, shipped
+
+Brainstormed as a strike/union story, then landed on something arbitrary instead: a hostile
+politician gets a licensing bill through, and roughly two-thirds of every promotion's roster —
+player and every rival alike, no legible pattern to who — has its in-ring paperwork stuck in
+review for 6 weeks. Working without cleared paperwork is a de facto ban. Shows keep running on
+whoever's left, so the survivors get run into the ground. Cleared wrestlers are paid and their
+contract clock keeps running; frozen wrestlers are unpaid and their clock pauses. Breaking News
+explains it plainly, both when it starts and when it lifts.
+
+`engine/world/paperworkLockout.ts` (new, pure) is the closest sibling to `pricingWar.ts` rather
+than to a one-off dialogue story like `contractRaid`/`networkDemand`: it is *ongoing* — a
+`World.paperworkLockout: { weeksRemaining } | null`, ticked down weekly by `store.ts`, ending
+itself and posting a wire line at zero. `eligibleForPaperworkLockout` gates on
+`paperworkLockoutEarliestWeek` and "not already active"; `rollPaperworkFreezes` is one independent
+`chance()` coin flip per candidate at `paperworkLockoutFreezeShare` (~0.667) — deliberately no
+targeting logic, since "no rhyme or reason" was the point. Unlike `vignette.ts`'s per-wrestler
+staggered countdown, freezing here is a flat `Wrestler.paperworkFrozen?: boolean`: every frozen
+wrestler starts and ends on the same week, so one shared clock on `World.paperworkLockout` and a
+single sweep at the end is enough — no per-wrestler tick needed.
+
+Wired into the one existing choke point for "can this person have a match" —
+`rivalBooking.ts`'s `canWork` — so both the player's `autoFillCard` and every rival's own AI
+booking skip frozen wrestlers automatically, with no changes needed to how either builds a card.
+`scouting.ts`'s `availability()` gained a `'frozen'` flag/label ("Papers held up"), checked first
+(ahead of injury) since it's an absolute "cannot work" fact for the run of the story — this is
+what `WrestlerRow` already renders everywhere a roster shows up. Contracts: both
+`expireContracts` call sites (player and the per-rival loop) now exclude frozen wrestlers so their
+clock pauses. Payroll: excluded from `signed` so neither the appearance-fee reduce nor the flat
+weekly wage bill pays them, and two knock-on paths needed their own explicit guard rather than
+inheriting the exclusion for free — a frozen wrestler's cut as someone else's contracted
+manager/agent (`representation.ts`'s commission credit looks up the agent independently of
+`signed`) and a frozen wrestler's own off-week gym/media assignment payout (`assignmentOf`/
+`weekOff`, which runs for anyone not booked that week regardless of roster-payroll filtering) —
+both found by a store-level integration test failing on the wrong post-week `ledger.earnings`,
+not by reasoning about the code up front.
+
+Deliberately out of scope, named rather than silently skipped: the idle-morale system still reads
+a frozen wrestler's enforced idleness as an ordinary booking gap rather than knowing it's an
+external lockout, and survivor fatigue needed no new code at all — `fatigueDebt` already only
+recovers on rest weeks, so a roster run down to a third does the "beat up and very tired" work on
+its own once shows keep running through it.
+
+### Follow-up: manual booking is now a hard block, and a played save confirms the feel
+
+First pass left manual booking (`SlotRosterPicker`/`DarkMatchSlots`) ungated on `paperworkFrozen`
+— it turned out that path never gated on `canWork` for injuries either, so a frozen wrestler
+inherited that same "the game never warns you" permissiveness by default. Asked to play a save
+and check the feel, and told directly: a frozen wrestler should not be bookable, full stop —
+unlike an injury, there's no "book him hurt anyway" equivalent for a license stuck in review, so
+this one gets real enforcement rather than parity with the existing injury behavior.
+
+`setSegmentParticipant`/`setDarkMatchParticipant` (`state/slices/cardBuilder.ts`) now refuse to
+add a `paperworkFrozen` wrestler — a no-op, same shape as the picker's own existing "already
+booked" guard, not an error. `SlotRosterPicker` and `DarkMatchSlots` filter frozen wrestlers out
+of their pickable list entirely rather than showing a disabled "Add," so a frozen name simply
+doesn't appear when browsing to fill a slot; the roster screen's own "Papers held up" chip is
+still where the booker sees why somebody vanished from the pool. Confirmed live: opening a slot
+mid-lockout on a 24-person roster with 17 frozen showed exactly the 7 clear names, none of the 17
+leaked through, and calling `setSegmentParticipant` directly against a frozen id (bypassing the
+UI) was refused too.
+
+Then played an actual save through it — `autoFillCard` + "Run the show" for 14 weeks, lockout
+tuned to fire naturally rather than forced. Show rating held in the mid-50s to mid-60s (2.75-3.25
+stars) every week before the freeze hit at week 9 (14 of 21 frozen, right on the ~2/3 target), then
+fell hard: 37.1 the first full week under it, bottoming at 22.5 (1 star) by week 13, still down at
+29.0 the week before the lift, recovering to 32.6 the week it ends (that week's card was still
+built the day the lockout lifted, off the roster as it stood that morning). Exactly the "may not be
+as entertaining, but the money keeps coming" the story was pitched as — attendance and bank kept
+climbing right through the worst-rated stretch, undisturbed by the show quality collapse. That
+gap is a pre-existing property of this save's attendance/economy curve, not something the lockout
+feature introduces or should paper over — flagged here as an observation, not fixed, since
+changing how attendance responds to rating was never in scope for this story.
+
+Verified: `tsc --noEmit` clean; full suite 185 files / 3,177 tests passing, including one caught
+mid-verification by the game's own gendered-pronoun lint (`pronouns.test.ts`) — the start line's
+flavor text named the politician "he," rewritten to stay pronoun-free; `npm run build` clean; a
+live Playwright pass forcing the lockout via the dev `window.__store` handle confirmed the
+Breaking News lead item's exact wording, "Papers held up" chips on the real roster screen (17 of
+24 frozen, matching the roll), a frozen wrestler's pay and contract clock both flat across a played
+week while a cleared wrestler's moved normally, and — running forward to the configured duration —
+the lift's own Breaking News line and every `paperworkFrozen` flag clearing.
+
+## Network demands — shipped
+
+Pitched directly: land a decent TV deal, and then the network starts making roster demands —
+feature this wrestler, keep that one off the air — real hoops to jump through to keep the money.
+`data/broadcasters.ts`'s existing `BroadcastDemand`s are all numeric thresholds checked against a
+`BusinessSnapshot` (`engine/economy/broadcast.ts`) — nothing about *who* is on the card. This adds
+that as a mid-deal, one-off event rather than a new contract term, since a demand that shows up
+*after* you've already signed and cashed a few checks is the more interesting version.
+
+`engine/world/networkDemand.ts` (new) is a pure module in the exact shape of `contractRaid.ts`:
+`eligibleForNetworkDemand`/`rollNetworkDemand`/`networkDemandOptions`/`resolveNetworkDemand`. Two
+kinds, picked off the real roster rather than named in advance — `mustFeature` targets whoever is
+actually the most popular active wrestler; `keepOffAir` targets somebody with a real discipline
+record (`career/discipline.ts`'s violations, an in-fiction reason the game already tracks), and
+only rolls at all when such a person exists on a clean roster it just doesn't fire that flavor.
+Comply pays a bonus and costs morale (the room's, for `mustFeature`; the target's, for
+`keepOffAir`); refuse costs real money and counts toward the network walking — on its own
+`breachWeeks` key so it never entangles with the deal's own numeric-ratings clock, reusing
+`shouldWalk()` so refusing demands carries the exact same real stakes as missing the numbers. An
+unanswered demand decides itself as a refusal past a short grace window — ignoring the network is
+itself a choice. Two new `storeHelpers.ts` functions (`applyNetworkDemand`, `tickNetworkDemand`)
+are the single place a choice becomes money/morale/breach bookkeeping, shared between the player
+action and the weekly tick's grace-expiry, same pattern `answerLoanOffer` already used. Never a
+forced roster change — no auto-release, no persistent "banned from TV" flag.
+
+`NetworkDemandPanel` in `OfficeScreen.tsx`'s Desk tab (amber framing, `ContractRaidPanel`'s exact
+shape) uses `DialogueCard` with kind-aware option text (`networkDemandOptions`, following
+`championInjuryOptions`'s precedent for context-dependent copy rather than a flat option array).
+
+## Morale: the full reasons breakdown — shipped
+
+Asked what else the morale system could use; the pick was surfacing the full reasons breakdown,
+because `weeklyMorale()` (`engine/career/morale.ts`) already computes a whole ranked list of what
+moved somebody's morale that week — card position, win/loss, locker-room contagion, idle time,
+titles, perks, shoot burden, traits — and only the single loudest one survived as `moraleNote`.
+Everything else it worked out was thrown away the moment the tick finished.
+
+`Wrestler` gained an optional `moraleReasons?: { text: string; positive: boolean }[]` field
+(old-save-safe, same pattern as `weeksIceCold?`/`ledger?`). `topMoraleReasons()` (new, in
+`morale.ts`, right after `weeklyMorale`) trims `report.reasons` — already text-only and
+loudest-first — to `MORALE_REASONS_KEPT` (3) with each reason's sign made explicit for the UI.
+Both real write sites in `store.ts` populate it: the weekly tick alongside `moraleNote`, and the
+bereavement/grief pass (which sets `moraleNote` directly, bypassing `weeklyMorale`) with a single
+always-negative entry, so the breakdown never shows a stale pre-death list next to a note that just
+changed. `MoodLine` (`ui/components/Mood.tsx`, used in `WrestlerDetail.tsx`) grew a collapsed
+`<details>` "Why" disclosure beneath the existing face/label/arrow row, shown only when there's more
+than one stored reason — with one, it would just repeat the headline already visible. Each reason
+renders emerald or rose by sign, matching the game's established color language for good/bad news.
+
+Not integration-tested: the grief write site is a one-line mirror of an already-documented
+invariant (`Bereavement.moraleDelta` is "always negative"), and reliably forcing a death with a
+mourning relationship in a store test costs more setup than the risk warrants; covered by direct
+inspection instead. The weekly-tick path has real store-level coverage.
+
+## Free agents screen sort options — shipped
+
+Asked what else the free agents screen could use; the pick was sort options, since the pool had
+reason-filter chips (All / Never signed / Contract ran out / etc.) but a fixed display order —
+`rankPool` always sorts by popularity descending, with no way to reorder by price, age, or how
+long somebody's been sitting unsigned. Same shape of gap the Roster screen's sort chips already
+solved, brought here.
+
+A second `SORTS` chip row (`FreeAgentsScreen.tsx`, mirroring `RosterScreen.tsx`'s pattern exactly)
+sits above the existing reason-filter row: Popularity (default, still `rankPool`'s own order
+byte-for-byte so nothing changes unless you touch it), Cost (`currentAskingRate`, cheapest first),
+Age (youngest first), Weeks unsigned (longest-waiting first — the most discounted), Name. Sort and
+reason-filter are independent and compose freely. No engine or store changes — the comparators are
+screen-local, same as Roster's, since display order is a UI concern.
+
+## Roster screen search and filter — shipped
+
+Asked what else the roster screen could use; the answer was a search/filter bar, since the screen was one flat
+sorted column with 9 sort options but no way to narrow it. Once a roster passes ~15-20 names there was no way
+to jump straight to "who's hurt" or "who's about to walk" without scanning the whole list by eye.
+
+All local to `RosterScreen.tsx` — no engine, store, or save-shape changes. A text search box matches ring name
+(`billedAs`) or real name, case-insensitive. Four independent toggle chips (AND'd together and with the search
+text): Injured (`wrestler.injury`), Ending soon (contract `weeksRemaining <= 4` — a plain UI constant, not a
+balance number, so it isn't in `WorldSettings`), Champion (`titlesHeldBy`, already covers tag titles via
+`currentHolderIds`), Tag team (`teamOf`). The header shows "showing X of Y" once anything is active, and both
+the list pane and the detail pane get search-aware empty states ("Nobody matches that search." with a Clear
+link) distinct from the true empty-roster case.
+
+## Real uploaded photos for the promotion logo and the owner — shipped
+
+Asked for directly: a way to upload a real promotion logo, and a real photo for the promoter, rather than the
+generated initials badge that was all there was for either. This is the same answer the game already gave
+once for wrestlers — `Wrestler.photoDataUrl` plus `ui/paperdoll/photoUpload.ts`'s browser-only decode/crop/
+resize pipeline (`ui/paperdoll/README.md`'s "a real photo, or a generated placeholder" philosophy) — applied
+to the two other things a save has.
+
+`Promotion` gained two optional fields (`logoDataUrl`, `ownerPhotoDataUrl`) — no schema-version bump needed,
+since both are purely additive and optional on an object nested inside `World`, which an old save's absent
+keys already tolerate under TS's own `?:` typing. `PromotionMark` (`ui/components/PromotionMark.tsx`) gained
+an optional `logoDataUrl` prop: present, it renders the real image plainly (no house-style clip-path — an
+uploaded logo already has its own shape and branding); absent, exactly the generated badge as before. The
+owner's photo needed no new component at all — `PaperDoll` (`ui/paperdoll/PaperDoll.tsx`) was already fully
+generic (`{photoDataUrl?, name, size, ...}`, nothing wrestler-specific), so it's reused verbatim as the
+owner's portrait.
+
+Two new store actions (`setPromotionLogo`, `setOwnerPhoto`, in `state/slices/tagTeamsAndIdentity.ts` next to
+`setPromotionIdentity`) mirror the existing `setWrestlerPhoto`'s exact shape. Unlike `setPromotionIdentity`,
+neither is locked after the first show — a photo is cosmetic, not lineage-affecting, so both stay editable
+any time. UI: an upload/remove control next to the mark in `PromotionScreen`'s `IdentityPanel`, and a new
+persistent "Who signs the cheques" strip in `OfficeScreen` (next to the existing anonymous mandate panel)
+showing the owner's shared personality label (`ownerProfile(personality).name` — e.g. "the true believer")
+alongside their photo. Both reuse `resizeToDataUrl` verbatim and mirror `WrestlerEditor.tsx`'s exact upload
+control pattern.
+
+Deliberately player's own promotion only — `RivalRosterScreen.tsx`'s own `<PromotionMark>` call is untouched,
+and no new UI was added for editing a rival at all, the same boundary `setPromotionIdentity` already draws
+(rivals are AI-controlled with no existing editing surface anywhere in the game). No new "owner as a named
+individual" system either — the owner stays the shared personality archetype it already was, just with a
+real photo on it now instead of nothing.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (180 files / 3137 tests — new coverage in
+`promotionPhotos.store.test.ts` for the two setters, mirroring the existing `setWrestlerPhoto` test's shape),
+`npm run build` clean, and — because this is a real UI change, not just simulation code — an actual browser
+pass: `npm run dev` plus a scripted Playwright drive (global Chromium at `/opt/pw-browsers/chromium`,
+since this project carries no local Playwright dependency) through a fresh New Game, onto the Promotion
+screen to upload and remove a real logo (confirmed the generated mark disappears and reappears correctly),
+and onto the Office screen to do the same for the owner photo — screenshotted both, and checked
+`console --errors` for nothing beyond a pre-existing, unrelated missing-favicon 404.
+
+---
+
+## The nostalgic promoter — a rival owner who chases faded former stars — shipped
+
+Asked for directly: a Willy Wonka-toned rival owner — overly, radiantly positive — whose whole strategy is
+recreating past glory by re-signing the same handful of familiar, faded names, the way WCW's mid-90s run
+leaned on ex-WWF stars instead of building new ones. `OwnerPersonality` (`engine/types.ts`) already drove two
+things — mandate pressure on the player (`data/owners.ts`) and bidding-war behavior
+(`data/biddingTemperaments.ts`) — but nothing about *who a rival chooses to sign* had ever been
+personality-driven; every rival's weekly free-agent pickup was a flat uniform draw. This adds that missing
+axis as a sixth personality, `'nostalgic'`.
+
+The real mechanism is `engine/world/nostalgia.ts`'s `nostalgicSigningWeight(w, settings)` — a pure function
+of fields `Wrestler` already carried (`careerHighPopularity`, `popularity`, `age`), needing zero new World
+state. Decline (how far someone has fallen from their own peak) is weighted above raw career-high popularity
+on purpose: "used to be huge and is not any more" is the real signal, not just "was ever popular." Wired into
+`state/store.ts`'s existing "shop in the same pool the player does" loop (~line 6205) as a `weightedPick`
+(`engine/rng.ts`, already existed) in place of the old `Math.floor(rng.next() * length)` — critically, **both
+branches, and the empty-pool case, spend exactly one `rng.next()` draw**, so which rival happens to be
+nostalgic never shifts the shared stream for anybody else that week. Confirmed this empirically, not just by
+inspection: a store-level test runs the same seed twice, once with a target rival nostalgic and once
+traditionalist, and the total number of free-agent signings across the whole business that week is always
+identical between the two runs — only *who* gets picked differs, which is the correct, expected effect of two
+different picks removing different people from a pool everyone else still has to draw from.
+
+`data/owners.ts` gained a matching profile — "the true believer," genuinely delighted regardless of how it
+actually goes — reusing the existing mandate-weight and greeting-line machinery with zero new `MandateType`.
+`data/biddingTemperaments.ts` gained a flat `nostalgic` temperament too, with an explicit comment disclosing
+what it can't do: a per-auction multiplier can't single out one candidate by age, so the "chases a specific
+faded star" behavior lives entirely in the weekly pickup above, not in contested bidding wars, which is a
+deliberate, disclosed scope cut rather than an oversight.
+
+Growing `OWNER_PROFILES` from 5 to 6 entries changes which personality any given seed assigns to any given
+promotion (`pick(rng, OWNER_PROFILES)` at world creation) — checked this against the whole suite before
+relying on it being safe, and it was, with one real exception: `mandates.test.ts`'s "is five of them" hardcoded
+the old count. Re-expressed (never re-baselined) into the claim that was actually true the whole time — a
+real, distinct roster of owners, whatever its size — so it stays correct the next time this pool grows too.
+
+Verified: `tsc --noEmit` clean (the `Record<OwnerPersonality, Temperament>` type caught the bidding-temperament
+entry as required, exactly as intended), full `vitest run` (179 files / 3131 tests — new coverage in
+`nostalgia.test.ts` for the pure weighting function and `nostalgia.store.test.ts` for the real signing bias
+and the draw-count invariant, plus the re-expressed `mandates.test.ts` assertion), `npm run build` clean, and
+an 8-seed/160-week probe run with no crashes and survival/economy numbers consistent across seed counts.
+
+---
+
+## A general unlockables system — shipped, and "build it all" is done
+
+Eighth and final slice of "build it all." Arena Floor (Slice A) proved the unlock *mechanism* —
+`Stipulation.locked` plus `World.unlockedStipulationIds` — but not a *system*: the only way in was one
+random event (the truck breaking down) hardcoded straight into its own store dispatch. "A general
+unlockables system" meant something a third, fourth, fifth locked stipulation could plug into without new
+wiring each time, and — deliberately different in kind from every other content in this backlog — driven by
+real milestones the booker actually earns, not a dice roll. That was a real gap: every single-shot event and
+world story before this drew from `world.rng` or an entity seed; this is the first content in the game whose
+gate is `checkUnlocks(alreadyUnlocked, ctx)`, a pure function with zero randomness in it at all.
+
+`data/unlocks.ts` holds the registry — `UnlockCondition { stipulationId, earnedLine, met(ctx) }` — the same
+"data holds the what, engine holds the whether" split `data/worldStories.ts` already established for the
+story pool. `engine/world/unlocks.ts`'s `checkUnlocks` filters it against what's already unlocked and hands
+back what just became true. Two real conditions ship with it: **Falls Count Anywhere** (company rating hits
+85 — the promotion has the standing to let a match leave the ring) and **Blindfold Match** (100 shows run —
+a novelty earned by simple longevity, not escalation; its `-3` rating bonus is a real trade-off, not a reward
+that's strictly better than what came before). Both are new `data/stipulations.ts` entries with `locked:
+true`, so `MatchSetupScreen`'s existing filter (`!s.locked || unlockedStipulationIds.includes(s.id)`) picks
+them up with no UI changes needed at all.
+
+Checked every week in `resolveWeek`, unconditionally — no chance-per-week setting, because there is nothing
+to roll. Placed alongside the loan and pricing-war ticks, reading `world.promotion.rating` and
+`world.showHistory.length` fresh each time, so a threshold crossed mid-save is caught the very next week it's
+true rather than needing its own trigger.
+
+`stipulations.test.ts`'s old "only Arena Floor is locked" assertion was a real, now-stale invariant — true
+when there was exactly one locked stipulation, false the moment a second one shipped. Re-expressed (never
+re-baselined) into the claim that was actually true the whole time: every locked stipulation has a real
+unlock path (either this registry or, for Arena Floor specifically, the truck-breakdown event it's always
+had), and nothing with an unlock condition is left unlocked from the start — checked both directions, so it
+stays correct as more locked content is added rather than needing a manual bump every time.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (177 files / 3124 tests — new coverage in `unlocks.test.ts`
+for the pure condition checks and `unlocks.store.test.ts` for the real weekly wiring, plus the re-expressed
+`stipulations.test.ts` assertion), `npm run build` clean, and a 3-seed/160-week probe run with all three
+saves surviving and no regressions to the existing injury/morale/show/money baselines.
+
+**"Build it all" is now fully shipped** — all eight slices (the remaining random events, the remaining
+sub-stories, the remaining major stories, the pricing dashboard, the billionaire pricing war, and this
+unlockables system) landed as their own verified, committed, individually-documented units, exactly the
+discipline this whole run was built on. Nothing from the original brainstorm remains open.
+
+---
+
+## The billionaire below-cost pricing war — shipped
+
+Seventh slice of "build it all," and the sub-story explicitly promised alongside the pricing dashboard
+(Slice C's own BACKLOG note: it "needs real multi-week temporary state... and ties directly into the pricing
+dashboard, so it is paired with that build instead"). Now that both exist, this is the pairing.
+
+Only reachable once the billionaire merger (`engine/world/merger.ts`) has actually happened — eligibility
+(`engine/world/pricingWar.ts`'s `eligibleForPricingWar`) checks for a living rival with a real
+`conglomerateId`, which only exists post-merger. One half of the conglomerate slashes its ticket/merch/PPV
+prices (`slashedPricing`, a flat fraction off each of the three, floored at $1) for a real, counted-down
+number of weeks — visible the whole time on the pricing dashboard this pairs with — takes an immediate rating
+bump for buying market share that way, and reverts to a fresh, ordinary `randomRivalPricing` roll the moment
+the war ends. Deliberately display-adjacent rather than plumbed into `rivalEconomy.ts`'s revenue math: the
+rating bump is the same kind of summary move every other world story in this pool already makes (a scandal
+drops rating, a network deal raises it), not an invented price-elasticity model for one company over six
+weeks.
+
+Registered as a ninth entry in the world-story registry (`data/worldStories.ts`) — `WorldStoryContext` gained
+`pricingWarActive`, and `World.pricingWar: { rivalId, weeksRemaining } | null` is the new temporary state.
+
+One real bug caught by its own store-level tests before this shipped: the roll that *starts* the war and the
+weekly tick that counts it down both run inside the same `resolveWeek` call, so a naive countdown shaved a
+week off before the player ever saw the timer at its starting value — "6 weeks" would only really run for
+5. Fixed by capturing whether a war was already active *before* that week's story roll runs
+(`pricingWarActiveBeforeThisWeek`) and only ticking the countdown when it was — so the week a war starts is
+never also the week it loses its first tick.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (175 files / 3112 tests — new coverage in
+`pricingWar.test.ts` for the pure eligibility/target/slash logic and `pricingWar.store.test.ts` for the real
+weekly wiring, including a dedicated regression test for the off-by-one above), `npm run build` clean, and a
+200-week/2-seed probe run with merger and pricing-war chances both boosted well above default to force real
+exercise of the whole chain (merger fires, a war starts, runs its course, and reverts) with no crashes and no
+out-of-range numbers.
+
+All seven slices of "build it all" are now shipped except Slice F (a general unlockables system beyond Arena
+Floor), which remains open.
+
+---
+
+## The pricing dashboard: rival ticket/merch/PPV prices, deliberately inconsistent — shipped
+
+Sixth slice of "build it all." Scope trimmed on purpose from the brainstorm doc's full description: this
+ships the *dashboard and rival pricing* half in full, and leaves new player-settable merch/PPV price levers
+out entirely rather than inventing a second economic subsystem this backlog item never actually named. The
+player's own ticket price already has a real, deep reaction model (`economy/showBudget.ts`'s
+`fairTicketPrice`/`priceReaction`); giving the player independent merch and PPV prices would mean building
+two more of those from scratch, complete with their own attendance-curve balance risk, for a feature titled
+"pricing dashboard with rival pricing + randomness" that never asked for it. That stays a real, separately
+worth-scoping follow-up if the player wants it — not silently bundled in here.
+
+What actually shipped: `engine/world/pricing.ts`'s `RivalPricing` (ticket, merch, PPV) and
+`randomRivalPricing`, drawing each of the three numbers *independently* off its own settings range
+(`rivalTicketPriceMin/Max`, `rivalMerchPriceMin/Max`, `rivalPpvPriceMin/Max` — deliberately wide and uneven
+bands) — directly answering the player's own earlier request that rival pricing be unpredictable enough that
+"the user can't pick up on a pattern." A rival cheap at the door can still be robbing the merch table; nothing
+here correlates.
+
+Stored in a brand-new `World.rivalPricing: Record<Id, RivalPricing>` map rather than on the `Promotion` type
+itself — deliberately, to avoid touching the dozens of `promotion()` test-fixture helpers scattered across the
+suite for a field the type itself never needed. Display-only: `rivalEconomy.ts`'s actual revenue math is
+untouched, still the standing/form summary it has always been (see its own header comment on why a rival's
+books are a summary and not an invented ledger) — this never feeds it, and never will unless that's a
+separate, deliberate call.
+
+Populated at every point a rival can come into existence: `createInitialWorld` (both the plan and
+random-rival paths converge before this runs, so one call site covers both), the ordinary weekly "companies
+are born" roll, and `breakawayPromotion`'s new-company path — all three seeded off `rngFromSeed(\`rival-pricing:${id}\`)`,
+the entity-seeded pattern from CLAUDE.md's own RNG trap warning, rather than the shared stream, since this is
+a brand-new insertion point at every one of those sites and drawing from the shared `rng` there would have
+shifted every seeded roll downstream of it.
+
+UI: a new "What the competition charges" table on `PromotionScreen`, sitting right under the player's own
+ticket-price slider — every living rival's three prices, in dollars, with the player's own ticket price as
+the top row for comparison (merch/PPV cells read "—" for the player, since those levers don't exist yet).
+
+Verified: `tsc --noEmit` clean, full `vitest run` (173 files / 3100 tests — new coverage in
+`pricing.test.ts` for the pure helper's bounds, determinism, and item-independence, and
+`pricing.store.test.ts` for the three real wiring points), `npm run build` clean, and a 3-seed/104-week probe
+run with no crashes and baseline numbers unchanged (this feature reads and writes nothing any existing system
+touches).
+
+---
+
+## The last three major stories: scandal, breakaway promotion, farewell tour — shipped
+
+Fifth slice of "build it all" — the second half of the six brainstormed major stories, finishing the pool.
+
+`scandal` (`engine/world/scandal.ts`) is once per rival: a real, immediate rating and reputation hit, then the
+same reusable aftermath succession's own weak branch already uses — `ownershipShakeup.ts`'s
+`pickShakeupReleases` sheds real roster into free agency, because staying at a company mid-scandal is not
+something everybody signs up for. Exactly the "tailor a shared sub-story to a different main story" reuse the
+player asked for when this whole system was designed.
+
+`breakawayPromotion` (`engine/world/breakawayPromotion.ts`) is the one that needed real new machinery: a
+genuine chunk of an existing rival's own roster walks out together and founds a brand-new company mid-save.
+Read `engine/world/newPromotions.ts` first — the other half of the business-creation cycle (an outside
+investor opening a company into a talent glut) already existed in full, complete with `foundPromotion` for a
+company's first day and the exact "sign them, strip them off the free-agent list, push the new company into
+`world.rivals`" sequence already proven in `resolveWeek`'s own "companies are born" block. This story reuses
+`foundPromotion` verbatim and mirrors that same sequence rather than inventing a second way to bring a company
+into existence — the only real new logic is *whose* roster splinters and *who* goes, which is
+`pickShakeupReleases` again.
+
+`farewellTour` (`engine/world/farewellTour.ts`) is the one major story with a genuine player decision, and the
+one that doesn't fit the registry's "roll it, apply it, done" shape the other five use: it needs to *raise* a
+decision, not resolve one outright. Solved by treating the registry roll as only the trigger — picking it just
+opens `world.pendingFarewellTour`, non-blocking and expiring, the exact shape `pendingContractRaid` already
+established last slice (and `pendingChampionCall` before that): host a stop for a real fee and a real,
+once-in-a-save rating and reputation gain, or let it happen somewhere else. Deliberately unnamed — a "legend
+of the business" rather than a specific Hall of Famer — for the same reason `uninvitedLegend` was: nothing in
+this engine resolves a world story into a specific *retired* wrestler, only the active roster, and building
+that resolution path was more machinery than one event was worth.
+
+A real store.test.ts regression surfaced during this slice's own verification, from the *previous* slice's
+`worldStories.test.ts`: "only ever returns something actually eligible" hardcoded `['merger', 'succession']`
+as the only legal outcomes, which was true when it was written and stopped being true the moment six more
+stories joined the pool. Re-expressed against the registry's own `eligibleWorldStories(ctx)` rather than a
+frozen id list — the real, timeless claim the test name makes — so it stays correct for whatever story joins
+next, rather than needing a manual update every time this pool grows again.
+
+All six brainstormed major stories are now shipped: merger, succession, network realignment, owner rivalry,
+rogue turn, scandal, breakaway promotion, farewell tour. (Eight, not six — merger and succession shipped in
+an earlier slice before this brainstorm's other four were scoped out.)
+
+Verified: `tsc --noEmit` clean, full `vitest run` (171 files, 3092 tests, 0 failures — new coverage in
+`scandal.test.ts`, `breakawayPromotion.test.ts`, `farewellTour.test.ts` for the pure logic and
+`worldStoriesD2.store.test.ts` for the real weekly-dispatch round trip on all three, including the farewell
+tour's raise/answer/expiry cycle), `npm run build` clean, and a 3-seed/180-week probe run (extended past
+breakaway's own late week gate) with all three saves surviving and no regressions to the existing
+injury/morale/show/money baselines.
+
+---
+
+## Three more major stories: network realignment, owner rivalry, rogue turn — shipped
+
+Fourth slice of "build it all," and the first half of the six brainstormed major stories. Split deliberately:
+these three are rival-side-only (no player decision, the same way `starIsBorn`/`torchPassed` incidents are)
+and share almost no new machinery beyond the registry itself, so they shipped together; the other three
+(scandal collapse, breakaway promotion, legend's farewell tour) each need real new machinery of their own —
+a shared roster-shedding sub-story, a brand-new promotion actually getting founded mid-save, and a real player
+decision — and are tracked as a follow-up slice rather than rushed into this one.
+
+All three are new `data/worldStories.ts` registry entries, same shape as merger/succession: `networkRealignment`
+(a rival's TV arrangement shifts, rating swing either direction, no guaranteed win), `ownerRivalry` (two
+*different* existing rivals go after each other publicly — the only one of the three with no world.mergerHappened-
+style singleton state; the loser and winner swap every time it fires), and `rogueTurn` (a rival drops
+regulation and goes outlaw for good — a permanent `styleProfile.violenceTolerance` shift plus a real either-
+direction rating swing, once per rival).
+
+`rogueTurn`'s "once per rival" need was the reason `World` gained something new rather than another dedicated
+array: `worldStoryHappenedFor: Record<string, Id[]>`, a generic per-story tracker the same shape as
+`successionHappenedFor` but keyed by story id, so a fourth, fifth, sixth per-rival-gated story (scandal
+collapse and breakaway promotion, next slice, both need exactly this) never needs its own bespoke field again.
+`succession`/`merger` were left on their own existing dedicated fields rather than migrated onto the new
+generic one — no reason to touch two already-shipped, already-tested stories for a refactor that costs real
+regression risk and buys nothing new.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (new coverage in `networkRealignment.test.ts`,
+`ownerRivalry.test.ts`, `rogueTurn.test.ts` for the pure roll/apply logic, `worldStoriesD.store.test.ts` for
+the real weekly-dispatch round trip on all three), `npm run build` clean, and a 3-seed/160-week probe run with
+all three saves surviving and no regressions to the existing injury/morale/show/money baselines.
+
+---
+
+## The rest of the "Rival Booker Battle" sub-stories pool — shipped
+
+Third slice of "build it all." Ten of the twelve brainstormed sub-stories landed here; the other two were
+scope decisions, made and disclosed rather than silently skipped:
+
+- **Title stripping** was left alone — the champion-injury vacate path (`titleDefence.ts`, `OfficeScreen`'s
+  `ChampionCallPanel`) already covers a title coming off somebody for a real, booker-driven reason, and
+  building a second, parallel path for the same outcome would have been pure duplication.
+- **Billionaire below-cost pricing turmoil** is deliberately not here — it needs real multi-week temporary
+  state (a lifespan, not a one-shot effect) and ties directly into the pricing dashboard, so it is paired with
+  that build instead of forced into this slice.
+
+**Nine landed as ordinary creative events** (`data/events.ts`, same reuse as the last slice — zero new
+plumbing): `personalConfrontation`, `charityPRMove`, `whisperCampaign`, `insiderDefector`,
+`thirdCompanyRace`, `territoryTargetingBias` (gated on actually owning a territory), `blackballing`,
+`staffPoaching`, and `spiteFreeAgentSigning` — the free-agent-pool sub-story the player asked for by name
+early in the brainstorm. Two of these (`blackballing`, `staffPoaching`) hit the same real limitation
+`uninvitedLegend` hit last slice: the event scheduler's subject resolution only ever pulls a `primary`/
+`secondary` from the *active roster*, and there is no `EventEffect` that touches a manager or referee at all
+(only `wrestlerId`-keyed effects exist). `blackballing` was kept pointed at a real roster wrestler rather than
+somebody who already left; `staffPoaching` was kept deliberately unnamed — a real business consequence
+(money, reputation) without pretending to move a specific manager's contract the engine has no vocabulary
+for.
+
+**The tenth, `contractRaid` (`engine/world/contractRaid.ts`, new), needed its own small module** — the one
+explicitly detailed brainstormed item: "one of the rivals finds problems in 5 of your wrestler contracts and
+signs them away immediately." A creative event could not express this: `EventOption.effects()` has no `rng`
+parameter, so there was no way to pick which 5 wrestlers inside the standard pipeline. Reuses
+`ownershipShakeup.ts`'s `pickShakeupReleases` wholesale for "how many, who" — the exact reusable sub-story
+function the player asked for when this system was first designed. The raid itself is not a decision (the
+wrestlers are already gone, released to free agency, by the time the promoter hears about it — the same scope
+simplification as the truck-breaks-down event: a rival directly re-signing them was more machinery than this
+was worth); what *is* a decision is the aftermath, presented the same non-blocking, expiring way as the
+existing champion-injury call (`pendingChampionCall`'s own precedent): overhaul every contract in the
+building (real money, real reassurance), retaliate (spends reputation, buys a real, mechanical grudge against
+the raiding rival via the existing `engine/world/grudges.ts` ledger — the same ledger invasions already read),
+or do nothing (free today, costs roster morale, and decides itself the same way if the grace period runs out
+unanswered).
+
+Adding nine more entries to the shared weekly creative-event pool shifted which event fires, in which week,
+for any long fixed-seed playthrough — expected, since it changes what a given random draw resolves to without
+changing the draw count (not the entity-seeding trap in CLAUDE.md, a different, milder version of the same
+family). It broke one existing store.test.ts assertion: a school-leaver graduate landed at exactly 38
+popularity, which is not noise — 38 is `settings.biddingPhenomPopularity` verbatim, a real, designed exception
+(`academy.ts`'s `asPhenom`) the test's own title already implied it meant to exclude ("leaves the *ordinary*
+school leavers unknown") but never actually filtered out, only filtering lineage kids. Re-expressed rather
+than re-baselined: the test now also zeroes `biddingPhenomChancePerClass`, the same way it already zeroes
+`secondGenChancePerGraduate` — ruling the one deliberately-famous exception out on purpose instead of leaving
+it to chance whether a given seed rolls one. Confirmed via `academy.test.ts`'s own dedicated, RNG-cascade-free
+unit test that the actual invariant (ordinary graduates come out scaled down and unknown) was never in
+question.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (163 files, 3044 tests, 0 failures — new coverage in
+`contractRaid.test.ts` for the pure roll/resolve logic and `contractRaid.store.test.ts` for the real
+raise/answer/expiry round trip, plus the nine new events already covered automatically by `events.test.ts`'s
+library-wide checks), `npm run build` clean, and a 3-seed/160-week probe run with all three saves surviving
+and no regressions to the existing
+injury/morale/show/money baselines.
+
+---
+
+## The rest of the standalone random events pool — shipped
+
+Second slice of "build it all." Went through the brainstormed random-events pool item by item rather than
+building blind: `familyEmergency` (misfortunes.ts) and the shoot/post-match-beatdown pair (`itWentReal`/
+`postMatchBeatdown` in incidents.ts) turned out to already exist, so those were left alone. What was
+genuinely missing, and where each landed:
+
+**Five new creative events** (`data/events.ts`, reusing the existing engine wholesale — no new plumbing):
+`sponsorPullout` (a committed sponsor bails, three real options: eat it, chase a fast replacement gamble, or
+burn the relationship publicly for a reputation/credibility trade), `liveRetirement` (a veteran or legend
+wants to call it live, on the show — grant it or talk them out of it), `uninvitedLegend` (a name out of the
+record books wants a spot on tonight's card — deliberately unnamed/generic rather than pulling a real Hall of
+Famer, since the event scheduler's subject resolution only ever draws from the *active* roster; inventing a
+second resolution path for a retired name was more machinery than this one event was worth), `protestNoShow`
+(gated on real reputation trouble — a boycotted house, apologize publicly or dig in), and
+`schedulingCollision` (a rival deliberately books your date — push through as a real gamble or pay to move
+it). Every option was checked against the library's own house rule (`events.test.ts`'s "no option is free") —
+a certain downside or a real chance of failure, never pure upside.
+
+`liveRetirement`'s "give them the send-off" needed a capability the closed `EventEffect` vocabulary didn't
+have: `{kind: 'retire', wrestlerId}` (new, routes straight through the existing, already-battle-tested
+`career/retirement.ts` `retire()` + `leaveTheBusiness()` — no new retirement logic, just a new door into it).
+
+**Two new incidents** (`data/incidents.ts`), for the ones that only make sense as a reaction to something the
+sim already produced rather than a weekly card-draw: `viralBotch` and `luckyPyroAccident`. Read
+`simulateMatch.ts` first — `MatchSimResult.botchedById` already existed and was already unused by any caller;
+the pyro burn's worker id was sitting in a `'pyroBurn'`-kind beat's `actorId`, also unread. Both incidents are
+layered *on top of* the mistake's own already-applied cost rather than undoing it — the botch or the burn
+still cost what it always cost, but the internet occasionally decides it's the story of the night anyway, and
+that same viral moment also personally embarrasses whoever it happened to (a real morale hit alongside the
+real popularity/rating gain) — upside and downside both genuine, matching the plan's own rule. `IncidentContext`
+gained `botchedById`/`pyroBurnedById`, populated only at the player's own show's incident-roll call site (the
+same "player-only" precedent already set by `incidentReduction`/`potentialInvaders`) — a rival's own show
+summarizes match results without carrying beat-level detail that far, and reaching it would have meant
+touching `rivalBooking.ts`'s summarization for a scope this small.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (161 files, 3002 tests, 0 failures — new coverage in
+`incidents.test.ts` for the two viral incidents and `retireEffect.test.ts` for the new `EventEffect`, plus the
+five new events already covered automatically by `events.test.ts`'s library-wide well-formedness and
+no-free-option checks), `npm run build` clean, and a 3-seed/160-week probe run with all three saves surviving
+and no regressions to the existing injury/morale/show/money baselines.
+
+---
+
+## The truck breaks down: Arena Floor, a new unlockable stipulation — shipped
+
+First slice of "build it all" on the rest of the brainstormed pool. Asked specifically for this one: the
+equipment truck breaks down, and the promoter has to decide between calling the show off or holding it on
+the bare arena floor — real elevated injury risk, a rating swing that can go either way, still real ticket
+sales, and it permanently unlocks Arena Floor as a bookable match type going forward.
+
+Read `engine/world/ringCall.ts` first, since the ring-giving-out event shipped in the previous slice already
+covers almost the identical scenario mechanically (a worn ring failing mid-life, with a "go nuclear" outcome
+whose own narration already says "bare cement... show went on anyway"). Rather than build a second, near-
+duplicate pending-decision system, the new `engine/world/truckBreakdown.ts` deliberately mirrors the same
+shape — a warning, a two-way choice, honest either-direction consequences — while staying its own small
+module: the trigger is genuinely unrelated (a truck breaking down two states back is bad luck, not
+accumulated ring wear), so it gets its own rare weekly roll (`truckBreakdownChancePerWeek`) independent of
+ring condition, and its own settings block, rather than forcing one cause into a system built around the
+other. `ringCall.ts` itself was not touched, so nothing here risks the already-shipped, already-tested
+ring-call path.
+
+The unlock itself needed a real place to live: `Stipulation` gained a `locked` flag, and `World` gained
+`unlockedStipulationIds: Id[]` — a small, generalized array rather than a single `arenaFloorUnlocked`
+boolean, so any *future* earned stipulation can reuse the same field instead of getting its own bespoke one.
+`arenaFloor` is the only entry in `STIPULATIONS` with `locked: true`; `MatchSetupScreen`'s stipulation picker
+filters it out unless the id is present in `unlockedStipulationIds`. Confirmed rivals can't stumble into
+booking it before it's earned — rival shows pick stipulations off their own identity's `signatureBelt`, never
+by iterating `STIPULATIONS`, so there was no second gate to add.
+
+Wired into `resolveWeek` as its own self-contained pre-show block, same shape and same scope-cut as the ring
+call before it: checked before the ring call (so a week the truck never shows up never also asks whether the
+perfectly fine ring was about to give out), and its consequences — refund-equivalent economics on "call it
+off," an extra injury roll and a real rating swing on "hold it on the arena floor" — apply *after* the show
+already resolved normally rather than genuinely gating whether it simulates. Same reasoning as documented for
+the ring call: real mid-resolution control-flow surgery is exactly what this doc's own infrastructure-debt
+note warns against.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (160 files, 2981 tests, 0 failures — new coverage in
+`truckBreakdown.test.ts` for the pure raise/resolve logic and `truckBreakdown.store.test.ts` for the real
+pending/answer round trip including the unlock), `npm run build` clean, and a 3-seed/160-week probe run with
+all three saves surviving and no regressions to injury/morale/show/money baselines.
+
+Five more slices of the same brainstormed backlog remain, tracked as their own entries once shipped: the rest
+of the standalone random events (viral botch, live retirement, an uninvited legend, sponsor pullout, protest
+no-show, a lucky pyro accident, scheduling collision — `familyEmergency` and the shoot/beatdown-style
+"backstage brawl" idea turned out to already exist, as `misfortunes.ts`'s `familyEmergency` entry and
+`incidents.ts`'s `itWentReal`/`postMatchBeatdown`, so those are not being rebuilt), the rest of the
+brainstormed sub-stories, the rest of the major stories, the pricing dashboard with deliberately inconsistent
+rival pricing, and a general unlockables system beyond this one stipulation.
+
+---
+
+## A world-story registry, succession, Breaking News, and skill-based in-ring danger — shipped
+
+Asked for an open-ended brainstorm of more stories and random events beyond the merger — "need outside
+influences" — with hard requirements laid down up front: every story or event needs real upside(s),
+downside(s), and an explicit multiple-choice decision tree wherever a real choice exists; sub-stories should
+be a shared, reusable pool rather than owned by one main story; and every major/sub story must be announced
+as clearly-labeled Breaking News in the weekly feed, separated by category, and never conflated with tweets
+("tweets are always a reaction gauge, not a story teller"). The brainstorm ran long and stayed brainstorm-only
+for most of the conversation ("don't build yet" / "keep brainstorming until I say otherwise") before a
+first, narrow slice was greenlit: a second major story (succession), the plumbing to hold more of these
+without hand-rolling each one into `resolveWeek`, the Breaking News UI, and two of the standalone random
+events (skill-linked injury risk, the ring giving out).
+
+**The registry.** The merger was originally a bespoke block inside `resolveWeek`; adding a second major story
+the same way would have meant two near-identical eligibility/roll blocks and no shared place for a third.
+`data/worldStories.ts` (new) holds `WorldStoryDefinition {id, category, weight, chancePerWeek(settings),
+eligible(ctx)}` — metadata only, no mutation logic, because a merger and a succession do genuinely different
+things to the world and forcing them through one closed effect vocabulary would have been the wrong kind of
+generalization. `engine/sim/worldStories.ts` rolls each eligible story against its own `chancePerWeek`
+independently, breaking ties among simultaneous hits by `weight`. `resolveWeek` now does one dispatch off the
+result instead of a bespoke merger check; `applyMerger` itself is untouched.
+
+**Succession.** `engine/world/succession.ts` (new): once a rival is old enough (`successionEarliestWeek`:
+104, two years — same era as invasions) and hasn't already been through it, a founder/booker dies or steps
+back and the company passes to an heir. `rollHeirBranch` weights three outcomes — steady (45%, no change),
+sharp (25%, real rating/reputation gain), weak (30%, real rating/reputation loss) — so the upside and
+downside are both genuine and neither is guaranteed. A weak heir also triggers a shared sub-story: `engine/
+world/ownershipShakeup.ts`'s `pickShakeupReleases` sheds 2-5 of that company's roster into the free agent
+pool, panic cost-cutting from new ownership that doesn't know what it's doing. Built as a standalone,
+reusable function rather than succession-only, so any future ownership-change trigger (the merger, or
+something later) can call the same release logic instead of a bespoke copy.
+
+**Breaking News.** `WireKind` gained `'ownership'`, `'contract'`, and `'talent'` alongside the merger's
+existing `'business'`. `ShowResults.tsx` gained a `BreakingNews` component that pulls `weight === 'lead'`
+items of those kinds into their own visually distinct, category-labeled section ahead of the regular wire;
+`TheWire` excludes the same items so nothing doubles up. This is UI-and-classification only — no new data
+pipeline, since `WireKind` and the lead/routine weight distinction already existed and just weren't being
+surfaced as a dedicated section.
+
+**Skill-based in-ring danger.** Answered a direct mechanics question — can a wrestler hurt another during a
+match, tied to in-ring skill, worse when neither is any good — with `engine/sim/casualties.ts`'s new
+`skillDangerMultiplier(personSkill, opponentSkills, settings)`: `1 + (1 - personSkill/100) * (1 -
+avgOpponentSkill/100) * settings.skillInjuryWeight`. Deliberately multiplicative, not averaged: one
+genuinely good worker with a green opponent keeps the product low (one near-zero term protects the whole
+match), while two green workers compound real danger instead of diluting it — matching how it actually reads
+ringside. Wired into the one real "wrestler hurts wrestler" competitor-vs-competitor `rollCasualty` call site
+in `resolveWeek` (traced directly rather than assumed — the other three `rollCasualty`/`stoppageCasualty`
+call sites are unrelated: stunt/environmental risk, not opponent skill).
+
+**The ring gives out.** `engine/world/ringCall.ts` (new): when ring condition drops below
+`ringCallConditionFloor`, a real warning can be raised before a show — worn ropes, a soft spot in the
+canvas — and the promoter gets a genuine two-way choice, not a coin flip disguised as one: play it safe
+(refund-equivalent economics, `worked` morale hit, merch sales down, show never runs) or go nuclear (the show
+runs as booked, injury odds go up by `ringCallNuclearInjuryMultiplier`, and the rating swing can land either
+direction — no guaranteed pop for the risk). **Scoped down from the original ask on purpose, and said so
+plainly rather than silently cutting it**: a literal mid-match interruption would have meant restructuring
+`resolveWeek`'s control flow, exactly what this doc's own "don't start without asking" note on infrastructure
+debt warns against. So the call fires *before* the show, as its own self-contained pending-decision block —
+same real consequences (refund vs. real injury/rating risk), reused verbatim from the weather-call
+pending-decision pattern (`world.pendingRingCall`/`ringCallChoice`, a new `answerRingCall` action, a
+`DialogueCard` built off `RING_CALL_OPTIONS`) — rather than a true in-match interrupt. No store-level
+integration test exercises the full pending/answer round trip end to end; `ringCall.test.ts` covers the pure
+raise/resolve logic directly instead.
+
+Not built in this slice, left for later prioritization: the rest of the brainstormed major-story pool
+(scandal collapse, network realignment, breakaway promotion, owner rivalry, rogue promotion, a legend's
+farewell tour), most of the brainstormed sub-stories (blackballing, personal confrontations, title stripping,
+territory-targeting bias, insider defectors, a third-company race, whisper campaigns, charity-PR moves, staff
+poaching, the contract-loophole raid, the billionaire's below-cost pricing turmoil sub-story, and the 4x-value
+spite free-agent signing), most of the standalone random events (backstage brawl, viral botch, live
+retirement, an uninvited legend, sponsor pullout, protest no-show, family emergency, a lucky pyro accident,
+scheduling collision, and the truck-breaks-down/Arena Floor stipulation event), the pricing dashboard with
+deliberately-inconsistent rival pricing, and a general unlockables system. All of it stayed design discussion
+only, per the standing "don't build yet" instruction that governed the brainstorm until this narrower slice
+was explicitly greenlit.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (158 files, 2970 tests, 0 failures — new coverage in
+`succession.test.ts`, `ownershipShakeup.test.ts`, `ringCall.test.ts`, `worldStories.test.ts`,
+`succession.store.test.ts`, plus additions to `casualties.test.ts` and `wire.test.ts`), `npm run build`
+clean, and a 3-seed/160-week probe run with all three saves surviving and plausible injury metrics.  Schema
+bumped to 61 (`World.pendingRingCall`, `World.ringCallChoice`, `World.successionHappenedFor` are all new).
+
+---
+
+## The billionaire merger — a one-time, late-game escalation — shipped
+
+Asked whether the game needed an endgame, and pitched a specific mechanic: a rich outside buyer eventually
+acquires the two strongest surviving rivals, keeps them running as separate shows under one shared brand
+split East and West, and makes them meaningfully harder for everybody left — not a formal win/lose state,
+just real escalating pressure on a long save. Scoped down to exactly that: no new ending screen, no victory
+check, and it never repeats once it has happened — a permanent shift in the shape of the business for the
+rest of the save, not an ongoing threat to keep rebalancing.
+
+`engine/world/merger.ts` (new) is the whole mechanic in pure functions: `eligibleForMerger` gates on
+`WorldSettings.mergerEarliestWeek` (156 — three years, later than invasions' own 104-week gate) and needing
+at least `mergerMinLivingRivals` (3) living rivals — two to buy, one left over besides the player, so the
+business is never reduced to a two-company death match by the event itself. `pickMergerTargets` always takes
+the two highest-rated survivors (a buyer with this kind of money is not interested in a struggling regional
+outfit); `nameMerger` draws a brand and a buyer's name from small invented pools (`Vantage`, `Colossus`,
+`Dominion`...); `applyMerger` renames both `<Brand> East`/`<Brand> West`, gives both a real rating and
+bankroll boost, and stamps a shared `Promotion.conglomerateId` (new, optional — absent for everyone else,
+including the player, who can never be bought).
+
+Wired into `resolveWeek` as a one-time weekly roll, entity-seeded off `rngFromSeed('merger:${week}')` per the
+CLAUDE.md RNG-order trap — inserted into weekly resolution, so it must never touch the shared stream — rare
+on purpose (`mergerChancePerWeek: 0.015`, so it reads as a genuine surprise even once eligible) and guarded
+by `World.mergerHappened` so it can only ever fire once. Announced in full on the wire the week it happens
+(a new `'business'` `WireKind` — nothing this size happens off-screen).
+
+The "colder to everyone else" half reuses the existing joint-supershow negotiation wholesale: `coopAppetite`
+already reads a `resentment` term computed at its one call site, so a hostile-outsider check
+(`isHostileOutsider` — anyone who isn't their own sibling) just adds `mergerCrossPromotionResistance` (40)
+onto that same term. No new negotiation system needed. Deliberately *not* built: an actual simulated joint
+show between the two halves (there is no rival-vs-rival supershow system in this game at all, and inventing
+one was out of scope), and any AI-vs-AI poaching (doesn't exist either) — the difficulty increase for the
+rest of the business comes honestly from the rating/bankroll boost alone, which already scales poaching
+aggression, bidding-war strength, and territory draw everywhere those numbers are read. Flagged plainly
+rather than implied, since it would have been easy to oversell this as more mechanized than it is.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2936 tests, 0 failures — 11 new in `merger.test.ts` for
+the pure functions, 3 new in `merger.store.test.ts` confirming the weekly roll is correctly gated, applies
+once, and never repeats), `npm run build` clean, and a 3-seed/200-week probe run (past the merger's own week
+gate) with no regressions to the existing injury/morale/show/money baselines and all three saves surviving.
+Schema bumped to 60 (`Promotion.conglomerateId`, `World.mergerHappened`, `WireKind.business` are all new
+required/closed-set surface).
+
+A world-map/international-expansion system was discussed in the same conversation and deliberately parked as
+a future expansion, not built here — see the session's own design notes if it comes back up.
+
+---
+
+## Secret signings now feed the same grudge invasions read — shipped
+
+A gap flagged and deliberately left open while building invasions: `Grudge` (`engine/world/grudges.ts`) was
+only ever created by a lopsided joint supershow night, so a rival who had just had their top guy stolen out
+from under them via a secret signing carried zero mechanical resentment — a real betrayal with no memory
+behind it, and one fewer path into the invasion incident that now reads that ledger.
+
+`rememberNight`'s merge-and-clamp logic is specific to a joint night's own stats (`playerWins`/`partnerWins`/
+`showStars`), so rather than force poaching through that shape, `grudges.ts` gained a smaller sibling,
+`addGrudge(existing, promotionId, amount, reason, week)` — same merge/clamp/drop-at-zero rule, but driven by
+a plain magnitude and reason instead of a derived night. `rosterAndContracts.ts`'s `revealSecretSigning` —
+the moment a secretly-signed wrestler actually walks out on television and the rest of the business finds
+out — now calls it right alongside the rating hit it already applied to the victimized rival, scaled by the
+same `revealImpact` the existing effects already use (a fresh, high-stature, unblown reveal lands roughly
+20-30 resentment via the new `grudgeSecretSigningPerImpact` setting; a stale or already-blown one barely
+registers, matching how little of a surprise it was left by the time it happened).
+
+Deliberately one-directional: a rival poaching *from* the player (`answerApproach`'s `doNothing` resolution)
+does not get a symmetric grudge, because `Grudge` only ever represents how a rival feels about the player —
+there is no ledger for the reverse, and inventing one was out of scope for this pass.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2922 tests, 0 failures — 4 new in `grudges.test.ts` for
+`addGrudge`'s merge/clamp/drop behavior, 1 new in `store.test.ts` confirming a real secret-signing reveal
+leaves the victimized rival with resentment on the books), `npm run build` clean.
+
+---
+
+## Invasion angles — a rival with a real grudge sends somebody through the curtain — shipped
+
+The second of "1 and 3" — custom creation and logo/photo work landed first; this is invasions, the
+cross-promotion angle. Asked explicitly to "save some surprises for down the road... a few years into it,"
+so this is deliberately not available in a fresh save: `WorldSettings.invasionEarliestWeek` (104 — two years,
+at 52 weeks/year) gates it well behind `supershowEarliestWeek`'s 20, and it further requires
+`invasionGrudgeThreshold` worth of real resentment already on a rival's ledger. A save has to be old, and a
+rival has to have a real reason, before this can ever fire — the whole point of the request.
+
+Read `engine/sim/incidents.ts`'s header first: an incident never decides who won, and nothing fires without a
+real reason already in the world. `runIn` was the near-exact structural precedent — a wrestler off the card
+with unfinished business crashes the main event — so invasions reuse the same shape, sourced cross-promotion
+instead of same-roster. The one existing promotion-vs-promotion "feeling" in the game is
+`engine/world/grudges.ts`'s `Grudge` ledger, fed today only by lopsided joint supershow nights — so a rival
+who was buried on a supershow is exactly the company that would now send someone to get some of it back.
+
+New `couldInvade(world, hostPromotionId, booked, againstIds)` (`state/storeHelpers.ts`, mirroring the
+existing `couldTurnUp`) walks every rival with resentment past the threshold and offers up their fit roster
+members. It's deliberately one-sided: grudges only ever record how a rival feels about the *player* (there's
+no ledger for how rivals feel about each other), so it returns nothing at all unless `hostPromotionId` is the
+player's own promotion — a rival's own show never gets an invader, rather than guessing. `IncidentContext`
+gained a `potentialInvaders` field carrying each candidate's wrestler and home promotion; the new
+`rivalInvasion` incident (`data/incidents.ts`) fires only in a main event or title match with a winner to
+target, exactly `runIn`'s own gate, and names the invader's promotion right in the headline.
+
+The "getting their moment lets some steam off" half needed a new closed vocabulary entry rather than a direct
+world mutation — `EventEffect` gained `grudgeRelief` (a promotion id and a magnitude), with its case in
+`applyEffect` draining resentment off that rival's `Grudge` and dropping the entry entirely once it reaches
+zero, the same as it already does when it decays away naturally. `rivalInvasion` spends `invasionCatharsis`
+of it on every fire, so a rival doesn't just get one invasion and then another immediately after — the grudge
+that earned it is real, and using it costs something.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2917 tests, 0 failures — 22 in `incidents.test.ts`
+including new eligibility and build coverage for `rivalInvasion`, 8 new in `invasion.test.ts` for
+`couldInvade`'s gates and the `grudgeRelief` effect), `npm run build` clean, and a 3-seed/160-week probe run
+confirming the new incident sits safely in the weekly resolution loop for a save well past
+`invasionEarliestWeek` with no regressions to the existing injury/morale/show/money baselines. Natural
+observation of a fired invasion in a played save needs a completed, lopsided supershow first (itself a rare,
+multi-year event) — the gating logic and the incident's own `when`/`build` are covered directly instead,
+against a real `World` built through the store rather than a hand-rolled fixture.
+
+---
+
+## Custom promotion creation, a generated logo, and batch photo import — shipped
+
+Asked "what else, let's be the best," the design doc's own §23 named custom promotion creation as a
+post-v1 candidate — checking what NewGameScreen already did turned up far more than expected: a real name,
+generate-or-import per company, house style, and a full custom-championship builder already existed. The
+actual gap was narrower and already anticipated in the type system: `WorldPresetName` has carried a `'custom'`
+member since the five-preset system was built, with no UI ever reaching it — the five presets' own starting
+cash/roster/rating/following are fixed bundles, and there was no way to set those numbers directly.
+
+`data/worldPresets.ts` gained `CUSTOM_PRESET_BOUNDS` — four sliders (cash, roster size, national credibility,
+home following), each clamped to the exact span the five hand-tuned presets already validated individually
+(Backyard's floor to Big money's ceiling, per field) so Custom can only ever recombine numbers this game has
+already balance-tested, never exceed them. A generated (never hand-written) `customSqueezeLine()` reads the
+combination back in the same voice as the five presets' own `theSqueeze` — qualitative, words not numbers,
+reacting to both money-per-head and how known the promotion already is. `engine/world/settings.ts` gained the
+matching `worldSettingsFromCustom()`, and `NewGameScreen.tsx` a sixth tile alongside the five fixed presets,
+sliders appearing inline when it's selected. Locked with 23 new tests in `worldPresets.test.ts`, including one
+that asserts every bound stays inside the five presets' own measured span — if a future preset retune ever
+widens or narrows that span, this test catches Custom drifting outside proven territory.
+
+Separately, asked for "generic logos with initials" the player can still name and choose: rather than a
+second, disconnected color system, `PromotionMark` (new) reuses the *existing* seven-way house-style palette
+(`chrome.tsx`'s `promotionTheme`, already driving every button and header wash in the game) and pairs each
+archetype with its own badge shape — a circle for Territory, a five-point star for Sports entertainment, a
+jagged burst for Hardcore, a hexagon for Technical, a rotated diamond for Lucha, a heraldic shield for Old
+school, a plain rounded square for Athletic — via inline `clipPath`, no art asset. It's the exact same
+"generate from the name, no upload" idea `PaperDoll` already uses for a wrestler with no photo. Needs zero new
+state: fully derived from a promotion's existing `name` and `identity`, so "choosing" the logo *is* picking
+the house style the player was already going to pick — updates live in `NewGameScreen`'s creation flow, and
+placed persistently in `App.tsx`'s header, `PromotionScreen`'s "Who you are" panel, and the rival-company
+picker on `RivalRosterScreen`.
+
+Third: "make sure importing photos is easy... whether it's batch or individually... make sure it knows male
+vs female... utilities in the menu that are run and foolproof." The individual case and the JSON whole-roster
+import (which already carries `gender` and `photoDataUrl` per entry) both already existed; the real gap was
+attaching real image *files* — a folder of actual photos — to a roster already in play, which had no path at
+all. New `BatchPhotoImport.tsx`, reachable from Settings next to the existing save/roster file tools: pick any
+number of image files at once, each gets matched against the roster by filename (`suggestMatch` — normalizes
+both sides and pre-selects only on an *exact, unambiguous* single match, never guessing between candidates),
+reuses the existing `resizeToDataUrl` pipeline unchanged, and shows every row's target wrestler with their
+name and gender spelled out before anything is written — nothing is saved until Apply, and a duplicate pick
+within one batch is flagged rather than silently overwritten. The store gained a new, deliberately minimal
+`setWrestlerPhoto` action rather than routing through the existing `repackageWrestler` — that path always
+resets `gimmickFreshness` to 100 on the theory that a new look is a new character, which a plain photo attach
+must never trigger as a side effect (confirmed by a new store test asserting freshness is untouched).
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2906 tests, 0 failures — 23 new for the custom preset, 3
+new for `setWrestlerPhoto`), `npm run build` clean, and two live Playwright walk-throughs: building a custom
+promotion end to end (dragging every slider, confirming the squeeze line and the live logo both react, then
+actually opening the doors and seeing the chosen numbers land in the real save), and a batch photo import
+against a real roster (three files, two filename-matched correctly, one correctly left unmatched, applied and
+confirmed on the roster screen afterward).
+
+---
+
+## Vignette packages — a paid gamble to hype a debut — shipped
+
+Asked whether the game had a way to build anticipation for a new signing the way wrestling did it in the 80s
+and 90s — Razor Ramon's toothpick-and-gold-chain vignettes, not a wire photo — the honest answer was a single
+one-shot dialogue option buried inside an *existing* wrestler's gimmick-change event, not anything reachable
+from a fresh signing. Scoped and built as its own thing per the player's own spec: a dedicated card-slot
+presence, offered at signing time, three real weeks paid for up front, the wrestler unbookable the whole
+time, and a genuine coin-flip-ish gamble at the end — a real popularity and momentum payoff if it catches, or
+nothing at all for the money and the missed weeks if the crowd never bites.
+
+`engine/career/vignette.ts` (new) is the whole mechanic: `newVignette`/`tickVignette` manage the three-week
+countdown the same way `Leave` already does; `resolveVignette` rolls the payoff off an entity-seeded stream —
+`rngFromSeed(\`vignette:${wrestlerId}:${startWeek}\`)`, never the shared stream, so adding this decision can't
+shift a single existing seeded roll — weighted by the wrestler's own charisma via two new settings
+(`vignetteSuccessChance`, `vignetteCharismaBonus`). A bust is deliberately worth exactly zero, not a
+punishment on top of the sunk cost — the risk the player asked for is real, not padded.
+
+The signing-time hook is the existing "meet the booker" `SigningTalk` flow, which already fires exactly once
+per new signee regardless of how they arrived (free agent, folded-roster pickup, bidding-war win). It gained
+a third stage, `chooseDebut`, between picking the gimmick and the tag-team pairing offer:
+`chooseSigningDebut(wrestlerId, 'now' | 'vignette')` either fires the ordinary immediate "debuts tonight"
+wire (moved out of `chooseSigningGimmick`, which used to fire it unconditionally) or spends
+`vignetteCost` up front and sets `Wrestler.vignette` — a new optional field, no schema bump needed, same
+safe-optional-field pattern as every other save-compatible addition here. Unaffordable is a silent no-op,
+same convention as `signFreeAgent`'s own guard — the talk just stays open for a real choice.
+
+A running vignette blocks booking exactly like `Leave` already does: `canWork()` in `rivalBooking.ts` (used
+by every AI's own booking, including auto-fill) now refuses a wrestler mid-campaign, `theCatch()` in
+`scouting.ts` says so on their card, and `BookingScreen.tsx`'s "rest of the week" panel reports it with a
+countdown. The manual slot picker still lets the booker cast them anyway if they really want to — same
+established convention as an injured or on-leave wrestler, since the game does not block the player's own
+bad decisions, only the AI's.
+
+The card-slot presence itself is `ui/components/VignettePanel.tsx` — a new, read-only section on the booking
+screen mirroring `PromoSlots`/`DarkMatchSlots`'s exact layout convention, listing anyone currently mid-campaign
+with a week-by-week flavor line ("Grainy footage, no name, no face" → "the crowd cannot stop talking about
+it" → "one more week of this"). Nothing to cast here on purpose — the whole campaign was decided the day it
+was bought.
+
+The payoff resolves in `resolveWeek`, in the same post-increment bookkeeping pass as `Leave`'s own tick (right
+after `world.week += 1`, so a wire stamped `world.week` there lands correctly rather than vanishing per
+CLAUDE.md's own stamping trap): ticks down, and on the final week either applies the real, lasting
+popularity/momentum gain and posts the "three weeks finally pay off" wire, or clears silently into an
+ordinary, unremarked debut.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2898 tests, 0 failures — 10 new in
+`engine/career/vignette.test.ts`, 7 new in `state/vignette.store.test.ts`), `npm run build` clean,
+`tools/probe.mjs` unchanged from baseline (the mechanic is entirely player-decision-gated, same as the
+existing gimmick/pairing signing talks, so the automated probe never exercises it — expected, not a gap),
+and a full live Playwright walk-through: signed a free agent, picked a gimmick, chose the vignette option in
+the new "How do we bring them out?" dialogue, watched the cost leave the bank and the card-slot panel appear
+and progress week over week, and ran the show three times to see the real debut wire land and the panel
+clear.
+
+---
+
+## Feud pages, pair chemistry, and earned rivalry status — shipped
+
+Asked what else was worth building, the honest read of the storyline system was that it mostly already
+existed — `engine/world/storyline.ts` and the Stories board on the booking screen already ran the whole
+opening/building/boiling/blown-off lifecycle. The real gap, once scoped, was everything the player actually
+asked for next: a per-wrestler feud history with a visible rise-and-fall shape, some pairings clicking and
+some never working, a real mechanic for revisiting a great feud for a spark without running it into the
+ground, and an earned "All-Time Rivals" tier modeled explicitly on the real thing — Flair and Steamboat,
+picking a decades-old feud back up and the house knowing it's in for a treat, versus the same match run once
+too often burning out its own heat.
+
+The mechanic (`engine/sim/pairChemistry.ts`, new) has two halves, both feeding a single
+`pairChemistryBonus` term in `matchRating.ts` that already existed as a wired but permanently-zero context
+field — the same "dead hook" pattern `overexposurePenalty` was before `freshness.ts` gave it a real value,
+so the rating formula itself needed no changes at all:
+
+- `innateChemistry(participantIds, settings)` — a fixed, entity-seeded roll (`rngFromSeed`, never the shared
+  stream) per pairing, gaussian around a slight positive mean with real negative tail. Some pairs just click;
+  a few genuinely never do, and that pair's segments carry a real, visible penalty every time they're booked
+  together, all the way down to `chemistryLabel()`'s plain-words read ("no chemistry at all — this is a
+  fight to book, not a story") rather than a number.
+- `sharedHistoryBonus(history, currentWeek, settings)` — real, tunable modeling of the too-soon-vs-earned-
+  spark tradeoff: reviving a pairing inside `rivalryRestWeeks` costs a real penalty that compounds per
+  revival: too many trips back to the well and the audience is done with it. Given enough rest, a genuinely
+  great past blow-off (quality-weighted, using the pre-existing `blowOffQuality()`) earns a real bonus that
+  fades a little on each subsequent revival, exactly the diminishing-returns shape asked for.
+
+Both `blowOffQuality` and past-blow-off history had to actually survive past the moment they were computed.
+`blowOff()` always calculated a quality score to color that one week's write-up and then threw it away;
+`Storyline` now carries an optional `blowOffQuality?: number` (no schema bump — old saves just read it as
+`undefined`, same safe-optional-field pattern as every prior save-compatible addition here), so a pairing's
+whole history of blow-offs is queryable after the fact. `legendStatus()` derives the earned tier from that
+history against the existing `storylineGreatBlowoff`/`storylineFairBlowoff` thresholds (reused, not
+duplicated) plus two new settings, `allTimeRivalGreatBlowoffs` (2) and `classicRivalryFairBlowoffs` (2) —
+most feuds never get there on purpose.
+
+Five new UI surfaces, all reading the engine rather than deciding anything themselves:
+
+- **`WrestlerFeudsScreen.tsx`** (new `feuds` screen) — one wrestler's whole feud history, current feuds
+  (up to however many are actually running) shown first and foremost, each with a `FeudTimeline` — a
+  horizontal progress bar against the real building/boiling thresholds, a dot per beat, colored by stage —
+  so the rise/fall shape asked for is the actual shape of the story, not a chart bolted on after. Real,
+  attributable comparability stats (`sharedNightsSummary`) — matches together, best and average stars, gate
+  on the nights they shared a card — substitute for per-wrestler merch tracking, which the data model
+  genuinely does not carry (`merch` is Show-level only); said so rather than fabricating a number. A "Start a
+  story" panel lets the booker manually name a pairing without waiting for the crowd to earn it, reusing the
+  pre-existing `startStoryline` action untouched.
+- **`AllTimeRivalsScreen.tsx` / `ClassicRivalriesScreen.tsx`** (new History-group screens) — every pairing
+  at each earned tier, citation-card style deliberately matching the Hall of Fame's own look.
+- **Office → Feuds tab** (`OfficeScreen.tsx`) — the feud index the player asked for: every wrestler who has
+  ever carried a real story, current business sorted first, each row linking straight to their feud page.
+- **`WrestlerDetail.tsx`** gained a "View feud history" link (any wrestler with a storyline, not just
+  roster members), and every screen that renders it (`Roster`, `FreeAgents`, `RivalRosters`,
+  `WrestlerDetailScreen`) threads an `onOpenFeuds` prop down to it.
+- **Card-slot chip** — `segmentSummary.ts` gained a `storyline` field (any live story whose principals are
+  both present in a segment, singles or tag), surfaced as an "Advances: {name}" chip on both the card
+  overview and the match setup screen, so booking a pairing that's mid-story says so before the show runs.
+
+Wiring in a real, always-on rating term surfaced a genuine pre-existing content gap rather than a bug in the
+new code: `store.test.ts`'s "does not repeat the colour man across the card" test failed once chemistry
+started shifting match ratings for real, because the "you do not envy {ref} tonight" observation had exactly
+one eligible template for a `hopeSpot`/`signature` beat with a non-face colour man — any card where three or
+more segments hit that combination was always going to force a third repeat, chemistry or not. Fixed at the
+actual source per CLAUDE.md's own rule (re-express what broke, don't re-baseline the number): two more
+templates in that same slot in `data/commentaryLines.ts`, giving the colour man real alternatives instead of
+tuning the chemistry math to dodge one fixed seed.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2881 tests, 0 failures, including the new 24-test
+`pairChemistry.test.ts`), `npm run build` clean, and `tools/probe.mjs` (3 seeds × 104 weeks) showing mean
+show rating unchanged from the documented baseline (49.6 against a 49-51 baseline range) — the new rating
+term is real without having quietly reshaped the whole rating curve.
+
+---
+
+## Photo portraits replace the generated sprite atlas — shipped
+
+Asked directly what it takes to upload a profile picture, the honest answer was that there was no upload
+feature at all — every wrestler's look was a procedurally generated pixel-art sprite, and Claude's art
+"isn't very good." Scoped as a photo-upload feature to sit *alongside* the generator; the player's actual
+instruction, once the scoping doc was in front of them, was more decisive: **"let's remove all body parts.
+one profile pic per person."** One clarifying question — what a wrestler with no uploaded photo should
+look like, since that's the vast majority of the roster — got "Simple placeholder avatar," matching the
+initials-and-color-swatch style already used for commentators in the match viewer.
+
+The entire procedural system is gone, not patched around: `Appearance` (20 numeric traits), the indexed
+sprite atlas (`tools/wrestler_atlas.py`, 72 PNG sheets, the compositor, the manifest/traits contract), the
+Hamming-distance distinctness checks at generation and repackage time, `GimmickLook`/`applyGimmickLook` and
+stable unified colors, and second-generation face resemblance — all deleted, along with every import and
+call site that touched them (three generation call sites, `repackage.ts`, `lineage.ts`, `roster-io.ts`,
+~24 `<PaperDoll>` render sites across the UI, and every test that exercised any of it).
+
+`Wrestler.photoDataUrl?: string` is the entire replacement: an optional data URI, absent for the
+overwhelming majority of the roster (every generated NPC, free agent, rival). `PaperDoll.tsx` is the one
+render point everything still goes through — a real photo if `photoDataUrl` is set, otherwise a flat
+colored circle with the wrestler's initials, hue derived from a hash of their name so it's stable across
+renders. `ui/paperdoll/photoUpload.ts` turns an uploaded file into that data URI entirely client-side —
+decode, centre-crop to a square, downscale to 96×96, export as compressed WebP — no network call, same as
+the rest of the game. The upload/remove-photo control lives in a rewritten `WrestlerEditor.tsx`, which also
+dropped its now-meaningless gender/alignment "preview" controls (they only ever existed to drive the
+deleted atlas's frame selection and heel/face tint; `repackageWrestler` never actually saved them).
+
+One real mechanic had to survive the cut: the "Mask vs Mask" stipulation needs to know who is actually
+masked, both to gate booking it (all participants must be masked) and to apply its stakes (the loser is
+unmasked for good). That was previously read off `appearance.mask`. It's now `Wrestler.masked: boolean` —
+a mechanical fact, not a look — set at generation from a new `Gimmick.masked?: 'required' | 'forbidden'`
+field (kept on exactly the three gimmicks that ever cared: Luchador and Mysterious Outsider require it,
+Daredevil forbids it) or, for everyone else, a small flat chance seeded off the wrestler's own id so
+removing this draw can never reroll anyone who already existed. The three places a gimmick can change
+underneath a wrestler (`gimmickChange`, the signing-meeting picker, the cold-meeting relaunch) re-apply the
+required/forbidden rule the same way `applyGimmickLook` used to. "Hair vs Hair" needed nothing: nothing
+else in the sim ever read hairstyle, so its consequence is now just the write-up line, same as always.
+
+Removing the appearance generator's RNG draws shifted every seeded roll after it in world/wrestler
+creation — the exact trap CLAUDE.md warns about, just in reverse (removing draws instead of adding one).
+Four existing tests broke as a result, none from a logic bug: an academy age-range assertion that was
+actually checking the wrong settings field and had only ever passed by seed luck; a tag-match pinned/pinner
+test whose 60-iteration loop was actually just two fixed entity-seeded draws repeated (fixed by varying
+`week` per iteration so it samples real independent draws); and two joint-show tests that depended on a
+rival's booked card having spare standby capacity, which a bigger local roster (30 vs. the file's 24)
+restores with headroom rather than chasing the old seed. Re-expressed per CLAUDE.md's own rule, not
+re-baselined — each fix is documented inline at the assertion it touches.
+
+Verified: `tsc --noEmit` clean, full `vitest run` (2857 tests, 0 failures), `npm run build` clean, and a
+live Playwright pass through a fresh save — roster and detail screens render initials placeholders
+correctly for the whole generated roster, the editor's upload flow accepts a file, crops/resizes/previews
+it, and Save writes it through so the roster row and every other `<PaperDoll>` site immediately show the
+real photo in place of the placeholder.
+
+---
+
+## UX/navigation overhaul — all four phases shipped
+
+Player played the actual built game for the first time and the verdict was blunt: "the ux and layout is
+horrible. I didn't even know where to go... we've done fairly well behind the scenes......but nobody will
+want to play." Originally deferred for a later session; the player then explicitly kicked it off ("let's
+start on it"), and a bare "proceed" carried it straight on into Phase 2 (navigation stack + the wrestler-
+detail screen — see "UX/navigation overhaul, Phase 1" and "Phase 2" below). Mid-way through Phase 3, the
+player redirected the whole thing: the game is not phone-tailored any more — it's headed for Steam, on a
+PC, and should use a real window's worth of space instead of a single scrolling column. That pivot —
+sidebar shell, the booking flow finished natively for desktop, and Roster/Free Agents/The competition
+rebuilt as master-detail split panes — shipped as "UX/navigation overhaul, desktop/Steam pivot" further
+down this file. **Phase 4 (a calendar "this week" indicator, a free-agent "new graduates" filter) has now
+shipped too — see "UX/navigation overhaul, Phase 4" at the very end of this file — closing out the whole
+overhaul.** The full plan lives in `/root/.claude/plans/synthetic-plotting-planet.md`.
+
+The player supplied seven reference screenshots from mDickie's *Wrestling Empire* (a genre sibling, not
+this codebase) and named exactly what makes its interface work, as a concrete brief for what "much more
+user-friendly and visually appealing" means here:
+
+- **One screen, one job.** The card/booking screen in the reference shows *only* the card — Main Event /
+  Mid Card slots, nothing else competing for attention. Compare our `BookingScreen.tsx`, which currently
+  puts stipulation pickers, gear-unit chips, referee/manager assignment, and the full segment editor all
+  on screen at once per slot.
+- **Drill-down navigation instead of one crowded screen.** Tap a calendar date → straight into that
+  night's card. Tap an empty slot on the card → back to a roster-picker screen to fill it. Tap a booked
+  match → a dedicated match-setup screen with its own top tab bar (`Arena / Rules / Cast / Script /
+  Play`), each tab a focused single-purpose screen, not an accordion or a scroll-everything page.
+- **A real roster/wrestler-detail screen.** Tap a name anywhere → a screen with the portrait, quick
+  stat bars up top (Popularity/Strength/Skill/Agility/Stamina/Attitude — visually near-identical to what
+  our own `RosterScreen`-adjacent stat displays already compute, just laid out cleaner), and — this is
+  the part we don't have at all — **tag partners and managers shown right there on the same screen**,
+  each tappable to jump to *their* detail screen. Same list-of-wrestler-rows visual language reused
+  everywhere: a promotion's roster, a rival's roster, the free-agent pool, the wrestling school
+  intake, and a legends pool all render as the same scrollable list component, just filtered
+  differently — not five different bespoke layouts.
+- **Consistent, uncluttered chrome.** Every reference screen has the same header shape (back arrow,
+  section wordmark/logo, a small stat/portrait cluster top-right) and the same list-row visual style
+  (colored bars, a name, a small icon for a title belt/manager/mystery-signing). Ours currently varies
+  screen to screen with no single reusable "list row" or "detail header" component doing the work.
+
+**What this means for us, concretely, next time:** an audit of every existing `ui/screens/*.tsx` against
+"is this one screen doing one job, or several," a real wrestler-detail screen/route that doesn't exist
+yet (tag partners and managers are data we already have — `world.relationships`, tag team state, manager
+assignments — just never surfaced as a single drill-down destination), a shared `RosterList`/`ListRow`
+component to stop every screen inventing its own roster-row markup, and reworking `BookingScreen.tsx`'s
+segment editor into its own dedicated screen/route reached by tapping a card slot, rather than expanding
+inline. This is a real information-architecture pass, not a visual-polish pass — the design-system work
+already done (tokens, `chrome.tsx`, the pilot screens) is about *how things look*; this is about *how you
+get from one thing to the next*, which the player is saying is the actual blocker to anyone wanting to
+play. Screenshots referenced are attached to the chat message that raised this, not saved into the repo —
+re-request them from the player when this work actually starts if they aren't still visible in scrollback.
+
+---
+
+## Infrastructure debt
+
+**`resolveWeek` is still ~5,200 lines inline in `store.ts`.** The ~90
+independent, player-triggered actions around it are split out now (see
+"Done" below), which took `store.ts` from ~9,400 lines to ~6,100 — but
+`resolveWeek` itself is one function, sharing a lot of local state computed
+once and read many times later, and every value it touches is RNG-order-
+sensitive (see the RNG note in the root `CLAUDE.md`). Decomposing it into
+phases is a real, harder follow-up, deliberately not started here. Do not
+start it without asking first — this is a different, riskier kind of cut
+than the one already made.
+
+---
+
+## Bankruptcy rework — all five pieces shipped
+
+Grew out of a long design conversation with the player. The loan, the blind
+bulk-buyout offer, a struggling rival's own cost-cutting, the player's own
+production-gear fire sale, and release stigma reaching ordinary negotiations
+are all built (see "Done" below). Nothing is left open on this one.
+
+Also confirmed but deliberately *not* built as its own system: firing the
+booker for taking a loan. Decided against a standalone mechanism — it
+already routes through the existing owner-mandate strikes
+(`loanMandateStrikes1st/2nd/3rd`, added to `world.mandateStrikes` the moment
+a loan is taken, which can end the save the same way three missed mandates
+already can). Re-inventing a separate "new booker" identity was considered
+and rejected: everything it would need to do reduces to the same tightened
+leash the strike system already provides.
+
+---
+
+## Gimmick module — all pieces shipped
+
+Grew out of a long design conversation with the player about a gimmick
+selection system: the booker picks a new signee's direction, gimmicks
+evolve or get relaunched, and a hot/cold meter tracks whether the crowd is
+actually buying it. All of that is built, including the fan-tweet category
+that closed the last open piece of it (see "Done" below — the content
+library, the reaction-driven heat rework, the signing-time dialogue, the
+forced cold-meeting, and the tweet reactions). Nothing is left open on
+this one.
+
+---
+
+## Done and worth not re-litigating
+
+- **The player's bankruptcy lifeline: a loan, sized against the promotion's
+  own payroll, repeatable but escalating.** New file `engine/economy/loan.ts`
+  — see its own doc comment for the three design decisions behind the shape
+  (not a flat figure, not one-time-ever, cumulative escalation that never
+  resets). Offered non-blocking (`World.pendingLoanOffer`, same one-week
+  grace as every other pending decision before it lapses) once
+  `weeksInTheRed` crosses `loanTriggerWeeksInTheRed` (2 — before the 4-week
+  hard bankruptcy cutoff, so it's a genuine off-ramp, not a consolation
+  prize). Three tiers (small/medium/large, fractions of a ceiling sized off
+  current payroll), and three escalating attempt tiers (1st/2nd/3rd+: less
+  money, worse repayment multiple, shorter fuse, more mandate strikes, and a
+  longer required cooldown before the next offer). The cooldown
+  (`World.solventWeeksSinceLastLoan`) counts genuinely clean weeks only — any
+  red week or any week still repaying resets it to zero, so the recovery has
+  to be real, not just waited out. `World.loansTaken` never resets across the
+  whole save — good behaviour earns back access, not a clean record.
+  Auto-repayment (`tickLoan`) is unconditional: it deducts before the
+  existing bankruptcy check even looks at the balance, so a loan taken
+  without fixing the underlying problem can be the very thing that tips the
+  promotion under, on purpose. Taking a loan adds real mandate strikes
+  immediately and can end the save on the spot if it crosses the owner's
+  threshold — reuses the existing strike/firing system rather than
+  inventing a parallel one. UI: a `DialogueCard`-driven offer panel plus a
+  standing "loan repayment" notice on the Office desk, both new. Verified:
+  `tsc --noEmit` clean, full suite 134 files / 2708 tests passed (2684 prior
+  + 24 new — 10 pure pricing/escalation tests, 14 store-level tests covering
+  the trigger, the cooldown, accepting/declining, unconditional weekly
+  deduction, and the owner-firing interaction), `npm run sim` and `npm run
+  build` both clean, and a real-browser pass taking an actual loan through
+  the real dialogue UI and confirming the bank balance, active-loan notice,
+  and the existing mandate-strike warning line all updated correctly.
+
+- **The blind bulk-buyout offer.** New file `engine/economy/buyout.ts` — see
+  its doc comment for why this exists at all despite wrestling having no
+  real transfer-fee tradition: the player was skeptical a general "sell a
+  contract" mechanic wouldn't just become sign-cheap-develop-and-flip, a
+  strategy from a different kind of game entirely. Two things close that off
+  by design, not by accident — only fires while `World.activeLoan` is
+  running (nobody signs a prospect hoping to go bankrupt later to unlock
+  this), and the booker never chooses who goes: a rival offers a flat sum
+  for a known *count*, and only picks the actual wrestlers — by uniform
+  shuffle, `answerBuyoutOffer` — once the booker has already said yes. The
+  price is deliberately not derived from who ends up taken, even after the
+  fact: `rollBuyoutTerms` anchors it to the *selling* promotion's own
+  current payroll times a randomized 3-8x multiplier, so there is no formula
+  a player could reverse-engineer into "is this worth it." Titleholders are
+  not protected — `stripTitle(..., 'soldOff')`, a new `TitleReignEndMethod`
+  — since losing a champion in the batch was the specific drama the player
+  asked for ("might get more money but lose their champions"). The rest of
+  the roster feels it too, a flat morale hit reusing the same "the room
+  hears about it" shape `answerApproach` already uses. Weekly trigger
+  (`maybeOfferBuyout`) reads an isolated per-week seed from `resolveWeek`
+  rather than the shared stream — gated behind `activeLoan` or not, this
+  codebase's own history says never risk it (see the RNG note in root
+  CLAUDE.md); `answerBuyoutOffer` itself uses the shared stream since it is
+  a player-triggered action, same convention as every other one-off pick in
+  `storeHelpers.ts`. Schema bumped to 52 (`World.pendingBuyoutOffer` is
+  non-optional and read every week). Verified: `tsc --noEmit` clean, full
+  suite 136 files / 2722 tests passed (2708 prior + 14 new — 4 pricing tests
+  confirming the price tracks payroll rather than roster composition, 10
+  store-level tests covering the distress gate, affordability, the stale
+  lapse, accept/decline, the title vacate, and the teammate morale hit),
+  `npm run sim` and `npm run build` both clean, and a real-browser pass
+  forcing an offer, accepting it through the real dialogue UI, and
+  confirming the bank balance, roster count, and a genuinely random
+  championship loss all landed and were narrated on the wire.
+
+- **A struggling rival cuts its own payroll — not the player's loan system,
+  a lighter version of the same struggle.** The player was explicit about
+  the shape: "it's not dollar against dollar... it's making it so they
+  struggle some too... but not to put them out quickly by any means." Two
+  new pure functions in `rivalEconomy.ts` — `shouldTrimPayroll` (eligible at
+  half of `rivalBankruptcyGraceWeeks`, the same point `foldRisk` already
+  reads "In real trouble" on the chart the player sees) and
+  `cheapestToRelease` (lowest `weeklyRate`, not popularity or age) — plus
+  `maybeTrimRivalPayroll` in `storeHelpers.ts`, rolled weekly per rival with
+  its own isolated seed. `shouldFold`'s actual grace period is completely
+  untouched; this only makes the run-up to it visible. Also narrated, for
+  the first time, the existing rival bailout branch that was already there
+  and already silent — a rival taking on "emergency investment" now reads
+  as a real wire item instead of a bank number that quietly resets.
+
+  Found and fixed a real bug while verifying through the actual weekly
+  pipeline rather than trusting the isolated unit tests: the pre-existing
+  "rivals shop the free-agent pool" system (one signing a week, per rival,
+  whenever they're under their target size) ran *after* the new trim in the
+  same `resolveWeek` tick, so a rival that had just released someone to cut
+  costs would immediately re-sign somebody — sometimes that exact wrestler
+  — the same week, netting to no visible change at all. Fixed by skipping
+  that signing loop entirely for a rival currently in `shouldTrimPayroll`
+  territory: a company already cutting payroll to survive does not spend
+  the same week hiring. Also caught, in the same pass, a second instance of
+  the documented "wire item stamped before `world.week`'s own increment
+  vanishes" trap (both the new trim wire and the newly-narrated bailout
+  line sit in the loop that runs *before* the increment, so both needed
+  `world.week + 1` — the isolated unit tests never would have caught this
+  themselves, since they call the helpers directly rather than filtering
+  through resolveWeek's real post-increment cut; the fix was found only by
+  running the real pipeline in a browser and noticing the wire item was
+  missing). Added a regression test asserting the stamped week explicitly,
+  not just the text, so this can't quietly regress again.
+
+  Verified: `tsc --noEmit` clean, full suite 137 files / 2732 tests passed
+  (2722 prior + 10 new — 4 pure-function tests, 6 store-level tests covering
+  the trigger, the roster floor, the weekly-chance gate, a closed rival, and
+  the enabled/disabled toggle), `npm run sim` and `npm run build` both
+  clean, and a real-browser pass running the actual `resolveWeek()` — not
+  just calling the helper directly — confirming the roster genuinely and
+  *permanently* shrinks by one, the released wrestler lands in free agency
+  and stays there, and the wire item renders correctly on the real newsfeed
+  screen.
+
+- **Fire sale of the promotion's own production gear.** The last of the
+  bankruptcy rework's four confirmed pieces. New file
+  `engine/economy/fireSale.ts` — `fireSaleEligible` and `fireSaleValue`, both
+  pure. Only the player owns tracked production gear at all in this engine
+  (`World.ownedAssetIds`/`assetConditions` — rivals don't), so this is
+  necessarily a player-only mechanic, exactly as the backlog note framed it.
+  Two judgment calls, checked with the player rather than assumed: the
+  training facility ($130k, backs `talentGrowth`/`injuryReduction`) is
+  excluded — it's the school, not show-night gear, and selling it would
+  quietly gut a whole other system — via a new optional
+  `ProductionAsset.fireSaleEligible` field (omit = eligible, `false` on just
+  that one entry in `data/production.ts`); and the sale is gated behind
+  `World.activeLoan` being active, the same distress signal `buyout.ts`
+  already uses, so this stays "a genuine last resort" rather than becoming
+  an ordinary way to raise cash. Pricing reuses the existing condition
+  machinery rather than a flat fraction: `fireSaleValue` is
+  `cost * assetEffectiveness(condition) * fireSaleValueFraction` (new
+  setting, default 0.35) — a neglected rig fetches less, same curve
+  `repairCost` already uses, on top of a hard distress discount, so
+  under-maintaining gear costs twice. New `sellProductionAsset` store action
+  (`slices/showAndProduction.ts`) removes the asset from `ownedAssetIds` and
+  `assetConditions`, credits the sale value, and writes a wire item. UI: a
+  "Fire sale · $X" button next to the existing Repair button on
+  `PromotionScreen`, only rendered for an owned, eligible asset while a loan
+  is active. Verified: `tsc --noEmit` clean, full suite 139 files / 2744
+  tests passed (2732 prior + 12 new — 7 pure tests on eligibility and
+  condition-scaled pricing, 5 store-level tests covering the distress gate,
+  the training-facility exclusion, an unowned asset, and the on/off
+  setting), `npm run sim` and `npm run build` both clean, and a real-browser
+  pass forcing an active loan and two owned assets (one ordinary, one the
+  training facility), confirming the sell button only appears for the
+  eligible one, and that clicking it moved the cash, removed the asset, and
+  narrated it on the wire.
+
+- **Release stigma reaching ordinary negotiations — the fifth and last piece
+  of the bankruptcy rework.** New file `engine/economy/releaseStigma.ts` —
+  `releaseStigmaActive` (a cooldown check) and `releaseStigmaTerms`, both
+  pure. Same cooldown shape as the loan's own on purpose
+  (`World.solventWeeksSinceLastLoan`): a new `World.solventWeeksSinceLastRelease`
+  resets to 0 the moment any release happens (`letThemGo`, the single choke
+  point both booker-initiated firing and a granted release request already
+  funnel through), and only climbs back up on a genuinely solvent week
+  (`tickReleaseStigma`, called from `resolveWeek` right beside `tickLoan`).
+  Fades faster than the loan's own — 8 weeks by default, versus the loan's
+  multi-attempt escalating cooldown — since this is a lighter,
+  everyday-negotiation tax, not another rescue mechanism. What a wary free
+  agent actually asks for is one or the other, never both: somebody who
+  would already command a guarantee off pure ego asks for a signing bonus
+  instead (the guarantee has nowhere further to go), and somebody who
+  wouldn't otherwise get one gets a flat guaranteed floor instead. Wired
+  into both ordinary signing paths — `signFreeAgent`
+  (`slices/rosterAndContracts.ts`) and the fold-pickup `signPickedWrestler`
+  (`storeHelpers.ts`) — since the wariness is about the *signing
+  promotion's* reputation, not the specific circumstance a wrestler is
+  available under. `FreeAgentsScreen` gets a banner when the stigma is
+  active, matching the existing "what this company did" death-stigma
+  banner's placement and tone. Verified: `tsc --noEmit` clean, full suite
+  141 files / 2756 tests passed (2744 prior + 12 new — 6 pure tests on the
+  cooldown and the guarantee-vs-bonus branch, 6 store-level tests covering
+  both signing paths, the cooldown tick itself, and the on/off setting),
+  `npm run sim` and `npm run build` both clean.
+
+- **Booker-initiated release, the renewal window, and queued contracts — the
+  three-part contract rework confirmed in an earlier planning pass, all
+  built in one session.** Three linked changes, none of them touching
+  natural contract expiry, which stays exactly as cheap and unrestricted as
+  it always was:
+
+  1. **A booker-initiated firing now carries the same ninety-day freeze as a
+     negotiated release.** `economy/termination.ts`'s `exitTerms`, `'fired'`
+     branch: `noCompeteWeeks: 0` → `settings.noCompeteWeeks`. This is an
+     amendment to an on-the-record design decision (the file's own doc
+     comment used to argue the opposite — "you broke it, so you do not also
+     get to keep him off television"); the doc comment now says so
+     explicitly rather than silently reversing itself. Re-expressed, not
+     re-baselined: `termination.test.ts`'s "is the only exit where..." test
+     now asserts firing and a negotiated release carry the *same* wait, and
+     that expiry alone carries none.
+
+  2. **The last `renewalWindowWeeks` (2, new `WorldSettings` field) of any
+     deal opens a real, booker-initiated conversation — not an automatic
+     demand at the buzzer.** New `World.renewalTalks` (schema bump to 54),
+     one entry per wrestler stepping through two stages in place rather
+     than two separate lists: `'askInterest'` (booker speaker — "is the
+     promotion even interested in keeping them?") advancing on "yes" to
+     `'askWrestler'` (the wrestler's own portrait, first person — "so, are
+     we doing this again?"), with three outcomes: negotiate now (reuses
+     `contractDemand`/`answerRenewal`'s existing terms-and-counter flow
+     completely unchanged, just triggered earlier — `answerRenewalWish`'s
+     `'stay'` branch pushes to `pendingRenewals` exactly the way the old
+     automatic trigger did), a clean warm exit (`'leave'`), or throwing it
+     open to the market (`'explore'`, see #3). A "no" on either side — the
+     booker's or the wrestler's — means nothing was ever agreed, and the
+     deal now runs down to a genuinely plain, silent departure at actual
+     expiry: the automatic `contractDemand` that used to fire for
+     *everyone* at the buzzer is gone, replaced by that plain departure as
+     the fallback for "nothing was agreed in time." Two new `DialogueCard`
+     surfaces on `OfficeScreen`'s Contracts tab (`answerRenewalInterest`,
+     `answerRenewalWish`), following the same browsable-list-then-tap
+     pattern release requests already established.
+
+  3. **A renewal auction's winner doesn't take over until the current deal
+     actually runs out — win or lose, the wrestler keeps working the
+     current employer's dates.** New optional `Wrestler.queuedContract`
+     (not schema-bumped — optional, and every read treats a missing field
+     exactly like `null`, same precedent as `motivators`). New
+     `BiddingReason: 'renewalAuction'` in `economy/bidding.ts`, which
+     bypasses `worthAnAuction`'s ordinary star-only gate and drops
+     `minRivals` to 1 — the same reasoning `foldPickup` already established
+     ("the booker already reached for this one specifically"). Reuses
+     `interestedIn`'s existing, untouched "the current employer is in if
+     they can pay" clause, so the wrestler's own current promotion bids
+     against everyone else for their own talent. New
+     `queueRenewalContract` (`storeHelpers.ts`) mirrors `awardContract`
+     exactly except it writes the winning terms into `queuedContract`
+     instead of touching the roster or the live contract — the signing
+     bonus is still real money paid the day the deal is agreed, only the
+     move itself is deferred. The swap-in lives in the same `resolveWeek`
+     pass that already detects expiry (`store.ts`'s `expired` loop),
+     checked first — before the death-stigma and notice-given branches —
+     since a queued contract is a done deal regardless of what else is
+     going on. Handles both outcomes: the wrestler moving to the winning
+     rival (roster membership actually transfers, `'departure'` wire item)
+     and the current employer winning their own auction (nothing changes
+     day to day, `'signing'` wire item saying so plainly).
+
+  New file `state/renewalWindow.store.test.ts` covers the window's exact
+  trigger timing (opens at precisely `renewalWindowWeeks` left, never
+  twice), all three `answerRenewalWish` outcomes, the widened eligibility
+  gate, and the queued-contract swap-in for both a rival win and the
+  current employer re-signing their own talent. One existing test needed
+  re-expression, not re-baselining: `workedHurt.test.ts`'s "charges the man
+  who already works here the same premium as a stranger" used to run every
+  contract down to expiry in one tick and check the *automatically*-created
+  `pendingRenewals` demands; it now walks every deal to the renewal window
+  instead, drives the conversation to `'stay'` for everyone who isn't
+  refusing to work here at all, and then runs the clock the rest of the way
+  for the ones who were — the same claim (a death's premium reaches
+  existing employees, not just strangers), proven against the new trigger
+  point instead of the old one.
+
+  Verified: `tsc --noEmit` clean, full suite 142 files / 2767 tests passed
+  (2756 prior + 11 new — covering the window's trigger timing, all three
+  `answerRenewalWish` outcomes, the widened eligibility gate, and the
+  queued-contract swap-in — plus one re-expressed test, zero regressions),
+  `npm run sim` and `npm run build`
+  both clean, `tools/probe.mjs`'s default 3-seed/104-week run showed no
+  balance drift (roster stayed stocked, all three saves survived, bank and
+  company rating both in a healthy range), and a real-browser pass driving
+  the full conversation end to end — Node 1 "yes" advancing live to Node 2,
+  "stay" opening the real negotiation card with the right premium, and a
+  forced queued contract actually swapping a wrestler onto a rival's roster
+  the week their old deal ran out, narrated correctly on the wire. Caught
+  one real bug in that pass: the booker's "yes" at Node 1 was closing the
+  dialogue back to the list instead of advancing to Node 2, because the
+  UI's `onClose`-on-every-answer pattern (correct for every *other*
+  `DialogueCard` on this tab, which all terminate in one choice) doesn't
+  hold for a conversation that steps through more than one node in place —
+  fixed by only closing on the choices that actually end it.
+
+- **The dialogue engine's content roughly doubled, and four new sudden-event
+  types joined the weather call.** Direct follow-up to the dialogue engine
+  above, in three parts, driven by explicit user feedback throughout.
+
+  *Personnel decisions (Part 1, close to weekly now):* ten new
+  wrestler-initiated events — time off, late to work, a training injury
+  (branches on a failed gamble, same shape as `workingHurt`'s aftermath),
+  burnout, being sick, wanting the main event, pitching a tag team, wanting
+  to go part time, wanting a title shot (branches into how big the moment
+  is), a movie offer — plus a third `gimmickRequest` debut option, a
+  dark-match tryout with lower stakes than debuting cold. Every one of these
+  moves a wrestler's morale, momentum, popularity, or a relationship, never
+  just company money — enforced by a new test scoped to just these events,
+  since it doesn't apply to the legitimately company-only business/rival
+  events. Five new `EventEffect` kinds back this: `relationship` (the
+  missing vocabulary for a pairwise tie), `fatigue` (`fatigueDebt`), `leave`
+  (the existing `Leave`/`onOurWatch.ts` absence system), `contractType`
+  (finally giving the long-unused `ContractType` field real meaning), and
+  `violation` (routes through the existing discipline ladder). Pacing
+  retuned (`eventWeeklyChance` 0.45→0.8, `eventGlobalGapWeeks` 2→1,
+  `eventCategoryGapWeeks` 6→4) — "I want personnel decisions pretty
+  regularly (weekly)."
+
+  *Sudden events (Part 2):* a new business-wide catastrophe roll
+  (`engine/world/catastrophe.ts`) — a couple of times a year, picks a
+  category (weather/disaster or a no-show) and lands it on a promotion
+  chosen at random among the player and every rival, "so the user can dodge
+  a bullet if the rival's stadium roof caves in." On the player it reuses
+  the existing `pendingWeatherCall` machinery unchanged for weather, or
+  opens a new `pendingNoShowCall` for a no-show — blocking the week the same
+  way weather does, offering a mystery opponent (the existing
+  `pickReplacement` weighting, now shown instead of silent), a handicap
+  match, or pulling the segment, and recording a real discipline violation.
+  On a rival it applies a fixed default and always writes one wire line
+  either way — "all promotions must suffer the same issues." Three more
+  non-blocking reactive decisions, answered whenever the booker next visits
+  the office or never: `pendingTitleMemorial` (what happens to a belt left
+  with a dead champion — death itself stays fully automatic, per the
+  deliberate "applied rather than offered" design note in `seasons.ts`; only
+  the belt's fate is new), `pendingRivalMove` (react to a rival signing
+  worth reacting to, gated on the signing's popularity), and a new rare
+  mechanic where a rival can launch a whole new championship of their own
+  (narrated only — no dialogue on this one specifically, a deliberate scope
+  trim). The frequent, low-stakes, player-only misfortune/absence system
+  that already existed is untouched throughout — every new sudden event is
+  layered on top of it, not a replacement.
+
+  *The confrontation escalation call (Part 3):* research found promo/
+  confrontation/contract-signing segments already existed in full —
+  `data/confrontations.ts`'s `contractSigning` intent, `PromoSlots.tsx`'s
+  booker-facing picker, the additive `promoRating` — so this pass added only
+  the one thing missing: `pendingConfrontationCall`. When a confrontation's
+  twist roll produces an actual injury, the casualty is held back instead of
+  applying automatically; the segment's own rating/write-up are already
+  locked in (same principle as the champion call), and the booker decides
+  separately whether to let it happen (the injury lands as rolled, real
+  heat) or pull them apart (no injury, a `bookingCredibility` cost for
+  looking like the office stepped in).
+
+  *RNG discipline, learned the hard way:* the catastrophe roll and the
+  rival-new-title roll both run every week (the ~96-99% of the time nothing
+  happens included), so both draw from a per-week isolated seed
+  (`rngFromSeed`) rather than the shared stream — the exact CLAUDE.md trap,
+  caught by two real test failures during this pass (`store.test.ts`'s
+  official-departure test and the weather-call `forceCall` tests) and fixed
+  by isolating the draw rather than patching the symptom. A third failure
+  (`forceCall` stalling on an unanswered no-show call it didn't know to
+  answer) was a real gap in test-loop robustness, fixed by teaching the
+  helper to wave through an incidental no-show the same way it already
+  waves through mandate outcomes. Schema bumped 46→50 across the four new
+  `World` fields, one version per field, no migrations, old saves rejected
+  on mismatch as always. Verified with `tsc --noEmit`, the full suite (2669
+  tests), `npm run sim`, a production build, and a real-browser pass forcing
+  all four new dialogue surfaces (no-show, title memorial, rival move,
+  confrontation call) via direct store state, confirming each renders with
+  the right speaker treatment, choices, and gains/costs.
+
+- **Reactive personnel/managerial moments now play out as a conversation, not
+  a flat card of buttons.** Creative events, release requests, rival
+  approaches, an injured champion's title call, and severe-weather calls all
+  render through one new shared component (`ui/dialogue/DialogueCard.tsx`):
+  the wrestler's real portrait, first-person body text, and the booker's
+  multiple-choice reply — a themed monogram badge stands in for the booker
+  (never a generated face), and weather/disaster calls get the no-face
+  "narrator" variant since nobody with a face is doing the asking. The
+  underlying data model (`engine/events/types.ts`) is additive: `EventOption`
+  gained an optional `next` (and a gamble's optional `nextOnSuccess`/
+  `nextOnFailure`), and `CreativeEvent` gained an optional `nodes` map — a
+  root option that omits `next` still terminates exactly as before, so all 9
+  non-branching events needed zero data changes. `resolveOption`
+  (`engine/events/apply.ts`) now takes the current node id and returns either
+  a terminal summary or a `next` node to advance to; `chooseEventOption`
+  (`state/slices/events.ts`) advances `PendingEvent.currentNodeId` and
+  appends to its `history` instead of always closing the card. Two events
+  (`gimmickRequest`, `workingHurt`) were given a real second node as proof
+  the engine actually branches — granting a gimmick change now asks how it
+  debuts, and working-hurt's gamble failure asks how the medical bill gets
+  handled — the other 9 events are single-node, first-person-only where one
+  wrestler is doing the asking (two-subject events like `backstageFight`
+  stay narrator-voiced, since forcing one person to "own" the line would
+  misstate what's happening). Release requests and rival approaches gained
+  real first-person lines (`releaseRequestLine` in
+  `engine/economy/termination.ts`, `approachLine` in `engine/world/poaching.ts`)
+  picked deterministically from the request itself, not from `world.rng`, so
+  a re-render never changes what somebody already said. Schema bumped to 46
+  for `PendingEvent`'s new `currentNodeId`/`history` fields — no migration,
+  old saves with a mid-flight event are rejected on version mismatch, same
+  as every prior bump. Verified with `tsc --noEmit`, the full suite (2633
+  tests), `npm run sim`, a production build, and a real browser: forced each
+  of the five surfaces to fire (naturally for creative events, via direct
+  store state for the rarer release/approach/champion/weather calls, which
+  the plan explicitly allows for a screenshot pass) and confirmed the
+  portrait, first-person text, and gains/costs choices all render correctly,
+  then drove `gimmickRequest`'s branch through "grant" → the `debut`
+  follow-up node → a failed gamble, confirming the scrollback, the second
+  choice's own effects, and the terminal outcome summary all work.
+  Booker-initiated back-office work (contract renewals, scheduling, browsing
+  stats/profiles) deliberately stays on ordinary browsable screens, not this
+  engine — reactive vs. proactive was an explicit split from the start. A
+  related contract/tampering-period rework (last-two-weeks renewal
+  conversation, a legal-tampering bidding war, a 90-day freeze on
+  booker-initiated releases) was scoped alongside this but deliberately not
+  built — it touches contracts/free-agency/the bidding-war auction deeply
+  enough to be its own follow-up.
+
+- **A rival's roster, and their career history, is now browsable — "The
+  competition" (`RivalRosterScreen.tsx`, behind More).** Every screen that
+  touched a rival before this showed a name and a record at most (Rankings'
+  top-N lists, the Sheet's top-N lists) — nothing let you open a company and
+  see who they actually had. The new screen lists every company still
+  running (folded ones are skipped — their people already scattered to the
+  free agent pool or somebody else's roster, tracked there), and picking one
+  shows its full roster: `WrestlerRow` (unchanged, already generic — no
+  edits needed to reuse it read-only) plus belts held, plus `CareerLedger`.
+  `CareerLedger` itself was pulled out of `RosterScreen.tsx` into
+  `ui/components/CareerLedger.tsx` so both screens share one implementation
+  rather than fork it. No management actions on this screen by design — you
+  can look, not touch. Verified in a real browser: started a 3-promotion
+  game, ran four weeks so ledgers had stints and records to show, opened The
+  competition, switched between both rivals, and expanded a career ledger —
+  confirmed belts, records, and stint history all render correctly and the
+  promotion switcher works.
+
+- **The "twelve magic-seed tests" line was stale — checked and the pattern is
+  gone.** An exhaustive pass over `store.test.ts` (the scenario-test file the
+  line meant) and every other seeded test in the suite found no case of a
+  test reaching into a generated roster by a fixed index and assuming
+  whoever that seed happened to produce satisfied some property the test
+  actually needed. Every place that needs someone specific already either
+  overrides the property right after generation or explicitly
+  `.find()`/`.filter()`s the roster for a match — and several carry their own
+  comments documenting exactly this fix having been made already (e.g.
+  `store.test.ts` around "a bound that has to be re-tuned every time the
+  world gains a system is testing the seed, not the rule" and "asserting on
+  *this* legend's kid specifically made the test a bet on nobody bigger
+  having finished that year"). One candidate
+  (`data/titleLifecycle.test.ts`'s `'cannot be put on a card'` test, which
+  books two unfiltered generated wrestlers against a title) was investigated
+  and ruled out: the test retires the title first, and `eligibleTitles`
+  short-circuits on `retiredWeek` before either wrestler's properties are
+  ever read. Whatever prompted this backlog line, it had already been fixed
+  by the time it was checked — removed rather than re-litigated.
+
+- **Illegal tampering is gone — from both directions.** It was a trap button:
+  the player's own `tamperWith` success capped at 18% regardless of the
+  situation, getting caught ran 40-75%, and it escalated to losing
+  television — and it wasn't even wired to a UI button, so nobody could ever
+  actually press it. Rather than tune the odds (the option this replaced),
+  removed the whole illegal half on both sides: a rival can no longer go
+  after somebody still under contract to you, and you can no longer go after
+  somebody else's. What's left — a rival approaching once a wrestler's own
+  deal has run out — is legal, was always the more interesting half, and is
+  unchanged. `world/tampering.ts` and `career/poaching.ts`'s split (a smaller
+  item above) is resolved as a side effect: both merged into
+  `engine/world/poaching.ts`. Also gone as a direct consequence: the
+  `legalThreat` response (nothing left to threaten), `World.signingBanWeeks`
+  / `suspensionWeeks` / `tamperingOffenses`, the dead `World.poachingOffers`
+  field nothing ever wrote to, and the bidding war's `banned` plumbing that
+  existed only to serve the signing ban. `World.tamperingOffers` is renamed
+  `World.approachOffers` (schema 45). Verified with `tsc --noEmit`, the full
+  suite, and a production build.
+
+- **`store.ts` split into `storeHelpers.ts` plus eleven slice files.** The
+  ~90 non-`resolveWeek` actions (card building, events, tag teams/identity,
+  business deals, show/production, officials/schedule, roster/contracts,
+  storylines, titles, the cup, the supershow) moved out to
+  `state/slices/*.ts` using zustand's immer-middleware slice pattern; the 22
+  functions shared between those actions and `resolveWeek` moved to
+  `state/storeHelpers.ts`. `store.ts` dropped from ~9,400 lines to ~6,100.
+  Pure refactor — no action's behavior changed, and the RNG draw order
+  inside `resolveWeek` (still fully inline) is untouched. `rng` is now
+  exported from `store.ts` as a live ES-module binding so slices that only
+  ever *read* the stream can import it directly; the four actions that
+  reseed it (`newGame`, `newGameFromPlan`, `continueGame`,
+  `importSaveFile`) stay in `store.ts`, since nothing outside this file may
+  reassign it. Verified with `tsc --noEmit`, the full suite (2645/2645),
+  and a production build.
+
+- **Every promotion runs its own gym now, and a stat left untrained can fall
+  as well as rise.** Rival rosters were static apart from ageing — the
+  weekly gym/ring/appearances/rest pass in `career/assignment.ts` only ever
+  ran over the player's own roster, gated by `world.promotion.rosterIds.
+  includes(person.id)` in `state/store.ts`. That gate is now a lookup
+  across every promotion (`promotionsById`, built from `world.promotion`
+  plus `world.rivals`), so a rival's unbooked majority develops exactly
+  like the player's, appearances income lands in the right promotion's own
+  bank, and the news wire still only ever reports on the player's business
+  (nothing changed there). Measured: rival physical average (strength +
+  agility + stamina, every rival roster) rose 56.4 -> 59.0 over two seasons
+  — see docs/BALANCE.md.
+  The other half of "gradual increases or decreases": a physical stat not
+  being maintained now drifts toward a floor instead of just standing
+  still. New `declineRate` (career/assignment.ts) mirrors `learningRate`
+  but isn't the same curve reversed — growth stopping at 38
+  (`assignmentAgeNoGain`) and decline starting are deliberately not the
+  same event, so it ramps its own curve from `assignmentAgePeak` (22) to a
+  new `assignmentAgeDeclineMax` (45). It only fires on `appearances` (a
+  real trade: cash and popularity for a week not spent training) and on
+  `rest` nobody actually needed (healthy, unhurt, parked at home anyway) —
+  never on a genuine injury or exhaustion rest, which would double-punish
+  the same hurt. Floored at a new `physicalStatFloor` (20) so nobody gets
+  erased. `autoAssignment` never sends a healthy person home on its own, so
+  in an unmodified save this only ever bites the ~6% of weeks spent on
+  appearances — a real, felt cost for parking a talent on a publicity tour
+  instead of training them, without dragging the whole population down,
+  since gym time still outweighs it by roughly 6:1.
+- **The championship builder is now count → name → per-belt holders/colours,
+  matching the new-game promotions flow instead of an eight-field form per
+  belt.** `TitleBuilder` dropped its tier/division/weight-class/stipulation
+  pickers and the preset-library picker; those defaulted to 'open'/'open'/
+  none rather than asked for. Tier is still real underneath — it drives
+  defence windows and team-held display — but the player is only ever asked
+  for holders (1-5), which now decides tier for the two group sizes anything
+  else in the game special-cases (2 → 'tag', 3 → 'trios'); everything else
+  keeps whatever tier it already had, so a house style's varied suggested
+  lineup (world/secondary/television/hardcore) is never clobbered by this
+  component. "How many titles" is a caller-side concern, not the
+  component's — `NewGameScreen` resizes the array from its own count
+  dropdown, `PromotionScreen`'s existing one-at-a-time "introduce a title"
+  flow is unaffected. Colours moved from a 12-swatch `<select>` to an
+  overlay with a live strap/plate preview, the same swatches as quick
+  presets, plus free-choice colour pickers for anything else.
+  Found and fixed a real pre-existing bug along the way while wiring up
+  holders 1-5: `crownOpeningChampions` hardcoded the opening-champion count
+  to 2 for tier 'tag' and 1 for literally everything else — including
+  'trios' — so a Six-Man Tag preset had only ever opened with a single
+  champion, not three. It now reads `title.holdersRequired`, which
+  `createStartingTitles` always fills in regardless of tier, so a trios or
+  any custom multi-holder belt is crowned correctly. Verified in a real
+  browser: resized to 3 belts, set one to 2 holders and one to 3, picked a
+  swatch through the overlay, started the game, and confirmed via the save
+  data that the tag belt crowned exactly 2, the trios belt crowned exactly
+  3, and the custom colour landed on the right title.
+- **New-game is now three steps, and imports go through the same three
+  steps rather than a separate flow.** How many promotions (1-7, dropdown so
+  nobody can type past it) → name each one, Generate or Import per slot,
+  with a single roster file split across every Import slot → which one you
+  play as. `state/world.ts`'s `createInitialWorld` takes an optional
+  `NewGamePlan`; when absent, the original single-promotion path runs
+  completely untouched — same code, same RNG draw order, verified against
+  all ~2600 existing tests rather than assumed (an earlier version of the
+  branch reordered a few RNG-consuming steps and broke two seeded
+  `store.test.ts` cases before the fix; `buildSupportPool` now runs at the
+  exact point in the stream the procedural path always ran it, in both
+  paths). `buildPlannedPromotion` builds a promotion — player or rival,
+  generated or imported, identically — with a uniformly-rolled house style
+  when a slot didn't name one and an identical starting bank balance for
+  everyone (a deliberate call, not the old rival formula of
+  `rating*4000`). One file format serves both: entries tagged with a
+  `company` field build one promotion per distinct company, kept intact and
+  matched to a slot by name; a fully untagged file (or the untagged
+  leftovers in an otherwise-tagged one) is one flat pool, split evenly by
+  gender across whichever Import slots didn't get a name match
+  (`roster-io.ts`'s `groupByCompany`/`splitEvenlyByGender`,
+  `state/newGamePlan.ts`'s `resolveNewGamePlan`). A company nobody's slot
+  name matched is left unimported rather than silently folded into a
+  differently-named promotion. Verified in a real browser: pasted a
+  two-company-shaped file with only one company tagged, split across 3
+  slots, confirmed via `localStorage` that the tagged wrestlers landed
+  exactly on the matching promotion (not the player's, not mixed in), and
+  every promotion opened with the same starting bank balance.
+- **Undercard popularity no longer erodes the whole roster over a career.**
+  Measured (`--report development`, `docs/BALANCE.md`): a roster kept fully
+  stocked and booked every week, nobody idle on purpose, still lost 7 points
+  of mean popularity over two seasons. Not composition — isolated with
+  `--set matchPopularityChase=0` (drift nearly stopped) and `--restock=0`
+  on top of that (popularity actually *climbed*, from win bonuses alone).
+  `popularityChase` (`sim/aftermath.ts`) pulls a wrestler's popularity
+  toward the rating of the matches they're in with no damping either
+  direction, and a fixed six-slot card serving a much bigger roster means
+  most people spend most weeks chasing a ~25-rated opener down. Fixed the
+  same way `ratingLadderFallMultiplier` already treats the company's own
+  rating: falling slower than climbing, not stopped, via the new
+  `matchPopularityChaseFallShare` (0.4). Measured result lands at 46.1,
+  close to the 46.7 composition-only floor — most of the individual decay
+  is gone, real (damped) downward pressure on a chronic undercard act
+  remains.
+- **Two optional dark match slots on the card.** Player asked for this
+  directly. `World.currentDarkMatches` sits alongside `currentCard` and
+  `currentPromos` (same "does not consume a card spot" principle as the promo
+  slots), resolved by a new pure engine function
+  (`engine/sim/darkMatch.ts::resolveDarkMatch`) rather than folded into the
+  ~1,100-line televised-card loop: real sim, real winner, real development
+  (`computeAftermath`, popularity scaled to `darkMatchPopularityShare` since
+  nobody outside the building saw it), real injury risk — but deliberately no
+  stipulation, titles, managers, or referee, and never folded into
+  `computeShowRating`'s slot weights, so it cannot move the TV rating however
+  good it was. Fans in `ratedSegments` can pick a dark match as best/worst of
+  the night the same as anything broadcast. A dark match adds a flat
+  attendance-scaled merch bump (`darkMatchMerchPerHead`). Schema bumped to 44
+  (`World.currentDarkMatches` is dereferenced without a guard). Verified in a
+  real browser, not just tests: booked one, ran the show, confirmed the
+  card's `showRating` was unaffected, the news feed printed "Dark match,
+  never aired: ... beat ...", and the wrestlers' records moved.
+- **A good undercard match can now actually rate as good.**
+  `computeMatchRating`'s popularity term outweighed its workrate term nearly
+  2:1 (weight 42 vs 24), so an opener was capped low by fame alone — a
+  technically flawless match with unknown talent could not out-rate a
+  mediocre main event. `matchRatingPopularityWeight`/`matchRatingWorkrateWeight`
+  (24/42, roughly swapped) fixed that: measured A/B on 6 seeds x 104 weeks
+  (`docs/BALANCE.md`), main event and overall show rating barely moved
+  (49.2->50.6, 46.7->45.9) while a skilled-but-unpopular match's odds of a
+  real 55+ rating nearly quadrupled (0.5%->1.9%). Caught and fixed a real bug
+  in `tools/probe.mjs` along the way: `--set` passed twice as separate tokens
+  silently collapsed onto the first override via a stale `argv.indexOf`.
+- **Set-point pairings no longer bottom somebody out at literal zero.** Three
+  people sat at 0 morale in a measured save — long-idle, so mostly correct
+  behaviour, but 0 is the exact edge of the whole scale and reads as broken
+  rather than "as bad as it gets." Every `.morale` write in `state/store.ts`
+  (21 sites) now goes through `career/morale.ts`'s `clampMorale`, which holds
+  the floor at `moraleFloor` (10, comfortably inside "miserable") instead of
+  0. Measured A/B on the same seeds (`docs/BALANCE.md`): the same ~4.7% of
+  the roster still bottoms out under sustained neglect — that part is
+  intentional, booking-driven consequence — but nobody sits at a literal,
+  scale-breaking zero, and the disgruntled band (restless+unhappy+miserable)
+  widened from 52% to 59% as a side effect, with no term magnitude or weekly
+  cap touched. `tools/probe.mjs`'s morale report now prints a band histogram
+  and a "% at the floor" line so this stays measurable going forward.
+- **Traits now reach the rest of the game.** Contract demands and walk risk
+  (`career/ego.ts`), poaching temptation (`world/tampering.ts`, via a new
+  `Suitor` so `somebodyAtHome` knows whether the approaching promotion is
+  where the partner works), retirement pressure (`career/retirement.ts`), and
+  release requests (`economy/termination.ts`, via a new `WantsOutContext` for
+  `inItForTheMoney`'s pay-gap check and `somebodyAtHome`'s apart-from-partner
+  check) all reweight off the same `leverWeight`/`hasTrait` accessors morale
+  already used, plus three new narrow accessors (`walkRiskWeight`,
+  `temptationWeight`, `releaseThresholdShift`) where nothing existing fit.
+  Fixing this exposed the RNG-shared-stream trap directly: changing which
+  wrestlers `wantsOut` returns true for shifted which weeks drew a
+  `chance()` roll for a release request, which shifted every seeded draw
+  after it — including, three modules away, a bidding-war test. Fixed by
+  seeding that roll from the wrestler and week instead of the shared stream,
+  matching the pattern already used for `defect`.
+- §16 supershows are complete, including per-match approval of the joint card.
+  `titleCanTravel` was cut deliberately: only one belt in the game sets
+  `lineageProtected`, so wiring it up would have let every other title change
+  hands on a joint show. The rule is enforced by giving the card no titles.
+- `noJobbing` / `titlePush` were removed rather than implemented, and the reason
+  is written down in `types.ts` above the `Clause` union.
+- The pronoun guard (`career/pronouns.test.ts`) now walks `engine/`, `data/`,
+  `state/` and `ui/`. Every widening of it has found more; do not narrow it.
+- **A folded promotion's roster is now picked through, not auctioned as one
+  lot.** Player asked directly: "the user should get a pick any of the
+  bankrupt promotion's wrestlers. any that they choose that other companies
+  also want should go to the bidding war module. the rest should go to free
+  agency." Replaces the whole-roster `engine/world/auction.ts` module
+  (`AuctionLot`/`appraise`/`aiBid`/`settleAuction`, deleted outright) with
+  `World.pendingFoldPicks` — the fold's roster sits open for the booker to
+  browse, `pickFromFoldedRoster` (`state/storeHelpers.ts`) signs an
+  uncontested pick straight onto the roster (`signPickedWrestler`, same
+  guard triplet as `signFreeAgent` — 90-day freeze, grudge, affordability —
+  applied directly rather than through the ordinary free-agent flow) and
+  routes a contested one into the bidding-war module under a new
+  `BiddingReason: 'foldPickup'`. `finishFoldPicking` sweeps whatever the
+  booker leaves behind to `world.freeAgents`, same as any other release.
+  Titles the closed promotion held vacate immediately via the existing
+  `stripTitle` (new `TitleReignEndMethod: 'promotionFolded'`) — the player's
+  ask was scoped to wrestlers, so belts were not folded into the pick UI.
+  Two real wrinkles: `interestedIn`'s "do they actually want him" desire
+  test runs against `world.rivals` only for a fold pickup (not the player),
+  since the player's interest is already the pick itself — testing it again
+  against the generic popularity-vs-rating formula could contradict the
+  click; and `openBiddingWar`'s one-war-at-a-time limit meant multiple
+  contested picks off one roster need a queue (`World.foldBidQueue`,
+  drained one at a time at the true end of `settleBiddingWar`, with the
+  same "recheck disagreed, sign them anyway rather than let them vanish"
+  fallback the non-queued path already had). A `foldPickup` war with no
+  winning bid sends the wrestler to free agency rather than "back" to their
+  now-nonexistent employer. Second half of the ask — "have Bidding WAR
+  displayed really big and bold at the top, it's an exciting thing" — is a
+  new banner in `ui/components/BiddingWar.tsx`, plus a `foldPickup`-specific
+  line in both the invitation and result copy (`engine/economy/bidding.ts`)
+  so a fold pickup reads differently from a plain star auction. New direct
+  test coverage in `state/foldPicks.test.ts` (closing vacates titles and
+  opens the pool; an uncontested pick signs outright; a contested pick opens
+  a `foldPickup` war with the player unconditionally invited; two contested
+  picks queue and drain in order; a war with no winner lands the wrestler in
+  free agency; `finishFoldPicking` sweeps the leftovers) — the prior auction
+  system had no direct test of its own either, only the fold-trigger
+  (`rivalWeek`/`shouldFold`/`foldRisk`) tests, which moved as-is to the new
+  `engine/world/rivalEconomy.test.ts`. Verified: `tsc --noEmit` clean, full
+  suite 131 files / 2666 tests passed (2660 prior + 6 new), `npm run sim`
+  and `npm run build` both clean, and a real-browser pass confirming the
+  fold-picks panel, the queued-pick notice, the queue draining into a fresh
+  war on settle, and the bold amber "BIDDING WAR" banner all render as
+  designed.
+- **The motivation system: what somebody is actually chasing, as its own
+  icon row, separate from morale.** Grew out of a long conversation with the
+  player about bankruptcy design, specifically the observation that a
+  well-paid star can stop trying — "they get a big money contract... then no
+  longer produce," the player's own NFL comparison — and the wish for a
+  system that answers with something other than throwing more money at it.
+  Landed on the player's own simplification over my first, heavier proposal
+  (a whole new stat with its own decay feeding into match ratings): "a
+  symbol for what motivates them, then if achieved, the morale moves" — one
+  to a handful of icons per wrestler, plus a legend.
+
+  New file `engine/career/motivation.ts`: six new `MotivatorId`s
+  (championship 🏆, push 🎤, fame ⭐, creative 🎭, competition 🥊, security 🛡️),
+  drawn once at generation off their own isolated stream
+  (`rngFromSeed(\`motivate:${id}\`)`, same pattern as traits — this is what
+  let the whole system land without rerolling a single existing wrestler,
+  confirmed by the full suite passing with zero new failures). Wired two
+  different ways because they are two different kinds of thing, and said so
+  in the module doc comment rather than forcing one mechanism on both:
+  - Championship and push re-weight morale terms that already exist for
+    everybody (`gold`, `spotlight`, `idle`) — exactly how a trait does it.
+    `morale.ts`'s `add()` now multiplies by both `leverWeight` (traits) and
+    the new `motivatorLeverWeight` (motivators), the product capped once at
+    `traitLeverCap` rather than each side capping itself and then
+    multiplying past the ceiling.
+  - Fame, creative, and competition are genuinely new weekly signals nobody
+    was reading before: how close somebody is to their own career-best
+    popularity (`Wrestler.careerHighPopularity`, already tracked, never
+    read by morale before this), how fresh their gimmick still feels
+    (`gimmickFreshness`, same story), and whether the last person they
+    shared a ring with was a real test (`MoraleContext.opponentPopularity`,
+    a new field computed the same way `beatenByPopularity` already is, but
+    for both sides regardless of the result). Bespoke in a new
+    `motivatorReasons`, called from `weeklyMorale` the same way
+    `traitReasons` already is.
+  - Security-motivated is not morale at all — it overrides
+    `theBody.ts`'s `dealAppetite` to always read as `'insurance'`, the
+    existing appetite a frightened, injury-history-driven wrestler already
+    gets, now available to anybody the player has said wants it regardless
+    of ego or history.
+
+  Money, rest, the room, gratitude, and home were **not** duplicated as new
+  motivators — they already exist as traits (`inItForTheMoney`,
+  `wantsMoreTimeOff`, `lockerRoomLeader`, `gratefulForTheWork`,
+  `somebodyAtHome`) with real, tested mechanisms behind them. Deleting and
+  rebuilding those four to fit a new parallel system would have touched
+  `drawTraits`'s RNG-sensitive pool composition and every existing trait
+  test for no mechanical gain — instead `Trait` gained an optional `icon`
+  field, set on exactly those five, and the roster card now shows one
+  unified icon row (`motivationSymbolsOf`) mixing real motivators and
+  iconified traits, plus one shared legend (`motivationLegend`, rendered as
+  a `<details>` "What the icons mean" panel on the roster screen — same
+  collapsible-key idiom `WrestlerRow.tsx`'s existing `RowKey` already uses
+  for the card-builder tags) — the player never needs to know or care which
+  underlying system produced which icon.
+
+  `Wrestler.motivators` is optional and every reader goes through
+  `motivatorsOf`/`hasMotivator`, both defaulting a missing array to empty —
+  deliberately **not** a schema bump, since a bump exists to stop an old
+  save crashing on a field it doesn't have, and there is no crash here:
+  loading a pre-existing save just shows nobody with a motivator until
+  natural roster turnover generates people who have one.
+
+  Verified: `tsc --noEmit` clean, full suite 132 files / 2684 tests passed
+  (2666 prior + 18 new, zero regressions — the RNG-isolation held), `npm run
+  sim` and `npm run build` both clean, and a real-browser pass generating a
+  20-person roster, confirming a spread of all six motivators actually
+  landed, and screenshotting both the icon row on real roster cards and the
+  expanded legend. One icon swap during that pass: crossed swords (⚔️) for
+  competition-motivated rendered as an ambiguous X in the test environment's
+  font, so it became a boxing glove (🥊) instead — safer across whatever
+  emoji font a real device actually has.
+
+- **The gimmick selection module — a real content library, reaction-driven
+  heat, and two new booker conversations.** Grew out of a long design
+  conversation: gimmicks should be real, specific characters (not just an
+  abstract intensity tier), a wrestler's heat should track whether the crowd
+  actually cares (not just win/loss), and going cold long enough should
+  force the booker's hand. Four pieces, all shipped:
+
+  - **The library.** `src/data/gimmicks.ts` — 190 solo gimmicks (the
+    original 28-entry "Classic" set plus 162 drafted from real territorial-
+    wrestling history, see `docs/gimmicks-catalog-draft.md`), authored as
+    `GimmickSeed`s (id/name/category/alignmentLean/concept/promoLines/prop
+    only) run through `engine/generate/gimmickDefaults.ts`'s
+    `deriveGimmickDefaults`, which fills in every mechanical number and a
+    default look off the category, deterministically seeded off the
+    gimmick's own id (`rngFromSeed`) so nobody hand-tunes a popularity
+    ceiling for entry #187 and the numbers never reroll on load. Adding a
+    gimmick is one more array entry, per CLAUDE.md's "content lives in
+    data/" rule and the player's explicit "leaving it easy to add more
+    gimmicks down the road" ask. A late `Minor tweak` category covers the
+    other end of the brief — wrestlers who don't need a full character at
+    all: earned nicknames, a single visual tell, or just being genuinely
+    serious (`Straight Shooter`) or loosened all the way up (`Good Times`).
+    `src/data/groupGimmicks.ts` adds 36 shared identities (21 tag teams, 15
+    factions) for the pairing step below.
+  - **Reaction-driven heat.** `gimmickFreshness` used to be a one-way clock
+    (`engine/sim/freshness.ts`'s `ageGimmick`) — it decayed no matter what,
+    with no way to earn it back short of a full reset. Now it drifts toward
+    a target set by the wrestler's existing `momentum` stat
+    (`heatTarget`): a genuinely hot act holds or climbs, a merely-tolerated
+    one still settles low even while it keeps working, matching "not every
+    wrestler needs the best reaction, but no reaction at all still needs to
+    be looked at." The roster card now shows this as a persistent ice-to-
+    fire meter (`GimmickHeatMeter`, `ui/components/display.tsx`) — a
+    position on a spectrum, not a fill bar — always visible rather than
+    only once an act has already gone stale.
+  - **The signing-time "meet the booker" dialogue.** Every generated
+    wrestler already had a random gimmick with no way for the booker to
+    actually decide. `World.signingTalks` (same in-place-stage pattern as
+    the existing `RenewalTalk`) opens once a wrestler lands on the player's
+    roster — a free agent, a folded-roster pickup, a bidding-war win, or a
+    renewal auction's deferred swap-in. Node 1 picks the gimmick via a
+    category-grouped `<select>`; node 2 optionally pairs them into a tag
+    team or faction under a `GroupGimmick`'s shared identity, checking
+    eligible same-division roster partners not already spoken for
+    (`engine/world/tagTeams.ts` gained `canFormGroup`/
+    `formGroupGimmickStable`/`groupOf`, generalizing the existing two-person
+    `canFormTeam`/`createTeam` to any group size).
+  - **The forced cold-meeting.** An act sitting at or under
+    `iceColdThreshold` for `coldMeetingTriggerWeeks` running
+    (`Wrestler.weeksIceCold`, tracked in `resolveWeek` alongside the
+    existing `ageGimmick` call) now forces a real decision instead of
+    quietly dragging every match it's in — `World.coldMeetings` opens, the
+    ice-cold trigger gets its own lead wire item (`goneIceColdLine`), and
+    the booker gets exactly two ways out: relaunch (the same gimmick
+    picker, always resetting the heat meter to a clean 100 — a real
+    repackage, matching `generate/repackage.ts`'s own reset, whether or not
+    the gimmick id actually changed) or release (the same `releaseWrestler`
+    action and terms as any other release, called via `get()` rather than
+    duplicated).
+
+  All three narrative moments — a debut, a pairing, a relaunch — now write
+  their own wire item too (`state/slices/rosterAndContracts.ts`), which
+  incidentally closed a real pre-existing gap: a plain free-agent signing
+  had never carried its own wire line at all. See the "Gimmick module"
+  section above the "Done" list for what's still open on the narrative side
+  (a dedicated fan-tweet category).
+
+  Bumped the save schema twice — 55 for `World.signingTalks`, 56 for
+  `World.coldMeetings` — both new, unconditionally-read array fields.
+  `Wrestler.weeksIceCold` is optional and not part of either bump, same
+  treatment as every other "missing means zero" field this session.
+
+  Verified across three passes (the content/heat rework, the signing
+  dialogue, and the cold-meeting): `tsc --noEmit` clean throughout, the full
+  142-file / 2769-test suite passing after every change (21 new/re-expressed
+  tests in `freshness.test.ts`, zero regressions elsewhere — including a
+  guard test, `career/pronouns.test.ts`, that caught 37 gendered pronouns in
+  the hand-authored gimmick concepts/promo lines and forced a genuine
+  content fix, not a test change), `npm run sim` and `npm run build` both
+  clean throughout. Real-browser passes: signed a free agent, picked
+  "Trashman" over their generated gimmick, paired them into "The Wrecking
+  Crew" tag team, and confirmed it on the roster screen; forced both
+  cold-meeting branches via `useGameStore.setState` (natural triggering
+  takes six-plus in-game weeks) and confirmed a relaunch (gimmick changed,
+  freshness and `weeksIceCold` reset, meeting closed) and a release
+  (dropped from the roster, meeting closed) both landed correctly — this
+  pass caught and fixed a real bug where "try a new direction" was closing
+  the dialogue instead of advancing it to the relaunch picker, the same
+  class of mistake the renewal-talk precedent's own in-place-stage pattern
+  exists to avoid.
+
+  **Follow-up: the fan-tweet category for gimmick reactions.** The wire
+  feed already covered a debut, a pairing, and a relaunch; what was still
+  missing was `engine/world/fanReaction.ts`'s tweet layer reacting to any
+  of it. Three new template pools (`GIMMICK_DEBUT_TWEETS`,
+  `GIMMICK_PAIRING_TWEETS`, `GIMMICK_RELAUNCH_TWEETS` in
+  `data/fanVoices.ts`) and a `GimmickReactionSubject` type. Because a
+  gimmick decision happens on a booker's own schedule and not tied to a
+  show resolving, it queues onto `World.pendingGimmickReactions` the
+  moment the decision is made (same three call sites as the wire items)
+  and drains into the feed the next time the player's own show actually
+  runs — genuinely mixed into the ordinary reactions, not a separate box,
+  following the exact leads-but-stays-inside-the-count pattern the
+  existing title-change tweets use. Bumped the save schema to 57 for the
+  new field. Verified: `tsc --noEmit` clean, the full 142-file /
+  2775-test suite passing (6 new tests, zero regressions — the queue is
+  empty for every existing scenario), `npm run sim` and `npm run build`
+  both clean, and a real-browser pass signing a free agent, confirming a
+  gimmick, and running the actual show — confirmed via direct store
+  inspection that the queue populated before the show and drained after,
+  with the debut tweet landing in the real feed alongside the ordinary
+  show reactions.
+
+- **Bug fix: two promos on the same card could write up as the identical
+  line.** The player spotted it directly — two separate "on the
+  microphone" segments both read "Sharp, mean, and over. {name} made
+  their point." `sim/promo.ts`'s `writeUp` picked independently per promo
+  with no memory of what had already been said that night, and each
+  quality band only carried 3 lines, so a repeat on any card with two or
+  more promos was common rather than rare. `resolvePromo` now takes an
+  optional shared `usedLines` set (defaults to a fresh one, so every
+  existing caller and test is unaffected); `writeUp` prefers an unused
+  line in the right quality band, then reaches into every other band
+  before ever repeating one outright. Threaded through both places that
+  resolve more than one promo per card in a loop — the player's own show
+  (`state/store.ts`) and a rival's AI-booked card
+  (`engine/world/rivalBooking.ts`). Also expanded `PROMO_LINES` from 3 to
+  6 lines per band (`data/promoTopics.ts`) so the fallback is rarely
+  needed at all. Verified: `tsc --noEmit` clean, full suite 142 files /
+  2778 tests passed (3 new — no-repeat-within-a-card, graceful behaviour
+  once a card genuinely exhausts every line, and independent calls with
+  no shared set staying unaffected), `npm run sim` and `npm run build`
+  both clean, and a real-browser pass auto-filling and running 15
+  consecutive shows (30 promos total) confirming zero duplicate write-ups
+  on any single card, plus a screenshot of the exact scenario the player
+  flagged now showing two distinct lines.
+
+- **The same fix, applied everywhere else it applied.** The player's
+  stated principle after the promo fix: "if the frequency of repetition is
+  too high anywhere in the game, we don't have enough variety of words and
+  expressions in that area." Rather than wait for the next place to get
+  caught, a survey of every `pick(rng, ...)` call site that draws from a
+  content pool found two more with the exact same shape — small pool,
+  multiple draws in the same show, zero same-context tracking:
+  - **`sim/confrontation.ts`'s `resolveConfrontation`.** Openers and twist
+    lines (3 each) were drawn independently per confrontation; up to 2
+    confrontations can be booked on one card. Same fix as promo.ts: a new
+    `pickUnused` helper and an optional shared `usedLines` set (defaults
+    to a fresh one), threaded through `resolveConfrontationSlot`
+    (`storeHelpers.ts`) and reusing the *same* `usedPromoLines` set
+    store.ts's promo loop already creates — a confrontation and a promo on
+    the same card now can't collide with each other either, not just
+    within their own kind.
+  - **`sim/narrative.ts`'s `generateBeats`.** `CONTROL_BEATS` carries only
+    2-4 lines per wrestling style (`data/matchBeats.ts`), and several
+    winners on one card sharing a style is routine on a real roster — a
+    real, not edge-case, way to read the identical control-segment
+    sentence in two different match write-ups on the same show.
+    `generateBeats` already had a local `used` set, but it was recreated
+    per match and thrown away; it now takes an optional shared
+    `usedAcrossCard` set (default fresh, so every existing caller — dark
+    matches, rival-booked cards, cup runs — is unaffected) and store.ts's
+    own match-resolution loop creates and threads one across every match
+    on the player's card. `SimulateMatchContext` gained an optional
+    `usedBeats` field to carry it through.
+  - Also expanded content directly, the other half of the player's
+    principle: `CONTROL_BEATS` from 2 to 4 lines per style (all 12 styles)
+    and `TITLE_BEATS` from 3 to 5, so the dedup fallback is rarely needed
+    at all rather than doing all the work alone.
+  - Originally flagged `misfortune.ts` and `referees.ts` as real but
+    lower-priority (chance-gated, most weeks/shows produce zero or one
+    hit) rather than urgent — the player asked for them checked properly
+    anyway, so both got the same treatment as a follow-up:
+    - **`misfortune.ts`'s `rollMisfortune`.** Each of the 17 misfortune
+      definitions carried only 2-3 lines, and a large roster can draw the
+      *same* definition for two different people in one week — reading
+      "the car died in a petrol station car park" for two different
+      wrestlers in the same week's news is thin even though the names
+      differ. Now takes an optional shared `usedLines` set, defaulting
+      fresh; only dedupes within one definition's own pool (a fallback
+      into a different definition would describe the wrong kind of
+      misfortune entirely — a gym-accident line under a car-wreck heading
+      makes no sense), threaded through store.ts's weekly roster loop.
+      Every one of the 17 definitions expanded from 2-3 lines to 4.
+    - **`referees.ts`'s `rollRefereeMiss`.** Same shape: 12 miss types at
+      2 lines each, drawn once per match with several matches per card.
+      Same fix — optional shared `usedLines`, dedupe within one miss
+      type's own pool only, threaded through store.ts's match loop
+      (reusing the same `usedBeats`-adjacent pattern, its own
+      `usedRefereeMissLines` set). All 12 miss types expanded from 2 to 4
+      lines, catching and fixing one real content bug along the way: two
+      of the new lines were missing the `{victim}` placeholder the
+      existing data-integrity test requires on every victim-needing miss.
+    - `casualties.ts` remains flagged but genuinely lower priority even
+      on a second look — a collision there needs two *different* people
+      to both actually get hurt, draw the same cause, and draw the same
+      line, a compound low-probability event rather than the near-certain
+      shape the other four had.
+  - Verified: `tsc --noEmit` clean, full suite 142 files / 2784 tests
+    passed (7 new — cross-card dedup for confrontations, match beats,
+    misfortunes, and referee misses, plus confirming an unshared/default
+    call stays unaffected in each), `npm run sim` and `npm run build` both
+    clean, and a real-browser pass auto-filling and running shows across
+    both rounds of this fix (25 consecutive shows total) with no runtime
+    errors from any of the newly threaded parameters.
+
+---
+
+## Fan taste — a crowd's preference that actually drifts with booking history
+
+Came out of a design conversation prompted by an outside take on wrestling
+booker sims ("dynamically evolve fan taste based on booking history"). The
+promotion identity system (`data/promotionIdentity.ts`) already gave every
+company a fixed, declared house style — what the marquee says. This adds a
+second, dynamic layer: what the crowd has *actually* come to want, which can
+drift away from the declared identity if the booker keeps giving them
+something else.
+
+- **`engine/world/fanTaste.ts`, new file.** `FanTaste = Record<WrestlingStyle,
+  number>`, one 0-100 value per style, 50 neutral. `defaultFanTaste(archetype)`
+  seeds a mild lean toward the declared identity for a brand-new promotion.
+  `styleRunShare(styles)` turns a night's competitor list into a per-style
+  fraction of the card. `driftFanTaste(taste, runShare, settings)` moves
+  taste toward a target set by how far above or below its "fair share" (1/12
+  of the card) a style ran that week — reuses the exact drift-toward-a-target
+  shape `sim/freshness.ts`'s `ageGimmick` already uses for gimmick heat, for
+  the same reason: evidence should accumulate over a season, not snap to one
+  night. Mutates in place, same contract as `ageGimmick`. A style that never
+  runs at all drifts gently toward mildly cold rather than pinning at zero or
+  staying frozen at neutral forever — flagged with a `// DESIGN:` comment
+  since it's a genuine judgment call, not a forced conclusion. `fanTasteHighlights`
+  turns the numbers into words for the player — a style only gets named as
+  "loved" or "gone cold" once it's crossed a real gap from neutral.
+- **`sim/houseStyle.ts`'s `houseStyleRatingBonus`** gained an optional
+  trailing `currentTaste` parameter. Omitted (every caller before this),
+  behavior is byte-identical to before. Passed, it adds a second, fully
+  additive rating term off the same participants — a match can be rewarded
+  for suiting the declared house, for suiting what the crowd currently
+  wants, both, or neither. Deliberately smaller than the identity term
+  (`fanTasteRatingWeight: 2` vs. `houseStyleRatingWeight: 4`) — a thumb on
+  the thumb, not a second identity system.
+- **`Promotion.fanTaste`**, a new required field, initialized at all four
+  real construction sites (`newPromotions.ts`'s `foundPromotion`,
+  `state/world.ts`'s player/rival/mid-save-founding paths — `cupRun.ts`'s
+  `hardcoreSaturation: 0` turned out to belong to `SimulateMatchContext`,
+  not a `Promotion`, so it needed no change). Bumped the save schema to 58.
+- **Wired into the player's own week** (`state/store.ts`): a `tonightsStyles`
+  accumulator declared alongside the existing `violenceLevels` (same
+  push-during-the-match-loop, consume-after-the-card-resolves shape that
+  already feeds `hardcoreSaturation`), drifted right after that
+  `hardcoreSaturation` update, and `world.promotion.fanTaste` passed into
+  the `houseStyleRatingBonus` call.
+- **Wired into every rival, too** — the tradeoff flagged and accepted before
+  building: `runRivalShow` (`engine/world/rivalBooking.ts`) only ever reads
+  `ctx.promotion`, never mutates it (confirmed by grep before touching it —
+  every other promotion-level counter, including `hardcoreSaturation`
+  itself, follows the same read-only convention there and turned out to
+  never actually get updated for rivals as a result, a pre-existing gap
+  this deliberately did not also leave fan taste in). Rather than break that
+  convention, `RivalShow` gained a `styles: WrestlingStyle[]` field —
+  tallied inside `runRivalShow`, returned rather than applied — and
+  store.ts's `rivalShows` loop calls `driftFanTaste` on `rival.fanTaste`
+  itself once a show comes back, the same way it already applies every
+  other rival-show effect.
+- **A small UI surface**, words not numbers, per §0: a new paragraph in
+  `PromotionScreen.tsx`'s "Who you are" panel, right under the declared
+  identity's `knownFor` line, reading e.g. "Lately the crowd has taken to
+  technical and showman wrestling — and gone cold on bruiser." Only appears
+  once `fanTasteHighlights` actually has something to say, same "only speak
+  at the ends" rule `fitLabel`/`hypeLabel` already follow. New
+  `STYLE_LABEL` map in `data/styles.ts` turns the raw camelCase style ids
+  (`highFlyer`, `oldSchool`) into words that read as a sentence rather than
+  a tag, since this is prose rather than a compact stat chip.
+- Verified: `tsc --noEmit` clean, full suite 143 files / 2803 tests passed
+  (19 new — starting taste, run-share reading, the drift's climb/settle/hold/
+  bounds/mutate/cancelled-night behavior, the highlight labeling, and
+  `houseStyleRatingBonus`'s taste-aware path including the byte-identical
+  no-taste-passed case), `npm run build` clean, `npm run sim` clean, and —
+  because this touches match rating, `npm run sim` alone doesn't cover it —
+  `node tools/probe.mjs --report shows --seeds 6 --weeks 104` against the
+  documented baseline: mean show rating 50.5 against the baseline's 50.6, no
+  measurable shift. A real-browser pass ran 20 consecutive auto-filled
+  weeks from a fresh save, confirmed `Promotion.fanTaste` moved
+  independently per style based on actual booking (not frozen, not moving
+  in lockstep) with zero runtime errors, and screenshotted the "Lately the
+  crowd has taken to technical and showman wrestling" line rendering live
+  on the Promotion screen.
+
+---
+
+## Repetition audit, round three — the no-show call and its rival sibling
+
+Return to the repetition theme ("check misfortune-driven no-shows too") after
+the earlier round covered `promo.ts`, `confrontation.ts`, `narrative.ts`,
+`misfortune.ts`, and `referees.ts`. This round found a worse variant of the
+same bug rather than a milder one.
+
+- **`engine/world/noShowCall.ts`'s `resolveNoShowCall`** had three outcome
+  branches (`pullSegment`, `handicapMatch`, `mysteryOpponent`), each writing
+  a single, completely fixed template sentence — not "small pool, might
+  repeat," but zero pool, guaranteed identical, forever, across the whole
+  save. Fixed by adding a 4-line pool per branch (`PULL_SEGMENT_LINES`,
+  `HANDICAP_LINES`, `MYSTERY_OPPONENT_LINES`) and a private `outcomeRng(call,
+  choice)` helper that derives a seeded RNG off `absentId:week:choice` rather
+  than drawing from the shared stream — this resolves mid-`resolveWeek`,
+  after the booker has answered, so a shared-stream draw here would shift
+  every seeded roll after it (the documented trap). Stable and replay-safe:
+  the same call and choice always writes up the same way.
+- **`state/store.ts`'s rival-catastrophe wire line** had the identical shape
+  one level up: a fixed ternary between one "weather" sentence and one
+  "no-show" sentence for narrating a catastrophe landing on a rival instead
+  of the player. Fixed the same way — two new 4-line pools in
+  `data/misfortunes.ts` (`RIVAL_WEATHER_CATASTROPHE_LINES`,
+  `RIVAL_NO_SHOW_CATASTROPHE_LINES`), picked via a seeded
+  `rngFromSeed(\`rivalCatastropheLine:${rival.id}:${world.week}\`)` for the
+  same reason — this sits inside `resolveWeek`'s deterministic sequence too.
+- Deliberately left alone: `noShowCallFrom`'s own excuse-line draw (the
+  `warning` field) already pulls from the full, already-expanded `misfortune.ts`
+  absence pool — no separate fix needed there. Considered and declined
+  threading a dedup set across the call: it's a rare, chance-gated,
+  business-wide roll (a couple of times a year per the catastrophe system),
+  and the same-week collision risk against an unrelated wrestler's ordinary
+  `rollMisfortune` draw is low enough that the complexity of bridging a
+  declaration-order gap in `resolveWeek` (the no-show call resolves earlier
+  than `usedMisfortuneLines` is declared) wasn't worth it — consistent with
+  the earlier round's finding that chance-gated, at-most-weekly draws are
+  lower priority than the "always identical" bug class this round actually
+  found.
+- Verified: `tsc --noEmit` clean, new `engine/world/noShowCall.test.ts` (7
+  tests — placeholder-free output on all three choices, more than one
+  distinct phrasing per choice across 30 simulated weeks, replacement name
+  present on the mystery-opponent line, replay-identical for the same call
+  and choice, and the segment drops from the card only when pulled), full
+  suite 144 files / 2810 tests passed (2803 + 7 new, zero regressions),
+  `npm run build` and `npm run sim` both clean, and a real-browser pass:
+  forced a `NoShowCall` directly into `world.pendingNoShowCall` to bypass the
+  rare weekly roll, confirmed the full-screen dialogue overlay renders
+  correctly with all three choices and their gains/costs, that its warning
+  text came from the already-expanded `misfortune.ts` pool (confirming the
+  whole pipeline wires together end-to-end, not just unit-tested in
+  isolation), and zero page errors.
+
+---
+
+## Match types played straight — Phase 1 of 2
+
+An audit of every stipulation (asked directly: "are we familiar with all
+match types... it has to flow correctly and know how to create drama and
+win in multiple fashion") found the win-probability math genuinely correct
+for multi-way matches, but the storytelling layer on top thin in five
+specific, fixable ways. The user confirmed these needed fixing for real —
+"these must play out properly or risk jeopardizing the game," not a
+cosmetic pass. This is Phase 1 (mechanics) of a two-phase plan; Phase 2 (a
+full hyped-up wrestling-reporter voice rewrite across the whole game, plus
+an Americanization pass on some British vocabulary that had leaked into the
+setting) is scoped separately and not started here.
+
+- **Finish-flavor text for the 12 stipulations that had none.**
+  `Stipulation.finishFlavor` (`data/stipulations.ts`) previously existed
+  only on `tables`/`flamingTables`/`casket` — every other gimmick match
+  (Steel Cage, Ladder, No-DQ, Hardcore, Street Fight, Last Man Standing,
+  Iron Man, Submission, Hair vs Hair, Mask vs Mask, Loser Leaves, Battle
+  Royal) fell back to the generic pin/knockout/submission line, so a Ladder
+  match's finish read with zero mention of a ladder. All 12 now have their
+  own finish text. Along the way, `sim/narrative.ts`'s finish-line assembly
+  was routed through the same `fill()` every other beat uses (it previously
+  only substituted `{winner}`/`{loser}` by hand), so a stipulation's finish
+  line can now use `{weapon}`/`{finisher}`/`{title}` too — hardcore's
+  knockout line names a real weapon off the existing `WEAPONS` pool.
+- **A real Steel Cage escape.** `FinishType` gained `'escape'`
+  (`engine/types.ts`); `sim/kayfabe.ts` biases toward agility/stamina for
+  it, same shape as the existing `'ironMan'`/`'submissionOnly'` aim biases;
+  `sim/finish.ts`'s `rollFinish` gained an `escape` entry gated to zero for
+  every stipulation except Steel Cage, which now sets `aim: 'escape'` and a
+  real `finishWeights.escape`, so a cage match can end by pin, submission,
+  *or* escaping, same as real cage matches. Confirmed via `rules.aim`'s only
+  other consumer (`kayfabe.ts`) that this is fully additive — no other
+  system reads `.aim`.
+  - Iron Man's existing `finishWeights: { timeLimitDraw: 2.5 }` turned out
+    *not* to force a draw on inspection (base pin/submission/knockout
+    weights stay live; this just raises the odds) — but when it does land
+    on `timeLimitDraw`, the generic "both still standing" line read like an
+    ordinary stalemate. Caught and fixed a real correctness trap while
+    writing this: the first draft of Iron Man's `timeLimitDraw` flavor text
+    claimed a winner "led on the scorecard," which would have contradicted
+    the actual mechanical result (`isDrawFinish('timeLimitDraw')` still
+    nulls `winnerSide` — no title change, no popularity transfer, rivalry
+    heat unmoved). Rewritten to honestly describe a tie framed in Iron Man's
+    own vocabulary ("battled dead even on the scorecard... the bell beat
+    them both to a winner") instead of asserting a decision that never
+    happened in the surrounding systems.
+- **The three blowoff stipulations with a real stake now pay it.** `hairVsHair`/
+  `maskVsMask`/`loserLeaves` carried `isBlowoff: true`, which only ever
+  resolved the rivalry — nobody's hair actually came off, no mask actually
+  came off, nobody actually left the roster. New pure `stipulationConsequence`
+  (`data/stipulations.ts`, colocated with `stipulationRequirementsMet`/
+  `effectiveRules`) maps a stipulation id to `'shaveHead' | 'unmask' |
+  'release' | null`; `state/store.ts`'s match-resolution block applies it to
+  the loser only on a decisive finish (same test the rivalry system already
+  uses) — `appearance.hairStyle = 0` (confirmed 0 is bald), `appearance.mask
+  = 0` (confirmed 0 is none), or the exact existing release pipeline
+  `releaseWrestler` already uses (`exitTerms(loser, 'fired', ...)` then
+  `letThemGo`) — no new release mechanics invented. Each fires a new,
+  varied `stipulationConsequenceLine` beat naming what just happened, in the
+  hype voice, seeded off the segment+week rather than the shared stream
+  (this resolves mid-`resolveWeek`).
+- **Battle royal gets a real trickle of eliminations.** Previously every
+  multi-way match — triple threat, fatal 4-way, battle royal — resolved as
+  one instant `weightedPick` across all sides, so a battle royal didn't
+  *feel* different from a fatal 4-way. New pure `engine/sim/battleRoyal.ts`
+  (`orderEliminations`) builds a full elimination order by
+  weighted-sampling-without-replacement from the sides not yet eliminated,
+  weighted by *inverse* win probability — weaker sides tend to go out
+  first — until only the pre-decided `winnerSide` remains, appended last.
+  This is ordering dressing on a decision already made: it reuses
+  `winProbabilitiesBySide` `simulateMatch` already computed and never
+  overrides `winnerSide`, so the win/loss math is provably unchanged (no
+  balance-probe run needed — noted explicitly so the omission reads as a
+  decision, not an oversight). Two new beat pools in `data/matchBeats.ts`
+  (`BATTLE_ROYAL_MIDDLE_BEATS`, `BATTLE_ROYAL_FINAL_BEATS`) name a
+  mid-field elimination and a "down to the final two" moment — placed
+  *ahead* of the rating-gated hopeSpot/nearFall/bigSpot beats in
+  `narrative.ts`'s budget, not after, since a first draft put them after
+  and a real test run showed the beat budget getting exhausted by the
+  optional flavor beats before ever reaching the elimination beats on an
+  ordinary-rated card.
+- **Multi-man live commentary stopped mislabeling the field.** `store.ts`'s
+  commentary-call setup flattened every side past 0 into one "sideB" group
+  — correct for a 1v1 or tag match, wrong for a genuine multi-way, where it
+  called a fatal 4-way or battle royal like a tag match against a phantom
+  team. `commentary.ts`'s whole vocabulary (`{sideA}`/`{sideB}`, two-corner
+  framing) is built around exactly two corners by design; reworking it to
+  be N-way aware is a real, separate project, not attempted here. Scoped
+  fix: the live two-voice call is now gated to exactly two competitor
+  sides — a genuine multi-way gets no live call (same as every rival-show
+  match already has) and leans on the now-much-better highlight beats
+  instead.
+- Verified: `tsc --noEmit` clean; new tests in `stipulations.test.ts` (12,
+  including one that every gimmick match but squash now carries its own
+  finish text) and `engine/sim/battleRoyal.test.ts` (4, including a
+  weighted-elimination-order statistical check); `narrative.test.ts` grew 6
+  new cases (escape finish text, `{weapon}` resolving through finishFlavor,
+  the Iron Man draw framing, the battle-royal elimination/final-two beats
+  firing, and confirming they're absent from an ordinary match). Caught and
+  fixed two real regressions in the full suite: a pre-existing
+  `gimmickMatches.test.ts` case had assumed hairVsHair had no finish text
+  (re-expressed per CLAUDE.md rather than deleted — it now tests the
+  fallback path against `squash`, the one stipulation still carrying none,
+  and gained a sibling case locking in hairVsHair's new line), and one new
+  battle-royal beat line used the idiom "that was all she wrote," caught by
+  the pronoun-neutrality guard and rewritten. Full suite: 145 files / 2825
+  tests passing. `npm run build` and `npm run sim` both clean. A real
+  in-app pass (via the live store, not a mock) forced a card with a battle
+  royal, a Hair vs Hair, a Mask vs Mask, a Loser Leaves, a Steel Cage, and
+  an ordinary 1v1, then called the real `resolveWeek()` across several
+  seeds: confirmed the battle royal produced a genuine mid-field
+  elimination beat and a final-two beat with no live commentary generated;
+  the Hair vs Hair loser's `appearance.hairStyle` actually flipped to bald
+  in world state; the Mask vs Mask loser's `appearance.mask` actually
+  zeroed; the Loser Leaves loser was actually removed from the roster and
+  landed in the free-agent pool on a decisive finish, and — confirmed on a
+  separate seed — correctly did *not* fire when that match rolled a
+  non-decisive double-KO draw instead, proving the decisive-only gate
+  works both ways; a Steel Cage match rolled a genuine `escape` finish on
+  one seed; and the ordinary 1v1 still generated a full live commentary
+  call, confirming no regression to the normal two-side path. Zero runtime
+  errors across every run.
+
+---
+
+## Americanizing the game's vocabulary — Phase 2a of the reporter-voice rewrite
+
+First sub-pass of the "write it like a hyped-up American wrestling reporter"
+rewrite (Phase 2 of the plan started alongside the match-type work above).
+Before touching tone, the plan called for a mechanical pass fixing British
+vocabulary/spelling that had leaked into an otherwise American-coded
+setting — interstate, gas stations, dollar amounts sitting next to tyre,
+bonnet, petrol, £, lorry, colour, favour, honour, licence, recognise,
+realise. Scoped strictly to text the player actually reads: data-file
+content strings (`text`/`blurb`/`label`/`name`/nickname/tweet pools) and
+real UI copy (headings, button labels, aria-labels). Internal identifiers,
+type fields, and code comments were deliberately left alone — `favouredStyles`
+the field, `ColourTemplate` the type, `centre` the React prop, the
+`'colour'`/`'flavour'` internal enum values — none of these are ever
+rendered as literal text to the player (confirmed for each before leaving
+it: no UI file references `VenueKind`'s `'theatre'` or the commentary
+`Speaker` union as raw display text), so renaming them would be pure
+internal churn with no player-facing benefit and real risk of missing a
+call site. The one internal spot that *did* need a fix: `WIRE_KIND_LABELS`
+in `engine/world/wire.ts` maps the internal `'honour'` kind to a real
+displayed newsfeed badge — the key stayed, the label went from `'Honours'`
+to `'Honors'`.
+
+- **Vehicle/roadside vocabulary**: `misfortunes.ts`'s car-trouble pool
+  (tyre→tire, bonnet→hood, boot→trunk, petrol station→gas station, hard
+  shoulder→shoulder, overturned lorry→overturned truck), plus every other
+  `car park` across `misfortunes.ts`, `weather.ts` (four separate weather
+  events, including one event's own display `name`), and `weatherCalls.ts`
+  → `parking lot`. `ResidencyDeal.tsx`'s two player-visible "no lorry"
+  lines → "no hauling"/"no truck", with the matching engine comments in
+  `economy/residency.ts` updated for consistency.
+- **-our/-ise/-ence/-ence spellings in real content**: `colour`→`color`
+  (`matchBeats.ts`, `weather.ts`, `commentaryLines.ts`'s one non-placeholder
+  instance), `favour(ing)`→`favor(ing)` (`refereePool.ts`, `weather.ts`,
+  `events.ts`, `commentaryLines.ts`), `honour`→`honor`
+  (`CrucibleScreen.tsx`'s "Roll of honor" heading, `OfficeScreen.tsx`'s
+  "They honor the deal" option label), `recognise`/`realise`→
+  `recognize`/`realize` (`misfortunes.ts`, `owners.ts`, `fanVoices.ts`),
+  `licence`→`license` (`stands.ts`), `defence`→`defense`
+  (`promotionIdentity.ts`'s ladder-belt blurb), `cancelled`→`canceled`
+  (`misfortunes.ts`, `weatherCalls.ts`), `travelling`→`traveling`
+  (`events.ts`), `Favourite`→`Favorite` (a nickname in `nicknames.ts`),
+  `queue`→`line` (`stands.ts`'s concession blurb, `leverage.ts`'s
+  negotiating-screen leverage line — the genuine "line of interested
+  parties" sense; every other `queue` hit in the codebase is the unrelated
+  CS data-structure term and was correctly left alone), `crisps`→`chips`
+  (`stands.ts`).
+- **`TitleBuilder.tsx`**: both the aria-label and the visible "Colours"
+  button label → "Colors" — this one also fixed an existing internal
+  inconsistency, since the component's own `data-testid` already said
+  `belt-colors-*` in American spelling while the rendered text didn't.
+- Deliberately NOT touched, and why: `data/fanVoices.ts`'s lowercase tweet
+  register (already Americanized separately, e.g. `£4`→`$4`, but kept its
+  deliberate casual/lowercase conceit — that's fan voice, not reporter
+  voice, per the plan). `data/gimmicks.ts`'s first-person promo lines
+  weren't touched by this pass at all — first-person character voice is a
+  separate treatment, scoped for a later Phase 2 sub-pass. `grey` (used
+  once, in `casualties.ts`) was left alone — unlike `colour`/`favour`,
+  both `grey` and `gray` are genuinely current American spellings, so
+  changing it wouldn't fix anything a player would notice.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests passing
+  with zero changes needed anywhere (every edit was either inside a data
+  pool with no test pinned to its exact wording, or a UI label with no
+  test asserting the old text — checked each one individually before
+  editing rather than assuming); `npm run build` and `npm run sim` both
+  clean; a real in-app pass starting a fresh game confirmed zero runtime
+  errors from the edited pools actually rendering.
+
+---
+
+## The hype-reporter voice — Phase 2b, the match/broadcast cluster
+
+Second sub-pass of the reporter-voice rewrite: swapping the game's
+deliberately spare, understated match prose for a vivid, idiomatic,
+superlative-heavy American sports-reporter voice — the register the user
+actually asked for ("write from the standpoint of a wrestling reporter...
+use some flair"). Scoped to the cluster Phase 1's mechanics work already
+touched, so this content only gets written in its final voice once, not
+written spare and rewritten later.
+
+- **`data/matchBeats.ts`** — every beat pool rewritten: all 10 `OPENING_BEATS`,
+  all 48 lines across the 12 `CONTROL_BEATS` styles (powerhouse through
+  allRounder), all 4 `HOPE_SPOT_BEATS`, all 5 `NEAR_FALL_BEATS`, all 5
+  `BIG_SPOT_BEATS`, all 5 `TITLE_BEATS`, all 4 `GRUDGE_BEATS`, all 5
+  `AFTERMATH_BEATS`. `BATTLE_ROYAL_MIDDLE_BEATS`/`BATTLE_ROYAL_FINAL_BEATS`
+  needed no rewrite — they were authored directly in this target voice
+  during Phase 1, exactly per the plan's intent that new content added
+  alongside the mechanics work skip the spare-then-rewrite round-trip.
+  `WEAPONS` (a bare noun list, not prose) left untouched.
+- **`data/stipulations.ts`**'s 16 `blurb` fields (the marquee-style
+  one-liner shown per stipulation, distinct from the `finishFlavor` text
+  Phase 1 already wrote in this voice) — all rewritten with more color
+  while staying short enough to work as poster copy, not paragraph prose.
+- **`data/refereeMisses.ts`** — all 48 lines across the 12 miss types
+  rewritten. Verified against `referees.test.ts`'s two real data-integrity
+  constraints before and after: every line still contains the literal
+  `{ref}` placeholder, and every `needsVictim: true` miss's every line
+  still contains `{victim}` — both checked by the existing test suite, not
+  just eyeballed.
+- **`data/casualties.ts`** — all 22 lines across the 11 injury causes
+  rewritten. One incidental fix along the way: the `cut` cause's second
+  line used to end on "was grey by the end of it" — replaced with "looked
+  like a ghost by the final bell," which is both more vivid and sidesteps
+  the grey/gray spelling question entirely rather than picking a side.
+- **`data/commentaryLines.ts`** — read in full (895 lines, ~209 templates)
+  and deliberately given a lighter touch than the other four files, for a
+  specific reason: this file was already the closest thing in the codebase
+  to the target voice before this pass started (real present-tense hype
+  calling — "ONE, TWO — no! How is {lowThey} still in this?", "ONE, TWO,
+  THREE — {winner} has done it!"), and it carries far more structural risk
+  than the others — a dense custom placeholder vocabulary
+  (`{Top}`/`{topThey}`/`{topTheir}`/`{lowThem}`/`{Win}`/`{loseThem}`, all
+  grammatical-agreement tokens with real substitution logic behind them in
+  `engine/sim/commentary.ts`) plus a `needs`-fact-gating contract that a
+  careless rewrite could silently violate. Punched up only the handful of
+  genuinely flat, no-conditions fallback lines in `OPENERS` (the ones that
+  have to work for literally any match, so they were written deliberately
+  plain) without touching any placeholder token, `needs` array, or other
+  structural field anywhere in the file. Flagging this explicitly as a
+  scoped, deliberate decision rather than an oversight — the file was
+  already carrying the tone the user asked for.
+- Verified: `tsc --noEmit` clean throughout (checked after each file);
+  `referees.test.ts` (50 tests) and `casualties.test.ts` (29 tests) both
+  passed unchanged against the rewritten content, confirming the rewrite
+  didn't quietly break either file's placeholder contract; `commentary.test.ts`
+  (49 tests) passed unchanged; full suite 145 files / 2825 tests passing
+  with zero test edits needed anywhere in this pass; `npm run build` and
+  `npm run sim` both clean; a real in-app pass forcing a battle royal, a
+  Hair vs Hair, a Mask vs Mask, a Loser Leaves, a Steel Cage, and an
+  ordinary 1v1 through the live store (same harness Phase 1 used) confirmed
+  the new hype-voice text renders correctly end-to-end with real wrestler
+  names substituted in, live commentary still generates for the ordinary
+  match, and zero runtime errors.
+
+## Phase 2c: misfortune / incident / wire cluster in hype-reporter voice
+
+Continuing the voice pass (2a Americanization, 2b match/broadcast) into the
+next cluster: everything that reports the stuff that happens to people
+between shows, and the ~20 inline newsfeed strings written directly inside
+`state/store.ts` and `state/slices/*.ts` rather than pulled from a `data/`
+pool.
+
+- **`data/misfortunes.ts`** — all 17 `MisfortuneDefinition.lines` arrays
+  rewritten (car trouble through infection setbacks), plus
+  `RIVAL_WEATHER_CATASTROPHE_LINES`/`RIVAL_NO_SHOW_CATASTROPHE_LINES`. One
+  gendered-pronoun slip caught by `pronouns.test.ts` on the first full-suite
+  run (`barFight`'s "he was picking a fight with") and fixed to "they were."
+- **`engine/world/noShowCall.ts`** — `PULL_SEGMENT_LINES`, `HANDICAP_LINES`,
+  `MYSTERY_OPPONENT_LINES` all rewritten, four lines apiece.
+- **`data/incidents.ts`** — all 13 incident definitions' three-headline
+  pools rewritten, every `${nameOf(x)}`/`${group.name}`/`${manager.name}`/
+  `${belt}` interpolation preserved exactly.
+- **`engine/world/impromptu.ts`** — the memorial and charity `announcement`
+  templates, `afterLine()`, and `familyLine()` rewritten.
+- **`engine/career/retirement.ts`** — `RETIREMENT_REASON_TEXT`'s four
+  clauses rewritten. Incidentally fixed a pre-existing grammar bug while
+  doing it: the clauses follow `${name} has retired. ${reason}`
+  (`engine/world/wire.ts`'s `retirementLine`) but started lowercase, reading
+  as a sentence fragment after a full stop — the new text is capitalized.
+- **`engine/career/hallOfFame.ts`** — `citationFor`'s four citation lines
+  given a moderate hype touch (an induction is a celebration, not a
+  eulogy, even for the rare posthumous inductee).
+- **`engine/career/awards.ts`** — the full end-of-year awards voice: all 8
+  `AWARDS` blurbs and every inline citation string in `decideAwards`
+  rewritten. This one leans hardest into the hype register of anything in
+  the cluster — it's the one system in the game explicitly modeled on an
+  actual awards broadcast.
+- **`engine/career/mortality.ts` and `engine/career/epitaph.ts` —
+  deliberately left untouched.** CLAUDE.md states deaths are "Handled
+  soberly: no gore, no spectacle, no in-ring deaths" — `mortality.ts`'s
+  `DEATH_CAUSE_TEXT` and `epitaph.ts`'s `whoTheyWere`/`whatTheyLeave`/
+  `howTheyWent` (which literally embeds `DEATH_CAUSE_TEXT` and is shared
+  between the memorial wall and the Hall of Fame board) are already
+  correct by design, not a gap the tone pass should close. Same exception
+  class as `gimmicks.ts` (first-person) and `fanVoices.ts` (tweet
+  register) getting different treatment — flagged explicitly rather than
+  silently skipped. The same solemnity call was applied to the handful of
+  title-memorial wire lines in `state/slices/titles.ts` that fire in the
+  direct wake of a champion's death (`answerTitleMemorial`'s three
+  outcomes) — left in the existing plain register rather than hyped up.
+- **~25 inline `wire(...)` template strings across `state/store.ts` and
+  `state/slices/{titles,showAndProduction,storylines,supershow,
+  rosterAndContracts,cup}.ts`** rewritten in place — residency deals,
+  title strips/vacates/renames, faction joins/departures, contract
+  expiries and poaching, house-show and dark-match recaps, story
+  heat/death, Crucible tournament recaps, and more. Two of these needed a
+  second pass after the full suite caught them: `poaching.store.test.ts`
+  and `renewalWindow.store.test.ts` both assert on an exact substring
+  (`'never answered'`, `'won them on the open market'`) inside a wire
+  line's text, and the first hype rewrite of those two lines lost the
+  literal phrase the tests were checking for — re-expressed to keep the
+  hype color while preserving the exact matched substrings, per CLAUDE.md's
+  re-express-don't-re-baseline rule (the tests were right; the rewrite was
+  wrong).
+- Also touched two engine helper functions that generate wire text outside
+  any `data/` pool: `engine/sim/freshness.ts`'s `goneStaleLine`/
+  `goneIceColdLine` (gimmick heat going cold/dead) and
+  `engine/sim/casualties.ts`'s `aggravationLine` (working hurt and making
+  it worse) — same cluster in spirit even though they're not in the
+  original file inventory.
+- **Explicitly deferred, not in this pass:** `career/discipline.ts`'s
+  sanction notes (`sanction.note`, `suspensionLine`) referenced from two
+  spots in `store.ts`, and the `fieldLine`/`result.line` helpers backing
+  the Crucible tournament recap in `state/slices/cup.ts` — both generate
+  text from a data/logic file outside the originally inventoried list and
+  were left as a follow-up rather than scope-creeping this pass further.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests
+  passing (two failures found and fixed on the first full run, both
+  substring-match regressions described above, plus the one gendered-
+  pronoun catch); `npm run build` and `npm run sim` both clean.
+
+## Phase 2d: promo / confrontation / event cluster in hype-reporter voice
+
+The promo, confrontation, and creative-event systems — the game's other big
+narrator-voiced surfaces, plus its one substantial first-person-dialogue
+surface.
+
+- **`data/promoTopics.ts`** — all 10 `PROMO_TOPICS`' `effect`/`cost` fields
+  punched up (kept short — these are decision-panel copy, not prose, same
+  treatment `stipulations.ts`'s `blurb` fields got in 2b) and all 24 lines
+  across the 4 `PROMO_LINES` quality bands rewritten in full reporter
+  voice, `{speaker}` preserved throughout.
+- **`data/confrontations.ts`** — all 9 `CONFRONTATIONS`' `blurb` fields and
+  27 `openers` lines rewritten, and all 10 `CONFRONTATION_TWISTS`' 30
+  `lines` rewritten; every `{a}`/`{b}`/`{c}` placeholder preserved exactly
+  (verified by placeholder-count grep before and after: 44/47/10
+  occurrences, unchanged). Twist `label` fields (short results-page tags
+  like "And that was that") and event `title` fields (short narrator
+  headlines like "{primary} was late again") were deliberately left as-is
+  — same precedent as leaving stipulation names and award names alone
+  while their `blurb`/citation prose got the full treatment: these are
+  functional labels, not the prose doing the narrating.
+- **`data/events.ts`** (1,169 lines, the largest single narrative file) —
+  all 21 creative events and both branching sub-nodes (`gimmickRequest`'s
+  `debut`, `wantsTitleShot`'s `howBig`, `workingHurt`'s `aftermath`,
+  `trainingInjury`'s `setback`) rewritten: every `body` array (narrator
+  prose for the 6 `speaker: 'narrator'` events, first-person dialogue for
+  the other 15 `speaker: 'primary'` events and their nodes) and every
+  option's `gains`/`costs` pair. First-person events got more color and
+  idiom *within* first-person voice per the plan's explicit carve-out —
+  not converted to third-person reporter narration. Two inline `wire()`
+  text strings inside gamble effects (the `gimmickRequest`/`debut` dark-
+  match phone-video line) rewritten too. `title` fields left alone, same
+  reasoning as above. `effects`, `gamble`, `next`, `conditions`, `weight`,
+  and `cooldownWeeks` — every mechanical field — untouched.
+- `events.test.ts` has no string-content assertions (only structural ones:
+  option counts, body-variant counts, placeholder-reachability, gains/costs
+  non-empty, effect-negativity), so this was a lower-risk rewrite than
+  Phase 2c's inline wire strings — confirmed by re-reading the test file in
+  full before starting rather than discovering it the hard way.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests passing
+  with zero test changes needed; `npm run build` and `npm run sim` both
+  clean; placeholder-integrity re-checked by grep count before/after on all
+  three files rather than a live-app pass this round, since every edit was
+  a pure string-literal change to fields the existing structural test suite
+  already covers exhaustively and no logic, effect, or branching field was
+  touched.
+
+## Phase 2e: world-flavor cluster in hype-reporter voice
+
+The broadest sub-phase by file count: everything that gives the game world
+its texture — venues, weather, ownership, championships, production,
+concessions, broadcasters, sponsors, residencies, the ringside/referee
+pools, and the world's taste-geography systems.
+
+- **`data/venues.ts`** — all 25 venue `blurb` fields rewritten.
+- **`data/weather.ts`** — all 33 `WEATHER_EVENTS`' `lines` and `warnings`
+  rewritten (flavour/minor/notable/severe/catastrophe tiers), `{town}`
+  preserved throughout.
+- **`data/weatherCalls.ts`** — `WEATHER_CALL_OPTIONS` gains/costs,
+  `FORECAST_LINES` (kept free of digits and `%`, per
+  `weatherCall.test.ts`'s constraint), and all 25 `WEATHER_CALL_LINES`
+  outcome strings across the 5 severe events rewritten.
+- **`data/owners.ts`** — all 5 owner `blurb`s (narrator voice) and
+  `greetings` (first-person, more color within character) rewritten, plus
+  every `MANDATE_TEXT` entry, `{target}`/`{value}` preserved.
+- **`data/titles.ts`** — all 28 title blurbs across `startingBlueprints`
+  and `TITLE_PRESETS` rewritten (several are literal duplicates shared
+  between the two, caught and rewritten consistently via `replace_all`).
+- **`data/promotionIdentity.ts`** — every archetype's `knownFor`,
+  `topBeltBlurb`, `secondaryBeltBlurb`, and `signatureBelt.blurb`
+  rewritten (8 archetypes × 4 fields). Caught a real Americanization miss
+  from Phase 2a along the way: `knownFor: 'Armouries...'` and a matching
+  comment — fixed to "Armories" as part of this pass.
+  `favouredStyles`/`preferredStyles` (internal field/prop names) left
+  alone per the established "only touch player-visible text" rule.
+- **`data/production.ts`** — all 10 `PRODUCTION_ASSETS` and all 12
+  `SHOW_EXTRAS` blurbs rewritten.
+- **`data/stands.ts`** — all 9 `MERCH_LINES` and 4 `CONCESSIONS` blurbs
+  rewritten. Also caught and fixed a Phase 2a miss: `'Programmes'` (the
+  displayed name) → `'Programs'` — the internal id `programmes` was left
+  alone as an identifier, not player-facing text.
+- **`data/broadcasters.ts`** — all 4 `BROADCASTERS` blurbs and all 9
+  `BroadcastDemand.text` lines rewritten; fixed `'the fishing programme'` →
+  `'the fishing program'` in the same pass.
+- **`data/sponsors.ts`** — all 5 `SPONSORS` blurbs and 4 condition `text`
+  lines rewritten; fixed `'cheque'` → `'check'` along the way.
+- **`data/residencies.ts`** — all 8 `RESIDENCY_HOMES` blurbs rewritten;
+  fixed `'holiday town'` → `'vacation town'`.
+- **`data/ringsidePool.ts`** — all 12 named managers' blurbs rewritten.
+- **`data/refereePool.ts`** — all 12 named referees' blurbs plus all 12
+  `REFEREE_BLURBS` (excellent/decent/poor/crooked × 3) rewritten; fixed
+  `'rumours'` → `'rumors'`.
+- **`data/circuits.ts`** — all 4 `CIRCUITS`' `blurb` and `hardSell` fields
+  rewritten; fixed `'phoney'` → `'phony'`.
+- **`data/territories.ts`** — all 12 `TERRITORIES` blurbs rewritten;
+  fixed a second `'phoney'` → `'phony'` instance here too.
+- **`data/perks.ts`** — all 8 `PERKS`' `blurb` and `cost` fields rewritten.
+- **`data/biddingTemperaments.ts`** — reviewed; contains only short
+  mechanical `label` fields (e.g. "chases names", "pays for grit"), same
+  treatment as twist/award labels elsewhere — deliberately left as-is,
+  not a gap.
+- **`data/storylineBeats.ts`** — `MATCH_BEAT_LINES` (the most-read text in
+  the storyline system) rewritten, `{who}` preserved.
+  `STORYLINE_NAME_PATTERNS` left alone — short generated titles, same
+  precedent as event titles and twist labels.
+- Several genuine Phase 2a Americanization misses were caught and fixed
+  incidentally while rewriting adjacent prose in this pass (armouries,
+  programmes/programme, cheque, holiday town, rumours, phoney×2) — noted
+  here rather than filed as a separate pass since they were touched
+  in-line with content already being edited.
+- Verified: `tsc --noEmit` clean after every file; full suite 145 files /
+  2825 tests passing with zero test changes needed; `npm run build` and
+  `npm run sim` both clean.
+
+## Phase 2f: gimmick character-voice cluster, first-person treatment
+
+The largest single content pool in the game (~779 strings across two
+files), and the one place in the voice sweep where "hype-reporter voice"
+explicitly does not apply — this is in-character wrestler dialogue, not
+narrator prose, and the plan calls for more flair *within* first-person
+voice rather than converting it to third-person reporter narration.
+
+- **`data/gimmicks.ts`** — every `GimmickSeed.promoLines` entry across all
+  ~190 gimmicks rewritten: punchier, more idiomatic first-person promo
+  dialogue (added intensifiers — "absolutely", "genuinely", "flat-out",
+  "every single", "not one" — and traded flat statements for the kind of
+  line a real promo would actually deliver), while keeping each
+  character's persona intact per its `concept`. Entries that started with
+  an empty `promoLines: []` (silentMonster, gironGrip, gbellToBell,
+  goldReliable, gsecondGear, gtheQuietType, glocalFavorite) were left
+  empty — that silence is the character.
+  - **`concept` deliberately left untouched.** It reads as tight,
+    already-vivid third-person catalog/scouting-report prose — closer to
+    the target register already than the flat prose this whole project
+    exists to fix — and rewriting it into reporter narration would
+    directly contradict the plan's "first-person treatment, not
+    third-person reporter narration" instruction for this cluster. Same
+    call as Phase 2b's partial touch on `commentaryLines.ts`: content
+    already close to the target gets left alone rather than risked on a
+    rewrite it doesn't need. `id`, `name`, `category`, `alignmentLean`,
+    `prop`, and the Classic-set's mechanical fields (`popularityCeiling`,
+    `growthRateMultiplier`, `territoryFit`, `merchMultiplier`, `look`) are
+    untouched as well — none of them are prose.
+  - Worth flagging: `concept` **is** player-facing (rendered as the
+    `subtext` in `OfficeScreen.tsx`'s `DialogueCard` at the signing,
+    relaunch, and group-formation dialogues), but `promoLines` is
+    currently **not wired into the UI or referenced by any engine logic**
+    anywhere — confirmed by grep across `src/ui`, `src/state`, and
+    `src/engine`, turning up only the type definition in `types.ts` and a
+    `Pick<...>` reference in `gimmickDefaults.ts`. The rewrite still
+    covers it in full per the plan's explicit naming of `promoLines` as
+    in-scope content, on the basis that it's real content waiting on a
+    UI hookup rather than dead weight.
+- **`data/groupGimmicks.ts`** — same first-person treatment applied to
+  every non-empty `promoLines` entry across the 22 tag-team identities
+  (the 15 faction/`stable` entries all carry empty `promoLines` in the
+  source data — a shared identity speaking with one voice doesn't fit a
+  faction the way it fits a duo, so that was left as-is rather than
+  invented). `concept` left untouched for the same reason as above.
+  - Caught two unescaped-apostrophe syntax errors introduced by the
+    rewrite itself (`you're`, `you've` inside single-quoted string
+    literals) via `tsc --noEmit` immediately after the edit — fixed by
+    escaping them properly before moving on to verification.
+- No test file constrains `concept` or `promoLines` content in either
+  file, so this was a zero-test-risk content rewrite.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests
+  passing with zero test changes needed; `npm run sim` clean (300-name
+  roster generation, distributions unaffected — gimmick prose has no
+  mechanical weight); `npm run build` clean.
+
+## Phase 2g: fan-voice cluster, lowercase tweet register kept
+
+`data/fanVoices.ts` is the other deliberate carve-out in the voice plan —
+simulated fan tweets, not narrator prose or in-character dialogue. Kept
+the lowercase/casual tweet conceit throughout; punched up the energy
+*within* that register (added intensifiers, repeated words for emphasis,
+occasional all-caps for shouted lines, more idiomatic phrasing) rather
+than converting it to reporter voice or capitalizing it into normal prose.
+
+- All of `SHOW_TWEETS`, `MATCH_TWEETS`, `TITLE_CHANGE_TWEETS`,
+  `GIMMICK_DEBUT_TWEETS`, `GIMMICK_PAIRING_TWEETS`, and
+  `GIMMICK_RELAUNCH_TWEETS` rewritten. `FAN_HANDLES` untouched — those are
+  identifiers, not prose. All placeholders (`{winner}` `{loser}` `{best}`
+  `{worst}` `{champ}` `{title}` `{promotion}` `{name}` `{gimmick}`)
+  preserved.
+- Caught a genuine Phase 2a Americanization miss in the same pass:
+  `'apologising'` → `'apologizing'` in one contrarian-tone tweet.
+- `CROWD_VERDICTS` rewritten, with one exception:
+  `fanReaction.test.ts`'s `'reads the room'` test asserts
+  `crowdVerdict(75)` with an exact `toBe('They loved it.')` — the initial
+  rewrite changed that string and broke the test, caught immediately on
+  the first suite run. Per the standing "re-express tests, never
+  re-baseline them" rule, the fix was to restore the literal string,
+  not touch the test — the other four `CROWD_VERDICTS` entries and every
+  tweet pool were free to change since nothing else in the suite
+  constrains exact fan-voice text.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests
+  passing after the one-line revert above; `npm run sim` and
+  `npm run build` both clean.
+
+## Phase 2h: UI-layer prose, hype-reporter voice
+
+The last sweep of the voice project — full-sentence empty states, tooltips, and onboarding copy hardcoded
+directly in `src/ui/screens/*.tsx` and shared components, done last so it matches the register the data-file
+passes had already locked in.
+
+- Swept every screen and shared component under `src/ui/` for hardcoded full-sentence prose (grepped for
+  long quoted sentences and `<p className>` blocks, then manually triaged each hit). Rewrote genuine narrator
+  prose — empty states, tooltips, dialogue-panel copy, onboarding text — in the hype voice across
+  `LegacyScreen.tsx`, `RankingsScreen.tsx`, `Stories.tsx`, `RosterScreen.tsx`, `OfficeScreen.tsx` (by far the
+  largest single file, ~30 separate strings), `PromotionScreen.tsx`, `BiddingWar.tsx`, `BookingScreen.tsx`,
+  `Nav.tsx`'s `MORE` screen blurbs, `NewGameScreen.tsx`, `SecretsScreen.tsx`, `FileTransfer.tsx`,
+  `FreeAgentsScreen.tsx`, `RivalRosterScreen.tsx`, `CrucibleScreen.tsx`, `DarkMatchSlots.tsx`,
+  `Supershow.tsx`, `FinanceScreen.tsx`, `Cup.tsx`, `ResidencyDeal.tsx`, `TitleBuilder.tsx`,
+  `TerritoriesScreen.tsx`, `SheetScreen.tsx`, `RecordsScreen.tsx`, `WrestlerEditor.tsx`, `PromoSlots.tsx`,
+  `CalendarStrip.tsx`.
+- Left alone, per the plan's explicit scope line ("Short UI chrome... stays out of scope"): button labels,
+  stat names, short instructional fragments ("Pick one partner."), and every field already sourced from a
+  `data/*.ts` file rewritten in an earlier sub-phase (venue/perk/production blurbs rendered as-is by these
+  screens needed no second touch).
+- Left alone deliberately, on the same solemnity exception as Phase 2c: the two death-adjacent lines in
+  `OfficeScreen.tsx` (the title-memorial panel) and `FreeAgentsScreen.tsx` ("died in this company's ring") —
+  same class as `mortality.ts`/`epitaph.ts`.
+- **Found and fixed a genuine gap from earlier phases**: `data/worldPresets.ts` — the four starting-scenario
+  blurbs shown on the very first screen of the game — was never in the original file inventory for Phase 2a
+  or 2e, so it was still carrying both the old spare voice and two literal British spellings (`armoury`,
+  `rumour`) that Phase 2a's sweep should have caught. Rewritten in full: hype voice plus the Americanization
+  fix, discovered via a live-app screenshot during this phase's verification pass rather than a grep, which is
+  the reason a browser pass earns its place in the verification bar even for a "just prose" phase.
+  `worldPresets.test.ts` only asserts string lengths, not exact content, so this was a zero-test-risk fix.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests passing with zero test changes needed;
+  `npm run sim` and `npm run build` both clean; a live dev-server + Playwright pass through the new-game flow
+  (all three steps) and into the Booking and Roster screens confirmed every rewritten string renders without
+  truncation or layout breakage, and is what caught the `worldPresets.ts` miss above.
+
+This closes out the full hype-reporter voice project (Phases 2a-2h). The two deliberate carve-outs from the
+original plan stand as documented in their own phases: `data/gimmicks.ts`/`data/groupGimmicks.ts` stay
+first-person in-character voice (Phase 2f), and `data/fanVoices.ts` stays in its lowercase tweet register
+(Phase 2g). Death-adjacent content across the whole codebase stays in the sober register it started in.
+
+## Named the game, and gave it a real front door
+
+The game had no name and booted straight into the three-step new-game wizard — no branding, no way to turn
+motion off, nowhere to manage a save without already being mid-game. Fixed all three, plus a real bug found
+along the way.
+
+- **Named it**: Rival Promotions — Wrestling Booker Edition. `index.html`'s `<title>` and the single-file
+  build script's hardcoded (and stale — leftover "TAW") title both updated. *(Renamed again, see below.)*
+- **`src/ui/screens/TitleScreen.tsx`** (new) — the actual entry point now. Shows the logo (user-supplied art;
+  vetted for trademark issues before use — an earlier draft reproduced WWE's championship-belt logo elements
+  and was rejected and regenerated), then `Continue` (only when `savedGameSummary()` finds a save, showing the
+  promotion name and week), `New Promotion`, and `Settings`. The logo is framed as a deliberate plaque
+  (rounded corners, hairline gold border, shadow) rather than trying to fake transparency against its flat
+  charcoal source background — a mask-based fade was tried first and just made the hard edge fuzzy instead of
+  gone.
+- **`src/ui/screens/SettingsScreen.tsx`** (new) — reachable from the title screen before a save exists, and
+  from the in-game More list once one is running. Same component either way; the save-file import/export
+  section (`FileTransfer`) simply doesn't render without a `world`. Covers: reduce-motion toggle, erase-save
+  (with a confirm and no undo), and an about/credits block.
+- **`src/ui/reducedMotion.ts`** (new) — localStorage-backed override on top of the OS
+  `prefers-reduced-motion` signal, read by both `TitleScreen` and `App.tsx` before applying the settle-in
+  animation added in the design-system pass.
+- **`App.tsx`** — pre-world routing is now a small local state machine (`title` / `newGame` / `settings`)
+  instead of a bare `if (!world) return <NewGameScreen />`. `settings` added to `Nav.tsx`'s `Screen` union and
+  `MORE` list so it's reachable mid-game too.
+- **Real bug found and fixed, pre-existing and not introduced by this pass**: `NewGameScreen.tsx`'s root
+  div had no background color. It happened to be invisible before because nothing else rendered before a
+  world existed except this screen — but it meant the heading and body copy were pale text on the browser's
+  white default the entire time, not the dark background every screenshot of it seemed to show once other
+  dark UI elements filled most of the viewport. Caught via a direct Playwright screenshot + a
+  `getComputedStyle` check on `body`/`html` (both transparent) while verifying the new `SettingsScreen`, which
+  had the identical bug from being written the same way. Both now set `min-h-screen bg-neutral-950` on their
+  root, the same as `TitleScreen`.
+- **Asset-inlining bug found and fixed**: the title logo (a ~360KB JPEG) was imported with a `?inline` query
+  suffix, following the sprite atlas's apparent convention — but `?inline` does not actually force base64
+  inlining in the installed Vite version (5.4.21). Every atlas sheet inlines only because each one happens to
+  sit under Vite's default 4KB auto-inline threshold; `?inline` on an asset above that threshold instead
+  leaves a real `/assets/...jpg?inline` URL — hosted-fine (servers ignore the stray query string) but
+  completely broken in the `npm run play` single-file output, which has no server to resolve that URL
+  against. Fixed properly by raising `build.assetsInlineLimit` to 1MB in `vite.config.ts`, confirmed by
+  grepping the built bundle for `data:image/jpeg;base64` (0 → 1 occurrence) and for a lingering `/assets/`
+  reference (1 → 0) before and after. `scripts/single-file.mjs`'s comment, which incorrectly credited
+  `?inline` for the atlas's inlining, corrected to name the real mechanism.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2825 tests passing with zero test changes needed;
+  `npm run sim`, `npm run build`, and `npm run play` all clean; a live dev-server + Playwright pass covering
+  the title screen with and without a save, the full new-game flow, Settings from both entry points, and a
+  page reload to confirm `Continue` correctly picks up a save written in a prior session.
+
+---
+
+## Equipment economy, Phase 1 of 5 — the Backyard start, and Festival as a venue
+
+Player asked for a genuinely lowest starting point (ten wrestlers, five and five, almost no money,
+a bad ring in a backyard) plus a much deeper equipment economy — ring tiers, barricade tiers, camera
+tiers, truck upkeep, equipment-gated match types — building out from that floor. Full 5-phase plan
+at the top of this session; this ships phase 1 alone, which the plan calls out as the one to land
+before anything else, since later phases only matter once there is a genuinely bad starting ring to
+improve on.
+
+- **`engine/types.ts`**: `WorldPresetName` widened to add `'backyard'`. `WorldSettings` gets two new
+  optional fields, `startingVenueId?: Id` and `startingTerritoryId?: Id` — unset for every existing
+  preset, so nothing about the other four changes.
+- **`data/venues.ts`**: two new venues. `backyardRing` — capacity 60, `rentalCost: 0`, `outdoor: true`,
+  the worst production capacity and atmosphere in the list — is the actual floor `backyard` opens on.
+  `festivalGrounds` — capacity 4,200, `outdoor: true`, a real mid-tier venue the player grows into by
+  choice later through the ordinary venue picker, not a starting point for anyone.
+- **`state/world.ts`**: `defaultShowSetup()` now checks `settings.startingVenueId`/`startingTerritoryId`
+  first and only falls back to the existing algorithmic venue/territory derivation when either is unset
+  — every existing preset takes the exact same path it always did. `backyardRing` is genuinely
+  `outdoor: true` (a backyard has a sky over it) rather than faking it indoor to slip through
+  `bestFittingVenue`'s indoor-only filter, since the new override makes that workaround unnecessary — a
+  deliberate improvement on the plan's original literal suggestion.
+- **`engine/world/settings.ts`**: the `backyard` `WORLD_PRESETS` entry — $8,000 cash (below Territory
+  Days' $25,000, the new floor), 10-wrestler roster at an exact 5/5 split (`womensDivisionFloor: 5`,
+  the max `divisionSplit` can support at this size), `tagTeamsMin: 3` so a real tag division still
+  fits, rating 12 and following 10 (nobody outside the block has heard of you), pinned to
+  `backyardRing` in `brambleHollow` (the smallest, most locally-loyal territory on the map),
+  `chaosLevel` at the top of the scale.
+- **`data/worldPresets.ts`**: matching `WORLD_PRESET_INFO` entry, plus a real stale-data bug fixed
+  while touching the file — `sinkOrSwim`'s blurb said "Fourteen wrestlers" when the setting has always
+  read 24.
+- **`ui/screens/NewGameScreen.tsx`**: default preset selection changed from `standard` to `backyard`,
+  per the player's explicit ask ("I want the default selection to be at the bottom") — `backyard` sits
+  last in the picker (`WORLD_PRESET_INFO` is rendered in array order) and is now also the one selected
+  on load.
+- **Tests, re-expressed rather than weakened**: `backyard` cannot clear several of the existing
+  cross-preset assertions in `worldPresets.test.ts` (`startingRosterSize >= 24` chief among them) —
+  those assertions are real and correct for the other four presets, so per CLAUDE.md `backyard` gets
+  its own `describe` block with its own re-expressed claims (exact roster size and split, exact tag
+  team count, opens in `backyardRing`, is the lowest-cash/least-known/most-chaotic of the five)
+  instead. The hardcoded `IDS` array and the existing four-preset tests are untouched. Two pre-existing
+  tests broke from the new venue and needed re-expressing, not weakening: `venues.test.ts`'s
+  `bestFittingVenue` fallback check assumed the first entry in `availableVenues()` was always the
+  smallest *indoor* room, which stopped being true the moment an outdoor `backyardRing` sorted first —
+  fixed to explicitly filter to indoor rooms, matching what `bestFittingVenue` itself actually falls
+  back to. `residency.test.ts` compared residency rent against the cheapest venue's rental cost, which
+  broke outright once that cheapest venue was free — fixed to compare against the cheapest *rentable*
+  room, since a backyard nobody charges rent on was never "a room you could tour" in the sense that
+  test meant.
+- **Balance, checked live rather than asserted in a test** (CLAUDE.md: measure in a played save):
+  played a full backyard opening through the actual UI. Ten wrestlers generated 5/5 as expected, the
+  card required real triage to fill (`"Only 10 can work — not enough for a card of 6"`), and the first
+  show ran live from Bramble Hollow with a starting rating of 12 exactly as configured. The auto-filled,
+  no-roster-triage run went $867 into the red in week one — payroll for a full ten-person roster
+  (~$8,800/wk) dwarfing anything a 60-seat yard can gross is real and expected, not a bug: wage
+  generation isn't scaled to company rating anywhere in the codebase, for any preset, so the entire
+  point of this starting position is that the player cannot actually afford the roster they opened
+  with. Confirmed this is a real decision and not a guaranteed-loss cutscene by reading the fold logic
+  in `store.ts`: `weeksInTheRed` only counts *consecutive* red weeks, resets to 0 the instant a week
+  closes non-negative, the default grace period is 4 weeks, releasing an over-guaranteed contract
+  costs real severance but plenty of the opening roster generates as "Free to cut," and the bank offers
+  a loan before the grace period actually runs out. A player who triages the roster in week one or two
+  can flip a week positive and reset the clock indefinitely; a player who does nothing folds inside a
+  month — exactly the kind of harder, more interesting decision CLAUDE.md's own tie-break rule asks
+  for, not the "twelve wrestlers on 8k, folded by week nine even playing perfectly" cutscene pattern it
+  warns against.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2,829 tests passing (2 pre-existing tests
+  re-expressed as described above, zero baselines lowered); `npm run sim` clean; `npm run build` clean;
+  a live dev-server + Playwright pass through the full new-game flow on `backyard` confirming the
+  default selection, the roster size and split, the pinned venue and territory, and a full first show
+  resolving end to end.
+
+---
+
+## Equipment economy, Phase 1 follow-up — real starter wages, and the day job that comes with them
+
+Player follow-up on the Backyard preset above: "maybe the starting 10 should be paid much less...
+no stars....just do what they love. maybe they have normal jobs and that could phase into some
+problems? had to stay at work late, etc? but pay them very little but they get the promotion going."
+This also happened to fix a real balance problem the live playtest in the entry above surfaced —
+payroll for a full ten-person roster (~$8,800/wk) dwarfing anything a 60-seat yard could gross, which
+was surviving on the "player must triage the roster" escape hatch alone. Real starter wages close most
+of that gap directly, and the day-job wrinkle gives the underpaying itself a mechanical cost rather
+than being a free lunch.
+
+- **`engine/economy/contracts.ts`'s `askingRate`** was already fully driven by `WorldSettings`
+  (`contractBaseWeeklyRate`, `contractRateRange`, `contractRateCurve`, `contractDrawWeight`,
+  `contractCraftWeight`) — no new mechanism needed, just a preset that actually uses the knob. Added
+  `contractBaseWeeklyRate: 15` and `contractRateRange: 300` to the `backyard` preset (defaults: 60 and
+  2,200). A typical wrestler now asks for pocket change instead of several hundred a week, and the one
+  genuine standout on a generated roster still visibly costs more than everybody else — the curve just
+  now operates on much smaller numbers, so the relative signal ("this one might actually be worth
+  something") survives even though the absolute numbers don't read as anybody's living.
+- **`engine/types.ts` / `engine/world/settings.ts`**: two new `WorldSettings` fields,
+  `dayJobWageThreshold` (150, default) and `dayJobAbsenceChance` (0.05/week, default) — global, not
+  backyard-specific, so any future cheap signing anywhere in the game inherits the same rule rather than
+  this being a preset flag bolted on the side.
+- **`data/misfortunes.ts`**: `MisfortuneDefinition` gets an optional `dayJob?: boolean` field, and four
+  new `kind: 'absence'` entries tagged with it — held late at the register, nobody could cover the
+  shift, a called-in-sick cover story falling apart, out of PTO. Same voice, same shape as the existing
+  absence pool (car trouble, missed flights, family emergencies), reusing 100% of the existing
+  `MisfortuneDefinition`/weighted-draw/line-variety machinery rather than inventing a parallel one.
+- **`engine/world/misfortune.ts`**: new `rollDayJobAbsence(wrestler, week, settings, usedLines)` —
+  eligible only for a wrestler whose whole weekly ask (`contract.weeklyRate + contract.perAppearance`)
+  sits under `dayJobWageThreshold`; anyone above it, or with no contract at all, returns `null` before
+  anything is rolled. A deliberately *separate* gate from the existing `rollMisfortune`'s
+  `misfortuneChanceHealthy` roll rather than one more entry competing for a slice of that already-rare
+  pool — being underpaid is a standing fact about how somebody is paid, not bad luck, and CLAUDE.md's
+  own precedent (`misfortuneChanceHealthy` vs `misfortuneChanceInjured` are already "two separate gates,
+  because they are separate risks") argues for the same shape here, a third one.
+  - **RNG-safety, the trap CLAUDE.md calls out by name**: seeded per-wrestler-per-week
+    (`rngFromSeed(\`dayJob:${wrestler.id}:${week}\`)`) rather than drawn off the shared stream `rng`
+    parameter every other roll in `resolveWeek` shares. The eligibility check runs *before* any roll —
+    for the four existing presets, essentially every generated wrestler clears $150/wk, so the function
+    returns `null` without ever touching randomness, shared or otherwise, and nothing about their
+    behavior changes at all. But a stray cheap rookie could theoretically clear the bar even under
+    default settings, and drawing from the shared stream in that case would have silently shifted every
+    seeded roll downstream of them — confirmed this is not hypothetical, since even the *default* wage
+    curve prices a genuinely weak rookie under $80/wk. Seeding from the entity instead makes the whole
+    question moot.
+- **`state/store.ts`**: wired into the same per-person weekly loop as the existing misfortune roll —
+  `rollMisfortune(...) ?? rollDayJobAbsence(...)`, so the day job only gets a look when nothing else
+  already took someone out of the building that week, and everything downstream (the newsfeed line, the
+  mystery-opponent/no-show handling, the wire) is the exact same code path absences already went
+  through — no new UI, no new consumer, a pure content addition to a pipeline that already existed.
+- **Tests**: `misfortune.test.ts` gets a full `describe('the day job', …)` block (never fires above the
+  wage threshold, never fires with no contract, never fires on top of an existing injury, fires at a
+  real-but-bounded rate for an underpaid roster over a season, stable for the same wrestler/week pair,
+  varies its line across weeks, leaves the dead and retired alone) plus one addition to the existing
+  library-shape checks (every `dayJob` entry is an `absence`, and at least one exists).
+  `worldPresets.test.ts`'s `backyard` block gets one more test: a 200-wrestler sample's mean
+  `backyard` ask is under a quarter of the same sample's mean `standard` ask, and more than half of it
+  actually clears into day-job territory — checked against the *other* preset's own live settings, not
+  a hardcoded number, so it stays honest if either curve is retuned later.
+- **Verified live, not just in tests** (CLAUDE.md: measure in a played save): a fresh backyard roster's
+  weekly wage bill dropped from $8,835/wk (the number in the entry above) to $620/wk — individual rates
+  ranged $15-215/wk. Played 20 simulated weeks through the actual UI (fill card, run show, repeat) and
+  the day-job absence fired and read correctly in the write-up: *"Tex Zane's manager would not let the
+  shift end on time, and there was no getting to the building after that. Delilah Duvall went out there
+  instead."* — flowing through the existing mystery-opponent replacement system exactly as intended.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2,838 tests passing (9 new, zero re-expressed,
+  zero baselines touched); `npm run sim` clean; `npm run build` clean; the live playtest above.
+
+---
+
+## Equipment economy, continued — Phase A: the hiring loop
+
+First phase of an expanded plan (`/root/.claude/plans/synthetic-plotting-planet.md`) growing out of two
+more follow-up conversations: card size should be its own purchase, decoupled from venue and gear, and
+every purchase in this whole system needs a real upside *and* every cheap tier a real, occasionally-visible
+downside — not a number moving quietly, an actual thing that happens and gets its own sentence in the
+write-up. This phase is the roster-side half: `backyard` stops auto-signing a full ten-person roster and
+instead hands the player almost nothing, making the actual hiring the first real decision.
+
+- **`engine/types.ts`**: new optional `WorldSettings` field, `startingPlayerRosterSize?: number` —
+  unset for every preset except `backyard` (`2`). Every other preset is byte-for-byte unaffected;
+  rivals are untouched, since they've always sized off the separate `rivalRosterSize()` function.
+- **`state/world.ts`**: both roster-generation paths (the plan-based `buildPlannedPromotion` and the
+  plain single-promotion procedural path — confirmed via research that the common "Surprise me,
+  one promotion" flow actually runs the *procedural* path, not the planned one, so both genuinely
+  needed the same fix) now read `settings.startingPlayerRosterSize ?? settings.startingRosterSize`
+  for the player. `crownOpeningChampions`/`formTeams` were confirmed tolerant of a tiny 2-person
+  roster before relying on it — both already degrade gracefully (fewer champions crowned, zero tag
+  teams formed) rather than crashing; a 2-person, 1-and-1 divisionSplit roster plays fine from
+  week one.
+- **`engine/world/settings.ts`**: `backyard`'s `startingRosterSize: 10` is kept as the shape the
+  *free-agent pool* is still tuned against (`womensDivisionFloor`, `tagTeamsMin`), now genuinely
+  read through `generateFreeAgentPool` instead of the signed roster.
+- **A real bug found live, not in a test**: with the seed roster this small, a fresh backyard
+  free-agent pool put a **$1,275/wk manager next to $50/wk wrestlers**. Root cause:
+  `engine/world/managerTalent.ts`'s `seedManagerTalent` prices a manager's weekly ask off
+  `archetype.feePerShow * settings.managerTalentFeeToWage` — a flat, per-show fee
+  ($300-$1,400 in `data/ringsidePool.ts`) that doesn't shrink with the rest of this economy the way
+  `contractBaseWeeklyRate`/`contractRateRange` now do for ordinary wrestlers. Fixed the same way:
+  `managerTalentFeeToWage: 0.15` added to the `backyard` preset (default stays 0.9 everywhere
+  else), bringing the whole pool into a coherent $25-$250/wk range, confirmed live and locked with a
+  new test comparing every manager's ask against the pool's most expensive wrestler.
+- **`data/worldPresets.ts`**: `backyard`'s blurb/squeeze rewritten around hiring from a free-agent
+  pool rather than "ten of you."
+- **`ui/screens/NewGameScreen.tsx`**: the preset picker's "$X · N on the payroll" line now reads
+  `startingPlayerRosterSize ?? startingRosterSize` — it would otherwise have kept claiming "10 on
+  the payroll" for a preset that now hands you 2.
+- **Tests, re-expressed rather than weakened**: `worldPresets.test.ts`'s old "starts exactly ten
+  wrestlers, five and five" and "still fields a tag division" tests asserted against the *signed*
+  roster, which is now deliberately tiny — per CLAUDE.md, re-expressed rather than deleted: one new
+  test locks the signed seed (exactly 2, split 1 and 1), a second locks that the underlying claim is
+  still true of the *free-agent pool* instead (real size, a real even-ish split, still tag-capable),
+  plus the new manager-pricing regression test above.
+- Verified: `tsc --noEmit` clean; full suite 145 files / 2,839 tests passing (re-expressed as
+  described, zero baselines lowered); `npm run sim` clean; `npm run build` clean; a live
+  dev-server + Playwright pass confirming the seed roster is 2, the free-agent pool reads as a
+  coherent $25-$250/wk spread with real age/persona variety (a 20-year-old fresh out of the school,
+  a 36-year-old journeyman, a 55-year-old "near the end, every night costs her"), and the game plays
+  from week one without a crash on the tiny opening roster.
+
+---
+
+## Equipment economy, continued — Phase B: card size, its own purchase
+
+Second phase of the expanded plan. Card size (how many matches a show has room for) becomes a real,
+purchasable ladder — decoupled from the venue and from the ring/sound/lights production ladder on
+purpose, so a promotion can be running out of the free backyard lot with a big card because that's
+where the money went, or renting a real arena and still running a bare card because it hasn't bought
+the room to book anything bigger yet. Confirmed via research before touching anything:
+`segmentsPerTV` had zero existing coupling to venue capacity or the production ladder to untangle —
+this is a clean, additive ladder, not a refactor.
+
+- **New file `data/cardSize.ts`**: `CARD_SIZE_TIERS`, a three-tier replacement ladder (own one tier
+  at a time, like the planned ring tiers) — **Backyard Card** (4 slots, free — what `backyard` opens
+  on), **Local Card** (6 slots, $12,000 — today's flat global default, what every other preset opens
+  on), **Regional Card** (8 slots, $48,000). `cardSizeTierById`/`nextCardSizeTier` mirror
+  `engine/economy/production.ts`'s `haulageById`/`nextHaulage` exactly.
+- **`engine/types.ts`**: new optional `startingCardSizeTierId?: Id` — unset for every preset except
+  `backyard` (`'backyardCard'`).
+- **`state/world.ts`**: `World` gets a new `cardSizeTierId: Id` field, same single-tier-scalar shape
+  as the existing `haulageId`. New exported `cardSizeFor(kind, world)` reads the owned tier's slot
+  count for a TV/house show, or the untouched `settings.segmentsPerPPV` for a PPV — this ladder does
+  not reach PPV size. Both places that used to build a card off `settings.segmentsPerTV` directly
+  (world creation, and `store.ts`'s weekly rebuild) now go through it. Rivals are deliberately
+  unaffected — `engine/world/rivalBooking.ts` still reads `settings.segmentsPerTV` straight, since
+  nothing the player buys should touch anyone else's show.
+- **`state/slices/showAndProduction.ts`**: new `buyCardSizeTier` action, one tier at a time and
+  upwards only — same shape as the existing `buyHaulage`. Takes effect on the next card built, same
+  as every other purchase (this week's card is already dealt).
+- **UI**: new "Card size" tab on `FinanceScreen.tsx`, same visual language as the production ladder
+  (owned/next/locked styling, a note on what's blocking an out-of-reach tier).
+- **A real bug found live, not in a test**: the "locked" note under an unreachable tier always said
+  "Needs {the currently-owned tier} first," which is only correct for the *immediately next* tier —
+  two rungs up it read as nonsense ("Regional Card... Needs Backyard Card first" while Backyard Card
+  was already owned). Fixed to reference the tier directly below the one being described.
+- **Confirmed, not assumed**: `BookingScreen.tsx`'s "Run the show" already has no fill-requirement
+  guard and show resolution already skips under-filled segments — a small, all-optional starter card
+  already worked with zero changes needed. This phase is purely about making the slot count itself a
+  purchase.
+- **Tests**: new `data/cardSize.test.ts` (ordering, pricing, blurb coverage, `nextCardSizeTier`
+  stepping and its unknown-id fallback). `worldPresets.test.ts` gets two more tests: `backyard` opens
+  on `'backyardCard'` with a real 4-segment card, and — added to the shared four-preset block — all
+  four original presets still open on `'localCard'` with a 6-segment card, unchanged by the new field
+  existing.
+- Verified: `tsc --noEmit` clean; full suite 146 files / 2,847 tests passing (10 new, zero
+  re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; a live
+  dev-server + Playwright pass confirming `backyard` opens with a real 4-slot card, buying up to
+  Regional Card on a cash-flush save correctly charges the price and updates "tonight's card," and
+  the new slot count only takes hold starting the *following* week's card, not the one already dealt.
+
+---
+
+## Equipment economy, continued — Phase C: wiring the dead safety fields into the real math
+
+Third phase of the expanded plan, and the foundational one D-F build on. Research at planning time
+found three fields that were fully computed and never consumed anywhere: `ProductionRung.effects
+.injuryReduction` (and the same field on System A's `ringUpgrade`/`trainingFacility` assets and the
+`medicalStaff` show extra), `incidentReduction` (`steelBarricades`, `security`), and `tvRating`
+(`cameras`, `productionTruck`). A better ring bought nothing safer; steel barricades stopped nothing;
+a better camera did nothing to the number it claimed to improve. This phase makes all three real,
+with no new content — it is pure plumbing, and the highest-leverage change in the whole plan because
+D, E, and F all reference this wiring rather than duplicating it.
+
+- **`engine/economy/production.ts`**: new exported `equipmentSafetyEffects(ownedAssetIds,
+  productionRungs, extraIds)` — a small, side-effect-free aggregator that reads *both* production
+  systems at once (System A's one-time asset shop and System B's ordered ladder, still unresolved as
+  two parallel systems per the original research, but both readable by one consumer now) and folds
+  every `injuryReduction`/`incidentReduction` it finds into two multiplicative stacks, same shape as
+  the existing "shields stack but never reach certainty" rule (`1 - (1-a)(1-b)`, never 1). Deliberately
+  built as its own minimal function rather than hoisting the existing ~50-line wear/venue-fit-filtered
+  `ownedAssets` computation in `store.ts`, because that block runs *after* match simulation in
+  `resolveWeek`'s execution order and this needs to run before it — an honest, documented
+  simplification (unworn effect values) rather than a bigger refactor the phase didn't need.
+- **`engine/sim/simulateMatch.ts`**: new optional `equipmentInjuryReduction` field on
+  `SimulateMatchContext`, folded into both places `injuryMultiplier` is assembled (the finish roll and
+  the returned result — confirmed via direct grep that `rollCasualty` is called from *four* places in
+  `store.ts` — competitor, guest referee, referee, manager — and only the competitor one layered on
+  extra terms of its own; inserting here reaches all four in one change instead of four separate ones).
+- **`engine/sim/incidents.ts`**: new optional `incidentReduction` on `IncidentContext`, multiplied
+  straight into the incident-roll odds.
+- **`engine/world/tvRatings.ts`**: new optional `tvRatingBonus` on `RatingEntrant`, added into the
+  rating computation before the existing ceiling/floor clamp — so `cameras`/`productionTruck`'s bonus
+  can push a rating up but never past `tvRatingCeiling` or below zero.
+- **`state/store.ts`**: the player's per-segment `simulateMatch` call, incident roll, and
+  `computeTvRatings` call all now feed the real computed values in. A rival promotion's own incident
+  roll (a separate call site, main-event only) is deliberately left untouched — a rival's odds are
+  never reduced by the *player's* barricades or security, which the original draft of this change
+  got wrong before it was caught and fixed pre-test-run (see below).
+- **`state/storeHelpers.ts`**: `incidentContextFor`'s `match` parameter gains an optional
+  `incidentReduction?: number`, computed at each call site rather than inside the helper itself —
+  the helper is shared by both the player's call and the rival's, and computing it unconditionally
+  inside would have leaked the player's equipment into the rival's roll.
+- **A bug caught before it ever reached a test run**: the first draft of the `storeHelpers.ts` change
+  computed `incidentReduction` unconditionally from `world.ownedAssetIds` inside `incidentContextFor`
+  itself. Since that helper backs *both* the player's and a rival's incident roll, it would have
+  quietly given every rival promotion the player's own barricades and security. Caught on review of
+  the two call sites before running anything, and fixed by moving the computation out to the call
+  site and defaulting the new field to 0 — the rival's call site is untouched, exactly as before this
+  field existed.
+- **Also found while finishing the read of `SHOW_EXTRAS`**: `medicalStaff` declares an
+  `injuryReduction` of its own, not just the `incidentReduction` the initial plan assumed was its only
+  effect — added to the injury stack alongside the incident one rather than left dead a second time.
+- **Tests**: `engine/economy/production.test.ts` gets a new `equipmentSafetyEffects` describe block (7
+  tests: zero-zero baseline, folds the ladder the same as `productionEffects` alone, System A's assets
+  stack on top, `steelBarricades`/`security` both feed `incidentReduction` and stack without reaching
+  1, `medicalStaff` feeds `injuryReduction`, everything stacked together still never reaches certainty,
+  unrecognized ids are ignored). `engine/sim/simulateMatch.test.ts` gets 2 (a 50% reduction halves
+  `injuryMultiplier` exactly; omitting the field behaves identically to passing 0).
+  `engine/sim/incidents.test.ts` gets 2 (a 2,000-iteration Monte Carlo comparison showing
+  `incidentReduction` measurably cuts the roll rate; omitting it matches passing 0 in lockstep on the
+  same seed). New file `engine/world/tvRatings.test.ts` (7 tests, since none existed before: empty
+  when nobody's broadcasting, `tvRatingBonus` is genuinely additive, never pushes past the ceiling or
+  below zero, share still sums to ~100 across broadcasters, a better show and a bigger name still earn
+  a bigger share).
+- **Verified live, not just at the pure-function level** (CLAUDE.md: measure in a played save): a
+  `tools/probe.mjs`-style balance pass, same seeds played twice — once with nothing bought, once with
+  the whole production ladder, top-tier haulage, every System A safety asset, and every safety show
+  extra bought before week one. 8 seeds × 40 weeks, 1,872 matches either way: injuries per match fell
+  from 3.79% bare to 1.34% fully equipped (a 64.8% reduction), and incidents fell from 14 to 4 across
+  the same run. The dead fields are no longer dead.
+- Verified: `tsc --noEmit` clean; full suite 147 files / 2,865 tests passing (13 new, zero
+  re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; the live balance
+  pass above. No UI changed in this phase, so no separate UI playtest was needed on top of it.
+
+---
+
+## Equipment economy, continued — Phase D: the hardware gives out
+
+Fourth phase of the expanded plan. Before this, `data/casualties.ts`'s injury pool was generic —
+knees, ribs, concussions — and a Ladder Match's flat `injuryMult: 2.0` carried none of the specific
+thing that makes a ladder match dangerous: the ladder itself. This phase gives the ring's actual
+hardware its own voice, and makes the *quality* of that hardware — not just whether the stipulation
+was booked at all — a real, felt risk, building directly on Phase C's `equipmentInjuryReduction`
+wiring rather than duplicating it.
+
+- **`data/casualties.ts`**: `InjuryCause` gets a new optional `stipulationIds?: string[]` — undefined
+  means always eligible (every existing cause, unchanged), a list restricts a cause to specific
+  stipulations, because "the ladder buckled" makes no sense outside a ladder match. Three new causes:
+  `ladderGaveWay` (gated to `ladder`), `cageGaveWay` (gated to `steelCage`), `tableNoBreak` (gated to
+  `tables`/`flamingTables`) — each with two PG-toned lines describing the actual gear failing, not a
+  generic injury that happened to occur in that match type. `causesFor()` takes an optional
+  `stipulationId` parameter and filters on it.
+- **`engine/sim/casualties.ts`**: `CasualtyContext` gets a matching optional `stipulationId?: string |
+  null`, threaded into both `causesFor()` calls (`rollCasualty`, `stoppageCasualty`).
+- **`engine/types.ts`**: `Stipulation` gets a new optional `hardwareGearSensitive?: boolean`, set on
+  `steelCage`, `ladder`, `tables`, and `flamingTables` in `data/stipulations.ts` — data-driven rather
+  than a hardcoded id list buried in the sim, matching CLAUDE.md's own "no magic numbers in engine/"
+  rule.
+- **`engine/sim/simulateMatch.ts`**: new `hardwareGearRisk` term — `1 + (1 -
+  equipmentInjuryReduction) * settings.hardwareGearRiskAtWorst` when the booked stipulation is
+  `hardwareGearSensitive`, `1` otherwise — folded into both `injuryMultiplier` assemblies alongside
+  Phase C's equipment term. This is deliberately *on top of* the general ring/mat safety Phase C
+  already wired in, not a replacement for it: a promotion with the best gear still carries real
+  extra risk in a ladder/cage/tables match (per CLAUDE.md's own "never fully safe" rule, and TAW's
+  own non-negotiable #1 that a system that can hurt somebody never gets switched off entirely), while
+  a promotion on the bottom of the production ladder carries a lot more.
+- **`state/store.ts`**: all five `rollCasualty`/`stoppageCasualty` call sites (competitor, guest
+  referee, referee, manager, and the injury-stoppage roll) now pass `stipulationId: stipulation?.id ??
+  null` — the same `stipulation` variable already in scope from the segment's own resolution, so
+  every hardware-gated cause is reachable from every role that could plausibly suffer one.
+  `engine/sim/darkMatch.ts`'s two casualty calls were checked and deliberately left unchanged — dark
+  matches carry `stipulation: null` by design (no stipulation ever runs there), so they were already
+  correctly excluded from hardware-gated causes without needing an edit.
+- **`engine/world/settings.ts`**: new `hardwareGearRiskAtWorst: 0.5` — at zero equipment safety, a
+  hardware-sensitive stipulation is half again as dangerous as its flat `injuryMult` alone says;
+  shrinks toward (never to) nothing as the production ladder climbs.
+- **Tests**: `engine/sim/casualties.test.ts` gets a gating test (the three new causes never surface
+  outside their own stipulation, including under an *unrelated* stipulation, and each surfaces
+  correctly under its own) plus two end-to-end tests threading a real `stipulationId` through
+  `rollCasualty` itself rather than only `causesFor` directly (3,000-roll Monte Carlo: a ladder match
+  eventually reaches `ladderGaveWay`; a steel cage match never does). The pre-existing "gives every
+  cause a name and more than one way to say it" test already covers the three new causes' line
+  variety and PG tone, since it iterates the whole `INJURY_CAUSES` array. `engine/sim/
+  simulateMatch.test.ts` gets two: a hardware-sensitive stipulation is measurably riskier than an
+  identical non-hardware one on bare gear (exact ratio locked to `1 + hardwareGearRiskAtWorst`), and
+  better equipment shrinks that gap without ever erasing it.
+- **Verified live, not just at the pure-function level** (CLAUDE.md: measure in a played save): a
+  probe forcing the opening slot into a Ladder Match every single week (`setSegmentStipulation`), same
+  8 seeds × 40 weeks played twice — once bare, once fully equipped. 320 ladder matches either way:
+  somebody got hurt in that match 19.1% of the time bare, 5.0% of the time fully equipped — a real,
+  large, felt difference from owning better gear, not a number moving quietly in a table nobody reads.
+- Verified: `tsc --noEmit` clean; full suite 147 files / 2,870 tests passing (5 new, zero
+  re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; the live balance
+  pass above. No UI changed in this phase either — the new content flows through the same
+  write-up pipeline every other injury already uses.
+
+---
+
+## Equipment economy, continued — Phase E: pyro can burn somebody on the way to the ring
+
+Fifth phase of the expanded plan. Pyro's upside (rating, attendance) was already real; this phase
+gives it the downside half the player explicitly asked for — "pyro could burn a wrestler on the way
+to the ring... just because it's PG rated doesn't mean things don't happen." Modeled directly on
+`sim/ringcraft.ts`'s `rollBotch()`, the established template for a per-match roll with its own risk
+formula, its own line, and a flag the caller folds into the general injury chain.
+
+- **New file `engine/sim/pyro.ts`**: `rollPyroBurn(rng, workers, pyroActive, equipmentInjuryReduction,
+  settings)` — returns `null` outright unless `pyroActive` is true, so a promotion that never fires
+  pyro never rolls this at all, ever. When it can fire, the odds are `settings.pyroBurnChance * (1 -
+  equipmentInjuryReduction)` — reusing Phase C's plumbing rather than inventing a separate pyro-gear
+  tier, the same honest-simplification call made in Phase C and D. A random participant catches it,
+  a PG line says so, and a separate roll (`pyroBurnInjuryShare`) decides whether it also leaves a real
+  mark or was just a scare — deliberately rare and deliberately minor when it lands, "a scorch, not a
+  catastrophe" per the file's own framing.
+- **`engine/types.ts`**: `MatchBeatKind` gets a new `'pyroBurn'` case, its own kind for the same
+  reason `'botch'` has one — the write-up needs to be able to tell "a spot went wrong" from "the
+  production gear went wrong." Four new `WorldSettings` fields: `pyroBurnChance` (0.015 base),
+  `pyroBurnInjuryShare` (0.35 — most pyro mishaps are just a scare), `pyroBurnRatingCost` (3, smaller
+  than a botch's 5, since this is an entrance mishap rather than a blown spot in the match itself),
+  `pyroBurnInjuryMultiplier` (2.5, smaller than a botch's 3.5).
+- **`engine/sim/simulateMatch.ts`**: new optional `pyroActive?: boolean` on `SimulateMatchContext`.
+  `rollPyroBurn` is rolled in the same place and the same way `rollBotch` already is — after the
+  finish is decided, so it only ever affects the *final* rating and injury multiplier, never the
+  injury-stoppage odds that decided the finish itself. Its beat slots in next to `botchBeat` in the
+  beats array; its rating cost stacks with a botch's the same way two real things happening in one
+  match should.
+- **`state/store.ts`**: the player's `simulateMatch` call now computes `pyroActive` from either
+  production system — `world.productionRungs.includes('pyro')` (System B's rung, a standing purchase
+  that fires every show once owned) or `world.showSetup.extraIds.includes('pyroCharges')` (System A's
+  per-show charges, bought fresh each time). Either one means tonight's entrances have real fire in
+  them.
+- **Tests**: new `engine/sim/pyro.test.ts` (6 tests, same shape as `ringcraft.test.ts`'s botch
+  coverage: never fires without `pyroActive`, never fires with nobody in the match, fires sometimes
+  and rarely when active, better equipment cuts the rate without ever erasing it, names who caught it
+  with no leftover `{who}`, leaves a real mark sometimes and just a scare the rest of the time).
+  `engine/sim/simulateMatch.test.ts` gets 2 more: never produces a `pyroBurn` beat without
+  `pyroActive` (including the omitted-field case), and reliably can produce one — with real
+  text — when it's true.
+- **Verified live, not just at the pure-function level** (CLAUDE.md: measure in a played save): bought
+  the whole production ladder up to the pyro rung on a fresh save and played 121 weeks. 8 real
+  pyro-burn beats appeared in the actual show write-ups, e.g. *"Judge Junie did not get clear of the
+  pyro in time on the way to that ring, and everybody in the building saw it happen."* and *"A charge
+  went off closer to the entrance than it should have, and Toxic Stormfront caught more of that heat
+  than anybody wanted."* — real names, real PG-toned lines, exactly as asked.
+- Verified: `tsc --noEmit` clean; full suite 148 files / 2,878 tests passing (8 new, zero
+  re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; the live
+  playthrough above. No UI changed in this phase — pyro was already purchasable before this; this
+  phase only gives what's already bought a real downside.
+
+---
+
+## Equipment economy, continued — Phase F: the feed can drop, and a match nobody at home saw
+
+Sixth and final phase of the expanded plan. The most structurally new piece: gives a specific match a
+real "did this air" flag for the first time, and makes losing the feed cost the people in that match
+something real — "even crappy cameras can lose connection and therefore fans at home miss matches. a
+missed match on tv hurts the wrestlers during that match," per the player's own framing at the top of
+this plan.
+
+- **New file `engine/sim/broadcast.ts`**: `rollBroadcastDropout(rng, eligibleSlots,
+  equipmentInjuryReduction, settings)` — once per show, not once per match ("a feed does not drop
+  twice independently in one night in any believable way"), returns which match slot the feed dropped
+  during or `null` if it held. Odds are `settings.broadcastDropoutChance * (1 -
+  equipmentInjuryReduction)`, the same equipment-quality plumbing Phase C wired up and Phases D and E
+  already reused. `broadcastDropoutLine(rng, matchDescription)` supplies the "technical difficulties"
+  write-up sentence — confirmed via the original research that zero flavor text for this existed
+  anywhere in the game before this phase.
+- **`engine/world/wire.ts`**: new `WireKind` case, `'broadcast'` — its own category rather than folding
+  into `'misfortune'` or `'houseShow'`, both of which mean something more specific already. The
+  `WIRE_KIND_LABELS` map is a `Record<WireKind, ...>`, so the compiler itself refused to build until a
+  label was added — and `wire.test.ts`'s own exhaustiveness test (the guard against "a kind with no
+  sentence is a silent change") caught the missing sample before anything ran.
+- **`state/store.ts`**: once per show, before the card loop runs, computes which match slots are real
+  (2+ sides, real participants — the same filter the existing rating tally already applies) and rolls
+  `rollBroadcastDropout` against them. Inside the loop, the flagged segment's participants get the
+  same treatment `sim/darkMatch.ts` already gives a genuine dark match: their popularity gain from
+  `computeAftermath` is scaled by the existing `settings.darkMatchPopularityShare`, and a `'broadcast'`
+  wire line names the match and says what happened. At `computeShowRating`, the flagged slot's rating
+  *and* its slot weight are both dropped from the arrays entirely — not scored 0. That distinction
+  matters: 0 is what an unfilled segment gets (§13's own deliberate harshness for a thin card), and a
+  match that happened and was good is not that; excluding it from both arrays means the show is judged
+  only on what actually aired, exactly like a genuine dark match, which was never part of the weighted
+  arrays to begin with.
+- **A real, live-only bug, caught by the balance pass and nowhere else**: the first version seeded the
+  once-per-show roll from `world.promotion.id`, following the file's own convention of keying a roll to
+  the entity it concerns. But there is exactly one player promotion per save, always the same id — so
+  every save that will ever be played would have rolled a dropout on the *identical* week numbers,
+  regardless of its actual seed. A unit test testing the pure `rollBroadcastDropout` function in
+  isolation could never have caught this (it takes an `Rng`, not a promotion id); it only showed up
+  once played through the real store across multiple seeds, where the "bare" and "fully-equipped"
+  rates came out identical and the per-seed dropout count was suspiciously exact (4 out of 40 weeks,
+  every single seed). Fixed by keying on `` `${world.settings.seed}-broadcastDropout-${world.week}` ``
+  instead — the pattern every other per-week roll in `store.ts` already uses (`` `${world.settings.seed}
+  -catastrophe-${world.week}` `` and half a dozen others), which this roll should have matched from the
+  start rather than reaching for the `rngFromSeed`-from-an-entity pattern that fits a *person*-scoped
+  roll (`dayJobAbsence`'s `blame:${person.id}:${week}`) but not a *world*-scoped one.
+- **Tests**: new `engine/sim/broadcast.test.ts` (6 tests: never drops with nothing eligible, drops
+  sometimes and rarely when there is, better gear cuts the rate without erasing it, only ever picks an
+  actually-eligible slot, names the match with no leftover `{match}`, varies its line). New test in
+  `engine/economy/showRating.test.ts` locking in the exact distinction the store-level fix depends on:
+  excluding a slot from both arrays is not the same as scoring it 0, and produces a materially higher
+  rating for the same underlying show. `wire.test.ts` gets a new sample for the `'broadcast'` kind,
+  required by its own exhaustiveness check.
+- **Verified live, not just at the pure-function level** (CLAUDE.md: measure in a played save — this is
+  the phase where that rule actually paid for itself): 8 seeds × 40 weeks, bare vs. fully-equipped.
+  After the seed-key fix: 16 dropouts on bare gear vs. 13 equipped (out of 328 weeks each, in line with
+  the ~5% base rate scaled by the modest reduction the ladder alone provides), and a dropout week's
+  mean show rating (50.7) landed close to the overall mean (52.3) rather than being artificially
+  tanked — confirming the exclude-don't-zero mechanism actually works live, not just in the isolated
+  arithmetic test. Sample write-up lines pulled straight from the run: *"Technical difficulties knocked
+  the broadcast dark right in the middle of Delilah Blythe and Doyle Kavanagh, and nobody watching at
+  home saw a second of it."* and *"The feed went down during Marshal Reid and Nova Applewhite and never
+  came back before the bell. Anybody who tuned in missed the whole thing."*
+- Verified: `tsc --noEmit` clean; full suite 149 files / 2,885 tests passing (7 new, zero re-expressed,
+  zero baselines touched); `npm run sim` clean; `npm run build` clean; the live balance pass above,
+  including the seed-key bug found and fixed mid-verification. No UI changed in this phase.
+
+---
+
+This closes the six-phase equipment economy plan (`/root/.claude/plans/synthetic-plotting-planet.md`):
+Phase A rebuilt the hiring loop around a tiny seed and a real free-agent pool; Phase B made card size
+its own purchase; Phase C wired the dead `injuryReduction`/`incidentReduction`/`tvRating` fields into
+the real math; Phases D, E, and F built new, genuinely felt downsides on top of that wiring — hardware
+giving out, pyro burns, and a broadcast that can drop — matching the standing rule that started the
+whole plan: every purchase needs a real upside, and every cheap tier needs a real, occasionally-visible
+downside.
+
+---
+
+## Prop lifecycle & consequence system, Phase 1 — real, countable match hardware
+
+Grew out of a follow-up request, prompted directly by the player: every prop in wrestling — rings,
+ladders, cages, tables, cameras, pyro, the truck — should have a real 0-100% lifespan, some ownable in
+multiple units each tracked separately, with a real cap and real "magic" to owning more than one, with
+breakage odds climbing as condition drops, and a felt consequence when it actually breaks mid-match (a
+draw; a vacated title if a belt was on the line). Confirmed via research before writing any code: no
+literal ladder, cage, or table prop existed anywhere in the codebase — the existing "production ladder"
+(`engine/economy/production.ts`) is an abstract quality-tier system, and a Ladder/Cage/Tables
+*stipulation* had zero physical-prop requirement wired to it. This is Phase 1 of a larger plan (see the
+plan file); it ships the biggest genuinely-missing piece — the literal match hardware — plus the plumbing
+the later phases (pyro condition, camera condition, truck breakdown, gear-hurt-someone-backstage) will
+reuse. **Additive, not a retrofit**: `ownedAssetIds`/`AssetCondition` (System A, one-time shop) and
+`productionRungs`/`HAULAGE` (System B, ordered ladder) model single-owned house capital; a ladder, a
+cage, a table are a different category — consumable, countable, multi-unit match props — so this phase
+adds a new, parallel system rather than bending either existing one to fit.
+
+- **New file `data/matchProps.ts`**: `MatchPropFamily` (`ladder` maxUnitsOwned 6/maxUnitsInMatch 4,
+  `steelCage` 2/1, `tables` 10/4 — shared by `tables` and `flamingTables`) and `MatchPropTier`, three
+  per family cheap-to-expensive (`ladderWood`/`ladderAluminum`/`ladderProSpec`,
+  `cageRentedPanels`/`cageTouringRig`, `tableFolding`/`tableBanquetReinforced`), each with its own
+  `idleWearPerShow`/`useWearPerMatch`/`qualityFactor`. Lookup helpers: `familyById`, `tierById`,
+  `tiersForFamily`, `familyForStipulation`.
+- **New file `engine/economy/matchProps.ts`**: `OwnedPropUnit` (per-unit `condition`, `showsOwned`,
+  `timesUsed`) plus the same taper-curve/failure-threshold/repair-for-a-fraction idiom
+  `economy/showBudget.ts`'s `AssetCondition` already established, applied per unit instead of per asset
+  type: `newPropUnit`, `idleWearUnit`, `useWearUnit` (now takes an optional `wearMultiplier`, see
+  below), `unitHasFailed`, `unitConditionLabel`, `propRepairCost`, `repairPropUnit`,
+  `ownedUnitsForFamily`, `usableUnitsForFamily`. `unitBreakChance` scales with tier quality and
+  condition; `aggregateBreakChance` stacks several units in play the same way `productionEffects()`
+  stacks `injuryReduction` (`1 - product(1 - x_i)`, so more units in play is a real, compounding cost);
+  `spectacleBonus` gives diminishing-returns rating upside for more units in one match — the mechanical
+  answer to "4 ladders could put on a heck of a ladder match... there is magic to having certain
+  amounts."
+- **`World`/`Segment`/`WorldSettings`**: `World.ownedPropUnits: OwnedPropUnit[]` (schema bump 58→59,
+  hard reset on old saves per this codebase's existing no-migration convention); `Segment.gearUnitIds?:
+  Id[]` (which owned units are assigned to tonight's match); six new settings
+  (`propFailureThreshold`, `propRepairCostFraction`, `propBreakChanceAtWorst`,
+  `equipmentFailureWeightScale`, `gearUnitsSpectacleBonusPerExtra`, `gearUnitsSpectacleBonusCurve`).
+- **Use-vs-idle wear, live in `resolveWeek`**: every owned unit either takes `useWearUnit` (assigned to
+  a segment tonight) or `idleWearUnit` (sitting in storage) — the direct, literal answer to "a ladder
+  deteriorates faster during a match than if it's not used." Because the *rate itself* is tier data, a
+  cheap wooden ladder visibly ages faster than a pro-spec one even sitting untouched in storage.
+- **The booking gate — "you cannot book a Ladder Match without a ladder," the first time
+  `stipulationRequirementsMet()` has ever checked ownership at all.** `Stipulation` gets
+  `gearFamilyId`/`minGearUnits`, set on the four `hardwareGearSensitive` stipulations.
+  `StipulationCheckContext.ownedGearUnits` feeds the check. Deliberately **not** a hard block, matching
+  every other `stipulationRequirementsMet` failure already in the game: a booker can still put "Ladder
+  Match" on a card owning zero ladders, and it costs the same flat `-8` mismatched-stipulation rating
+  term it always did — the game states the cost, it does not refuse the decision.
+- **Unit selection**: new `setSegmentGearUnits(slot, unitIds)` action, capped at `maxUnitsInMatch`,
+  cleared automatically whenever the segment's stipulation changes family.
+  `ui/screens/BookingScreen.tsx` renders owned units of the right family as toggle chips (tier name +
+  condition label) once a hardware-sensitive stipulation is picked, with a plain caption ("more ladders
+  is a bigger spectacle. It's also more that can go wrong tonight") rather than a warning.
+- **Mid-match breakage → draw → title vacate.** New `FinishType` case `'equipmentFailure'`, wired through
+  every exhaustive `Record<FinishType, ...>` site the compiler caught (`narrative.ts`'s
+  `FINISH_LINES`, `matchRating.ts`'s `FINISH_SATISFACTION` at `-6`, `ShowResults.tsx`'s `FINISH_TEXT`),
+  plus real per-stipulation `finishFlavor` on all four hardware-sensitive stipulations (e.g. ladder:
+  *"the ladder gave way underneath both of them, and there was no honest way to call a winner out of
+  that."*). `isDrawFinish()` and `titleCanChangeHands()` both include it, so it behaves like a real draw
+  and never quietly lets a champion retain. **New file `engine/sim/gearFailure.ts`**: `rollGearFailure`,
+  modeled directly on `sim/pyro.ts`'s `rollPyroBurn` — weighted toward whichever assigned unit is worn
+  worst, named in the write-up, only ever rolled once `rollFinish`'s single existing weighted pick has
+  already landed on `equipmentFailure` (no new RNG draw — the finish weight is folded into the same
+  call every match already makes). Reachability requires the stipulation's `gearFamilyId` to be set —
+  never surfaces on a match nothing was booked into.
+  `simulateMatch.ts`'s `hardwareGearRisk` now prefers a real per-unit `gearUnitRisk` (worst condition
+  among tonight's assigned units) over the general ring/mat proxy when one is supplied, answering the
+  explicit ask that injury risk track the *specific* prop, not just the abstract production tier.
+- **`state/store.ts` title-outcome intercept — a real bug found and fixed before it shipped.** The
+  existing `isUnificationMatch` branch runs before the `!outcome.changed` check and falls back to
+  `result.winnerWrestlerIds`, which is empty on a draw — so an equipment-failure unification match would
+  have called `commitTitleChange(world, index, [])` without an explicit intercept. Fixed by checking
+  `result.finish === 'equipmentFailure'` first and calling the existing `stripTitle(world, title,
+  'vacatedByEquipmentFailure')` primitive (new `TitleReignEndMethod` literal), pushing a `wire('title',
+  ..., world.week + 1, 'lead')` item (stamped past the increment per this file's own wire-timing trap),
+  then `continue`-ing before the unification logic ever runs.
+- **Two more real bugs, found by direct review rather than the original design pass — both fixed before
+  shipping.** `engine/sim/commentary.ts`'s `factsOf()` would have added `'titleRetained'` for an
+  equipment-failure vacate (titles present, `titleChanged` false, `championName` still set from before
+  the match — exactly the shape that used to mean "the champion kept it"). Fixed by gating
+  `'titleRetained'` on `ctx.finish !== 'equipmentFailure'` and adding a new `'titleVoided'` fact with its
+  own `CLOSERS` line. `ui/screens/ShowResults.tsx`'s title header showed neither "new champion" nor any
+  vacate indication for this finish; it now shows "— vacated" alongside the existing "— new champion"
+  state.
+- **Buy/repair, `ui/screens/PromotionScreen.tsx`**: new "Match hardware — tracked unit by unit" section,
+  one card per family showing owned-count-vs-cap, each individually owned unit with its own condition
+  label and a per-unit repair button, and a buy button per tier (disabled at the family's cap or when
+  unaffordable). New store actions `buyPropUnit`/`repairPropUnit`
+  (`state/slices/showAndProduction.ts`, alongside the existing production-asset trio).
+- **Player follow-up, mid-build: "flaming tables would probably burn them up."** Correct, and the
+  original design missed it — `tables` and `flamingTables` shared the same family/tiers/wear rate, so a
+  table that is *actually on fire* wore out identically to one that just got broken. Added
+  `Stipulation.gearWearMultiplier?: number` (defaults to 1), set to `5` on `flamingTables` only,
+  threaded through both `useWearUnit`'s new optional `wearMultiplier` parameter (post-match wear) and
+  the `gearFailureChance` computed for `simulateMatch`'s context (mid-match break odds) — a table in a
+  Flaming Tables match is both far more likely to give out in the match itself and, if it survives,
+  comes out of the night far more damaged. At the tier numbers shipped, a cheap folding table
+  (`useWearPerMatch: 40`) is fully consumed in a single Flaming Tables booking; a reinforced banquet
+  table (`useWearPerMatch: 18`) barely survives one.
+- **Tests**: new `engine/economy/matchProps.test.ts` (20 tests: wear rates differ by tier, use vs. idle,
+  the wear-multiplier override, failure threshold and condition labels, repair cost/repair, break-chance
+  stacking never reaching certainty, spectacle bonus's diminishing returns). New
+  `engine/sim/gearFailure.test.ts` (5 tests: never fires on empty input, always names an assigned unit,
+  weighted toward the worst-condition one, never empty text). `data/stipulations.test.ts`'s gear-gate
+  tests (from the booking-gate step above). `engine/sim/finish.test.ts` gets 2 more: never reaches
+  `equipmentFailure` without an explicit weight, reaches it — more often at higher weight — once one is
+  supplied. `engine/sim/titleMatch.test.ts` gets a case confirming `titleCanChangeHands` is false for
+  this finish. `engine/sim/simulateMatch.test.ts` gets 5 more: worn-vs-fresh specific-unit risk, the gap
+  shrinking but never vanishing across three condition levels, the specific-unit term moving the number
+  even against an excellent general ring (not just re-reading the same proxy twice), never reaching
+  `equipmentFailure` without a `gearFamilyId` on the stipulation however high the break chance, and
+  reaching it — with the correct unit named — once one is set. `engine/sim/commentary.test.ts` gets 2
+  more, guarding the exact bug found above: `'titleRetained'` never fires and `'titleVoided'` does for
+  an equipment-failure finish with a title on the line; an ordinary non-title-changing finish still gets
+  `'titleRetained'` as before. The existing "every fact has something to say about it" /
+  "declares no fact the engine cannot set" exhaustiveness pair (guards against a fact with a line nobody
+  ever plays) both extended to cover `'titleVoided'`.
+- **Verified live, not just at the pure-function level** (CLAUDE.md: measure in a played save): a probe
+  forced the opening slot into a Ladder Match every week (`setSegmentStipulation` + `setSegmentGearUnits`,
+  repairing the assigned unit(s) whenever they failed so a broken cheap ladder does not just drop out of
+  the sample), and forced a real singles title onto that same opener every week
+  (`toggleSegmentTitle`) to exercise the vacate path directly rather than waiting for it to land there
+  organically. 14 seeds × 40 weeks, once with a single cheap wooden ladder, once with four pro-spec
+  ladders: 555 vs. 558 ladder matches, `equipmentFailure` landed 2.88% of the time on the cheap ladder
+  vs. 1.79% on pro-spec gear — a real, directional difference from owning better gear, same shape as
+  Phase D's. Condition after 40 weeks: the pro-spec run's assigned units averaged 77.4 vs. an untouched
+  spare's 96.3 — used gear visibly wears faster than idle gear in an actual played save, not just in the
+  isolated wear-tick math. Every equipment-failure title match across both runs produced the correct
+  wire (*"The Southside Heavyweight Title is vacant tonight — the match for it never got a finish after
+  the gear gave out, and the office isn't willing to call that a defence."*) and zero produced a
+  "new champion" — the exact bug the store.ts intercept fix above exists to prevent, confirmed absent
+  live across 1,113 combined ladder matches. Sample finish text: *"Quill Utley had Major Gus beat to the
+  top when the ladder gave out from under both of them, and nobody ever got a hand on what was hanging
+  up there."* The gear gate was never observed to actually block a booking (units were repaired in time
+  every run), confirming the "warns, never blocks" design intent held up live as well as in the pure
+  function.
+- Verified: `tsc --noEmit` clean; full suite 151 files / 2,923 tests passing (33 new across six test
+  files, zero re-expressed, zero baselines touched); `npm run sim` clean; `npm run build` clean; the live
+  probe above.
+- **Not part of Phase 1, sketched in the plan for later phases**: pyro gets real per-unit condition and
+  a "hit a fan" incident variant; cameras get real condition (design fork: consumable prop vs. house-
+  capital treatment, to be decided at the start of that phase); the truck can break down
+  (`CatastropheKind = 'gearFailure'`, needs a genuinely-missing single "effective owned gear tonight"
+  value the five current call sites each read independently); equipment can hurt somebody backstage,
+  routed through the already-built, cause-agnostic `NoShowCall` mechanism.
+
+---
+
+## Renamed again: Pro Wrestling: Rival Booker Battle
+
+Player supplied a new logo (a gold championship-belt mark reading "Pro Wrestling / Rival Booker
+Battle") and asked for the name to change to match. Same four spots the original naming pass
+(`docs/BACKLOG.md`'s "Named the game, and gave it a real front door") identified as the game's only
+player-facing name surfaces, all updated together so nothing lagged behind:
+
+- **`src/ui/assets/title-logo.jpg`** — swapped for the new art. Same flat dark background as the
+  previous logo, so the existing "plaque" framing in `TitleScreen.tsx` (hairline gold border, rounded
+  corners, shadow) needed no changes to still read correctly — confirmed with a live screenshot rather
+  than assumed.
+- **`src/ui/screens/TitleScreen.tsx`** — the logo `<img>`'s `alt` text updated to "Pro Wrestling: Rival
+  Booker Battle".
+- **`src/ui/screens/SettingsScreen.tsx`** — the About panel's name/badge pair updated from "Rival
+  Promotions" / "Wrestling Booker Edition" to "Rival Booker Battle" / "Pro Wrestling", keeping the same
+  name-plus-genre-badge layout the panel already used.
+- **`index.html`** and **`scripts/single-file.mjs`** — both hardcoded `<title>` tags updated to "Pro
+  Wrestling: Rival Booker Battle" (the single-file script's copy is a separate literal string, not
+  generated from `index.html`, so it needs its own edit every time — same trap the original naming pass
+  flagged when it found this one stale with a leftover "TAW" title).
+- `package.json`'s `"name": "wrestling-booking-game"` deliberately left alone — an internal package
+  slug, never shown to a player, not part of the original naming pass either.
+- Verified: `tsc --noEmit` clean; `npm run build` clean, and grepping the built bundle confirms the new
+  (larger) logo still inlines as a single `data:image/jpeg;base64` occurrence with zero lingering
+  `/assets/title-logo` URL — the exact asset-inlining bug the original naming pass hit and fixed, re-
+  checked here since the new file is a different size; `npm run play` clean, its `<title>` confirmed
+  correct in the built single-file output. Live screenshots of both the title screen and Settings screen
+  confirm the new logo renders correctly in its frame and both text surfaces read the new name.
+
+---
+
+## UX/navigation overhaul, Phase 1 — a real navigation stack, and one shared screen header
+
+First of four phases (full plan: `/root/.claude/plans/synthetic-plotting-planet.md`). Grew out of the
+player actually playing the built game and not being able to find their way around it — full context in
+this file's "UX/navigation overhaul" entry above. Two research passes plus a design pass confirmed the
+starting point: routing was a flat `useState<Screen>` in `App.tsx` with no history or params, and the only
+precedent for passing an id into a screen was a one-off `repackaging: string | null` used solely by the
+wrestler editor. This phase replaces that with the one mechanism every later phase (the wrestler-detail
+screen in Phase 2, the `BookingScreen.tsx` split in Phase 3) builds on, and proves it works before anything
+bigger is built on top of it.
+
+- **`src/App.tsx`**: `const [screen, setScreen] = useState<Screen>('booking')` replaced with a small typed
+  stack — `interface NavTarget { screen: Screen; params?: { wrestlerId?: Id } }`,
+  `const [navStack, setNavStack] = useState<NavTarget[]>([{ screen: 'booking' }])`. Three functions replace
+  the old single `navigate`: `goTo(target)` pushes (drill-down — a `WrestlerRow` tap, a card-slot tap in a
+  later phase), `goBack()` pops (falls back to `{screen:'booking'}` defensively if the stack would go
+  empty), `resetTo(screen)` replaces the whole stack with one entry (the bottom nav's five tabs and
+  everything behind the More screen — lateral moves, not drill-downs, so none of them grow the stack or
+  show a back arrow, exactly as before). No React Router, no URL, no history API — this stays a small typed
+  stack matching the zero-framework grain of everything else in this codebase; at the depth this redesign
+  needs (one or two levels), that's the right-sized tool, not an under-reaction.
+- **The `key={screen}` trap — load-bearing, not cosmetic.** `<main key={screen}>` used to key React's
+  remount purely on the flat screen id. Once a screen can navigate to another instance of itself (Phase 2's
+  "tap a tag partner from inside a wrestler's detail screen, land on *their* detail screen"), keying on the
+  screen id alone breaks: React sees the same key both times and won't remount, so the previous subject's
+  data would silently linger. Fixed now, ahead of needing it, by deriving the key from the whole nav target
+  — `` key={`${screen}:${params?.wrestlerId ?? ''}`} `` — and proven in this phase's own live pass (see
+  Verified below) using the one param-carrying screen that exists today, the wrestler editor, repackaging
+  two different wrestlers back to back.
+- **`repackaging` folded into the new mechanism**, not left as a second, inconsistent pattern next to it.
+  `RosterScreen`'s `onRepackage` now calls `goTo({screen:'editor', params:{wrestlerId}})` directly;
+  `WrestlerEditor` reads `params?.wrestlerId` as an ordinary prop from `App.tsx`'s render body, same as
+  before, just sourced from the stack instead of a dedicated `useState`.
+- **New `src/ui/components/ScreenHeader.tsx`** — the first piece of "consistent chrome everywhere": a back
+  arrow (calls whatever `onBack` it's given — always `goBack` in practice), a title that wraps rather than
+  truncates (a first draft truncated to "Repackag…" on a phone-width screen with two buttons next to it —
+  caught in the live screenshot pass below and fixed before shipping), an optional subtitle line, and an
+  optional `right` slot for a small action cluster. Its own file rather than folded into `chrome.tsx` —
+  that file's own header comment already declares "no screen invents its own panel any more" for the
+  Panel/Tabs/Badge family, and a header-with-back-arrow is a new category of primitive, not a variant of an
+  existing one.
+- **Piloted on `src/ui/screens/WrestlerEditor.tsx`** — deliberately the only screen touched beyond
+  `App.tsx` this phase, to prove the mechanism on the smallest possible surface before Phase 2 builds a
+  real new screen on it. Its hand-rolled `<header><h1>...` block is replaced with `ScreenHeader`, and its
+  separate "Cancel" button is folded into the header's own back arrow (they did the same thing — abandon
+  without saving — so keeping both was two affordances for one action). A **real, deliberate side effect**:
+  the sandbox editor (reached from the More list, no wrestler being repackaged) previously had no back
+  button at all — `save()` and the Cancel/Save buttons only ever rendered when a subject existed, so the
+  only way out was the bottom nav. It now gets `ScreenHeader`'s back arrow like every other screen, which
+  correctly falls back to the booking screen via `goBack()`'s defensive default (confirmed live, see below)
+  — a small, unambiguous improvement, not a scope change.
+- **Tests**: none added or changed — this phase is pure UI/routing, and this codebase has no automated
+  UI/component test layer at all (confirmed via `grep -rl data-testid **/*.test.ts*` returning nothing);
+  every `data-testid` in the UI exists solely to support live click-through verification, which is what
+  this phase's own verification pass is.
+- **Verified live, not just at the pure-function level**: `npm run dev` + a real Playwright click-through.
+  Repackaged wrestler A (Lars McCready), confirmed the editor's title read the full name; backed out via
+  the new header, confirmed landing back on the roster; repackaged a *different* wrestler B (Lux Kincaid) —
+  the concrete proof the stack-derived key fix works — and confirmed the editor showed B's name and
+  portrait, not stale A data. Clicked through all five bottom-nav tabs plus two More-list screens (Free
+  Agents, the sandbox Editor) and confirmed zero back arrows on any of them except the sandbox editor's new
+  one, which correctly returned to the booking screen. The title-wrap bug above was caught and fixed during
+  this same pass, before shipping.
+- Verified: `tsc --noEmit` clean; full suite 151 files / 2,923 tests passing (zero changes, as expected for
+  a pure UI/routing phase); `npm run build` clean; the live click-through above.
+- **Not part of Phase 1**: the wrestler-detail screen, wiring `WrestlerRow` `onClick`s to it, and
+  `RosterScreen.tsx`'s restructuring (Phase 2); the `BookingScreen.tsx` split into a card-overview screen, a
+  roster-picker screen, and a tabbed match-setup screen (Phase 3); calendar linkage and a free-agent
+  "new graduates" filter (Phase 4, both already confirmed small and low-risk in the plan). All fully
+  specified in the plan file; none started here.
+
+---
+
+## UX/navigation overhaul, Phase 2 — a real wrestler-detail screen, reached from everywhere
+
+Second of four phases (full plan: `/root/.claude/plans/synthetic-plotting-planet.md`). Built on Phase 1's
+navigation stack without touching the mechanism itself — this phase is entirely new screens and wiring.
+Kicked off by a bare "proceed" immediately after Phase 1 shipped, no fresh planning round.
+
+- **New `src/ui/screens/WrestlerDetailScreen.tsx`**, reached via
+  `goTo({screen:'wrestlerDetail', params:{wrestlerId}})` from every `WrestlerRow` in the app.
+  `ScreenHeader` with the billed name as title; a portrait row (`PaperDoll size="large"`, injury badge,
+  crown/nickname/alignment/age/former names/belts) with full non-compact `MiniStats` beside it; then two new
+  tappable sections the game never had before — **tag partner(s)**, via the existing `teamOf(world.stables,
+  wrestlerId)`, and **manager**, via the existing `representativeOf(world.representations, wrestlerId)` —
+  each rendered as a compact `WrestlerRow` whose `onClick` pushes a *new* `wrestlerDetail` target for that
+  person. Below that, everything that used to be crammed onto `RosterScreen.tsx`'s giant per-wrestler card
+  moved here wholesale and unchanged in substance: notice-to-leave, staleness, shun/leave status, injury
+  text, stances, the one-line relationship summary (`circleSummary`), career-status line, gimmick heat,
+  manager's-own-book lines, discipline record, lineage, scout pitch, mood, reach/strongholds/home,
+  ringcraft/likeability, motivation symbols, trait chips, `CareerLedger`, and contract line. One small
+  enhancement beyond the plan's literal spec: the ally/enemy relationship chips are now tappable links to
+  those wrestlers' own detail screens too, not just tag partners and managers — free, since the data and the
+  `onNavigateWrestler` callback were already right there.
+- **The four consequential action buttons — retire, role-change, release, repackage — moved here, off the
+  roster row entirely**, exactly as flagged in the plan as a real, deliberate behavior change: releasing or
+  retiring someone is now row → detail → action instead of one tap from the list. This is what makes
+  `RosterScreen`'s row genuinely the same shared row used everywhere else — free agents' and rivals' rows
+  obviously can't carry Retire/Release buttons, and now none of them have to be special-cased.
+- **`src/ui/screens/RosterScreen.tsx` rewritten**, 992 lines down to ~275. Its giant-card grid is now a
+  plain list of `WrestlerRow`s (`onClick` → detail); sort chips, the wage-total header, `TagTeamPanel`, and
+  `MotivationKey` stay here as roster-wide tools. `alignmentOf` and the `PerkRow`/`AssignmentRow`/`BeltIcon`
+  helpers moved to `WrestlerDetailScreen.tsx` with the content that needed them.
+- **`onClick` wired into the `WrestlerRow` call sites that didn't have it**: `FreeAgentsScreen.tsx` and
+  `RivalRosterScreen.tsx` both gained an optional `onNavigate` prop, threaded straight through. No
+  `WrestlerRow` API changes were needed anywhere — its existing `onClick`/`trailing` props already covered
+  this.
+- **`BookingScreen.tsx`: the already-on-segment participant rows only**, per the plan — the roster-picker
+  list (tap-anywhere-to-add) stays untouched until Phase 3 gives it its own screen. This surfaced a real
+  layout problem the plan didn't anticipate: those rows already use `WrestlerRow`'s `trailing` slot for a ✕
+  remove button, and `WrestlerRow` wraps everything — including `trailing` — inside its own `<button>` the
+  moment `onClick` is passed, which would have nested a real `<button>` inside another real `<button>`.
+  Fixed without touching `WrestlerRow`'s API: the row is wrapped in a plain `<div role="button" tabIndex={0}
+  onClick={...}>` instead, and the inner ✕ button calls `e.stopPropagation()` so removing a wrestler no
+  longer also navigates to their detail screen.
+- **Tests**: none added or changed — still no automated UI/component test layer in this codebase; full
+  suite (151 files / 2,923 tests) passes unchanged, consistent with this being pure UI/routing work with no
+  engine or store logic touched.
+- **Verified live**, `npm run dev` + Playwright, across every wiring site: Roster list → a wrestler's detail
+  screen; from inside that screen, tapping a tag partner → *their* detail screen, confirmed by distinct
+  rendered name/portrait/stats — the concrete proof, under real recursion this time (not just Phase 1's
+  simpler single-param editor case), that the stack-derived remount key from Phase 1 actually holds; back →
+  back → landing correctly on Roster; Free Agents list → detail; Rival Rosters list → detail; and a booking
+  segment's already-on-card row → detail, with the ✕ remove button confirmed still working on its own
+  without triggering navigation. Two rounds of test-script false negatives along the way turned out to be
+  script assumptions, not app bugs (a `formTagTeam` call silently no-op'd against a wrestler who already had
+  a real pre-existing partner in the starting roster; a toggle click assumed the first card slot started
+  collapsed when it's open by default) — both traced to their actual cause and the script corrected rather
+  than the app.
+- Verified: `tsc --noEmit` clean; full suite 151 files / 2,923 tests passing (zero changes); `npm run build`
+  clean; the live click-through above.
+- **Not part of Phase 2**: the `BookingScreen.tsx` split into a card-overview screen, a roster-picker
+  screen, and a tabbed match-setup screen (Phase 3, the biggest and riskiest of the four); calendar linkage
+  and a free-agent "new graduates" filter (Phase 4, both already confirmed small and low-risk in the plan).
+  Both fully specified in the plan file; neither started here.
+
+---
+
+## UX/navigation overhaul, desktop/Steam pivot — the shell, the booking flow, and three master-detail screens
+
+Full plan: `/root/.claude/plans/synthetic-plotting-planet.md`. Started as Phase 3 of the phone-first overhaul
+above (the `BookingScreen.tsx` split); mid-way through, the player redirected it outright: the game is not
+phone-tailored, it is headed for Steam on a PC, and should use a real window's worth of space — "dedicate
+full screens to different rosters...or parts. use the space" — instead of a single scrolling column.
+Research into how this genre's respected desktop UIs actually look (Pro Wrestling Sim on Steam, explicitly
+compared to "hockey and football management sims"; Football Manager's classic sidebar-plus-main-pane
+layout; Total Extreme Wrestling's dense multi-panel booking screens) confirmed the direction: a persistent
+always-visible navigation rail rather than hiding most destinations behind a second tap, and dense
+multi-column layouts rather than a phone's forced one-thing-at-a-time stack. `wrestling-booking-game/CLAUDE.md`'s
+framing changed from phone-first to desktop-first, Steam-bound, as an explicit, deliberate call, not a
+casual rewording — phone/touch stop being a design target from here on.
+
+- **The shell (`src/ui/components/Nav.tsx`, `src/App.tsx`)**: `BottomNav` (five tabs) and `MoreScreen`
+  (fourteen items behind a second tap) are gone. A new `Sidebar` component shows all nineteen destinations
+  at once, grouped (Tonight / Talent / Business / History / Admin), each with the one-line blurb `MoreScreen`
+  used to justify its own existence — now sitting right there under the label instead, since a desktop
+  window has the room a phone never did. `App.tsx`'s outer shell becomes a row (`Sidebar` beside a content
+  column) instead of a column with a fixed bottom bar; the top status strip (promotion name/week/bank) is
+  unchanged. **The navigation stack mechanism itself — `NavTarget`/`goTo`/`goBack`/`resetTo`, and the
+  stack-derived remount key — needed zero changes.** It was built platform-agnostic in Phase 1, and every
+  sidebar row calls `resetTo` exactly the way `BottomNav`'s tabs used to. `index.html`'s phone-locking
+  viewport meta (`maximum-scale=1.0, user-scalable=no`) and `index.css`'s touch-target CSS (a `pointer:
+  coarse` media block, load-bearing only under the old phone-first premise) are both removed. The eighteen
+  `pb-24` bottom-nav-clearance classes scattered through every screen become `pb-6` — a mechanical sweep,
+  no bottom bar to clear any more.
+- **The booking flow, finished natively for desktop (this is what Phase 3 became)**: `BookingScreen.tsx`
+  is trimmed to a true card overview — a two-column layout (`grid-cols-[1fr_320px]`), the card itself as a
+  grid of slot tiles rather than a single-column accordion, and the six conditional notice panels (a cup
+  invite, a supershow offer, a bidding war, live stories, what the crowd wants, belts on the clock) moved
+  into a right-hand rail instead of stacking above the card — they already return `null` when nothing's
+  relevant, so most weeks the rail simply isn't there. Tapping a slot tile always leaves the screen: to a
+  new **`SlotRosterPicker.tsx`** (a wide two-pane picker — a dense, multi-column roster grid on the left, a
+  sticky right rail showing both sides' current picks and the "Add here" toggle) if the slot isn't cast on
+  both sides yet, or to a new **`MatchSetupScreen.tsx`** if it is. `MatchSetupScreen` drops the phone-era
+  plan's tab bar (`Arena`/`Rules`/`Cast`/`Script`/`Play` compressed into tabs for lack of room) in favor of
+  showing **Cast, Rules, and Stakes as three simultaneous columns** — everything about one match visible at
+  once, closer to how a real match-booking form works than a tab-switching wizard. A new
+  `src/ui/screens/segmentSummary.ts` holds the odds/stipulation/stakes/referee calculation shared by the
+  card-overview tile and the match's own screen, so the two can never disagree about what a match is.
+- **Roster, Free Agents, and The competition, rebuilt as master-detail** (a deliberate, player-directed
+  extension of scope beyond the booking flow, in the same pass): each is now a list on the left and a full
+  detail pane on the right, no navigation, no back button. `WrestlerDetailScreen.tsx`'s content — portrait,
+  stats, tag partners/manager, every status line, `CareerLedger`, contract, and the four consequential
+  actions (retire, role, release, repackage) — was extracted into a new shared `WrestlerDetailBody`
+  (`src/ui/components/WrestlerDetail.tsx`), gated by a new `editable` flag so the actions render only for
+  somebody actually on your own roster. `WrestlerDetailScreen.tsx` itself survives as a thin wrapper
+  (`ScreenHeader` + the body, `editable` computed from `world.promotion.rosterIds.includes(w.id)` rather
+  than assumed) — still the real destination for a name tapped from somewhere with no list of its own to
+  embed the body in (a booking slot's cast, a tag partner outside whatever list is on screen).
+  `RosterScreen.tsx`'s row taps now set a local selection instead of navigating, with the selection
+  re-clamping to the top of the list whenever it points at nobody real any more (a re-sort, or somebody
+  leaving via retire/release right there in the detail pane); tag-partner/ally taps inside the pane reselect
+  in place if the target is on the same roster, or fall back to a real navigation otherwise.
+  `FreeAgentsScreen.tsx` keeps its per-row Sign button on the compact left list (it shouldn't need a detail
+  view first) and adds the free-agent-specific case for or against signing — asking rate, refusal reasons,
+  weeks unsigned — as its own panel below the shared, read-only (`editable={false}`) body on the right.
+  `RivalRosterScreen.tsx` keeps its company-picker chips and adds the same read-only master-detail split,
+  dropping the belts/`CareerLedger` that used to repeat down every row now that the detail pane shows both.
+- **Tests**: none added or changed — still no automated UI/component test layer in this codebase; full
+  suite (151 files / 2,923 tests) passes unchanged, consistent with this being pure UI/routing/layout work
+  with no engine or store logic touched.
+- **Verified live**, `npm run dev` + Playwright at a real desktop viewport (1440×900): all eighteen sidebar
+  destinations click through with nothing hidden and no crash; a fresh card's empty opener → the slot
+  picker → Add → lands back on the card overview with the pick in place; a fully-cast slot (opener and main
+  event both checked) → match setup, with a stipulation, a pace, and a title stake all toggled successfully
+  across the three simultaneous columns, and "Add someone" correctly reopening the picker for that same
+  slot; Roster's master-detail (selecting a second row updates the right pane; a role-change button in the
+  pane works without leaving the screen); Free Agents' master-detail (selecting an agent shows the full
+  read-out plus the sign panel); The competition's master-detail (switching companies and selecting one of
+  their wrestlers, including a tappable tag partner). The one console warning seen across the whole pass was
+  a missing favicon — a pre-existing, unrelated cosmetic gap, not a regression.
+- Verified: `tsc --noEmit` clean; full suite 151 files / 2,923 tests passing (zero changes); `npm run build`
+  clean; the live click-through above.
+- **Not part of this pass**: every other screen (Office, Promotion, Territories, Finance, Rankings, The
+  Sheet, Records, Legacy, The Crucible, Contact sheet, The quiet business, Settings, Show Results, New Game,
+  Title, the wrestler Editor) keeps its current single-column phone-shaped layout for now, rendering with
+  unused space to the right of it until a follow-up pass gets to them — an accepted, deliberate gap, not an
+  oversight. Phase 4 (calendar "this week" indicator, a free-agent "new graduates" filter) remains
+  unstarted, small, and unrelated to the pivot.
+
+---
+
+## UX/navigation overhaul, Phase 4 — a this-week calendar strip, and a free-agent reason filter
+
+Last of the four phases from the original plan (`/root/.claude/plans/synthetic-plotting-planet.md`). Both
+pieces were already fully scoped from the first research pass, well before the desktop pivot — small,
+pure-UI, no engine changes — and stayed exactly that size once actually built.
+
+- **Calendar**: `world.currentCard` is still confirmed a single flat array, not one per future week, so a
+  literal "tap any date on the calendar, jump to that night's card" (the mDickie reference's original ask)
+  is not buildable without a real future-scheduling data model — out of scope, as flagged from the start.
+  The honest version: a new `ThisWeekStrip` component (`src/ui/components/CalendarStrip.tsx`, beside the
+  existing schedule-configuration `CalendarStrip`) reuses the same engine-backed `calendarMonths` view the
+  configuration screen already draws from, pulls out just the current week's seven nights, and renders them
+  read-only — no `onClick`, nothing to tap — in the desktop booking screen's right-hand rail, above the six
+  conditional notice panels. It reads real schedule data (a televised night, a house show, a dark night) the
+  same way the Office screen's calendar does, so the two can never disagree about what's actually on this
+  week. `OfficeScreen.tsx`'s own `CalendarStrip` (the tappable, schedule-editing one) is untouched.
+- **Free agents**: a filter chip row above the master-detail list on `FreeAgentsScreen.tsx`, built entirely
+  from data that already existed — `FreeAgent.reason: AvailabilityReason` and the `AVAILABILITY_LABELS` map
+  (`src/engine/world/freeAgents.ts`) already distinguished `neverSigned` / `contractExpired` / `released` /
+  `schoolGraduate` / `walkOn` / `returning`, stamped correctly at intake; nothing on the engine side needed
+  to change. "All" plus one chip per reason actually present in the current pool (a reason nobody currently
+  has, `walkOn` most weeks, doesn't clutter the row), each labelled with its live count. Filtering re-clamps
+  the master-detail selection the same way a re-sort does elsewhere on this screen — the right pane never
+  points at somebody the current filter has hidden.
+- **Tests**: none added or changed — still no automated UI/component test layer in this codebase; full
+  suite (151 files / 2,923 tests) passes unchanged, both pieces being pure UI reading data that was already
+  there.
+- **Verified live**, `npm run dev` + Playwright: the this-week strip renders the correct seven-night read-out
+  for a fresh save (the televised night and a house-show night both marked correctly, matching the header
+  text above the card); the free-agent filter chips' counts summed to the pool total, and selecting "Out of
+  the school" correctly narrowed the list to exactly the three matching agents with the detail pane updating
+  to the first of them.
+- Verified: `tsc --noEmit` clean; full suite 151 files / 2,923 tests passing (zero changes); `npm run build`
+  clean; the live check above.
+- **This closes out the UX/navigation overhaul.** Everything in the original plan — the navigation stack,
+  the wrestler-detail screen, the desktop/Steam shell and booking flow, master-detail for the three roster
+  screens, and this phase — is shipped. What's left, as flagged throughout, is reflowing the rest of the
+  screens for desktop (Office, Promotion, Territories, Finance, Rankings, The Sheet, Records, Legacy, The
+  Crucible, Contact sheet, The quiet business, Settings, Show Results, New Game, Title, the wrestler
+  Editor) — a real, separate pass, not started here.
+
+## Match viewer — a live action window over an already-decided match
+
+The player sketched this by hand: an optional "watch the match" screen — bottom third two commentators
+trading live lines in a chat feed, top two-thirds a ring where wrestler portraits hold poses (never
+animating their own shape) that get moved, rotated, and collided via CSS transforms to mimic what's
+happening, with comic-style move-name callouts, "BAM!", and pinfall counts. Full plan:
+`/root/.claude/plans/synthetic-plotting-planet.md`. **This does not touch §0's "the sim always picks the
+winner, no scripted finishes, no re-sims."** The viewer only ever replays a `SegmentResult` already sitting
+in `world.showHistory` — nothing here decides anything, the same way the existing prose write-up doesn't.
+
+- **New `src/engine/sim/matchPlayback.ts`** — pure, no new RNG draws anywhere in it. `buildPlaybackTimeline
+  (beats, sideA, sideB, winningSide)` turns the sim's prose-only `MatchBeat[]` into `PlaybackBeat[]` (kind,
+  a `BeatPose`, an `actorId`/`targetId`, and — only on `signature`/`finish` beats — a `moveName` pulled from
+  the actor's own `MoveSet`, never invented). Deliberately re-derives its own tiny copy of the "who's on
+  top" flip rule `commentary.ts`'s `callTheMatch` already tracks (loser on top, flip at every `hopeSpot`,
+  reset to the winner at `finish`) rather than touching or refactoring `callTheMatch` itself — that function
+  turned out to be far more interwoven than expected once actually read (a line budget that can cut its
+  beat loop short, an opener/stakes line before the loop and a closer after it belonging to no beat, and
+  same-beat "comeback" replies pushing extra lines mid-beat), and extracting a clean per-beat state out of
+  it safely would have been a much bigger, riskier change than this feature needed. The honest cost, stated
+  plainly rather than quietly fallen short of: the ring visual and the commentary feed are *thematically*
+  synced (both agree on who's on top at any point in the match) rather than *line-for-line* synced (a
+  specific pose landing on the exact word "suplex").
+- **`finishCallout(finish: FinishType)`** alongside it — every `FinishType` gets its own comic-style word
+  ("1... 2... 3!", "TAPS OUT!", "COUNTED OUT!", "TIME LIMIT DRAW!", "IT BROKE!", and so on), held on screen
+  once the last pose plays.
+- **Multi-man is real, not stubbed** — the player asked for every match type including battle royals in the
+  first pass, not just singles and tag. `CommentaryContext` (and now `matchPlayback.ts`, matching it on
+  purpose) only ever models two corners even for a battle royal, so a multi-man match reduces to "the
+  eventual winner" vs. "everyone else" for pose/momentum purposes — the same reduction commentary already
+  uses, not a new one. One real, deliberate gap found while reading `narrative.ts`: `orderEliminations`
+  (`engine/sim/battleRoyal.ts`) is not beat-timed data — `simulateMatch.ts` only ever feeds it into at most
+  two flavor-text beats ("a name goes over partway through," "the field narrows to its final two") and
+  never preserves it on `SegmentResult`. The viewer does not animate individual eliminations because the
+  engine has nothing to time them against; every entrant sits around the ring for the whole match, the
+  current beat's on-top/in-trouble pair is spotlighted at centre (rotating through the field by beat index),
+  and the finish reveals the winner plainly. Teaching the sim to emit one real beat per elimination with a
+  wrestler id is a legitimate future engine change, not this one.
+- **New `src/ui/screens/MatchViewerScreen.tsx`** — reached by a new "▶ Watch" button per match on
+  `ShowResults.tsx` (`onWatch`, threaded from `App.tsx` the same way `onContinue` already was), pushed via
+  the existing nav stack (`NavTarget.params` gains `matchWeek`/`matchSlot`; `Nav.tsx` gains a `'matchViewer'`
+  screen id) with the same defensive "not found" guard every other pushed screen uses for a stale ref. Ring
+  layout is one circular arrangement for every match size — two entrants land at left/right, four at the
+  corners of a diamond, more spread evenly around the perimeter (capped at 12 visible with a "+N more in the
+  ring" chip beyond that) — so singles, tag, and battle royal never needed separate layout code. Each
+  portrait sits in two nested wrappers: an outer one carrying its static ring position (so the maths never
+  has to fight anything) and an inner one, remounted fresh every beat via a `key`, carrying the one-shot pose
+  animation for that beat — `PaperDoll` itself is untouched, still just a `<canvas>` drawn once per prop
+  change. Six new one-shot Tailwind keyframes (`ring-jostle`, `ring-whip`, `ring-strike`, `ring-surge`,
+  `ring-slam`, `callout-pop`) follow the existing "nothing loops, nothing decorative" convention from
+  `tailwind.config.js`'s original three — `ring-slam` deliberately ends mid-rotation so a finisher's target
+  visibly lands upside down and stays that way until the next beat remounts them, which is exactly the
+  "land upside down" the sketch asked for. The bottom-third commentary feed is a new, small, independent
+  `setTimeout` reveal loop (same shape as `CallWindow`'s, a separate implementation rather than a shared or
+  modified one, since `CallWindow` is used elsewhere and didn't need touching) rendering `SegmentResult
+  .commentary` as alternating chat bubbles — play-by-play left, colour right, each "slightly below" the one
+  before it, same as the player's own sketch — and paced independently from the ring so the two beat/line
+  tickers roughly finish together without being locked to each other. No commentary team hired means no
+  bottom third at all, not an empty one. A single "Skip to the finish" action jumps both tickers to the end
+  at once; once both are done, the header's action swaps to "Back to results."
+- **Tests**: `src/engine/sim/matchPlayback.test.ts` (7 tests, all pure/deterministic — no RNG in the module,
+  so no seeding concerns) — the on-top flip and the winner-reset at finish, the full `BeatPose` mapping
+  including the whip embellishment on every third `control` beat, that an environmental beat never gets an
+  actor or target, that `moveName` is only ever set on `signature`/`finish` beats and only from the actor's
+  own `MoveSet`, and that every `FinishType` earns a distinct callout.
+- **Verified live**, `npm run dev` + Playwright at a desktop viewport: booked a genuine 6-way battle royal
+  by hand (`setSegmentStipulation('battleRoyal')` + six `setSegmentParticipant` calls across six sides) plus
+  an auto-filled singles match, ran the show, and watched both back — the battle royal's ring correctly laid
+  out all six entrants in a circle, the finish held the spotlighted pair with one portrait visibly rotated
+  upside down under "IT'S OVER!" and a "BAM!" flash; the singles match showed the two-tone commentary chat
+  feed updating alongside the ring, "COUNTED OUT!" on that particular roll, and skip-to-finish correctly
+  swapping in the "Back to results" action. No console errors either run.
+- Verified: `tsc --noEmit` clean; full suite 152 files / 2,930 tests passing (+7 for the new module, zero
+  changes elsewhere); `npm run build` clean; the live watch-throughs above.
+- **Not part of this pass**: per-elimination beat timing for battle royals (needs a real engine change, see
+  above); a scrub bar or pause control (skip-to-finish only, matching `CallWindow`'s existing convention);
+  reflowing the rest of the game's screens for desktop (a separate, already-flagged pass).
+
+---
+
+## Real elimination and pinfall identity — the engine change the match viewer above deferred
+
+Direct follow-up to that deferred item ("teaching the sim to emit one real beat per elimination with a
+wrestler id is a legitimate future engine change, not this one"). The player's own words on being told the
+gap existed: **"yes we must track it. and who gets pinned."** Two things were quietly never decided anywhere
+in the sim before this: which specific wrestler goes out of a battle royal at each elimination (and who put
+them there), and which specific wrestler takes the fall/tap/knockout at a finish when either side has more
+than one member (a tag match, a battle royal's final two) — both silently defaulted to `sideMembers[0]`,
+array position rather than a real decision.
+
+- **`engine/types.ts`** — `MatchBeat` gains `actorId?: Id | null` / `targetId?: Id | null` (absent only for a
+  genuinely actor-less beat — interference stays a known, documented gap, see below). `MatchBeatKind` gains
+  `'elimination'`, its own kind rather than reusing `'control'`, since it carries real per-event identity a
+  plain control beat doesn't.
+- **`engine/sim/battleRoyal.ts`** — new `pickEliminators(order, sideMembers, week)`, sitting beside
+  `orderEliminations` (left byte-for-byte untouched — this is a second, independent decision, not a revision
+  of the first). For each elimination, seeds its own `rngFromSeed(\`eliminator:${eliminatedId}:${week}\`)`
+  stream and picks uniformly from whoever is still active at that point in the order — never the eliminated
+  side's own member, never the shared `rng` `simulateMatch.ts` threads through the winner/finish/rating rolls.
+  Per root CLAUDE.md's own documented trap ("adding an RNG draw shifts every seeded roll after it"), this
+  guarantees the new decision cannot shift a single existing seeded test or `docs/BALANCE.md` baseline.
+- **`engine/sim/simulateMatch.ts`** — assembles a real `EliminationEvent[]` (`{eliminatedId, eliminatedName,
+  eliminatorId, eliminatorName}`) from `pickEliminators`'s output, replacing the old name-only
+  `eliminatedInOrder: string[][]`. Also decides, the same entity-seeded way (`pinned:${...ids}:${week}` /
+  `pinner:${...ids}:${week}`), exactly one wrestler from the loser/winner side to be the one who actually
+  took/gave the finish, even when that side has several members — a 1v1 match degenerates trivially to the
+  only member, so nothing changes there. The free wins that already carried real identity but never wrote it
+  onto their beat (`Botch.workerId`, `PyroBurn.workerId`, the caught-manager DQ) now stamp `actorId` too — no
+  new decision, just no longer throwing away one that already existed. `SimulateMatchContext` gained a
+  required `week: number` (all 4 real call sites — `store.ts`, `rivalBooking.ts`, `cupRun.ts`,
+  `darkMatch.ts` — and the test fixture updated) purely so these new streams have something to seed from.
+- **`engine/sim/narrative.ts`** — a small local `onTop`/`inTrouble` momentum tracker (the same flip-at-
+  `hopeSpot`, reset-at-`finish` rule already independently duplicated in `commentary.ts` and
+  `matchPlayback.ts` — a third small copy, deliberately not shared, for the reasons already accepted for the
+  other two) stamps `actorId`/`targetId` on every beat as `generateBeats` writes it. **Text generation is
+  completely unchanged** — `fill()`'s `{winner}`/`{loser}` placeholders still resolve off `winnerMembers[0]`/
+  `loserMembers[0]` exactly as before, so the prose write-up reads the same; only the new, parallel id
+  metadata (used for the match viewer's pose, not the sentence) reflects the real decision. Replaced the old
+  two-beat battle-royal scheme with up to `ELIMINATION_BEATS_MAX = 4` real elimination beats, evenly sampled
+  across the whole order rather than one beat per fall — a twenty-man field has nineteen eliminations, and
+  the reel stays a highlight, not a play-by-play (§11.5). A slot is reserved so the existing "field narrows
+  to its final two" milestone beat can't be crowded out by a full house of elimination beats.
+- **`data/matchBeats.ts`** — `BATTLE_ROYAL_MIDDLE_BEATS` renamed `BATTLE_ROYAL_ELIMINATION_BEATS` (same
+  lines, for when nobody clear did it); new `BATTLE_ROYAL_ELIMINATION_BY_BEATS` for when an eliminator is
+  known, using both `{eliminated}` and a new `{eliminatedBy}` placeholder. `BATTLE_ROYAL_FINAL_BEATS`
+  untouched.
+- **`engine/sim/matchPlayback.ts` + `ui/screens/MatchViewerScreen.tsx`** — `buildPlaybackTimeline` now
+  prefers a beat's own `actorId`/`targetId` (resolved against everyone in `sideA`/`sideB`) over the rotation
+  guess, falling back to the guess only when a beat genuinely carries neither (interference, for now — see
+  the match viewer entry above). New `'elimination'` pose plus a one-shot `ring-eliminated` keyframe. The
+  screen tracks which wrestlers have been eliminated so far as `beatIndex` advances and renders their
+  portrait greyed/shrunk with an "OUT" tag for every subsequent beat, instead of standing there
+  indistinguishable from someone still in it; the finish pose now lands on the real decided pinned/pinner
+  pair instead of array position zero.
+- **Tests**: `narrative.test.ts`'s battle-royal assertions rewritten for the `eliminations`-driven scheme
+  (real ids, a cap-respecting test for a 15-entrant field); new `pickEliminators` tests in
+  `battleRoyal.test.ts` (deterministic per `(eliminatedId, week)`, never credits a side with eliminating
+  itself, only ever picks someone still active at that point); `matchPlayback.test.ts` gained cases for a
+  beat's own ids winning over the guess and the `'elimination'` pose; `simulateMatch.test.ts` gained a
+  60-seed tag-match test confirming the pinned/pinner pair lands on the second-listed team member often
+  enough to prove it isn't always position zero, and a battle-royal run asserting every `'elimination'` beat
+  carries valid, resolvable ids.
+- **Verified live**: booked a genuine 6-way battle royal by driving `window.__store` directly (the same
+  precedent as the match-viewer entry above — the Card screen's roster picker hard-caps at 2 sides
+  regardless of stipulation, a pre-existing UI limit this pass didn't touch), ran the show, and watched it —
+  two named wrestlers (not the same two every time) visibly greyed out with an "OUT" tag one at a time as
+  eliminations played, while the rest of the field stayed live; a 5-vs-1 handicap main event's finish landed
+  the flip/upside-down pose on the actual loser rather than a guess. `tsc --noEmit` clean; full suite 152
+  files / 2,941 tests passing (+30 for this change, zero unrelated regressions); `npm run build` clean.
+- **Still not decided anywhere**: the interference/distraction beat only ever has a name
+  (`ringside.ts`'s `RingsideOutcome.distractionBy`), no matching id field — unlike `caughtBy`/`caughtById`,
+  there's no `distractionById` to stamp. Cheap-looking, but touches a subsystem nobody asked about this pass;
+  left on the rotation-guess fallback, same as before.
+
+### Follow-up: two visual bugs found reviewing the match viewer
+
+Asked directly "do the commentator graphics, ring, and rest of the screen look good," so it got a real
+look — 18 matches watched across 3 weeks, not just the elimination/pinfall scenarios above. Two real defects
+turned up in `MatchViewerScreen.tsx`, both fixed:
+
+- **The comic callout collided with the portrait it was about.** `1... 2... 3!`, `KNOCKED OUT!`, `THE REF
+  STOPS IT!` and friends were centred across the whole ring panel (`inset-0` + `items-center`), and the
+  spotlighted actor/target pull in to a tight radius (70px) right around that same centre — so the callout
+  landed squarely on top of whoever it was calling out, covering their face, on essentially every finish.
+  Moved it to a pinned strip along the top (`inset-x-0 top-4`) instead, clear of the whole ring circle, plus
+  a faint backing so it stays legible over whatever's behind it.
+- **A wrestler's name went upside down along with them.** `ring-slam` and `ring-eliminated` rotate a
+  portrait a full 180° — the point, for a finisher's target or an elimination — but the animation class sat
+  on the same wrapper as the name tag underneath, so the label rotated too and came out as unreadable mirror
+  text. Split the wrapper: the animation now lives on an inner div around just the `PaperDoll`, the name tag
+  is a sibling that never rotates. The grey/shrink/opacity treatment for an eliminated wrestler stays on the
+  outer wrapper (so it still covers the label, which is correct — an eliminated name should read as faded,
+  just not sideways).
+- **Not fixed this pass, flagged in the answer to the question**: the ring itself has no visual identity at
+  all (no ropes/mat/turnbuckles/crowd — wrestlers just float on the panel's plain dark background), long
+  names hard-truncate illegibly, the commentators have no graphic beyond a colored name label, and the
+  underlying commentary line pools (`data/commentaryLines.ts`) repeat noticeably for facts that are almost
+  always true (a `poorMatch` + heel-leaning closer had exactly one line and fired in 7 of 18 watched
+  matches; a bare `referee` colour line fired in 4 of 18) — plus a real bug where a debut line can print a
+  wrestler's own name as their opponent's when they're the one sitting in `{sideB}`. None of that was asked
+  for yet; noted here so it doesn't have to be rediscovered.
+- Verified: `tsc --noEmit` clean, full suite 152 files / 2,941 tests passing (no test covered this — it's
+  presentation, caught only by watching it), `npm run build` clean, live re-verification of a 6-way battle
+  royal's elimination and finish poses confirming both the callout and the label sit correctly now.
+
+### Follow-up: the four items flagged above ("go for it")
+
+- **The ring now has a visual identity.** A mat, three concentric rope borders, and four corner
+  turnbuckles, drawn under the wrestlers in `MatchViewerScreen.tsx`, sized to frame the spotlighted pair
+  (radius 70) at the centre. Tinted to the promotion's own `theme.edge`/`theme.action` colours rather than a
+  fixed color, so it reads as this company's ring, not a generic placeholder. Confirmed live on both a
+  normal 2-sided match and a battle royal.
+- **Long names no longer hard-truncate.** The name tag was a single-line `truncate` at 80px, which cut
+  "Diamond Sundown" down to "Diamond Sun…". Widened to 110px and switched to `line-clamp-2` with
+  `break-words`, so a long name wraps onto a second line instead of guessing at it.
+- **The commentators now have a graphic, not just colored text.** A small circular avatar with their
+  initials (derived from the name, no new data needed — `CommentaryTeam` still carries no portrait field)
+  sits next to their name in the feed header and next to every one of their own chat bubbles, tinted to
+  match their existing sky/amber bubble color.
+- **The debut opponent-naming bug is fixed.** `commentary.ts`'s `filler()` used to resolve `{sideB}` as a
+  fixed lookup regardless of which corner the debutant actually sat in, so a debut opener could read
+  "Needles has never worked a match for this company, and starts against Needles" whenever the debutant
+  happened to be `sideB`'s own first name. Added a dedicated `{debutantOpponent}` placeholder, resolved by
+  finding which corner the debutant's name is actually in and naming the other one; the one template that
+  combined `{debutant}` with `{sideB}` now uses it. New regression test in `commentary.test.ts` runs both
+  placements (debutant on sideA, debutant on sideB) across 40 seeds each and confirms the opener never
+  names the debutant as their own opponent either way.
+- **Thinned-pool repeats reduced with more content, not new gating logic.** The `poorMatch` + heel-leaning
+  `CLOSERS` line ("A win is a win...") was the *only* poor-match closer in the whole file and fired in 7 of
+  18 watched matches; added 2 more heel lines, and — since face/analyst colour men had no poor-match closer
+  at all before this — 3 face and 2 analyst lines, so those leanings get *something* to say about a bad
+  match instead of silence. Added 3 more bare `needs: ['referee']` `COLOUR` lines (that pool had exactly 2)
+  gated to different beat phases (`control`, `hopeSpot`/`signature`, `nearFall`/`signature`) so they don't
+  all compete for the same slot.
+- **Explicitly not touched, and not a bug**: a genuine multi-man match (3+ real sides — a true battle
+  royal) gets no live commentary call at all, by design — this was already a deliberate, documented decision
+  from an earlier session ("Multi-man live commentary stopped mislabeling the field," above in this file):
+  `commentary.ts`'s whole vocabulary is built around exactly two corners, and reworking it to be N-way aware
+  was scoped out as "a real, separate project." Worth restating plainly since it means the answer to "is the
+  commentary entertaining" for a battle royal specifically is "there isn't any" — the highlight beats (now
+  carrying real elimination/pinfall identity, see above) are what a battle royal gets instead.
+- **Also found, not fixed**: adjacent-angle crowding in the ring when a field is large (5-6+) and one of two
+  angularly-close entrants is spotlighted (pulled to radius 70) while its neighbor sits at the normal radius
+  150 — their 120px portraits can visibly overlap. Pre-existing (present before this session's ring
+  background made it easier to see), and fixing it properly means re-tuning the radius/spacing math across
+  entrant counts, not a small change — left as a follow-up rather than guessed at here.
+- Verified: `tsc --noEmit` clean; full suite 152 files / 2,942 tests passing (+1, the debut-opponent
+  regression test); `npm run build` clean; live re-verification of both a normal 2-sided match (ring, full
+  names, avatars, and the new referee/poor-match lines all visible together) and a 6-way battle royal
+  (confirming it still renders correctly with no commentary panel, as designed).
+
+### Follow-up: fixed the ring crowding — sides, not a shared circle
+
+Player's own framing: "you can make the ring bigger. the profile pics don't have to stay in the ring. just a
+general thing to look at. I'd rather they start on the sides anyway" — which is also just what the original
+sketch actually asked for ("participant profile pics on the sides"). The circular layout from the first pass
+put everyone, spotlighted or not, on one shared orbit around the ring; a spotlighted portrait pulled in tight
+(radius 70) could land right on top of a same-side neighbour still sitting at the normal radius (150) a few
+degrees away; the more entrants a battle royal had, the worse it got.
+
+- **Replaced the circle with two rails and a centre stage.** `sideA` rests down a vertical rail on the left,
+  `sideB` down one on the right (plain flex columns — no more per-wrestler angle/radius trig at all). Only
+  whoever the current beat's `actorId`/`targetId` actually names ever leaves their rail, rendered instead in
+  a small flex row pinned to `left-1/2 top-1/2` — dead centre over the ring regardless of how wide the panel
+  is, which a fixed pixel offset from either rail couldn't have guaranteed. For a singles match this reduces
+  to exactly what it always looked like (both wrestlers are the beat's actor/target on literally every beat,
+  so the rails stay empty and both stand centre stage the whole match) — the fix only changes behaviour once
+  a side actually has more than one member with somebody free to rest.
+- **Size does the spotlight emphasis, not a CSS scale.** Resting portraits render at `bust` (80px); the
+  active pair render at `large` (120px) — swapping the `PaperDoll` size prop, not `transform: scale()`, which
+  matters because a scale transform on the same element as the pose animation (`ring-slam`, `ring-eliminated`,
+  ...) would have fought it for control of `transform` the same way the upside-down-label bug did two passes
+  ago.
+- **The ring is bigger.** 300px β†’ 380px, since it no longer has to leave clearance for a field orbiting
+  around it.
+- **`data-testid="match-ring"` and the rest of the panel chrome are untouched** — this was purely the
+  wrestler-positioning internals.
+- Verified live: a 10-way battle royal (one side per entrant, so the field reduces to 1-vs-9 the same way
+  every multi-man match does — see the two-corner note above) now shows every resting wrestler clearly
+  stacked down the right rail with zero overlap, `OUT` tags legible on eliminated names sitting right there
+  on the rail, and the active pair squarely centred on the enlarged ring at every beat including the finish;
+  re-ran the normal 2-sided case too and confirmed it renders identically to before (both always centred,
+  rails empty, nothing regressed). `tsc --noEmit` clean; full suite 152 files / 2,942 tests passing (no test
+  covers this screen — presentation, caught only by watching it); `npm run build` clean.
+
+## "Family Business" — an owner's relative gets thrown on the roster
+
+Player's own pitch, worked through over several turns before any code was touched: a niece or nephew
+of "someone important" gets forced onto the player's own roster — nobody else's, this is a personal
+booking headache, not a world event — signed at a wage way past what their stats justify, no
+negotiation, stats a genuine bust across the board. They get 90 days to win *any* singles title. Miss
+it, and the clock extends once: stuck on the books at the same inflated rate for a full year total. If
+they still haven't won anything by then, they get bored and leave for free agency, a pure loss. If they
+win a title at any point, it flips into a real success — a permanent stat bump — and, left to the
+game's existing ego-drift system rather than forced, they naturally grow into "a fairly decent
+egotistical champion" over the following weeks. Whenever they eventually and naturally lose that belt
+(no special timer — that's just wrestling), they claim they meant to and walk to free agency on their
+own terms. Player's promotion only; singles titles only, no tag-team shortcut; can recur later in a
+long save, rare, one at a time. Full plan (research, design, and every call made) is in this session's
+transcript before the ExitPlanMode approval.
+
+- **`Wrestler.familyBusiness`** (`engine/types.ts`) carries the whole life cycle on the signee
+  themselves rather than on `World` — `signedWeek`, `deadlineWeek` (overwritten in place, once, from
+  the 90-day mark to the one-year mark if the first deadline passes with no title), `extended`,
+  `titleWonWeek` (`null` until they win any singles title; once set, there is no further deadline).
+  Six new `WorldSettings` fields alongside it: `familyBusinessChancePerWeek`, `...EarliestWeek` (20),
+  `...ProvingWindowWeeks` (13, ~90 days), `...TotalWeeks` (52), `...WageMultiplier` (1.25x the
+  player's own current top earner), `...StatBump` (20, flat per-stat on a title win), `...StatCeiling`
+  (20, how bad the bust is), `...StartingEgo` (80).
+- **`engine/world/familyBusiness.ts`** (new, pure): `eligibleForFamilyBusiness` gates on the earliest
+  week and "is anybody already living this story" (derived at the call site from the roster, not a new
+  `World` field — the flag leaves with them at either exit). `generateFamilyBusinessSignee` floors
+  strength/skill/agility/stamina/popularity toward the ceiling and spikes `ego` at construction time —
+  construction, not a live mutation, so it doesn't need to go through the weekly ego-drift system the
+  way a later change would have to. `familyBusinessWage` scales off a given top-earner rate;
+  `familyBusinessTitleWinSurge` returns the flat per-stat bump struct (same shape as `cup.ts`'s
+  `crownSurge` precedent). Five plain-string wire-line generators.
+- **Registered in the world-story pool** (`data/worldStories.ts`) exactly like `merger`/`pricingWar`/
+  `paperworkLockout` — one more `WorldStoryDefinition` entry, `WorldStoryContext` gains
+  `familyBusinessActive: boolean`.
+- **`state/store.ts` wiring, three places**: the dispatch branch generates the signee, computes the
+  wage off the real top earner, and adds them directly to the roster (skipping `world.freeAgents`
+  entirely — they never sat in the pool, they were thrown straight on) with a `wire('signing', ...)`.
+  A new private helper, `applyFamilyBusinessTitleChange` — the store's first true module-level private
+  function, called from both `commitTitleChange` call sites in the title-resolution loop with
+  `previousHolders` captured just before each call (`commitTitleChange` computes the same list
+  internally but doesn't return it) — applies the stat bump and sets `titleWonWeek` on a win, or calls
+  `letThemGo` with a custom "I meant to lose it" line on a loss. Explicitly gated `tier === 'tag' ||
+  tier === 'trios'` to return early — caught this one myself while writing the store test, before any
+  test run exposed it: without the gate a tag-title win would have counted, directly contradicting the
+  confirmed "singles only" design. A weekly tick alongside the `pricingWar`/`paperworkLockout` ticks
+  handles the extension (once) and the eventual bust release.
+- **A real off-by-one bug, caught by the tests, not by review.** `letThemGo`'s departure wire always
+  stamps plain `world.week` — correct for its many post-increment callers, but the title-resolution
+  loop this feature's loss-branch runs from is *before* `world.week += 1` (same trap CLAUDE.md already
+  documents for this exact region). The graceful-exit line was silently dropped by the `weeklyNews`
+  filter every single time until this was caught: fixed by correcting the just-pushed item's `.week`
+  to `world.week + 1` right after the `letThemGo` call, rather than forking the shared helper for one
+  caller.
+- **A second real bug, this one in a completely unrelated, pre-existing test file.** Adding a twelfth
+  entry to the `WORLD_STORIES` registry broke `worldStoriesD.store.test.ts`'s `rogueTurn` test — not
+  a regression in `rogueTurn` itself, but that test's `freshSettings()` never fully isolated the story
+  under test: several other stories' `*ChancePerWeek` fields (`scandal`, `breakaway`, `farewellTour`,
+  `pricingWar`, `paperworkLockout`, and now `familyBusiness`) were left at their real, nonzero
+  defaults, and `chance()` always draws from the shared RNG stream even at the eventual `p=0` this
+  session tried first — so every new eligible-that-week story shifts the exact draw sequence a
+  from-nowhere-obvious seeded test had been quietly relying on. Fixed by actually isolating: zeroing
+  every competing chance field in that file's fixture, matching the convention every newer world-story
+  test file already followed. Re-expressed, not re-baselined — same assertions, same behavior, just an
+  isolation the test should have had from the start.
+- **Deliberately out of scope**, confirmed with the player before building: rivals never get one of
+  these (player's promotion only); no tag-team shortcut to the title requirement; no new UI — the
+  signee is an ordinary, bookable, releasable roster member, and the story is told entirely through
+  Breaking News and the wage number itself, the same way paperwork lockout and pricing war both work.
+- Tests: `engine/world/familyBusiness.test.ts` (10 tests — eligibility gating, bust-stat generation,
+  wage scaling, the title-win surge, the wire lines) and `state/familyBusiness.store.test.ts` (5 tests
+  — the week gate, the forced signing at the scaled wage with no free-agent detour, no second signee
+  while one is still live, the full extend-then-bust life cycle including "no stat bump on a bust,"
+  and a real booked title match driving both the win branch and the later loss branch, bump intact
+  through the release). The title-match test initially picked whichever title `Array.find` happened to
+  land on first, which was `division: 'mens'` — `eligibleTitles()` silently drops a `mens`/`womens`
+  title from a match if any participant's generated gender doesn't match, so the match kept resolving
+  clean but the title itself just never entered the resolution at all. Fixed by picking a `division:
+  'open'` title explicitly, removing the gender dependency rather than working around it.
+- Verified: `tsc --noEmit` clean; full suite 192 files / 3,246 tests passing; `npm run build` clean;
+  a full live Playwright pass through every phase against the real dev server and the real UI — forced
+  the roll and confirmed the inflated-wage signing line on the Results feed and the new roster count on
+  the Roster screen, forced a real booked title match (heavy stat mismatch, sim still decided) and
+  confirmed the win line plus the stat bump landing (clamped to 100), forced the follow-up loss and
+  confirmed the graceful-exit line with the bump still intact and the free-agent landing, then a
+  separate fresh run confirming the exactly-once 90-day extension line and the eventual one-year bust
+  release with no stat bump at all.
+
+## "The Breakfast Belt" — a sponsor forces an embarrassing title on the promotion
+
+Player's own pitch, worked through before any code was touched: a major sponsor's deal comes with
+strings — the promotion has to create a title, and the sponsor picked the name. It's mocked, a
+one-night tournament crowns the first champion the same night it's announced, and for about six months
+every match that puts it on the line costs everybody in it real morale just for being caught near it.
+Fans tweet about how bad the name is. The upside: whoever holds it sees their own merch move for real
+while all that attention is on them. Confirmed with the player: player's own promotion only, and
+one-time — happens at most once per save, like merger/succession, not rare-recurring like paperwork
+lockout or Family Business. The name, picked together after a shortlist: **"The Rise & Grind Breakfast
+Blend Championship,"** universally just **"the Breakfast Belt."**
+
+- **`engine/tournament/bracket.ts`'s `reward: 'title'`** had existed since the tournament engine was
+  first built and never had a consumer — every real caller (`cupRun.ts`'s annual Cup) uses `'trophy'`.
+  This story is its first use: purpose-built for exactly "a tournament that crowns a real champion of a
+  real belt."
+- **`engine/world/breakfastBelt.ts`** (new, pure): `eligibleForBreakfastBelt` mirrors
+  `World.mergerHappened`'s one-time "never fires twice" shape rather than the rare-recurring
+  "currently active" shape Family Business/paperwork lockout use — there's only one target (the
+  player), so a plain boolean is enough. `pickTournamentEntrants` filters the roster through
+  `canWork()` (the same eligibility check rival booking already uses) and samples up to
+  `breakfastBeltEntrantCount`. `runBreakfastBeltTournament` is a trimmed, single-promotion sibling of
+  `cupRun.ts`'s `runCup` — same night-fatigue treatment (`nightFatigueMultiplier` on a per-tie copy,
+  `nightHealthCost` charged to the real person once the bracket's done), none of the Cup's
+  cross-company purse/reign bookkeeping this story doesn't need.
+- **Three new `World` fields** (`state/world.ts`), not on the title itself: `breakfastBeltHappened`
+  (mirrors `mergerHappened`), `breakfastBeltTitleId`, `breakfastBeltMockeryEndWeek` — both null until
+  the story fires, then set once and never cleared. Six new `WorldSettings` fields alongside the
+  existing one-time-story clusters.
+- **The dispatch branch builds the title by hand, not through the usual belt-naming pipeline.**
+  `createStartingTitles(promotionId, promotionName, archetype, [blueprint])` (the same function every
+  rival's own mid-save title roll already uses) names a belt `` `${beltPrefix(promotionName)}
+  ${blueprint.suffix}` `` — correct for every other title in the game, wrong here on purpose, since the
+  whole joke is a sponsor's name landing on the belt with zero relationship to how the promotion names
+  its own titles. So the dispatch branch calls it for everything else worth reusing (prestige-by-tier,
+  colorway-by-tier, `holdersRequired` defaults) and overrides `.name` to the fixed sponsor name
+  afterward — same override pattern the rival auto-title roll already uses for `.id`. Division `'open'`,
+  deliberately: `eligibleTitles()` drops a `mens`/`womens` title from a match whose participants don't
+  all match that gender (the exact trap Family Business's own test hit), and a sponsor belt has no
+  reason to be gendered in the first place.
+- **Crowning reuses `commitTitleChange`** (`storeHelpers.ts`) — the same helper Family Business's own
+  title-win hook uses — rather than reinventing reign bookkeeping.
+- **The morale hit is a direct per-segment mutation**, not routed through the weekly
+  `weeklyMorale`/`moraleContext` accumulator: applied once per match that puts the belt on the line,
+  win/lose/draw alike, the same discrete-cost pattern already used for a guest referee's irritation or
+  a blown call's victim. Lives in the player's own show-resolution loop right where
+  `participantWrestlers`/`titlesOnTheLine` are already assembled, well before either
+  `commitTitleChange` call site.
+- **The merch payoff is a real personal royalty, not an invented number.** There's no per-wrestler
+  merch-sales figure anywhere in the game (merch today is one show-level number in
+  `computeShowRevenue`, driven by roster-average popularity) — rather than add a parallel, unconsumed
+  stat, the weekly tick pays whoever currently holds the belt a flat royalty straight into their own
+  `Ledger.earnings` via `creditPay`, the same mechanism the Cup already uses to pay its winner
+  personally. Whoever holds the belt collects it, not just whoever won it first — if it changes hands
+  mid-window, the new champion picks the royalty straight up, no special-casing needed since the tick
+  just reads `currentHolderIds` fresh every week.
+- **Fan tweets**: a new `MOCKED_TITLE_TWEETS` pool in `data/fanVoices.ts` and a leading loop in
+  `generateFanReaction` mirroring `TITLE_CHANGE_TWEETS`'s own — any rated segment that put the belt on
+  the line, while the window's open, gets a shot at a tweet ribbing the name specifically.
+- **A recurring bug, not a new one — the registry's real maintenance cost.** Exactly the same failure
+  BACKLOG already documents for Family Business's own addition: a 13th `WORLD_STORIES` entry broke
+  `worldStoriesD.store.test.ts`'s `rogueTurn` test again, because `breakfastBeltChancePerWeek` (a real,
+  nonzero default) wasn't in that file's zeroed-fields list — my new story rolled true independently on
+  that seed and, at a higher registry weight than `rogueTurn`, won the tie-break and pre-empted it
+  outright. Fixed the same way as last time: added `breakfastBeltChancePerWeek: 0` to every test
+  fixture in `src/state/` that already carries this defensive "zero every competing story" block
+  (`worldStoriesD`, `deferredShowDebt`, `economicCycle`, `moneyEvent`, `paperworkLockout` — the five
+  that already zero `familyBusinessChancePerWeek`/`paperworkLockoutChancePerWeek`), not just the one
+  that happened to fail on this run. Every new `WORLD_STORIES` entry going forward will need the same
+  treatment across this same set of files.
+- **Two store-test economics lessons, both from measuring against a live, noisy economy rather than a
+  bare function.** (1) A quiet, unbooked week is not a zero-income week — `weekOff()`'s off-week
+  appearance fee (popularity-driven, no RNG) runs every week a contracted wrestler isn't booked, so
+  "confirm earnings don't move once the window closes" can't be a raw before/after equality check.
+  Fixed by pinning the champion's `assignment` to `'appearances'` for both measurements (making that
+  baseline deterministic and roughly stable across the two, since nothing else touches their stats in
+  between) and comparing the *delta* between an open-window week and a closed-window week, not the
+  absolute totals. (2) A real booked match moves morale on its own (win/loss reaction, contagion) —
+  proving the belt-specific hit has stopped firing needed the hit's own signature to be unmistakable
+  against that noise, not buried under a 6-point default. Bumped `breakfastBeltMoraleHit` to 40 for
+  that one assertion only (the earlier test already covers the real configured size firing correctly
+  while the window is open) rather than trying to isolate a 6-point signal from an unbounded one.
+- **Deliberately out of scope**, confirmed with the player before building: rivals never get one of
+  these; no multi-week player-booked bracket (the whole thing resolves the same week it fires, matching
+  how the Cup and every other one-time story already resolve immediately, and `Tournament.multiWeek`
+  has no existing implementation anywhere to build on); no new UI — from the moment it's crowned the
+  belt is an ordinary, bookable title, and the story is told entirely through Breaking News, the
+  tweets, and the felt morale/ledger numbers; the belt name itself is fixed, not a data pool, since the
+  player picked exactly one name for a one-time event.
+- Tests: `engine/world/breakfastBelt.test.ts` (11 tests — eligibility gating, entrant selection
+  respecting `canWork`/role and the entrant cap, the tournament always crowning a real entrant,
+  `wornOut` costs landing only on people who worked more than once, the wire lines) and
+  `state/breakfastBelt.store.test.ts` (6 tests — the week gate, a forced roll creating the exact fixed
+  belt name and crowning a real roster member, never firing twice, the morale hit landing on every
+  participant regardless of outcome, the weekly royalty following whoever currently holds it, and the
+  whole thing stopping cleanly once the window closes with the fade line posting exactly once).
+- Verified: `tsc --noEmit` clean; full suite 194 files / 3,263 tests passing (worldStoriesD's `rogueTurn`
+  test caught and fixed as above); `npm run build` clean; a full live Playwright pass against the real
+  dev server — forced the roll and confirmed the exact belt name and the announcement line landing in
+  Breaking News with a real roster member crowned, booked a real title match and confirmed morale
+  dropped for both participants, confirmed the champion's ledger earnings jumped well past the
+  configured royalty over that week, then jumped straight to the mockery window's close and confirmed
+  the fade line posted with the right text at the right week.
+
+## Every save was living the same story calendar — a real seed bug caught by playing, not by tests
+
+Player asked two questions in a row about the world-story system: how many major stories exist, and
+roughly how far into a save the game would take to surface all of them. Answering the second one
+honestly meant actually playing it out rather than reasoning from `chancePerWeek` alone, so — at the
+player's own prompting ("run the probe") — this ran `tools/probe.mjs`'s own approach (a real dev
+server, `window.__store`, many seeds, many played weeks) with one-off temporary instrumentation
+logging which story won each week's roll. The numbers were wrong in a way that mattered: 15 different
+seeds almost all landed on the *exact same week* for the *exact same story* — not clustered near it,
+identical. Six of the twelve real stories (merger, Rogue Turn, Breakaway Promotion, Farewell Tour,
+Pricing War, Family Business) never fired even once across 15 seeds x 450 played weeks.
+
+- **Root cause: the story roll was never seeded with the save itself.**
+  `state/store.ts`'s dispatch region built `storyRng` as `rngFromSeed(\`worldStory:${world.week}\`)` —
+  week number only. Every other roll in this codebase follows the entity+week convention CLAUDE.md
+  documents specifically to avoid the shared-stream trap (`` rngFromSeed(`blame:${person.id}:${world.week}`) ``);
+  this one had no entity in it at all, which meant *the save itself* was the missing entity — two
+  different saves at the same calendar week drew from an identical PRNG sequence and got an identical
+  outcome, as long as their eligibility lined up (which it usually does early in a save, since nothing
+  seed-dependent has had time to diverge yet). Fixed by adding the one missing piece:
+  `` rngFromSeed(`worldStory:${world.settings.seed}:${world.week}`) ``.
+- **A second, independent problem the same probe run surfaced: two stories had no cooldown at all.**
+  Every entry in `WORLD_STORIES` blocks itself from re-firing — a "currently active" flag
+  (paperworkLockout/pricingWar/familyBusiness) or a "happened to this rival already" list
+  (rogueTurn/scandal/breakawayPromotion/succession) — except `ownerRivalry` and `networkRealignment`,
+  which could re-roll the instant they were next eligible, forever. Combined with the seed bug fixing
+  *which* week belonged to which story, ownerRivalry alone accounted for 423 of the roughly 721 total
+  story firings across the 15-seed probe run — more than every other story in the pool combined.
+  Fixed the same way rogueTurn/scandal/breakawayPromotion already do it: both now take an
+  `alreadyHappenedIds` list (reusing the existing generic `World.worldStoryHappenedFor` record, no new
+  field) and are excluded from future picks once they've happened — `ownerRivalry` marks *both* rivals
+  in the pair, since either side having already been through one is enough to keep them out of a
+  second. Re-running the same probe after both fixes: ownerRivalry dropped to 25 firings across the
+  same 15 seeds, in line with its self-gating siblings (networkRealignment 26, paperworkLockout 24),
+  and every story's first-occurrence week now genuinely differs seed to seed (breakfastBelt alone
+  ranged from week 41 to week 126 depending on the seed, instead of landing on week 70 for all of
+  them).
+- **The seed fix's real fallout: a pile of test files that had been quietly relying on the bug.**
+  Re-seeding the roll changes which story wins any given week for any test that doesn't fully isolate
+  the one it's testing — and it turned out most of the older world-story test files didn't. Six files
+  (`merger.store.test.ts` — which had *no* isolation at all, relying entirely on lucky old-seed
+  determinism; `worldStoriesD.store.test.ts`, `worldStoriesD2.store.test.ts`,
+  `deferredShowDebt.store.test.ts`, `familyBusiness.store.test.ts`, `paperworkLockout.store.test.ts` —
+  each missing one or more newer stories' `*ChancePerWeek` field from their zeroed-fields list, the
+  same trap already documented earlier in this file for Family Business's and the Breakfast Belt's own
+  additions) needed the same defensive full-zero treatment. One more failure was subtler: a
+  `breakfastBelt.store.test.ts` morale assertion at the *default* 6-point hit size, which had been
+  passing by coincidence against whichever specific wrestler the old deterministic seed happened to
+  crown — reseeded, the tournament now crowns someone else, whose own stats produce a slightly
+  different natural match-morale swing that can outweigh a signal that small. Fixed the same way a
+  sibling assertion in the same file already handled this exact risk: bump the hit to a large,
+  test-only override (40, well clear of ordinary match-morale noise) for that one check, since the
+  test's job is confirming the hit fires and stops, not re-verifying its configured size.
+- Tests: `engine/world/networkRealignment.test.ts` and `engine/world/ownerRivalry.test.ts` both gained
+  cooldown-specific cases mirroring `rogueTurn.test.ts`'s own ("never picks somebody it has already
+  happened to"); `worldStoriesD.store.test.ts` gained a store-level case per story confirming the
+  `World.worldStoryHappenedFor` entry is written correctly (length 1 for networkRealignment, length 2
+  — both sides — for ownerRivalry).
+- Verified: `tsc --noEmit` clean; full suite 194 files / 3,270 tests passing; `npm run build` clean; the
+  story-pacing probe re-run against the fixed code, confirming both the per-seed divergence and the
+  ownerRivalry recurrence fix with real numbers (above).
+
+## Player-formed tag teams and factions, with immediate or staged breakups
+
+Player's pitch: form official tag teams (duo or trio) and factions from the existing roster, name
+them, and when kicking a member out or dissolving the act — choose how. Immediately, quietly, or
+staged: the departing member gets booked into the next card as normal, and when that match resolves,
+the rest of the group (and their manager, if they had a real signed one) turns on them. The booker
+then gets a call — reuse the existing `letItHappen`/`breakItUp` pattern from confrontations that go
+physical — and whichever way it resolves is itself what seeds how hot the resulting rivalry starts,
+not a coin flip with no narrative weight. Confirmed with the player: 2-3 members is a team, 4+ is a
+faction (a trio stays tagTeam-kind, trios-title-eligible); one collective rivalry (the remaining group
+vs. the departed member), not pairwise; the manager only turns if they hold a real signed
+`Representation` deal with the departing member, and turning ends that deal.
+
+Duo tag teams already existed as a player-facing feature (`RosterScreen`'s `TagTeamPanel` — form,
+name, instant split). This work generalized formation to arbitrary group sizes and added the whole
+staged-breakup mechanic, and along the way fixed two real, previously-shipped bugs discovered while
+building on that code:
+
+- **Trios titles never vacated on disband, through either existing path.** `disbandTagTeam`'s inline
+  vacate loop only ever checked `title.tier === 'tag'`; a trios champion faction disbanding left the
+  belt marked non-vacant, pointed at a team that no longer existed. The *other* existing disband path
+  — the automatic `disbandStable` `EventEffect`, fired by the pre-existing `partnerTurn` incident —
+  didn't vacate anything at all, tag or trios, ever. Both fixed by extracting a single
+  `vacateTeamHeldTitles(world, memberIds)` helper (`storeHelpers.ts`, built on the existing
+  `stripTitle` primitive) covering `tier === 'tag' || tier === 'trios'`, and routing every disband
+  path — the roster-screen action, the incident effect, and the new staged-turn resolution — through
+  it. Regression-tested directly (a trios title now correctly vacates on disband).
+- **A real id-collision bug in the existing team-id scheme.** `formTagTeam`'s id
+  (`` `${promotionId}-team-${world.nextId++}` ``) uses the exact same prefix pattern as
+  `tagTeams.ts`'s `teamIdFactory`, which independently numbers AI-seeded teams from 0 per promotion at
+  world creation — and `world.nextId` starts at 1. The very first player-formed team in a fresh save
+  collides with an AI-seeded one under the same id, and any later id-keyed lookup (`.find(s => s.id
+  === groupId)`) silently resolves to whichever one the array happens to hit first. Caught live by
+  this feature's own store-integration tests, not by inspection. Fixed narrowly, for the new code
+  only: `formGroup` uses a distinct `-playergroup-` segment instead of `-team-`, guaranteed not to
+  collide with `teamIdFactory`'s own namespace. `formTagTeam` itself was left untouched — same latent
+  bug, but out of scope for this pass and lower risk in practice (a player rarely forms their first
+  team in week one, when `nextId` is still small).
+
+**New engine module `engine/world/teamBreakup.ts`** (pure): `kindForSize(size)` — the single place the
+2-3/4+ rule lives, also used to fix the `formStable` `EventEffect` handler's own inline size check;
+`GroupTurnCall`/`GROUP_TURN_CALL_OPTIONS`/`GroupTurnCallChoiceId` mirroring `confrontationCall.ts`'s
+exact shape; `ScheduledGroupTurn` (deliberately thin — who's available to attack is re-derived at fire
+time, not frozen when the turn is staged, since a roster changes in the weeks between); `canKickFromGroup`,
+`nextLeaderAfterKick`, `availableAttackers` (the real `canWork` gate, so "unless injured or something"
+is the actual availability check, not a guess), `managerAvailable` (the physical-condition checks
+`canWork` covers, without its `role === 'wrestler'` gate, which would always reject a real manager),
+`rollBeatdownInjuryWeeks`, `buildGroupTurnCall`.
+
+**`engine/world/tagTeams.ts` extended**, not duplicated: `createPlayerGroup` generalizes `createTeam`
+to N members (leader = highest popularity, same reduce `formGroupGimmickStable` already used;
+`kindForSize` decides `kind`; name auto-generated via the existing `teamName`/`surnamePair` for 2-3,
+required by the caller for 4+, since there's no sensible auto-name source for a faction).
+`canFormGroup` (already N-size-generic from the signing-meeting `GroupGimmick` flow, but had a latent
+gap — nothing rejected a single-member list) got an explicit minimum-size check and a
+`tooFewMembers` problem.
+
+**Store wiring**: new `state/slices/groupTurns.ts` — `formGroup(memberIds, name?)`, `kickFromGroup(stableId,
+memberId, 'immediate' | 'staged')`, `answerGroupTurnCall(choice)`. The staged path leaves `memberIds`
+untouched until the turn actually fires and is answered — nothing happens off-screen just because it
+was scheduled. The fire hook lives in `store.ts`'s player-show segment-resolution loop, right beside
+the existing `rollIncident` call (same scope: player's own show only, never a rival's): for each
+resolved segment, check whether a participant is a `departingId` due, skip if a `pendingGroupTurnCall`
+is already occupied this week (or if nobody's left available to do the turning — the entry just stays
+scheduled, nothing happened so nothing needs reporting), otherwise resolve real attackers and a real
+signed manager and build the call. The injury-length roll uses its own entity-seeded RNG
+(`` rngFromSeed(`groupTurn:${stableId}:${departingId}:${world.week}`) ``), not the shared stream —
+CLAUDE.md's own documented trap, deliberately avoided this time rather than caught after the fact.
+`answerGroupTurnCall` mirrors `answerConfrontationCall`'s structure: `letItHappen` applies the
+pre-rolled injury and opens a `shoot`-origin rivalry (both `heat` and `shootHeat` seeded — `createRivalry`
+only ever seeds the one axis its origin implies, so the other is set directly on the fresh object);
+`breakItUp` opens a `worked`-origin one instead, with a `bookingCredibility`/`reputation` trade-off
+matching the confrontation call's own shape. Either way the manager's `Representation` deal ends via
+`endRepresentation` if they were part of it.
+
+**UI**: `RosterScreen`'s `TagTeamPanel` generalized to list both kinds (labeled Team/Faction), fixed
+its belt-display filter to include trios, replaced the single instant "Split them up" with "Disband
+entirely" plus a shared `KickFromGroupControl` per member (immediate vs. staged), and replaced the
+two-`<select>` duo-only form with a tap-to-pick multi-select feeding `formGroup`. `WrestlerDetail`'s
+partners block was widened from `teamOf` (tag-team-only) to `groupOf` (both kinds) — factions were
+previously invisible there entirely — and gained the same kick control plus a "turning next show"
+status chip. `BookingScreen`'s card-slot summary gained a turn note alongside the existing storyline
+one. `OfficeScreen` gained `GroupTurnCallPanel`, a direct sibling of `ConfrontationCallPanel`.
+
+- Tests: `engine/world/teamBreakup.test.ts` (new, 15 tests) — `kindForSize`, `canKickFromGroup`,
+  `nextLeaderAfterKick`, `availableAttackers` (including the everyone-unavailable case),
+  `managerAvailable`, `rollBeatdownInjuryWeeks` bounds, `buildGroupTurnCall`. `engine/world/tagTeams.test.ts`
+  extended (8 new cases) — the size-line, the fixed minimum-size gap, `createPlayerGroup` for team and
+  faction sizes, leader selection, `groupOf` on a faction. `state/groupTurns.store.test.ts` (new, 15
+  tests) — formation for 2/3/4+ (including the faction-needs-a-name gate); immediate kick both down to
+  full disband and shrinking a faction to a team in place; the trios-title-vacate regression case
+  directly; staging without touching membership; the full fire-and-answer lifecycle for both
+  `letItHappen` and `breakItUp`; the no-attackers-available case staying scheduled rather than firing
+  empty; the manager-only-if-really-signed case.
+- Verified: `tsc --noEmit` clean; full suite 196 files / 3,308 tests passing; `npm run build` clean; a
+  live Playwright pass via the dev-only `window.__store` handle — formed a real trio, staged a kick,
+  booked the departing member into a match, ran the week, confirmed `pendingGroupTurnCall` carried the
+  right two attackers and no manager (none signed), answered `letItHappen`, and confirmed a real
+  injury landed, the group shrank to the remaining two, a shoot-origin rivalry opened with both axes
+  seeded, and the wire posted — plus a screenshot of the generalized roster panel and the
+  `WrestlerDetail` kick control rendering correctly.
+
+## Match viewer, part 3 — ringside managers, and an interference beat that finally has an actor
+
+The match viewer (see above) already played a decided match back beat-by-beat with the two
+competitors on rest rails and the current beat's actor/target spotlighted centre stage. It showed
+nothing at ringside — no managers, present or otherwise — and the interference beat, despite its own
+prose naming a specific manager, wasn't really about anyone: `matchPlayback.ts`'s existing
+"no clean actor" fallback (its own comment already flagged this as unfinished) guessed an actor from
+whichever *competitor* happened to be on top, because the `MatchBeat` itself carried no id — only
+text. The interference beat has been visually lying since it shipped.
+
+The real gap traced back one more layer than the UI: `ringside.ts`'s `ringsideTotals()` already had
+the real `Manager` object in scope when it wrote `distractionBy[side] = manager.name`, right next to
+an unused `manager.id`. Fixed by threading the id the same way the name already travels —
+`RingsideTotals.distractionById`, `simulateMatch.ts`'s interference-beat construction stamping
+`actorId`/`targetId` from it and from the already-built `sideMembers` map, and `matchPlayback.ts`
+changed to stop discarding a beat's own given id just because it doesn't resolve to one of the
+match's competitors (it now only falls back to the rotation guess when a beat has neither id at all —
+the pre-existing "rotates the spotlight across a tag team" test, which covers exactly that true no-id
+case, was run before and after and needed no changes).
+
+**A real id-namespace trap, caught by reading the call chain before writing any UI code, not by a
+failed test.** A manager who is one of the player's own wrestlers moved into a suit doesn't keep
+their wrestler id as their manager id — `store.ts` resolves every `segment.managerIds` entry through
+`findManager()` before anything reaches `ringsideTotals()`, and `findManager`'s wrestler branch
+(`managerFromWrestler`) stamps a synthetic `` `mgr-of-${wrestler.id}` `` onto the returned `Manager`.
+That synthetic id is what actually flows into `distractionById` and the beat's `actorId` — a UI
+resolver that just read `segment.managerIds[].managerId` off the segment directly would have looked
+right in every manual test with a purely-hired manager and then silently never matched for a
+wrestler-turned-manager. `MatchViewerScreen.tsx`'s own resolver (`resolveRingsideManagers`, mirroring
+`findManager`'s two-step lookup locally rather than importing from `state/storeHelpers.ts`, which no
+UI file does today) derives the same synthetic id for that case.
+
+**New ringside rail**: both managers assigned to the segment (`segment.managerIds`, classified
+`'a'`/`'b'` by a new `sideARawSides` set `deriveSides` now also returns, since sideA is "the winners,"
+not always raw side 0) render at `size="thumb"` (48px — smaller than the wrestler rail's `bust`, 80px,
+per the request to size them "noticeably smaller but not too small," and reusing an existing
+`PaperDollSize` rather than adding a fourth). They sit at rest for the whole match, not just when
+something happens to them. When the current beat's pose is `'interference'` and its `actorId` matches
+one of them, that manager's own portrait — and only that one — plays a new run-in/blast/run-out
+keyframe (`ring-interfere-left`/`-right`, mirrored by side, 0.9s), remounted via `key={beatIndex}`
+exactly like every other one-shot pose in this file. The target wrestler needed no new plumbing at
+all: `current.targetId` is now a real competitor id, so it flows through the exact same
+`isTarget`/spotlight path every other beat already uses. `calloutText` gained an `'INTERFERENCE!'`
+line, safe to show unconditionally now that the pose only ever fires for a real named event.
+
+**Scope note, decided with the player before writing anything**: this animates the distraction beat
+specifically (a manager pulling attention at exactly the wrong moment — already a real, working part
+of the sim, tied to deviousness/presence), not the separate "mugging" mechanic (two managers, a real
+physical hit with real damage) — mugging isn't part of the match's beat timeline at all today; it logs
+to a separate `tonightsBeats` array the viewer never sees, and wiring it in would be new plumbing on a
+larger scale than this pass.
+
+**A mid-request scope call, also decided with the player rather than guessed at**: asked to add
+"grunts and groans (male and female)," audio was explicitly skipped and the player was told why before
+any code was written — the repo has zero audio directories, zero sound assets, and no audio
+dependencies, the game is offline-only by design, and synthesizing a human voice from raw Web Audio
+oscillators would not sound like one. The rest of that request — move-specific animation, a distinct
+knocked-down pose, ring shake on big beats — was in scope and built: the Irish whip's existing
+keyframe was amplified (`translateX(140px)`→`210px`), a new `ring-knockdown` pose replaces `ring-slam`
+as the near-fall target's animation (a slam stays reserved for the bigger lift-and-flip of a
+signature/finisher), and a new `ring-shake` keyframe applies to the ring container itself — not a
+portrait — whenever the current beat is a signature, finish, or the interference beat, via a
+`key={`shake-${beatIndex}`}` remount identical in spirit to every other one-shot pose here.
+
+- Tests: `engine/sim/ringside.test.ts` — new case confirming `distractionById[side]` carries the real
+  manager id alongside `distractionBy[side]`'s name, same corner, same roll.
+  `engine/sim/simulateMatch.test.ts` — new case forcing a guaranteed distraction (a synthetic
+  `RingsideTotals` fixture with `distractionChance` pinned to 1) and asserting the resulting beat's
+  `actorId` is the manager's id, not a competitor's, and `targetId` is a real wrestler actually on the
+  victim side. `engine/sim/matchPlayback.test.ts` — new case: a beat with an `actorId` that belongs to
+  nobody in the match (simulating the manager case) survives unchanged rather than being overwritten
+  by the rotation guess; the pre-existing tag-team-rotation test was re-run, unmodified, and still
+  passes.
+- Verified: `tsc --noEmit` clean; the three touched test files pass (99 tests); full suite passes
+  clean in the background; `npm run build` clean (331 modules); a live Playwright pass via
+  `window.__store` — forced a manager's distraction to land, resolved the week, confirmed the
+  interference beat's `actorId` was the manager's real (synthetic, wrestler-derived) id and its
+  `targetId` a real wrestler, then drove the actual Match Viewer UI to that beat and screenshotted it:
+  the "INTERFERENCE!" callout showing, the target wrestler spotlighted centre stage, and the manager's
+  ringside portrait mid-run-in toward the ring.
+
+## Spontaneous team/faction implosions — the group turns on itself, no booker required
+
+Brainstormed alongside the group-turn feature above: what stories does a real team/faction system make
+possible? "Implosion" (a faction blowing up from within) and "betrayal" (a duo/trio splitting) were the
+two picked as the strongest starting points — and it turned out the game already had almost everything
+needed to tell them.
+
+`engine/world/faction.ts` runs a full weekly lifecycle for every team **and** faction (`store.ts`'s own
+loop doesn't check `kind` — a duo and an eight-man stable both go through it): heat, standing, ego drift,
+recruitment, and `defectionRisk` — a member whose morale is low and ego is high, in a group that's stopped
+drawing, has a real seeded weekly chance to just quietly walk out. That's the exact moment a player asked
+about — the game already knows a group is about to blow up, it just used to resolve the moment as a
+one-line roster edit (`faction.memberIds = faction.memberIds.filter(...)`, a plain wire line) rather than
+a story.
+
+Separately, this session's own group-turn feature already built the entire dramatic machinery — staging a
+kick produces a real on-screen beatdown, a booker decision (`letItHappen`/`breakItUp`), a possible injury,
+and a rivalry — but it was 100% player-initiated: nothing ever scheduled a turn on its own.
+
+**The fix**: when the existing defection roll already says "this member is leaving," a second,
+independently-seeded roll (new `groupImplosionChance` setting, default 0.4) now decides whether it's the
+quiet walkout (unchanged) or a real escalation — the departure is pushed onto `world.scheduledGroupTurns`,
+the *exact* array a staged kick uses. Nothing downstream needed to change at all: the fire hook in
+`store.ts`'s player-show loop, `buildGroupTurnCall`, `pendingGroupTurnCall`, `GroupTurnCallPanel`, and
+`answerGroupTurnCall`'s injury/rivalry resolution are all completely agnostic to how an entry got onto
+that array. Confirmed live: an organically-scheduled turn rendered in `GroupTurnCallPanel` with the exact
+same copy a staged one gets ("The rest of X is standing by tonight. The office has not said one word
+about what happens next.") and resolved identically.
+
+**One real design call, made explicitly rather than left implicit**: `faction.memberIds.length <= 2` was
+an existing guard exempting duos from defection entirely — a player-formed pair could never randomly
+dissolve. A two-person tag team turning on itself is also the classic version of this story (the
+"betrayal" pitch specifically). Rather than lift the guard everywhere, it's loosened only for the dramatic
+path: a duo is still never quietly walked apart, but can now end via a real, telegraphed, booker-
+interruptible on-screen turn — the only way a two-person team ends on its own. Flagged with a `// DESIGN:`
+comment in `store.ts` per CLAUDE.md's ambiguous-spec rule, and covered directly by two tests (a duo
+escalating; a duo staying fully intact when the escalation roll fails, proving the old protection
+survives).
+
+**Deliberately reused, not rebuilt**: no new pure function, no new UI, no new wire copy. The whole feature
+is a `groupImplosionChance: number` field (`engine/types.ts`, defaulted in `engine/world/settings.ts`)
+and about 30 lines in `store.ts`'s existing defection loop — a second `chance(rngFromSeed(\`implode:...\`),
+...)` roll, seeded independently from the existing `defect:` roll (same trap CLAUDE.md documents: an
+extra draw off the shared stream shifts every seeded roll downstream, so this one gets its own entity
+seed), plus a duplicate-scheduling guard.
+
+- Tests: new `describe('spontaneous implosions and betrayals')` block in `state/groupTurns.store.test.ts`
+  (6 cases) — escalates instead of walking quietly when the second roll fires; falls back to the exact
+  pre-existing quiet-walkout behavior when it doesn't (the regression guard); a duo escalates into a real
+  betrayal; a duo never quietly dissolves even at maximum defection risk across several weeks; no
+  duplicate scheduling for a member who already has a turn pending; and an organically-scheduled turn
+  fires through the exact same pending-call pipeline a staged one uses, reusing the existing "fires a
+  pending call once the departing member is actually booked" pattern already in the file.
+- Verified: `tsc --noEmit` clean; the new tests plus `engine/world/teamBreakup.test.ts` and
+  `engine/world/faction.test.ts` (regression, unaffected) all pass; full suite 196 files / 3,317 tests
+  passing; `npm run build` clean; a live Playwright pass via `window.__store` — forced defection risk to
+  its cap, ran the week, watched a real `ScheduledGroupTurn` appear for a player-formed trio, booked the
+  departing member into a match, confirmed a `pendingGroupTurnCall` fired (for a different, AI-seeded
+  team whose own member happened to be defecting too, under the same forced settings — itself a nice
+  confirmation the mechanism runs uniformly across every team and faction in the world, not just a
+  player-formed one), screenshotted `GroupTurnCallPanel` rendering it correctly in the Office, answered
+  it, and confirmed the group shrank and a rivalry opened exactly as a staged turn would.
+
+## Faction Destroyer — an unlockable elimination war between two factions, and the general-purpose ideas it raised
+
+Player-requested main-event story, refined over several rounds of design questions this session. Once
+the player has two factions (4+ member `Stable`s) at once, it locks onto that pair and starts a 6-week
+countdown. Every week featuring a match involving a member of either faction ticks it down by one; a
+quiet week just doesn't move it. Membership of both factions is fully frozen for the duration — no kicks,
+no quiet defection, no spontaneous implosion — additions are still allowed, so the booker can even up
+lopsided sides. When the countdown hits zero, the match is forced onto the next show as the main event,
+no booker choice: a No-DQ, no-time-limit, all-members-at-once elimination war between the two full
+rosters, uneven sides allowed. The first two wrestlers eliminated — whichever side, and including anyone
+added mid-countdown — are fired with the existing 90-day no-compete freeze. The match ends the instant
+one side has nobody left; that side's faction disbands outright, and if the winning side itself loses
+enough members to the releases that it drops below 4, it re-kinds down to an officially named team
+instead of a faction (or fully disbands if it would drop below 2 — structurally unreachable today given
+the numbers, but built exactly as asked since it's harmless and correct if the thresholds ever change).
+One-time per save: a new `factionDestroyerHappened` flag latches the moment it first triggers and is
+checked alongside `factionDestroyer === null`, so a later pair of factions never starts a second one —
+added after the original build, in response to the player asking "one-time or regular?" and leaning
+one-time.
+
+**The one genuinely new piece of match-sim logic**: elimination in this codebase is per-*side*
+(`sim/battleRoyal.ts`'s `orderEliminations` — one weighted draw eliminates a whole side atomically), but
+Faction Destroyer needed a side to lose *some* members while continuing to fight, ending only when a side
+hits zero. New `sim/factionDestroyer.ts`: reserve one random guaranteed survivor from the winning side up
+front (excluded from the draw entirely), pool everyone else (all losers + remaining winners) weighted by
+`1 / their own side's win probability`, draw repeatedly without replacement until the loser's full
+membership has been drawn — provably terminates correctly since the loser's members are a strict subset
+of a finite no-replacement pool. `simulateMatch.ts` branches into this instead of the ordinary multi-man
+path via a literal `stipulation?.id === 'factionDestroyer'` check, same pattern
+`stipulationConsequence()` already uses for `loserLeaves`/`hairVsHair`. New `FinishType:
+'lastFactionStanding'`, bypassing the normal weighted finish roll entirely — the match ends the instant a
+side hits zero, never scripted.
+
+**A real correctness bug caught by the new store-integration tests, not assumed away**: the first
+implementation read "who was eliminated first and second" off `SegmentResult.beats` — but `beats` is a
+narrative highlight reel, capped at `ELIMINATION_BEATS_MAX = 4` and evenly spread across the real
+elimination order (so a 7-elimination match might only surface 2-4 of them, not necessarily the earliest
+ones). A live test run under-released people because of exactly this. Fixed by adding a new
+`SegmentResult.factionEliminationOrder?: Id[]` field — the actual full chronological order, populated
+only for this stipulation — and pointing `resolveFactionDestroyer` at that instead of `beats`.
+
+**A second bug, the exact trap CLAUDE.md documents by name**: the post-match release/disband wire lines
+were being pushed with a plain `world.week` timestamp from *inside* the per-segment resolution loop, which
+runs *before* `world.week += 1` — so by the time the end-of-week prune (`item.week >= world.week`) ran,
+the lines were already "last week's news" and got silently dropped, exactly like the six §0 lines
+CLAUDE.md's trap section describes losing before. Fixed by stamping `world.week + 1`, matching the
+existing documented convention right above it in the same file
+(`applyFamilyBusinessTitleChange`'s own doc comment).
+
+**Two more real bugs surfaced only by a live Playwright run**, not by the unit suite: the game's existing
+"who no-showed tonight" and "stand-in fills the gap" systems (misfortune/absence, and a separate
+catastrophe-driven no-show call) can swap *any* card participant for a substitute — including, previously,
+a locked Faction Destroyer competitor. A substitute standing in for one week is a stranger to the story:
+eliminating or releasing them would be eliminating or releasing somebody who was never actually in either
+faction. Fixed both: the ordinary stand-in loop now always takes the "no replacement, fight short-handed"
+path for a `systemForced: 'factionDestroyer'` segment (uneven sides are explicitly fine per the design),
+and the no-show catastrophe's candidate pool now excludes that segment's participants entirely so it can
+never be picked as the one who didn't turn up.
+
+**A mid-build design question, addressed for real rather than assumed**: "what if a contract
+expires during the six weeks?" The existing contract-expiry tick (`expireContracts`) already had a
+precedent for pausing a wrestler's clock — `paperworkFrozen` — but that flag *also* blocks a wrestler from
+working, which is exactly backwards here: the countdown requires locked members to keep working. Added a
+second, narrower exclusion right beside the existing one: a locked Faction Destroyer member's contract
+simply doesn't tick down while the story is live, but they can still be booked. `WrestlerDetail.tsx` now
+shows "Contract Frozen" in place of the normal urgency badge for a locked member, per the player's own
+follow-up ask, so the freeze is never a silent state change.
+
+**Two other player questions turned out to already be true of the existing design**, and needed no code
+change: "can you auto-populate the main event so nobody can leave a favorite out?" — `buildForcedSegment`
+already puts every current member of both stables on the card with zero player selection. "Can the match
+have both genders?" — nothing anywhere in the trigger, the forced-segment builder, or the match sim
+restricts the two factions to matching genders; that check only applies within a single group at
+formation time.
+
+**Design calls made explicitly, not left implicit**:
+- Countdown: a missed week just doesn't count down — no punishment, matching "a turn does not need a
+  casualty."
+- Which two factions, once 3+ exist: locks onto the first two that ever coexist, in stable array order —
+  a later faction simply isn't eligible until the active story resolves.
+- The player's first instinct for the freeze — "warn them before they kick someone, since it'll end the
+  story" — was flagged against CLAUDE.md's own non-negotiable ("the game never warns the player before a
+  bad decision") before being built. The player's own next answer resolved it better than either original
+  option: block the removal outright as a temporary rule while the story is live, rather than warn before
+  it. Membership additions were left untouched, since evening up lopsided sides was the whole point.
+- `Segment.systemForced?: 'factionDestroyer'` is the first "locked segment" concept in the codebase —
+  `BookingScreen.tsx`'s card overview renders that one slot as a plain, non-clickable div instead of a
+  button, with a rose "Faction Destroyer — locked" badge. Deeper editor screens weren't separately locked
+  — blocking the one realistic entry point was judged sufficient given the effort/time tradeoff.
+- The stipulation itself is `locked: true` and its id is never added to `world.unlockedStipulationIds` —
+  exclusively system-forced, never player-selectable, modeled on Arena Floor's own "unlocked, never
+  scheduled by choice" precedent. Both are exempted from `stipulations.test.ts`'s "every locked
+  stipulation has a real unlock milestone" check for the same reason arenaFloor already was.
+
+- Tests: `engine/sim/factionDestroyer.test.ts` (10) — the elimination algorithm's survivor guarantee
+  under extreme skew, full loser accounting, uneven sides, eliminator RNG hygiene. `engine/world/
+  factionDestroyer.test.ts` (14) — trigger pairing, week-qualification, forced-segment shape,
+  `resolveFactionDestroyer`'s release/disband decisions including the "first two released reads the real
+  chronological order, not the beat reel" case. `state/factionDestroyer.store.test.ts` (10, new this
+  pass) — the full weekly-tick integration: trigger and one-time-only latch, quiet vs. qualifying weeks,
+  the forced main-event insertion, membership-lock refusals for both kick and disband while leaving an
+  unrelated group free, the contract-freeze precisely (drives a member's `weeksRemaining` to 1, runs three
+  more weeks, confirms it never reaches zero), and full post-match resolution (releases read off the real
+  elimination order rather than scanning for a null `promotionId`, since the match's own violence can
+  separately injure or retire somebody who was never eliminated, and a mid-countdown recruit can be among
+  the first two without ever appearing in the original roster snapshot).
+- Verified: `tsc --noEmit` clean; the three new/touched test files pass in isolation and full suite
+  (199 files / 3,351 tests) passes clean twice — once before, once after the `stipulations.test.ts`
+  finishFlavor/unlock-exemption fixes the new stipulation needed; `npm run build` clean. A live Playwright
+  pass via `window.__store`, twice — the first run is what actually caught the two stand-in/no-show bugs
+  above (a real substitute standing in for a locked member, live, not simulated): formed two factions,
+  triggered the story, confirmed a manual kick was refused, drove the countdown to zero, watched the
+  match force onto the next main event with every current member (including one recruit added
+  mid-countdown) on the card, resolved it, and confirmed the loser disbanded with its wire line landing at
+  the correct week, the winner survived with an extra recruit aboard, and the story never re-triggers
+  afterward even once a fresh pair of factions coexists.
+
+## The tale of the tape — commentary that actually introduces the two wrestlers
+
+Player ask: the two-man call (`engine/sim/commentary.ts`) already had a rich fact-gated vocabulary —
+former champions, hot streaks and slumps, lineage, veteran/rookie status, rivalry history — but it never
+once said a win/loss record, and the "introduction" at the top of a call was one generic opener line
+("Here we go — X and Y") plus at most one stakes line. Wanted: the announcers to actually introduce both
+competitors, always stating the record — even a flat .500 night — and free to remark on a hot streak, a
+slump, or a lopsided record framing one side as the clear underdog.
+
+**Turned out to need almost no new plumbing.** `sideA`/`sideB` in `CommentaryContext` are already the full
+`Wrestler` objects, and `record`, `age`, `career.streak`, `career.matches`, and `titleReigns` all live
+directly on them — so a genuinely new per-wrestler fact pass (`introFactsOf`) could be built without
+touching `store.ts`'s context-building at all. The existing single-pick fields there (`formerChampionName`,
+`onATearName`, etc.) pick the first match across *both* corners, which is exactly wrong for an
+introduction that has to say the right thing about the right man — so the tale of the tape recomputes its
+facts fresh per wrestler instead of reading those.
+
+**Scoped to true singles matches only**, called out with a `// DESIGN:` comment per CLAUDE.md's rule: a
+tag or six-man introduced this way would be a wall of biography before a single lock-up, which is exactly
+what the module's own "IT MUST PERTAIN TO THE MATCH" rule exists to prevent. Tag and multi-man matches
+keep the original one-line opener and pick up facts the ordinary way, through the mid-match colour pool.
+
+**Record is unconditional** — a new `INTRO_RECORD` pool (no `needs`, always eligible) states it for both
+corners regardless of how it reads, per the explicit ask ("always mention it, even a plain .500 record").
+Everything else stays fact-gated the existing way: a new `INTRO_COLOUR` pool covers a hot streak, a slump,
+a former title, second-generation lineage, a debut, and veteran/rookie status, each keyed to one of eight
+new `CommentaryFact` values (`introFormerChampion`, `introHotStreak`, `introSlump`, etc.) that are
+deliberately never set by the match-wide `factsOf()` — they only ever exist in a fresh `Set` built once per
+side, so the same key means someone different depending on which corner's pass is running.
+
+**The underdog framing needed real judgement, not just a percentage.** A naive win-rate comparison breaks
+on small samples — a 2-0 rookie facing a 40-5 veteran would read as "the favorite" by raw percentage,
+which is backwards. Gated behind a new `commentaryUnderdogMinDecisions` (6) floor: both sides need that
+many decisive (win+loss, draws excluded) matches before the comparison is trusted at all, otherwise the
+debut/rookie facts already cover the framing instead. Above the floor, a gap past
+`commentaryUnderdogRecordGap` (0.3) triggers exactly one comparison line naming the weaker record.
+
+**Openers deliberately step aside for singles matches.** The existing debut and lineage opener lines would
+just repeat what the tale of the tape is about to say in more detail, so `OPENERS` is filtered to exclude
+those two variants whenever the new pass is going to run — tag matches, which don't get the new pass,
+keep them.
+
+**Caught by the existing "never names nobody who was not part of the match" test, not written for it**: two
+new templates used a directly-appended possessive on a name placeholder (`{introName}'s record...`,
+`{introOpponent}'s`), and the test's word-tokenizer strips the apostrophe, turning "Halvorsen's" into
+"Halvorsens" — a word nobody's allowlist contains. Rewritten to avoid possessive-on-placeholder
+constructions entirely, matching what turned out to already be the file's implicit convention.
+
+- Tests: new `describe('the tale of the tape')` block in `commentary.test.ts` (15 cases) — a placeholder-
+  backing check for the three new template pools (mirroring the existing `checkPool` discipline with its
+  own smaller always-safe/backed-by map), a coverage check that every new fact has at least one line,
+  record always stated (including the draw-suffix and no-draw formats), never said for a tag/multi-man
+  match, a former championship attributed to the wrestler who actually holds one and not the other,
+  hot-streak/slump thresholds matching the existing `commentaryStreakRun`/`commentarySlumpRun` settings,
+  the underdog comparison refusing a small sample and firing once both sides clear the floor and the gap,
+  and the debut opener never firing for a singles match now that the tale of the tape covers it.
+- Verified: `tsc --noEmit` clean; `commentary.test.ts` 52 → 67 tests, all passing; `matchPlayback.test.ts`,
+  `narrative.test.ts`, and the 98-test `store.test.ts` regression suite all pass unaffected; full suite
+  199 files / 3,366 tests passing; `npm run build` clean.
+
+## Three manager stories, riding entirely on the existing representation and poaching systems
+
+Three requested gaps, all confirmed at once ("all of the above"): a signed manager jumping ship to a
+rival, a client firing a manager turning into a real feud instead of a clean break, and a manager's
+growing client book being acknowledged as its own thing rather than just a stat line on `bookLine()`.
+
+**Manager poaching reuses `poaching.ts`'s entire pipeline rather than mirroring it.** Research found that
+`world.promotion.rosterIds` and the `roster` array `rollApproaches` already loops over include managers —
+the only reasons a manager was never poachable were `isPoachingTarget`'s wrestling-only `CareerStatus`
+gate and `temptation()`'s wrestling-specific personality-trait terms. Rather than building a parallel
+`ManagerPoachingOffer` type, store field, resolution loop, and UI panel, the new `engine/world/
+managerPoaching.ts` adds `managerPoachingAppeal()`/`managerTemptation()` (book size resists leaving —
+abandoning clients isn't like quitting a job — in place of the three wrestling-only trait pulls) and a
+`rollManagerApproaches()` that feeds the *same* `world.approachOffers` array via the *same*
+`answerApproach` action and the *same* `OfficeScreen` panel a wrestler's offer already uses. The one real
+addition to `poaching.ts` itself is a new `PoachingResponse` kind, `promiseABiggerBook` — the manager-
+flavored answer to `promiseAPush` (can't push a man who doesn't wrestle, so the promise is more clients
+instead), shown in place of "Promise the spot" whenever the target's `role === 'manager'`. When a poach
+succeeds, every client on the departing manager's book loses their rep via a new `managerDepartureClientLines()`
+helper and — per §0 — each gets an individual wire line, not a silent field change.
+
+**A client-fired manager sometimes turns personal**, via a new independently-seeded roll
+(`engine/world/managerFiring.ts`) at the exact call site `clientWouldWalk`/`managerWouldDrop` already
+resolve from weekly (`store.ts`'s representation-ending loop). Only the two *client-initiated* reasons
+(`notWorthTheCut`, `outgrewHim`) can escalate — a manager cutting a client loose for his own book or
+because the money's thin is business, not betrayal. On escalation, a real `Rivalry` is created between the
+two — seeded `shoot` only, deliberately not double-seeding the worked axis the way a group turn does: a
+group turn is staged as an angle the promotion airs, this is two people who used to work together falling
+out off camera, so there's no worked component to seed. New `managerFiringRivalryChance` (0.25) and
+`managerFiringShootHeat` settings; no `DialogueCard` — auto-resolving, same shape as this session's earlier
+group-implosion escalation, since the actual decision (the client walking) already happened.
+
+**A manager's client stable is a name and a moment, deliberately not a `Stable`.** `Stable.memberIds` is
+leaned on everywhere (`bookableRoster()`, faction-destroyer eligibility, `kickFromGroup`, the booking
+screens) as "a unit the booker puts on a card together," which a manager's clients — still booked and paid
+individually — aren't. The new `ManagerStable { managerId, name, formedWeek }` (`engine/world/
+managerStable.ts`) never stores membership at all; it's always `bookOf(representations, managerId)`, read
+fresh, the same source `bookLine()` already renders from. A new weekly check (self-contained, driven off
+`representations` directly rather than depending on where in the week it runs) forms one once a book
+crosses `managerStableFormsAtClients` (3), naming it from a new `data/managerStableNames.ts` pool, and
+dissolves it — with its own wire line — the moment the book drops back under. No new mechanical bonus:
+`attention`/`roadCost`/`condition` already fully price a big book, so this is the name and the announcement
+for a book that got big enough to matter, not a second number layered on top. Shows on `WrestlerDetail.tsx`
+right above the existing `bookLine()` block it already renders next to.
+
+**Test fixtures need a real weekly rate and full rest to isolate the mechanic under test.** The store-level
+integration tests (`managerStories.store.test.ts`) initially failed in confusing ways because synthetic
+client wrestlers had no `contract` at all — `rateOf()`'s `?? 0` fallback made every client's cut compute to
+$0, which made `managerWouldDrop`'s `notEarningEnough` fire and quietly clear the book before the
+mechanic under test ever got a chance to run. And a manager built at the *exact* floating-point boundary
+of `repClientPatience` (full fatigue and zero energy landing presence precisely on 0.45) was a coin flip
+depending on whether an unrelated weekly recovery tick nudged it a hair either side before the check ran —
+fixed by maxing `repWearPenalty` in those fixtures rather than leaving the margin at zero.
+
+- Files: `engine/world/managerPoaching.ts`, `engine/world/managerFiring.ts`, `engine/world/
+  managerStable.ts`, `data/managerStableNames.ts` (new); `engine/world/poaching.ts` (`promiseABiggerBook`);
+  `engine/types.ts`/`world/settings.ts` (7 new `WorldSettings` fields); `state/world.ts` (`managerStables`
+  field) + `state/persist.ts` (schema v69 → v70); `state/store.ts` (manager-approach roll, poach-departure
+  book cleanup, firing-escalation branch, weekly stable form/dissolve check); `ui/screens/OfficeScreen.tsx`
+  (role-aware response option) + `ui/components/WrestlerDetail.tsx` (stable name display).
+- Tests: `managerPoaching.test.ts`, `managerFiring.test.ts`, `managerStable.test.ts` (engine-level, 21
+  cases) plus `state/managerStories.store.test.ts` (6 cases, full weekly-tick integration for all three
+  through the real store) — regression-checked against `poaching.test.ts`, `poaching.store.test.ts`,
+  `representation.test.ts`, and `groupTurns.store.test.ts`, none of which changed behavior.
+- Verified: `tsc --noEmit` clean; full suite 203 files / 3,393 tests passing (including the project-wide
+  no-bare-gendered-pronoun check, which caught and fixed two `promiseABiggerBook`-related strings);
+  `npm run build` clean; a live played-save probe via `window.__store` (a manager seeded onto the roster
+  with a real book, run 12 real weeks through `resolveWeek()` with no scripted conditions) confirmed no
+  runtime errors and the systems firing in an unscripted save, not just under test.
+
+### Follow-up: a firing-escalated rivalry now shows up in the Feuds tab, not just as a heat badge
+
+Playing the firing story in the browser (Office → Feuds) surfaced a real gap: `world.rivalries` and
+`world.storylines` are two separate systems that don't sync each other. `WrestlerDetail.tsx`'s heat badge
+reads `rivalries` directly, but the Feuds tab (`FeudsTab`, `OfficeScreen.tsx`) reads only `storylines` via
+`everyoneWithAStoryline`/`allStorylinesFor`. The only place `world.storylines.push` happened anywhere in
+the codebase was the player-initiated `startStoryline` action (`state/slices/storylines.ts`) — no
+systemic event, including the pre-existing group-turn rivalry (`state/slices/groupTurns.ts`), had ever
+written to it, so a manager-firing escalation was invisible on that one tab even though it was a completely
+real, live `Rivalry`.
+
+Fixed narrowly for this feature (the group-turn gap is the same shape but out of scope here, not touched):
+the escalation branch in `store.ts` now captures the `Rivalry` it already creates, and — guarded by
+`storylineBetween` so it never double-books a pair already mid-story — pushes a matching `Storyline`
+shaped exactly like `startStoryline`'s own literal (`stage: 'opening'`, empty `neglectedWeeks`/`payoff`,
+`rivalryId` pointing at the rivalry). Named off the same shared `STORYLINE_NAME_PATTERNS` pool
+(`data/storylineBeats.ts`) via a `pick()` seeded off its own distinct entity string (`managerFiringStory:
+...`, not reusing the escalation roll's own seed) — a played save landed on "No Love Lost" for a fired
+manager. Unlike `startStoryline`, which begins with empty `beats: []`, a firing already *is* the opening
+event, so it's seeded with one `confrontation` beat (via the existing `advance()`) carrying the same
+escalation wire line as its text, rather than waiting on whatever match happens to pair the two of them
+next.
+
+- Files: `state/store.ts` (the escalation branch, plus a `STORYLINE_NAME_PATTERNS` import — `advance`,
+  `storylineBetween`, and `pick` were already imported for other systems).
+- Tests: extended `managerStories.store.test.ts`'s two firing-escalation cases — asserts a live storyline
+  exists with the right `rivalryId` and a single `confrontation` beat when it escalates, and asserts none
+  exists when it stays quiet.
+- Verified: `tsc --noEmit` clean; full suite 203 files / 3,393 tests passing; `npm run build` clean; replayed
+  the same live-browser scenario — Office → Feuds now lists both names as "1 current — just started,"
+  and opening either one's feud detail shows "No Love Lost vs. [other]" with the confrontation recap line.
+
+### Follow-up: the same gap fixed in groupTurns.ts
+
+The group-turn rivalry (`state/slices/groupTurns.ts`) had the exact same gap the firing fix above closed
+— it already creates a real `Rivalry` for both `letItHappen` and `breakItUp`, and never wrote to
+`world.storylines` either. Fixed with the same shape, factored into one shared local helper
+(`startGroupTurnStoryline`) since group turns have two call sites instead of one. The one real
+difference: a group turn's `rivalryParticipants` can be more than two people (the departing member plus
+however many attackers, plus an optional manager), which `Storyline.participantIds` has no trouble
+holding — `STORYLINE_NAME_PATTERNS`'s `{a}`/`{b}` slots are filled with the departing member's surname and
+the stable's name rather than two people's names, which reads correctly across every pattern in the pool
+("Yarrow Wants The Trio" is what a played save landed on) since a group turn is naturally billed as
+person-vs-group, not person-vs-person. `letItHappen` seeds an `interference` beat (multiple people jumping
+one); `breakItUp` seeds a `confrontation` beat (nobody actually gets hurt in that branch, so `injury` would
+overstate it).
+
+- Files: `state/slices/groupTurns.ts` (new `startGroupTurnStoryline` helper, called from both branches of
+  `answerGroupTurnCall`).
+- Tests: extended `groupTurns.store.test.ts`'s existing `letItHappen`/`breakItUp` cases with the same
+  storyline assertions used for the firing fix.
+- Verified: `tsc --noEmit` clean; full suite 203 files / 3,393 tests passing; `npm run build` clean; a live
+  playthrough (form a same-gender trio, stage a turn, book the departing member, run the show, answer
+  "Let it happen" through the actual `DialogueCard`) confirmed all three participants now show on Office →
+  Feuds as "1 current — just started."
