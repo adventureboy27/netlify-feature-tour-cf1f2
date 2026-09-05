@@ -5,6 +5,41 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Paperdoll v2 — head-to-waist framing, a real anatomical-detail overlay
+
+Follow-up to the paperdoll library, after the first two real base bodies were submitted and
+reviewed. Two pieces of feedback: the bust-only crop leaves no room for a wrestling top design
+(especially a female one) to actually read, and the flat tinted silhouette needed real detail —
+muscle lines, chest/pec definition, a female bust curve — not just contour.
+
+The detail request collided with the tint mechanic on inspection: skin tone is a flat-color CSS
+mask over the base body's alpha shape, so any shading painted into that same file — which is how
+muscle definition is normally drawn — gets discarded exactly like any other color. Solved with a
+new optional layer instead of fighting the mechanic: `base/m-detail.png` / `f-detail.png`, dark
+linework only on an otherwise fully transparent canvas, composited directly on top of the tinted
+skin layer in `ComposedPortrait.tsx`, and never recolored — so it survives on top of whatever skin
+tone gets assigned. `paperdollAssets.ts` and `assignLook.ts` both updated to carry this optional
+`baseDetailUrl` through; a missing file is a no-op, same as every other optional slot. Verified the
+whole mechanism renders correctly with a rough throwaway test file before writing it into the spec,
+then removed that file since it didn't match the new proportions.
+
+Canvas framing moved from head-to-chest to head-to-waist — still one square 512×512 canvas, just
+more zoomed out, so a wrestling top has real width and height to read rather than a sliver of upper
+chest. The two v1 base bodies submitted before this change are flagged in `assets/README.md` as due
+for a v2 redraw at the new proportions; nothing else in the library was blocked on this, since every
+other slot is still placeholder art regardless.
+
+Rewrote **[The Prompt Sheet](https://claude.ai/code/artifact/8fd67914-ca9b-42d0-9fa7-97e3851c8ad7)**
+in place: new proportions in the shared framing text used by every card, two much more detailed
+base-body prompts (explicit instruction to put muscularity/a bust curve in the silhouette's outline,
+since that's the one thing a flat single-color fill can still express), and two new cards for the
+detail-overlay files with an explicit "line strokes only, nothing else, background fully
+transparent" instruction. **The Bust Line** reference diagram's core lesson (nothing below what a
+small square shows is ever visible) still holds and wasn't redrawn — the Prompt Sheet is now the
+authoritative source for exact current proportions, not that diagram.
+
+---
+
 ## Paperdoll asset library — layered portraits, real art in / code out
 
 Follow-up to the wrestler art shot-list generator below, after the player pushed on the same
