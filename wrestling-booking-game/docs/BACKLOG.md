@@ -61,9 +61,34 @@ files total (2 base bodies, ~6 hairstyles per gender, ~5 facial hair, ~10-12 pro
 one time, ever, not per wrestler and not per gimmick change. The game keeps working exactly as it
 does today (initials placeholder) until any of it exists; each file added just widens the pool.
 
-Explicitly out of scope for now, flagged rather than silently skipped: hair color is not a tint
-dial the way skin tone is — more hair color variety means more files in the pool, not a second
-color layer. Worth adding the same way if it turns out to matter.
+## Paperdoll: hair/prop recoloring, and a real tinting bug caught and fixed
+
+Follow-up to the paperdoll library above. Asked directly: since skin tone is "set once, tinted in
+code," can anything else on the bust work the same way before it's placed? Extended the same idea
+to hair, facial hair, and props via a `--tint` filename marker (`m-buzzcut--tint.png`) — opted-in
+per file, not per slot, so a fixed-color mask can sit in the same folder as a recolorable cap.
+`hairColors.ts` and `accentColors.ts` are the two new palettes (hair/facial share one draw per
+wrestler, so a redhead's beard actually matches); `assignLook.ts` only fills in a `*Color` field
+when the corresponding file opted in, and `ComposedPortrait.tsx` renders an untinted layer exactly
+as painted.
+
+First implementation used `mix-blend-mode: color` (matching what a quick web search would suggest
+for "tint an image in CSS") and shipped a real, visible bug: that blend mode takes hue/saturation
+from the tint but *lightness from the backdrop art*, so achromatic targets (black, white, grey hair)
+have no hue to apply at all and rendered as a wash of whatever gray the placeholder art happened to
+be, regardless of which color was assigned — caught by actually looking at a screenshot of the
+roster, not by reasoning about the CSS. Every skin tone was quietly affected the same way, just less
+obviously wrong since every skin tone in the palette still landed somewhere plausible.
+
+Fixed by dropping the blend mode entirely: a tinted layer is now a flat color cut to that asset's
+own alpha shape via a CSS mask, nothing blended in from the source art's own coloring. This is
+strictly better for this game's flat line-art style — an exact, predictable color every time — at
+the cost of not being able to preserve painted-in shading on a tinted file, which is why the asset
+README now says to paint a `--tint` file as a plain flat mid-gray shape, same as the base body.
+
+Verified the fix visually against the same real played save: hair and prop colors now render as
+genuinely distinct (black, red-brown, blond, white/grey) rather than the earlier uniform wash. Full
+`vitest run` (3,414 tests) and `npm run build` both clean.
 
 ---
 

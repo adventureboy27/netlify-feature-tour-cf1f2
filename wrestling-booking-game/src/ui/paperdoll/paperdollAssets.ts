@@ -13,6 +13,15 @@
 // ui/paperdoll/assets/README.md for the exact spec. A file that doesn't
 // match the pattern is silently skipped rather than crashing the app; a
 // typo'd filename just means one fewer option in the pool, not a build error.
+//
+// A `--tint` suffix before the extension (e.g. m-buzzcut--tint.png,
+// both-bandana--tint.png) opts that one file into being recolored in code —
+// hair/facial get a color drawn from hairColors.ts, props from
+// accentColors.ts — the same trick skin tone always uses on the base body.
+// Without the marker, a file is drawn exactly as painted, every time. This
+// is the whole answer to "can I recolor something before it goes on the
+// bust": paint the shape once, add --tint to the filename, done — no code
+// change, same as adding any other asset.
 
 export type AssetGender = 'm' | 'f' | 'both';
 
@@ -20,6 +29,7 @@ export interface PaperdollAsset {
   id: string;
   gender: AssetGender;
   url: string;
+  tintable: boolean;
 }
 
 // Vite statically analyzes this call, so each options object must be a
@@ -50,12 +60,17 @@ function basename(path: string): string {
   return file.replace(/\.[a-z0-9]+$/i, '');
 }
 
+const TINT_SUFFIX = '--tint';
+
 function parseGendered(files: Record<string, string>): PaperdollAsset[] {
   const out: PaperdollAsset[] = [];
   for (const [path, url] of Object.entries(files)) {
     const match = basename(path).match(/^(m|f|both)-(.+)$/);
     if (!match) continue;
-    out.push({ id: match[2]!, gender: match[1] as AssetGender, url });
+    const rawId = match[2]!;
+    const tintable = rawId.endsWith(TINT_SUFFIX);
+    const id = tintable ? rawId.slice(0, -TINT_SUFFIX.length) : rawId;
+    out.push({ id, gender: match[1] as AssetGender, url, tintable });
   }
   return out;
 }

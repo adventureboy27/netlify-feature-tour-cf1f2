@@ -21,11 +21,12 @@ up. Reference: **[The Bust Line](https://claude.ai/code/artifact/c45d358a-8d70-4
 - Shoulders/torso fill out the rest of the frame down to the bottom edge —
   this is a bust crop, nothing below the chest is ever visible (see the Bust
   Line reference for why).
-- Base body should be drawn **bald and neutral** — no hair, no strong skin
-  color. Hair is its own layer (a "bald" hairstyle option is valid and just
-  means an empty file isn't needed — simply don't pick one for that look).
-  Skin tone is applied in code as a color tint over the base art, so the base
-  shouldn't commit to one skin color itself; a flat mid-gray works well.
+- Base body should be drawn **bald and as one flat mid-gray shape**, no
+  internal shading — skin tone is a flat color cut to this shape's outline in
+  code (see "Recoloring in code" below), so any color or gradient painted
+  into the source file itself is simply discarded, not blended. Hair is its
+  own layer (a "bald" hairstyle option is valid and just means an empty file
+  isn't needed — simply don't pick one for that look).
 
 ## Folders and naming
 
@@ -62,15 +63,30 @@ it's the only prop type offered to a wrestler whose `Gimmick.masked ===
 facial hair entirely rather than sitting on top of them. It's never offered
 to anyone who isn't supposed to be masked.
 
+## Recoloring in code — the `--tint` marker
+
+Skin tone always works this way; anything else can opt in the same way. Add
+`--tint` right before the extension — `m-buzzcut--tint.png`,
+`both-bandana--tint.png` — and that file is drawn as a flat color cut exactly
+to its own shape in code, using a color drawn from `hairColors.ts` (hair and
+facial hair — one color is drawn per wrestler and shared by both, so a
+redhead's beard matches their hair) or `accentColors.ts` (props). Paint that
+file as a **flat mid-gray silhouette**, same as the base body — any color
+painted into the source is discarded in favor of the assigned one, not
+blended with it, so there's no reason to paint it in color at all.
+
+Leave the marker off and a file is drawn exactly as painted, every time —
+right for anything that shouldn't vary, like a mask with fixed team colors
+or a pair of sunglasses that's always black.
+
+This is a per-file choice, not a per-slot one: some hairstyles can be
+`--tint` (recolored) while others in the same folder are fixed-color art, and
+the same is true within `prop/`.
+
 ## What's NOT handled yet
 
-- **Hair color** isn't a separate dial — only skin tone is. Paint each
-  hairstyle file in one color; more color variety means more files (e.g.
-  `m-buzzcut-black.png` and `m-buzzcut-blond.png` are just two more options
-  in the same pool), not a second tint layer. Worth adding later the same
-  way skin tone works now, if it's wanted.
-- Only `WrestlerRow.tsx` and `WrestlerTile.tsx` (the roster list and the
-  match-card wrestler picker) use this system today. Every other screen that
-  shows a wrestler still falls back to the plain initials placeholder when
-  there's no uploaded photo. Rolling it out further is a follow-up, tracked
-  in `docs/BACKLOG.md`.
+Only `WrestlerRow.tsx` and `WrestlerTile.tsx` (the roster list and the
+match-card wrestler picker) use this system today. Every other screen that
+shows a wrestler still falls back to the plain initials placeholder when
+there's no uploaded photo. Rolling it out further is a follow-up, tracked in
+`docs/BACKLOG.md`.

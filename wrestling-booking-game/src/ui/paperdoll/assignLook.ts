@@ -11,14 +11,20 @@
 
 import { BASE_BODY, HAIR_ASSETS, FACIAL_ASSETS, PROP_ASSETS, type PaperdollAsset } from './paperdollAssets';
 import { SKIN_TONES } from './skinTones';
+import { HAIR_COLORS } from './hairColors';
+import { ACCENT_COLORS } from './accentColors';
 import { GIMMICK_CATEGORY_PROP_KEYWORDS } from './gimmickPropTags';
 
 export interface ComposedLook {
   baseUrl: string;
   skinColor: string;
   hair: PaperdollAsset | null;
+  /** Only set when the hair file opted into `--tint`; otherwise it's drawn exactly as painted. */
+  hairColor: string | null;
   facial: PaperdollAsset | null;
+  facialColor: string | null;
   prop: PaperdollAsset | null;
+  propColor: string | null;
 }
 
 export interface LookSubject {
@@ -67,6 +73,9 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
 
   const rng = mulberry32(hashString(subject.id));
   const skin = pick(rng, SKIN_TONES)!;
+  // Drawn once and shared by hair and facial hair, so a redhead's beard
+  // actually matches their hair rather than rolling independently.
+  const hairColor = pick(rng, HAIR_COLORS)!;
 
   const propPool = forGender(PROP_ASSETS, subject.gender);
 
@@ -75,7 +84,17 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   // fact about the character (Wrestler.masked), not a look the RNG opts into.
   if (subject.masked) {
     const maskPool = propPool.filter(isMaskProp);
-    return { baseUrl, skinColor: skin.color, hair: null, facial: null, prop: pick(rng, maskPool) };
+    const mask = pick(rng, maskPool);
+    return {
+      baseUrl,
+      skinColor: skin.color,
+      hair: null,
+      hairColor: null,
+      facial: null,
+      facialColor: null,
+      prop: mask,
+      propColor: mask?.tintable ? pick(rng, ACCENT_COLORS)!.color : null,
+    };
   }
 
   const hair = pick(rng, forGender(HAIR_ASSETS, subject.gender));
@@ -90,5 +109,14 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   // this game don't gimmick around a hat.
   const prop = themed.length > 0 ? pick(rng, themed) : rng() < 0.25 ? pick(rng, nonMaskProps) : null;
 
-  return { baseUrl, skinColor: skin.color, hair, facial, prop };
+  return {
+    baseUrl,
+    skinColor: skin.color,
+    hair,
+    hairColor: hair?.tintable ? hairColor.color : null,
+    facial,
+    facialColor: facial?.tintable ? hairColor.color : null,
+    prop,
+    propColor: prop?.tintable ? pick(rng, ACCENT_COLORS)!.color : null,
+  };
 }
