@@ -137,15 +137,27 @@ from an earlier editing pass that looked like a defect in preview but wasn't
 actually present in the file's alpha data), and confirmed live in a played
 save that skin tint, hair, and the armpit-to-waist gaps all render correctly.
 
-**`base/m-detail.png` and `f-detail.png` are real but do not currently align
-with either base body**, confirmed visually both times: `m-detail.png` was
-drawn to v2 proportions against the still-v1 `m.png`, and `f-detail.png` —
-despite also being "v2" — has a visibly different head/shoulder scale than
-the new `f.png`, since the two were generated independently with no shared
-reference. Once a base body and its detail overlay are actually generated
-against consistent, matching proportions, this should resolve without
-further code changes — this is purely an asset-generation problem, not a
-compositing one.
+**`base/m-detail.png` does not currently align with `base/m.png`** (v2
+detail drawn against a still-v1 body) — will resolve once `m.png` gets its
+own v2 redraw, no code change needed.
+
+**`base/f-detail.png` is now real v2 art that aligns correctly with
+`base/f.png`, with genuine female-specific anatomy (bust curve, sternum
+line).** Got here by feeding Gemini the actual `base/f.png` image as a
+reference and asking it to draw the overlay to match what it could see in
+that image, rather than describing proportions in text alone — this is
+overall a more reliable technique than independent text-only prompts for
+keeping two files in registration, worth using for every future asset pair.
+Arrived as a PNG with the "transparent" checkerboard baked into real opaque
+pixels — same root problem as the original JPEGs, different file format —
+converted the same way: sampled this file's own luminance histogram
+(background >=~135, ink lines topping out ~129, its own distinct calibration
+from the first conversion) and mapped that gap to alpha. Verified with the
+same three checks as `base/f.png`: raw alpha channel visualized directly (no
+transparency defect), composited over two solid colors (checkerboard fully
+gone), and overlaid directly on `base/f.png` at full size (bust curves land
+exactly on the body's chest bump, arm lines trace the actual arm contour).
+Confirmed live in a played save afterward.
 
 **`f-detail.png` also still doesn't have any actual female-specific
 anatomy** — same male-styled chest/ab lines as `m-detail.png`, no bust curve,
