@@ -127,3 +127,29 @@ submitted before the v2 head-to-waist framing above was decided) — they work
 correctly today, they're just framed tighter than the current spec calls
 for. Due to be replaced with v2 versions; every hair/facial/prop file is
 still placeholder either way, so nothing downstream is blocked on this.
+
+**`base/m-detail.png` and `f-detail.png` are real, and drawn to the v2
+proportions — meaning they do not yet line up with the v1 base bodies above.**
+Confirmed visually: the detail layer's smaller, lower head/shoulders sit well
+inside where the v1 base's much bigger head/shoulders are, so right now every
+male wrestler's muscle lines are drawn floating in the wrong place relative to
+their body. This isn't a flaw in the detail art — it's the base bodies that
+need to catch up to v2. Once `base/m.png`/`f.png` are redrawn at the v2
+proportions, this should resolve without touching the detail files again.
+
+Also worth knowing: the female detail file, as submitted, is essentially the
+same male-styled muscular chest as the male one — no distinguishing bust
+curve, which is what its actual prompt asked for. Worth a regenerate later
+that pushes harder on that specifically, but not urgent while it's misaligned
+with the base body anyway.
+
+Both files arrived as JPEGs with the "transparent" area baked in as a real
+checkerboard pattern (JPEG cannot store an alpha channel at all — there is no
+way to export a genuinely transparent JPEG from anything). Converted by
+sampling the actual pixel luminance histogram — the checkerboard sat at
+luminance ≥~200, the ink line population topped out around ~190, a clean gap
+between them — and mapping that gap to a hard cutoff, with a smooth ramp
+across it so anti-aliased line edges stayed smooth rather than jagged.
+**Any future line-art submission should ideally be a real PNG to begin with**
+to skip this conversion step, but JPEG works fine as a source now that this
+exists.
