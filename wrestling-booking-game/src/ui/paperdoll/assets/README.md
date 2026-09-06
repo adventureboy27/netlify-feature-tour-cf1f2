@@ -122,20 +122,35 @@ shows a wrestler still falls back to the plain initials placeholder when
 there's no uploaded photo. Rolling it out further is a follow-up, tracked in
 `docs/BACKLOG.md`.
 
-**`base/m.png` and `base/f.png` are still v1 art** (head-to-chest framing,
-submitted before the v2 head-to-waist framing above was decided) — they work
-correctly today, they're just framed tighter than the current spec calls
-for. Due to be replaced with v2 versions; every hair/facial/prop file is
-still placeholder either way, so nothing downstream is blocked on this.
+**`base/m.png` is still v1 art** (head-to-chest framing, submitted before the
+v2 head-to-waist framing above was decided) — works correctly today, just
+framed tighter than the current spec calls for. Due to be replaced with a v2
+version.
 
-**`base/m-detail.png` and `f-detail.png` are real, and drawn to the v2
-proportions — meaning they do not yet line up with the v1 base bodies above.**
-Confirmed visually: the detail layer's smaller, lower head/shoulders sit well
-inside where the v1 base's much bigger head/shoulders are, so right now every
-male wrestler's muscle lines are drawn floating in the wrong place relative to
-their body. This isn't a flaw in the detail art — it's the base bodies that
-need to catch up to v2. Once `base/m.png`/`f.png` are redrawn at the v2
-proportions, this should resolve without touching the detail files again.
+**`base/f.png` is real v2 art** — a genuinely muscular/athletic silhouette
+with the bust rendered as an actual physical bulge-and-notch in the outer
+edge (not internal shading, which a first attempt got wrong — internal color
+gets discarded by the tint mask, only the alpha shape survives; see
+"Recoloring in code" below). Verified directly: sampled the raw pixel alpha
+channel to confirm the transparency is real and clean (no artifact left over
+from an earlier editing pass that looked like a defect in preview but wasn't
+actually present in the file's alpha data), and confirmed live in a played
+save that skin tint, hair, and the armpit-to-waist gaps all render correctly.
+
+**`base/m-detail.png` and `f-detail.png` are real but do not currently align
+with either base body**, confirmed visually both times: `m-detail.png` was
+drawn to v2 proportions against the still-v1 `m.png`, and `f-detail.png` —
+despite also being "v2" — has a visibly different head/shoulder scale than
+the new `f.png`, since the two were generated independently with no shared
+reference. Once a base body and its detail overlay are actually generated
+against consistent, matching proportions, this should resolve without
+further code changes — this is purely an asset-generation problem, not a
+compositing one.
+
+**`f-detail.png` also still doesn't have any actual female-specific
+anatomy** — same male-styled chest/ab lines as `m-detail.png`, no bust curve,
+despite its prompt (now revised to v2.1, see the Prompt Sheet) asking for
+one. Needs a regenerate.
 
 Also worth knowing: the female detail file, as submitted, is essentially the
 same male-styled muscular chest as the male one — no distinguishing bust
