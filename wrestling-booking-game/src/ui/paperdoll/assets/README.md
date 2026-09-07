@@ -122,10 +122,11 @@ shows a wrestler still falls back to the plain initials placeholder when
 there's no uploaded photo. Rolling it out further is a follow-up, tracked in
 `docs/BACKLOG.md`.
 
-**`base/m.png` is still v1 art** (head-to-chest framing, submitted before the
-v2 head-to-waist framing above was decided) — works correctly today, just
-framed tighter than the current spec calls for. Due to be replaced with a v2
-version.
+**`base/m.png` is now real v2 art** — muscular, athletic, correct head-to-waist
+proportions, clean transparency (verified the same way as `f.png`: solid
+black background this time rather than a checkerboard, converted with
+inverted thresholds — transparent below the background's luminance, opaque
+above the body's). Confirmed live in a played save.
 
 **`base/f.png` is real v2 art** — a genuinely muscular/athletic silhouette
 with the bust rendered as an actual physical bulge-and-notch in the outer
@@ -137,9 +138,13 @@ from an earlier editing pass that looked like a defect in preview but wasn't
 actually present in the file's alpha data), and confirmed live in a played
 save that skin tint, hair, and the armpit-to-waist gaps all render correctly.
 
-**`base/m-detail.png` does not currently align with `base/m.png`** (v2
-detail drawn against a still-v1 body) — will resolve once `m.png` gets its
-own v2 redraw, no code change needed.
+**`base/m-detail.png` is closer to aligning with the new `base/m.png` than it
+was against the old v1 body, but still not a precise match** — the detail's
+shoulders and arm outline extend past the new body's actual edges (the
+chest/ab lines land reasonably well). Not very visible at the sizes the game
+currently renders at, but worth a proper fix: regenerate `m-detail.png` by
+feeding Gemini the actual `base/m.png` file as a reference, the same
+technique that got `f-detail.png` to align precisely.
 
 **`base/f-detail.png` is now real v2 art that aligns correctly with
 `base/f.png`, with genuine female-specific anatomy (bust curve, sternum
