@@ -9,6 +9,9 @@
 //   assets/hair/<m|f|both>-<id>.png                  — e.g. m-buzzcut.png
 //   assets/facial/<m|f|both>-<id>.png                — e.g. m-goatee.png
 //   assets/prop/<m|f|both>-<id>.png                  — e.g. both-military-cap.png
+//   assets/top/<m|f|both>-<id>.png                   — e.g. m-tshirt.png (torso garment)
+//   assets/outer/<m|f|both>-<id>.png                 — e.g. m-vest.png (worn over a top)
+//   assets/waistband/<m|f|both>-<id>.png              — e.g. both-trunks-band.png
 // Any format works (png, svg, webp, jpg) as long as every layer for a given
 // wrestler shares the same square canvas and head position — see
 // ui/paperdoll/assets/README.md for the exact spec. A file that doesn't
@@ -67,6 +70,21 @@ const PROP_FILES = import.meta.glob('./assets/prop/*.{png,svg,webp,jpg,jpeg}', {
   query: '?url',
   import: 'default',
 }) as Record<string, string>;
+const TOP_FILES = import.meta.glob('./assets/top/*.{png,svg,webp,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+const OUTER_FILES = import.meta.glob('./assets/outer/*.{png,svg,webp,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+const WAISTBAND_FILES = import.meta.glob('./assets/waistband/*.{png,svg,webp,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
 
 function basename(path: string): string {
   const file = path.split('/').pop() ?? path;
@@ -109,3 +127,6 @@ export const BASE_DETAIL: Partial<Record<'m' | 'f', string>> = (() => {
 export const HAIR_ASSETS: readonly PaperdollAsset[] = parseGendered(HAIR_FILES);
 export const FACIAL_ASSETS: readonly PaperdollAsset[] = parseGendered(FACIAL_FILES);
 export const PROP_ASSETS: readonly PaperdollAsset[] = parseGendered(PROP_FILES);
+export const TOP_ASSETS: readonly PaperdollAsset[] = parseGendered(TOP_FILES);
+export const OUTER_ASSETS: readonly PaperdollAsset[] = parseGendered(OUTER_FILES);
+export const WAISTBAND_ASSETS: readonly PaperdollAsset[] = parseGendered(WAISTBAND_FILES);

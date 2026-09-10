@@ -1,6 +1,7 @@
 // Stacks a wrestler's assigned look into one picture: base body, tinted to
-// their skin tone, then hair, then facial hair, then a prop — in that order,
-// each layer filling the same square frame. Every layer is expected to
+// their skin tone, then the detail overlay, then clothing (top, waistband,
+// outer — in that order, so a vest sits over a t-shirt rather than under
+// it), then hair, then facial hair, then a prop. Every layer is expected to
 // share one canvas size and head position (see assets/README.md) so
 // stacking them takes no per-asset alignment logic at all.
 //
@@ -56,6 +57,9 @@ export function ComposedPortrait({
     <div role="img" aria-label={alt} className={`relative h-full w-full overflow-hidden ${className ?? ''}`}>
       <Layer url={look.baseUrl} color={look.skinColor} />
       {look.baseDetailUrl && <img src={look.baseDetailUrl} alt="" className={LAYER_CLASS} />}
+      {look.top && <Layer url={look.top.url} color={look.topColor} />}
+      {look.waistband && <Layer url={look.waistband.url} color={look.waistbandColor} />}
+      {look.outer && <Layer url={look.outer.url} color={look.outerColor} />}
       {look.hair && <Layer url={look.hair.url} color={look.hairColor} />}
       {look.facial && <Layer url={look.facial.url} color={look.facialColor} />}
       {look.prop && <Layer url={look.prop.url} color={look.propColor} />}

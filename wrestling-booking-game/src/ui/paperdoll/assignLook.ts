@@ -9,7 +9,17 @@
 // already assigned — it only ever widens the pool a *new* wrestler can land
 // in.
 
-import { BASE_BODY, BASE_DETAIL, HAIR_ASSETS, FACIAL_ASSETS, PROP_ASSETS, type PaperdollAsset } from './paperdollAssets';
+import {
+  BASE_BODY,
+  BASE_DETAIL,
+  HAIR_ASSETS,
+  FACIAL_ASSETS,
+  PROP_ASSETS,
+  TOP_ASSETS,
+  OUTER_ASSETS,
+  WAISTBAND_ASSETS,
+  type PaperdollAsset,
+} from './paperdollAssets';
 import { SKIN_TONES } from './skinTones';
 import { HAIR_COLORS } from './hairColors';
 import { ACCENT_COLORS } from './accentColors';
@@ -20,6 +30,15 @@ export interface ComposedLook {
   skinColor: string;
   /** Anatomical linework over the tinted skin layer — see paperdollAssets.ts. Null if no such file exists yet. */
   baseDetailUrl: string | null;
+  /** Torso garment (t-shirt, singlet, sports bra) — most wrestlers wrestle bare-chested, so usually null. */
+  top: PaperdollAsset | null;
+  topColor: string | null;
+  /** Worn over the top (or over bare skin) — rarer than a top itself. */
+  outer: PaperdollAsset | null;
+  outerColor: string | null;
+  /** Sits right at the bottom crop edge — see assets/README.md for why that's deliberate. */
+  waistband: PaperdollAsset | null;
+  waistbandColor: string | null;
   hair: PaperdollAsset | null;
   /** Only set when the hair file opted into `--tint`; otherwise it's drawn exactly as painted. */
   hairColor: string | null;
@@ -80,6 +99,19 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   // actually matches their hair rather than rolling independently.
   const hairColor = pick(rng, HAIR_COLORS)!;
 
+  // Clothing is independent of masking — a mask covers the head, not the
+  // torso, so it's decided once here and reused whichever branch below runs.
+  // Most wrestlers work bare-chested, so a top is the exception, not the
+  // default; an outer layer over that is rarer still. A waistband is the
+  // one near-universal piece — real wrestling trunks, sitting right at the
+  // bottom crop edge (see assets/README.md).
+  const top = rng() < 0.35 ? pick(rng, forGender(TOP_ASSETS, subject.gender)) : null;
+  const topColor = top?.tintable ? pick(rng, ACCENT_COLORS)!.color : null;
+  const outer = rng() < 0.15 ? pick(rng, forGender(OUTER_ASSETS, subject.gender)) : null;
+  const outerColor = outer?.tintable ? pick(rng, ACCENT_COLORS)!.color : null;
+  const waistband = rng() < 0.9 ? pick(rng, forGender(WAISTBAND_ASSETS, subject.gender)) : null;
+  const waistbandColor = waistband?.tintable ? pick(rng, ACCENT_COLORS)!.color : null;
+
   const propPool = forGender(PROP_ASSETS, subject.gender);
 
   // A required mask replaces hair and facial hair outright rather than
@@ -92,6 +124,12 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
       baseUrl,
       skinColor: skin.color,
       baseDetailUrl,
+      top,
+      topColor,
+      outer,
+      outerColor,
+      waistband,
+      waistbandColor,
       hair: null,
       hairColor: null,
       facial: null,
@@ -117,6 +155,12 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
     baseUrl,
     skinColor: skin.color,
     baseDetailUrl,
+    top,
+    topColor,
+    outer,
+    outerColor,
+    waistband,
+    waistbandColor,
     hair,
     hairColor: hair?.tintable ? hairColor.color : null,
     facial,

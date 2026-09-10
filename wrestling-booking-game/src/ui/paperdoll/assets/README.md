@@ -4,9 +4,10 @@ Drop a correctly named file into one of these four folders and it's live —
 nothing in code needs to change. `paperdollAssets.ts` reads the folder
 contents at build/dev time; `assignLook.ts` picks from whatever's there.
 
-The two base bodies are real art now (v2, head-to-waist framing); everything
-else is still placeholder line-art. Replace files in place, same names, same
-folders — nothing else changes.
+Both base bodies and both detail overlays are real art now (v2, head-to-waist
+framing, aligned). Hair, facial hair, props, and the three clothing slots
+below are all still placeholder line-art. Replace files in place, same
+names, same folders — nothing else changes.
 
 ## The one rule that matters: shared canvas
 
@@ -44,6 +45,9 @@ up. Reference: **[The Bust Line](https://claude.ai/code/artifact/c45d358a-8d70-4
 | `hair/` | Hairstyles | `<m\|f\|both>-<name>.png`, e.g. `m-buzzcut.png`, `f-ponytail.png` |
 | `facial/` | Facial hair | `<m\|f\|both>-<name>.png`, e.g. `m-goatee.png` (in practice always `m-`) |
 | `prop/` | Headgear, masks, glasses, anything gimmick-themed | `<m\|f\|both>-<name>.png`, e.g. `both-military-cap.png` |
+| `top/` | Torso garment: t-shirt, singlet, sports bra | `<m\|f\|both>-<name>.png`, e.g. `m-tshirt.png` |
+| `outer/` | Worn over a top (or bare skin): a vest, a jacket | `<m\|f\|both>-<name>.png`, e.g. `m-vest.png` |
+| `waistband/` | Trunks band, right at the bottom crop edge — see below | `<m\|f\|both>-<name>.png` |
 
 `both` means eligible for either gender. Any image format works (`.png`,
 `.svg`, `.webp`, `.jpg`) as long as it matches the canvas spec above — mixing
@@ -70,6 +74,41 @@ it's the only prop type offered to a wrestler whose `Gimmick.masked ===
 'required'` field made them `Wrestler.masked`, and it replaces hair and
 facial hair entirely rather than sitting on top of them. It's never offered
 to anyone who isn't supposed to be masked.
+
+## Clothing — `top/`, `outer/`, `waistband/`
+
+Added after a player-supplied draft spec (from another AI, not verified
+against the real files) flagged that most wrestlers in this game are drawn
+bare-chested with no clothing layer at all. Three independent slots, layered
+in this order: `top` (a t-shirt, singlet, or sports bra), then `waistband`,
+then `outer` (a vest goes over the top, or over bare skin if there's no top)
+— then hair, facial hair, and props stack on top of all of it as before.
+
+Assigned the same way as everything else — deterministically per wrestler,
+seeded off their id — but at different odds, because most pro wrestlers work
+bare-chested: a `top` has a 35% chance of being assigned, `outer` 15%,
+`waistband` 90% (trunks are close to universal). All three roll and apply
+regardless of whether the wrestler ends up masked — a mask covers the head,
+not the torso, so clothing is decided once and reused by both the masked and
+unmasked paths in `assignLook.ts`.
+
+**Why `waistband` sits right at the bottom edge, deliberately:** the crop
+ends at the waist (see the canvas spec above) — nothing below it is ever
+drawn. A waistband file drawn as a thin band hugging the very bottom of the
+512-tall canvas reads as "trunks start here" without needing to draw legs
+that would just get cropped away. `assets/waistband/both-trunks-band--tint.svg`
+(the current placeholder) does exactly this: a flat rectangle sitting at
+roughly y=470–512 of the 512-tall canvas.
+
+Verified end to end with placeholder art for all three slots (a t-shirt and
+vest for the male body, a sports bra for the female body, one shared
+waistband) in a real played save: each slot's tint applies independently, the
+layering order is correct (vest visibly over the t-shirt), and nothing broke
+for masked wrestlers. Full `vitest run` and `npm run build` both clean.
+
+The player's draft spec also included two prop ideas not in the current
+`prop/` list — face paint and a half-mask, distinct from the full luchador
+mask — worth adding as real prop cards; see the Prompt Sheet.
 
 ## Anatomical detail — `base/m-detail.png` / `f-detail.png`
 
@@ -161,17 +200,6 @@ transparency defect), composited over two solid colors (checkerboard fully
 gone), and overlaid directly on `base/f.png` at full size (bust curves land
 exactly on the body's chest bump, arm lines trace the actual arm contour).
 Confirmed live in a played save afterward.
-
-**`f-detail.png` also still doesn't have any actual female-specific
-anatomy** — same male-styled chest/ab lines as `m-detail.png`, no bust curve,
-despite its prompt (now revised to v2.1, see the Prompt Sheet) asking for
-one. Needs a regenerate.
-
-Also worth knowing: the female detail file, as submitted, is essentially the
-same male-styled muscular chest as the male one — no distinguishing bust
-curve, which is what its actual prompt asked for. Worth a regenerate later
-that pushes harder on that specifically, but not urgent while it's misaligned
-with the base body anyway.
 
 Both files arrived as JPEGs with the "transparent" area baked in as a real
 checkerboard pattern (JPEG cannot store an alpha channel at all — there is no
