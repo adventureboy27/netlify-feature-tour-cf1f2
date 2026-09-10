@@ -1,0 +1,114 @@
+# CLAUDE.md
+
+Project brief for Claude Code. Keep this file in the repo root.
+
+## What we're building
+
+A desktop-first, offline, browser-based **wrestling promotion management game**, headed for Steam. Screens
+use a real window's worth of space — dedicated panes and grids, not a single scrolling phone column. Phone
+and touch are not a design target; whatever still happens to work on one is incidental.
+The player is a booker: they build show cards, sign and manage talent, run
+storylines, and grow a promotion across simulated decades.
+
+**The player never watches or plays a match.** The simulation decides every
+outcome. Results arrive as a short highlight write-up.
+
+## The spec
+
+`booking-game-design.md` is the full specification. It is long — read §0 first
+(the working agreement), then §1-3, then §23 (milestones). Consult the rest by
+section as you build.
+
+**Do not read the whole document into context at once.** Work from §0 plus the
+sections relevant to the current milestone.
+
+## Non-negotiables
+
+- The sim always picks the winner. No scripted finishes, no re-sims.
+- Odds shown as words ("heavy favorite"), never percentages.
+- Stats shown as bars and trend arrows, never numbers.
+- The game never warns the player before a bad decision.
+- Show results appear all at once at the end of the night.
+- **Nothing happens to a person off-screen.** Every injury, death, retirement,
+  and departure is reported *and says how it happened* — which match, which
+  spot, what gave out. The player must never discover a change by noticing a
+  status icon on a roster card. If a system can hurt somebody, that system
+  owes the write-up a sentence.
+- Fully offline. No network calls anywhere.
+
+## Architecture rules
+
+- `src/engine/` is pure TypeScript. No React, no store, no DOM, no
+  `Math.random()`, no `Date.now()`. Everything is `(state, settings, rng)`.
+- No magic numbers in `engine/`. Constants live in `WorldSettings` or `data/`.
+- Content (events, gimmicks, names, moves, territories) lives in `data/` as
+  typed arrays so it can grow without touching logic.
+- Tests cover the simulation, not the UI.
+- Wrestler art is a real uploaded photo, or an initials placeholder when there
+  isn't one — `src/ui/paperdoll/README.md` explains the pipeline. This
+  supersedes §7's opening "No image assets," and supersedes an earlier
+  version of this file that described a generated indexed sprite atlas; that
+  system was removed wholesale, not extended.
+
+## Build order
+
+M0 engine skeleton + balance harness → M1 pixel-art paper-dolls + editor →
+M2 core playable loop → M3 consequences and locker room → M4 stack the deck →
+M5 the world → M5.5 chaos → M6 territories and legacy.
+
+Do not jump ahead. M2 must be playable before M3 starts.
+
+## Commands
+
+```
+npm run dev        # Vite dev server
+npm run sim        # Headless balance harness — run after every sim change
+npm run test       # Unit tests
+npm run build      # Production build
+npm run play       # Build, then fold it into one openable HTML file
+```
+
+`npm run play` writes `dist/wrestling-booker.html` — the whole game in a
+single file, CSS and JS inlined, uploaded photos already inline as data URIs
+in the save. Open it directly, no server needed. The game is offline-only by
+design, so nothing is lost in the folding.
+
+## Traps that have caught somebody more than once
+
+**Adding an RNG draw shifts every seeded roll after it.** The world has one
+shared stream. Inserting a `chance()` or `pick()` anywhere in weekly resolution
+silently breaks unrelated seeded tests, because everything downstream now draws
+different numbers. Seed from the entity instead:
+`rngFromSeed(\`blame:${person.id}:${world.week}\`)`. This has cost real time on
+five separate occasions.
+
+**Wire items stamped with the current week during show resolution vanish.**
+`weeklyNews` is filtered with `item.week >= world.week` *after* `world.week +=
+1`, so anything pushed during resolution and stamped `world.week` is dropped as
+last week's news. Stamp `world.week + 1`, or file it after the increment. Six
+§0 lines were silently lost to this before anybody noticed.
+
+**Measure in a played save, not in tests.** Every serious balance bug in this
+codebase was found with `tools/probe.mjs` and none were found by the suite:
+the whole roster's contracts expiring in one week, the idle-morale rotation
+charging everybody forever, a "neutral" show rating above 90% of the
+distribution, rival wages that never moved. Tests check a function does what it
+says; the probe checks whether the game is any good. Baselines live in
+`docs/BALANCE.md` — read it before tuning anything, and compare like with like
+(same seed count, `--set` to A/B).
+
+**Re-express tests, never re-baseline them.** If a change breaks a test,
+the question is what the test was protecting, not what number makes it pass.
+
+## Shell notes
+
+- `pkill` returns exit 144 when it matches nothing, which aborts a compound
+  command — run it on its own line.
+- The full vitest run exceeds the 120s Bash timeout. Redirect to a log file.
+
+## When the spec is ambiguous
+
+Pick the option that produces a harder, more interesting decision for the
+player. Leave a `// DESIGN:` comment explaining the choice. Don't stall.
+
+If the spec contradicts itself, the later section wins — and flag it.
