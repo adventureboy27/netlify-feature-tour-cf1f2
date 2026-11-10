@@ -5,6 +5,15 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Portraits: tattoos, and lucha masks worn for the look — shipped
+
+- **Tattoos** (`assets/tattoo/`, 60 files): arm, chest, neck, belly and face pieces. Seeded on the
+  body stream after everything else, so they stay with the wrestler through any repackage and
+  reshuffled nobody's existing look. Drawn under clothing and never counted as clothing. About 38%
+  of the roster is inked, one piece per zone at most.
+- **Cosmetic lucha masks**: 9% of unmasked acts wear a luchador design purely for the look
+  (gear stream, so it follows the gimmick). `Wrestler.masked` is untouched — this is art only.
+
 ## Portraits: fewer hats, 36 luchador masks, women always visibly clothed — shipped
 
 Player feedback on the previous pass. Headwear odds halved (38 of 132 unmasked wrestlers at new

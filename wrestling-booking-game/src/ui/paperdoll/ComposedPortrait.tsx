@@ -58,6 +58,14 @@ function maskedFill(url: string, color: string, sheen: boolean): CSSProperties {
   return { backgroundColor: color, ...(sheen ? { backgroundImage: SHEEN } : {}), ...maskOnly(url) };
 }
 
+// Tattoo ink is cut from the file's shape like any tinted layer, so it can
+// be pushed to pure black on the darkest skin tones, where blue-black ink
+// all but disappears.
+function inkFor(skin: string): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(skin.slice(i, i + 2), 16)) as [number, number, number];
+  return 0.299 * r + 0.587 * g + 0.114 * b < 95 ? '#000000' : '#16242c';
+}
+
 // An --xl file is a 640 canvas whose inner 512 square is the normal one:
 // 64 of margin each side, 128 on top, none below.
 const XL_CLASS = 'absolute left-[-12.5%] top-[-25%] h-[125%] w-[125%] object-contain';
@@ -115,6 +123,9 @@ export function ComposedPortrait({
         <Layer url={look.baseUrl} color={look.skinColor} sheen={false} />
         {look.baseDetailUrl && <img src={look.baseDetailUrl} alt="" className={LAYER_CLASS} />}
         <div className="absolute inset-0" style={maskOnly(look.baseUrl)}>
+          {look.tattoos.map((t) => (
+            <Layer key={t.url} url={t.url} color={inkFor(look.skinColor)} sheen={false} />
+          ))}
           {!looseTop && top}
           <Piece worn={look.waistband} />
           {!looseOuter && <Piece worn={look.outer} />}

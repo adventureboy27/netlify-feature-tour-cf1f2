@@ -106,6 +106,11 @@ const LOGO_FILES = import.meta.glob('./assets/logo/*.{png,svg,webp,jpg,jpeg}', {
   query: '?url',
   import: 'default',
 }) as Record<string, string>;
+const TATTOO_FILES = import.meta.glob('./assets/tattoo/*.{png,svg,webp,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
 const TOP_FILES = import.meta.glob('./assets/top/*.{png,svg,webp,jpg,jpeg}', {
   eager: true,
   query: '?url',
@@ -182,3 +187,9 @@ export const PAINT_ASSETS: readonly PaperdollAsset[] = parseGendered(PAINT_FILES
 export const NECK_ASSETS: readonly PaperdollAsset[] = parseGendered(NECK_FILES);
 /** A chest graphic, only ever drawn on a top and cut to that top's shape. */
 export const LOGO_ASSETS: readonly PaperdollAsset[] = parseGendered(LOGO_FILES);
+/**
+ * Ink on the skin: under all clothing, cut to the body silhouette, never
+ * recolored. The id's leading word is the zone it occupies — see
+ * TATTOO_ZONES in assignLook.ts.
+ */
+export const TATTOO_ASSETS: readonly PaperdollAsset[] = parseGendered(TATTOO_FILES);

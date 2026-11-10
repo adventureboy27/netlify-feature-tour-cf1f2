@@ -20,6 +20,7 @@ import {
   PAINT_ASSETS,
   NECK_ASSETS,
   LOGO_ASSETS,
+  TATTOO_ASSETS,
   TOP_ASSETS,
   OUTER_ASSETS,
   WAISTBAND_ASSETS,
@@ -43,6 +44,8 @@ export interface ComposedLook {
   baseDetailUrl: string | null;
   /** Facial features. Drawn as painted. */
   face: PaperdollAsset | null;
+  /** Ink. Part of the body, not the outfit: it never changes and is never a substitute for clothing. */
+  tattoos: readonly PaperdollAsset[];
   hair: Worn | null;
   facial: Worn | null;
   /** Torso garment — always for women, about a third of the time for men. */
@@ -116,6 +119,19 @@ function mulberry32(seed: number) {
 
 type Rng = () => number;
 
+// Zone prefix of a tattoo id -> how likely a tattooed wrestler has that zone inked.
+const TATTOO_ZONES: readonly (readonly [string, number])[] = [
+  ['arm-l', 0.55],
+  ['arm-r', 0.55],
+  ['chest', 0.28],
+  ['neck', 0.14],
+  ['belly', 0.14],
+  ['face', 0.05],
+];
+const TATTOOED = 0.38;
+// An unmasked act wearing a lucha mask purely for the look.
+const COSMETIC_MASK = 0.09;
+
 function colorDistance(a: string, b: string): number {
   const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   const [x, y] = [rgb(a), rgb(b)];
@@ -179,6 +195,19 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   const hairAsset = bald ? null : pick(body, body() < GOOFY_KEEP || seriousHair.length === 0 ? hairPool : seriousHair);
   const facialAsset = man && body() < 0.55 ? pick(body, of(FACIAL_ASSETS)) : null;
 
+  // Tattoos come last on the body stream, so adding them reshuffled nobody's
+  // skin, hair or face. They are skin, not clothing: nothing below treats a
+  // chest piece as a top.
+  const ink = of(TATTOO_ASSETS);
+  const tattoos: PaperdollAsset[] = [];
+  if (ink.length > 0 && body() < TATTOOED) {
+    for (const [zone, odds] of TATTOO_ZONES) {
+      const here = ink.filter((t) => t.id.startsWith(`${zone}-`));
+      if (body() < odds && here.length > 0) tattoos.push(pick(body, here)!);
+    }
+    if (tattoos.length === 0) tattoos.push(pick(body, ink.filter((t) => t.id.startsWith('arm-')))!);
+  }
+
   // ---- gear: follows the gimmick ---------------------------------------
   const name = subject.gimmickName?.toLowerCase() ?? '';
   const theme = NAME_THEMES.find(([needle]) => name.includes(needle))?.[1];
@@ -218,7 +247,7 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   const neck = worn(slot(of(NECK_ASSETS), 'neck'), () => accent(gear));
 
   const props = of(PROP_ASSETS);
-  const shared = { baseUrl, skinColor: skin.color, baseDetailUrl: BASE_DETAIL[subject.gender] ?? null, face, top, logo, outer, waistband, neck };
+  const shared = { baseUrl, skinColor: skin.color, baseDetailUrl: BASE_DETAIL[subject.gender] ?? null, face, tattoos, top, logo, outer, waistband, neck };
 
   // A required mask replaces hair, beard, makeup and anything else on the
   // face outright — Gimmick.masked makes it a mechanical fact about the
@@ -235,7 +264,15 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
     return { ...shared, hair: null, facial: null, paint: null, acc: null, prop: mask };
   }
 
-  // A mask asset never lands on a wrestler who isn't supposed to be masked.
+  // DESIGN: some unmasked acts wear a lucha mask for the look. Only ever a
+  // luchador design — hockey, monster and ninja masks stay with the acts
+  // that are mechanically masked — and it hides hair and beard like a real one.
+  const luchaMasks = props.filter((p) => p.id.includes('luchador'));
+  if (luchaMasks.length > 0 && gear() < COSMETIC_MASK) {
+    return { ...shared, hair: null, facial: null, paint: null, acc: null, prop: worn(pick(gear, luchaMasks), () => accent(gear)) };
+  }
+
+  // No other mask asset lands on a wrestler who isn't supposed to be masked.
   const prop = worn(slot(props.filter((p) => !isMaskProp(p)), 'prop'), () => accent(gear));
   const acc = worn(slot(of(ACC_ASSETS), 'acc'), () => accent(gear));
   const paint = worn(slot(of(PAINT_ASSETS), 'paint'), () => accent(gear));

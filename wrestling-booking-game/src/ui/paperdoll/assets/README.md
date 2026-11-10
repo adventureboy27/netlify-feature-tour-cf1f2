@@ -193,6 +193,16 @@ set. `THEMED_ONLY_IDS` lists costume pieces that are never handed out at
 random. Masked wrestlers draw from the luchador, hockey, monster and ninja
 masks, themed the same way.
 
+## Tattoos — `tattoo/`
+
+Ink is part of the body, not the outfit: seeded off the wrestler alone, so
+it never changes with a gimmick, drawn under every piece of clothing, and
+cut to the body silhouette. It is never treated as clothing — a woman with a
+chest piece still gets a top over it. A file's name starts with its zone
+(`arm-l-`, `arm-r-`, `chest-`, `neck-`, `belly-`, `face-`); a wrestler gets
+at most one piece per zone. The file's colors are ignored — only its shape
+and opacity are used, and the ink color is picked to show on the skin tone.
+
 ## What changes with a gimmick
 
 Skin, face, hair, hair color and beard are seeded off the wrestler alone and

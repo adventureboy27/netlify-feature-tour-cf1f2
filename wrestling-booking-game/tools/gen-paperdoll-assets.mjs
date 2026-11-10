@@ -763,6 +763,89 @@ const LOGOS = {
   target: `${oval(0, 0, 1, 1)} ${oval(0, 0, 0.72, 0.72)} M -.12,-1.2 L .12,-1.2 L .12,1.2 L -.12,1.2 Z`,
 };
 
+// -------------------------------------------------------------- tattoos ----
+// tattoo/ — ink on the skin. Body space, drawn under all clothing and cut
+// to the body silhouette by ComposedPortrait. The id's first word is the
+// zone (arm-l, arm-r, chest, neck, belly, face); a wrestler gets at most
+// one piece per zone.
+
+const TAT_INK = '#16242c';
+// Centre and half-width of the LEFT upper arm and forearm.
+const LIMB = {
+  m: { upper: [112, 262, 24], fore: [93, 425, 19] },
+  f: { upper: [130, 262, 17], fore: [112, 425, 15] },
+};
+const place = (d, x, y, sc) => d.replace(/(-?\d*\.?\d+),(-?\d*\.?\d+)/g, (_, u, v) => `${r1(x + u * sc)},${r1(y + v * sc)}`);
+const ANCHOR = `M -.1,-.9 L .1,-.9 L .1,-.6 L .5,-.6 L .5,-.4 L .1,-.4 L .1,.55 C .45,.5 .7,.25 .75,-.05 L 1,.15 C .85,.7 .45,1 0,1 C -.45,1 -.85,.7 -1,.15 L -.75,-.05 C -.7,.25 -.45,.5 -.1,.55 L -.1,-.4 L -.5,-.4 L -.5,-.6 L -.1,-.6 Z ${oval(0, -1.12, 0.26, 0.26)} ${oval(0, -1.12, 0.12, 0.12)}`;
+const DAGGER = 'M 0,-1.4 L .17,-.2 L .55,-.2 L .55,0 L .14,0 L .14,.9 L 0,1.25 L -.14,.9 L -.14,0 L -.55,0 L -.55,-.2 L -.17,-.2 Z';
+const SWALLOW = 'M -1,-.3 C -.5,-.3 -.2,0 0,.3 C .2,0 .5,-.3 1,-.3 C .7,.1 .4,.4 .1,.5 L .3,1 L 0,.7 L -.3,1 L -.1,.5 C -.4,.4 -.7,.1 -1,-.3 Z';
+const WING = 'M -.04,.2 C -.3,-.3 -.75,-.36 -1,-.16 C -.8,-.08 -.75,.04 -.84,.2 C -.66,.12 -.56,.24 -.6,.42 C -.44,.3 -.34,.4 -.32,.56 C -.22,.4 -.1,.34 -.04,.36 Z';
+
+function tattoos(g) {
+  const b = BODY[g];
+  const [cx, ny] = [b.cx, b.neckY];
+  const L = LIMB[g];
+  const [, pitL] = GAP[g][0];
+  // Everything on the left arm is cut off at the arm gap, so a sleeve never bleeds onto the ribs.
+  const armClip = `M 0,0 L ${pitL - 6},0 ${GAP[g].map(([y, l]) => `L ${l},${y}`).join(' ')} L 0,512 Z`;
+  const ink = (body, clip) =>
+    (clip ? `<defs><clipPath id="a"><path d="${clip}"/></clipPath></defs>` : '') +
+    `<g opacity=".8"${clip ? ' clip-path="url(#a)"' : ''}>${body}</g>`;
+  const I = (d, extra = '') => fill(d, TAT_INK, extra);
+  const S = (d, w) => stroke(d, TAT_INK, w);
+  const armX = (y) => L.upper[0] + ((L.fore[0] - L.upper[0]) * (y - L.upper[1])) / (L.fore[1] - L.upper[1]);
+  const blades = (y0, y1) => {
+    let d = '';
+    for (let y = y0, i = 0; y < y1; y += 24, i++) {
+      const c = armX(y);
+      const w = (i % 2 ? -1 : 1) * 46;
+      d += `M ${r1(c - w)},${y} C ${r1(c)},${y - 6} ${r1(c + w * 0.6)},${y + 2} ${r1(c + w)},${y + 10} C ${r1(c + w * 0.3)},${y + 8} ${r1(c - w * 0.2)},${y + 12} ${r1(c - w)},${y + 18} C ${r1(c - w * 0.5)},${y + 12} ${r1(c - w * 0.6)},${y + 6} ${r1(c - w)},${y} Z `;
+    }
+    return d;
+  };
+  const band = (y, t) => `M 0,${y} L 260,${y + 8} L 260,${y + 8 + t} L 0,${y + t} Z`;
+  const zig = (y) => {
+    let d = `M 20,${y}`;
+    for (let x = 30, i = 0; x < 260; x += 10, i++) d += ` L ${x},${y + (i % 2 ? 7 : -3)}`;
+    return d;
+  };
+  const up = (d, sc = 1) => place(d, L.upper[0], L.upper[1], L.upper[2] * sc);
+  const fo = (d, sc = 1) => place(d, L.fore[0], L.fore[1], L.fore[2] * sc);
+  const arm = {
+    tribal: I(blades(206, 330), ' fill-rule="nonzero"'),
+    sleeve: I(blades(206, 480), ' fill-rule="nonzero"') + S(`M ${armX(210) - 30},214 L ${armX(470) - 26},470 M ${armX(210) + 30},214 L ${armX(470) + 26},470`, 1.4),
+    bands: I(`${band(292, 7)} ${band(306, 3)} ${band(400, 5)}`, ' fill-rule="nonzero"'),
+    'barbed-wire': S(`${zig(296)} ${zig(302)}`, 1.8),
+    heart: I(up(heart(0, -0.1, 0.8, 0.75))) + I(up('M -1.1,.15 L 1.1,-.05 L 1.1,.4 L -1.1,.6 Z'), ' opacity=".6"'),
+    skull: I(up(LOGOS.skull, 0.95)),
+    stars: I(`${place(star(0, 0, 1, 1), L.upper[0] - 4, L.upper[1] - 34, L.upper[2] * 0.55)} ${up(star(0.2, 0.3, 0.42, 0.42))} ${up(star(-0.5, 0.9, 0.3, 0.3))}`, ' fill-rule="nonzero"'),
+    anchor: I(fo(ANCHOR, 0.95)),
+    dagger: I(fo(DAGGER, 1.05)),
+    'forearm-bands': I(`${band(380, 4)} ${band(392, 9)} ${band(410, 4)}`, ' fill-rule="nonzero"'),
+  };
+  const out = {};
+  for (const [id, body] of Object.entries(arm)) {
+    out[`arm-l-${id}`] = ink(body, armClip);
+    out[`arm-r-${id}`] = ink(flipX(g, body), flipX(g, armClip));
+  }
+  // Chest pieces sit on the upper chest — on a woman that is above the bust, and mostly under her top.
+  const [chY, chS] = g === 'm' ? [ny + 78, 86] : [ny + 52, 62];
+  const wing = place(WING, cx, chY, chS);
+  Object.assign(out, {
+    'chest-wings': ink(I(`${wing} ${flipX(g, wing)} ${place('M 0,-.1 L .1,.25 L 0,.6 L -.1,.25 Z', cx, chY, chS)}`, ' fill-rule="nonzero"')),
+    'chest-script': ink(S(`M ${cx - chS * 0.9},${chY - 14} C ${cx - chS * 0.4},${chY + 6} ${cx + chS * 0.4},${chY + 6} ${cx + chS * 0.9},${chY - 14} M ${cx - chS * 0.7},${chY + 2} C ${cx - chS * 0.3},${chY + 18} ${cx + chS * 0.3},${chY + 18} ${cx + chS * 0.7},${chY + 2}`, 2.6)),
+    'chest-sun': ink(I(`${place(star(0, 0, 1, 1, 12, 0.6), cx, chY, chS * 0.36)} ${place(oval(0, 0, 0.34, 0.34), cx, chY, chS * 0.36)}`)),
+    'chest-shoulder-cap': ink(I(blades(196, 268).replace(/(-?[\d.]+),(-?[\d.]+)/g, (_, x, y) => `${r1(+x + 44)},${y}`), ' fill-rule="nonzero"')),
+    'neck-swallow': ink(I(place(SWALLOW, cx + (g === 'm' ? 22 : 18), ny - 20, 10))),
+    'neck-star': ink(I(place(star(0, 0, 1, 1), cx - (g === 'm' ? 22 : 18), ny - 22, 8))),
+    'belly-script': ink(S(`M ${cx - 46},418 C ${cx - 20},404 ${cx + 20},404 ${cx + 46},418 M ${cx - 34},432 C ${cx - 14},422 ${cx + 14},422 ${cx + 34},432`, 2.4)),
+    'belly-sun': ink(I(`${place(star(0, 0, 1, 1, 10, 0.55), cx, 440, 22)} ${place(oval(0, 0, 0.36, 0.36), cx, 440, 22)}`)),
+    'face-teardrop': ink(I(hp(g, 'M .62,.6 C .7,.66 .7,.72 .62,.74 C .54,.72 .54,.66 .62,.6 Z'))),
+    'face-star': ink(I(hp(g, star(-0.78, 0.4, 0.13, 0.055)))),
+  });
+  return out;
+}
+
 // ---------------------------------------------------------------- write ----
 
 let count = 0;
@@ -772,7 +855,7 @@ function write(folder, name, content) {
   count++;
 }
 
-for (const folder of ['face', 'hair', 'facial', 'prop', 'acc', 'paint', 'neck', 'logo', 'top', 'outer', 'waistband']) {
+for (const folder of ['tattoo', 'face', 'hair', 'facial', 'prop', 'acc', 'paint', 'neck', 'logo', 'top', 'outer', 'waistband']) {
   const dir = path.join(ROOT, folder);
   if (!fs.existsSync(dir)) continue;
   for (const f of fs.readdirSync(dir)) if (f.endsWith('.svg')) fs.unlinkSync(path.join(dir, f));
@@ -806,6 +889,8 @@ for (const g of ['m', 'f']) {
   const n = neck(g);
   for (const [id, d] of Object.entries(n.tint)) write('neck', `${g}-${id}--tint.svg`, svg(d ? tinted(d) : n.boa));
   for (const [id, body] of Object.entries(n.fixed)) write('neck', `${g}-${id}.svg`, svg(body));
+
+  for (const [id, body] of Object.entries(tattoos(g))) write('tattoo', `${g}-${id}.svg`, svg(body));
 
   for (const [id, d] of Object.entries(LOGOS)) write('logo', `${g}-${id}--tint.svg`, svg(tinted(lp(g, d))));
 
