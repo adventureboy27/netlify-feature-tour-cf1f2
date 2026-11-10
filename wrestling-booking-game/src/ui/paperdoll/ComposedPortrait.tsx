@@ -68,7 +68,10 @@ function inkFor(skin: string): string {
 
 // An --xl file is a 640 canvas whose inner 512 square is the normal one:
 // 64 of margin each side, 128 on top, none below.
-const XL_CLASS = 'absolute left-[-12.5%] top-[-25%] h-[125%] w-[125%] object-contain';
+// max-w-none: Tailwind's reset caps every <img> at max-width:100%, which
+// silently shrank an untinted --xl image back to the normal box and slid it
+// off to one side. Tinted layers are divs and were never affected.
+const XL_CLASS = 'absolute left-[-12.5%] top-[-25%] h-[125%] w-[125%] max-w-none object-contain';
 
 function Layer({ url, color, sheen = true, xl = false }: { url: string; color: string | null; sheen?: boolean; xl?: boolean }) {
   const cls = xl ? XL_CLASS : LAYER_CLASS;
