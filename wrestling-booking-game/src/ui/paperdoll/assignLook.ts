@@ -116,6 +116,12 @@ function mulberry32(seed: number) {
 
 type Rng = () => number;
 
+function colorDistance(a: string, b: string): number {
+  const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const [x, y] = [rgb(a), rgb(b)];
+  return Math.hypot(x[0]! - y[0]!, x[1]! - y[1]!, x[2]! - y[2]!);
+}
+
 function pick<T>(rng: Rng, arr: readonly T[]): T | null {
   return arr.length === 0 ? null : arr[Math.floor(rng() * arr.length)]!;
 }
@@ -129,12 +135,12 @@ const GOOFY_KEEP = 0.2;
 // Flat odds of an un-themed piece per slot. Deliberately low and
 // independent: most people wear nothing on their head, and somebody wearing
 // a hat, glasses, makeup AND a chain should be a rare sight.
-const ODDS = { top: 0.35, outer: 0.15, waistband: 0.9, logo: 0.55, prop: 0.2, acc: 0.13, paint: 0.1, neck: 0.1 };
+const ODDS = { top: 0.35, outer: 0.15, waistband: 0.9, logo: 0.55, prop: 0.1, acc: 0.13, paint: 0.1, neck: 0.1 };
 // How often a gimmick that has a themed piece for a slot actually wears it.
 // Headwear is the signature item; the rest are supporting touches.
-const THEMED = { logo: 0.5, prop: 0.55, acc: 0.3, paint: 0.3, neck: 0.3, top: 0.3, outer: 0.2 };
+const THEMED = { logo: 0.5, prop: 0.28, acc: 0.3, paint: 0.3, neck: 0.3, top: 0.3, outer: 0.2 };
 // The same, when the gimmick's name picked a whole costume: commit to it.
-const COSTUME = { logo: 0.5, prop: 0.85, acc: 0.6, paint: 0.4, neck: 0.4, top: 0.85, outer: 0.6 };
+const COSTUME = { logo: 0.5, prop: 0.5, acc: 0.6, paint: 0.4, neck: 0.4, top: 0.85, outer: 0.6 };
 
 /**
  * Null when no base body exists yet for that gender — callers fall back to
@@ -150,6 +156,12 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   const body = mulberry32(hashString(subject.id));
   const gear = mulberry32(hashString(`${subject.id}:gear:${subject.gimmickId ?? ''}`));
   const accent = (rng: Rng, not?: string | null) => pick(rng, ACCENT_COLORS.filter((c) => c.color !== not))!.color;
+  // For anything worn against the chest: gold or orange on tan skin reads
+  // as no clothing at all, so colors too close to the skin tone are out.
+  const clothAccent = (rng: Rng, skinColor: string) => {
+    const far = ACCENT_COLORS.filter((c) => colorDistance(c.color, skinColor) > 110);
+    return pick(rng, far.length > 0 ? far : ACCENT_COLORS)!.color;
+  };
   const worn = (asset: PaperdollAsset | null, color: () => string): Worn | null =>
     asset ? { asset, color: asset.tintable ? color() : null } : null;
 
@@ -190,7 +202,13 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   // bare-chested portrait is right for most of the men's roster and wrong
   // for the entire women's one.
   const tops = of(TOP_ASSETS);
-  const top = worn(slot(tops, 'top') ?? (man ? null : pick(gear, tops.filter((t) => !THEMED_ONLY_IDS.includes(t.id) && !isGoofy(t)))), () => accent(gear));
+  // A woman is never drawn bare-chested: if the themed/random draw comes up
+  // empty she gets a sports bra most of the time, another fitted top
+  // otherwise, and whatever exists as a last resort.
+  const fitted = tops.filter((t) => !t.loose && !THEMED_ONLY_IDS.includes(t.id));
+  const bras = fitted.filter((t) => t.id.includes('sportsbra'));
+  const womansTop = () => pick(gear, bras.length > 0 && gear() < 0.75 ? bras : fitted.length > 0 ? fitted : tops);
+  const top = worn(slot(tops, 'top') ?? (man ? null : womansTop()), () => clothAccent(gear, skin.color));
   // A one-strap singlet leaves the chest centre bare; a logo there would
   // sit half on skin. A painted costume top (a gi) already has its own front.
   const logoOk = top && top.asset.tintable && !top.asset.id.includes('onestrap');
@@ -208,8 +226,12 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   if (subject.masked) {
     const masks = props.filter(isMaskProp);
     const themedMasks = masks.filter((p) => keywords.some((k) => p.id.includes(k)));
-    const plainMasks = masks.filter((p) => !isGoofy(p));
-    const mask = worn(pick(gear, themedMasks.length > 0 ? themedMasks : plainMasks.length > 0 ? plainMasks : masks), () => accent(gear));
+    // Lucha masks are the default; hockey, monster and ninja masks are for
+    // the acts themed to them, plus the odd one out.
+    const lucha = masks.filter((p) => p.id.includes('luchador'));
+    const others = masks.filter((p) => !p.id.includes('luchador') && !isGoofy(p));
+    const general = lucha.length > 0 && (others.length === 0 || gear() < 0.85) ? lucha : others.length > 0 ? others : masks;
+    const mask = worn(pick(gear, themedMasks.length > 0 ? themedMasks : general), () => accent(gear));
     return { ...shared, hair: null, facial: null, paint: null, acc: null, prop: mask };
   }
 

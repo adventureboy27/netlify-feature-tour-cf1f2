@@ -5,6 +5,15 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Portraits: fewer hats, 36 luchador masks, women always visibly clothed — shipped
+
+Player feedback on the previous pass. Headwear odds halved (38 of 132 unmasked wrestlers at new
+game, down from about 68). The five luchador colorways became 12 designs x 3 colorways, built from
+one shell with SVG clip/mask so a design never has to be cut around the eye holes; masked wrestlers
+draw a lucha mask 85% of the time unless their act is themed to a ninja/monster/hockey one. Women
+fall back to a sports bra 75% of the time (measured: 39 of 74), and a top's color is now kept away
+from the skin tone — a gold or orange bra on tan skin read as bare. 5,000 synthetic women: 0 bare.
+
 ## Portraits: masks, loose clothing, robes, and matched costumes — shipped
 
 Asked for hockey and monster masks, loose coats and shirts, wrestling robes, a ninja mask and karate

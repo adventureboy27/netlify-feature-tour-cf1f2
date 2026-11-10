@@ -403,10 +403,41 @@ function hatsFixed(g) {
       fill(P(`${MASK_SHELL} M -.92,.42 C -.4,.39 .4,.39 .92,.42 L .9,.61 C .4,.64 -.4,.64 -.9,.61 Z`), color) +
       stroke(P('M -.9,.36 C -.4,.33 .4,.33 .9,.36 M -.86,.68 C -.4,.72 .4,.72 .86,.68'), '#000000', 1.2, ' opacity=".3"');
   }
-  for (const [name, [main, trim]] of Object.entries(MASK_SCHEMES)) {
-    out[`luchador-mask-${name}`] =
-      fill(P(`${MASK_SHELL} ${MASK_HOLES}`), main) + fill(P(`${MASK_TRIM} ${MASK_HOLES}`), trim) + fill(P(MASK_CREST), trim);
-  }
+  // Luchador masks: one shell, many designs. Everything is drawn inside a
+  // group that is clipped to the shell and has the eye and mouth openings
+  // masked out, so a design never has to be cut around them by hand.
+  const lucha = (main, trim, design, outside = '') =>
+    `<defs><clipPath id="s"><path d="${P(MASK_SHELL)}"/></clipPath>` +
+    `<mask id="h" maskUnits="userSpaceOnUse" x="-64" y="-128" width="640" height="640"><rect x="-64" y="-128" width="640" height="640" fill="#fff"/><path d="${P(MASK_HOLES)}" fill="#000"/></mask></defs>` +
+    `<g mask="url(#h)">${outside}<g clip-path="url(#s)">${fill(P(MASK_SHELL), main)}${design}</g>` +
+    `${stroke(P(MASK_HOLES), trim, 2.2)}${stroke(P(MASK_SHELL), '#000000', 1.4, ' opacity=".35"')}</g>`;
+  const T = (d, c, extra = ' fill-rule="nonzero"') => fill(P(d), c, extra);
+  const DESIGNS = {
+    classic: (t) => T(`${MASK_TRIM} ${MASK_CREST}`, t),
+    flames: (t) => T(`${both('M -.8,.44 C -.78,.2 -.52,.1 -.46,-.06 C -.38,.14 -.25,.16 -.2,.0 C -.14,.2 -.06,.3 -.08,.44 Z')} ${oval(0, 0.845, 0.42, 0.09)}`, t),
+    wings: (t) => T(both('M -.06,.5 C -.3,.28 -.7,.22 -1.06,.26 C -.92,.38 -.98,.5 -1.04,.64 C -.7,.68 -.3,.68 -.06,.5 Z'), t),
+    split: (t) => T('M 0,-.2 L 1.3,-.2 L 1.3,1.2 L 0,1.2 Z', t) + T(`${oval(-0.42, 0.51, 0.4, 0.115)}`, t) ,
+    tiger: (t) => T(both('M -1.1,.26 L -.56,.36 L -1.08,.4 Z M -1.16,.6 L -.6,.68 L -1.1,.76 Z M -.96,.86 L -.46,.86 L -.8,.98 Z M -.56,-.06 L -.3,.28 L -.7,.08 Z M -.2,-.08 L -.06,.3 L -.3,.0 Z'), t),
+    star: (t) => T(`${star(0, 0.19, 0.4, 0.165)} ${MASK_TRIM}`, t),
+    cross: (t) => T('M -.15,-.2 L .15,-.2 L .15,1.2 L -.15,1.2 Z M -1.3,.4 L 1.3,.4 L 1.3,.63 L -1.3,.63 Z', t),
+    bolts: (t) => T(both('M -.66,.02 L -.3,.02 L -.44,.34 L -.2,.34 L -.66,.9 L -.52,.52 L -.76,.52 Z'), t),
+    teardrop: (t) => T(`${both('M -.12,.58 C -.3,.3 -.62,.16 -1.0,.18 C -.9,.46 -.62,.68 -.12,.58 Z')} ${oval(0, 0.845, 0.4, 0.085)}`, t),
+    crest: (t) => T(`M -.2,-.2 L .2,-.2 L .12,.44 L 0,.5 L -.12,.44 Z ${both('M -.3,.74 L -.9,.66 L -.96,.9 L -.4,.98 Z')}`, t),
+    fangs: (t) => T(`${oval(0, 0.845, 0.56, 0.13)} ${both('M -.72,.36 L -.12,.45 L -.12,.4 Z')}`, t) + T(both('M -.3,.76 L -.2,.9 L -.1,.76 Z M -.3,.93 L -.2,.8 L -.1,.93 Z'), '#f4f1ea'),
+    horned: (t) => T(MASK_TRIM, t),
+  };
+  const HORNS = (t) => T(`${both('M -.5,.0 L -.78,-.5 L -.28,-.07 Z')} M -.1,-.06 L 0,-.6 L .1,-.06 Z`, t);
+  const SCHEMES = [
+    ['red', '#a3251f', '#e9c46a'], ['blue', '#1f4f8a', '#d9dde3'], ['black', '#18181b', '#b3261e'], ['green', '#256b3c', '#f2efe6'],
+    ['purple', '#55307a', '#e0b23c'], ['white', '#ece8dc', '#1f4f8a'], ['gold', '#b5871f', '#18181b'], ['orange', '#d2601a', '#18181b'],
+    ['teal', '#1f8a8a', '#f2efe6'], ['pink', '#d0457b', '#18181b'], ['silver', '#aeb4bd', '#18181b'], ['midnight', '#18181b', '#e0b23c'],
+  ];
+  Object.keys(DESIGNS).forEach((design, i) => {
+    for (let k = 0; k < 3; k++) {
+      const [name, main, trim] = SCHEMES[(i * 5 + k * 4) % SCHEMES.length];
+      out[`luchador-mask-${design}-${name}`] = lucha(main, trim, DESIGNS[design](trim), design === 'horned' ? HORNS(trim) : '');
+    }
+  });
   return out;
 }
 
