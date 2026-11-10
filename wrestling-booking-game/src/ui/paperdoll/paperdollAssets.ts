@@ -46,6 +46,12 @@ export interface PaperdollAsset {
   gender: AssetGender;
   url: string;
   tintable: boolean;
+  /**
+   * Drawn on the oversized canvas (a `--xl` marker in the filename): the
+   * usual 512 square plus a 64 margin each side and 128 on top, so a tall
+   * hat or big hair is not cut off at the canvas edge.
+   */
+  xl: boolean;
 }
 
 // Vite statically analyzes this call, so each options object must be a
@@ -75,6 +81,26 @@ const PROP_FILES = import.meta.glob('./assets/prop/*.{png,svg,webp,jpg,jpeg}', {
   query: '?url',
   import: 'default',
 }) as Record<string, string>;
+const ACC_FILES = import.meta.glob('./assets/acc/*.{png,svg,webp,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+const PAINT_FILES = import.meta.glob('./assets/paint/*.{png,svg,webp,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+const NECK_FILES = import.meta.glob('./assets/neck/*.{png,svg,webp,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+const LOGO_FILES = import.meta.glob('./assets/logo/*.{png,svg,webp,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
 const TOP_FILES = import.meta.glob('./assets/top/*.{png,svg,webp,jpg,jpeg}', {
   eager: true,
   query: '?url',
@@ -97,6 +123,8 @@ function basename(path: string): string {
 }
 
 const TINT_SUFFIX = '--tint';
+// Always before --tint when both are present: `m-top-hat--xl--tint.svg`.
+const XL_SUFFIX = '--xl';
 
 function parseGendered(files: Record<string, string>): PaperdollAsset[] {
   const out: PaperdollAsset[] = [];
@@ -105,8 +133,10 @@ function parseGendered(files: Record<string, string>): PaperdollAsset[] {
     if (!match) continue;
     const rawId = match[2]!;
     const tintable = rawId.endsWith(TINT_SUFFIX);
-    const id = tintable ? rawId.slice(0, -TINT_SUFFIX.length) : rawId;
-    out.push({ id, gender: match[1] as AssetGender, url, tintable });
+    const untinted = tintable ? rawId.slice(0, -TINT_SUFFIX.length) : rawId;
+    const xl = untinted.endsWith(XL_SUFFIX);
+    const id = xl ? untinted.slice(0, -XL_SUFFIX.length) : untinted;
+    out.push({ id, gender: match[1] as AssetGender, url, tintable, xl });
   }
   return out;
 }
@@ -137,3 +167,11 @@ export const PROP_ASSETS: readonly PaperdollAsset[] = parseGendered(PROP_FILES);
 export const TOP_ASSETS: readonly PaperdollAsset[] = parseGendered(TOP_FILES);
 export const OUTER_ASSETS: readonly PaperdollAsset[] = parseGendered(OUTER_FILES);
 export const WAISTBAND_ASSETS: readonly PaperdollAsset[] = parseGendered(WAISTBAND_FILES);
+/** Worn on the face — glasses, an eye patch, a bandana over the mouth. Over hair and beard, under a hat. */
+export const ACC_ASSETS: readonly PaperdollAsset[] = parseGendered(ACC_FILES);
+/** Face makeup. Drawn under the facial features so eyes and mouth stay readable. */
+export const PAINT_ASSETS: readonly PaperdollAsset[] = parseGendered(PAINT_FILES);
+/** Ties, chains, towels — over everything on the torso. */
+export const NECK_ASSETS: readonly PaperdollAsset[] = parseGendered(NECK_FILES);
+/** A chest graphic, only ever drawn on a top and cut to that top's shape. */
+export const LOGO_ASSETS: readonly PaperdollAsset[] = parseGendered(LOGO_FILES);

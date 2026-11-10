@@ -53,7 +53,11 @@ up. Reference: **[The Bust Line](https://claude.ai/code/artifact/c45d358a-8d70-4
 | `face/` | Eyes, brows, nose, mouth — one expression per file, never recolored | `<m\|f>-<name>.svg`, e.g. `m-scowl.svg` |
 | `hair/` | Hairstyles | `<m\|f\|both>-<name>.png`, e.g. `m-buzzcut.png`, `f-ponytail.png` |
 | `facial/` | Facial hair | `<m\|f\|both>-<name>.png`, e.g. `m-goatee.png` (in practice always `m-`) |
-| `prop/` | Headgear, masks, glasses, anything gimmick-themed | `<m\|f\|both>-<name>.png`, e.g. `both-military-cap.png` |
+| `prop/` | Headwear and full masks | `<m\|f>-<name>.png`, e.g. `m-chef-hat.png` |
+| `acc/` | Worn on the face: glasses, eye patch, bandana over the mouth | `<m\|f>-<name>.png` |
+| `paint/` | Face makeup, drawn under the eyes and mouth | `<m\|f>-<name>.png` |
+| `neck/` | Ties, chains, towels, scarves | `<m\|f>-<name>.png` |
+| `logo/` | A chest graphic, drawn only on a top and cut to its shape | `<m\|f>-<name>.png` |
 | `top/` | Torso garment: t-shirt, singlet, sports bra | `<m\|f\|both>-<name>.png`, e.g. `m-tshirt.png` |
 | `outer/` | Worn over a top (or bare skin): a vest, a jacket | `<m\|f\|both>-<name>.png`, e.g. `m-vest.png` |
 | `waistband/` | Trunks band, right at the bottom crop edge — see below | `<m\|f\|both>-<name>.png` |
@@ -162,10 +166,30 @@ This is a per-file choice, not a per-slot one: some hairstyles can be
 `--tint` (recolored) while others in the same folder are fixed-color art, and
 the same is true within `prop/`.
 
+## Tall pieces — the `--xl` marker
+
+The head sits 12px from the top of the 512 canvas, so a chef hat has nowhere
+to go. A file with `--xl` in its name (before `--tint` if both:
+`m-top-hat--xl--tint.svg`) is drawn on a 640 canvas whose inner 512 square
+is the normal one — 64 of margin each side, 128 on top. Every generated
+hairstyle and hat uses it. A painted PNG on the ordinary 512 canvas needs no
+marker and replaces the generated file all the same: `m-buzzcut--tint.png`
+replaces `m-buzzcut--xl--tint.svg`.
+
+## What changes with a gimmick
+
+Skin, face, hair, hair color and beard are seeded off the wrestler alone and
+never change. Clothing, logo, headwear, accessories, makeup and neckwear are
+seeded off the wrestler **and their current gimmick**, so a repackage is a
+new outfit on the same recognisable person. `gimmickPropTags.ts` maps each
+gimmick category to themed pieces across all of those slots, and lists the
+goofy ones (`GOOFY_IDS`) that are mostly held back from random draws.
+
 ## How the stack is drawn
 
 `ComposedPortrait.tsx`, bottom to top: skin, anatomical linework, clothing
-(top, waistband, outer), one shading pass, face, hair, facial hair, prop.
+(top with its logo, waistband, outer), one shading pass, neckwear, makeup,
+face, hair, facial hair, face accessory, headwear.
 
 - **Clothing is clipped to the body's silhouette in code.** A garment file
   only has to be right along its neckline and the gaps between arm and

@@ -5,6 +5,26 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Portraits: gear follows the gimmick, 259 pieces, goofy ones included — shipped
+
+Asked for clothing that changes with a gimmick, far more hair, hats and accessories (goofy ones
+too — eye patches, a bandana over the mouth, chef hat, more face makeup) and logos on shirts.
+
+- **Two seeded streams in `assignLook.ts`.** Body (skin, face, hair, beard) is seeded off the
+  wrestler; gear (clothing, logo, headwear, accessories, makeup, neckwear) is seeded off the
+  wrestler plus `gimmick.id`. A repackage is a new outfit on the same person.
+- **Four new slots**: `acc/` (face accessories), `paint/` (makeup, under the features), `neck/`,
+  `logo/` (cut to the shape of the top it sits on). One of each at most, each at its own low odds.
+- **`--xl` canvas.** Tall hats and hair were being cropped by the top of the 512 canvas; an `--xl`
+  file carries a margin, and the figure is drawn at 86% to leave headroom for it.
+- **Generator now writes 259 files**: 44 hairstyles, 72 hats and masks, 32 face accessories, 32
+  makeup looks, 18 neck pieces, 34 logos. `GOOFY_IDS` keeps the silly ones (traffic cone, propeller
+  beanie, clown paint) to themed gimmicks and a small share of random draws.
+- Gimmick categories that had no themed pieces (Food, Travel, Intellectual, Everyman) now do.
+
+Checked in a played save: contact sheet, roster, detail. 151 wrestlers at new-game: 87 with
+headwear before the themed odds were turned down; re-measure if it still feels busy.
+
 ## Portraits: faces, a fitted asset set, and every screen — shipped
 
 A cosmetic pass over the composited wrestler portraits. Three things were wrong: the bodies had no

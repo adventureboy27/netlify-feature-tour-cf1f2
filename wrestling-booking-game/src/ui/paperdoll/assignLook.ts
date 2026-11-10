@@ -1,13 +1,13 @@
 // Decides which pieces a wrestler with no uploaded photo wears, so the
 // composited fallback isn't a coin flip on every render.
 //
-// Seeded off the wrestler's own id — the same "seed off the entity, never
-// the shared world stream" rule this codebase already follows for RNG (see
-// CLAUDE.md's "Traps" section) and the same hash PaperDoll.tsx's own
-// placeholderColor already uses. A wrestler's look is therefore stable for
-// life, and adding new assets to the library later never reshuffles anyone
-// already assigned — it only ever widens the pool a *new* wrestler can land
-// in.
+// Two seeded streams, never the shared world one (see CLAUDE.md's "Traps"):
+//
+// - the BODY stream is seeded off the wrestler's id alone — skin, face,
+//   hair, hair color, beard. Stable for life.
+// - the GEAR stream is seeded off the id AND the current gimmick — clothing,
+//   headwear, accessories, makeup, the logo on the shirt. A repackage is a
+//   visible makeover of the same recognisable person.
 
 import {
   BASE_BODY,
@@ -16,6 +16,10 @@ import {
   HAIR_ASSETS,
   FACIAL_ASSETS,
   PROP_ASSETS,
+  ACC_ASSETS,
+  PAINT_ASSETS,
+  NECK_ASSETS,
+  LOGO_ASSETS,
   TOP_ASSETS,
   OUTER_ASSETS,
   WAISTBAND_ASSETS,
@@ -24,39 +28,49 @@ import {
 import { SKIN_TONES } from './skinTones';
 import { HAIR_COLORS } from './hairColors';
 import { ACCENT_COLORS } from './accentColors';
-import { GIMMICK_CATEGORY_PROP_KEYWORDS } from './gimmickPropTags';
+import { GIMMICK_CATEGORY_PROP_KEYWORDS, GOOFY_IDS } from './gimmickPropTags';
+
+/** One assigned piece: the file, and the color to cut it in (null = drawn as painted). */
+export interface Worn {
+  asset: PaperdollAsset;
+  color: string | null;
+}
 
 export interface ComposedLook {
   baseUrl: string;
   skinColor: string;
-  /** Anatomical linework over the tinted skin layer — see paperdollAssets.ts. Null if no such file exists yet. */
+  /** Anatomical linework over the tinted skin layer. Null if no such file exists yet. */
   baseDetailUrl: string | null;
-  /** Torso garment (t-shirt, singlet, sports bra) — most wrestlers wrestle bare-chested, so usually null. */
-  top: PaperdollAsset | null;
-  topColor: string | null;
-  /** Worn over the top (or over bare skin) — rarer than a top itself. */
-  outer: PaperdollAsset | null;
-  outerColor: string | null;
-  /** Sits right at the bottom crop edge — see assets/README.md for why that's deliberate. */
-  waistband: PaperdollAsset | null;
-  waistbandColor: string | null;
-  /** Facial features. Drawn as painted, under hair, facial hair and props. */
+  /** Facial features. Drawn as painted. */
   face: PaperdollAsset | null;
-  hair: PaperdollAsset | null;
-  /** Only set when the hair file opted into `--tint`; otherwise it's drawn exactly as painted. */
-  hairColor: string | null;
-  facial: PaperdollAsset | null;
-  facialColor: string | null;
-  prop: PaperdollAsset | null;
-  propColor: string | null;
+  hair: Worn | null;
+  facial: Worn | null;
+  /** Torso garment — always for women, about a third of the time for men. */
+  top: Worn | null;
+  /** A chest graphic on the top. Never set without one. */
+  logo: Worn | null;
+  /** Worn over the top, or over bare skin. */
+  outer: Worn | null;
+  /** Sits right at the bottom crop edge — see assets/README.md. */
+  waistband: Worn | null;
+  /** Face makeup, under the features. */
+  paint: Worn | null;
+  /** Glasses, an eye patch, a bandana over the mouth. */
+  acc: Worn | null;
+  /** Tie, chain, towel. */
+  neck: Worn | null;
+  /** Headwear, or a full mask. */
+  prop: Worn | null;
 }
 
 export interface LookSubject {
   id: string;
   gender: 'm' | 'f';
   masked: boolean;
-  /** Gimmick.category, if known — used only to prefer a themed prop. */
+  /** Gimmick.category, if known — used to prefer themed pieces. */
   gimmickCategory?: string;
+  /** Gimmick.id, if known — reseeds the gear, so a new gimmick is a new outfit. */
+  gimmickId?: string;
 }
 
 /**
@@ -68,10 +82,16 @@ export function lookSubjectOf(person: {
   id: string;
   gender?: 'm' | 'f';
   masked?: boolean;
-  gimmick?: { category?: string };
+  gimmick?: { id?: string; category?: string };
 }): LookSubject | undefined {
   if (!person.gender) return undefined;
-  return { id: person.id, gender: person.gender, masked: person.masked ?? false, gimmickCategory: person.gimmick?.category };
+  return {
+    id: person.id,
+    gender: person.gender,
+    masked: person.masked ?? false,
+    gimmickCategory: person.gimmick?.category,
+    gimmickId: person.gimmick?.id,
+  };
 }
 
 function hashString(s: string): number {
@@ -91,112 +111,102 @@ function mulberry32(seed: number) {
   };
 }
 
-function forGender(pool: readonly PaperdollAsset[], gender: 'm' | 'f'): PaperdollAsset[] {
-  return pool.filter((a) => a.gender === gender || a.gender === 'both');
-}
+type Rng = () => number;
 
-function pick<T>(rng: () => number, arr: readonly T[]): T | null {
+function pick<T>(rng: Rng, arr: readonly T[]): T | null {
   return arr.length === 0 ? null : arr[Math.floor(rng() * arr.length)]!;
 }
 
 const isMaskProp = (p: PaperdollAsset) => p.id.toLowerCase().includes('mask');
+const isGoofy = (p: PaperdollAsset) => GOOFY_IDS.includes(p.id);
+
+// How often a goofy piece survives into a random (un-themed) draw.
+const GOOFY_KEEP = 0.2;
+
+// Flat odds of an un-themed piece per slot. Deliberately low and
+// independent: most people wear nothing on their head, and somebody wearing
+// a hat, glasses, makeup AND a chain should be a rare sight.
+const ODDS = { top: 0.35, outer: 0.15, waistband: 0.9, logo: 0.55, prop: 0.2, acc: 0.13, paint: 0.1, neck: 0.1 };
+// How often a gimmick that has a themed piece for a slot actually wears it.
+// Headwear is the signature item; the rest are supporting touches.
+const THEMED = { logo: 0.5, prop: 0.55, acc: 0.3, paint: 0.3, neck: 0.3 };
 
 /**
  * Null when no base body exists yet for that gender — callers fall back to
- * the plain initials placeholder, same as today, so the game works with an
- * empty asset library and only gets richer as files are added.
+ * the plain initials placeholder, so the game works with an empty asset
+ * library and only gets richer as files are added.
  */
 export function assignLook(subject: LookSubject): ComposedLook | null {
   const baseUrl = BASE_BODY[subject.gender];
   if (!baseUrl) return null;
-  const baseDetailUrl = BASE_DETAIL[subject.gender] ?? null;
 
-  const rng = mulberry32(hashString(subject.id));
-  const skin = pick(rng, SKIN_TONES)!;
-  // Drawn once and shared by hair and facial hair, so a redhead's beard
-  // actually matches their hair rather than rolling independently.
-  const hairColor = pick(rng, HAIR_COLORS)!;
+  const of = (pool: readonly PaperdollAsset[]) => pool.filter((a) => a.gender === subject.gender || a.gender === 'both');
 
-  // Clothing is independent of masking — a mask covers the head, not the
-  // torso, so it's decided once here and reused whichever branch below runs.
-  // Most wrestlers work bare-chested, so a top is the exception, not the
-  // default; an outer layer over that is rarer still. A waistband is the
-  // one near-universal piece — real wrestling trunks, sitting right at the
-  // bottom crop edge (see assets/README.md).
+  const body = mulberry32(hashString(subject.id));
+  const gear = mulberry32(hashString(`${subject.id}:gear:${subject.gimmickId ?? ''}`));
+  const accent = (rng: Rng, not?: string | null) => pick(rng, ACCENT_COLORS.filter((c) => c.color !== not))!.color;
+  const worn = (asset: PaperdollAsset | null, color: () => string): Worn | null =>
+    asset ? { asset, color: asset.tintable ? color() : null } : null;
+
+  // ---- body: stable for life -------------------------------------------
+  const skin = pick(body, SKIN_TONES)!;
+  // Drawn once and shared, so a redhead's beard matches their hair.
+  const hairColor = pick(body, HAIR_COLORS)!.color;
+  const face = pick(body, of(FACE_ASSETS));
+  const man = subject.gender === 'm';
+  // Bald and clean-shaven are looks too. Goofy cuts are held back the same
+  // way goofy hats are.
+  const bald = man && body() < 0.12;
+  const hairPool = of(HAIR_ASSETS);
+  const seriousHair = hairPool.filter((h) => !isGoofy(h));
+  const hairAsset = bald ? null : pick(body, body() < GOOFY_KEEP || seriousHair.length === 0 ? hairPool : seriousHair);
+  const facialAsset = man && body() < 0.55 ? pick(body, of(FACIAL_ASSETS)) : null;
+
+  // ---- gear: follows the gimmick ---------------------------------------
+  const keywords = subject.gimmickCategory ? (GIMMICK_CATEGORY_PROP_KEYWORDS[subject.gimmickCategory] ?? []) : [];
+  /** A themed piece if the gimmick asks for one, otherwise an occasional random one. */
+  const slot = (pool: readonly PaperdollAsset[], kind: keyof typeof THEMED): PaperdollAsset | null => {
+    const themed = pool.filter((p) => keywords.some((k) => p.id.includes(k)));
+    if (themed.length > 0 && gear() < THEMED[kind]) return pick(gear, themed);
+    if (gear() >= ODDS[kind]) return null;
+    const serious = pool.filter((p) => !isGoofy(p));
+    return pick(gear, gear() < GOOFY_KEEP || serious.length === 0 ? pool : serious);
+  };
+
   // DESIGN: women always get a top. The base body is drawn bare, and a
   // bare-chested portrait is right for most of the men's roster and wrong
   // for the entire women's one.
-  const topOdds = subject.gender === 'f' ? 1 : 0.35;
-  const top = rng() < topOdds ? pick(rng, forGender(TOP_ASSETS, subject.gender)) : null;
-  const topColor = top?.tintable ? pick(rng, ACCENT_COLORS)!.color : null;
-  const outer = rng() < 0.15 ? pick(rng, forGender(OUTER_ASSETS, subject.gender)) : null;
-  const outerColor = outer?.tintable ? pick(rng, ACCENT_COLORS)!.color : null;
-  const waistband = rng() < 0.9 ? pick(rng, forGender(WAISTBAND_ASSETS, subject.gender)) : null;
-  const waistbandColor = waistband?.tintable ? pick(rng, ACCENT_COLORS)!.color : null;
+  const top = worn(gear() < (man ? ODDS.top : 1) ? pick(gear, of(TOP_ASSETS)) : null, () => accent(gear));
+  // A one-strap singlet leaves the chest centre bare; a logo there would
+  // sit half on skin.
+  const logoOk = top && !top.asset.id.includes('onestrap');
+  const logo = logoOk ? worn(slot(of(LOGO_ASSETS), 'logo'), () => accent(gear, top.color)) : null;
+  const outer = worn(gear() < ODDS.outer ? pick(gear, of(OUTER_ASSETS)) : null, () => accent(gear));
+  const waistband = worn(gear() < ODDS.waistband ? pick(gear, of(WAISTBAND_ASSETS)) : null, () => accent(gear));
+  const neck = worn(slot(of(NECK_ASSETS), 'neck'), () => accent(gear));
 
-  // Its own stream, so adding or removing an expression never reshuffles
-  // anybody's hair, gear or colors.
-  const face = pick(mulberry32(hashString(`${subject.id}:face`)), forGender(FACE_ASSETS, subject.gender));
+  const props = of(PROP_ASSETS);
+  const shared = { baseUrl, skinColor: skin.color, baseDetailUrl: BASE_DETAIL[subject.gender] ?? null, face, top, logo, outer, waistband, neck };
 
-  const propPool = forGender(PROP_ASSETS, subject.gender);
-
-  // A required mask replaces hair and facial hair outright rather than
-  // sitting on top of them — Gimmick.masked already makes this a mechanical
-  // fact about the character (Wrestler.masked), not a look the RNG opts into.
+  // A required mask replaces hair, beard, makeup and anything else on the
+  // face outright — Gimmick.masked makes it a mechanical fact about the
+  // character (Wrestler.masked), not a look the RNG opts into.
   if (subject.masked) {
-    const maskPool = propPool.filter(isMaskProp);
-    const mask = pick(rng, maskPool);
-    return {
-      baseUrl,
-      skinColor: skin.color,
-      baseDetailUrl,
-      top,
-      topColor,
-      outer,
-      outerColor,
-      waistband,
-      waistbandColor,
-      face,
-      hair: null,
-      hairColor: null,
-      facial: null,
-      facialColor: null,
-      prop: mask,
-      propColor: mask?.tintable ? pick(rng, ACCENT_COLORS)!.color : null,
-    };
+    const mask = worn(pick(gear, props.filter(isMaskProp)), () => accent(gear));
+    return { ...shared, hair: null, facial: null, paint: null, acc: null, prop: mask };
   }
 
-  // Bald and clean-shaven are looks too — without them every man on the
-  // roster has a full head of hair and something on his chin.
-  const bald = subject.gender === 'm' && rng() < 0.14;
-  const hair = bald ? null : pick(rng, forGender(HAIR_ASSETS, subject.gender));
-  const facial = subject.gender === 'm' && rng() < 0.55 ? pick(rng, forGender(FACIAL_ASSETS, 'm')) : null;
-
   // A mask asset never lands on a wrestler who isn't supposed to be masked.
-  const nonMaskProps = propPool.filter((p) => !isMaskProp(p));
-  const keywords = subject.gimmickCategory ? GIMMICK_CATEGORY_PROP_KEYWORDS[subject.gimmickCategory] : undefined;
-  const themed = keywords ? nonMaskProps.filter((p) => keywords.some((k) => p.id.includes(k))) : [];
-  // Falls back to any untethed prop at a modest flat chance so not every
-  // wrestler without a themed match is wearing an accessory — most people in
-  // this game don't gimmick around a hat.
-  const prop = themed.length > 0 ? pick(rng, themed) : rng() < 0.25 ? pick(rng, nonMaskProps) : null;
+  const prop = worn(slot(props.filter((p) => !isMaskProp(p)), 'prop'), () => accent(gear));
+  const acc = worn(slot(of(ACC_ASSETS), 'acc'), () => accent(gear));
+  const paint = worn(slot(of(PAINT_ASSETS), 'paint'), () => accent(gear));
 
   return {
-    baseUrl,
-    skinColor: skin.color,
-    baseDetailUrl,
-    top,
-    topColor,
-    outer,
-    outerColor,
-    waistband,
-    waistbandColor,
-    face,
-    hair,
-    hairColor: hair?.tintable ? hairColor.color : null,
-    facial,
-    facialColor: facial?.tintable ? hairColor.color : null,
+    ...shared,
+    hair: worn(hairAsset, () => hairColor),
+    facial: worn(facialAsset, () => hairColor),
+    paint,
+    acc,
     prop,
-    propColor: prop?.tintable ? pick(rng, ACCENT_COLORS)!.color : null,
   };
 }
