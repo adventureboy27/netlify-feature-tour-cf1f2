@@ -193,6 +193,17 @@ set. `THEMED_ONLY_IDS` lists costume pieces that are never handed out at
 random. Masked wrestlers draw from the luchador, hockey, monster and ninja
 masks, themed the same way.
 
+## Patterns — `pattern/`
+
+A canvas-wide shape (stripes, dots, camo, flames) drawn in a second color
+over a top and cut to that top's shape, so one file works on every garment
+and both bodies — these are the one place `both-` is still right. About 40%
+of tops get one; a patterned top never also gets a logo.
+
+Top colors come from `CLOTH_COLORS` in `accentColors.ts`, which has no gold
+or orange (too close to skin), and a color is also rejected if it sits near
+the wrestler's own skin tone.
+
 ## Tattoos — `tattoo/`
 
 Ink is part of the body, not the outfit: seeded off the wrestler alone, so

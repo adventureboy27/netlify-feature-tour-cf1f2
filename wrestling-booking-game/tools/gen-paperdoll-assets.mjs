@@ -846,6 +846,70 @@ function tattoos(g) {
   return out;
 }
 
+// ------------------------------------------------------------- patterns ----
+// pattern/ — a second color laid over a top and cut to that top's shape by
+// ComposedPortrait. Canvas-wide and gender-neutral, so these are `both-`.
+
+function patterns() {
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  const rect = (x, y, w, h) => `M ${r1(x)},${r1(y)} L ${r1(x + w)},${r1(y)} L ${r1(x + w)},${r1(y + h)} L ${r1(x)},${r1(y + h)} Z`;
+  const grid = (step, fn, stagger = true) => {
+    let d = '';
+    for (let y = 130, row = 0; y < 520; y += step, row++) for (let x = 20 + (stagger && row % 2 ? step / 2 : 0); x < 500; x += step) d += `${fn(x, y, row)} `;
+    return d;
+  };
+  const rows = (step, h) => Array.from({ length: Math.ceil(400 / step) }, (_, i) => rect(0, 130 + i * step, 512, h)).join(' ');
+  const cols = (step, w) => Array.from({ length: Math.ceil(512 / step) }, (_, i) => rect(i * step, 100, w, 420)).join(' ');
+  const diag = (step, w) => Array.from({ length: 40 }, (_, i) => `M ${i * step - 420},520 L ${i * step - 420 + w},520 L ${i * step + w},100 L ${i * step},100 Z`).join(' ');
+  const blob = (x, y, r) => {
+    const n = 7;
+    let d = '';
+    for (let i = 0; i <= n; i++) {
+      const a = (Math.PI * 2 * i) / n;
+      const rr = r * (0.6 + rnd() * 0.7);
+      d += `${i ? 'L' : 'M'} ${r1(x + rr * Math.cos(a) * 1.5)},${r1(y + rr * Math.sin(a))} `;
+    }
+    return `${d}Z`;
+  };
+  const scatter = (n, fn) => Array.from({ length: n }, () => fn(30 + rnd() * 450, 140 + rnd() * 370)).join(' ');
+  const slash = (y, dir) => {
+    const x0 = dir > 0 ? 40 : 472;
+    return `M ${x0},${y} C ${x0 + dir * 60},${y + 4} ${x0 + dir * 130},${y + 14} ${x0 + dir * 190},${y + 34} C ${x0 + dir * 120},${y + 26} ${x0 + dir * 60},${y + 22} ${x0},${y + 20} Z`;
+  };
+  const flames = () => {
+    let d = 'M 0,520 L 0,440';
+    for (let x = 0, i = 0; x < 512; x += 32, i++) d += ` C ${x + 6},${420 - (i % 3) * 14} ${x + 12},${380 - (i % 2) * 30} ${x + 16},${350 - (i % 3) * 22} C ${x + 20},${390} ${x + 26},${420} ${x + 32},440`;
+    return `${d} L 512,520 Z`;
+  };
+  const chevrons = Array.from({ length: 9 }, (_, i) => {
+    const y = 150 + i * 44;
+    return `M 20,${y} L 256,${y + 60} L 492,${y} L 492,${y + 18} L 256,${y + 78} L 20,${y + 18} Z`;
+  }).join(' ');
+  return {
+    'hoop-stripes': rows(30, 13),
+    'thin-hoops': rows(16, 5),
+    'vertical-stripes': cols(28, 12),
+    pinstripes: cols(14, 3),
+    diagonal: diag(34, 14),
+    'polka-dots': grid(30, (x, y) => oval(x, y, 7, 7)),
+    checker: grid(48, (x, y) => `${rect(x, y, 24, 24)} ${rect(x + 24, y + 24, 24, 24)}`, false),
+    'star-field': grid(46, (x, y) => star(x, y, 10, 10)),
+    camo: scatter(46, (x, y) => blob(x, y, 14 + rnd() * 10)),
+    'tiger-stripes': Array.from({ length: 14 }, (_, i) => slash(150 + i * 27, i % 2 ? 1 : -1)).join(' '),
+    leopard: scatter(70, (x, y) => `${blob(x, y, 7)} ${oval(x, y, 3, 2.4)}`),
+    flames: flames(),
+    'color-block': rect(0, 330, 512, 200),
+    'half-and-half': rect(256, 100, 256, 420),
+    chevrons,
+    sash: 'M 120,130 L 190,130 L 420,520 L 340,520 Z',
+    sequins: scatter(170, (x, y) => oval(x, y, 2.2, 2.2)),
+    hearts: grid(44, (x, y) => heart(x, y, 10, 9)),
+    'side-panels': `${rect(0, 100, 196, 420)} ${rect(316, 100, 196, 420)}`,
+    'shoulder-yoke': 'M 0,100 L 512,100 L 512,236 C 380,262 132,262 0,236 Z',
+  };
+}
+
 // ---------------------------------------------------------------- write ----
 
 let count = 0;
@@ -855,13 +919,15 @@ function write(folder, name, content) {
   count++;
 }
 
-for (const folder of ['tattoo', 'face', 'hair', 'facial', 'prop', 'acc', 'paint', 'neck', 'logo', 'top', 'outer', 'waistband']) {
+for (const folder of ['pattern', 'tattoo', 'face', 'hair', 'facial', 'prop', 'acc', 'paint', 'neck', 'logo', 'top', 'outer', 'waistband']) {
   const dir = path.join(ROOT, folder);
   if (!fs.existsSync(dir)) continue;
   for (const f of fs.readdirSync(dir)) if (f.endsWith('.svg')) fs.unlinkSync(path.join(dir, f));
 }
 
 const tinted = (d, opacity) => fill(d, GREY, opacity ? ` opacity="${opacity}"` : '');
+
+for (const [id, d] of Object.entries(patterns())) write('pattern', `both-${id}--tint.svg`, svg(fill(d, GREY, ' fill-rule="nonzero"')));
 
 for (const g of ['m', 'f']) {
   for (const kind of ['neutral', 'stern', 'scowl', 'smirk']) write('face', `${g}-${kind}.svg`, face(g, kind));

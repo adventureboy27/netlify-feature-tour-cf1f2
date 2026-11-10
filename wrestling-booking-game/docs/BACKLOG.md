@@ -5,6 +5,15 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Portraits: patterned tops, and top colors that cannot pass for skin — shipped
+
+- `CLOTH_COLORS`: tops no longer draw gold or orange at all, gain six fabric colors, and the
+  skin-distance cutoff went from 110 to 125. A gold bra on brown skin was technically distinct and
+  still read as bare at thumbnail size.
+- `assets/pattern/` (20 files, `both-`): hoops, pinstripes, polka dots, checker, camo, tiger,
+  leopard, flames, chevrons, color blocks, side panels. A second color cut to the top's shape. 40%
+  of tops; its own RNG stream; a patterned top gets no logo.
+
 ## Portraits: tattoos, and lucha masks worn for the look — shipped
 
 - **Tattoos** (`assets/tattoo/`, 60 files): arm, chest, neck, belly and face pieces. Seeded on the

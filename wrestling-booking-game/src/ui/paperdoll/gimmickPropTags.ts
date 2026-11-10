@@ -99,5 +99,6 @@ export const GOOFY_IDS: readonly string[] = [
   'lei', 'feather-boa',
   'combover', 'friar-bald', 'bowl', 'beehive', 'liberty-spikes',
   'smiley', 'paw',
+  'hearts', 'leopard', 'sequins',
   'monster-mask-pumpkin', 'hawaiian-shirt', 'fur-coat',
 ];

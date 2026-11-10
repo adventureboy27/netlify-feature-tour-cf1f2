@@ -110,6 +110,11 @@ export function ComposedPortrait({
   const top = look.top && (
     <>
       <Piece worn={look.top} />
+      {look.pattern && (
+        <div className="absolute inset-0" style={maskOnly(look.top.asset.url)}>
+          <Layer url={look.pattern.asset.url} color={look.pattern.color} sheen={false} />
+        </div>
+      )}
       {look.logo && (
         <div className="absolute inset-0" style={maskOnly(look.top.asset.url)}>
           <Layer url={look.logo.asset.url} color={look.logo.color} sheen={false} />

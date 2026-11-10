@@ -20,6 +20,7 @@ import {
   PAINT_ASSETS,
   NECK_ASSETS,
   LOGO_ASSETS,
+  PATTERN_ASSETS,
   TATTOO_ASSETS,
   TOP_ASSETS,
   OUTER_ASSETS,
@@ -28,7 +29,7 @@ import {
 } from './paperdollAssets';
 import { SKIN_TONES } from './skinTones';
 import { HAIR_COLORS } from './hairColors';
-import { ACCENT_COLORS } from './accentColors';
+import { ACCENT_COLORS, CLOTH_COLORS } from './accentColors';
 import { GIMMICK_CATEGORY_PROP_KEYWORDS, GOOFY_IDS, NAME_THEMES, THEMED_ONLY_IDS, THEMES } from './gimmickPropTags';
 
 /** One assigned piece: the file, and the color to cut it in (null = drawn as painted). */
@@ -50,7 +51,9 @@ export interface ComposedLook {
   facial: Worn | null;
   /** Torso garment — always for women, about a third of the time for men. */
   top: Worn | null;
-  /** A chest graphic on the top. Never set without one. */
+  /** Stripes, dots, camo over the top in a second color. Never set without a top. */
+  pattern: Worn | null;
+  /** A chest graphic on the top. Never set without one, and never over a pattern. */
   logo: Worn | null;
   /** Worn over the top, or over bare skin. */
   outer: Worn | null;
@@ -151,7 +154,7 @@ const GOOFY_KEEP = 0.2;
 // Flat odds of an un-themed piece per slot. Deliberately low and
 // independent: most people wear nothing on their head, and somebody wearing
 // a hat, glasses, makeup AND a chain should be a rare sight.
-const ODDS = { top: 0.35, outer: 0.15, waistband: 0.9, logo: 0.55, prop: 0.1, acc: 0.13, paint: 0.1, neck: 0.1 };
+const ODDS = { top: 0.35, outer: 0.15, waistband: 0.9, logo: 0.55, pattern: 0.4, prop: 0.1, acc: 0.13, paint: 0.1, neck: 0.1 };
 // How often a gimmick that has a themed piece for a slot actually wears it.
 // Headwear is the signature item; the rest are supporting touches.
 const THEMED = { logo: 0.5, prop: 0.28, acc: 0.3, paint: 0.3, neck: 0.3, top: 0.3, outer: 0.2 };
@@ -174,9 +177,9 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   const accent = (rng: Rng, not?: string | null) => pick(rng, ACCENT_COLORS.filter((c) => c.color !== not))!.color;
   // For anything worn against the chest: gold or orange on tan skin reads
   // as no clothing at all, so colors too close to the skin tone are out.
-  const clothAccent = (rng: Rng, skinColor: string) => {
-    const far = ACCENT_COLORS.filter((c) => colorDistance(c.color, skinColor) > 110);
-    return pick(rng, far.length > 0 ? far : ACCENT_COLORS)!.color;
+  const clothAccent = (rng: Rng, skinColor: string, not?: string | null) => {
+    const far = CLOTH_COLORS.filter((c) => c.color !== not && colorDistance(c.color, skinColor) > 125);
+    return pick(rng, far.length > 0 ? far : CLOTH_COLORS)!.color;
   };
   const worn = (asset: PaperdollAsset | null, color: () => string): Worn | null =>
     asset ? { asset, color: asset.tintable ? color() : null } : null;
@@ -240,14 +243,27 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   const top = worn(slot(tops, 'top') ?? (man ? null : womansTop()), () => clothAccent(gear, skin.color));
   // A one-strap singlet leaves the chest centre bare; a logo there would
   // sit half on skin. A painted costume top (a gi) already has its own front.
-  const logoOk = top && top.asset.tintable && !top.asset.id.includes('onestrap');
+  // Patterns get their own stream so they could be added without
+  // reshuffling anybody's hat. The second color must stand off both the
+  // top's own color and the skin, or the pattern disappears.
+  const patRng = mulberry32(hashString(`${subject.id}:pattern:${subject.gimmickId ?? ''}`));
+  const patPool = of(PATTERN_ASSETS);
+  const calmPatterns = patPool.filter((p) => !isGoofy(p));
+  const pattern =
+    top && top.asset.tintable && patRng() < ODDS.pattern
+      ? worn(pick(patRng, patRng() < GOOFY_KEEP || calmPatterns.length === 0 ? patPool : calmPatterns), () => {
+          const options = CLOTH_COLORS.filter((c) => colorDistance(c.color, top.color!) > 120 && colorDistance(c.color, skin.color) > 90);
+          return pick(patRng, options.length > 0 ? options : CLOTH_COLORS)!.color;
+        })
+      : null;
+  const logoOk = top && top.asset.tintable && !pattern && !top.asset.id.includes('onestrap');
   const logo = logoOk ? worn(slot(of(LOGO_ASSETS), 'logo'), () => accent(gear, top.color)) : null;
   const outer = worn(slot(of(OUTER_ASSETS), 'outer'), () => accent(gear));
   const waistband = worn(gear() < ODDS.waistband ? pick(gear, of(WAISTBAND_ASSETS)) : null, () => accent(gear));
   const neck = worn(slot(of(NECK_ASSETS), 'neck'), () => accent(gear));
 
   const props = of(PROP_ASSETS);
-  const shared = { baseUrl, skinColor: skin.color, baseDetailUrl: BASE_DETAIL[subject.gender] ?? null, face, tattoos, top, logo, outer, waistband, neck };
+  const shared = { baseUrl, skinColor: skin.color, baseDetailUrl: BASE_DETAIL[subject.gender] ?? null, face, tattoos, top, pattern, logo, outer, waistband, neck };
 
   // A required mask replaces hair, beard, makeup and anything else on the
   // face outright — Gimmick.masked makes it a mechanical fact about the

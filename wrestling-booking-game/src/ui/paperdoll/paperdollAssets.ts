@@ -111,6 +111,11 @@ const TATTOO_FILES = import.meta.glob('./assets/tattoo/*.{png,svg,webp,jpg,jpeg}
   query: '?url',
   import: 'default',
 }) as Record<string, string>;
+const PATTERN_FILES = import.meta.glob('./assets/pattern/*.{png,svg,webp,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
 const TOP_FILES = import.meta.glob('./assets/top/*.{png,svg,webp,jpg,jpeg}', {
   eager: true,
   query: '?url',
@@ -193,3 +198,5 @@ export const LOGO_ASSETS: readonly PaperdollAsset[] = parseGendered(LOGO_FILES);
  * TATTOO_ZONES in assignLook.ts.
  */
 export const TATTOO_ASSETS: readonly PaperdollAsset[] = parseGendered(TATTOO_FILES);
+/** A second color over a top — stripes, dots, camo — cut to that top's shape. */
+export const PATTERN_ASSETS: readonly PaperdollAsset[] = parseGendered(PATTERN_FILES);

@@ -20,3 +20,16 @@ export const ACCENT_COLORS: readonly AccentColor[] = [
   { id: 'purple', label: 'Purple', color: '#5a3170' },
   { id: 'orange', label: 'Orange', color: '#b0521e' },
 ];
+
+// Colors for anything worn against the chest. No gold or orange: on most
+// skin tones they sit close enough to skin that a top stops reading as
+// clothing at all. A few extra fabric colors make up the variety.
+export const CLOTH_COLORS: readonly AccentColor[] = [
+  ...ACCENT_COLORS.filter((c) => c.id !== 'gold' && c.id !== 'orange'),
+  { id: 'teal', label: 'Teal', color: '#1f8a8a' },
+  { id: 'pink', label: 'Pink', color: '#d0457b' },
+  { id: 'sky', label: 'Sky blue', color: '#4a90c2' },
+  { id: 'silver', label: 'Silver', color: '#aeb4bd' },
+  { id: 'crimson', label: 'Crimson', color: '#c8102e' },
+  { id: 'royal', label: 'Royal blue', color: '#2545b8' },
+];
