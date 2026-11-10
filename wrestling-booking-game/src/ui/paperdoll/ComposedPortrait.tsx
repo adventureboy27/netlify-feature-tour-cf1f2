@@ -95,25 +95,36 @@ export function ComposedPortrait({
   framing?: PortraitFraming;
 }) {
   const clothed = look.top || look.waistband || look.outer;
+  // A loose garment (coat, robe, gi) is drawn whole, after the body-clipped
+  // group, so it can hang past the silhouette.
+  const looseTop = look.top?.asset.loose ?? false;
+  const looseOuter = look.outer?.asset.loose ?? false;
+  const top = look.top && (
+    <>
+      <Piece worn={look.top} />
+      {look.logo && (
+        <div className="absolute inset-0" style={maskOnly(look.top.asset.url)}>
+          <Layer url={look.logo.asset.url} color={look.logo.color} sheen={false} />
+        </div>
+      )}
+    </>
+  );
   return (
     <div role="img" aria-label={alt} className={`relative h-full w-full overflow-hidden ${className ?? ''}`}>
       <div className="absolute inset-0" style={FRAMING[framing]}>
         <Layer url={look.baseUrl} color={look.skinColor} sheen={false} />
         {look.baseDetailUrl && <img src={look.baseDetailUrl} alt="" className={LAYER_CLASS} />}
         <div className="absolute inset-0" style={maskOnly(look.baseUrl)}>
-          <Piece worn={look.top} />
-          {look.top && look.logo && (
-            <div className="absolute inset-0" style={maskOnly(look.top.asset.url)}>
-              <Layer url={look.logo.asset.url} color={look.logo.color} sheen={false} />
-            </div>
-          )}
+          {!looseTop && top}
           <Piece worn={look.waistband} />
-          <Piece worn={look.outer} />
+          {!looseOuter && <Piece worn={look.outer} />}
           {clothed && look.baseDetailUrl && (
             <img src={look.baseDetailUrl} alt="" className={`${LAYER_CLASS} opacity-25`} />
           )}
           <div className="absolute inset-0" style={{ backgroundImage: BODY_SHADING }} />
         </div>
+        {looseTop && top}
+        {looseOuter && <Piece worn={look.outer} />}
         <Piece worn={look.neck} />
         <Piece worn={look.paint} />
         {look.face && <img src={look.face.url} alt="" className={LAYER_CLASS} />}

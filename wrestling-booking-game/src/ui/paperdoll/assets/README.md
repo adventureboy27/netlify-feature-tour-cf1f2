@@ -176,6 +176,23 @@ hairstyle and hat uses it. A painted PNG on the ordinary 512 canvas needs no
 marker and replaces the generated file all the same: `m-buzzcut--tint.png`
 replaces `m-buzzcut--xl--tint.svg`.
 
+## Loose garments — the `--loose` marker
+
+Tops and outers are normally clipped to the body silhouette. A file with
+`--loose` in its name (a coat, a robe, a baggy shirt, a karate gi) is drawn
+whole instead, so it can hang past the body. Its outline is the body's own
+outer edge pushed outward, with a thin slit left along each arm gap so the
+sleeves still read as sleeves.
+
+## Costumes
+
+`gimmickPropTags.ts` has `NAME_THEMES`: if a gimmick's name matches (The
+Corsair -> pirate, The Ronin -> karate, Mad Science -> science), every slot
+prefers pieces from that one theme at high odds, so the outfit is a matched
+set. `THEMED_ONLY_IDS` lists costume pieces that are never handed out at
+random. Masked wrestlers draw from the luchador, hockey, monster and ninja
+masks, themed the same way.
+
 ## What changes with a gimmick
 
 Skin, face, hair, hair color and beard are seeded off the wrestler alone and

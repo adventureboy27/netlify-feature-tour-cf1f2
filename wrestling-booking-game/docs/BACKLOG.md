@@ -5,6 +5,21 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Portraits: masks, loose clothing, robes, and matched costumes — shipped
+
+Asked for hockey and monster masks, loose coats and shirts, wrestling robes, a ninja mask and karate
+outfit, and pirate wear. 311 generated files now.
+
+- **Masks**: hockey, five monster masks (zombie, demon, werewolf, ghoul, pumpkin), three ninja
+  masks. All carry "mask" in the id, so by the existing rule only `Wrestler.masked` wrestlers get one.
+- **`--loose` marker**: a garment drawn whole rather than clipped to the body. Baggy shirt, long
+  coat, six robe colorways, fur coat, lab coat, karate gi, ninja gi, pirate shirt and coat, hawaiian shirt.
+- **Costumes**: `NAME_THEMES` maps a gimmick's name to one theme and every slot commits to it, so
+  The Corsair gets the hat, shirt, coat and eye patch together. `THEMED_ONLY_IDS` keeps costume
+  pieces off everybody else. Tops and outers now go through the same themed-slot logic as hats.
+
+Only gimmicks whose names are in `NAME_THEMES` get a full costume; extend that list as acts are added.
+
 ## Portraits: gear follows the gimmick, 259 pieces, goofy ones included — shipped
 
 Asked for clothing that changes with a gimmick, far more hair, hats and accessories (goofy ones

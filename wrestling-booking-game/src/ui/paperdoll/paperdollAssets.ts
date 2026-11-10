@@ -52,6 +52,11 @@ export interface PaperdollAsset {
    * hat or big hair is not cut off at the canvas edge.
    */
   xl: boolean;
+  /**
+   * Hangs off the body rather than hugging it (a `--loose` marker): a coat,
+   * a robe, a baggy shirt. Drawn whole, not clipped to the body silhouette.
+   */
+  loose: boolean;
 }
 
 // Vite statically analyzes this call, so each options object must be a
@@ -125,6 +130,7 @@ function basename(path: string): string {
 const TINT_SUFFIX = '--tint';
 // Always before --tint when both are present: `m-top-hat--xl--tint.svg`.
 const XL_SUFFIX = '--xl';
+const LOOSE_SUFFIX = '--loose';
 
 function parseGendered(files: Record<string, string>): PaperdollAsset[] {
   const out: PaperdollAsset[] = [];
@@ -134,9 +140,10 @@ function parseGendered(files: Record<string, string>): PaperdollAsset[] {
     const rawId = match[2]!;
     const tintable = rawId.endsWith(TINT_SUFFIX);
     const untinted = tintable ? rawId.slice(0, -TINT_SUFFIX.length) : rawId;
-    const xl = untinted.endsWith(XL_SUFFIX);
-    const id = xl ? untinted.slice(0, -XL_SUFFIX.length) : untinted;
-    out.push({ id, gender: match[1] as AssetGender, url, tintable, xl });
+    const xl = untinted.includes(XL_SUFFIX);
+    const loose = untinted.includes(LOOSE_SUFFIX);
+    const id = untinted.replace(XL_SUFFIX, '').replace(LOOSE_SUFFIX, '');
+    out.push({ id, gender: match[1] as AssetGender, url, tintable, xl, loose });
   }
   return out;
 }

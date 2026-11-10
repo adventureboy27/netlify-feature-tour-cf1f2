@@ -28,7 +28,7 @@ import {
 import { SKIN_TONES } from './skinTones';
 import { HAIR_COLORS } from './hairColors';
 import { ACCENT_COLORS } from './accentColors';
-import { GIMMICK_CATEGORY_PROP_KEYWORDS, GOOFY_IDS } from './gimmickPropTags';
+import { GIMMICK_CATEGORY_PROP_KEYWORDS, GOOFY_IDS, NAME_THEMES, THEMED_ONLY_IDS, THEMES } from './gimmickPropTags';
 
 /** One assigned piece: the file, and the color to cut it in (null = drawn as painted). */
 export interface Worn {
@@ -71,6 +71,8 @@ export interface LookSubject {
   gimmickCategory?: string;
   /** Gimmick.id, if known — reseeds the gear, so a new gimmick is a new outfit. */
   gimmickId?: string;
+  /** Gimmick.name, if known — a name like "The Corsair" picks a whole costume theme. */
+  gimmickName?: string;
 }
 
 /**
@@ -82,7 +84,7 @@ export function lookSubjectOf(person: {
   id: string;
   gender?: 'm' | 'f';
   masked?: boolean;
-  gimmick?: { id?: string; category?: string };
+  gimmick?: { id?: string; name?: string; category?: string };
 }): LookSubject | undefined {
   if (!person.gender) return undefined;
   return {
@@ -91,6 +93,7 @@ export function lookSubjectOf(person: {
     masked: person.masked ?? false,
     gimmickCategory: person.gimmick?.category,
     gimmickId: person.gimmick?.id,
+    gimmickName: person.gimmick?.name,
   };
 }
 
@@ -129,7 +132,9 @@ const GOOFY_KEEP = 0.2;
 const ODDS = { top: 0.35, outer: 0.15, waistband: 0.9, logo: 0.55, prop: 0.2, acc: 0.13, paint: 0.1, neck: 0.1 };
 // How often a gimmick that has a themed piece for a slot actually wears it.
 // Headwear is the signature item; the rest are supporting touches.
-const THEMED = { logo: 0.5, prop: 0.55, acc: 0.3, paint: 0.3, neck: 0.3 };
+const THEMED = { logo: 0.5, prop: 0.55, acc: 0.3, paint: 0.3, neck: 0.3, top: 0.3, outer: 0.2 };
+// The same, when the gimmick's name picked a whole costume: commit to it.
+const COSTUME = { logo: 0.5, prop: 0.85, acc: 0.6, paint: 0.4, neck: 0.4, top: 0.85, outer: 0.6 };
 
 /**
  * Null when no base body exists yet for that gender — callers fall back to
@@ -163,25 +168,34 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   const facialAsset = man && body() < 0.55 ? pick(body, of(FACIAL_ASSETS)) : null;
 
   // ---- gear: follows the gimmick ---------------------------------------
-  const keywords = subject.gimmickCategory ? (GIMMICK_CATEGORY_PROP_KEYWORDS[subject.gimmickCategory] ?? []) : [];
+  const name = subject.gimmickName?.toLowerCase() ?? '';
+  const theme = NAME_THEMES.find(([needle]) => name.includes(needle))?.[1];
+  const keywords = theme
+    ? THEMES[theme]!
+    : subject.gimmickCategory
+      ? (GIMMICK_CATEGORY_PROP_KEYWORDS[subject.gimmickCategory] ?? [])
+      : [];
+  const themedOdds = theme ? COSTUME : THEMED;
   /** A themed piece if the gimmick asks for one, otherwise an occasional random one. */
   const slot = (pool: readonly PaperdollAsset[], kind: keyof typeof THEMED): PaperdollAsset | null => {
     const themed = pool.filter((p) => keywords.some((k) => p.id.includes(k)));
-    if (themed.length > 0 && gear() < THEMED[kind]) return pick(gear, themed);
+    if (themed.length > 0 && gear() < themedOdds[kind]) return pick(gear, themed);
     if (gear() >= ODDS[kind]) return null;
-    const serious = pool.filter((p) => !isGoofy(p));
-    return pick(gear, gear() < GOOFY_KEEP || serious.length === 0 ? pool : serious);
+    const open = pool.filter((p) => !THEMED_ONLY_IDS.includes(p.id));
+    const serious = open.filter((p) => !isGoofy(p));
+    return pick(gear, gear() < GOOFY_KEEP || serious.length === 0 ? open : serious);
   };
 
   // DESIGN: women always get a top. The base body is drawn bare, and a
   // bare-chested portrait is right for most of the men's roster and wrong
   // for the entire women's one.
-  const top = worn(gear() < (man ? ODDS.top : 1) ? pick(gear, of(TOP_ASSETS)) : null, () => accent(gear));
+  const tops = of(TOP_ASSETS);
+  const top = worn(slot(tops, 'top') ?? (man ? null : pick(gear, tops.filter((t) => !THEMED_ONLY_IDS.includes(t.id) && !isGoofy(t)))), () => accent(gear));
   // A one-strap singlet leaves the chest centre bare; a logo there would
-  // sit half on skin.
-  const logoOk = top && !top.asset.id.includes('onestrap');
+  // sit half on skin. A painted costume top (a gi) already has its own front.
+  const logoOk = top && top.asset.tintable && !top.asset.id.includes('onestrap');
   const logo = logoOk ? worn(slot(of(LOGO_ASSETS), 'logo'), () => accent(gear, top.color)) : null;
-  const outer = worn(gear() < ODDS.outer ? pick(gear, of(OUTER_ASSETS)) : null, () => accent(gear));
+  const outer = worn(slot(of(OUTER_ASSETS), 'outer'), () => accent(gear));
   const waistband = worn(gear() < ODDS.waistband ? pick(gear, of(WAISTBAND_ASSETS)) : null, () => accent(gear));
   const neck = worn(slot(of(NECK_ASSETS), 'neck'), () => accent(gear));
 
@@ -192,7 +206,10 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   // face outright — Gimmick.masked makes it a mechanical fact about the
   // character (Wrestler.masked), not a look the RNG opts into.
   if (subject.masked) {
-    const mask = worn(pick(gear, props.filter(isMaskProp)), () => accent(gear));
+    const masks = props.filter(isMaskProp);
+    const themedMasks = masks.filter((p) => keywords.some((k) => p.id.includes(k)));
+    const plainMasks = masks.filter((p) => !isGoofy(p));
+    const mask = worn(pick(gear, themedMasks.length > 0 ? themedMasks : plainMasks.length > 0 ? plainMasks : masks), () => accent(gear));
     return { ...shared, hair: null, facial: null, paint: null, acc: null, prop: mask };
   }
 

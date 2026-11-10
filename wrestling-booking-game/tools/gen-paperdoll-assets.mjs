@@ -369,6 +369,40 @@ function hatsFixed(g) {
       stroke(P('M -1.14,.56 C -1.2,-.3 1.2,-.3 1.14,.56'), '#26262b', 4.5) +
       fill(P(`${oval(-1.14, 0.62, 0.17, 0.13)} ${oval(1.14, 0.62, 0.17, 0.13)}`), '#26262b'),
   };
+  const mask = (main, trim, extras = '') =>
+    fill(P(`${MASK_SHELL} ${MASK_HOLES}`), main) + fill(P(`${MASK_TRIM} ${MASK_HOLES}`), trim) + extras;
+  const FANGS = fill(P(both('M -.22,.82 L -.13,.93 L -.04,.82 Z')), '#f4f1ea');
+  Object.assign(out, {
+    'hockey-mask':
+      stroke(P(both('M -.94,.5 L -1.14,.46 M -.9,.8 L -1.1,.84')), '#2b2b2b', 3) +
+      fill(P(`M 0,.1 C .7,.1 .96,.28 .94,.6 C .92,.9 .6,1.1 0,1.12 C -.6,1.1 -.92,.9 -.94,.6 C -.96,.28 -.7,.1 0,.1 Z ${oval(-0.42, 0.51, 0.25, 0.07)} ${oval(0.42, 0.51, 0.25, 0.07)}`), '#e9e4d6') +
+      fill(P(`M -.12,.14 L .12,.14 L 0,.36 Z ${both('M -.72,.66 L -.5,.62 L -.56,.82 Z')}`), '#b3261e', ' fill-rule="nonzero"') +
+      [[0, 0.72], [-0.25, 0.8], [0.25, 0.8], [-0.5, 0.88], [0.5, 0.88], [0, 0.9], [-0.25, 0.98], [0.25, 0.98], [-0.3, 0.3], [0.3, 0.3]].map(([u, v]) => dot(u, v, 1.8, '#3a3a3a')).join(''),
+    'monster-mask-zombie':
+      mask('#6f8f5a', '#3f5236') + stroke(P('M -.6,.16 L -.05,.3 M -.45,.14 L -.5,.26 M -.3,.18 L -.35,.3 M -.15,.22 L -.2,.33 M .3,.7 L .75,.84 M .45,.7 L .4,.8 M .6,.74 L .55,.86'), '#26331f', 1.8),
+    'monster-mask-demon':
+      fill(P(both('M -.9,.08 C -1.1,-.3 -.9,-.6 -.55,-.72 C -.68,-.4 -.62,-.14 -.46,.02 Z')), '#2a1010') + mask('#9c1f1f', '#1a0a0a') + FANGS +
+      fill(P(both('M -.72,.36 L -.14,.44 L -.14,.4 Z')), '#1a0a0a'),
+    'monster-mask-werewolf':
+      fill(P(both('M -.92,.14 L -1.2,-.42 L -.48,-.04 Z')), '#6b4a2f') + mask('#6b4a2f', '#3a2616') + FANGS + fill(P('M -.14,.64 L .14,.64 L 0,.74 Z'), '#141414') +
+      stroke(P(both('M -1.0,.7 L -1.25,.76 M -.98,.8 L -1.2,.92')), '#6b4a2f', 3),
+    'monster-mask-ghoul':
+      fill(P(`${MASK_SHELL} ${MASK_HOLES}`), '#d8d6cc') + fill(P(`${oval(-0.42, 0.51, 0.44, 0.15)} ${oval(0.42, 0.51, 0.44, 0.15)} ${MASK_HOLES.split(' M ').slice(0, 2).join(' M ')}`), '#141414') +
+      stroke(P('M -.46,.845 L -.36,.8 L -.26,.89 L -.16,.8 L -.06,.89 L .04,.8 L .14,.89 L .24,.8 L .34,.89 L .46,.845'), '#141414', 2),
+    'monster-mask-pumpkin':
+      fill(P('M -.1,-.06 L -.06,-.3 L .14,-.3 L .1,-.06 Z'), '#3f6b2a') + fill(P(`${MASK_SHELL} ${MASK_HOLES}`), '#e07b1a') +
+      stroke(P('M 0,-.06 L 0,.36 M -.5,0 C -.62,.3 -.62,.7 -.5,1.02 M .5,0 C .62,.3 .62,.7 .5,1.02'), '#b85f10', 1.6) +
+      fill(P(`${both('M -.42,.34 L -.12,.6 L -.72,.6 Z')} ${MASK_HOLES.split(' M ').slice(0, 2).join(' M ')}`), '#141414') +
+      stroke(P('M -.46,.82 L -.3,.9 L -.16,.82 L 0,.9 L .16,.82 L .3,.9 L .46,.82'), '#141414', 2.4),
+    'pirate-headscarf':
+      fill(P('M -1.07,.35 C -1.13,.05 -.7,-.12 0,-.12 C .7,-.12 1.13,.05 1.07,.35 C .6,.22 -.6,.22 -1.07,.35 Z M 1.04,.28 L 1.42,.4 L 1.3,.49 L 1.5,.62 L 1.02,.4 Z'), '#a3251f', ' fill-rule="nonzero"') +
+      [[-0.6, 0.08], [-0.2, 0.0], [0.25, 0.02], [0.65, 0.1], [0, 0.14], [-0.4, 0.18], [0.45, 0.2]].map(([u, v]) => dot(u, v, 1.6, '#f4f1ea')).join(''),
+  });
+  for (const [name, color] of Object.entries({ black: '#1d1d22', red: '#8f1f1f', white: '#e9e6de' })) {
+    out[`ninja-mask-${name}`] =
+      fill(P(`${MASK_SHELL} M -.92,.42 C -.4,.39 .4,.39 .92,.42 L .9,.61 C .4,.64 -.4,.64 -.9,.61 Z`), color) +
+      stroke(P('M -.9,.36 C -.4,.33 .4,.33 .9,.36 M -.86,.68 C -.4,.72 .4,.72 .86,.68'), '#000000', 1.2, ' opacity=".3"');
+  }
   for (const [name, [main, trim]] of Object.entries(MASK_SCHEMES)) {
     out[`luchador-mask-${name}`] =
       fill(P(`${MASK_SHELL} ${MASK_HOLES}`), main) + fill(P(`${MASK_TRIM} ${MASK_HOLES}`), trim) + fill(P(MASK_CREST), trim);
@@ -421,6 +455,7 @@ function accFixed(g) {
       fill(P(oval(0, 0.63, 0.18, 0.075)), '#dba98a') +
       fill(P('M -.44,.8 C -.2,.68 .2,.68 .44,.8 C .2,.86 -.2,.86 -.44,.8 Z'), '#141414'),
     'nose-bandage': fill(P('M -.24,.57 L .24,.57 L .24,.63 L -.24,.63 Z'), '#eadcc4') + stroke(P('M -.08,.57 L -.08,.63 M .08,.57 L .08,.63'), '#c9b99c', 1),
+    'pirate-earring': stroke(P(oval(-1.12, 0.76, 0.1, 0.04)), '#d1a93a', 2.2),
     veil: fill(P('M -1.1,.12 C -.5,.04 .5,.04 1.1,.12 L 1.0,.64 C .5,.72 -.5,.72 -1.0,.64 Z'), '#111111', ' opacity=".45"'),
     'cat-whiskers': stroke(P(both('M -.3,.7 L -1.0,.62 M -.3,.74 L -1.0,.76 M -.3,.78 L -.95,.9')), '#141414', 1.2) + fill(P('M -.1,.63 L .1,.63 L 0,.7 Z'), '#141414'),
   };
@@ -528,6 +563,108 @@ function clothing(g) {
     top: tops,
     outer: { vest: panel(false), jacket: panel(true) },
     waistband: { 'trunks-band': `M ${wl},474 C ${b.cx - 60},464 ${b.cx + 60},464 ${wr},474 L ${br},512 L ${bl},512 Z` },
+  };
+}
+
+// ---------------------------------------------------------------- loose ----
+// Garments that hang off the body instead of hugging it: baggy shirts,
+// coats, robes, a karate gi. Written with a `--loose` marker, which tells
+// ComposedPortrait NOT to clip them to the body silhouette. Their outline
+// is the body's own outer edge pushed out by `pad`; a 2px slit is left
+// along each arm gap so sleeves still read as sleeves.
+
+// Outer edge of the left arm, shoulder to wrist, as [x, y]. The right is its mirror.
+const ARM = {
+  m: [[200, 150], [184, 160], [166, 176], [150, 184], [128, 192], [116, 200], [102, 216], [94, 232], [90, 256], [86, 280], [79, 296], [75, 320], [77, 336], [78, 352], [71, 368], [69, 384], [63, 400], [59, 416], [60, 432], [64, 448], [66, 464], [68, 480], [71, 496], [72, 512]],
+  f: [[203, 176], [191, 184], [179, 192], [146, 200], [134, 208], [121, 224], [114, 240], [110, 256], [112, 272], [112, 288], [104, 304], [100, 320], [100, 336], [102, 352], [100, 368], [93, 384], [88, 400], [85, 416], [86, 432], [87, 448], [89, 464], [91, 480], [92, 496], [93, 512]],
+};
+const COLLAR = { m: 40, f: 34 };
+const flipX = (g, d) => d.replace(/(-?[\d.]+),(-?[\d.]+)/g, (_, x, y) => `${r1(2 * BODY[g].cx - x)},${y}`);
+
+/** Torso edge x at height y, interpolated along an arm gap. */
+function gapAt(g, y, side) {
+  const rows = GAP[g];
+  const k = side === 'l' ? 1 : 2;
+  if (y <= rows[0][0]) return rows[0][k];
+  for (let i = 1; i < rows.length; i++) {
+    if (y <= rows[i][0]) {
+      const t = (y - rows[i - 1][0]) / (rows[i][0] - rows[i - 1][0]);
+      return rows[i - 1][k] + (rows[i][k] - rows[i - 1][k]) * t;
+    }
+  }
+  return rows[rows.length - 1][k];
+}
+
+/**
+ * The left half of a loose garment. `front` finishes the path from the
+ * bottom of the torso back up to the collar — a closed neckline or an open
+ * coat front.
+ */
+function looseHalf(g, pad, front) {
+  const b = BODY[g];
+  const collar = `${b.cx - COLLAR[g]},${b.neckY - 6}`;
+  const outer = ARM[g].map(([x, y], i) => {
+    const k = Math.min(1, i / 4);
+    return `L ${r1(x - pad * k)},${r1(y - pad * 0.5 * (1 - k) - (i < 5 ? pad * 0.4 : 0))}`;
+  });
+  const sleeveIn = [...GAP[g]].reverse().map(([y, l]) => `L ${l - 1},${y}`);
+  const torso = GAP[g].map(([y, l]) => `L ${l + 1},${y}`);
+  return `M ${collar} ${outer.join(' ')} ${sleeveIn.join(' ')} ${torso.join(' ')} ${front} Z`;
+}
+function looseShape(g, pad, kind, depth = 26) {
+  const b = BODY[g];
+  const c = b.cx + 0.5;
+  const front =
+    kind === 'open'
+      ? `L ${b.cx - 34},512 L ${b.cx - 20},${b.neckY + 8}`
+      : kind === 'vee'
+        ? `L ${c},512 L ${c},${b.neckY + depth}`
+        : `L ${c},512 L ${c},${b.neckY + depth} Q ${b.cx - COLLAR[g] * 0.6},${b.neckY + depth} ${b.cx - COLLAR[g]},${b.neckY - 6}`;
+  const half = looseHalf(g, pad, front);
+  return `${half} ${flipX(g, half)}`;
+}
+
+function looseWear(g) {
+  const b = BODY[g];
+  const [cx, ny] = [b.cx, b.neckY];
+  const arm = ARM[g];
+  const belt = (y1, y2, color) =>
+    fill(`M ${gapAt(g, y1, 'l') + 1},${y1} L ${gapAt(g, y1, 'r') - 1},${y1} L ${gapAt(g, y2, 'r') - 1},${y2} L ${gapAt(g, y2, 'l') + 1},${y2} Z`, color);
+  const lapels = (color, w, drop) => stroke(`M ${cx - COLLAR[g]},${ny - 4} L ${cx + 16},${ny + drop} M ${cx + COLLAR[g]},${ny - 4} L ${cx - 6},${ny + drop * 0.62}`, color, w);
+  const trim = (color, w) => stroke(`M ${cx - 21},${ny + 8} L ${cx - 35},512 M ${cx + 21},${ny + 8} L ${cx + 35},512`, color, w);
+  const shell = (pad, kind, color, depth) => fill(looseShape(g, pad, kind, depth), color, ' fill-rule="nonzero"');
+  const dots = (pts, r, colors) => pts.map(([x, y], i) => `<circle cx="${r1(x)}" cy="${r1(y)}" r="${r}" fill="${colors[i % colors.length]}"/>`).join('');
+  const gi = (cloth, lap, sash) =>
+    shell(9, 'vee', cloth, 74) + lapels(lap, 6, 150) + belt(452, 474, sash) + fill(`M ${cx - 9},448 L ${cx + 9},448 L ${cx + 14},492 L ${cx + 4},492 L ${cx},470 L ${cx - 4},492 L ${cx - 14},492 Z`, sash);
+  const robe = (cloth, edge) =>
+    shell(16, 'open', cloth) + trim(edge, 13) + stroke(`M ${cx - COLLAR[g] - 4},${ny - 8} L ${cx - 21},${ny + 8} M ${cx + COLLAR[g] + 4},${ny - 8} L ${cx + 21},${ny + 8}`, edge, 13) +
+    dots([[arm[9][0] + 22, arm[9][1]], [2 * cx - arm[9][0] - 22, arm[9][1] + 30], [arm[15][0] + 20, arm[15][1]], [2 * cx - arm[15][0] - 20, arm[15][1] - 20], [cx - 70, ny + 200], [cx + 74, ny + 150]], 2.4, [edge]);
+  const flowers = [[cx - 30, ny + 62], [cx + 34, ny + 70], [cx - 56, ny + 112], [cx + 58, ny + 122], [cx - 14, ny + 132], [cx + 16, ny + 176], [cx - 44, ny + 196], [cx + 46, ny + 214], [cx - 10, ny + 246], [cx + 30, ny + 276], [cx - 52, ny + 280], [arm[8][0] + 22, arm[8][1]], [2 * cx - arm[8][0] - 22, arm[8][1] + 14], [arm[13][0] + 22, arm[13][1]], [2 * cx - arm[13][0] - 22, arm[13][1]]];
+  return {
+    top: {
+      tint: { 'baggy-shirt': looseShape(g, 10, 'crew') },
+      fixed: {
+        'karate-gi': gi('#f2f0ea', '#cfcabd', '#18181b'),
+        'ninja-gi': gi('#1d1d22', '#3a3a42', '#8f1f1f'),
+        'pirate-shirt':
+          shell(14, 'vee', '#efe9da', 96) + stroke(`M ${cx - 12},${ny + 40} L ${cx + 12},${ny + 52} M ${cx + 12},${ny + 40} L ${cx - 12},${ny + 52} M ${cx - 8},${ny + 62} L ${cx + 8},${ny + 74} M ${cx + 8},${ny + 62} L ${cx - 8},${ny + 74}`, '#6b4a2f', 1.6) + belt(450, 478, '#a3251f'),
+        'hawaiian-shirt': shell(11, 'vee', '#1f8a8a', 60) + dots(flowers, 7, ['#f2c230', '#e0457b', '#f4f1ea']) + dots(flowers, 2.4, ['#b3261e', '#f2c230', '#e0457b']),
+      },
+    },
+    outer: {
+      tint: { 'long-coat': looseShape(g, 13, 'open') },
+      fixed: {
+        'pirate-coat': shell(14, 'open', '#22304d') + trim('#d1a93a', 4) + dots([0, 1, 2, 3].flatMap((i) => [[cx - 46, ny + 70 + i * 46], [cx + 46, ny + 70 + i * 46]]), 3.4, ['#d1a93a']),
+        'lab-coat': shell(11, 'open', '#eef0f0') + trim('#c3c9cc', 2) + stroke(`M ${cx + 44},${ny + 96} L ${cx + 74},${ny + 96} L ${cx + 74},${ny + 126} L ${cx + 44},${ny + 126} Z`, '#c3c9cc', 1.6),
+        'fur-coat': shell(20, 'open', '#6b4a2f') + stroke(`M ${cx - COLLAR[g] - 6},${ny - 6} L ${cx - 22},${ny + 30} L ${cx - 30},${ny + 120} M ${cx + COLLAR[g] + 6},${ny - 6} L ${cx + 22},${ny + 30} L ${cx + 30},${ny + 120}`, '#93714a', 18),
+        'robe-red': robe('#8f1f1f', '#e0b23c'),
+        'robe-purple': robe('#55307a', '#e0b23c'),
+        'robe-white': robe('#ece8dc', '#b9bec6'),
+        'robe-black': robe('#18181b', '#b3261e'),
+        'robe-gold': robe('#b5871f', '#f4f1ea'),
+        'robe-blue': robe('#1f4f8a', '#d9dde3'),
+      },
+    },
   };
 }
 
@@ -640,6 +777,11 @@ for (const g of ['m', 'f']) {
   for (const [id, body] of Object.entries(n.fixed)) write('neck', `${g}-${id}.svg`, svg(body));
 
   for (const [id, d] of Object.entries(LOGOS)) write('logo', `${g}-${id}--tint.svg`, svg(tinted(lp(g, d))));
+
+  for (const [folder, kinds] of Object.entries(looseWear(g))) {
+    for (const [id, d] of Object.entries(kinds.tint)) write(folder, `${g}-${id}--loose--tint.svg`, svg(fill(d, GREY, ' fill-rule="nonzero"')));
+    for (const [id, body] of Object.entries(kinds.fixed)) write(folder, `${g}-${id}--loose.svg`, svg(body));
+  }
 
   for (const [folder, items] of Object.entries(clothing(g))) {
     for (const [id, d] of Object.entries(items)) write(folder, `${g}-${id}--tint.svg`, svg(fill(d)));
