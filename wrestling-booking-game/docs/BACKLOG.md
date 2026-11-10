@@ -5,6 +5,30 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Portraits: faces, a fitted asset set, and every screen — shipped
+
+A cosmetic pass over the composited wrestler portraits. Three things were wrong: the bodies had no
+faces at all, the placeholder hair and props had been drawn for a head roughly twice as wide as the
+one in the real base art (so nothing sat on the head), and only two components used the portraits —
+everywhere else still drew an initials circle.
+
+- **`tools/gen-paperdoll-assets.mjs`** writes 90 SVGs fitted to the measured geometry of the real
+  bodies: 4 expressions per gender, 19 hairstyles, 6 facial-hair styles, 22 props per gender
+  (including five luchador mask colorways) and 13 clothing pieces. Head-space shapes are authored
+  once in head-normalized coordinates and emitted per gender, because the two base bodies do not
+  share a head size — which is why there are no `both-` head assets any more.
+- **`ComposedPortrait.tsx`** clips clothing to the body silhouette, adds one shading pass over skin
+  and gear, ghosts the muscle linework back over clothing, and gives tinted hair/fabric a faint
+  sheen. `PaperDoll.tsx` adds a per-person studio backdrop and crops `thumb`/`tiny` sizes in on the
+  head, since a head-to-waist figure is unreadable at 24-48px.
+- **`assignLook.ts`**: a `face` slot on its own RNG stream; women always get a top; men can be bald
+  or clean-shaven. Existing looks reshuffled — acceptable, everything reshuffled was placeholder.
+- **Rollout**: all 34 `<PaperDoll>` sites for a wrestler now pass `lookSubjectOf(...)`.
+
+Checked in a played save (card picker, wrestler detail, partner chips), `tsc`, `npm run build`.
+Still open: the generated set is clean vector art, not painted art — the Prompt Sheet route for
+replacing any piece with a Gemini-painted PNG still works, file by file.
+
 ## Paperdoll v2 — head-to-waist framing, a real anatomical-detail overlay
 
 Follow-up to the paperdoll library, after the first two real base bodies were submitted and

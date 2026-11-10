@@ -55,6 +55,11 @@ const BASE_FILES = import.meta.glob('./assets/base/*.{png,svg,webp,jpg,jpeg}', {
   query: '?url',
   import: 'default',
 }) as Record<string, string>;
+const FACE_FILES = import.meta.glob('./assets/face/*.{png,svg,webp,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
 const HAIR_FILES = import.meta.glob('./assets/hair/*.{png,svg,webp,jpg,jpeg}', {
   eager: true,
   query: '?url',
@@ -124,6 +129,8 @@ export const BASE_DETAIL: Partial<Record<'m' | 'f', string>> = (() => {
   return out;
 })();
 
+/** Eyes, brows, nose, mouth — never recolored, drawn under hair and props. */
+export const FACE_ASSETS: readonly PaperdollAsset[] = parseGendered(FACE_FILES);
 export const HAIR_ASSETS: readonly PaperdollAsset[] = parseGendered(HAIR_FILES);
 export const FACIAL_ASSETS: readonly PaperdollAsset[] = parseGendered(FACIAL_FILES);
 export const PROP_ASSETS: readonly PaperdollAsset[] = parseGendered(PROP_FILES);

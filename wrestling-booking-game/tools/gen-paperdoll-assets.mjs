@@ -1,0 +1,372 @@
+// Generates the vector (SVG) paperdoll asset set: faces, hair, facial hair,
+// props and clothing, fitted to the real base bodies.
+//
+// Why generated rather than hand-saved files: the two real base bodies do
+// not share a head size (the female head is ~16% wider and ~20% taller than
+// the male one), so one "both-" file can never fit both. Every head-space
+// shape here is authored once in head-normalized coordinates — u = -1..1
+// across the skull's half-width, v = 0 at the crown and 1 at the chin — and
+// emitted once per gender through that gender's measured head box.
+//
+// The HEAD and GAP numbers below were measured from the alpha channel of
+// base/m.png and base/f.png scaled to a 512 canvas. If a base body is ever
+// replaced, re-measure and re-run:  node tools/gen-paperdoll-assets.mjs
+//
+// Real painted art still wins: drop a PNG with the same name into the same
+// folder and delete the generated .svg next to it.
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/ui/paperdoll/assets');
+
+const HEAD = {
+  m: { cx: 253.5, top: 12, hw: 42.5, H: 106 },
+  f: { cx: 255.5, top: 12, hw: 49.5, H: 128 },
+};
+
+// Centre of the transparent gap between each arm and the torso, top
+// (armpit) to bottom, as [y, leftX, rightX]. Clothing edges run down these
+// so a garment never paints an arm.
+const GAP = {
+  m: [[304, 151, 358], [320, 155, 355], [336, 158.5, 351], [360, 156.5, 354], [392, 157.5, 353], [424, 155, 356.5], [440, 149, 362], [456, 141.5, 369.5], [472, 136, 375], [496, 130, 381], [512, 127, 384]],
+  f: [[280, 162.5, 349], [296, 156.5, 354.5], [312, 155.5, 355.5], [328, 158.5, 352.5], [344, 166, 345], [368, 163.5, 347], [392, 167, 343.5], [416, 163, 348.5], [440, 154, 356.5], [456, 147.5, 363], [472, 141.5, 369], [496, 136.5, 374], [512, 134, 377]],
+};
+
+const GREY = '#b0b0b0';
+const INK = '#2a1a12';
+const r1 = (n) => Math.round(n * 10) / 10;
+
+/** Head-space path ("u,v" pairs, absolute M/L/C/Q/Z only) -> canvas-space path. */
+function hp(g, d) {
+  const h = HEAD[g];
+  return d.replace(/(-?\d*\.?\d+),(-?\d*\.?\d+)/g, (_, u, v) => `${r1(h.cx + u * h.hw)},${r1(h.top + v * h.H)}`);
+}
+const mirror = (d) => d.replace(/(-?\d*\.?\d+),(-?\d*\.?\d+)/g, (_, u, v) => `${-u},${v}`);
+const both = (d) => `${d} ${mirror(d)}`;
+
+const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${body}</svg>\n`;
+const fill = (d, color = GREY, extra = '') => `<path d="${d}" fill="${color}" fill-rule="evenodd"${extra}/>`;
+const stroke = (d, color, w, extra = '') =>
+  `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${extra}/>`;
+
+/** An ellipse in head space, as a closed path, so it can join an evenodd fill. */
+function oval(u, v, ru, rv) {
+  const k = 0.5523;
+  return `M ${u - ru},${v} C ${u - ru},${v - rv * k} ${u - ru * k},${v - rv} ${u},${v - rv} C ${u + ru * k},${v - rv} ${u + ru},${v - rv * k} ${u + ru},${v} C ${u + ru},${v + rv * k} ${u + ru * k},${v + rv} ${u},${v + rv} C ${u - ru * k},${v + rv} ${u - ru},${v + rv * k} ${u - ru},${v} Z`.replace(
+    /-?\d+\.\d{4,}/g,
+    (n) => String(Math.round(n * 1000) / 1000),
+  );
+}
+
+/** A scalloped arc over the head (afro outline), from the left ear round to the right. */
+function scallops(cu, cv, ru, rv, n) {
+  const pt = (t) => [cu + ru * Math.cos(t), cv - rv * Math.sin(t)];
+  const a0 = Math.PI * 1.12;
+  const a1 = -Math.PI * 0.12;
+  let d = '';
+  for (let i = 0; i <= n; i++) {
+    const t = a0 + ((a1 - a0) * i) / n;
+    const [u, v] = pt(t);
+    if (i === 0) d += `M ${r3(u)},${r3(v)}`;
+    else {
+      const tm = a0 + ((a1 - a0) * (i - 0.5)) / n;
+      const [bu, bv] = [cu + ru * 1.16 * Math.cos(tm), cv - rv * 1.16 * Math.sin(tm)];
+      d += ` Q ${r3(bu)},${r3(bv)} ${r3(u)},${r3(v)}`;
+    }
+  }
+  return d;
+}
+const r3 = (n) => Math.round(n * 1000) / 1000;
+
+/** A hanging braid / dreadlock: a chain of overlapping lumps between two points. */
+function chain(u0, v0, u1, v1, n, ru, rv) {
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+    d += `${oval(r3(u0 + (u1 - u0) * t), r3(v0 + (v1 - v0) * t), ru * (1 - t * 0.35), rv)} `;
+  }
+  return d;
+}
+
+// ---------------------------------------------------------------- hair ----
+
+const HAIRLINE = 'C .95,.36 .9,.27 .7,.22 C .35,.17 -.35,.17 -.7,.22 C -.9,.27 -.95,.36 -.97,.5';
+const CAP = 'M -1.06,.5 C -1.14,.1 -.74,-.08 0,-.08 C .74,-.08 1.14,.1 1.06,.5 L .97,.5';
+const capTo = (sideV) => CAP.replaceAll('.5', String(sideV));
+const SLICK =
+  'M -1.08,.56 C -1.18,.08 -.8,-.1 0,-.1 C .8,-.1 1.18,.08 1.08,.56 L .97,.56 C .97,.36 .88,.24 .6,.17 C .3,.12 .12,.16 0,.22 C -.12,.16 -.3,.12 -.6,.17 C -.88,.24 -.97,.36 -.97,.56 Z';
+const PARTED =
+  'M -1.07,.54 C -1.16,.08 -.78,-.1 0,-.1 C .78,-.1 1.16,.08 1.07,.54 L .97,.54 C .96,.36 .86,.25 .55,.19 L .12,.14 L 0,.2 L -.12,.14 L -.55,.19 C -.86,.25 -.96,.36 -.97,.54 Z';
+
+const HAIR = {
+  buzzcut: { g: 'm', d: `${CAP} ${HAIRLINE} Z` },
+  crewcut: {
+    g: 'm',
+    d: 'M -1.06,.48 C -1.16,.06 -.8,-.1 0,-.1 C .8,-.1 1.16,.06 1.06,.48 L .96,.48 C .96,.34 .9,.25 .75,.2 C .4,.11 -.1,.13 -.45,.24 C -.7,.19 -.9,.28 -.96,.48 Z',
+  },
+  slickback: { g: 'm', d: SLICK },
+  mohawk: {
+    g: 'mf',
+    d: 'M -.32,.21 C -.38,.05 -.32,-.1 -.2,-.1 L -.1,-.03 L 0,-.11 L .1,-.03 L .2,-.1 C .32,-.1 .38,.05 .32,.21 C .15,.15 -.15,.15 -.32,.21 Z',
+    faint: `${CAP} ${HAIRLINE} Z`,
+  },
+  shaggy: {
+    g: 'm',
+    d: 'M -1.22,.95 C -1.4,.5 -1.3,-.02 -.5,-.1 C -.2,-.12 .2,-.12 .5,-.1 C 1.3,-.02 1.4,.5 1.22,.95 L 1.0,.8 C 1.05,.6 1.0,.45 .92,.36 C .8,.42 .7,.34 .62,.24 C .5,.36 .3,.36 .2,.24 C .05,.38 -.2,.38 -.3,.24 C -.45,.38 -.65,.36 -.72,.26 C -.8,.4 -.92,.4 -.95,.36 C -1.02,.5 -1.05,.65 -1.0,.8 Z',
+  },
+  long: {
+    g: 'm',
+    d: 'M 0,-.1 C .9,-.1 1.25,.1 1.25,.6 C 1.25,1.2 1.45,1.6 1.65,1.95 L 1.0,2.0 C 1.02,1.5 .98,1.0 .96,.6 C .94,.38 .7,.22 .1,.16 L 0,.2 L -.1,.16 C -.7,.22 -.94,.38 -.96,.6 C -.98,1.0 -1.02,1.5 -1.0,2.0 L -1.65,1.95 C -1.45,1.6 -1.25,1.2 -1.25,.6 C -1.25,.1 -.9,-.1 0,-.1 Z',
+  },
+  'loose-long': {
+    g: 'f',
+    d: 'M 0,-.1 C .95,-.1 1.3,.1 1.3,.6 C 1.3,1.2 1.5,1.7 1.72,2.15 L .92,2.2 C 1.02,1.6 1.0,1.0 .96,.6 C .92,.36 .6,.2 -.35,.16 C -.75,.24 -.94,.4 -.96,.6 C -1.0,1.0 -1.02,1.6 -.92,2.2 L -1.72,2.15 C -1.5,1.7 -1.3,1.2 -1.3,.6 C -1.3,.1 -.95,-.1 0,-.1 Z',
+  },
+  ponytail: {
+    g: 'mf',
+    d: { m: `${SLICK} M .9,.75 C 1.3,.9 1.45,1.4 1.3,1.95 C 1.2,1.6 1.1,1.3 .88,1.05 Z`, f: `${PARTED} M .98,.2 C 1.5,.1 1.8,.5 1.7,1.1 C 1.65,1.5 1.5,1.75 1.35,1.9 C 1.4,1.5 1.35,1.0 1.15,.7 C 1.1,.55 1.02,.45 .98,.4 Z` },
+  },
+  bob: {
+    g: 'f',
+    d: 'M 0,-.1 C .95,-.1 1.3,.15 1.32,.6 C 1.34,.85 1.3,1.02 1.2,1.12 L .9,1.08 C .98,.85 .98,.6 .94,.45 C .85,.3 .5,.2 -.3,.18 C -.6,.3 -.9,.36 -.95,.5 C -.98,.7 -.98,.9 -.9,1.08 L -1.2,1.12 C -1.3,1.02 -1.34,.85 -1.32,.6 C -1.3,.15 -.95,-.1 0,-.1 Z',
+  },
+  braids: { g: 'f', d: `${PARTED} ${chain(1.08, 0.62, 1.3, 2.2, 9, 0.2, 0.1)} ${chain(-1.08, 0.62, -1.3, 2.2, 9, 0.2, 0.1)}` },
+  'space-buns': { g: 'f', d: `${PARTED} ${oval(0.86, 0.07, 0.34, 0.13)} ${oval(-0.86, 0.07, 0.34, 0.13)}` },
+  undercut: {
+    g: 'mf',
+    d: 'M -.9,.3 C -1.0,.0 -.5,-.1 .1,-.1 C .9,-.1 1.3,.15 1.3,.55 C 1.3,.7 1.2,.8 1.1,.85 C 1.05,.6 .95,.4 .7,.3 C .3,.2 -.4,.18 -.9,.3 Z',
+    faint: 'M -1.05,.52 C -1.08,.3 -1.0,.18 -.9,.12 L -.9,.3 C -.95,.36 -.96,.44 -.96,.52 Z',
+  },
+  afro: { g: 'mf', d: `${scallops(0, 0.3, 1.45, 0.42, 9)} L .96,.5 C .9,.25 .5,.18 0,.18 C -.5,.18 -.9,.25 -.96,.5 Z` },
+  pixie: {
+    g: 'f',
+    d: 'M -1.08,.62 C -1.18,.06 -.8,-.1 0,-.1 C .8,-.1 1.18,.06 1.08,.62 L .98,.66 C 1.0,.44 .92,.32 .8,.26 C .6,.34 .3,.3 .1,.2 C -.1,.34 -.5,.36 -.78,.28 C -.92,.34 -1.0,.46 -.98,.66 Z',
+  },
+  dreads: {
+    g: 'm',
+    d: `${CAP} ${HAIRLINE} Z ${[-1.3, -1.08, 1.08, 1.3].map((u, i) => chain(u * 0.88, 0.5, u, 1.5 + (i % 2) * 0.25, 7, 0.11, 0.1)).join(' ')}`,
+  },
+};
+
+// ---------------------------------------------------------- facial hair ----
+
+const MOUTH_HOLE = 'M -.2,.84 C -.1,.81 .1,.81 .2,.84 C .12,.89 -.12,.89 -.2,.84 Z';
+const BEARD =
+  'M -1.0,.6 C -1.0,.85 -.85,1.05 -.5,1.14 C -.2,1.2 .2,1.2 .5,1.14 C .85,1.05 1.0,.85 1.0,.6 L .88,.62 C .8,.74 .55,.76 .36,.74 C .2,.7 -.2,.7 -.36,.74 C -.55,.76 -.8,.74 -.88,.62 Z';
+const FACIAL = {
+  goatee: { d: `M -.34,.76 C -.36,.92 -.3,1.06 0,1.08 C .3,1.06 .36,.92 .34,.76 C .2,.72 -.2,.72 -.34,.76 Z ${MOUTH_HOLE}` },
+  fullbeard: { d: `${BEARD} ${MOUTH_HOLE}` },
+  stubble: { d: `${BEARD} ${MOUTH_HOLE}`, opacity: 0.32 },
+  moustache: { d: 'M -.38,.8 C -.3,.72 -.1,.7 0,.74 C .1,.7 .3,.72 .38,.8 C .2,.8 .1,.81 0,.79 C -.1,.81 -.2,.8 -.38,.8 Z' },
+  horseshoe: { d: 'M -.38,.74 C -.2,.69 .2,.69 .38,.74 L .42,1.02 L .27,1.02 L .25,.81 C .1,.78 -.1,.78 -.25,.81 L -.27,1.02 L -.42,1.02 Z' },
+  chinstrap: {
+    d: 'M -1.0,.6 C -1.0,.85 -.85,1.05 -.5,1.12 C -.2,1.17 .2,1.17 .5,1.12 C .85,1.05 1.0,.85 1.0,.6 L .9,.62 C .88,.8 .75,.96 .45,1.02 C .2,1.06 -.2,1.06 -.45,1.02 C -.75,.96 -.88,.8 -.9,.62 Z',
+  },
+};
+
+// ----------------------------------------------------------------- face ----
+// Never recolored. Dark linework plus eye whites, so it reads on every skin
+// tone; drawn under hair, facial hair and props.
+
+function face(g, kind) {
+  const h = HEAD[g];
+  const brow = {
+    neutral: 'M -.68,.435 C -.5,.385 -.3,.385 -.18,.42 L -.18,.45 C -.3,.42 -.5,.42 -.68,.465 Z',
+    stern: 'M -.68,.44 C -.5,.42 -.3,.42 -.16,.435 L -.16,.468 C -.3,.455 -.5,.455 -.68,.47 Z',
+    scowl: 'M -.68,.4 C -.5,.4 -.3,.43 -.14,.47 L -.15,.5 C -.3,.465 -.5,.44 -.68,.435 Z',
+    smirk: 'M -.68,.435 C -.5,.385 -.3,.385 -.18,.42 L -.18,.45 C -.3,.42 -.5,.42 -.68,.465 Z',
+  }[kind];
+  const eye = 'M -.62,.51 C -.52,.465 -.32,.465 -.22,.51 C -.32,.545 -.52,.545 -.62,.51 Z';
+  const lid = 'M -.64,.51 C -.52,.455 -.32,.455 -.2,.51';
+  const mouth = {
+    neutral: 'M -.24,.84 C -.1,.855 .1,.855 .24,.84',
+    stern: 'M -.24,.845 L .24,.845',
+    scowl: 'M -.25,.86 C -.1,.83 .1,.83 .25,.86',
+    smirk: 'M -.24,.85 C -.05,.86 .14,.85 .28,.81',
+  }[kind];
+  const iris = (s) => `<circle cx="${r1(h.cx + s * 0.42 * h.hw)}" cy="${r1(h.top + 0.512 * h.H)}" r="${r1(0.075 * h.hw)}" fill="${INK}"/>`;
+  const parts = [
+    fill(hp(g, both(eye)), '#f3eee4'),
+    iris(-1),
+    iris(1),
+    stroke(hp(g, both(lid)), INK, g === 'f' ? 2.6 : 2),
+    fill(hp(g, both(brow)), INK, ' opacity=".9"'),
+    stroke(hp(g, 'M -.12,.67 C -.05,.7 .05,.7 .12,.67'), INK, 1.8, ' opacity=".75"'),
+    stroke(hp(g, 'M .1,.5 C .14,.58 .16,.62 .12,.67'), INK, 1.2, ' opacity=".35"'),
+  ];
+  if (g === 'f') {
+    parts.push(stroke(hp(g, both('M -.64,.51 L -.74,.47')), INK, 2));
+    parts.push(fill(hp(g, 'M -.25,.84 C -.12,.8 -.04,.81 0,.825 C .04,.81 .12,.8 .25,.84 C .12,.9 -.12,.9 -.25,.84 Z'), '#8f3a44', ' opacity=".85"'));
+  }
+  parts.push(stroke(hp(g, mouth), INK, g === 'f' ? 1.4 : 2.4, ' opacity=".85"'));
+  return svg(parts.join(''));
+}
+
+// ---------------------------------------------------------------- props ----
+
+const EYE_HOLES = `${oval(-0.42, 0.51, 0.27, 0.06)} ${oval(0.42, 0.51, 0.27, 0.06)}`;
+const MASK_SHELL =
+  'M 0,-.08 C .76,-.08 1.1,.12 1.08,.5 L 1.17,.56 L 1.15,.74 L 1.0,.78 C .95,.93 .8,1.02 .6,1.06 C .3,1.11 -.3,1.11 -.6,1.06 C -.8,1.02 -.95,.93 -1.0,.78 L -1.15,.74 L -1.17,.56 L -1.08,.5 C -1.1,.12 -.76,-.08 0,-.08 Z';
+const MASK_HOLES = `${oval(-0.42, 0.51, 0.3, 0.075)} ${oval(0.42, 0.51, 0.3, 0.075)} ${oval(0, 0.845, 0.3, 0.05)}`;
+const MASK_TRIM = `${oval(-0.42, 0.51, 0.42, 0.125)} ${oval(0.42, 0.51, 0.42, 0.125)} ${oval(0, 0.845, 0.42, 0.09)}`;
+const MASK_CREST = 'M 0,-.08 L .16,.1 L .08,.34 L 0,.42 L -.08,.34 L -.16,.1 Z';
+const MASK_SCHEMES = { red: ['#a3251f', '#e9c46a'], blue: ['#1f4f8a', '#d9dde3'], black: ['#18181b', '#b3261e'], green: ['#256b3c', '#f2efe6'], purple: ['#55307a', '#e0b23c'] };
+
+// Tintable props: one flat shape each. [headPath, opacity?]
+const PROP_TINT = {
+  'military-cap': 'M -1.12,.22 C -1.24,-.02 -.72,-.1 0,-.1 C .72,-.1 1.24,-.02 1.12,.22 C .9,.34 .5,.38 0,.38 C -.5,.38 -.9,.34 -1.12,.22 Z',
+  'baseball-cap': 'M -1.07,.24 C -1.13,0 -.7,-.1 0,-.1 C .7,-.1 1.13,0 1.07,.24 L .92,.24 C .92,.4 .5,.47 0,.47 C -.5,.47 -.92,.4 -.92,.24 Z',
+  'cowboy-hat': 'M -2.0,.2 C -1.4,.36 -.6,.31 0,.31 C .6,.31 1.4,.36 2.0,.2 C 1.5,.12 1.2,.14 1.0,.16 C 1.0,-.02 .8,-.1 .5,-.1 C .2,-.1 .15,-.04 0,-.04 C -.15,-.04 -.2,-.1 -.5,-.1 C -.8,-.1 -1.0,-.02 -1.0,.16 C -1.2,.14 -1.5,.12 -2.0,.2 Z',
+  bandana: 'M -1.07,.35 C -1.13,.05 -.7,-.09 0,-.09 C .7,-.09 1.13,.05 1.07,.35 C .6,.22 -.6,.22 -1.07,.35 Z M 1.04,.28 L 1.42,.4 L 1.3,.49 L 1.5,.62 L 1.02,.4 Z',
+  headband: 'M -1.04,.19 C -.5,.12 .5,.12 1.04,.19 L 1.06,.31 C .5,.24 -.5,.24 -1.06,.31 Z',
+  hood: 'M -.9,1.3 C -1.6,.9 -1.5,-.1 0,-.1 C 1.5,-.1 1.6,.9 .9,1.3 L .7,1.1 C 1.15,.8 1.1,.2 0,.16 C -1.1,.2 -1.15,.8 -.7,1.1 Z',
+  hardhat: 'M -1.12,.2 C -1.15,-.02 -.7,-.1 0,-.1 C .7,-.1 1.15,-.02 1.12,.2 L 1.32,.2 L 1.32,.27 C .5,.32 -.5,.32 -1.32,.27 L -1.32,.2 Z',
+  'face-paint': [`${both('M -.86,.38 L -.1,.44 L -.16,.6 L -.44,.78 L -.8,.62 Z')} ${EYE_HOLES}`, 0.82],
+  'half-mask': `M -1.02,.4 C -.5,.36 -.2,.4 0,.45 C .2,.4 .5,.36 1.02,.4 L 1.0,.6 C .7,.68 .3,.66 .12,.6 L 0,.56 L -.12,.6 C -.3,.66 -.7,.68 -1.0,.6 Z ${EYE_HOLES}`,
+};
+
+function fixedProps(g) {
+  const h = HEAD[g];
+  const P = (d) => hp(g, d);
+  const dot = (u, v, r, c) => `<circle cx="${r1(h.cx + u * h.hw)}" cy="${r1(h.top + v * h.H)}" r="${r}" fill="${c}"/>`;
+  const out = {
+    sunglasses: fill(P(`${both('M -.76,.44 L -.1,.44 C -.1,.59 -.2,.63 -.42,.63 C -.66,.63 -.76,.59 -.76,.44 Z')} M -.1,.45 L .1,.45 L .1,.49 L -.1,.49 Z ${both('M -.76,.46 L -1.06,.5 L -1.06,.53 L -.76,.5 Z')}`), '#111111') +
+      stroke(P(both('M -.66,.48 L -.5,.48')), '#ffffff', 1.5, ' opacity=".35"'),
+    glasses: fill(P(both('M -.72,.43 L -.14,.43 L -.14,.6 L -.72,.6 Z')), '#c8dcea', ' opacity=".22"') +
+      stroke(P(`${both('M -.72,.43 L -.14,.43 L -.14,.6 L -.72,.6 Z')} M -.14,.48 L .14,.48 ${both('M -.72,.47 L -1.05,.5')}`), '#1c1c1c', 2.2),
+    visor: fill(P('M -1.09,.42 C -.5,.37 .5,.37 1.09,.42 L 1.07,.61 C .5,.65 -.5,.65 -1.07,.61 Z'), '#8fa9b8') +
+      fill(P('M -.9,.45 C -.4,.41 .1,.41 .5,.43 L .4,.48 C 0,.46 -.5,.47 -.9,.5 Z'), '#ffffff', ' opacity=".45"'),
+    goggles: fill(P('M -1.06,.22 C -.5,.16 .5,.16 1.06,.22 L 1.06,.3 C .5,.25 -.5,.25 -1.06,.3 Z'), '#2b2b2b') +
+      fill(P(`${oval(-0.4, 0.26, 0.3, 0.085)} ${oval(0.4, 0.26, 0.3, 0.085)}`), '#3a3a3a') +
+      fill(P(`${oval(-0.4, 0.26, 0.22, 0.06)} ${oval(0.4, 0.26, 0.22, 0.06)}`), '#d98a2b'),
+    crown: fill(P('M -1.0,.23 L -1.06,-.02 L -.7,.1 L -.5,-.08 L -.25,.08 L 0,-.1 L .25,.08 L .5,-.08 L .7,.1 L 1.06,-.02 L 1.0,.23 C .5,.16 -.5,.16 -1.0,.23 Z'), '#c99a2e') +
+      dot(0, 0.12, 3.2, '#a3251f') + dot(-0.55, 0.14, 2.4, '#1f4f8a') + dot(0.55, 0.14, 2.4, '#1f4f8a'),
+    strawhat: fill(P('M -1.9,.22 C -1.3,.34 -.6,.31 0,.31 C .6,.31 1.3,.34 1.9,.22 C 1.5,.14 1.2,.15 1.02,.17 C 1.02,-.02 .7,-.1 0,-.1 C -.7,-.1 -1.02,-.02 -1.02,.17 C -1.2,.15 -1.5,.14 -1.9,.22 Z'), '#d9b96a') +
+      fill(P('M -1.02,.1 C -.5,.05 .5,.05 1.02,.1 L 1.02,.17 C .5,.12 -.5,.12 -1.02,.17 Z'), '#7a4a2a'),
+    'surgical-covering': fill(P('M -.92,.62 C -.5,.57 .5,.57 .92,.62 L .82,.96 C .4,1.05 -.4,1.05 -.82,.96 Z'), '#dce8ea') +
+      stroke(P(`M -.86,.72 C -.4,.68 .4,.68 .86,.72 M -.84,.84 C -.4,.8 .4,.8 .84,.84 ${both('M -.92,.64 L -1.1,.58')}`), '#9fb6ba', 1.4),
+  };
+  for (const [name, [main, trim]] of Object.entries(MASK_SCHEMES)) {
+    out[`luchador-mask-${name}`] =
+      fill(P(`${MASK_SHELL} ${MASK_HOLES}`), main) + fill(P(`${MASK_TRIM} ${MASK_HOLES}`), trim) + fill(P(MASK_CREST), trim);
+  }
+  return out;
+}
+
+// ------------------------------------------------------------- clothing ----
+// Body space. ComposedPortrait clips every clothing layer to the base
+// body's own silhouette, so these only need to be right along the arm gaps
+// and the neckline — anything spilling past the body's outer edge is cut.
+
+const down = (g, side) => GAP[g].map(([y, l, r]) => `L ${side === 'l' ? l : r},${y}`).join(' ');
+const up = (g, side) => [...GAP[g]].reverse().map(([y, l, r]) => `L ${side === 'l' ? l : r},${y}`).join(' ');
+
+// Per-gender landmarks: armpit y, strap/neck points, neckline depth.
+const BODY = {
+  m: { cx: 253.5, pit: 304, strapOut: 44, strapIn: 20, neckY: 152, scoop: 236, shoulderY: 150, sleeve: 348, hem: 512 },
+  f: { cx: 255.5, pit: 280, strapOut: 42, strapIn: 25, neckY: 174, scoop: 240, shoulderY: 172, sleeve: 322, hem: 512 },
+};
+
+function sleeveless(g, { scoop, strapOut } = {}) {
+  const b = BODY[g];
+  const [, pl, pr] = GAP[g][0];
+  const so = strapOut ?? b.strapOut;
+  const sc = scoop ?? b.scoop;
+  return (
+    `M ${pl - 1},${b.pit - 2} C ${pl + 20},${b.pit - 54} ${b.cx - so - 16},${b.neckY + 46} ${b.cx - so},${b.neckY + 4} ` +
+    `L ${b.cx - b.strapIn},${b.neckY - 2} C ${b.cx - b.strapIn + 3},${sc} ${b.cx + b.strapIn - 3},${sc} ${b.cx + b.strapIn},${b.neckY - 2} ` +
+    `L ${b.cx + so},${b.neckY + 4} C ${b.cx + so + 16},${b.neckY + 46} ${pr - 20},${b.pit - 54} ${pr + 1},${b.pit - 2}`
+  );
+}
+
+function clothing(g) {
+  const b = BODY[g];
+  const [, pl, pr] = GAP[g][0];
+  const torsoClose = `${down(g, 'r')} ${up(g, 'l')} Z`;
+  const tee = (hem) =>
+    `M 30,${b.sleeve + 4} L ${pl - 3},${b.sleeve - 10} L ${pl},${b.pit} ${down(g, 'l').replace(/^L [\d.]+,[\d.]+ /, '')} ${hem ?? ''} ${up(g, 'r')} ` +
+    `L ${pr + 3},${b.sleeve - 10} L 482,${b.sleeve + 4} L 482,${b.shoulderY - 30} L ${b.cx + 44},${b.shoulderY - 4} ` +
+    `C ${b.cx + 34},${b.shoulderY + 34} ${b.cx - 34},${b.shoulderY + 34} ${b.cx - 44},${b.shoulderY - 4} L 30,${b.shoulderY - 30} Z`;
+  const panel = (sleeves) => {
+    const outer = sleeves
+      ? `M 30,512 L 30,${b.shoulderY - 30} L ${b.cx - 40},${b.shoulderY - 6}`
+      : `M ${pl - 1},${b.pit - 2} C ${pl + 6},${b.pit - 60} ${b.cx - 86},${b.shoulderY + 44} ${b.cx - 62},${b.shoulderY + 12} L ${b.cx - 40},${b.shoulderY - 6}`;
+    const left = `${outer} L ${b.cx - 20},${b.neckY} C ${b.cx - 26},${b.neckY + 90} ${b.cx - 36},${b.neckY + 200} ${b.cx - 30},512 ${sleeves ? '' : up(g, 'l')} Z`;
+    return `${left} ${left.replace(/(-?[\d.]+),(-?[\d.]+)/g, (_, x, y) => `${r1(2 * b.cx - x)},${y}`)}`;
+  };
+  const tops =
+    g === 'm'
+      ? {
+          tshirt: tee(),
+          singlet: `${sleeveless(g)} ${torsoClose}`,
+          'onestrap-singlet':
+            `M ${pl + 8},${b.pit + 30} C ${pl + 30},${b.pit - 40} ${b.cx - 60},${b.neckY + 50} ${b.cx - 44},${b.neckY + 4} L ${b.cx - 20},${b.neckY - 2} ` +
+            `C ${b.cx - 10},${b.pit - 20} ${b.cx + 70},${b.pit + 40} ${pr - 4},${b.pit + 56} ${down(g, 'r').replace(/^(L [\d.]+,[\d.]+ ){3}/, '')} ${up(g, 'l').replace(/( L [\d.]+,[\d.]+){2}$/, '')} Z`,
+        }
+      : {
+          sportsbra: `${sleeveless(g)} L ${pr + 2},332 L 346,352 C 300,364 211,364 165,352 L ${pl - 3},332 Z`,
+          singlet: `${sleeveless(g)} ${torsoClose}`,
+          'crop-top': `${sleeveless(g, { scoop: 214, strapOut: 50 })} L ${pr + 2},340 L 348,372 C 300,380 211,380 163,372 L ${pl - 3},340 Z`,
+          tshirt: tee(),
+        };
+  const [, wl, wr] = GAP[g][GAP[g].length - 3];
+  const [, bl, br] = GAP[g][GAP[g].length - 1];
+  return {
+    top: tops,
+    outer: { vest: panel(false), jacket: panel(true) },
+    waistband: { 'trunks-band': `M ${wl},474 C ${b.cx - 60},464 ${b.cx + 60},464 ${wr},474 L ${br},512 L ${bl},512 Z` },
+  };
+}
+
+function tie(g) {
+  const b = BODY[g];
+  const y = b.neckY + 6;
+  return `M ${b.cx - 10},${y} L ${b.cx + 10},${y} L ${b.cx + 7},${y + 16} L ${b.cx + 13},${y + 150} L ${b.cx},${y + 168} L ${b.cx - 13},${y + 150} L ${b.cx - 7},${y + 16} Z`;
+}
+
+// ---------------------------------------------------------------- write ----
+
+let count = 0;
+function write(folder, name, content) {
+  fs.mkdirSync(path.join(ROOT, folder), { recursive: true });
+  fs.writeFileSync(path.join(ROOT, folder, name), content);
+  count++;
+}
+
+for (const folder of ['face', 'hair', 'facial', 'prop', 'top', 'outer', 'waistband']) {
+  const dir = path.join(ROOT, folder);
+  if (!fs.existsSync(dir)) continue;
+  for (const f of fs.readdirSync(dir)) if (f.endsWith('.svg')) fs.unlinkSync(path.join(dir, f));
+}
+
+for (const g of ['m', 'f']) {
+  for (const kind of ['neutral', 'stern', 'scowl', 'smirk']) write('face', `${g}-${kind}.svg`, face(g, kind));
+
+  for (const [id, def] of Object.entries(HAIR)) {
+    if (!def.g.includes(g)) continue;
+    const d = typeof def.d === 'string' ? def.d : def.d[g];
+    const faint = def.faint ? fill(hp(g, def.faint), GREY, ' opacity=".4"') : '';
+    write('hair', `${g}-${id}--tint.svg`, svg(faint + fill(hp(g, d))));
+  }
+
+  if (g === 'm') {
+    for (const [id, def] of Object.entries(FACIAL)) {
+      write('facial', `m-${id}--tint.svg`, svg(fill(hp(g, def.d), GREY, def.opacity ? ` opacity="${def.opacity}"` : '')));
+    }
+  }
+
+  for (const [id, def] of Object.entries(PROP_TINT)) {
+    const [d, opacity] = Array.isArray(def) ? def : [def, null];
+    write('prop', `${g}-${id}--tint.svg`, svg(fill(hp(g, d), GREY, opacity ? ` opacity="${opacity}"` : '')));
+  }
+  write('prop', `${g}-tie--tint.svg`, svg(fill(tie(g))));
+  for (const [id, body] of Object.entries(fixedProps(g))) write('prop', `${g}-${id}.svg`, svg(body));
+
+  for (const [folder, items] of Object.entries(clothing(g))) {
+    for (const [id, d] of Object.entries(items)) write(folder, `${g}-${id}--tint.svg`, svg(fill(d)));
+  }
+}
+
+console.log(`wrote ${count} paperdoll assets to ${path.relative(process.cwd(), ROOT)}`);

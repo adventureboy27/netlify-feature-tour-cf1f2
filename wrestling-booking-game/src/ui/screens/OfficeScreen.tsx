@@ -52,7 +52,7 @@ import { sponsorById } from '../../data/sponsors';
 import { GIMMICKS, gimmickCategories } from '../../data/gimmicks';
 import { GROUP_GIMMICKS, tagTeamGimmicks, factionGimmicks } from '../../data/groupGimmicks';
 import { canFormGroup, groupOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { Money, EconomicClimateMeter } from '../components/display';
 import { economicClimateLabel, type EconomicClimateLabel } from '../../engine/world/economicCycle';
 import { promotionTheme } from '../components/chrome';
@@ -968,7 +968,7 @@ function ContractsTab() {
                   className="rounded border border-rose-900/60 bg-neutral-900 p-2"
                 >
                   <div className="flex items-center gap-2">
-                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} lookSubject={lookSubjectOf(person)} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-neutral-500">
@@ -1064,7 +1064,7 @@ function ContractsTab() {
                   className="rounded border border-rose-900/60 bg-neutral-900 p-2"
                 >
                   <div className="flex items-center gap-2">
-                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} lookSubject={lookSubjectOf(person)} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-rose-400">Getting nothing back from the crowd — a decision is due</div>
@@ -1191,7 +1191,7 @@ function ContractsTab() {
                   className="rounded border border-emerald-900/60 bg-neutral-900 p-2"
                 >
                   <div className="flex items-center gap-2">
-                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} lookSubject={lookSubjectOf(person)} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-neutral-500">
@@ -1442,7 +1442,7 @@ function ContractsTab() {
                   className="rounded border border-sky-900/60 bg-neutral-900 p-2"
                 >
                   <div className="flex items-center gap-2">
-                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} lookSubject={lookSubjectOf(person)} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-neutral-500">
@@ -1565,7 +1565,7 @@ function ContractsTab() {
               return (
                 <article key={renewal.wrestlerId} className="rounded border border-amber-900/60 bg-neutral-900 p-2">
                   <div className="flex items-center gap-2">
-                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} lookSubject={lookSubjectOf(person)} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">{person.name}</div>
                       <div className="text-[11px] text-neutral-500">
@@ -1647,7 +1647,7 @@ function ContractsTab() {
                   onClick={() => setOpenApproachId(offer.id)}
                   className="flex w-full items-center gap-2 rounded border border-neutral-800 bg-neutral-900 p-2 text-left hover:border-neutral-600"
                 >
-                  <PaperDoll photoDataUrl={target.photoDataUrl} name={target.name} size="thumb" />
+                  <PaperDoll photoDataUrl={target.photoDataUrl} name={target.name} lookSubject={lookSubjectOf(target)} size="thumb" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs">
                       {target.name}
@@ -1953,7 +1953,7 @@ function FeudsTab({ onOpenFeuds }: { onOpenFeuds?: (wrestlerId: Id) => void }) {
               className="flex items-center justify-between gap-2 rounded border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-left hover:border-neutral-600"
             >
               <div className="flex items-center gap-2">
-                <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} size="bust" />
+                <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} lookSubject={lookSubjectOf(w)} size="bust" />
                 <span className="text-[12px] font-medium text-neutral-200">{billedAs(w)}</span>
               </div>
               <div className="flex items-center gap-1.5">

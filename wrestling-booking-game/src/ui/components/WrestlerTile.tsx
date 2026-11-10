@@ -19,7 +19,7 @@
 import { alignmentLabel } from '../../engine/career/scouting';
 import { billedAs } from '../../engine/generate/nickname';
 import { StatusPips } from './MiniStats';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { Tag, GENDER_LABEL } from './WrestlerRow';
 import { Panel, type PromotionTheme } from './chrome';
 import type { Title, Wrestler, WorldSettings } from '../../engine/types';
@@ -70,7 +70,7 @@ export function WrestlerTile({
         photoDataUrl={wrestler.photoDataUrl}
         name={wrestler.name}
         size="bust"
-        lookSubject={{ id: wrestler.id, gender: wrestler.gender, masked: wrestler.masked, gimmickCategory: wrestler.gimmick.category }}
+        lookSubject={lookSubjectOf(wrestler)}
       />
       <span className="w-full truncate text-xs font-medium text-neutral-100">{billedAs(wrestler)}</span>
       <div className="flex flex-wrap items-center justify-center gap-1">

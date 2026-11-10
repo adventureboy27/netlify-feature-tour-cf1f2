@@ -12,7 +12,7 @@
 // there. Quieter than the hall, but not empty. See career/epitaph.ts.
 
 import { useGameStore } from '../../state/store';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { billedAs } from '../../engine/generate/nickname';
 import { DEATH_CAUSE_TEXT } from '../../engine/career/mortality';
 import { yearsPro } from '../../engine/career/status';
@@ -52,7 +52,7 @@ export function LegacyScreen() {
                   data-testid={`hof-${entry.wrestlerId}`}
                   className="flex gap-2 rounded border border-amber-900/60 bg-amber-950/20 p-2"
                 >
-                  <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} size="bust" />
+                  <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} lookSubject={lookSubjectOf(w)} size="bust" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{billedAs(w)}</div>
                     <div className="text-[10px] text-amber-500/80">Class of {yearOf(entry.week)}</div>
@@ -86,7 +86,7 @@ export function LegacyScreen() {
                   data-testid={`memoriam-${passing.wrestlerId}`}
                   className="flex gap-2 rounded border border-neutral-800 bg-neutral-900 p-2 text-xs"
                 >
-                  <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} size="bust" />
+                  <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} lookSubject={lookSubjectOf(w)} size="bust" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="truncate font-medium">{billedAs(w)}</span>

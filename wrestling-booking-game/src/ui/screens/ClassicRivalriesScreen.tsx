@@ -7,7 +7,7 @@
 // sets.
 
 import { useGameStore } from '../../state/store';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { billedAs } from '../../engine/generate/nickname';
 import { allPairingHistories, legendStatus } from '../../engine/sim/pairChemistry';
 import type { Id, Wrestler } from '../../engine/types';
@@ -63,7 +63,7 @@ export function ClassicRivalriesScreen({ onNavigate }: { onNavigate?: (wrestlerI
               >
                 <div className="flex -space-x-3">
                   {people.slice(0, 2).map((w) => (
-                    <PaperDoll key={w.id} photoDataUrl={w.photoDataUrl} name={w.name} size="bust" />
+                    <PaperDoll key={w.id} photoDataUrl={w.photoDataUrl} name={w.name} lookSubject={lookSubjectOf(w)} size="bust" />
                   ))}
                 </div>
                 <div className="min-w-0 flex-1">

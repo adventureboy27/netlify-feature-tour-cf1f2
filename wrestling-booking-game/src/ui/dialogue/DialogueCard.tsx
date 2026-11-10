@@ -12,7 +12,7 @@
 // modelled on does. Reuses the one modal idiom already in the codebase
 // (TitleBuilder's scrim), darkened further since this isn't a small popover.
 
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import type { Wrestler } from '../../engine/types';
 import type { DialogueSpeaker, DialogueChoiceView } from '../../engine/dialogue/types';
 import type { PromotionTheme } from '../components/chrome';
@@ -100,7 +100,7 @@ export function DialogueCard({
         <div className="flex flex-col items-center gap-2 py-2 text-center">
           {speaker.kind === 'wrestler' && wrestler && (
             <>
-              <PaperDoll photoDataUrl={wrestler.photoDataUrl} name={wrestler.name} size="large" />
+              <PaperDoll photoDataUrl={wrestler.photoDataUrl} name={wrestler.name} lookSubject={lookSubjectOf(wrestler)} size="large" />
               <div className="text-sm font-semibold text-neutral-100">{speakerName}</div>
             </>
           )}

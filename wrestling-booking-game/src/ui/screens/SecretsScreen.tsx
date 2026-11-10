@@ -30,7 +30,7 @@ import {
 import { billedAs } from '../../engine/generate/nickname';
 import { Panel, SectionHead, promotionTheme } from '../components/chrome';
 import { Money } from '../components/display';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import type { Wrestler } from '../../engine/types';
 
 /** How likely their own office is to get wind, in words. §0: never a percentage. */
@@ -126,7 +126,7 @@ export function SecretsScreen() {
                   className={`p-2.5 ${secret ? (walkable ? 'border-emerald-900' : '') : 'border-rose-900'}`}
                 >
                   <div className="flex items-start gap-2">
-                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
+                    <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} lookSubject={lookSubjectOf(person)} size="thumb" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold">{billedAs(person)}</div>
                       <div className="text-[11px] text-neutral-500">
@@ -215,7 +215,7 @@ export function SecretsScreen() {
               world.rivals.find((r) => r.id === person.promotionId)?.name ?? 'another company';
             return (
               <Panel key={person.id} className="flex items-center gap-2 p-2">
-                <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} size="thumb" />
+                <PaperDoll photoDataUrl={person.photoDataUrl} name={person.name} lookSubject={lookSubjectOf(person)} size="thumb" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-xs font-semibold">{billedAs(person)}</div>
                   <div className="truncate text-[11px] text-neutral-500">{company}</div>

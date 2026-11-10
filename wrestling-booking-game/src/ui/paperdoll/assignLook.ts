@@ -12,6 +12,7 @@
 import {
   BASE_BODY,
   BASE_DETAIL,
+  FACE_ASSETS,
   HAIR_ASSETS,
   FACIAL_ASSETS,
   PROP_ASSETS,
@@ -39,6 +40,8 @@ export interface ComposedLook {
   /** Sits right at the bottom crop edge — see assets/README.md for why that's deliberate. */
   waistband: PaperdollAsset | null;
   waistbandColor: string | null;
+  /** Facial features. Drawn as painted, under hair, facial hair and props. */
+  face: PaperdollAsset | null;
   hair: PaperdollAsset | null;
   /** Only set when the hair file opted into `--tint`; otherwise it's drawn exactly as painted. */
   hairColor: string | null;
@@ -54,6 +57,21 @@ export interface LookSubject {
   masked: boolean;
   /** Gimmick.category, if known — used only to prefer a themed prop. */
   gimmickCategory?: string;
+}
+
+/**
+ * The look inputs off anything wrestler-shaped. Undefined for somebody with
+ * no recorded gender (an owner, a commentator), which leaves them on the
+ * initials placeholder.
+ */
+export function lookSubjectOf(person: {
+  id: string;
+  gender?: 'm' | 'f';
+  masked?: boolean;
+  gimmick?: { category?: string };
+}): LookSubject | undefined {
+  if (!person.gender) return undefined;
+  return { id: person.id, gender: person.gender, masked: person.masked ?? false, gimmickCategory: person.gimmick?.category };
 }
 
 function hashString(s: string): number {
@@ -105,12 +123,20 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   // default; an outer layer over that is rarer still. A waistband is the
   // one near-universal piece — real wrestling trunks, sitting right at the
   // bottom crop edge (see assets/README.md).
-  const top = rng() < 0.35 ? pick(rng, forGender(TOP_ASSETS, subject.gender)) : null;
+  // DESIGN: women always get a top. The base body is drawn bare, and a
+  // bare-chested portrait is right for most of the men's roster and wrong
+  // for the entire women's one.
+  const topOdds = subject.gender === 'f' ? 1 : 0.35;
+  const top = rng() < topOdds ? pick(rng, forGender(TOP_ASSETS, subject.gender)) : null;
   const topColor = top?.tintable ? pick(rng, ACCENT_COLORS)!.color : null;
   const outer = rng() < 0.15 ? pick(rng, forGender(OUTER_ASSETS, subject.gender)) : null;
   const outerColor = outer?.tintable ? pick(rng, ACCENT_COLORS)!.color : null;
   const waistband = rng() < 0.9 ? pick(rng, forGender(WAISTBAND_ASSETS, subject.gender)) : null;
   const waistbandColor = waistband?.tintable ? pick(rng, ACCENT_COLORS)!.color : null;
+
+  // Its own stream, so adding or removing an expression never reshuffles
+  // anybody's hair, gear or colors.
+  const face = pick(mulberry32(hashString(`${subject.id}:face`)), forGender(FACE_ASSETS, subject.gender));
 
   const propPool = forGender(PROP_ASSETS, subject.gender);
 
@@ -130,6 +156,7 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
       outerColor,
       waistband,
       waistbandColor,
+      face,
       hair: null,
       hairColor: null,
       facial: null,
@@ -139,8 +166,11 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
     };
   }
 
-  const hair = pick(rng, forGender(HAIR_ASSETS, subject.gender));
-  const facial = subject.gender === 'm' ? pick(rng, forGender(FACIAL_ASSETS, 'm')) : null;
+  // Bald and clean-shaven are looks too — without them every man on the
+  // roster has a full head of hair and something on his chin.
+  const bald = subject.gender === 'm' && rng() < 0.14;
+  const hair = bald ? null : pick(rng, forGender(HAIR_ASSETS, subject.gender));
+  const facial = subject.gender === 'm' && rng() < 0.55 ? pick(rng, forGender(FACIAL_ASSETS, 'm')) : null;
 
   // A mask asset never lands on a wrestler who isn't supposed to be masked.
   const nonMaskProps = propPool.filter((p) => !isMaskProp(p));
@@ -161,6 +191,7 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
     outerColor,
     waistband,
     waistbandColor,
+    face,
     hair,
     hairColor: hair?.tintable ? hairColor.color : null,
     facial,

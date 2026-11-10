@@ -4,10 +4,18 @@ Drop a correctly named file into one of these four folders and it's live —
 nothing in code needs to change. `paperdollAssets.ts` reads the folder
 contents at build/dev time; `assignLook.ts` picks from whatever's there.
 
-Both base bodies and both detail overlays are real art now (v2, head-to-waist
-framing, aligned). Hair, facial hair, props, and the three clothing slots
-below are all still placeholder line-art. Replace files in place, same
-names, same folders — nothing else changes.
+Both base bodies and both detail overlays are real painted art. Everything
+else — faces, hair, facial hair, props, clothing — is a generated vector set
+written by `tools/gen-paperdoll-assets.mjs`, fitted to the measured head and
+torso of each real body. To replace any of it with painted art, drop a PNG
+with the same name into the same folder **and delete the generated `.svg`
+next to it** (otherwise both load as separate options). Re-running the
+generator rewrites every `.svg` in these folders and leaves PNGs alone.
+
+**There are no `both-` head assets any more, on purpose.** The two real base
+bodies do not share a head: the female head is about 16% wider and 20%
+taller. A single file cannot fit both, so every head-space item is emitted
+once as `m-<name>` and once as `f-<name>` from one shared shape.
 
 ## The one rule that matters: shared canvas
 
@@ -42,6 +50,7 @@ up. Reference: **[The Bust Line](https://claude.ai/code/artifact/c45d358a-8d70-4
 |---|---|---|
 | `base/` | The two body shapes | `m.png`, `f.png` — exactly these two names |
 | `base/` | Optional anatomical detail overlay | `m-detail.png`, `f-detail.png` — see below |
+| `face/` | Eyes, brows, nose, mouth — one expression per file, never recolored | `<m\|f>-<name>.svg`, e.g. `m-scowl.svg` |
 | `hair/` | Hairstyles | `<m\|f\|both>-<name>.png`, e.g. `m-buzzcut.png`, `f-ponytail.png` |
 | `facial/` | Facial hair | `<m\|f\|both>-<name>.png`, e.g. `m-goatee.png` (in practice always `m-`) |
 | `prop/` | Headgear, masks, glasses, anything gimmick-themed | `<m\|f\|both>-<name>.png`, e.g. `both-military-cap.png` |
@@ -153,13 +162,29 @@ This is a per-file choice, not a per-slot one: some hairstyles can be
 `--tint` (recolored) while others in the same folder are fixed-color art, and
 the same is true within `prop/`.
 
-## What's NOT handled yet
+## How the stack is drawn
 
-Only `WrestlerRow.tsx` and `WrestlerTile.tsx` (the roster list and the
-match-card wrestler picker) use this system today. Every other screen that
-shows a wrestler still falls back to the plain initials placeholder when
-there's no uploaded photo. Rolling it out further is a follow-up, tracked in
-`docs/BACKLOG.md`.
+`ComposedPortrait.tsx`, bottom to top: skin, anatomical linework, clothing
+(top, waistband, outer), one shading pass, face, hair, facial hair, prop.
+
+- **Clothing is clipped to the body's silhouette in code.** A garment file
+  only has to be right along its neckline and the gaps between arm and
+  torso; anything past the body's outer edge is cut off automatically.
+- **One light-and-shadow pass** goes over skin and gear together, and the
+  anatomical linework is ghosted back over clothing at low opacity, so
+  tight gear still shows the build underneath.
+- **Small sizes push in.** The art is head-to-waist, which leaves the head
+  about eight pixels wide in a 48px list thumbnail. `thumb` crops to head
+  and shoulders, `tiny` to the head; `bust` and `large` show the full
+  figure.
+- Women always get a top; men get one about a third of the time. About one
+  man in seven is bald and a little under half are clean-shaven.
+
+Every screen that draws a wrestler passes `lookSubjectOf(wrestler)` to
+`<PaperDoll>`. People with no recorded gender (the owner, commentators)
+stay on the initials placeholder.
+
+## Art status
 
 **`base/m.png` is now real v2 art** — muscular, athletic, correct head-to-waist
 proportions, clean transparency (verified the same way as `f.png`: solid

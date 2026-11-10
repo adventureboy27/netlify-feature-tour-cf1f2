@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { rngFromSeed } from '../../engine/rng';
 import { generateWrestlers } from '../../engine/generate/wrestler';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 
 const ROSTER_SIZE = 100;
 
@@ -38,7 +38,7 @@ export function ContactSheet() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
         {wrestlers.map((w) => (
           <div key={w.id} className="flex flex-col items-center gap-1 rounded bg-neutral-900 p-2 text-center">
-            <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} size="bust" />
+            <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} lookSubject={lookSubjectOf(w)} size="bust" />
             <span className="w-full truncate text-[11px] leading-tight">{w.name}</span>
             <span className="text-[10px] text-neutral-500">
               {w.archetype} · {w.style}

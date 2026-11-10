@@ -49,7 +49,7 @@ import { bookLine, clientCutLine, representativeOf, wearLabel } from '../../engi
 import { stableOf } from '../../engine/world/managerStable';
 import { recordLabel } from '../../engine/career/discipline';
 import { PERKS } from '../../data/perks';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { GimmickHeatMeter, HeatBadge, Money } from './display';
 import { CareerLedger } from './CareerLedger';
 import { WrestlerRow } from './WrestlerRow';
@@ -123,7 +123,7 @@ export function WrestlerDetailBody({
           this is the one screen a wrestler is the entire point of. */}
       <div className="mb-3 flex gap-3">
         <div className="relative shrink-0">
-          <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} size="large" />
+          <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} lookSubject={lookSubjectOf(w)} size="large" />
           {w.injury && (
             <span
               className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-sm font-bold text-white shadow"
@@ -213,7 +213,7 @@ export function WrestlerDetailBody({
                 onClick={() => onNavigateWrestler(p.id)}
                 className="flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900 py-1 pl-1 pr-2.5 hover:border-neutral-600"
               >
-                <PaperDoll photoDataUrl={p.photoDataUrl} name={p.name} size="tiny" />
+                <PaperDoll photoDataUrl={p.photoDataUrl} name={p.name} lookSubject={lookSubjectOf(p)} size="tiny" />
                 <span className="max-w-[9rem] truncate text-[11px] text-neutral-300">{billedAs(p)}</span>
               </button>
             ))}

@@ -26,7 +26,7 @@ import { askingRate } from '../../engine/economy/contracts';
 import { clauseAppeal, stanceToward } from '../../engine/economy/bidding';
 import { moodLabel, moodBand } from '../../engine/career/morale';
 import type { Clause } from '../../engine/types';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 
 function money(n: number): string {
   return `$${Math.round(n).toLocaleString()}`;
@@ -170,7 +170,7 @@ export function BiddingWarPanel() {
         )}
         <div className="mt-2 flex gap-3">
           <div className="shrink-0">
-            <PaperDoll photoDataUrl={subject.photoDataUrl} name={subject.name} size="bust" />
+            <PaperDoll photoDataUrl={subject.photoDataUrl} name={subject.name} lookSubject={lookSubjectOf(subject)} size="bust" />
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-semibold text-amber-200">{subject.name}</h2>
@@ -229,7 +229,7 @@ export function BiddingWarPanel() {
       <div className="text-[10px] uppercase tracking-wide text-amber-500">Your one offer</div>
       <div className="mt-2 flex gap-3">
         <div className="shrink-0">
-          <PaperDoll photoDataUrl={subject.photoDataUrl} name={subject.name} size="bust" />
+          <PaperDoll photoDataUrl={subject.photoDataUrl} name={subject.name} lookSubject={lookSubjectOf(subject)} size="bust" />
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-amber-200">{subject.name}</h2>

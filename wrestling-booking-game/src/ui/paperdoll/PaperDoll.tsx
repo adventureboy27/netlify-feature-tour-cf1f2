@@ -3,7 +3,9 @@
 // exists yet. See README.md for what this replaced.
 
 import { assignLook, type LookSubject } from './assignLook';
-import { ComposedPortrait } from './ComposedPortrait';
+
+export { lookSubjectOf } from './assignLook';
+import { ComposedPortrait, type PortraitFraming } from './ComposedPortrait';
 
 export type PaperDollSize = 'large' | 'bust' | 'thumb' | 'tiny';
 
@@ -15,6 +17,23 @@ const SIZE_PX: Record<PaperDollSize, number> = {
   // a row of them reads as a group at a glance, not a list to scan.
   tiny: 24,
 };
+
+// The art is head-to-waist. That reads at card size and turns into a blob
+// in a list thumbnail, so the small sizes push in on the head instead.
+const FRAMING: Record<PaperDollSize, PortraitFraming> = {
+  large: 'waist',
+  bust: 'waist',
+  thumb: 'shoulders',
+  tiny: 'head',
+};
+
+/** A dim studio backdrop in the same per-person hue the initials placeholder uses. */
+function backdrop(key: string): string {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  const hue = hash % 360;
+  return `radial-gradient(120% 90% at 50% 16%, hsl(${hue}, 30%, 30%) 0%, hsl(${hue}, 28%, 15%) 60%, hsl(${hue}, 30%, 8%) 100%)`;
+}
 
 /** First letter of up to two words — the same idea as the commentator avatars in the match viewer. */
 function initials(name: string): string {
@@ -77,8 +96,11 @@ export function PaperDoll({ photoDataUrl, name, size, className, flip = false, l
   const look = lookSubject ? assignLook(lookSubject) : null;
   if (look) {
     return (
-      <div style={style} className={`overflow-hidden rounded ${className ?? ''}`}>
-        <ComposedPortrait look={look} alt={name} />
+      <div
+        style={{ ...style, backgroundImage: backdrop(lookSubject!.id) }}
+        className={`shrink-0 overflow-hidden rounded ring-1 ring-white/10 ${className ?? ''}`}
+      >
+        <ComposedPortrait look={look} alt={name} framing={FRAMING[size]} />
       </div>
     );
   }

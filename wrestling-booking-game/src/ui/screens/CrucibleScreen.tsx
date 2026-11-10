@@ -6,7 +6,7 @@
 // career from winning it once.
 
 import { useGameStore } from '../../state/store';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { CUP_NAME, CUP_TROPHY, crownsFor } from '../../engine/world/cup';
 
 export function CrucibleScreen() {
@@ -43,6 +43,7 @@ export function CrucibleScreen() {
               <PaperDoll
                 photoDataUrl={world.wrestlers[current.wrestlerId]!.photoDataUrl}
                 name={world.wrestlers[current.wrestlerId]!.name}
+                lookSubject={lookSubjectOf(world.wrestlers[current.wrestlerId]!)}
                 size="bust"
               />
             )}

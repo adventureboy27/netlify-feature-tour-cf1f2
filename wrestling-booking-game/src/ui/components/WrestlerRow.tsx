@@ -16,7 +16,7 @@ import { scout, alignmentLabel, type Availability } from '../../engine/career/sc
 import { billedAs } from '../../engine/generate/nickname';
 import { MoodFace } from './Mood';
 import { MiniStats } from './MiniStats';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { motivationLegend } from '../../engine/career/motivation';
 import { groupOf } from '../../engine/world/tagTeams';
 
@@ -95,7 +95,7 @@ export function WrestlerRow({
         photoDataUrl={wrestler.photoDataUrl}
         name={wrestler.name}
         size="thumb"
-        lookSubject={{ id: wrestler.id, gender: wrestler.gender, masked: wrestler.masked, gimmickCategory: wrestler.gimmick.category }}
+        lookSubject={lookSubjectOf(wrestler)}
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">

@@ -18,7 +18,7 @@ import { Panel, SectionHead, Figure, BigStars, promotionTheme } from '../compone
 import { Bout, VersusMark, type BoutSide } from '../components/Bout';
 import { slotLabel } from '../cardLabels';
 import { CallWindow } from '../components/CallWindow';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import type { FinishType, Show, Wrestler } from '../../engine/types';
 
 const SHOW_TYPE_LABEL: Record<Show['type'], string> = {
@@ -437,7 +437,7 @@ export function ShowResults({
               return (
                 <Panel key={i} data-testid={`promo-result-${i}`} className="flex items-start gap-2 p-2">
                   {speaker && (
-                    <PaperDoll photoDataUrl={speaker.photoDataUrl} name={speaker.name} size="thumb" />
+                    <PaperDoll photoDataUrl={speaker.photoDataUrl} name={speaker.name} lookSubject={lookSubjectOf(speaker)} size="thumb" />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
@@ -749,6 +749,7 @@ function RivalryDigest() {
                     key={w.id}
                     photoDataUrl={w.photoDataUrl}
                     name={w.name}
+                    lookSubject={lookSubjectOf(w)}
                     size="thumb"
                     flip={i > 0}
                   />

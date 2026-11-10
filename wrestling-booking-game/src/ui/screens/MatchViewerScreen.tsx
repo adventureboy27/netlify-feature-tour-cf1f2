@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { buildPlaybackTimeline, finishCallout, type PlaybackBeat } from '../../engine/sim/matchPlayback';
-import { PaperDoll, type PaperDollSize } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf, type PaperDollSize } from '../paperdoll/PaperDoll';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, promotionTheme } from '../components/chrome';
 import { stipulationById } from '../../data/stipulations';
@@ -252,6 +252,7 @@ export function MatchViewerScreen({
           <PaperDoll
             photoDataUrl={wrestler.photoDataUrl}
             name={wrestler.name}
+            lookSubject={lookSubjectOf(wrestler)}
             size={size}
             flip={side === 'left' ? false : true}
           />
@@ -277,7 +278,7 @@ export function MatchViewerScreen({
     return (
       <div key={manager.id} className={`flex items-center gap-1 ${isInterfering ? 'z-10' : 'opacity-75'}`}>
         <div key={beatIndex} className={animClass}>
-          <PaperDoll photoDataUrl={manager.photoDataUrl} name={manager.name} size="thumb" flip={side === 'right'} />
+          <PaperDoll photoDataUrl={manager.photoDataUrl} name={manager.name} lookSubject={lookSubjectOf(manager)} size="thumb" flip={side === 'right'} />
         </div>
         <span className="max-w-[70px] truncate rounded bg-neutral-950/80 px-1 py-0.5 text-[9px] leading-tight text-neutral-400">
           {manager.name}

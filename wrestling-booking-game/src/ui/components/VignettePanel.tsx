@@ -5,7 +5,7 @@
 // because it airs on the show without ever consuming a match spot.
 
 import { useGameStore } from '../../state/store';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { vignetteProgressLine, vignetteWeekNumber, type Vignette } from '../../engine/career/vignette';
 import type { Wrestler } from '../../engine/types';
 
@@ -34,7 +34,7 @@ export function VignettePanel() {
             data-testid={`vignette-slot-${w.id}`}
             className="flex items-center gap-2 rounded border border-violet-900/60 bg-violet-950/10 p-2"
           >
-            <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} size="thumb" />
+            <PaperDoll photoDataUrl={w.photoDataUrl} name={w.name} lookSubject={lookSubjectOf(w)} size="thumb" />
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs font-medium text-neutral-200">{w.name}</div>
               <div className="text-[10px] text-violet-400">

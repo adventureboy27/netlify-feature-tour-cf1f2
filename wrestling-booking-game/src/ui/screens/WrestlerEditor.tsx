@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { Id } from '../../engine/types';
 import { useGameStore } from '../../state/store';
 import { resizeToDataUrl } from '../paperdoll/photoUpload';
-import { PaperDoll } from '../paperdoll/PaperDoll';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { ScreenHeader } from '../components/ScreenHeader';
 
 function Chip({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
@@ -127,7 +127,10 @@ export function WrestlerEditor({ wrestlerId, onDone }: { wrestlerId?: Id; onDone
 
       <div className="flex flex-col gap-6 md:flex-row">
         <div className="flex flex-col items-center gap-3 md:sticky md:top-4 md:h-fit">
-          <PaperDoll photoDataUrl={photoDataUrl} name={ringName || subject?.name || 'New wrestler'} size="large" />
+          <PaperDoll photoDataUrl={photoDataUrl} name={ringName || subject?.name || 'New wrestler'}
+            lookSubject={subject ? lookSubjectOf(subject) : undefined}
+            size="large"
+          />
           <div className="flex gap-2">
             <label className="cursor-pointer rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-700">
               {photoDataUrl ? 'Replace photo' : 'Upload photo'}
