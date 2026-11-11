@@ -284,8 +284,10 @@ export function MatchStage({
                 top: feetY - figureH,
                 width: figureW,
                 transformOrigin: '50% 100%',
-                // Whoever is doing the move is nearer the camera.
-                zIndex: fighter.role === 'actor' ? 3 : 2,
+                // Whoever is doing the move is nearer the camera — and anybody
+                // on the floor in front of the ring is in front of its ropes
+                // and posts too, not behind them.
+                zIndex: (staged?.zone && staged.zone !== 'ring' ? 5 : 0) + (fighter.role === 'actor' ? 3 : 2),
                 willChange: 'transform',
               }}
             >

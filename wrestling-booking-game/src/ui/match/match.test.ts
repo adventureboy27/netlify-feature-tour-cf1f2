@@ -11,8 +11,8 @@ import { PLAY_BY_PLAY } from '../../data/commentaryLines';
 import { generateWrestlers } from '../../engine/generate/wrestler';
 import { rngFromSeed } from '../../engine/rng';
 import type { PlaybackBeat } from '../../engine/sim/matchPlayback';
-import { DOWN, FLOOR, META, MOVE_IDS, endPose, isDown, moveSaid, stageMatch, stageMove, understands, type MoveId } from './choreography';
-import { RING, planBeat, type PlanFighter, type WorldPose } from './ringPhysics';
+import { DOWN, FLOOR, FRONT_FLOOR, META, MOVE_IDS, endPose, isDown, moveSaid, stageMatch, stageMove, understands, type MoveId } from './choreography';
+import { RING, onFrontFloor, planBeat, type PlanFighter, type WorldPose } from './ringPhysics';
 
 const [alpha, bravo] = generateWrestlers(rngFromSeed('match-viewer'), 2) as [ReturnType<typeof generateWrestlers>[number], ReturnType<typeof generateWrestlers>[number]];
 const cast = new Map([alpha, bravo].map((w) => [w.id, w] as const));
@@ -138,7 +138,8 @@ describe('the ring is solid', () => {
     [{ x: -3, y: 0, rot: 0 }, { x: -4, y: DOWN, rot: -90 }],
   ];
 
-  for (const move of MOVE_IDS) {
+  // (The two moves that cross between ring and floor are checked on their own below.)
+  for (const move of MOVE_IDS.filter((id) => id !== 'tossOutside' && id !== 'rollInside')) {
     it(`${move}: nobody goes through the ropes or the mat`, () => {
       for (const dirs of [[1, -1], [-1, 1]] as const) {
         for (const [from, toFrom] of starts) {
@@ -181,6 +182,67 @@ describe('the ring is solid', () => {
         }
         // And the attacker stays in.
         for (const frame of plan.tracks.get('a')!) expect(Math.abs(frame.x), `${move} attacker`).toBeLessThanOrEqual(RING.half);
+      }
+    }
+  });
+});
+
+describe('fighting outside', () => {
+  const rad = (deg: number) => (deg * Math.PI) / 180;
+  const long = Array.from({ length: 6 }, (_, i) => beat(i === 0 ? 'exchange' : i === 5 ? 'finish' : 'control'));
+
+  it('never happens unless the rules allow it', () => {
+    const { moments } = stageMatch(long, [], cast, 'cleanPin');
+    expect(moments.every((m) => (m.staged.zone ?? 'ring') === 'ring')).toBe(true);
+  });
+
+  it('goes out, works on the floor, and comes back before anything the caller has a line for', () => {
+    const lines = long.map((_, i) => ({ speaker: 'play' as const, name: 'P', text: `call ${i}`, beat: i }));
+    const { moments } = stageMatch(long, lines, cast, 'cleanPin', true);
+    const zones = moments.map((m) => m.staged.zone ?? 'ring');
+    const out = zones.indexOf('out');
+    const back = zones.indexOf('in');
+    expect(out).toBeGreaterThan(0);
+    expect(back).toBeGreaterThan(out + 1);
+    expect(zones.slice(out + 1, back).every((z) => z === 'floor')).toBe(true);
+    // Everything else, and every beat with a line over it, is in the ring.
+    expect(zones.filter((_, i) => i < out || i > back).every((z) => z === 'ring')).toBe(true);
+    expect(moments.filter((m) => m.lines.length > 0).every((m) => (m.staged.zone ?? 'ring') === 'ring')).toBe(true);
+    // The finish is in the ring.
+    expect(zones[zones.length - 1]).toBe('ring');
+  });
+
+  it('puts the floor under them and the barricades either side', () => {
+    const { moments } = stageMatch(long, [], cast, 'cleanPin', true);
+    const left = new Map<string, WorldPose>();
+    let centre = 0;
+    for (const m of moments) {
+      const plan = planBeat(m.staged, [fighter(m.actorId!, 'actor', 1, left.get(m.actorId!)), fighter(m.targetId!, 'target', -1, left.get(m.targetId!))], centre);
+      centre = plan.centre;
+      const zone = m.staged.zone ?? 'ring';
+      for (const [id, frames] of plan.tracks) {
+        for (const frame of frames.slice(1)) {
+          const where = `${m.staged.move} (${zone}) x=${frame.x.toFixed(1)} y=${frame.y.toFixed(1)}`;
+          const headX = frame.x + Math.sin(rad(frame.rot)) * RING.tall;
+          const headY = frame.y + Math.cos(rad(frame.rot)) * RING.tall;
+          // Nothing below the floor, ever; nothing past a barricade.
+          expect(Math.min(frame.y, headY), where).toBeGreaterThanOrEqual(FRONT_FLOOR - 0.01);
+          expect(Math.max(Math.abs(frame.x), Math.abs(headX)), where).toBeLessThanOrEqual(RING.floorHalf + 0.01);
+          // (A body can be in the air down there — being slammed — so height
+          // alone proves nothing; where each step ENDS is checked below.)
+        }
+        left.set(id, plan.end.get(id)!);
+      }
+      // After each step they are where the step says they should be.
+      const where = [...plan.end.values()].map(onFrontFloor);
+      if (zone === 'out' || zone === 'floor') expect(where, m.staged.move).toEqual([true, true]);
+      if (zone === 'in' || zone === 'ring') {
+        expect(where, m.staged.move).toEqual([false, false]);
+        // Back inside the ropes, not hanging through them.
+        for (const pose of plan.end.values()) {
+          const headX = pose.x + Math.sin(rad(pose.rot)) * RING.tall;
+          expect(Math.max(Math.abs(pose.x), Math.abs(headX)), `${m.staged.move} ends inside`).toBeLessThanOrEqual(RING.half + 0.01);
+        }
       }
     }
   });

@@ -5,6 +5,25 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Match viewer: fighting outside the ring, where the rules allow it — shipped
+
+"Fighting outside the ring is ok in some match types. Battle royal would not be ok."
+
+- `MatchViewerScreen.tsx` `FIGHTS_OUTSIDE`: No DQ, hardcore, street fight, unsanctioned, tables,
+  flaming tables, last man standing, arena floor, falls count anywhere, casket. Never a battle royal
+  (by stipulation, by any elimination beat, or by a side over four) — there, over the top rope is
+  still the only way out and it is still an elimination. A cage or ladder match stays put.
+- `stageMatch(..., allowOutside)`: about a third of the way in, one gap's unspoken work becomes a
+  trip to the floor — thrown out under the ropes, two moves down there, rolled back in. It is always
+  over before the next beat the caller has a line for, and the finish is always in the ring.
+- `ringPhysics.ts`: a staged beat has a `zone`. On the floor in front of the ring the floor is the
+  ground and the barricades are the walls; on the way out and back each pose is held by whichever it
+  is in at that height. Figures on the floor draw in front of the ropes and posts.
+
+Not done: nothing is said on commentary about going outside; a pinfall cannot happen on the floor
+even in falls-count-anywhere; no weapons or barricade art. Checked in tests and a harness, not yet
+watched in a real hardcore match from a played save.
+
 ## Match viewer: the ring shows what the call says, the match flows, the ring is solid — shipped
 
 Asked directly: do the moves in commentary match the moves in the ring ("it has to"), is there enough

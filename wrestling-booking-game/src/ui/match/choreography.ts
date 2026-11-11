@@ -52,6 +52,13 @@ export const DOWN = 2;
 export const FLOOR = -10.8;
 /** A body lying on the arena floor. */
 const FLOOR_DOWN = FLOOR + DOWN;
+/**
+ * The floor in front of the ring, where a fight that spills outside is
+ * staged — nearer the camera than the apron, so lower on screen than the
+ * floor at the sides where an eliminated wrestler lands.
+ */
+export const FRONT_FLOOR = -14.3;
+const G = FRONT_FLOOR;
 
 const STAND: Frame = [0, 0, 0, 0];
 
@@ -290,6 +297,20 @@ const BODIES = {
     target: [[0, 1, DOWN, -90], [0.3, 1, DOWN, -90], [0.55, 1, 0, -20], [0.7, 1, 0, 0], [0.8, 0, 0, -16], [1, -1, 0, -6]],
     impacts: [[0.77, 2, 12]],
   },
+  // ---- going outside, and coming back -------------------------------------
+  // Only staged where the match's rules allow it; see stageMatch. These two
+  // are written with real heights: `G` is the floor in front of the ring.
+  tossOutside: {
+    actor: [STAND, [0.2, 7, 0, 10], [0.38, 7, 0, 24], [0.55, 7, 0, 0], [0.72, 6, 1.5, 12], [0.88, 5, G, 0, 0.9], [1, 5, G, 0]],
+    target: [STAND, [0.2, 2, 0, 12], [0.38, 2, 1, 70], [0.5, 2, 0.6, 90], [0.66, 2, G + 4, 90], [0.74, 2, G + DOWN, 90, 0.9], [1, 2, G + DOWN, 90]],
+    impacts: [[0.74, 8, G + 1, true]],
+    ropes: 0.5,
+  },
+  rollInside: {
+    actor: [[0, 0, G, 0], [0.25, 8, G, 28, 0.88], [0.45, 8, G, -8], [0.62, 8, G, 6], [0.8, 7, 1.5, 14], [0.92, 6, 0, 0, 0.9], [1, 6, 0, 0]],
+    target: [[0, 1, G + DOWN, -90], [0.25, 1, G + DOWN, -90], [0.45, 1, G + 6, -80], [0.6, 1, 1, -90], [0.7, 1, DOWN, -90], [1, 1, DOWN, -90]],
+    ropes: 0.6,
+  },
   still: { actor: [STAND, [1, 0, 0, 0]], target: [STAND, [1, 0, 0, 0]] },
 } as const satisfies Record<string, Choreo>;
 
@@ -345,6 +366,8 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   legDrop: { actor: '- run dropkick dropkick dropkick dropkick guard', target: 'flat flat flat flat flat' },
   groundPound: { actor: '- run kneel punch wind punch wind punch guard', target: 'flat flat flat flat flat flat flat flat' },
   pickUp: { actor: '- bend carry wind punch guard', target: 'flat flat stagger guard stagger stagger' },
+  tossOutside: { actor: '- reach punch guard crouch crouch guard', target: '- bend spear flat flat flat flat' },
+  rollInside: { actor: 'guard bend lift guard crouch crouch guard', target: 'flat flat fall flat flat flat' },
 };
 
 function withLimbs(frames: readonly Frame[], words: string | undefined): Frame[] {
@@ -551,10 +574,18 @@ function moveNamed(wrestler: Wrestler | undefined, name: string | null): Move | 
   return [finisher, secondaryFinisher, ...signatures].find((m) => m?.name === name);
 }
 
+/**
+ * Where a staged beat takes place. 'out' starts in the ring and ends on the
+ * floor; 'in' is the way back; 'floor' is an ordinary move done down there.
+ */
+export type Zone = 'ring' | 'out' | 'floor' | 'in';
+
 export interface StagedBeat {
   move: MoveId;
   choreo: Choreo;
   meta: MoveMeta;
+  /** Absent means the ring. */
+  zone?: Zone;
   /** Milliseconds the choreography runs for. */
   duration: number;
 }
@@ -709,6 +740,12 @@ export function stageMatch(
   commentary: readonly CalledLine[],
   wrestlers: ReadonlyMap<Id, Wrestler>,
   finish: FinishType,
+  /**
+   * The rules let this one go to the floor — a street fight, falls count
+   * anywhere. Never true for a battle royal, where leaving the ring is how
+   * you lose.
+   */
+  allowOutside = false,
 ): { moments: MatchMoment[]; before: StagedLine[]; after: StagedLine[]; synced: boolean } {
   const synced = commentary.some((line) => line.beat !== undefined);
   const before = synced ? commentary.filter((line) => line.beat === undefined) : [];
@@ -746,11 +783,33 @@ export function stageMatch(
   const CARRIES_ON: readonly PlaybackBeat['pose'][] = ['exchange', 'control', 'whip', 'comeback', 'signature', 'nearFall'];
   const between = timeline.length > 16 ? 0 : timeline.length > 9 ? 1 : 2;
   let fillerIndex = 0;
+  // A trip to the floor replaces the unspoken work in one gap, about a third
+  // of the way in: out, a couple of moves down there, and back, all before
+  // the next thing the caller has a line for — which is always in the ring.
+  const FLOOR_WORK: readonly MoveId[] = ['whip', 'slam', 'flurry', 'headbutt', 'clothesline', 'kneeLift', 'suplex'];
+  const outsideAfter = allowOutside && timeline.length >= 4 ? Math.max(1, Math.floor(timeline.length / 3)) : -1;
+  const excursion = (actorId: Id, targetId: Id, seed: number) => {
+    const filler = (): PlaybackBeat => ({ kind: 'control', pose: 'control', text: '', significant: false, actorId, targetId, moveName: null });
+    const add = (move: MoveId, zone: Zone) => {
+      moments.push({ beat: filler(), actorId, targetId, staged: { ...stageMove(move, zone === 'floor' ? 1700 : 1900), zone }, lines: [], holdMs: 2000, filler: true });
+      recent.push(move);
+    };
+    add('tossOutside', 'out');
+    add(FLOOR_WORK[seed % FLOOR_WORK.length]!, 'floor');
+    add(FLOOR_WORK[(seed + 3) % FLOOR_WORK.length]!, 'floor');
+    // Whatever the last one did, the target is put down for the trip back.
+    add('rollInside', 'in');
+    downId = targetId;
+  };
   timeline.forEach((beat, index) => {
     stage(beat, index, synced ? commentary.filter((line) => line.beat === index) : [], false);
     const last = moments[moments.length - 1]!;
     const next = timeline[index + 1];
     if (!next || !last.actorId || !last.targetId || !CARRIES_ON.includes(beat.pose)) return;
+    if (index === outsideAfter) {
+      excursion(last.actorId, last.targetId, timeline.length + index);
+      return;
+    }
     // Do not spend the move the caller is about to shout on the build-up to it.
     const coming = moveSaid(commentary.find((line) => line.beat === index + 1 && line.speaker === 'play')?.text);
     for (let i = 0; i < between; i++) {

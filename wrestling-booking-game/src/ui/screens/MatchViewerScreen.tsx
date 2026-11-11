@@ -28,6 +28,22 @@ import type { Id, PromotionArchetype, SegmentResult, SegmentRole, Wrestler } fro
  * can be is paced by what is said over each beat — see stageMatch.
  */
 const BEAT_PACE_MS = 2000;
+// Stipulations where the fight is allowed out of the ring: nobody is being
+// counted out and nothing is a disqualification. (A cage or a ladder match
+// stays where the cage or the ladder is.)
+const FIGHTS_OUTSIDE: ReadonlySet<string> = new Set([
+  'noDQ',
+  'hardcore',
+  'streetFight',
+  'unsanctioned',
+  'tables',
+  'flamingTables',
+  'lastManStanding',
+  'arenaFloor',
+  'fallsCountAnywhere',
+  'casket',
+]);
+
 /** The gap between one line and the next when several are said in a row. */
 const LINE_PACE_MS = 1300;
 
@@ -155,7 +171,11 @@ export function MatchViewerScreen({
     const sides = deriveSides(competitors, result, world.wrestlers);
     const timeline = buildPlaybackTimeline(result.beats, sides.sideA, sides.sideB, sides.winningSide);
     const byId = new Map([...sides.sideA, ...sides.sideB].map((w) => [w.id, w] as const));
-    return { ...sides, timeline, ...stageMatch(timeline, result.commentary ?? [], byId, result.finish) };
+    // Whether this one may spill outside. A battle royal never does: over
+    // the top is elimination, and that is the only way anybody leaves.
+    const isBattleRoyal = segment.stipulation === 'battleRoyal' || timeline.some((b) => b.pose === 'elimination') || Math.max(sides.sideA.length, sides.sideB.length) > 4;
+    const allowOutside = !isBattleRoyal && segment.stipulation !== null && segment.stipulation !== undefined && FIGHTS_OUTSIDE.has(segment.stipulation);
+    return { ...sides, timeline, ...stageMatch(timeline, result.commentary ?? [], byId, result.finish, allowOutside) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
