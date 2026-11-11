@@ -11,7 +11,7 @@ import { cardStatusLine, proposedByLine } from '../../engine/world/supershowCard
 
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
-export function SupershowPanel() {
+export function SupershowPanel({ onWatch }: { onWatch?: (matchIndex: number) => void }) {
   const world = useGameStore((s) => s.world);
   const answer = useGameStore((s) => s.answerSupershow);
   const dismiss = useGameStore((s) => s.dismissSupershowResult);
@@ -61,6 +61,34 @@ export function SupershowPanel() {
             </>
           )}
         </p>
+
+        {/* What actually happened, match by match — and a way to see it. */}
+        <div className="mt-2 max-h-40 overflow-y-auto rounded bg-neutral-950/60 p-2">
+          {result.show.matches.map((match, i) => {
+            const names = (ids: string[]) => ids.map((id) => world!.wrestlers[id]?.name ?? 'somebody').join(' & ');
+            const losers = match.participantIds.filter((id) => !match.winnerIds.includes(id));
+            return (
+              <div key={i} className="flex items-center justify-between gap-2 py-0.5 text-[10px]">
+                <span className="truncate text-neutral-300">
+                  {match.winnerSide === null ? (
+                    <>{names(match.participantIds)} <span className="text-neutral-600">— no winner</span></>
+                  ) : (
+                    <>
+                      {names(match.winnerIds)}
+                      <span className="text-neutral-600"> def. </span>
+                      {names(losers)}
+                    </>
+                  )}
+                </span>
+                {onWatch && (
+                  <button type="button" data-testid={`watch-supershow-${i}`} onClick={() => onWatch(i)} className="shrink-0 rounded bg-neutral-800 px-1.5 text-[10px] text-neutral-200 hover:bg-neutral-700">
+                    Watch
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
         <button
           type="button"

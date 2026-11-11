@@ -10,7 +10,7 @@ import { CUP_NAME, CUP_TROPHY } from '../../engine/world/cup';
 
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
-export function CupPanel() {
+export function CupPanel({ onWatch }: { onWatch?: (boutIndex: number) => void }) {
   const world = useGameStore((s) => s.world);
   const answer = useGameStore((s) => s.answerCupEntry);
   const dismiss = useGameStore((s) => s.dismissCupResult);
@@ -54,7 +54,7 @@ export function CupPanel() {
           {result.bouts
             .slice()
             .reverse()
-            .map((bout, i) => {
+            .map((bout, i, all) => {
               const loser = bout.winnerId === bout.aId ? bout.bId : bout.aId;
               return (
                 <div key={`${bout.round}-${i}`} className="flex justify-between gap-2 py-0.5 text-[10px]">
@@ -64,6 +64,11 @@ export function CupPanel() {
                     <span className="text-neutral-600"> def. </span>
                     {world!.wrestlers[loser]?.name ?? '—'}
                   </span>
+                  {onWatch && (
+                    <button type="button" data-testid={`watch-cup-${all.length - 1 - i}`} onClick={() => onWatch(all.length - 1 - i)} className="shrink-0 rounded bg-neutral-800 px-1.5 text-[10px] text-neutral-200 hover:bg-neutral-700">
+                      Watch
+                    </button>
+                  )}
                 </div>
               );
             })}

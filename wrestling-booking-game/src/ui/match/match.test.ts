@@ -532,3 +532,31 @@ describe('what the referee would be shouting', () => {
     expect(played(rulebook('streetFight')).some((m) => m.staged.zone === 'floor' && m.staged.choreo.cover)).toBe(false);
   });
 });
+
+describe('a match known only by its result', () => {
+  it('plays out to the result it was given, and nothing else', async () => {
+    const { exhibitionOf } = await import('./exhibition');
+    const { buildPlaybackTimeline } = await import('../../engine/sim/matchPlayback');
+    for (const [winner, loser] of [[alpha, bravo], [bravo, alpha]] as const) {
+      const { segment, result } = exhibitionOf([[alpha.id], [bravo.id]], [winner.id], 'submission');
+      expect(result.winnerWrestlerIds).toEqual([winner.id]);
+      const timeline = buildPlaybackTimeline(result.beats, [winner], [loser], 'a');
+      const conduct = conductOf(segment, result.finish, [1, 1]);
+      const { moments } = stageMatch(timeline, [], cast, result.finish, { conduct });
+      const last = moments[moments.length - 1]!;
+      expect(last.beat.pose).toBe('finish');
+      expect([last.actorId, last.targetId]).toEqual([winner.id, loser.id]);
+      expect(last.staged.choreo.shouts?.map((s) => s.text)).toEqual(['TAP OUT!']);
+      // Both of them get the upper hand at some point: it is a match, not a squash.
+      expect(new Set(moments.map((m) => m.actorId))).toEqual(new Set([alpha.id, bravo.id]));
+    }
+  });
+
+  it('a draw has no winner, and a two-on-two is a tag match', async () => {
+    const { exhibitionOf } = await import('./exhibition');
+    expect(exhibitionOf([[alpha.id], [bravo.id]], [], 'timeLimitDraw').result.winnerSide).toBeNull();
+    const tag = exhibitionOf([[alpha.id, 'c'], [bravo.id, 'd']], [bravo.id, 'd'], 'cleanPin');
+    expect(tag.result.winnerSide).toBe(1);
+    expect(conductOf(tag.segment, 'cleanPin', [2, 2]).tags).toBe(true);
+  });
+});

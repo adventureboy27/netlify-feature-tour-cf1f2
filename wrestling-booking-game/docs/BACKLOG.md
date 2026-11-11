@@ -6239,3 +6239,19 @@ Gaps closed from the previous entry:
 - Gauntlet: `preset: 'gauntlet'` exists in the type but nothing in the game can book one, so there is
   nothing to stage. Left alone.
 - Tests: `match.test.ts` 81. Verified: `tsc` clean; 206 files / 3,498 tests; build clean; headless renders.
+
+## Match viewer — the name on the apron, and a different ring for interpromotional nights
+
+- The count is called "1...", "...2...", "...3!", each number clearing as the next lands.
+- The promotion's full name is painted on the ring apron, sized to fit (it used to fall back to initials).
+- **Interpromotional look** (`corners` / `eventName` on `MatchStage` and `Arena`): the apron is split on a
+  slant, half each company's colour and name; turnbuckle pads match each corner's company; a hanging banner
+  per company; gold trim and the event's name on the big screen. If both companies share a house colour
+  the visitors get slate.
+- **Joint-show and Crucible matches can now be watched.** Those nights store a result and no beats, so
+  `ui/match/exhibition.ts` gives the viewer a fixed, dice-free shape that ends the way the result says
+  (winner, loser and finish are the sim's; there is no commentary because none was recorded). Watch buttons
+  on the Cup panel's bouts and a new match list on the Supershow result panel. UI only; engine untouched.
+- Not done: recording real beats and commentary for those nights (an engine change, with the shared-RNG trap).
+- Tests: `match.test.ts` 83. Verified: `tsc` clean; 206 files / 3,500 tests; build clean; headless renders
+  with a stubbed `lastCup` / `lastSupershow` (not reached through a real played joint show).

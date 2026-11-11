@@ -117,3 +117,16 @@
   100% { opacity: 0; transform: translate(-50%, -70%) rotate(-5deg) scale(1.25); }
 }
 .mv-shout { opacity: 0; animation: mv-shout 1.25s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+
+/* The company's name on the ring apron: painted on, the full name, sized to fit. */
+.mv-apron-name {
+  font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', 'Franklin Gothic Heavy', 'Arial Black', sans-serif;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 0.06em 0 rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  user-select: none;
+}

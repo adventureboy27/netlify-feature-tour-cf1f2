@@ -50,8 +50,11 @@ import { summarizeSegment, refereeSharpnessTone } from './segmentSummary';
 export function BookingScreen({
   onRunShow,
   onOpenSlot,
+  onWatchSpecial,
 }: {
   onRunShow: () => void;
+  /** Play back a match from the last joint show or tournament. */
+  onWatchSpecial?: (special: { kind: 'supershow' | 'cup'; index: number }) => void;
   /** A slot tile was tapped — `cast` says whether it already has both sides filled. */
   onOpenSlot: (slotIndex: number, cast: boolean) => void;
 }) {
@@ -330,8 +333,8 @@ export function BookingScreen({
             this rail simply isn't there. */}
         <div className="flex flex-col gap-3">
           <ThisWeekStrip />
-          <CupPanel />
-          <SupershowPanel />
+          <CupPanel onWatch={onWatchSpecial && ((index) => onWatchSpecial({ kind: 'cup', index }))} />
+          <SupershowPanel onWatch={onWatchSpecial && ((index) => onWatchSpecial({ kind: 'supershow', index }))} />
           <BiddingWarPanel />
           <Stories />
           <FactionDestroyerPanel />

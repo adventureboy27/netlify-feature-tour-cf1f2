@@ -84,6 +84,22 @@ function Flashes() {
   );
 }
 
+const GOLD = '#f2c94c';
+
+/** The company in a corner, on a night with more than one company in the building. */
+export interface Corner {
+  name: string;
+  accent: string;
+}
+
+/** A name broken over up to three lines, for a banner that is taller than it is wide. */
+function wrapName(name: string): string[] {
+  const words = name.split(/\s+/);
+  if (words.length <= 3) return words;
+  const per = Math.ceil(words.length / 3);
+  return [words.slice(0, per).join(' '), words.slice(per, per * 2).join(' '), words.slice(per * 2).join(' ')].filter(Boolean);
+}
+
 const LAMPS = [150, 380, 600, 820, 1050] as const;
 
 /** Everything behind the wrestlers. */
@@ -93,7 +109,13 @@ export const ArenaBack = memo(function ArenaBack({
   hype,
   showName,
   cage = false,
+  corners,
+  eventName,
 }: {
+  /** More than one company in the building: each has a corner, and half the ring. */
+  corners?: readonly [Corner, Corner];
+  /** What the night is called, for the big screen, when it is not an ordinary show. */
+  eventName?: string;
   /** A steel cage match: walls round the ring. This draws the far ones. */
   cage?: boolean;
   accent: string;
@@ -127,6 +149,16 @@ export const ArenaBack = memo(function ArenaBack({
           <stop offset="0%" stopColor="#171a21" />
           <stop offset="100%" stopColor="#06070a" />
         </linearGradient>
+        <linearGradient id="mv-banner" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#000" stopOpacity="0" />
+          <stop offset="100%" stopColor="#000" stopOpacity="0.55" />
+        </linearGradient>
+        {corners?.map((corner, n) => (
+          <linearGradient key={n} id={`mv-apron-${n}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={corner.accent} />
+            <stop offset="100%" stopColor="#0a0a0d" />
+          </linearGradient>
+        ))}
         <pattern id="mv-mesh" width="16" height="16" patternUnits="userSpaceOnUse">
           <path d="M 0,0 L 16,16 M 16,0 L 0,16" stroke="#aeb6c4" strokeWidth={1.1} opacity={0.55} />
         </pattern>
@@ -141,10 +173,39 @@ export const ArenaBack = memo(function ArenaBack({
       {/* The big screen over the entrance. */}
       <rect x={430} y={30} width={340} height={118} rx={6} fill="#07080c" stroke={accent} strokeOpacity={0.7} strokeWidth={2} />
       <rect x={438} y={38} width={324} height={102} rx={3} fill={accent} opacity={0.14} />
-      {showName && (
+      {showName && !corners && (
         <text x={600} y={97} textAnchor="middle" fontSize={24} fontWeight={800} letterSpacing={2} fill={accent} opacity={0.75} style={{ textTransform: 'uppercase' }}>
           {name.length > 22 ? name.split(/\s+/).map((w) => w[0]).join('') : name}
         </text>
+      )}
+      {corners && (
+        <g>
+          {/* Both companies' colours on the screen, and a banner each side of it. */}
+          <polygon points="438,38 620,38 580,140 438,140" fill={corners[0].accent} opacity={0.3} />
+          <polygon points="620,38 762,38 762,140 580,140" fill={corners[1].accent} opacity={0.3} />
+          <rect x={430} y={30} width={340} height={118} rx={6} fill="none" stroke={GOLD} strokeWidth={3} />
+          {showName && (
+            <text x={600} y={99} textAnchor="middle" fontSize={eventName && eventName.length > 16 ? 22 : 30} fontWeight={900} fontStyle="italic" letterSpacing={2} fill={GOLD} style={{ textTransform: 'uppercase' }}>
+              {eventName ?? 'Supershow'}
+            </text>
+          )}
+          {corners.map((corner, n) => {
+            const x = n === 0 ? 300 : 900;
+            return (
+              <g key={n}>
+                <rect x={x - 62} y={27} width={124} height={4} fill="#3a3f4a" />
+                <polygon points={`${x - 56},31 ${x + 56},31 ${x + 56},176 ${x},196 ${x - 56},176`} fill={corner.accent} />
+                <polygon points={`${x - 56},31 ${x + 56},31 ${x + 56},176 ${x},196 ${x - 56},176`} fill="url(#mv-banner)" />
+                <polygon points={`${x - 48},39 ${x + 48},39 ${x + 48},170 ${x},187 ${x - 48},170`} fill="none" stroke="#fff" strokeOpacity={0.5} strokeWidth={2} />
+                {wrapName(corner.name).map((line, i, all) => (
+                  <text key={i} x={x} y={108 + (i - (all.length - 1) / 2) * 22} textAnchor="middle" fontSize={Math.min(20, 150 / Math.max(6, line.length))} fontWeight={900} fill="#fff" style={{ textTransform: 'uppercase' }}>
+                    {line}
+                  </text>
+                ))}
+              </g>
+            );
+          })}
+        </g>
       )}
 
       {/* Lighting rig, and the beams off it. */}
@@ -194,7 +255,7 @@ export const ArenaBack = memo(function ArenaBack({
         </g>
       ))}
       {[MAT.backL, MAT.backR].map((x) =>
-        ROPES_BACK.map((y) => <rect key={`${x}-${y}`} x={x - 9} y={y - 7} width={18} height={14} rx={4} fill={accent} />),
+        ROPES_BACK.map((y) => <rect key={`${x}-${y}`} x={x - 9} y={y - 7} width={18} height={14} rx={4} fill={corners ? corners[x === MAT.backL ? 0 : 1].accent : accent} />),
       )}
 
       {cage && (
@@ -208,16 +269,25 @@ export const ArenaBack = memo(function ArenaBack({
 
       {/* Canvas and apron. */}
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="url(#mv-mat)" />
-      <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={accent} strokeWidth={5} opacity={0.35} />
-      <ellipse cx={600} cy={412} rx={58} ry={12} fill={accent} opacity={0.22} />
-      <polygon points={`${MAT.frontL},${MAT.frontY} ${MAT.frontR},${MAT.frontY} ${MAT.frontR},538 ${MAT.frontL},538`} fill="url(#mv-apron)" />
+      <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />
+      <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />
+      {corners ? (
+        <g>
+          {/* The apron is split down a slant: one company's half, and the other's. */}
+          <polygon points={`${MAT.frontL},${MAT.frontY} 624,${MAT.frontY} 576,538 ${MAT.frontL},538`} fill="url(#mv-apron-0)" />
+          <polygon points={`624,${MAT.frontY} ${MAT.frontR},${MAT.frontY} ${MAT.frontR},538 576,538`} fill="url(#mv-apron-1)" />
+          <polygon points={`616,${MAT.frontY} 632,${MAT.frontY} 584,538 568,538`} fill={GOLD} />
+        </g>
+      ) : (
+        <polygon points={`${MAT.frontL},${MAT.frontY} ${MAT.frontR},${MAT.frontY} ${MAT.frontR},538 ${MAT.frontL},538`} fill="url(#mv-apron)" />
+      )}
       <rect x={MAT.frontL} y={MAT.frontY} width={MAT.frontR - MAT.frontL} height={5} fill="#ffffff" opacity={0.35} />
     </svg>
   );
 });
 
 /** The front ropes and posts — drawn over the wrestlers, who stand behind them. */
-export const ArenaFront = memo(function ArenaFront({ accent, ropesRef, cage = false }: { accent: string; ropesRef: React.Ref<SVGGElement>; /** The near wall of a cage, between the camera and the wrestlers. */ cage?: boolean }) {
+export const ArenaFront = memo(function ArenaFront({ accent, ropesRef, cage = false, corners }: { accent: string; ropesRef: React.Ref<SVGGElement>; /** The near wall of a cage, between the camera and the wrestlers. */ cage?: boolean; corners?: readonly [Corner, Corner] }) {
   return (
     <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
       <g ref={ropesRef}>
@@ -244,7 +314,7 @@ export const ArenaFront = memo(function ArenaFront({ accent, ropesRef, cage = fa
           <rect x={x - 7} y={286} width={14} height={MAT.frontY - 286 + 6} fill="#343944" />
           <rect x={x - 7} y={286} width={5} height={MAT.frontY - 286 + 6} fill="#4c5260" />
           {ROPES_FRONT.map((y) => (
-            <rect key={y} x={x - 11} y={y - 9} width={22} height={18} rx={5} fill={accent} stroke="#000" strokeOpacity={0.35} />
+            <rect key={y} x={x - 11} y={y - 9} width={22} height={18} rx={5} fill={corners ? corners[x === MAT.frontL ? 0 : 1].accent : accent} stroke="#000" strokeOpacity={0.35} />
           ))}
         </g>
       ))}

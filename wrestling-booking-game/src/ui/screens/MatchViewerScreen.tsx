@@ -18,10 +18,13 @@ import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { MatchStage, type Aftermath, type Bystander, type StageFighter } from '../match/MatchStage';
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
+import { exhibitionOf, type WatchResult } from '../match/exhibition';
+import type { Corner } from '../match/Arena';
+import { CUP_NAME } from '../../engine/world/cup';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, promotionTheme } from '../components/chrome';
 import { stipulationById } from '../../data/stipulations';
-import type { Id, PromotionArchetype, SegmentResult, SegmentRole, Wrestler } from '../../engine/types';
+import type { Id, PromotionArchetype, FinishType, SegmentRole, Wrestler } from '../../engine/types';
 
 /**
  * How long one beat holds for a match whose commentary cannot be tied to
@@ -45,6 +48,12 @@ const ARENA_ACCENT: Record<PromotionArchetype, string> = {
   athletic: '#059669',
 };
 
+/** Which match of an interpromotional night to play. */
+export interface SpecialMatch {
+  kind: 'supershow' | 'cup';
+  index: number;
+}
+
 /**
  * The same reduction `commentary.ts` uses for a multi-man match: the eventual
  * winners are one corner, everyone else is the other. A draw falls back to
@@ -58,7 +67,7 @@ const ARENA_ACCENT: Record<PromotionArchetype, string> = {
  */
 function deriveSides(
   competitors: SegmentRole[],
-  result: SegmentResult,
+  result: WatchResult,
   wrestlers: Record<Id, Wrestler | undefined>,
 ): { sideA: Wrestler[]; sideB: Wrestler[]; winningSide: 'a' | 'b' | null; sideARawSides: ReadonlySet<number> } {
   const resolve = (ids: Id[]) => ids.map((id) => wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
@@ -127,10 +136,17 @@ function resolveRingsideManagers(
 export function MatchViewerScreen({
   matchWeek,
   matchSlot,
+  special,
   onBack,
 }: {
   matchWeek: number;
   matchSlot: number;
+  /**
+   * A match from an interpromotional night rather than one of the player's
+   * own shows: the n-th match of the last joint show, or the n-th bout of the
+   * last tournament. `matchWeek`/`matchSlot` are ignored when this is set.
+   */
+  special?: SpecialMatch;
   onBack: () => void;
 }) {
   const world = useGameStore((s) => s.world);
@@ -141,9 +157,23 @@ export function MatchViewerScreen({
   const [said, setSaid] = useState(0);
   const [linesShown, setLinesShown] = useState(0);
 
-  const show = world?.showHistory.find((s) => s.week === matchWeek);
-  const segment = show?.segments.find((s) => s.slot === matchSlot);
-  const result = segment?.result;
+  // Those nights keep the result of a match and not its beats: see exhibition.ts.
+  const exhibition = useMemo(() => {
+    if (!world || !special) return null;
+    if (special.kind === 'cup') {
+      const bout = world.lastCup?.bouts[special.index];
+      return bout ? exhibitionOf([[bout.aId], [bout.bId]], [bout.winnerId], bout.finish as FinishType) : null;
+    }
+    const match = world.lastSupershow?.show.matches[special.index];
+    if (!match) return null;
+    const side = (n: number) => match.participantIds.filter((_, i) => match.sides[i] === n);
+    return exhibitionOf([side(0), side(1)], match.winnerSide === null ? [] : match.winnerIds, match.finish, match.stipulationId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [special?.kind, special?.index, world?.lastCup, world?.lastSupershow]);
+  const show = special ? undefined : world?.showHistory.find((s) => s.week === matchWeek);
+  const booked = show?.segments.find((s) => s.slot === matchSlot);
+  const segment = exhibition?.segment ?? booked;
+  const result = exhibition?.result ?? booked?.result;
 
   // The whole match staged up front — which move, between whom, under which
   // line — so a beat can depend on the one before it (who is still down,
@@ -228,7 +258,7 @@ export function MatchViewerScreen({
   }, [staging, synced, linesShown, commentary.length, timeline.length]);
 
   if (!world) return null;
-  if (!show || !segment || !result) {
+  if (!segment || !result) {
     return (
       <div className="p-6 text-neutral-100">
         <ScreenHeader title="That match is gone" onBack={onBack} />
@@ -326,6 +356,22 @@ export function MatchViewerScreen({
       ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: 'ring' as const }))
       : [];
 
+  // An interpromotional night: each side's company has a corner and half the
+  // ring. Left is whoever works from the left — the same side its people are on.
+  const companyOf = (w: Wrestler | undefined): Corner | null => {
+    if (!w) return null;
+    const rival = world.rivals.find((r) => r.rosterIds.includes(w.id));
+    const company = rival ?? world.promotion;
+    return { name: company.name, accent: ARENA_ACCENT[company.identity] ?? ARENA_ACCENT.territory };
+  };
+  const left = special ? companyOf(sideA[0]) : null;
+  const right = special ? companyOf(sideB[0]) : null;
+  // Two companies with the same house colour still need telling apart.
+  // The player's company keeps its own; the visitors take the other one.
+  const clash = Boolean(left && right && left.accent === right.accent && left.name !== right.name);
+  const other = (corner: Corner): Corner => (clash && corner.name !== world.promotion.name ? { ...corner, accent: '#64748b' } : corner);
+  const corners: readonly [Corner, Corner] | undefined = left && right ? [other(left), clash && left.name !== world.promotion.name && right.name !== world.promotion.name ? { ...right, accent: '#64748b' } : other(right)] : undefined;
+
   // How it came out. The winners leave with a belt if the match was for one
   // and they are the ones holding it now — won tonight, or kept.
   const winnerIds = new Set(result.winnerSide === null ? [] : result.winnerWrestlerIds);
@@ -417,6 +463,8 @@ export function MatchViewerScreen({
           staged={staged}
           accent={ARENA_ACCENT[world.promotion.identity] ?? ARENA_ACCENT.territory}
           promotionName={world.promotion.name}
+          corners={corners}
+          eventName={special ? (special.kind === 'cup' ? CUP_NAME : 'Supershow') : undefined}
           callout={calloutText}
           pyro={!over && current?.pose === 'environmental'}
           bystanders={bystanders}

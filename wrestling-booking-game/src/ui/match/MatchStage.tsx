@@ -13,7 +13,7 @@
 // is over, everybody: the winners with their arms up, the rest on the mat.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArenaBack, ArenaFront, FEET_Y, VIEW } from './Arena';
+import { ArenaBack, ArenaFront, FEET_Y, VIEW, type Corner } from './Arena';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { playPlan, settle } from './playback';
@@ -121,7 +121,12 @@ export function MatchStage({
   departed,
   aftermath,
   bloody,
+  corners,
+  eventName,
 }: {
+  /** An interpromotional night: the company in the left corner and the one in the right. */
+  corners?: readonly [Corner, Corner];
+  eventName?: string;
   /** Changes every beat; restarts the choreography. */
   beatKey: number;
   fighters: readonly StageFighter[];
@@ -354,12 +359,27 @@ export function MatchStage({
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
       {w > 0 && (
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
-          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} />
+          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} />
 
           {/* The apron is the nearest thing this building has to a nameplate. */}
-          <div className="absolute inset-x-0 flex justify-center text-center font-black uppercase tracking-[0.2em] text-white/85" style={{ top: (474 / VIEW.h) * h, fontSize: 2.6 * u }}>
-            {promotionName.length > 26 ? promotionName.split(/\s+/).map((part) => part[0]).join('') : promotionName}
-          </div>
+          {corners ? (
+            corners.map((corner, n) => (
+              <div
+                key={n}
+                className="mv-apron-name absolute flex items-center justify-center whitespace-nowrap text-center"
+                style={{ left: ((n === 0 ? 262 : 624) / VIEW.w) * w, width: (314 / VIEW.w) * w, top: (462 / VIEW.h) * h, height: (70 / VIEW.h) * h, fontSize: Math.min(2.6, 34 / Math.max(8, corner.name.length)) * u }}
+              >
+                {corner.name}
+              </div>
+            ))
+          ) : (
+            <div
+              className="mv-apron-name absolute flex items-center justify-center whitespace-nowrap text-center"
+              style={{ left: (262 / VIEW.w) * w, width: (676 / VIEW.w) * w, top: (462 / VIEW.h) * h, height: (70 / VIEW.h) * h, fontSize: Math.min(3.4, 68 / Math.max(8, promotionName.length)) * u }}
+            >
+              {promotionName}
+            </div>
+          )}
 
           {/* Everyone in the match who is not in this beat. An all-in match's
               field is paired off and fighting along the back of the ring the
@@ -469,7 +489,7 @@ export function MatchStage({
             );
           })}
 
-          <ArenaFront accent={accent} ropesRef={ropesRef} cage={conduct?.cage} />
+          <ArenaFront accent={accent} ropesRef={ropesRef} cage={conduct?.cage} corners={corners} />
 
           {/* A casket, at ringside, with somebody in it. */}
           {scene === 'casket' && targetEnd && (

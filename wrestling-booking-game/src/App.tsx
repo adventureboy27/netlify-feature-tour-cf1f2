@@ -46,7 +46,7 @@ type PreGameView = 'title' | 'newGame' | 'settings';
 /** One entry on the navigation stack — which screen, and (for a drill-down screen) which id or slot it's about. */
 interface NavTarget {
   screen: Screen;
-  params?: { wrestlerId?: Id; slotIndex?: number; matchWeek?: number; matchSlot?: number; storyId?: string };
+  params?: { wrestlerId?: Id; slotIndex?: number; matchWeek?: number; matchSlot?: number; storyId?: string; special?: { kind: 'supershow' | 'cup'; index: number } };
 }
 
 export default function App() {
@@ -172,7 +172,7 @@ export default function App() {
             linger. Every navigation is a quiet settle-in rather than a hard
             cut — the same beat a broadcast uses between segments. */}
         <main
-          key={`${screen}:${params?.wrestlerId ?? ''}:${params?.slotIndex ?? ''}:${params?.matchWeek ?? ''}:${params?.matchSlot ?? ''}`}
+          key={`${screen}:${params?.wrestlerId ?? ''}:${params?.slotIndex ?? ''}:${params?.matchWeek ?? ''}:${params?.matchSlot ?? ''}:${params?.special?.kind ?? ''}${params?.special?.index ?? ''}`}
           className={`min-h-0 flex-1 overflow-y-auto ${reduceMotion ? '' : 'animate-rise-in'}`}
         >
           {screen === 'settings' && <SettingsScreen onBack={() => resetTo('booking')} />}
@@ -181,6 +181,7 @@ export default function App() {
           )}
           {screen === 'booking' && (
             <BookingScreen
+              onWatchSpecial={(special) => goTo({ screen: 'matchViewer', params: { special } })}
               onRunShow={runShow}
               onOpenSlot={(slotIndex, cast) =>
                 goTo({ screen: cast ? 'matchSetup' : 'slotPicker', params: { slotIndex } })
@@ -265,7 +266,10 @@ export default function App() {
               onAddMore={() => goTo({ screen: 'slotPicker', params: { slotIndex: params.slotIndex! } })}
             />
           )}
-          {screen === 'matchViewer' && params?.matchWeek !== undefined && params?.matchSlot !== undefined && (
+          {screen === 'matchViewer' && params?.special !== undefined && (
+            <MatchViewerScreen matchWeek={-1} matchSlot={-1} special={params.special} onBack={goBack} />
+          )}
+          {screen === 'matchViewer' && params?.special === undefined && params?.matchWeek !== undefined && params?.matchSlot !== undefined && (
             <MatchViewerScreen matchWeek={params.matchWeek} matchSlot={params.matchSlot} onBack={goBack} />
           )}
           {screen === 'newsStory' && params?.storyId !== undefined && (
