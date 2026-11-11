@@ -189,7 +189,25 @@ export function MatchViewerScreen({
     // which everything about how it is staged then obeys.
     const conduct = conductOf(segment, result.finish, [sides.sideA.length, sides.sideB.length]);
     const teams = conduct.tags ? [sides.sideA.map((w) => w.id), sides.sideB.map((w) => w.id)] : [];
-    return { ...sides, timeline, conduct, ...stageMatch(timeline, result.commentary ?? [], byId, result.finish, { conduct, teams }) };
+    const staged = stageMatch(timeline, result.commentary ?? [], byId, result.finish, { conduct, teams });
+    // A real injury happens at a moment: the last time, before the finish,
+    // that the injured wrestler was on the receiving end (or the finish
+    // itself, if that is the only time). The result says who and how badly,
+    // not when — so this is the viewer's placing of it, and only that.
+    const hurtFrom = new Map<Id, number>();
+    for (const injury of result.injuries ?? []) {
+      const who = byId.get(injury.wrestlerId);
+      if (!who) continue;
+      const taking = staged.moments.map((m, i) => (m.targetId === who.id ? i : -1)).filter((i) => i >= 0);
+      const giving = staged.moments.map((m, i) => (m.actorId === who.id ? i : -1)).filter((i) => i >= 0);
+      const at = taking.filter((i) => i < staged.moments.length - 1).pop() ?? taking.pop() ?? giving.pop();
+      if (at === undefined) continue;
+      hurtFrom.set(who.id, at);
+      const moment = staged.moments[at]!;
+      const surname = who.name.trim().split(/\s+/).pop()!.toUpperCase();
+      staged.moments[at] = { ...moment, staged: { ...moment.staged, choreo: { ...moment.staged.choreo, shouts: [...(moment.staged.choreo.shouts ?? []), { at: 0.7, text: `${surname} IS HURT!` }] } } };
+    }
+    return { ...sides, timeline, conduct, hurtFrom, ...staged };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
@@ -391,6 +409,9 @@ export function MatchViewerScreen({
   const holdsIt = world.titles.some((title) => segment.titleIds.includes(title.id) && title.currentHolderIds.some((id) => winnerIds.has(id)));
   const belt = segment.titleIds.length > 0 && winnerIds.size > 0 && (result.titleChanged || holdsIt);
   const aftermath: Aftermath | undefined = over ? { winners: winnerIds, belt } : undefined;
+  // Anybody really injured carries it from the moment it happened.
+  const hurt = new Set([...(staging?.hurtFrom ?? [])].filter(([, at]) => beatIndex > at).map(([id]) => id));
+  const injuredHere = (result.injuries ?? []).filter((injury) => combined.some((w) => w.id === injury.wrestlerId));
   // First blood: whoever lost is the one wearing it.
   const bloody = conduct.finish === 'blood' && beatIndex >= lastBeat ? new Set(combined.filter((w) => !winnerIds.has(w.id)).map((w) => w.id)) : undefined;
 
@@ -491,11 +512,22 @@ export function MatchViewerScreen({
           aftermath={aftermath}
           bloody={bloody}
           prize={segment.titleIds.length > 0 ? 'belt' : 'case'}
+          hurt={hurt}
         />
 
         {/* Who is in the ring right now — the figures themselves are busy
             being thrown around, so the names stay put down here. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-2 z-10 flex items-center justify-center gap-2 text-[11px] font-semibold">
+        <div className={`pointer-events-none absolute inset-x-0 bottom-2 z-10 flex items-center justify-center gap-2 text-[11px] font-semibold ${over ? 'flex-col' : ''}`}>
+          {/* Somebody was really hurt: said plainly, and for how long, once it is over. */}
+          {over && injuredHere.length > 0 && (
+            <div data-testid="viewer-injuries" className="flex max-w-[80%] flex-col items-center rounded-md border border-red-500/80 bg-red-950/90 px-4 py-1 text-center">
+              {injuredHere.map((injury) => (
+                <span key={injury.wrestlerId} className="text-[11px] font-semibold uppercase tracking-[0.12em] text-red-100">
+                  {injury.name} — injured{injury.outFor ? ` · ${injury.outFor}` : ''}
+                </span>
+              ))}
+            </div>
+          )}
           {/* The announcement: who won, and what that makes them. */}
           {over && winnerIds.size > 0 && (
             <div data-testid="viewer-winner" className="flex max-w-[80%] flex-col items-center rounded-md border border-amber-400/70 bg-neutral-950/90 px-5 py-1.5 text-center">

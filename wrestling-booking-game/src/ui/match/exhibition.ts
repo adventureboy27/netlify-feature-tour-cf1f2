@@ -18,7 +18,7 @@ import type { FinishType, Id, MatchBeat, MatchRules, Segment, SegmentResult, Seg
 /** As much of a booked segment as the viewer reads. */
 export type WatchSegment = Pick<Segment, 'participants' | 'stipulation' | 'rules' | 'titleIds' | 'managerIds'>;
 /** As much of its result. */
-export type WatchResult = Pick<SegmentResult, 'beats' | 'commentary' | 'finish' | 'winnerSide' | 'winnerWrestlerIds' | 'titleChanged'>;
+export type WatchResult = Pick<SegmentResult, 'beats' | 'commentary' | 'finish' | 'winnerSide' | 'winnerWrestlerIds' | 'titleChanged' | 'injuries'>;
 
 const RULES: MatchRules = {
   preset: 'singles',
@@ -59,6 +59,6 @@ export function exhibitionOf(sides: readonly [readonly Id[], readonly Id[]], win
   const participants: SegmentRole[] = sides.flatMap((side, n) => side.map((wrestlerId) => ({ wrestlerId, role: 'competitor', side: n }) as SegmentRole));
   return {
     segment: { participants, stipulation, rules: team ? { ...RULES, preset: 'tag', format: 'teams' } : RULES, titleIds: [], managerIds: [] },
-    result: { beats, commentary: [], finish, winnerSide: winningSide, winnerWrestlerIds: [...winnerIds], titleChanged: false },
+    result: { beats, commentary: [], finish, winnerSide: winningSide, winnerWrestlerIds: [...winnerIds], titleChanged: false, injuries: [] },
   };
 }

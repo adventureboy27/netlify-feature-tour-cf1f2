@@ -130,3 +130,16 @@
   pointer-events: none;
   user-select: none;
 }
+
+/* Really hurt: a red pulse round the body and a medic's cross over the head,
+   from the moment it happened to the end of the match. */
+@keyframes mv-hurt {
+  0%, 100% { filter: saturate(0.8) drop-shadow(0 0 2px rgba(225, 30, 30, 0.55)); }
+  50% { filter: saturate(0.7) drop-shadow(0 0 9px rgba(235, 30, 30, 0.95)); }
+}
+.mv-hurt { position: relative; animation: mv-hurt 1.1s ease-in-out infinite; }
+@keyframes mv-hurt-mark {
+  0%, 100% { transform: translate(-50%, 0) scale(1); }
+  50% { transform: translate(-50%, -8%) scale(1.15); }
+}
+.mv-hurt-mark { animation: mv-hurt-mark 1.1s ease-in-out infinite; border: 2px solid #fff; }

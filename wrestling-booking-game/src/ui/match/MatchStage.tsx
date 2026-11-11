@@ -124,7 +124,10 @@ export function MatchStage({
   corners,
   eventName,
   prize,
+  hurt,
 }: {
+  /** Really injured in this match, from the moment it happened: they carry it for the rest of it. */
+  hurt?: ReadonlySet<Id>;
   /** What hangs over a ladder match: the belt if one is on the line, a briefcase if not. */
   prize?: 'belt' | 'case';
   /** An interpromotional night: the company in the left corner and the one in the right. */
@@ -308,8 +311,13 @@ export function MatchStage({
         const to: WorldPose = outside && leftAt.current.has(id) ? { x: from.x, y: from.y, rot: 0 } : { x: Math.max(-edge + 3, Math.min(edge - 3, middle + (place - (winners.length - 1) / 2) * 9)), y: 0, rot: 0 };
         if (!leftAt.current.has(id)) frames.push(frame(0.4, { x: -side * (RING.half - 1), y: 13, rot: side * 16 }, 'tuck'));
         else if (wasDown) frames.push(frame(0.45, { x: from.x + (to.x - from.x) * 0.3, y: to.y, rot: from.rot * 0.25 }, 'kneel'));
-        frames.push(frame(0.8, to, 'guard'), frame(1, to, 'celebrate'));
-        cheers.set(id, [frame(0, to, 'celebrate'), frame(0.5, { ...to, y: to.y + 0.7 }, 'lift'), frame(1, to, 'celebrate')]);
+        if (hurt?.has(id)) {
+          // Won it and got hurt doing it: on one knee, not on the ropes with both arms up.
+          frames.push(frame(0.8, to, 'stagger'), frame(1, to, 'kneel'));
+        } else {
+          frames.push(frame(0.8, to, 'guard'), frame(1, to, 'celebrate'));
+          cheers.set(id, [frame(0, to, 'celebrate'), frame(0.5, { ...to, y: to.y + 0.7 }, 'lift'), frame(1, to, 'celebrate')]);
+        }
       } else if (!leftAt.current.has(id)) {
         // A beaten partner, still at their corner: down off the apron.
         frames.push(frame(0.5, { x: apronX(side) - side * 2, y: FLOOR + 3, rot: side * 50 }, 'fall'), frame(1, { x: apronX(side) - side * 9, y: FLOOR + DOWN, rot: side * 90 }, 'flat'));
@@ -483,7 +491,12 @@ export function MatchStage({
                 {/* Drawn to their own height; always breathing, so a body that
                     has finished its move is still a living one. */}
                 <div style={{ transform: `scale(${tall})`, transformOrigin: '50% 100%' }}>
-                  <div className="mv-breathe">
+                  <div className={`mv-breathe ${hurt?.has(id) ? 'mv-hurt' : ''}`}>
+                    {hurt?.has(id) && (
+                      <div data-testid="ring-hurt" className="mv-hurt-mark absolute left-1/2 flex items-center justify-center rounded-full bg-red-600 font-black leading-none text-white" style={{ top: '-9%', width: '22%', aspectRatio: '1', fontSize: 2.2 * u, zIndex: 3 }} aria-label="injured">
+                        +
+                      </div>
+                    )}
                     <ArticulatedFigure
                       wrestler={fighter.wrestler}
                       held={!over && !leaving && staged?.prop && fighter === actor ? (dirOf(fighter.slot) === 1 ? 'right' : 'left') : undefined}
