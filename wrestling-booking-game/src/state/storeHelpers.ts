@@ -63,6 +63,7 @@ import { kindForSize } from '../engine/world/tagTeams';
 import { grudgeAgainst, grudgeLine, rememberNight } from '../engine/world/grudges';
 import { creditPay } from '../engine/career/ledger';
 import { ledgerOf } from '../engine/career/ledgerAccess';
+import { tallyMatch } from '../engine/sim/aftermath';
 import { crossPromoStakes } from '../engine/world/supershow';
 import { clampMorale } from '../engine/career/morale';
 import { broadcasterById } from '../data/broadcasters';
@@ -722,6 +723,15 @@ export function settleSupershow(world: World, rng: Rng): void {
     world.weeklyNews.push(
       wire('story', `${grudgeLine(remembered, partner.name)}`, world.week, 'minor'),
     );
+  }
+
+  // The record. Every match on the card counts on the books of everybody
+  // who worked it, exactly as a match on anybody's own show does.
+  for (const match of result.show.matches) {
+    for (const change of match.aftermath) {
+      const person = world.wrestlers[change.wrestlerId];
+      if (person) tallyMatch(person, change.outcome, match.rating);
+    }
   }
 
   // The money. The company banks its share of a gate neither of them

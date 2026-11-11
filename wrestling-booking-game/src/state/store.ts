@@ -362,7 +362,7 @@ import { isNonDecisiveFinish } from '../engine/sim/finish';
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
 import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
 import { driftFanTaste, styleRunShare } from '../engine/world/fanTaste';
-import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/aftermath';
+import { computeAftermath, applyAftermath, restWeek, tallyMatch } from '../engine/sim/aftermath';
 import { resolveDarkMatch } from '../engine/sim/darkMatch';
 import { runRivalShow, canWork, type RivalShow } from '../engine/world/rivalBooking';
 import {
@@ -5332,6 +5332,14 @@ export const useGameStore = create<GameStore>()(
               const byId = new Map(entrantIds.map((id) => [id, world.wrestlers[id]!]));
               const result = runBreakfastBeltTournament(storyRng, entrantIds, byId, world.settings, world.week);
               if (result) {
+                // The bracket's bouts count on the records like any other match.
+                for (const bout of result.bouts) {
+                  const loserId = bout.winnerId === bout.aId ? bout.bId : bout.aId;
+                  const winner = world.wrestlers[bout.winnerId];
+                  const loser = world.wrestlers[loserId];
+                  if (winner) tallyMatch(winner, 'win', bout.rating);
+                  if (loser) tallyMatch(loser, 'loss', bout.rating);
+                }
                 for (const worn of result.wornOut) {
                   const person = world.wrestlers[worn.wrestlerId];
                   if (person) person.health = clamp(person.health - worn.cost, 0, 100);

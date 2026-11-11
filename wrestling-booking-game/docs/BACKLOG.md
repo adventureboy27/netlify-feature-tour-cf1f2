@@ -6255,3 +6255,15 @@ Gaps closed from the previous entry:
 - Not done: recording real beats and commentary for those nights (an engine change, with the shared-RNG trap).
 - Tests: `match.test.ts` 83. Verified: `tsc` clean; 206 files / 3,500 tests; build clean; headless renders
   with a stubbed `lastCup` / `lastSupershow` (not reached through a real played joint show).
+
+## Records: joint-show, Crucible and sponsor-tournament matches were never tallied
+
+Found by reading, not by a failing test. `applyAftermath` (record, ledger, career marks) was called for the
+player's shows, dark matches and rival shows only. The joint show computed an aftermath per match and threw
+it away; the Crucible and the Breakfast Belt bracket never had one. A wrestler could win the Iron Crown
+with no win on the books. New `tallyMatch` (record + ledger + career marks, nothing else) is now called for
+every match on those three nights. Deliberately record-only: those nights already settle popularity,
+morale and health by their own rules, so their balance is unchanged, and no RNG draw was added.
+- Also in this batch (viewer): a prize hangs over a ladder match; the ending names the winner and the belt.
+- Tests: new store test that every participant on a joint card gains a match and the right win/loss.
+  206 files / 3,501 tests; build clean. Not measured in a played save.

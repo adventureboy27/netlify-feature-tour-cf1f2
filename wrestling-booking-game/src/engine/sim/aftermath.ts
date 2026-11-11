@@ -191,14 +191,27 @@ export function applyAftermath(
 
   // The old three-number record, kept because a great deal reads it, and the
   // ledger, which is the one that knows *where* it happened.
-  if (change.outcome === 'win') w.record.wins += 1;
-  else if (change.outcome === 'loss') w.record.losses += 1;
-  else if (change.outcome === 'draw') w.record.draws += 1;
-  creditMatch(ledgerOf(w), change.outcome);
-
   if (w.popularity > w.careerHighPopularity) w.careerHighPopularity = w.popularity;
 
-  markCareer(w, change.outcome, matchRating);
+  tallyMatch(w, change.outcome, matchRating);
+}
+
+/**
+ * Put one match on somebody's books: the win-loss-draw record, the ledger,
+ * and the career marks. Nothing else — no popularity, no health.
+ *
+ * Its own function because some nights settle what a match did to people by
+ * their own rules (a joint show's stakes, a one-night bracket's wear) and
+ * still owe the record a line. Those nights were paying everybody and
+ * counting nothing: a wrestler could win the Iron Crown and not have a
+ * single win to show for it.
+ */
+export function tallyMatch(w: Wrestler, outcome: AftermathChange['outcome'], matchRating?: number): void {
+  if (outcome === 'win') w.record.wins += 1;
+  else if (outcome === 'loss') w.record.losses += 1;
+  else if (outcome === 'draw') w.record.draws += 1;
+  creditMatch(ledgerOf(w), outcome);
+  markCareer(w, outcome, matchRating);
 }
 
 /** The running marks a match leaves on somebody's career. */

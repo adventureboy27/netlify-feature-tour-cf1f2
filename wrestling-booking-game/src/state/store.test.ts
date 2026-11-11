@@ -1997,6 +1997,29 @@ describe('the joint show', () => {
     expect(world.weeklyNews.some((n) => n.text.includes('joint show'))).toBe(true);
   });
 
+  it('counts every match on the joint card on the records of the people in it', () => {
+    expect(signAJointShow()).toBe(true);
+    const tally = () => {
+      const w = useGameStore.getState().world!;
+      return Object.fromEntries(Object.values(w.wrestlers).map((p) => [p.id, { ...p.record, matches: p.career.matches }]));
+    };
+    const before = tally();
+    useGameStore.getState().runSupershowNight();
+    const after = tally();
+    const result = useGameStore.getState().world!.lastSupershow!;
+    expect(result.show.matches.length).toBeGreaterThan(0);
+    for (const match of result.show.matches) {
+      for (const id of match.participantIds) {
+        // Worked once more than before, whatever else happened to them.
+        expect(after[id]!.matches).toBeGreaterThan(before[id]!.matches);
+        if (match.winnerSide !== null) {
+          const won = match.winnerIds.includes(id);
+          expect(won ? after[id]!.wins : after[id]!.losses).toBeGreaterThan(won ? before[id]!.wins : before[id]!.losses);
+        }
+      }
+    }
+  });
+
   it('runs it anyway when the week turns before the booker signs off', () => {
     // The building was booked the moment both companies shook hands. §0 does
     // not let the game hold the week open to ask whether you meant it.

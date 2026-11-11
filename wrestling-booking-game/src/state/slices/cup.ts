@@ -10,6 +10,7 @@ import { clamp } from '../../engine/rng';
 import { wire } from '../../engine/world/wire';
 import { creditPay } from '../../engine/career/ledger';
 import { ledgerOf } from '../../engine/career/ledgerAccess';
+import { tallyMatch } from '../../engine/sim/aftermath';
 import { canWork } from '../../engine/world/rivalBooking';
 import {
   willEnter,
@@ -81,6 +82,16 @@ export const createCupSlice: StateCreator<GameStore, [['zustand/immer', never]],
       if (!result) return;
 
       world.lastCup = result;
+
+      // Every bout in the bracket is a real match with a winner and a loser,
+      // and goes on both records.
+      for (const bout of result.bouts) {
+        const loserId = bout.winnerId === bout.aId ? bout.bId : bout.aId;
+        const winner = world.wrestlers[bout.winnerId];
+        const loser = world.wrestlers[loserId];
+        if (winner) tallyMatch(winner, 'win', bout.rating);
+        if (loser) tallyMatch(loser, 'loss', bout.rating);
+      }
 
       // What the night took out of anybody who worked it more than once.
       // A single-night bracket is meant to be a body decision as much as a
