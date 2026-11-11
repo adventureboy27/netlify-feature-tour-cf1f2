@@ -12,8 +12,8 @@ import { ArenaBack, ArenaFront, FEET_Y, VIEW } from './Arena';
 import { FIGURE_ASPECT, MatchFigure } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { STANCES, autoStance, hipDrop, type Stance } from './rig';
-import { FLOOR, GAP, type StagedBeat } from './choreography';
-import { RING, apronX, midBody, planBeat, type Plan, type PlanFighter, type WorldPose } from './ringPhysics';
+import { FLOOR, FRONT_FLOOR, GAP, type StagedBeat } from './choreography';
+import { RING, apronX, midBody, onFrontFloor, planBeat, type Plan, type PlanFighter, type WorldPose } from './ringPhysics';
 import type { Id, Wrestler } from '../../engine/types';
 
 /** Figure width in stage units (hundredths of the stage's width). */
@@ -70,7 +70,51 @@ const ROPE_WOBBLE: Keyframe[] = [
   { transform: 'translateY(-1px)' },
   { transform: 'translateY(0)' },
 ];
-const EASING = 'cubic-bezier(0.33, 0.1, 0.4, 1)';
+// A pose table is a handful of key poses. Played pose-to-pose with an ease
+// on each step, every key pose is a dead stop — the puppet-show look. So
+// each channel (position, lean, every joint) is run through a smooth curve
+// and re-sampled finely, and the browser is given those.
+const SAMPLE_MS = 34;
+
+/**
+ * A curve through the keys that never overshoots them (monotone cubic,
+ * Fritsch-Carlson). The no-overshoot part matters: ringPhysics.ts has
+ * already made every key pose legal, and a curve that swung wide between
+ * two of them would put a head through the ropes after all.
+ */
+function curve(times: readonly number[], values: readonly number[]): (t: number) => number {
+  const n = times.length;
+  if (n === 1) return () => values[0]!;
+  const slope: number[] = [];
+  for (let i = 0; i < n - 1; i++) slope.push((values[i + 1]! - values[i]!) / Math.max(1e-6, times[i + 1]! - times[i]!));
+  const tangent: number[] = [slope[0]!];
+  for (let i = 1; i < n - 1; i++) tangent.push(slope[i - 1]! * slope[i]! <= 0 ? 0 : (slope[i - 1]! + slope[i]!) / 2);
+  tangent.push(slope[n - 2]!);
+  for (let i = 0; i < n - 1; i++) {
+    if (slope[i] === 0) {
+      tangent[i] = 0;
+      tangent[i + 1] = 0;
+      continue;
+    }
+    const a = tangent[i]! / slope[i]!;
+    const b = tangent[i + 1]! / slope[i]!;
+    const size = a * a + b * b;
+    if (size > 9) {
+      const k = 3 / Math.sqrt(size);
+      tangent[i] = k * a * slope[i]!;
+      tangent[i + 1] = k * b * slope[i]!;
+    }
+  }
+  return (t) => {
+    let i = 0;
+    while (i < n - 2 && t > times[i + 1]!) i++;
+    const h = Math.max(1e-6, times[i + 1]! - times[i]!);
+    const p = Math.min(1, Math.max(0, (t - times[i]!) / h));
+    const p2 = p * p;
+    const p3 = p2 * p;
+    return (2 * p3 - 3 * p2 + 1) * values[i]! + (p3 - 2 * p2 + p) * h * tangent[i]! + (-2 * p3 + 3 * p2) * values[i + 1]! + (p3 - p2) * h * tangent[i + 1]!;
+  };
+}
 const dirOf = (slot: 'left' | 'right'): 1 | -1 => (slot === 'left' ? 1 : -1);
 
 export function MatchStage({
@@ -154,20 +198,31 @@ export function MatchStage({
       // The stance guess reads a lean relative to the way they face.
       const facing = frames.map((fr) => [fr.at, f.dir * fr.x, fr.y, f.dir * fr.rot, fr.sy, fr.stance] as const);
       const stances: Stance[] = frames.map((fr, i) => STANCES[fr.stance ?? autoStance(facing, i)]);
+      const times = frames.map((fr) => fr.at);
+      const steps = Math.max(2, Math.round(duration / SAMPLE_MS));
+      const offsets = Array.from({ length: steps + 1 }, (_, i) => i / steps);
+      const channel = (values: number[]) => {
+        const at = curve(times, values);
+        return offsets.map(at);
+      };
+      const play = (part: Element, transforms: string[]) =>
+        running.push(part.animate(transforms.map((transform, i) => ({ offset: offsets[i]!, transform })), { duration, fill: 'both' }));
+
+      // Bent knees bring the hips down — but only for somebody standing on
+      // the mat or the floor; a body in the air or lying down has nothing
+      // to sink toward.
+      const sink = frames.map((fr, i) => {
+        const height = fr.y - (onFrontFloor(fr) ? FRONT_FLOOR : 0);
+        return height < 1 && Math.abs(fr.rot) < 45 ? hipDrop(stances[i]!) * legUnit : 0;
+      });
+      const [xs, ys, rots, squash] = [
+        channel(frames.map((fr) => fr.x * u)),
+        channel(frames.map((fr, i) => -fr.y * u + sink[i]!)),
+        channel(frames.map((fr) => fr.rot)),
+        channel(frames.map((fr) => fr.sy)),
+      ];
       el.style.transform = '';
-      running.push(
-        el.animate(
-          frames.map((fr, i) => {
-            // Bent knees bring the hips down — but only for somebody
-            // standing on the mat; a body in the air or lying on it has
-            // nothing to sink toward.
-            const grounded = fr.y < 1 && Math.abs(fr.rot) < 45;
-            const sink = grounded ? hipDrop(stances[i]!) * legUnit : 0;
-            return { offset: fr.at, transform: `translate(${fr.x * u}px, ${-fr.y * u + sink}px) rotate(${fr.rot}deg) scaleY(${fr.sy})`, easing: EASING };
-          }),
-          { duration, fill: 'both' },
-        ),
-      );
+      play(el, offsets.map((_, i) => `translate(${xs[i]!.toFixed(2)}px, ${ys[i]!.toFixed(2)}px) rotate(${rots[i]!.toFixed(2)}deg) scaleY(${squash[i]!.toFixed(3)})`));
 
       // The limbs. The lead arm and leg are the ones on the opponent's
       // side of the picture: screen-right for whoever works from the left.
@@ -177,7 +232,7 @@ export function MatchStage({
       const lead = d === 1 ? joints.right : joints.left;
       const rear = d === 1 ? joints.left : joints.right;
       const turn = (part: Element, angle: (st: Stance) => number) =>
-        running.push(part.animate(frames.map((fr, i) => ({ offset: fr.at, transform: `rotate(${angle(stances[i]!)}deg)`, easing: EASING })), { duration, fill: 'both' }));
+        play(part, channel(stances.map(angle)).map((deg) => `rotate(${deg.toFixed(2)}deg)`));
       turn(joints.waist, (st) => d * st.w);
       turn(lead.shoulder, (st) => -d * st.la[0]);
       turn(lead.elbow, (st) => -d * st.la[1]);
@@ -291,13 +346,17 @@ export function MatchStage({
                 willChange: 'transform',
               }}
             >
-              <ArticulatedFigure
-                wrestler={fighter.wrestler}
-                onJoints={(joints) => {
-                  if (joints) jointRefs.current.set(fighter.wrestler.id, joints);
-                  else jointRefs.current.delete(fighter.wrestler.id);
-                }}
-              />
+              {/* Always breathing, so a body that has finished its move is
+                  still a living one. */}
+              <div className="mv-breathe">
+                <ArticulatedFigure
+                  wrestler={fighter.wrestler}
+                  onJoints={(joints) => {
+                    if (joints) jointRefs.current.set(fighter.wrestler.id, joints);
+                    else jointRefs.current.delete(fighter.wrestler.id);
+                  }}
+                />
+              </div>
             </div>
           ))}
 

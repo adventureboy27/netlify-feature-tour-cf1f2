@@ -5,6 +5,35 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Match viewer: more called moves, and no standing around — shipped
+
+Asked for more commentary lines naming moves, the move landing on the right wrestler, and a match
+that is fluid — "I don't want the wrestlers to stop and reset waiting for the next instructions."
+
+- **42 new play-by-play lines** in `data/commentaryLines.ts` across the opening, control, hope-spot,
+  near-fall and signature pools, each naming a move the ring can show (snap suplex, body slam, DDT,
+  spear, hip toss, leg drop, missile dropkick, moonsault, German suplex, stunner...). `SAID` was
+  reordered so an avoided move is not staged as the move ("ducks the clothesline" is a counter) and a
+  specific name beats a general one ("missile dropkick" before "dropkick").
+- **Right wrestler**: a test stages every action line and fails if the one the line says is on top
+  ends up the only one on the mat. A ground move called on a standing opponent now opens with the
+  knockdown instead of teleporting them to the mat.
+- **No waiting.** A beat used to hold until its commentary had been read. Now a beat lasts exactly as
+  long as its move; the reading time is covered by the unspoken exchanges that follow (1-4 of them,
+  sized to what was said), and lines reveal on their own clock, with the call always on screen the
+  instant its move starts.
+- **Smooth motion.** Pose-to-pose easing made every key pose a dead stop. Each channel (position,
+  lean, all nine joints) is now run through a monotone cubic and resampled every 34ms; monotone so
+  it cannot overshoot a key pose and put a head back through the ropes. Figures breathe.
+
+Measured over one match in a played save, per animation frame: no jump over 60px (largest 34px),
+both wrestlers motionless in 9% of frames.
+
+Noted while here: the match figures' legs, trunks, kneepads and boots are drawn in code
+(`ArticulatedFigure.tsx`/`MatchFigure.tsx`), one shape for everybody, colored from skin tone and
+waistband color. There is no lower-body art in the paperdoll library. Real leg art (tights, kickpads,
+boots as layered assets like the upper body) is an open follow-up.
+
 ## Match viewer: fighting outside the ring, where the rules allow it — shipped
 
 "Fighting outside the ring is ok in some match types. Battle royal would not be ok."

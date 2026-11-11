@@ -58,6 +58,13 @@
 }
 .mv-pyro { opacity: 0; transform-origin: 50% 100%; animation: mv-pyro 1.1s ease-out both; }
 
+@keyframes mv-breathe {
+  from { transform: scaleY(1); }
+  to { transform: scaleY(1.014) translateY(-0.2%); }
+}
+.mv-breathe { transform-origin: 50% 100%; animation: mv-breathe 0.9s ease-in-out infinite alternate; }
+
 @media (prefers-reduced-motion: reduce) {
+  .mv-breathe { animation: none; }
   .mv-crowd, .mv-cone, .mv-flash { animation: none; }
 }

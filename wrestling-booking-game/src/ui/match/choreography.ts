@@ -436,37 +436,52 @@ export const META: Partial<Record<MoveId, MoveMeta>> = {
 const SAID: readonly (readonly [RegExp, MoveId | 'top' | 'finisher' | 'over'])[] = [
   [/over the top|over the ropes|heaved|over and out|got rid of|on the apron after|landed/i, 'over'],
   [/setting up for/i, 'finisher'],
-  [/collar and elbow|backs .* into the corner/i, 'lockupCorner'],
-  [/lock up|chain wrestling|feeling-out/i, 'lockup'],
-  [/goes for the leg|sprawl/i, 'sprawl'],
-  [/shove/i, 'shove'],
-  [/shoulder block|off the ropes/i, 'shoulderBlock'],
-  [/stomps? in the corner/i, 'cornerStomp'],
-  [/whip into the corner|into the turnbuckle/i, 'cornerWhip'],
-  [/chinlock|grounds |wearing .* down|slows it/i, 'groundHold'],
-  [/backbreaker/i, 'backbreaker'],
-  [/knee into|knee ?lift|to the midsection/i, 'kneeLift'],
-  [/ducks under|coming in|counters?\b/i, 'counter'],
-  [/blocks it|fires back|throwing bombs|is up!|will not stay down/i, 'fireUp'],
-  [/right hands|elbow\. elbow|one after another|picking .* apart/i, 'flurry'],
-  [/catches the foot|takedown|sweeps? the leg/i, 'takedown'],
-  [/reversal|sends .* across|irish whip/i, 'whip'],
-  [/calling for it|calling for the end/i, 'taunt'],
-  [/up top|going to fly|off the top|top rope|from the top|skyfall|flying|aerial|swanton|shooting star/i, 'top'],
+  // A move that was avoided is not the move that happened: these come
+  // before the names of the moves they are about. ("Ducks the clothesline"
+  // is a counter, not a clothesline.)
+  [/ducks |blocks it|coming in|knees up|boot up|counters?\b/i, 'counter'],
+  [/buckles|whip into the corner|into the turnbuckle/i, 'cornerWhip'],
+  [/reversal|reverses|sends .* across and follows|irish whip/i, 'whip'],
+  // Moves by name. The most specific name first: a "missile dropkick" is
+  // not a dropkick and an "elbow drop" is not an elbow.
+  [/missile dropkick/i, 'missileDropkick'],
   [/moonsault/i, 'moonsault'],
-  [/crossbody|cross body|splash|plancha/i, 'crossbody'],
-  [/lifts .* up|through the mat|powerbomb|\bbomb\b/i, 'powerbomb'],
-  [/what a shot|caught .* square|superkick|\bkick\b|enzuigiri|roundhouse/i, 'superkick'],
-  [/dropkick/i, 'dropkick'],
-  [/suplex/i, 'suplex'],
-  [/piledriver|ddt|\bdriver\b|brainbuster/i, 'driver'],
+  [/crossbody|cross body|plancha/i, 'crossbody'],
+  [/charges into the corner|corner splash|avalanche/i, 'cornerSplash'],
+  [/back body drop|hip toss|arm drag|up and over/i, 'backBodyDrop'],
+  [/backbreaker/i, 'backbreaker'],
+  [/powerbomb|\bbomb!/i, 'powerbomb'],
+  [/piledriver|tombstone|brainbuster|\bddt\b|\bdriver\b/i, 'driver'],
   [/stunner|cutter|jawbreaker|neckbreaker/i, 'stunner'],
-  [/spear|tackle|gore/i, 'spear'],
+  [/suplex/i, 'suplex'],
+  [/spear|\bgore\b/i, 'spear'],
+  [/superkick|enzuigiri|roundhouse/i, 'superkick'],
+  [/dropkick/i, 'dropkick'],
   [/clothesline|lariat/i, 'clothesline'],
   [/headbutt/i, 'headbutt'],
-  [/elbow drop|leg ?drop|knee drop/i, 'elbowDrop'],
+  [/leg ?drop/i, 'legDrop'],
+  [/drops the elbow|elbow drop|knee drop/i, 'elbowDrop'],
+  [/stomps? in the corner/i, 'cornerStomp'],
+  [/stomping|stomps/i, 'stomp'],
+  [/hauls .* up|drags .* up|off the mat and/i, 'pickUp'],
+  [/shoulder block|off the ropes/i, 'shoulderBlock'],
+  [/body slam|scoops/i, 'slam'],
+  // Then what is being described rather than named.
+  [/collar and elbow|backs .* into the corner/i, 'lockupCorner'],
+  [/lock up|chain wrestling|feeling-out|test of strength/i, 'lockup'],
+  [/goes for the leg|sprawl/i, 'sprawl'],
+  [/shove/i, 'shove'],
+  [/chinlock|sleeper|grounds |wearing .* down|slows it/i, 'groundHold'],
+  [/knee into|knee ?lift|to the midsection/i, 'kneeLift'],
+  [/fires back|throwing bombs|is up!|will not stay down/i, 'fireUp'],
+  [/right hands|elbow\. elbow|one after another|picking .* apart/i, 'flurry'],
+  [/catches the foot|takedown|sweeps? the leg/i, 'takedown'],
+  [/calling for it|calling for the end/i, 'taunt'],
+  [/up top|going to fly|off the top|top rope|from the top|skyfall|flying|aerial|swanton|shooting star|splash/i, 'top'],
+  [/lifts .* up|through the mat/i, 'powerbomb'],
+  [/what a shot|caught .* square|\bkick\b/i, 'superkick'],
   [/wristlock|has the arm|armbar|headlock|hammerlock/i, 'hold'],
-  [/sleeper|choke|\block\b|clutch|stretch|\bcrab\b|submission|cloverleaf|figure.?four/i, 'submission'],
+  [/choke|\block\b|clutch|stretch|\bcrab\b|submission|cloverleaf|figure.?four/i, 'submission'],
   [/slam|hoist|rag doll|threw .* around|picked (them|him|her) up|plucked/i, 'slam'],
   [/first real strike|chop|punch|forearm|uppercut|\bstrikes?\b|\bshot\b/i, 'strike'],
 ];
@@ -639,7 +654,11 @@ export function stageBeat(
   const fresh = (options: readonly MoveId[]): MoveId => {
     const usable = options.filter((id) => (META[id]?.needsDown ?? false) === false || context.targetDown);
     const pool = usable.length > 0 ? usable : options;
-    return pool.find((id) => !context.recent.includes(id)) ?? pool[index % pool.length]!;
+    // Start somewhere different in the list each time, or every knockdown
+    // would be followed by the same first two things on it.
+    const turn = index % pool.length;
+    const order = [...pool.slice(turn), ...pool.slice(0, turn)];
+    return order.find((id) => !context.recent.includes(id)) ?? order[0]!;
   };
   const resolve = (word: ReturnType<typeof saidIn>): MoveId | null => {
     if (!word) return null;
@@ -649,7 +668,11 @@ export function stageBeat(
     return word;
   };
   // Commentary first, then the highlight text the beat was written with.
-  const spoken = resolve(saidIn(context.said)) ?? resolve(saidIn(beat.text));
+  const heard = resolve(saidIn(context.said)) ?? resolve(saidIn(beat.text));
+  // Something done to a downed opponent, called while they are on their
+  // feet: put them down first, in the same breath. An elbow drop does that
+  // by itself; for the rest, the nearest thing that opens with a knockdown.
+  const spoken: MoveId | null = heard && META[heard]?.needsDown && !context.targetDown ? (heard === 'stomp' ? 'cornerStomp' : heard === 'pickUp' ? 'strike' : 'elbowDrop') : heard;
 
   switch (beat.pose) {
     case 'interference':
@@ -768,9 +791,10 @@ export function stageMatch(
     });
     recent.push(staged.move);
     downId = targetId && isDown(endPose(staged.choreo.target)) ? targetId : actorId && isDown(endPose(staged.choreo.actor)) ? actorId : null;
-    // Roughly a second and a half per line of reading on top of the move.
-    const holdMs = Math.max(staged.duration + 250, 1100 + lines.reduce((ms, line) => ms + 500 + line.text.length * 26, 0));
-    moments.push({ beat, actorId: actorId ?? null, targetId: targetId ?? null, staged, lines, holdMs: Math.min(holdMs, 6500), filler });
+    // A beat lasts exactly as long as its move. Nobody stands waiting for
+    // the commentary to finish: the time it takes to read what was said is
+    // covered by the exchanges that follow (see `between` below).
+    moments.push({ beat, actorId: actorId ?? null, targetId: targetId ?? null, staged, lines, holdMs: staged.duration, filler });
   };
 
   // DESIGN: the simulation records a handful of beats a match — the moments
@@ -781,7 +805,9 @@ export function stageMatch(
   // changes hands where the simulation says it did, at the next real beat —
   // and every line of commentary still lands on exactly the move it describes.
   const CARRIES_ON: readonly PlaybackBeat['pose'][] = ['exchange', 'control', 'whip', 'comeback', 'signature', 'nearFall'];
-  const between = timeline.length > 16 ? 0 : timeline.length > 9 ? 1 : 2;
+  const most = timeline.length > 16 ? 1 : timeline.length > 9 ? 2 : 4;
+  /** Milliseconds it takes to read a line. */
+  const reading = (line: StagedLine) => 700 + line.text.length * 30;
   let fillerIndex = 0;
   // A trip to the floor replaces the unspoken work in one gap, about a third
   // of the way in: out, a couple of moves down there, and back, all before
@@ -812,6 +838,10 @@ export function stageMatch(
     }
     // Do not spend the move the caller is about to shout on the build-up to it.
     const coming = moveSaid(commentary.find((line) => line.beat === index + 1 && line.speaker === 'play')?.text);
+    // Enough unspoken work to cover the time it takes to read what was just
+    // said — the call itself is read over its own move, the rest over these.
+    const toRead = last.lines.reduce((ms, line) => ms + reading(line), 0) - last.staged.duration;
+    const between = Math.max(Math.min(2, most), Math.min(most, Math.ceil(toRead / 1700)));
     for (let i = 0; i < between; i++) {
       // 1000+ keeps a filler's "index" (which only rotates its choice of move) clear of the real beats'.
       stage({ kind: 'control', pose: 'control', text: '', significant: false, actorId: last.actorId, targetId: last.targetId, moveName: null }, 1000 + fillerIndex++, [], true, coming ? [coming] : []);

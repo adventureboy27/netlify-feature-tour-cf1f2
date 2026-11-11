@@ -58,6 +58,27 @@ describe('the ring shows what the commentary says', () => {
     }
   });
 
+  it('never leaves the one the line says is on top as the only one on the mat', () => {
+    // Every action line is written "{onTop} does it to {inTrouble}". Whatever
+    // it is staged as, the attacker must not be the one who comes off worse:
+    // if they end on the mat (a crossbody, a spear), so does the other.
+    for (const kind of ['openingExchange', 'control', 'hopeSpot', 'signature'] as const) {
+      for (const text of PLAY_BY_PLAY[kind] ?? []) {
+        for (const targetDown of [false, true]) {
+          const down = targetDown ? [beat('control'), beat('control')] : [beat('control')];
+          const lines = [{ speaker: 'play' as const, name: 'P', text, beat: down.length - 1, actorId: alpha.id, targetId: bravo.id }];
+          const { moments } = stageMatch(down, lines, cast, 'cleanPin');
+          const called = moments.find((m) => m.lines.length > 0)!;
+          expect(called.actorId, text).toBe(alpha.id);
+          expect(called.targetId, text).toBe(bravo.id);
+          const attackerDown = isDown(endPose(called.staged.choreo.actor));
+          const targetIsDown = isDown(endPose(called.staged.choreo.target));
+          expect(attackerDown && !targetIsDown, `"${text}" staged as ${called.staged.move}`).toBe(false);
+        }
+      }
+    }
+  });
+
   it('puts the two the line names in the ring, the right way round', () => {
     // The beat says alpha did it; the call says bravo is on top. The call wins.
     const line = { speaker: 'play' as const, name: 'PBP', text: 'B takes over now.', beat: 0, actorId: bravo.id, targetId: alpha.id };

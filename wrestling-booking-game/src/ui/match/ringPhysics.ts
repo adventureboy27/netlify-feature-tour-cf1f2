@@ -249,6 +249,15 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
       }
       frames.push({ at: t, x: wx, y: wy, rot: wrot, sy, stance });
     }
+    // The walk back to the mark is held to the same walls as the move is.
+    if (lead > 0 && !holds && !f.taggedIn) {
+      for (const frame of frames) {
+        if (frame.at >= lead || frame.at === 0) continue;
+        const wall = edgeAt(frame.y);
+        const [lo, hi] = span(frame.x, frame.rot);
+        frame.x += hi > wall ? wall - hi : lo < -wall ? -wall - lo : 0;
+      }
+    }
     // Two poses at the same instant would be a jump cut; keep the later.
     const tidy = frames.filter((frame, i) => i === frames.length - 1 || frames[i + 1]!.at > frame.at + 1e-4);
     tracks.set(f.id, tidy);

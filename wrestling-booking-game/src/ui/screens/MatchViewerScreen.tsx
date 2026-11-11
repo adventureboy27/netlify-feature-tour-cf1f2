@@ -154,7 +154,7 @@ export function MatchViewerScreen({
   // Where the playback has got to: -1 is before the bell (the two stand at
   // their marks while the match is introduced), then one step per beat.
   const [beatIndex, setBeatIndex] = useState(-1);
-  // How many lines of the current step have been said so far.
+  // How many lines of the whole call have been said so far.
   const [said, setSaid] = useState(0);
   const [linesShown, setLinesShown] = useState(0);
 
@@ -188,26 +188,47 @@ export function MatchViewerScreen({
   const commentary = result?.commentary ?? [];
   const lastBeat = moments.length - 1;
 
-  // What is being said during this step.
-  const stepLines = !staging ? [] : beatIndex < 0 ? staging.before : beatIndex > lastBeat ? staging.after : (moments[beatIndex]?.lines ?? []);
+  // The call as one script, and where each step's lines sit in it. Step -1
+  // is everything before the bell; one past the last beat is the sign-off.
+  const script = useMemo(
+    () => (staging ? [...staging.before, ...staging.moments.flatMap((m) => m.lines), ...staging.after] : []),
+    [staging],
+  );
+  const linesOf = (step: number) => (!staging ? 0 : step < 0 ? staging.before.length : step > lastBeat ? staging.after.length : (moments[step]?.lines.length ?? 0));
+  const startOf = (step: number) => {
+    if (!staging || step < 0) return 0;
+    let at = staging.before.length;
+    for (let i = 0; i < Math.min(step, moments.length); i++) at += moments[i]!.lines.length;
+    return at;
+  };
+  const sayable = startOf(beatIndex) + linesOf(beatIndex);
 
-  // One clock. Each step says its lines one at a time and then moves on —
-  // for a beat, not before its move has had time to play.
+  // The ring never waits for the words. A beat lasts as long as its move
+  // and then the next one starts; the call keeps up on its own.
   useEffect(() => {
     if (!staging || !synced) return;
-    if (said < stepLines.length) {
-      const handle = setTimeout(() => setSaid((n) => n + 1), said === 0 ? 150 : LINE_PACE_MS);
-      return () => clearTimeout(handle);
-    }
     if (beatIndex > lastBeat) return;
-    const hold = beatIndex < 0 ? 900 : Math.max(500, (moments[beatIndex]?.holdMs ?? 0) - stepLines.length * LINE_PACE_MS);
-    const handle = setTimeout(() => {
-      setBeatIndex((n) => n + 1);
-      setSaid(0);
-    }, hold);
+    // Before the bell there is nothing to wait for but the introductions.
+    if (beatIndex < 0 && said < sayable) return;
+    const handle = setTimeout(() => setBeatIndex((n) => n + 1), beatIndex < 0 ? 700 : (moments[beatIndex]?.holdMs ?? 1700));
     return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [staging, synced, beatIndex, said, stepLines.length]);
+  }, [staging, synced, beatIndex, beatIndex < 0 && said < sayable]);
+
+  // The moment a beat starts, the line that calls it is on screen — and
+  // anything left unsaid from before is said, because the moment it was
+  // about has passed. Whatever else is said over this beat follows at
+  // reading pace while the ring carries on.
+  useEffect(() => {
+    if (!staging || !synced) return;
+    setSaid((n) => Math.max(n, startOf(beatIndex) + (linesOf(beatIndex) > 0 && beatIndex >= 0 ? 1 : 0)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staging, synced, beatIndex]);
+  useEffect(() => {
+    if (!staging || !synced || said >= sayable) return;
+    const handle = setTimeout(() => setSaid((n) => n + 1), said === 0 ? 150 : LINE_PACE_MS);
+    return () => clearTimeout(handle);
+  }, [staging, synced, said, sayable]);
 
   // An older match, with nothing tying a line to a beat: two tickers paced
   // to finish together, which is the best that can be done for it.
@@ -238,25 +259,14 @@ export function MatchViewerScreen({
   const titleNames = segment.titleIds.map((id) => world.titles.find((t) => t.id === id)?.name).filter(Boolean);
   const moment = beatIndex >= 0 ? moments[Math.min(beatIndex, lastBeat)] : undefined;
   const current = moment?.beat;
-  const done = synced
-    ? beatIndex > lastBeat && said >= stepLines.length
-    : beatIndex >= lastBeat && linesShown >= commentary.length;
+  const done = synced ? beatIndex > lastBeat && said >= script.length : beatIndex >= lastBeat && linesShown >= commentary.length;
 
-  // Everything said so far, in order: all of the earlier steps, and as much
-  // of this one as has been reached.
-  const heard = !staging
-    ? []
-    : synced
-      ? [
-          ...(beatIndex >= 0 ? staging.before : []),
-          ...moments.slice(0, Math.max(0, Math.min(beatIndex, moments.length))).flatMap((m) => m.lines),
-          ...stepLines.slice(0, said),
-        ]
-      : commentary.slice(0, linesShown);
+  // Everything said so far.
+  const heard = synced ? script.slice(0, said) : commentary.slice(0, linesShown);
 
   const skip = () => {
     setBeatIndex(Math.max(0, lastBeat));
-    setSaid(moments[lastBeat]?.lines.length ?? 0);
+    setSaid(startOf(lastBeat) + linesOf(lastBeat));
     setLinesShown(commentary.length);
   };
 
