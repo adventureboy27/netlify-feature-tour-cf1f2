@@ -5,6 +5,29 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Match viewer: jointed wrestlers — shipped
+
+Asked for pivot points at the shoulders, elbows, knees and waist (and whether pins and kickouts
+existed — they did, as a cover with a count, but two rigid bodies lying on each other did not read
+as one).
+
+- **`ui/match/rig.ts`** — nine joints (waist, and shoulder/elbow/hip/knee each side), their positions
+  on the two real base bodies, and 27 named stances (guard, punch, lift, carry, kick, dropkick, fly,
+  tuck, cover, kickout, tap...). Limbs are named lead/rear by which side of the opponent they are on,
+  since the art faces the camera while the action runs sideways. `hipDrop` sinks the body when the
+  knees bend so a crouch does not lift the feet off the mat.
+- **`ui/match/ArticulatedFigure.tsx`** — arms are made by showing the same composited portrait again
+  through an arm-shaped cut-out and turning it about the shoulder (and again at the elbow); legs are
+  drawn SVG with hip and knee groups. Five copies of the portrait per figure, so only the two
+  wrestlers a beat is about are jointed; partners and the battle-royal field stay as plain figures.
+- **`choreography.ts`** — each pose can name a stance; a `LIMBS` table gives every move its limb
+  work pose by pose, and anything left blank is guessed from what the body is doing (lying, airborne,
+  driving forward, reeling). A cover is now an arm hooked across, and a kickout throws the legs up.
+
+Checked by freezing moves in a harness. Known rough edges: the art is front-facing, so a punch is an
+arm swung sideways in the picture plane rather than toward the opponent in depth; and a loose coat's
+sleeve is cut square where the canvas ends at the wrist.
+
 ## Match viewer: tags, a battle royal field, and twelve more moves — shipped
 
 - **Tags.** The sim has no tag beat — it just names a different team member as the actor — so the

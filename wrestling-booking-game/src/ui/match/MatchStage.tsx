@@ -10,6 +10,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArenaBack, ArenaFront, FEET_Y, VIEW } from './Arena';
 import { FIGURE_ASPECT, MatchFigure } from './MatchFigure';
+import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
+import { STANCES, autoStance, hipDrop, type Stance } from './rig';
 import { APRON, GAP, LEAD_IN, TAG_LEAD, endPose, fromPose, isHome, tagIn, type Frame, type Pose, type StagedBeat } from './choreography';
 import type { Id, Wrestler } from '../../engine/types';
 
@@ -93,6 +95,7 @@ export function MatchStage({
   const shakeRef = useRef<HTMLDivElement>(null);
   const ropesRef = useRef<SVGGElement>(null);
   const figureRefs = useRef(new Map<Id, HTMLDivElement>());
+  const jointRefs = useRef(new Map<Id, Joints>());
   // Where the previous beat left each wrestler, so the next one can start
   // from there instead of blinking them back to their marks.
   const leftAt = useRef(new Map<Id, Pose>());
@@ -125,16 +128,45 @@ export function MatchStage({
       const base: readonly Frame[] = fighter.role === 'actor' ? choreo.actor : choreo.target;
       const frames = fighter.taggedIn ? tagIn(base, lead) : fromPose(base, leftAt.current.get(fighter.wrestler.id), lead);
       const d = dir(fighter.slot);
+      const stances: Stance[] = frames.map((frame, i) => STANCES[frame[5] ?? autoStance(frames, i)]);
+      const easing = 'cubic-bezier(0.33, 0.1, 0.4, 1)';
+      const legUnit = (FIGURE_W * u) / 100;
       running.push(
         el.animate(
-          frames.map(([at, x, y, rot, sy = 1]) => ({
-            offset: at,
-            transform: `translate(${d * x * u}px, ${-y * u}px) rotate(${d * rot}deg) scaleY(${sy})`,
-            easing: 'cubic-bezier(0.33, 0.1, 0.4, 1)',
-          })),
+          frames.map(([at, x, y, rot, sy = 1], i) => {
+            // Bent knees bring the hips down — but only for somebody
+            // standing on the mat; a body in the air or lying on it has
+            // nothing to sink toward.
+            const grounded = y < 1 && Math.abs(rot) < 45;
+            const sink = grounded ? hipDrop(stances[i]!) * legUnit : 0;
+            return {
+              offset: at,
+              transform: `translate(${d * x * u}px, ${-y * u + sink}px) rotate(${d * rot}deg) scaleY(${sy})`,
+              easing,
+            };
+          }),
           { duration, fill: 'both' },
         ),
       );
+
+      // The limbs. The lead arm and leg are the ones on the opponent's
+      // side of the picture: screen-right for whoever works from the left.
+      const joints = jointRefs.current.get(fighter.wrestler.id);
+      if (joints) {
+        const lead = d === 1 ? joints.right : joints.left;
+        const rear = d === 1 ? joints.left : joints.right;
+        const turn = (target: Element, angle: (st: Stance) => number) =>
+          running.push(target.animate(frames.map(([at], i) => ({ offset: at, transform: `rotate(${angle(stances[i]!)}deg)`, easing })), { duration, fill: 'both' }));
+        turn(joints.waist, (st) => d * st.w);
+        turn(lead.shoulder, (st) => -d * st.la[0]);
+        turn(lead.elbow, (st) => -d * st.la[1]);
+        turn(rear.shoulder, (st) => -d * st.ra[0]);
+        turn(rear.elbow, (st) => -d * st.ra[1]);
+        turn(lead.hip, (st) => -d * st.ll[0]);
+        turn(lead.knee, (st) => d * st.ll[1]);
+        turn(rear.hip, (st) => -d * st.rl[0]);
+        turn(rear.knee, (st) => d * st.rl[1]);
+      }
       next.set(fighter.wrestler.id, endPose(base));
     }
     leftAt.current = next;
@@ -230,7 +262,13 @@ export function MatchStage({
                 willChange: 'transform',
               }}
             >
-              <MatchFigure wrestler={fighter.wrestler} />
+              <ArticulatedFigure
+                wrestler={fighter.wrestler}
+                onJoints={(joints) => {
+                  if (joints) jointRefs.current.set(fighter.wrestler.id, joints);
+                  else jointRefs.current.delete(fighter.wrestler.id);
+                }}
+              />
             </div>
           ))}
 

@@ -24,8 +24,13 @@
 
 import type { FinishType, Move, MoveStyle, MoveType, Wrestler } from '../../engine/types';
 import type { PlaybackBeat } from '../../engine/sim/matchPlayback';
+import type { StanceId } from './rig';
 
-export type Frame = readonly [at: number, x: number, y: number, rot: number, sy?: number];
+/**
+ * The sixth slot names what the limbs are doing (see rig.ts). Left out, a
+ * stance is guessed from what the body as a whole is doing.
+ */
+export type Frame = readonly [at: number, x: number, y: number, rot: number, sy?: number, stance?: StanceId];
 /** Where a hit lands, in the TARGET's own frame: [time, forward, up, big?]. */
 export type Impact = readonly [at: number, x: number, y: number, big?: boolean];
 
@@ -46,7 +51,7 @@ const DOWN = 2;
 
 const STAND: Frame = [0, 0, 0, 0];
 
-const MOVES = {
+const BODIES = {
   lockup: {
     actor: [STAND, [0.2, 5.5, 0, 8], [0.4, 6.5, 0, 13], [0.55, 4.5, 0, 5], [0.7, 6.8, 0, 13], [0.85, 4, 0, 4], [1, 0, 0, 0]],
     target: [STAND, [0.2, 5.5, 0, 8], [0.4, 4.5, 0, 4], [0.55, 6.5, 0, 13], [0.7, 4.2, 0, 3], [0.85, 4, 0, 4], [1, 0, 0, 0]],
@@ -171,7 +176,7 @@ const MOVES = {
     ropes: 0.44,
   },
   moonsault: {
-    actor: [STAND, [0.15, -9, 0, 0], [0.3, -13, 8, 0], [0.42, -13, 8, 0, 0.88], [0.58, -2, 13, -180], [0.7, 8, 7, -250], [0.76, 10, 3.6, -270], [0.82, 10, 4.4, -270], [1, 10, 3.6, -270]],
+    actor: [STAND, [0.15, -9, 0, 0], [0.3, -13, 8, 0], [0.42, -13, 8, 0, 0.88], [0.58, -2, 22, -180], [0.7, 8, 12, -250], [0.76, 10, 3.6, -270], [0.82, 10, 4.4, -270], [1, 10, 3.6, -270]],
     target: [STAND, [0.1, 1, 0, -14], [0.22, 1, DOWN, -90], [0.72, 1, DOWN, -90], [0.78, 1, DOWN - 0.4, -90, 0.84], [0.87, 1, DOWN, -90], [1, 1, DOWN, -90]],
     impacts: [[0.76, -9, 2, true]],
     ropes: 0.44,
@@ -197,7 +202,57 @@ const MOVES = {
   still: { actor: [STAND, [1, 0, 0, 0]], target: [STAND, [1, 0, 0, 0]] },
 } as const satisfies Record<string, Choreo>;
 
-export type MoveId = keyof typeof MOVES;
+export type MoveId = keyof typeof BODIES;
+
+// What the limbs do, pose by pose, alongside the tables above — one word per
+// pose in the same order, "-" to leave it to rig.ts's guess. Kept apart from
+// the body tables so each can be read on its own: where the bodies go up
+// there, what the arms and legs are doing down here.
+const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
+  lockup: { actor: '- reach reach reach reach reach -', target: '- reach reach reach reach reach -' },
+  strike: { actor: '- wind punch guard -', target: '- guard stagger stagger -' },
+  flurry: { actor: '- punch guard punch wind punch guard -' },
+  hold: { actor: '- reach choke choke choke choke -', target: '- bend bend bend bend bend -' },
+  slam: { actor: '- reach lift lift bend guard -', target: '- guard fall fall flat flat flat flat' },
+  suplex: { actor: '- reach carry lift fall flat stagger -', target: '- bend hang hang fall flat flat flat flat' },
+  powerbomb: { actor: '- reach lift lift crouch guard -', target: '- bend seated seated flat flat flat flat' },
+  driver: { actor: '- reach carry carry seated seated -', target: '- bend hang hang hang hang flat flat' },
+  stunner: { actor: '- reach choke seated seated -', target: '- guard bend bend stagger fall flat flat' },
+  clothesline: { actor: '- wind clothes clothes run -', target: '- guard fall fall flat flat flat' },
+  whip: { actor: '- reach wind guard wind clothes -', target: '- guard run stagger run fall flat flat' },
+  aerial: { actor: '- run crouch crouch fly elbowUp cover cover', target: '- stagger flat flat flat flat flat' },
+  submission: { actor: '- reach choke carry choke carry choke carry choke', target: '- bend tap flat tap flat tap flat tap' },
+  elimination: { actor: '- reach lift punch -', target: '- guard fall fall fall fall flat' },
+  botch: { actor: '- run fall flat flat flat flat' },
+  blindside: { target: '- guard stagger fall flat flat' },
+  dropkick: { actor: '- crouch dropkick dropkick flat stagger -', target: '- guard stagger fall flat flat' },
+  superkick: { actor: '- wind kick guard -', target: '- guard stagger fall flat flat' },
+  headbutt: { actor: '- reach wind bend guard -', target: '- guard stagger stagger stagger -' },
+  spear: { actor: '- crouch spear spear cover cover cover', target: '- guard fall flat flat flat' },
+  elbowDrop: { actor: '- punch guard elbowUp elbowUp cover cover -', target: '- stagger flat flat flat flat flat' },
+  backBodyDrop: { actor: '- crouch lift guard -', target: '- run fly hang flat flat flat' },
+  cornerSplash: { actor: '- reach wind guard run fly guard', target: '- guard run stagger stagger bend flat' },
+  missileDropkick: { actor: '- run crouch crouch dropkick dropkick flat -', target: '- guard fall flat flat' },
+  moonsault: { actor: '- run crouch crouch tuck fly cover cover cover', target: '- stagger flat flat flat flat flat' },
+  crossbody: { actor: '- run crouch crouch fly fly cover cover', target: '- guard fall flat flat' },
+  clotheslineOver: { actor: '- wind clothes run punch -', target: '- guard fall fall fall flat' },
+  backdropOver: { actor: '- crouch lift lift -', target: '- run fly hang fall flat' },
+};
+
+function withLimbs(frames: readonly Frame[], words: string | undefined): Frame[] {
+  const list = words?.split(' ') ?? [];
+  return frames.map((frame, i) => {
+    const word = list[i];
+    return word && word !== '-' ? ([frame[0], frame[1], frame[2], frame[3], frame[4] ?? 1, word as StanceId] as Frame) : frame;
+  });
+}
+
+const MOVES = Object.fromEntries(
+  (Object.entries(BODIES) as [MoveId, Choreo][]).map(([id, move]) => [
+    id,
+    { ...move, actor: withLimbs(move.actor, LIMBS[id]?.actor), target: withLimbs(move.target, LIMBS[id]?.target) },
+  ]),
+) as unknown as Record<MoveId, Choreo>;
 
 // A named move's type narrows it to a family; which member of the family a
 // particular move is comes from its name, so "Skyfall" is always a moonsault
@@ -254,20 +309,20 @@ function withCover(base: Choreo, split: number, count: 2 | 3): Choreo {
   // The cover only reads if the target is flat on their back.
   const flat = Math.abs(normalizeRot(last[3]) + 90) < 1;
   const tx = flat ? last[1] : Math.max(0, last[1] - 2);
-  if (!flat) target.push([split + 0.07, tx, DOWN, -90]);
+  if (!flat) target.push([split + 0.07, tx, DOWN, -90, 1, 'flat']);
   // The target's feet, seen from the attacker's mark, are GAP - tx away; the
   // body lies beyond that. Dropping forward from just short of the feet lays
   // the attacker across it.
   const ax = GAP - tx - 3;
   const down = split + 0.15;
-  actor.push([split + 0.06, Math.min(ax, actor[actor.length - 1]![1] + 2), 0, 12], [down, ax, 3.6, 90]);
+  actor.push([split + 0.06, Math.min(ax, actor[actor.length - 1]![1] + 2), 0, 12, 1, 'reach'], [down, ax, 3.6, 90, 1, 'cover']);
   if (count === 3) {
-    actor.push([1, ax, 3.6, 90]);
-    target.push([1, tx, DOWN, -90]);
+    actor.push([1, ax, 3.6, 90, 1, 'cover']);
+    target.push([1, tx, DOWN, -90, 1, 'flat']);
     return { ...base, actor, target, impacts: base.impacts?.map(([at, ...r]) => [at * split, ...r] as Impact), cover: { from: down, to: 0.97, count, at: tx } };
   }
-  actor.push([0.86, ax, 3.6, 90], [0.93, ax - 4, 4, 30], [1, ax - 6, 0, 0]);
-  target.push([0.86, tx, DOWN, -90], [0.93, tx, DOWN + 1.5, -70], [1, tx, DOWN, -62]);
+  actor.push([0.86, ax, 3.6, 90, 1, 'cover'], [0.93, ax - 4, 4, 30, 1, 'stagger'], [1, ax - 6, 0, 0, 1, 'guard']);
+  target.push([0.86, tx, DOWN, -90, 1, 'flat'], [0.93, tx, DOWN + 1.5, -70, 1, 'kickout'], [1, tx, DOWN, -62, 1, 'kickout']);
   return { ...base, actor, target, impacts: base.impacts?.map(([at, ...r]) => [at * split, ...r] as Impact), cover: { from: down, to: 0.86, count, at: tx } };
 }
 
@@ -371,7 +426,7 @@ export const APRON: Pose = [-24.5, -1.8, 0];
 export function tagIn(frames: readonly Frame[], lead: number): Frame[] {
   return [
     [0, APRON[0], APRON[1], 0],
-    [lead * 0.5, APRON[0] * 0.55, 7, 14],
+    [lead * 0.5, APRON[0] * 0.55, 7, 14, 1, 'tuck'],
     [lead * 0.9, 0, 0.4, 0],
     ...frames.map(([at, ...rest]) => [lead + at * (1 - lead), ...rest] as Frame),
   ];
