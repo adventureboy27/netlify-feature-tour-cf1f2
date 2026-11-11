@@ -68,6 +68,8 @@ export function playPlan(
   unit: number,
   figureWidth: number,
   duration: number,
+  /** Extra timing, e.g. to loop. */
+  timing: KeyframeAnimationOptions = {},
 ): Animation[] {
   const running: Animation[] = [];
   const legUnit = figureWidth / 100;
@@ -83,7 +85,7 @@ export function playPlan(
     const offsets = Array.from({ length: steps + 1 }, (_, i) => i / steps);
     const channel = (values: number[]) => offsets.map(curve(times, values));
     const play = (part: Element, transforms: string[]) =>
-      running.push(part.animate(transforms.map((transform, i) => ({ offset: offsets[i]!, transform })), { duration, fill: 'both' }));
+      running.push(part.animate(transforms.map((transform, i) => ({ offset: offsets[i]!, transform })), { duration, fill: 'both', ...timing }));
 
     // Bent knees bring the hips down — but only for somebody standing on
     // the mat or the floor; a body in the air or lying down has nothing to

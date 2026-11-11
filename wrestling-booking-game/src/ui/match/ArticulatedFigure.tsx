@@ -82,6 +82,8 @@ function cuts(rig: BodyRig, side: "left" | "right") {
       [mx(pitX), pitY],
       ...rig.gap.map(([y, x]) => [mx(x), y] as const),
     ] as (readonly [number, number])[],
+    // Where the fist is, with the arm hanging: the bottom of the forearm.
+    hand: { left: `${px(mx(rig.elbow[0] - 14)).toFixed(2)}%`, top: `${py(492).toFixed(2)}%` },
     shoulder: `${px(mx(rig.shoulder[0])).toFixed(2)}% ${py(rig.shoulder[1]).toFixed(2)}%`,
     elbow: `${px(mx(rig.elbow[0])).toFixed(2)}% ${py(rig.elbow[1]).toFixed(2)}%`,
   };
@@ -89,14 +91,39 @@ function cuts(rig: BodyRig, side: "left" | "right") {
 
 const FILL = "absolute inset-0";
 
+/** A folding chair, held by a leg: drawn where the hand is, swinging with the forearm. */
+function Chair({ at }: { at: { left: string; top: string } }) {
+  return (
+    <svg
+      viewBox="0 0 60 80"
+      className="absolute"
+      style={{ left: at.left, top: at.top, width: "30%", transform: "translate(-50%, -78%)" }}
+      aria-hidden
+    >
+      <path d="M 12,4 L 48,4 L 50,34 L 10,34 Z" fill="#9aa3b2" stroke="#4b5260" strokeWidth={2} />
+      <path d="M 8,36 L 52,36 L 54,44 L 6,44 Z" fill="#7b8494" stroke="#4b5260" strokeWidth={2} />
+      <path
+        d="M 12,44 L 8,78 M 48,44 L 52,78 M 12,34 L 12,4 M 48,34 L 48,4"
+        stroke="#4b5260"
+        strokeWidth={3}
+        fill="none"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function Arm({
   look,
   cut,
   register,
+  held = false,
 }: {
   look: ComposedLook;
   cut: ReturnType<typeof cuts>;
   register: (part: "shoulder" | "elbow", el: JointEl | null) => void;
+  /** This hand has a chair in it. */
+  held?: boolean;
 }) {
   return (
     <div
@@ -115,6 +142,7 @@ function Arm({
         <div className={FILL} style={{ clipPath: cut.fore }}>
           <ComposedPortrait look={look} alt="" />
         </div>
+        {held && <Chair at={cut.hand} />}
       </div>
     </div>
   );
@@ -206,7 +234,16 @@ function Leg({
 export const ArticulatedFigure = memo(function ArticulatedFigure({
   wrestler,
   onJoints,
+  held,
+  blindfold = false,
+  bloody = false,
 }: {
+  /** Which SCREEN-side hand has a chair in it, if either. */
+  held?: 'left' | 'right';
+  /** A blindfold match: both of them wear one. */
+  blindfold?: boolean;
+  /** Busted open. */
+  bloody?: boolean;
   wrestler: Wrestler;
   /** Called with the figure's joints once they exist, and with null when it goes away. */
   onJoints: (joints: Joints | null) => void;
@@ -320,6 +357,25 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
       >
         <div className={FILL} style={{ clipPath: geometry.torso }}>
           <ComposedPortrait look={look} alt={wrestler.name} />
+          {blindfold && (
+            <div
+              className="absolute rounded-sm bg-neutral-950"
+              style={{ left: `${px(rig.cx - rig.head.halfWidth * 1.1)}%`, width: `${px(rig.cx + rig.head.halfWidth * 1.1) - px(rig.cx - rig.head.halfWidth * 1.1)}%`, top: `${py(rig.head.top + rig.head.tall * 0.4)}%`, height: `${py(rig.head.top + rig.head.tall * 0.62) - py(rig.head.top + rig.head.tall * 0.4)}%` }}
+            />
+          )}
+          {bloody && (
+            <div
+              className="absolute"
+              style={{
+                left: `${px(rig.cx + rig.head.halfWidth * 0.05)}%`,
+                width: `${px(rig.cx + rig.head.halfWidth * 0.75) - px(rig.cx + rig.head.halfWidth * 0.05)}%`,
+                top: `${py(rig.head.top + rig.head.tall * 0.16)}%`,
+                height: `${py(rig.head.top + rig.head.tall * 0.86) - py(rig.head.top + rig.head.tall * 0.16)}%`,
+                background: 'linear-gradient(to bottom, #a30d0d, #c01515 55%, rgba(170,15,15,0.55))',
+                clipPath: 'polygon(20% 0, 70% 4%, 60% 30%, 90% 48%, 62% 62%, 80% 100%, 46% 82%, 30% 100%, 34% 56%, 6% 40%, 34% 26%)',
+              }}
+            />
+          )}
           {wrestler.photoDataUrl && (
             <img
               src={wrestler.photoDataUrl}
@@ -333,11 +389,13 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
           look={look}
           cut={geometry.left}
           register={(part, el) => register(`l.${part}`)(el)}
+          held={held === "left"}
         />
         <Arm
           look={look}
           cut={geometry.right}
           register={(part, el) => register(`r.${part}`)(el)}
+          held={held === "right"}
         />
       </div>
       {/* Reserve the legs' height in the layout: they are absolutely placed. */}

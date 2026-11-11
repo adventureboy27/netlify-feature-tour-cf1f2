@@ -177,6 +177,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
     for (const f of fighters) {
       for (const [at, x, y, rot] of local(f)) {
         if (f.role === 'target' && meta.exits !== undefined && at >= meta.exits) continue;
+        if (f.role === 'actor' && meta.actorExits !== undefined && at >= meta.actorExits) continue;
         if (zone === 'ring' && y >= RING.topRope) continue;
         const [lo, hi] = span(home(f, centre) + f.dir * x, f.dir * rot);
         const wall = edgeAt(y + ground);
@@ -236,7 +237,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
     }
     for (const [at, x, y, rot, sy = 1, stance] of table) {
       const t = holds || lead === 0 ? at : lead + at * (1 - lead);
-      const leaving = f.role === 'target' && meta.exits !== undefined && at >= meta.exits;
+      const leaving = (f.role === 'target' && meta.exits !== undefined && at >= meta.exits) || (f.role === 'actor' && meta.actorExits !== undefined && at >= meta.actorExits);
       let wx = holds && f.from ? f.from.x + f.dir * (x - table[0]![1]) : h + f.dir * x;
       let wy = y + ground;
       const wrot = f.dir * rot;

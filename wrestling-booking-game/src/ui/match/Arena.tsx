@@ -92,7 +92,10 @@ export const ArenaBack = memo(function ArenaBack({
   name,
   hype,
   showName,
+  cage = false,
 }: {
+  /** A steel cage match: walls round the ring. This draws the far ones. */
+  cage?: boolean;
   accent: string;
   name: string;
   /** The crowd is on its feet — a big move just landed. */
@@ -124,6 +127,9 @@ export const ArenaBack = memo(function ArenaBack({
           <stop offset="0%" stopColor="#171a21" />
           <stop offset="100%" stopColor="#06070a" />
         </linearGradient>
+        <pattern id="mv-mesh" width="16" height="16" patternUnits="userSpaceOnUse">
+          <path d="M 0,0 L 16,16 M 16,0 L 0,16" stroke="#aeb6c4" strokeWidth={1.1} opacity={0.55} />
+        </pattern>
         <radialGradient id="mv-pool" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
@@ -191,6 +197,15 @@ export const ArenaBack = memo(function ArenaBack({
         ROPES_BACK.map((y) => <rect key={`${x}-${y}`} x={x - 9} y={y - 7} width={18} height={14} rx={4} fill={accent} />),
       )}
 
+      {cage && (
+        <g>
+          <polygon points={`${MAT.backL},150 ${MAT.backR},150 ${MAT.backR},${MAT.backY} ${MAT.backL},${MAT.backY}`} fill="url(#mv-mesh)" />
+          <polygon points={`${MAT.backL},150 ${MAT.frontL},176 ${MAT.frontL},${MAT.frontY} ${MAT.backL},${MAT.backY}`} fill="url(#mv-mesh)" />
+          <polygon points={`${MAT.backR},150 ${MAT.frontR},176 ${MAT.frontR},${MAT.frontY} ${MAT.backR},${MAT.backY}`} fill="url(#mv-mesh)" />
+          <path d={`M ${MAT.backL},150 L ${MAT.backR},150 M ${MAT.backL},150 L ${MAT.backL},${MAT.backY} M ${MAT.backR},150 L ${MAT.backR},${MAT.backY} M ${MAT.backL},150 L ${MAT.frontL},176 M ${MAT.backR},150 L ${MAT.frontR},176`} stroke="#6f7888" strokeWidth={4} fill="none" />
+        </g>
+      )}
+
       {/* Canvas and apron. */}
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="url(#mv-mat)" />
       <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={accent} strokeWidth={5} opacity={0.35} />
@@ -202,7 +217,7 @@ export const ArenaBack = memo(function ArenaBack({
 });
 
 /** The front ropes and posts — drawn over the wrestlers, who stand behind them. */
-export const ArenaFront = memo(function ArenaFront({ accent, ropesRef }: { accent: string; ropesRef: React.Ref<SVGGElement> }) {
+export const ArenaFront = memo(function ArenaFront({ accent, ropesRef, cage = false }: { accent: string; ropesRef: React.Ref<SVGGElement>; /** The near wall of a cage, between the camera and the wrestlers. */ cage?: boolean }) {
   return (
     <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
       <g ref={ropesRef}>
@@ -213,6 +228,17 @@ export const ArenaFront = memo(function ArenaFront({ accent, ropesRef }: { accen
           </g>
         ))}
       </g>
+      {cage && (
+        <g>
+          <defs>
+            <pattern id="mv-mesh-front" width="18" height="18" patternUnits="userSpaceOnUse">
+              <path d="M 0,0 L 18,18 M 18,0 L 0,18" stroke="#c3cad6" strokeWidth={1.2} opacity={0.5} />
+            </pattern>
+          </defs>
+          <rect x={MAT.frontL} y={176} width={MAT.frontR - MAT.frontL} height={MAT.frontY - 176} fill="url(#mv-mesh-front)" />
+          <rect x={MAT.frontL} y={176} width={MAT.frontR - MAT.frontL} height={MAT.frontY - 176} fill="none" stroke="#7b8494" strokeWidth={5} />
+        </g>
+      )}
       {[MAT.frontL, MAT.frontR].map((x) => (
         <g key={x}>
           <rect x={x - 7} y={286} width={14} height={MAT.frontY - 286 + 6} fill="#343944" />

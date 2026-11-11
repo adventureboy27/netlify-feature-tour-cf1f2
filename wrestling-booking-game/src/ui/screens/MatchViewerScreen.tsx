@@ -15,8 +15,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { buildPlaybackTimeline, finishCallout } from '../../engine/sim/matchPlayback';
 import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
-import { MatchStage, type Bystander, type StageFighter } from '../match/MatchStage';
+import { MatchStage, type Aftermath, type Bystander, type StageFighter } from '../match/MatchStage';
 import { stageMatch } from '../match/choreography';
+import { conductOf, STANDARD } from '../match/conduct';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, promotionTheme } from '../components/chrome';
 import { stipulationById } from '../../data/stipulations';
@@ -28,22 +29,6 @@ import type { Id, PromotionArchetype, SegmentResult, SegmentRole, Wrestler } fro
  * can be is paced by what is said over each beat — see stageMatch.
  */
 const BEAT_PACE_MS = 2000;
-// Stipulations where the fight is allowed out of the ring: nobody is being
-// counted out and nothing is a disqualification. (A cage or a ladder match
-// stays where the cage or the ladder is.)
-const FIGHTS_OUTSIDE: ReadonlySet<string> = new Set([
-  'noDQ',
-  'hardcore',
-  'streetFight',
-  'unsanctioned',
-  'tables',
-  'flamingTables',
-  'lastManStanding',
-  'arenaFloor',
-  'fallsCountAnywhere',
-  'casket',
-]);
-
 /** The gap between one line and the next when several are said in a row. */
 const LINE_PACE_MS = 1300;
 
@@ -59,8 +44,6 @@ const ARENA_ACCENT: Record<PromotionArchetype, string> = {
   oldSchool: '#78716c',
   athletic: '#059669',
 };
-/** Never show more than this many portraits on the rail — beyond it, a "+N more" chip stands in. */
-const MAX_VISIBLE = 12;
 
 /**
  * The same reduction `commentary.ts` uses for a multi-man match: the eventual
@@ -171,13 +154,11 @@ export function MatchViewerScreen({
     const sides = deriveSides(competitors, result, world.wrestlers);
     const timeline = buildPlaybackTimeline(result.beats, sides.sideA, sides.sideB, sides.winningSide);
     const byId = new Map([...sides.sideA, ...sides.sideB].map((w) => [w.id, w] as const));
-    // Whether this one may spill outside. A battle royal never does: over
-    // the top is elimination, and that is the only way anybody leaves.
-    const isBattleRoyal = segment.stipulation === 'battleRoyal' || timeline.some((b) => b.pose === 'elimination') || Math.max(sides.sideA.length, sides.sideB.length) > 4;
-    const allowOutside = !isBattleRoyal && segment.stipulation !== null && segment.stipulation !== undefined && FIGHTS_OUTSIDE.has(segment.stipulation);
-    const biggest = Math.max(sides.sideA.length, sides.sideB.length);
-    const teams = biggest >= 2 && biggest <= 4 ? [sides.sideA.map((w) => w.id), sides.sideB.map((w) => w.id)] : [];
-    return { ...sides, timeline, ...stageMatch(timeline, result.commentary ?? [], byId, result.finish, allowOutside, teams) };
+    // The rulebook for this match — stipulation, rules, and how it ended —
+    // which everything about how it is staged then obeys.
+    const conduct = conductOf(segment, result.finish, [sides.sideA.length, sides.sideB.length]);
+    const teams = conduct.tags ? [sides.sideA.map((w) => w.id), sides.sideB.map((w) => w.id)] : [];
+    return { ...sides, timeline, conduct, ...stageMatch(timeline, result.commentary ?? [], byId, result.finish, { conduct, teams }) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
@@ -235,7 +216,7 @@ export function MatchViewerScreen({
   // An older match, with nothing tying a line to a beat: two tickers paced
   // to finish together, which is the best that can be done for it.
   useEffect(() => {
-    if (!staging || synced || beatIndex >= lastBeat) return;
+    if (!staging || synced || beatIndex > lastBeat) return;
     const handle = setTimeout(() => setBeatIndex((n) => n + 1), beatIndex < 0 ? 300 : BEAT_PACE_MS);
     return () => clearTimeout(handle);
   }, [staging, synced, beatIndex, lastBeat]);
@@ -261,7 +242,10 @@ export function MatchViewerScreen({
   const titleNames = segment.titleIds.map((id) => world.titles.find((t) => t.id === id)?.name).filter(Boolean);
   const moment = beatIndex >= 0 ? moments[Math.min(beatIndex, lastBeat)] : undefined;
   const current = moment?.beat;
-  const done = synced ? beatIndex > lastBeat && said >= script.length : beatIndex >= lastBeat && linesShown >= commentary.length;
+  const done = beatIndex > lastBeat && (synced ? said >= script.length : linesShown >= commentary.length);
+  // The last beat has played: what is on screen now is how it came out.
+  const over = beatIndex > lastBeat;
+  const conduct = staging?.conduct ?? STANDARD;
 
   // Everything said so far.
   const heard = synced ? script.slice(0, said) : commentary.slice(0, linesShown);
@@ -272,11 +256,9 @@ export function MatchViewerScreen({
     setLinesShown(commentary.length);
   };
 
-  // Everyone in the match, sideA first, capped so a big battle royal doesn't
-  // spill off screen.
+  // Everyone in the match, sideA first. However many that is, they are all
+  // on screen: see FieldBrawl for how thirty people fit in a ring.
   const combined = [...sideA, ...sideB];
-  const visible = combined.slice(0, MAX_VISIBLE);
-  const overflow = combined.length - visible.length;
 
   // Whoever's at ringside for this match — present the whole way through,
   // not just when something happens to them.
@@ -297,17 +279,9 @@ export function MatchViewerScreen({
     moments.slice(0, beatIndex + 1).flatMap((m) => (m.beat.pose === 'elimination' && m.targetId ? [m.targetId] : [])),
   );
 
-  // Everyone rests on their own side — the sketch this screen was built from
-  // asked for "profile pics on the sides," and forcing a big field into a
-  // shared circle around the ring meant a spotlighted portrait (pulled in
-  // tight to the centre) could land right on top of a neighbour a few
-  // degrees away. Only whoever the current beat is actually about moves to
-  // the middle; everyone else just stands where they already were.
   // Before the bell the two who open the match are the ones standing in it.
   const onNow = moment ?? moments[0];
   const activeIds = new Set([onNow?.actorId, onNow?.targetId].filter((id): id is Id => Boolean(id)));
-  const restingA = visible.filter((w) => sideA.includes(w) && !activeIds.has(w.id));
-  const restingB = visible.filter((w) => sideB.includes(w) && !activeIds.has(w.id));
 
   // The one or two people the beat is about, placed in the ring. sideA
   // works from the left, sideB from the right; if both happen to be on the
@@ -322,12 +296,11 @@ export function MatchViewerScreen({
     const taken = actorWrestler ? slotOf(actorWrestler) : null;
     fighters.push({ wrestler: targetWrestler, role: 'target', slot: natural === taken ? (natural === 'left' ? 'right' : 'left') : natural });
   }
-  // A tag match keeps partners on the apron and tags them in; anything
-  // bigger (a battle royal, a gauntlet of bodies) puts the whole field in
-  // the ring behind the two the beat is about.
-  const biggestSide = Math.max(sideA.length, sideB.length);
-  const isTagMatch = biggestSide >= 2 && biggestSide <= 4;
-  const isFieldMatch = biggestSide > 4;
+  // The rules say who is in the ring. A tag match keeps partners on the
+  // apron and tags them in; a battle royal, a three-way, a tornado tag put
+  // everybody in at once, behind the two the beat is about.
+  const isTagMatch = conduct.tags;
+  const isFieldMatch = conduct.allIn;
   // DESIGN: the sim has no "tag" beat — it just names a different member of
   // the team as the actor. So a tag is staged whenever somebody steps in
   // for a partner who was in the ring one beat ago.
@@ -341,42 +314,29 @@ export function MatchViewerScreen({
   }
   const tagged = fighters.some((f) => f.taggedIn);
 
-  const waiting = visible.filter((w) => !activeIds.has(w.id) && !eliminated.has(w.id));
+  // A battle royal's last elimination is its finish, and whoever went out
+  // then has left the match like everybody before them.
+  const lastOut = over && conduct.finish === 'overTop' ? moments[lastBeat]?.targetId : null;
+  const departed = lastOut ? new Set([...eliminated, lastOut]) : eliminated;
+
+  const waiting = combined.filter((w) => !activeIds.has(w.id) && !departed.has(w.id));
   const bystanders: Bystander[] = isTagMatch
     ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: 'apron' as const }))
     : isFieldMatch
-      ? waiting.slice(0, 8).map((w) => ({ wrestler: w, slot: slotOf(w), place: 'ring' as const }))
+      ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: 'ring' as const }))
       : [];
-  const onStage = new Set(bystanders.map((b) => b.wrestler.id));
-  // The rails are for whoever the stage has no room for, and for the eliminated.
-  const railA = restingA.filter((w) => !onStage.has(w.id));
-  const railB = restingB.filter((w) => !onStage.has(w.id));
+
+  // How it came out. The winners leave with a belt if the match was for one
+  // and they are the ones holding it now — won tonight, or kept.
+  const winnerIds = new Set(result.winnerSide === null ? [] : result.winnerWrestlerIds);
+  const holdsIt = world.titles.some((title) => segment.titleIds.includes(title.id) && title.currentHolderIds.some((id) => winnerIds.has(id)));
+  const belt = segment.titleIds.length > 0 && winnerIds.size > 0 && (result.titleChanged || holdsIt);
+  const aftermath: Aftermath | undefined = over ? { winners: winnerIds, belt } : undefined;
+  // First blood: whoever lost is the one wearing it.
+  const bloody = conduct.finish === 'blood' && beatIndex >= lastBeat ? new Set(combined.filter((w) => !winnerIds.has(w.id)).map((w) => w.id)) : undefined;
 
   // Nothing is staged before the bell, or once the last beat has played out.
   const staged = moment && beatIndex <= lastBeat ? moment.staged : null;
-
-  /** Somebody waiting on the rail: not in this beat, or out of the match altogether. */
-  function renderRailWrestler(wrestler: Wrestler, side: 'left' | 'right') {
-    const isOut = eliminated.has(wrestler.id);
-    return (
-      <div key={wrestler.id} className={`flex flex-col items-center gap-1 ${isOut ? 'scale-75 opacity-35 grayscale' : 'opacity-90'}`}>
-        <PaperDoll
-          photoDataUrl={wrestler.photoDataUrl}
-          name={wrestler.name}
-          lookSubject={lookSubjectOf(wrestler)}
-          size="thumb"
-          flip={side === 'right'}
-        />
-        {/* `line-clamp-2` rather than a single-line `truncate` — a long ring
-            name used to hard-cut to "Diamond Sun…"; wrapping onto a second
-            line keeps the whole name readable instead of guessing at it. */}
-        <span className="flex max-w-[80px] flex-col items-center gap-0.5 rounded bg-neutral-950/80 px-1 py-0.5 text-center text-[9px] leading-tight text-neutral-300">
-          <span className="line-clamp-2 break-words">{wrestler.name}</span>
-          {isOut && <span className="text-rose-400">OUT</span>}
-        </span>
-      </div>
-    );
-  }
 
   /** One ringside manager — smaller than a competitor, present the whole way through. */
   function renderRingsideManager(manager: RingsideManager, side: 'left' | 'right') {
@@ -395,8 +355,21 @@ export function MatchViewerScreen({
     );
   }
 
-  const calloutText =
-    current?.pose === 'finish'
+  const calloutText = over
+    ? winnerIds.size === 0
+      ? 'NO WINNER'
+      : belt
+        ? result.titleChanged
+          ? winnerIds.size > 1
+            ? 'NEW CHAMPIONS!'
+            : 'NEW CHAMPION!'
+          : winnerIds.size > 1
+            ? 'STILL CHAMPIONS!'
+            : 'STILL CHAMPION!'
+        : winnerIds.size > 1
+          ? 'YOUR WINNERS!'
+          : 'YOUR WINNER!'
+    : current?.pose === 'finish'
       ? finishCallout(result.finish)
       : current?.pose === 'elimination'
         ? 'ELIMINATED!'
@@ -442,13 +415,6 @@ export function MatchViewerScreen({
 
       {/* ---- the ring, top two-thirds ------------------------------------ */}
       <Panel elevation="hero" className="relative mt-3 flex min-h-[420px] flex-[2] overflow-hidden bg-black" data-testid="match-ring">
-        {/* Two rails, not a shared circle: everyone not in the current beat
-            waits at their own side of the building, and only the two the
-            beat is about are in the ring. */}
-        <div className="flex w-[92px] shrink-0 flex-col items-center justify-center gap-2 overflow-y-auto bg-neutral-950 py-3">
-          {railA.map((wrestler) => renderRailWrestler(wrestler, 'left'))}
-        </div>
-
         <MatchStage
           beatKey={Math.min(beatIndex, lastBeat)}
           fighters={fighters}
@@ -456,19 +422,29 @@ export function MatchViewerScreen({
           accent={ARENA_ACCENT[world.promotion.identity] ?? ARENA_ACCENT.territory}
           promotionName={world.promotion.name}
           callout={calloutText}
-          pyro={current?.pose === 'environmental'}
+          pyro={!over && current?.pose === 'environmental'}
           bystanders={bystanders}
+          conduct={conduct}
+          departed={departed}
+          aftermath={aftermath}
+          bloody={bloody}
         />
-
-        <div className="flex w-[92px] shrink-0 flex-col items-center justify-center gap-2 overflow-y-auto bg-neutral-950 py-3">
-          {railB.map((wrestler) => renderRailWrestler(wrestler, 'right'))}
-        </div>
 
         {/* Who is in the ring right now — the figures themselves are busy
             being thrown around, so the names stay put down here. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-2 z-10 flex items-center justify-center gap-2 text-[11px] font-semibold">
+          {over
+            ? combined
+                .filter((w) => winnerIds.has(w.id))
+                .slice(0, 4)
+                .map((w) => (
+                  <span key={w.id} className="max-w-[220px] truncate rounded bg-amber-400 px-2 py-0.5 text-neutral-950">
+                    {w.name}
+                  </span>
+                ))
+            : null}
           {(['left', 'right'] as const).map((slot) => {
-            const fighter = fighters.find((f) => f.slot === slot);
+            const fighter = over ? undefined : fighters.find((f) => f.slot === slot);
             return fighter ? (
               <span
                 key={slot}
@@ -484,22 +460,17 @@ export function MatchViewerScreen({
             just when something happens to them. Pinned to the bottom
             corners of the arena floor rather than sharing the wrestler
             rail: this is who's *at* the show, not *in* the match. */}
-        <div className="absolute bottom-2 left-[100px] z-10 flex flex-col items-start gap-1.5">
+        <div className="absolute bottom-2 left-2 z-10 flex flex-col items-start gap-1.5">
           {ringsideManagers
             .filter((m) => m.side === 'a')
             .map((manager) => renderRingsideManager(manager, 'left'))}
         </div>
-        <div className="absolute bottom-2 right-[100px] z-10 flex flex-col items-end gap-1.5">
+        <div className="absolute bottom-2 right-2 z-10 flex flex-col items-end gap-1.5">
           {ringsideManagers
             .filter((m) => m.side === 'b')
             .map((manager) => renderRingsideManager(manager, 'right'))}
         </div>
 
-        {overflow > 0 && (
-          <span className="absolute right-[100px] top-3 z-10 rounded-full bg-neutral-900/90 px-2 py-1 text-[10px] text-neutral-400">
-            +{overflow} more in the ring
-          </span>
-        )}
       </Panel>
 
       {/* ---- commentary, bottom third ------------------------------------ */}

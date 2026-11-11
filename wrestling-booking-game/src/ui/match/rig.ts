@@ -50,6 +50,9 @@ export const STANCES = {
   kickout: s(8, [124, 22], [96, 30], [72, 12], [58, 24]),
   tap: s(0, [104, 92], [-30, 20], [6, 30], [-6, 52]),
   celebrate: s(-4, [168, 8], [-168, 8], [4, 4], [-4, 4]),
+  swingUp: s(-14, [158, 24], [140, 36], [-6, 8], [14, 16]),
+  swingDown: s(24, [70, 8], [58, 16], [22, 24], [-16, 6]),
+  climb: s(4, [150, 62], [112, 92], [52, 72], [8, 30]),
   stomp: s(-6, [30, 60], [-30, 70], [74, 94], [-6, 8]),
   knee: s(-8, [40, 90], [30, 95], [84, 98], [-8, 8]),
   kneel: s(10, [30, 60], [26, 70], [80, 98], [-12, 90]),
@@ -106,6 +109,8 @@ export interface BodyRig {
   elbow: readonly [number, number];
   /** Top of the cut that separates arm from torso. */
   shoulderTop: number;
+  /** The head: top of the crown, half its width, crown to chin. */
+  head: { top: number; halfWidth: number; tall: number };
   gap: readonly (readonly [number, number])[];
 }
 
@@ -115,6 +120,7 @@ export const BODY_RIG: Record<'m' | 'f', BodyRig> = {
     shoulder: [130, 214],
     elbow: [107, 352],
     shoulderTop: 166,
+    head: { top: 12, halfWidth: 42.5, tall: 106 },
     gap: [[304, 151], [320, 155], [336, 158.5], [360, 156.5], [392, 157.5], [424, 155], [440, 149], [456, 141.5], [472, 136], [496, 130], [520, 126]],
   },
   f: {
@@ -122,6 +128,7 @@ export const BODY_RIG: Record<'m' | 'f', BodyRig> = {
     shoulder: [142, 222],
     elbow: [121, 368],
     shoulderTop: 186,
+    head: { top: 12, halfWidth: 49.5, tall: 128 },
     gap: [[280, 162.5], [296, 156.5], [312, 155.5], [328, 158.5], [344, 166], [368, 163.5], [392, 167], [416, 163], [440, 154], [456, 147.5], [472, 141.5], [496, 136.5], [520, 133]],
   },
 };

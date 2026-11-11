@@ -12,6 +12,8 @@ import { generateWrestlers } from '../../engine/generate/wrestler';
 import { rngFromSeed } from '../../engine/rng';
 import type { PlaybackBeat } from '../../engine/sim/matchPlayback';
 import { BRAWL, DOWN, FLOOR, FRONT_FLOOR, GAP, META, MOVE_IDS, endPose, isDown, moveSaid, stageMatch, stageMove, understands, type MoveId } from './choreography';
+import { STANDARD, conductOf, type Conduct } from './conduct';
+import type { FinishType, MatchRules } from '../../engine/types';
 import { FIELD, RING, onFrontFloor, planBeat, type PlanFighter, type WorldPose } from './ringPhysics';
 
 const [alpha, bravo] = generateWrestlers(rngFromSeed('match-viewer'), 2) as [ReturnType<typeof generateWrestlers>[number], ReturnType<typeof generateWrestlers>[number]];
@@ -160,7 +162,7 @@ describe('the ring is solid', () => {
   ];
 
   // (The two moves that cross between ring and floor are checked on their own below.)
-  for (const move of MOVE_IDS.filter((id) => id !== 'tossOutside' && id !== 'rollInside')) {
+  for (const move of MOVE_IDS.filter((id) => id !== 'tossOutside' && id !== 'rollInside' && id !== 'throwOut')) {
     it(`${move}: nobody goes through the ropes or the mat`, () => {
       for (const dirs of [[1, -1], [-1, 1]] as const) {
         for (const [from, toFrom] of starts) {
@@ -173,6 +175,8 @@ describe('the ring is solid', () => {
             for (const frame of frames.slice(plan.lead > 0 ? 1 : 0)) {
               const at = plan.lead > 0 ? (frame.at - plan.lead) / (1 - plan.lead) : frame.at;
               if (id === 't' && exits !== undefined && at >= exits - 1e-6) continue;
+              const actorExits = META[move]?.actorExits;
+              if (id === 'a' && actorExits !== undefined && at >= actorExits - 1e-6) continue;
               const top = head(frame);
               const where = `${move} ${id} at ${frame.at.toFixed(2)} x=${frame.x.toFixed(1)} head=${top.x.toFixed(1)} y=${frame.y.toFixed(1)}`;
               if (frame.y < RING.topRope) {
@@ -219,7 +223,7 @@ describe('fighting outside', () => {
 
   it('goes out, works on the floor, and comes back before anything the caller has a line for', () => {
     const lines = long.map((_, i) => ({ speaker: 'play' as const, name: 'P', text: `call ${i}`, beat: i }));
-    const { moments } = stageMatch(long, lines, cast, 'cleanPin', true);
+    const { moments } = stageMatch(long, lines, cast, 'cleanPin', { conduct: { ...STANDARD, outside: true } });
     const zones = moments.map((m) => m.staged.zone ?? 'ring');
     const out = zones.indexOf('out');
     const back = zones.indexOf('in');
@@ -234,7 +238,7 @@ describe('fighting outside', () => {
   });
 
   it('puts the floor under them and the barricades either side', () => {
-    const { moments } = stageMatch(long, [], cast, 'cleanPin', true);
+    const { moments } = stageMatch(long, [], cast, 'cleanPin', { conduct: { ...STANDARD, outside: true } });
     const left = new Map<string, WorldPose>();
     let centre = 0;
     for (const m of moments) {
@@ -305,7 +309,7 @@ describe('there is always action', () => {
     const four = new Map([alpha, bravo, charlie!, delta!].map((w) => [w.id, w] as const));
     const timeline = Array.from({ length: 6 }, (_, i) => beat(i === 0 ? 'exchange' : i === 5 ? 'finish' : 'control'));
     const teams = [[alpha.id, charlie!.id], [bravo.id, delta!.id]];
-    const { moments } = stageMatch(timeline, [], four, 'cleanPin', false, teams);
+    const { moments } = stageMatch(timeline, [], four, 'cleanPin', { conduct: { ...STANDARD, tags: true }, teams });
     const attackers = new Set(moments.map((m) => m.actorId));
     // The partner gets in...
     expect(attackers.has(charlie!.id)).toBe(true);
@@ -331,5 +335,153 @@ describe('there is always action', () => {
       expect(before.filler).toBe(true);
       expect(before.staged.move).not.toBe(move);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The rulebook. Whatever the stipulation and the rules say, the staging does.
+// ---------------------------------------------------------------------------
+
+const PLAIN_RULES: MatchRules = {
+  preset: 'singles',
+  format: 'individuals',
+  ruleStrictness: 'strict',
+  aim: 'firstFall',
+  falls: 'pinsAndSubs',
+  timeLimit: 0,
+  stoppage: 'none',
+  countOuts: 'normal',
+  reward: 'none',
+  pace: 'standard' as MatchRules['pace'],
+};
+const rulebook = (stipulation: string | null, finish: FinishType = 'cleanPin', rules: Partial<MatchRules> = {}, sizes: readonly [number, number] = [1, 1]) =>
+  conductOf({ stipulation, rules: { ...PLAIN_RULES, ...rules } }, finish, sizes);
+/** A whole match under these rules, start to finish. */
+const played = (conduct: Conduct, finish: FinishType = 'cleanPin') =>
+  stageMatch([beat('exchange'), beat('control'), beat('nearFall'), beat('comeback'), beat('control'), beat('nearFall'), beat('finish')], [], cast, finish, { conduct }).moments;
+
+describe('the rules of the match are the rules of the picture', () => {
+  it('an ordinary match: pins, in the ring, no chairs', () => {
+    const conduct = rulebook(null);
+    expect(conduct).toMatchObject({ outside: false, weapons: false, cage: false, allIn: false, nearFall: 'cover', finish: 'pin' });
+    const moments = played(conduct);
+    expect(moments.every((m) => (m.staged.zone ?? 'ring') === 'ring')).toBe(true);
+    expect(moments.every((m) => m.staged.prop === undefined)).toBe(true);
+    expect(moments[moments.length - 1]!.staged.choreo.cover?.count).toBe(3);
+  });
+
+  it('a submission match never shows a pin attempt', () => {
+    const conduct = rulebook('submissionMatch', 'submission');
+    expect(conduct).toMatchObject({ nearFall: 'hold', finish: 'submission' });
+    const moments = played(conduct, 'submission');
+    expect(moments.every((m) => m.staged.choreo.cover === undefined)).toBe(true);
+    expect(moments[moments.length - 1]!.staged.move).toBe('submission');
+  });
+
+  it('last man standing is counted to ten, never pinned', () => {
+    const conduct = rulebook('lastManStanding', 'knockout');
+    expect(conduct).toMatchObject({ nearFall: 'count', finish: 'count10', weapons: true });
+    const moments = played(conduct, 'knockout');
+    const counts = moments.map((m) => m.staged.choreo.cover?.count).filter((c): c is number => c !== undefined);
+    // Near falls are counts somebody beats; the finish is the one nobody does.
+    expect(counts.every((c) => c > 3)).toBe(true);
+    expect(counts[counts.length - 1]).toBe(10);
+    // Nobody is lying across anybody: the attacker is on their feet for every count.
+    for (const m of moments.filter((x) => x.staged.choreo.cover)) expect(isDown(endPose(m.staged.choreo.actor))).toBe(false);
+  });
+
+  it('a battle royal ends over the top rope, with nobody pinned and nobody on the floor by choice', () => {
+    const conduct = rulebook('battleRoyal', 'cleanPin', { preset: 'battleRoyal' }, [1, 19]);
+    expect(conduct).toMatchObject({ allIn: true, tags: false, outside: false, overTheTop: true, nearFall: 'teeter', elimination: 'overTop', finish: 'overTop' });
+    const moments = stageMatch([beat('exchange'), beat('elimination'), beat('nearFall'), beat('elimination'), beat('finish')], [], cast, 'cleanPin', { conduct }).moments;
+    expect(moments.every((m) => m.staged.choreo.cover === undefined)).toBe(true);
+    expect(moments.every((m) => (m.staged.zone ?? 'ring') === 'ring')).toBe(true);
+    for (const m of moments.filter((x) => x.beat.pose === 'elimination' || x.beat.pose === 'finish')) expect(m.staged.meta.exits, m.staged.move).toBeDefined();
+    // And nothing else puts anybody out.
+    for (const m of moments.filter((x) => x.beat.pose !== 'elimination' && x.beat.pose !== 'finish')) expect(m.staged.meta.exits, m.staged.move).toBeUndefined();
+  });
+
+  it('an elimination that is not a battle royal is a pinfall, not a throw', () => {
+    const conduct = rulebook(null, 'cleanPin', { preset: 'sixMan', format: 'elimination' }, [3, 3]);
+    expect(conduct).toMatchObject({ tags: true, elimination: 'fall' });
+    const moments = stageMatch([beat('exchange'), beat('elimination'), beat('finish')], [], cast, 'cleanPin', { conduct }).moments;
+    const out = moments.find((m) => m.beat.pose === 'elimination')!;
+    expect(out.staged.meta.exits).toBeUndefined();
+    expect(out.staged.choreo.cover?.count).toBe(3);
+  });
+
+  it('a cage match stays in the cage, and an escape goes over the wall', () => {
+    const conduct = rulebook('steelCage', 'escape');
+    expect(conduct).toMatchObject({ cage: true, outside: false, finish: 'escape' });
+    const moments = played(conduct, 'escape');
+    expect(moments.slice(0, -1).every((m) => (m.staged.zone ?? 'ring') === 'ring')).toBe(true);
+    const last = moments[moments.length - 1]!;
+    expect(last.staged.move).toBe('escapeCage');
+    // It is the winner who ends up outside, on their feet; the loser is on the mat.
+    const plan = planBeat(last.staged, [fighter('a', 'actor', 1), fighter('t', 'target', -1)], 0);
+    expect(Math.abs(plan.end.get('a')!.x)).toBeGreaterThan(RING.half);
+    expect(plan.end.get('a')!.y).toBeCloseTo(FLOOR, 1);
+    expect(Math.abs(plan.end.get('t')!.x)).toBeLessThan(RING.half);
+  });
+
+  it('chairs only where there are no disqualifications', () => {
+    for (const stipulation of ['noDQ', 'hardcore', 'streetFight', 'unsanctioned']) {
+      const conduct = rulebook(stipulation);
+      expect(conduct.weapons, stipulation).toBe(true);
+      expect(conduct.outside, stipulation).toBe(true);
+    }
+    const long = Array.from({ length: 9 }, (_, i) => beat(i === 0 ? 'exchange' : i === 8 ? 'finish' : 'control'));
+    const armed = stageMatch(long, [], cast, 'cleanPin', { conduct: rulebook('hardcore') }).moments;
+    expect(armed.some((m) => m.staged.prop === 'chair')).toBe(true);
+    const clean = stageMatch(long, [], cast, 'cleanPin', { conduct: rulebook(null) }).moments;
+    expect(clean.some((m) => m.staged.prop === 'chair')).toBe(false);
+  });
+
+  it("a disqualification is the loser's doing", () => {
+    const conduct = rulebook(null, 'disqualification');
+    expect(conduct.finish).toBe('dq');
+    const moments = played(conduct, 'disqualification');
+    const last = moments[moments.length - 1]!;
+    // The beat was recorded as alpha beating bravo; what is shown is bravo
+    // swinging the chair that got them thrown out.
+    expect(last.actorId).toBe(bravo.id);
+    expect(last.targetId).toBe(alpha.id);
+    expect(last.staged.prop).toBe('chair');
+  });
+
+  it('each stipulation ends the way that stipulation ends', () => {
+    const endings: [string | null, FinishType, Partial<MatchRules>, Conduct['finish'], string][] = [
+      ['ladder', 'cleanPin', {}, 'climb', 'climbLadder'],
+      ['tables', 'knockout', {}, 'table', 'powerbomb'],
+      ['flamingTables', 'knockout', {}, 'flamingTable', 'powerbomb'],
+      ['casket', 'knockout', {}, 'casket', 'tossOutside'],
+      [null, 'countOut', {}, 'countOut', 'throwOut'],
+      [null, 'doubleKO', {}, 'doubleKO', 'doubleDown'],
+      [null, 'timeLimitDraw', {}, 'draw', 'lockup'],
+      [null, 'knockout', { aim: 'firstBlood' }, 'blood', 'headbutt'],
+    ];
+    for (const [stipulation, finish, rules, want, move] of endings) {
+      const conduct = rulebook(stipulation, finish, rules);
+      expect(conduct.finish, String(stipulation ?? finish)).toBe(want);
+      const last = played(conduct, finish).pop()!;
+      expect(last.staged.move, String(stipulation ?? finish)).toBe(move);
+    }
+    expect(played(rulebook('ladder')).pop()!.staged.scene).toBe('ladder');
+    expect(played(rulebook('tables', 'knockout'), 'knockout').pop()!.staged.scene).toBe('table');
+    expect(played(rulebook('casket', 'knockout'), 'knockout').pop()!.staged.scene).toBe('casket');
+    // A count-out: the loser is on the floor being counted, the winner never left.
+    const countOut = played(rulebook(null, 'countOut'), 'countOut').pop()!;
+    expect(countOut.staged.choreo.cover?.count).toBe(10);
+    const plan = planBeat(countOut.staged, [fighter('a', 'actor', 1), fighter('t', 'target', -1)], 0);
+    expect(onFrontFloor(plan.end.get('t')!)).toBe(true);
+    expect(onFrontFloor(plan.end.get('a')!)).toBe(false);
+  });
+
+  it("who is in the ring at once is the match type's business", () => {
+    expect(rulebook(null, 'cleanPin', { preset: 'tag', format: 'teams' }, [2, 2])).toMatchObject({ tags: true, allIn: false });
+    expect(rulebook(null, 'cleanPin', { preset: 'tornado', format: 'teams' }, [2, 2])).toMatchObject({ tags: false, allIn: true });
+    expect(rulebook(null, 'cleanPin', { preset: 'triple' }, [1, 2])).toMatchObject({ tags: false, allIn: true });
+    expect(rulebook(null, 'cleanPin', { preset: 'fatal4' }, [1, 3])).toMatchObject({ tags: false, allIn: true });
+    expect(rulebook(null)).toMatchObject({ tags: false, allIn: false });
   });
 });

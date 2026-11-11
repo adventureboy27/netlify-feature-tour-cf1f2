@@ -6195,3 +6195,27 @@ overstate it).
   playthrough (form a same-gender trio, stage a turn, book the departing member, run the show, answer
   "Let it happen" through the actual `DialogueCard`) confirmed all three participants now show on Office →
   Feuds as "1 current — just started."
+
+## Match viewer — the rules of the match are the rules of the picture
+
+The viewer staged every match as a standard singles bout whatever was booked. Now a `Conduct` is derived
+from the segment (`ui/match/conduct.ts`: stipulation `impliedRules`, finish type, side sizes) and the
+staging obeys it. UI only — the engine, its RNG stream and every result are untouched.
+
+- **As many wrestlers as the match dictates.** `FieldBrawl` has no cap: rows of four pairs, scale shrinking
+  per row, jointed figures up to ten and rigid ones beyond (22 in the ring held 60fps headless).
+- **Endings.** Winners stand with arms up; if a title was won or retained they hold the belt (one each for
+  a team). Everyone else left in the match lies down. Callouts: YOUR WINNER / NEW CHAMPION / STILL
+  CHAMPION / NO WINNER.
+- **Eliminations.** An eliminated wrestler walks off screen and is never drawn again.
+- **Heights.** `heightIn` was always stored; figures now scale with it (`heightScale`, clamped .88–1.15).
+- **Stipulations.** Over-the-top eliminations and no floor fighting in a battle royal; tags only in tag
+  matches; outside brawling and chair shots only where weapons/no-DQ allow; cage mesh with an escape
+  finish; ladder climb; table and flaming-table finishes; casket; last-man-standing ten count; count-out,
+  DQ, draw and double-KO finishes; blindfolds; blood for first-blood.
+- Known gaps: iron man / two-of-three falls show one fall; no pinfalls on the floor in falls-count-anywhere;
+  no referee figure; gauntlets play as consecutive singles beats without a dedicated entrance.
+- Files: `ui/match/{conduct,choreography,ringPhysics,playback,rig,ArticulatedFigure,MatchFigure,MatchStage,
+  FieldBrawl,Arena}`, `match.css`, `ui/screens/MatchViewerScreen.tsx`.
+- Tests: `match.test.ts` 76 (new "rules of the match" block). Verified: `tsc` clean; 206 files / 3,493
+  tests; `npm run build` clean; headless render of each ending and prop with no page errors.

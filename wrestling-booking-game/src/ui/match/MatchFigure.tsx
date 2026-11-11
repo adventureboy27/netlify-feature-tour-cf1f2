@@ -10,6 +10,14 @@ import { assignLook, lookSubjectOf } from '../paperdoll/assignLook';
 import { ComposedPortrait } from '../paperdoll/ComposedPortrait';
 import type { Wrestler } from '../../engine/types';
 
+/**
+ * How big to draw somebody, from their recorded height: six foot is 1, and
+ * the roster's range (five foot to seven) runs from a little under 0.9 to a
+ * little over 1.1. Enough that a giant looks like one next to a cruiserweight,
+ * not so much that the moves — written for one size of body — stop meeting.
+ */
+export const heightScale = (wrestler: Pick<Wrestler, 'heightIn'>) => Math.min(1.15, Math.max(0.88, 1 + (wrestler.heightIn - 72) * 0.012));
+
 /** Figure height as a multiple of its width: a square portrait plus the legs. */
 export const FIGURE_ASPECT = 1.81;
 
