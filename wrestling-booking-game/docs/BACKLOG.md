@@ -5,6 +5,31 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Match viewer: an arena, full-body wrestlers, and real move choreography — shipped
+
+Asked to make the match part look better: a better ring and background, and animations that
+actually portray wrestling moves. The old viewer was three nested rounded rectangles for a ring and
+two waist-up portraits that jostled, slid and spun.
+
+New in `ui/match/`:
+- **`Arena.tsx`** — an SVG arena in two layers (behind and in front of the wrestlers): lighting rig
+  with drifting beams, four rows of crowd that bob and jump on a big move, camera flashes, barricade,
+  a big screen, and a hard-camera ring with a canvas, posts, three ropes a side, turnbuckle pads and
+  an apron in the promotion's own colour and name.
+- **`MatchFigure.tsx`** — the composited portrait stood on drawn legs (trunks, kneepads, boots) in
+  the wrestler's own skin tone and gear colour, so there is a whole body to throw.
+- **`choreography.ts`** — 16 moves as pose tables (lock-up, strike, flurry, hold, slam, suplex,
+  powerbomb, piledriver, stunner, clothesline, Irish whip, top-rope dive, submission, over-the-top
+  elimination, botch, blindside), chosen from the beat's pose and the attacker's real move type and
+  style. `withCover` chains any of them into a pin with a 2-count kickout or a 3-count finish.
+- **`MatchStage.tsx`** — plays them with the Web Animations API, carries each wrestler's end pose
+  into the next beat (somebody left on the mat gets up, rather than blinking upright), and times the
+  impact burst, mat shockwave, camera shake, rope wobble and crowd pop to the frame the move lands.
+
+Figures are rigid — no bending elbows or knees; a move is told by where the two bodies go. Beat pace
+went from 1.4s to 1.9s so a move has time to be set up and land. Nothing here touches the sim.
+Checked by freezing every move at four points in a harness and in real played matches.
+
 ## Portraits: patterned tops, and top colors that cannot pass for skin — shipped
 
 - `CLOTH_COLORS`: tops no longer draw gold or orange at all, gain six fabric colors, and the

@@ -1,7 +1,9 @@
-// Watch a decided match back — the sketch was two commentators trading live
-// lines in a chat feed along the bottom third, and a ring up top where
-// portraits hold poses (never animating their own shape) that get moved,
-// rotated, and collided to mimic what happened, with comic-style callouts.
+// Watch a decided match back — two commentators trading live lines in a chat
+// feed along the bottom third, and up top an arena with a ring in it, where
+// the two wrestlers a beat is about act it out as full-body figures (see
+// ui/match/: Arena for the building, MatchFigure for the bodies,
+// choreography.ts for what a suplex actually looks like). Everyone else in
+// the match waits on a rail at their own side of the ring.
 //
 // Nothing here decides anything. `world.showHistory` already has the result;
 // this only stages it. See `engine/sim/matchPlayback.ts` for the beat-to-pose
@@ -11,15 +13,34 @@
 
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../../state/store';
-import { buildPlaybackTimeline, finishCallout, type PlaybackBeat } from '../../engine/sim/matchPlayback';
-import { PaperDoll, lookSubjectOf, type PaperDollSize } from '../paperdoll/PaperDoll';
+import { buildPlaybackTimeline, finishCallout } from '../../engine/sim/matchPlayback';
+import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
+import { MatchStage, type StageFighter } from '../match/MatchStage';
+import { stageBeat } from '../match/choreography';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, promotionTheme } from '../components/chrome';
 import { stipulationById } from '../../data/stipulations';
-import type { Id, SegmentResult, SegmentRole, Wrestler } from '../../engine/types';
+import type { Id, PromotionArchetype, SegmentResult, SegmentRole, Wrestler } from '../../engine/types';
 
-/** How long one beat's pose holds before the next one plays. */
-const BEAT_PACE_MS = 1400;
+/**
+ * How long one beat holds before the next one plays. Long enough for a move
+ * to be set up, land, and be seen to have landed (choreography.ts runs most
+ * of them at 1.7s).
+ */
+const BEAT_PACE_MS = 1900;
+
+// The ring's apron, turnbuckle pads and big screen, in the house colour —
+// the same hues chrome.tsx's promotionTheme uses for buttons, as plain hex
+// because an SVG fill cannot take a Tailwind class.
+const ARENA_ACCENT: Record<PromotionArchetype, string> = {
+  territory: '#d97706',
+  hardcore: '#b91c1c',
+  technical: '#0369a1',
+  sportsEntertainment: '#a21caf',
+  lucha: '#ea580c',
+  oldSchool: '#78716c',
+  athletic: '#059669',
+};
 /** Never show more than this many portraits on the rail — beyond it, a "+N more" chip stands in. */
 const MAX_VISIBLE = 12;
 
@@ -102,20 +123,6 @@ function resolveRingsideManagers(
   return out;
 }
 
-const ANIM: Record<PlaybackBeat['pose'], { actor: string; target: string }> = {
-  exchange: { actor: 'animate-ring-jostle', target: 'animate-ring-jostle' },
-  whip: { actor: 'animate-ring-strike', target: 'animate-ring-whip' },
-  control: { actor: 'animate-ring-strike', target: 'animate-ring-strike' },
-  comeback: { actor: 'animate-ring-surge', target: 'animate-ring-strike' },
-  nearFall: { actor: 'animate-ring-surge', target: 'animate-ring-knockdown' },
-  signature: { actor: 'animate-ring-surge', target: 'animate-ring-slam' },
-  interference: { actor: 'animate-ring-strike', target: 'animate-ring-strike' },
-  botch: { actor: 'animate-ring-jostle', target: '' },
-  environmental: { actor: '', target: '' },
-  elimination: { actor: 'animate-ring-surge', target: 'animate-ring-eliminated' },
-  finish: { actor: 'animate-ring-surge', target: 'animate-ring-slam' },
-};
-
 export function MatchViewerScreen({
   matchWeek,
   matchSlot,
@@ -193,8 +200,6 @@ export function MatchViewerScreen({
   );
   const interferingManager =
     current?.pose === 'interference' ? ringsideManagers.find((m) => m.id === current.actorId) : undefined;
-  // A beat with real impact rattles the camera, not just the person in it.
-  const bigBeat = current && (current.pose === 'signature' || current.pose === 'finish' || Boolean(interferingManager));
 
   // Every elimination beat played so far, tallied fresh each render rather
   // than tracked as its own state — `timeline`/`beatIndex` already say
@@ -211,58 +216,40 @@ export function MatchViewerScreen({
   // degrees away. Only whoever the current beat is actually about moves to
   // the middle; everyone else just stands where they already were.
   const activeIds = new Set([current?.actorId, current?.targetId].filter((id): id is Id => Boolean(id)));
-  // `combined` is sideA-first, so this preserves that order — sideA's active
-  // member (if any) always renders left-of-centre, sideB's right-of-centre.
-  const activeWrestlers = combined.filter((w) => activeIds.has(w.id));
   const restingA = visible.filter((w) => sideA.includes(w) && !activeIds.has(w.id));
   const restingB = visible.filter((w) => sideB.includes(w) && !activeIds.has(w.id));
 
-  /**
-   * One portrait, wherever it's currently rendering — a rail or centre
-   * stage. `size` does the emphasis (bust on the rail, large centre-stage)
-   * instead of a CSS scale, so it never fights the pose animation below for
-   * control of `transform`.
-   */
-  function renderRingWrestler(wrestler: Wrestler, side: 'left' | 'right') {
-    const isActor = current?.actorId === wrestler.id;
-    const isTarget = current?.targetId === wrestler.id;
-    const spotlighted = isActor || isTarget;
-    // Eliminated, and this isn't the beat that just eliminated them — stay
-    // on the rail, visibly out of it, rather than standing there
-    // indistinguishable from someone still in the match.
-    const isOut = eliminated.has(wrestler.id) && !spotlighted;
-    const animClass = isActor ? ANIM[current!.pose].actor : isTarget ? ANIM[current!.pose].target : '';
-    const size: PaperDollSize = spotlighted ? 'large' : 'bust';
+  // The one or two people the beat is about, placed in the ring. sideA
+  // works from the left, sideB from the right; if both happen to be on the
+  // same side (a partner turning on a partner), the target takes the other mark.
+  const actorWrestler = combined.find((w) => w.id === current?.actorId);
+  const targetWrestler = combined.find((w) => w.id === current?.targetId && w.id !== current?.actorId);
+  const slotOf = (w: Wrestler): 'left' | 'right' => (sideA.includes(w) ? 'left' : 'right');
+  const fighters: StageFighter[] = [];
+  if (actorWrestler) fighters.push({ wrestler: actorWrestler, role: 'actor', slot: slotOf(actorWrestler) });
+  if (targetWrestler) {
+    const natural = slotOf(targetWrestler);
+    const taken = actorWrestler ? slotOf(actorWrestler) : null;
+    fighters.push({ wrestler: targetWrestler, role: 'target', slot: natural === taken ? (natural === 'left' ? 'right' : 'left') : natural });
+  }
+  const staged = current ? stageBeat(current, beatIndex, actorWrestler, Boolean(actorWrestler), result.finish) : null;
 
+  /** Somebody waiting on the rail: not in this beat, or out of the match altogether. */
+  function renderRailWrestler(wrestler: Wrestler, side: 'left' | 'right') {
+    const isOut = eliminated.has(wrestler.id);
     return (
-      <div
-        key={wrestler.id}
-        className={`flex flex-col items-center gap-1 ${
-          spotlighted ? 'z-10' : isOut ? 'scale-75 opacity-35 grayscale' : 'opacity-80'
-        }`}
-      >
-        {/* Remounted every beat (`key`) so a one-shot pose animation replays
-            from its start each time, instead of the browser treating a
-            repeated class as already-applied. `animClass` lives on its own
-            inner wrapper around just the portrait — several poses
-            (ring-slam, ring-eliminated) rotate all the way to upside down,
-            and the name tag below needs to stay put and readable rather
-            than flipping with it. */}
-        <div key={beatIndex} className={animClass}>
-          <PaperDoll
-            photoDataUrl={wrestler.photoDataUrl}
-            name={wrestler.name}
-            lookSubject={lookSubjectOf(wrestler)}
-            size={size}
-            flip={side === 'left' ? false : true}
-          />
-        </div>
+      <div key={wrestler.id} className={`flex flex-col items-center gap-1 ${isOut ? 'scale-75 opacity-35 grayscale' : 'opacity-90'}`}>
+        <PaperDoll
+          photoDataUrl={wrestler.photoDataUrl}
+          name={wrestler.name}
+          lookSubject={lookSubjectOf(wrestler)}
+          size="thumb"
+          flip={side === 'right'}
+        />
         {/* `line-clamp-2` rather than a single-line `truncate` — a long ring
             name used to hard-cut to "Diamond Sun…"; wrapping onto a second
             line keeps the whole name readable instead of guessing at it. */}
-        <span
-          className={`flex ${spotlighted ? 'max-w-[110px]' : 'max-w-[80px]'} flex-col items-center gap-0.5 rounded bg-neutral-950/80 px-1 py-0.5 text-center text-[9px] leading-tight text-neutral-300`}
-        >
+        <span className="flex max-w-[80px] flex-col items-center gap-0.5 rounded bg-neutral-950/80 px-1 py-0.5 text-center text-[9px] leading-tight text-neutral-300">
           <span className="line-clamp-2 break-words">{wrestler.name}</span>
           {isOut && <span className="text-rose-400">OUT</span>}
         </span>
@@ -293,7 +280,7 @@ export function MatchViewerScreen({
       : current?.pose === 'elimination'
         ? 'ELIMINATED!'
         : current?.pose === 'nearFall'
-          ? '1... 2...'
+          ? 'NEAR FALL!'
           : interferingManager
             ? 'INTERFERENCE!'
             : current?.moveName
@@ -331,111 +318,64 @@ export function MatchViewerScreen({
       />
 
       {/* ---- the ring, top two-thirds ------------------------------------ */}
-      <Panel
-        elevation="hero"
-        className="relative mt-3 flex-[2] overflow-hidden"
-        style={{ background: 'radial-gradient(ellipse at 50% 42%, rgba(255,255,255,0.05), transparent 60%)' }}
-        data-testid="match-ring"
-      >
-        <div
-          key={`shake-${beatIndex}`}
-          className={`relative h-full min-h-[420px] w-full ${bigBeat ? 'animate-ring-shake' : ''}`}
-        >
-          {/* The ring itself — a mat, three rope lines, and four corner
-              turnbuckles, tinted to the promotion's own colour so it doesn't
-              feel like a placeholder. Sized generously now that nobody has to
-              orbit it — see the rail/centre-stage split below. */}
-          <div
-            className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-            style={{ width: 380, height: 380 }}
-          >
-            <div className="absolute inset-6 rounded-xl bg-gradient-to-b from-neutral-800/50 to-neutral-950/70" />
-            <div className={`absolute inset-0 rounded-2xl border-2 ${theme.edge} opacity-60`} />
-            <div className={`absolute inset-3 rounded-2xl border-2 ${theme.edge} opacity-40`} />
-            <div className={`absolute inset-6 rounded-2xl border-2 ${theme.edge} opacity-25`} />
-            {[
-              'left-0 top-0 -translate-x-1/2 -translate-y-1/2',
-              'right-0 top-0 translate-x-1/2 -translate-y-1/2',
-              'left-0 bottom-0 -translate-x-1/2 translate-y-1/2',
-              'right-0 bottom-0 translate-x-1/2 translate-y-1/2',
-            ].map((pos) => (
-              <div key={pos} className={`absolute h-3 w-3 rounded-sm ${theme.action} ${pos}`} />
-            ))}
-          </div>
-
-          {/* Two rails, not a shared circle. A big field crowding a single
-              orbit around the ring meant a spotlighted portrait — pulled in
-              tight to the centre — could land right on top of a neighbour a
-              few degrees away, and it only got worse the more entrants a
-              battle royal had. Now only whoever the current beat is actually
-              about ever leaves their side, and everyone else just stands
-              still — closer to the original sketch's "profile pics on the
-              sides" than the circle ever was. */}
-          <div className="absolute inset-y-0 left-2 flex max-w-[90px] flex-col items-center justify-center gap-2 overflow-y-auto py-3">
-            {restingA.map((wrestler) => renderRingWrestler(wrestler, 'left'))}
-          </div>
-          <div className="absolute inset-y-0 right-2 flex max-w-[90px] flex-col items-center justify-center gap-2 overflow-y-auto py-3">
-            {restingB.map((wrestler) => renderRingWrestler(wrestler, 'right'))}
-          </div>
-
-          {/* Ringside — anyone attending, present for the whole match, not
-              just when something happens to them. Pinned to the bottom
-              corners rather than sharing the wrestler rail: this is who's
-              *at* the show, not *in* the match. */}
-          <div className="absolute bottom-2 left-2 flex flex-col items-start gap-1.5">
-            {ringsideManagers
-              .filter((m) => m.side === 'a')
-              .map((manager) => renderRingsideManager(manager, 'left'))}
-          </div>
-          <div className="absolute bottom-2 right-2 flex flex-col items-end gap-1.5">
-            {ringsideManagers
-              .filter((m) => m.side === 'b')
-              .map((manager) => renderRingsideManager(manager, 'right'))}
-          </div>
-
-          {/* Centre stage — whoever the beat is about, dead centre over the
-              ring regardless of how wide the panel actually is (a fixed
-              pixel offset from either rail would guess wrong on a narrow
-              window and undershoot on a wide one). */}
-          <div className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-10">
-            {activeWrestlers.map((wrestler) => renderRingWrestler(wrestler, sideA.includes(wrestler) ? 'left' : 'right'))}
-          </div>
-
-          {overflow > 0 && (
-            <span className="absolute right-3 top-3 rounded-full bg-neutral-900/90 px-2 py-1 text-[10px] text-neutral-400">
-              +{overflow} more in the ring
-            </span>
-          )}
-
-          {/* The comic-book callout — a move name, a count, or the finish
-              word. Pinned to a strip along the top rather than the panel's
-              dead centre: that's exactly where the active pair now stands,
-              so a centred callout would land squarely on top of whoever the
-              beat was about, covering the exact portrait it was meant to
-              punctuate. */}
-          {calloutText && (
-            <div
-              key={`callout-${beatIndex}`}
-              className="pointer-events-none absolute inset-x-0 top-4 flex justify-center px-4"
-            >
-              <span
-                className="animate-callout-pop select-none rounded bg-neutral-950/40 px-2 text-3xl font-black uppercase tracking-wide text-amber-300"
-                style={{ textShadow: '3px 3px 0 rgba(0,0,0,0.6), -1px -1px 0 rgba(255,255,255,0.15)' }}
-              >
-                {calloutText}
-              </span>
-            </div>
-          )}
-          {current && (current.pose === 'signature' || current.pose === 'finish') && (
-            <div
-              key={`bam-${beatIndex}`}
-              className="pointer-events-none absolute left-1/4 top-1/4 animate-callout-pop select-none text-xl font-black text-rose-400"
-              style={{ textShadow: '2px 2px 0 rgba(0,0,0,0.6)' }}
-            >
-              BAM!
-            </div>
-          )}
+      <Panel elevation="hero" className="relative mt-3 flex min-h-[420px] flex-[2] overflow-hidden bg-black" data-testid="match-ring">
+        {/* Two rails, not a shared circle: everyone not in the current beat
+            waits at their own side of the building, and only the two the
+            beat is about are in the ring. */}
+        <div className="flex w-[92px] shrink-0 flex-col items-center justify-center gap-2 overflow-y-auto bg-neutral-950 py-3">
+          {restingA.map((wrestler) => renderRailWrestler(wrestler, 'left'))}
         </div>
+
+        <MatchStage
+          beatKey={beatIndex}
+          fighters={fighters}
+          staged={staged}
+          accent={ARENA_ACCENT[world.promotion.identity] ?? ARENA_ACCENT.territory}
+          promotionName={world.promotion.name}
+          callout={calloutText}
+          pyro={current?.pose === 'environmental'}
+        />
+
+        <div className="flex w-[92px] shrink-0 flex-col items-center justify-center gap-2 overflow-y-auto bg-neutral-950 py-3">
+          {restingB.map((wrestler) => renderRailWrestler(wrestler, 'right'))}
+        </div>
+
+        {/* Who is in the ring right now — the figures themselves are busy
+            being thrown around, so the names stay put down here. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-2 z-10 flex items-center justify-center gap-2 text-[11px] font-semibold">
+          {(['left', 'right'] as const).map((slot) => {
+            const fighter = fighters.find((f) => f.slot === slot);
+            return fighter ? (
+              <span
+                key={slot}
+                className={`max-w-[220px] truncate rounded px-2 py-0.5 ${fighter.role === 'actor' ? 'bg-amber-400 text-neutral-950' : 'bg-neutral-950/85 text-neutral-200'}`}
+              >
+                {fighter.wrestler.name}
+              </span>
+            ) : null;
+          })}
+        </div>
+
+        {/* Ringside — anyone attending, present for the whole match, not
+            just when something happens to them. Pinned to the bottom
+            corners of the arena floor rather than sharing the wrestler
+            rail: this is who's *at* the show, not *in* the match. */}
+        <div className="absolute bottom-2 left-[100px] z-10 flex flex-col items-start gap-1.5">
+          {ringsideManagers
+            .filter((m) => m.side === 'a')
+            .map((manager) => renderRingsideManager(manager, 'left'))}
+        </div>
+        <div className="absolute bottom-2 right-[100px] z-10 flex flex-col items-end gap-1.5">
+          {ringsideManagers
+            .filter((m) => m.side === 'b')
+            .map((manager) => renderRingsideManager(manager, 'right'))}
+        </div>
+
+        {overflow > 0 && (
+          <span className="absolute right-[100px] top-3 z-10 rounded-full bg-neutral-900/90 px-2 py-1 text-[10px] text-neutral-400">
+            +{overflow} more in the ring
+          </span>
+        )}
       </Panel>
 
       {/* ---- commentary, bottom third ------------------------------------ */}
