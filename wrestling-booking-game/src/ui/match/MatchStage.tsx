@@ -526,10 +526,11 @@ export function MatchStage({
               return (
                 <span
                   key={`${beatKey}-count-${i}`}
-                  className="mv-count mv-action pointer-events-none absolute"
-                  style={{ left: sx(midBody(targetEnd).x), top: sy(targetEnd.y + 17), fontSize: (cover.count > 3 ? 8 : 11) * u, animationDelay: `${when(at)}ms`, zIndex: 11 }}
+                  className="mv-count mv-action pointer-events-none absolute whitespace-nowrap"
+                  style={{ left: sx(midBody(targetEnd).x), top: sy(targetEnd.y + 17), fontSize: (cover.count > 3 ? 6.5 : 8.5) * u, animationDelay: `${when(at)}ms`, animationDuration: `${i === cover.count - 1 ? 900 : Math.round(((cover.to - cover.from) / cover.count) * duration * 0.96)}ms`, zIndex: 11 }}
                 >
-                  {i + 1}!
+                  {/* Called the way it is counted: "1...", "...2...", "...3!" — the bang only on a count that finishes. */}
+                  {i === 0 ? `${i + 1}...` : i === cover.count - 1 && (cover.count === 3 || cover.count === 10) ? `...${i + 1}!` : `...${i + 1}...`}
                 </span>
               );
             })}
