@@ -126,31 +126,114 @@ const MOVES = {
     target: [STAND, [0.4, 0, 0, 0], [0.5, 3, 0, 26], [0.7, 5, 1, 55], [0.85, 5, DOWN, 90], [1, 5, DOWN, 90]],
     impacts: [[0.45, -2, 12, true]],
   },
+  dropkick: {
+    actor: [STAND, [0.2, 3, 0, -10], [0.42, 7, 7, -80], [0.5, 8, 7, -86], [0.7, 6, DOWN, -90], [0.85, 6, DOWN, -55], [1, 5, 0, 0]],
+    target: [STAND, [0.45, 0, 0, 0], [0.52, 0, 1, -30], [0.62, 0, 3, -80], [0.7, 0, DOWN, -90, 0.92], [1, 0, DOWN, -90]],
+    impacts: [[0.46, 2, 13, true]],
+  },
+  superkick: {
+    actor: [STAND, [0.25, 5, 0, -25], [0.4, 7, 0, -36], [0.55, 6, 0, -10], [1, 2, 0, 0]],
+    target: [STAND, [0.4, 0, 0, 0], [0.5, 0, 1, -30], [0.62, 0, 3, -76], [0.7, 0, DOWN, -90, 0.92], [1, 0, DOWN, -90]],
+    impacts: [[0.42, 2, 17, true]],
+  },
+  headbutt: {
+    actor: [STAND, [0.2, 7, 0, 0], [0.35, 8, 0, -13], [0.45, 9, 0, 30], [0.6, 8, 0, 5], [1, 3, 0, 0]],
+    target: [STAND, [0.45, 0, 0, 0], [0.52, -1, 0, -24], [0.7, -3, 0, -12], [0.85, -3, 0, 9], [1, -2, 0, 0]],
+    impacts: [[0.46, 3, 17]],
+  },
+  spear: {
+    actor: [STAND, [0.15, -3, 0, -6], [0.4, 7, 1, 55], [0.5, 10, 2.4, 80], [0.6, 11, 3.6, 90], [0.68, 11, 4.2, 90], [1, 11, 3.6, 90]],
+    target: [STAND, [0.42, 0, 0, 0], [0.5, 0, 3, -60], [0.6, 0, DOWN, -90, 0.9], [0.68, 0, DOWN + 0.6, -90], [1, 0, DOWN, -90]],
+    impacts: [[0.45, 1, 9, true]],
+  },
+  // The target is put down first, then something is dropped on them.
+  elbowDrop: {
+    actor: [STAND, [0.1, 6, 0, 14], [0.3, 4, 0, 0], [0.45, 6, 7, 20], [0.6, 9, 3.4, 82], [0.66, 9, 3.8, 90], [0.8, 9, 3.4, 90], [1, 8, 0, 0]],
+    target: [STAND, [0.1, 0, 0, -18], [0.26, 1, DOWN, -90], [0.6, 1, DOWN, -90], [0.66, 1, DOWN - 0.4, -90, 0.84], [0.76, 1, DOWN, -90], [1, 1, DOWN, -90]],
+    impacts: [[0.12, 2, 12], [0.6, -8, 2, true]],
+  },
+  backBodyDrop: {
+    actor: [STAND, [0.3, 2, 0, 24, 0.85], [0.45, 3, 0, -26], [0.6, 3, 0, -10], [1, 2, 0, 0]],
+    target: [STAND, [0.3, 7, 0, 12], [0.45, 12, 8, 70], [0.6, 18, 10, 180], [0.72, 22, DOWN, 270, 0.9], [0.78, 22, DOWN + 1, 270], [1, 22, DOWN, 270]],
+    impacts: [[0.72, 14, 1, true]],
+  },
+  cornerSplash: {
+    actor: [STAND, [0.1, 5, 0, 8], [0.3, 3, 0, -18], [0.5, 6, 0, 0], [0.68, 25, 2, 12], [0.74, 27, 1, 18], [1, 22, 0, 0]],
+    target: [STAND, [0.1, 3, 0, 8], [0.35, -17, 0, -8], [0.45, -18, 0, -13], [0.7, -18, 0, -17, 0.93], [0.85, -15, 0, 12], [1, -10, DOWN, 90]],
+    impacts: [[0.7, -16, 12, true]],
+    ropes: 0.45,
+  },
+  // Three more ways off the top turnbuckle, beside `aerial` (an elbow onto a downed opponent).
+  missileDropkick: {
+    actor: [STAND, [0.15, -9, 0, 0], [0.3, -13, 8, 0], [0.42, -13, 8, 0, 0.88], [0.62, 6, 9, -80], [0.68, 8, 8, -86], [0.82, 7, DOWN, -90], [1, 6, 0, 0]],
+    target: [STAND, [0.62, 0, 0, 0], [0.7, 0, 3, -50], [0.8, 0, DOWN, -90, 0.92], [1, 0, DOWN, -90]],
+    impacts: [[0.64, 2, 14, true]],
+    ropes: 0.44,
+  },
+  moonsault: {
+    actor: [STAND, [0.15, -9, 0, 0], [0.3, -13, 8, 0], [0.42, -13, 8, 0, 0.88], [0.58, -2, 13, -180], [0.7, 8, 7, -250], [0.76, 10, 3.6, -270], [0.82, 10, 4.4, -270], [1, 10, 3.6, -270]],
+    target: [STAND, [0.1, 1, 0, -14], [0.22, 1, DOWN, -90], [0.72, 1, DOWN, -90], [0.78, 1, DOWN - 0.4, -90, 0.84], [0.87, 1, DOWN, -90], [1, 1, DOWN, -90]],
+    impacts: [[0.76, -9, 2, true]],
+    ropes: 0.44,
+  },
+  crossbody: {
+    actor: [STAND, [0.15, -9, 0, 0], [0.3, -13, 8, 0], [0.42, -13, 8, 0, 0.88], [0.6, 2, 12, 70], [0.7, 9, 8, 90], [0.8, 11, 3.6, 90], [1, 11, 3.6, 90]],
+    target: [STAND, [0.66, 0, 0, 0], [0.72, 0, 3, -50], [0.8, 0, DOWN, -90, 0.9], [1, 0, DOWN, -90]],
+    impacts: [[0.7, 0, 11, true]],
+    ropes: 0.44,
+  },
+  // Two more ways over the top rope, beside `elimination` (a press and toss).
+  clotheslineOver: {
+    actor: [STAND, [0.15, -3, 0, -8], [0.45, 11, 0, 15], [0.6, 18, 0, 8], [0.75, 24, 0, 14], [1, 22, 0, 0]],
+    target: [STAND, [0.42, 0, 0, 0], [0.5, -6, 4, -50], [0.62, -14, 12, -140], [0.78, -22, 3, -230], [1, -25, -6.5, -270]],
+    impacts: [[0.45, 1, 13, true]],
+    ropes: 0.62,
+  },
+  backdropOver: {
+    actor: [STAND, [0.3, 3, 0, 22, 0.85], [0.45, 4, 0, -22], [0.6, 3, 0, -30], [1, 0, 0, 0]],
+    target: [STAND, [0.3, 8, 0, 10], [0.45, 14, 8, 60], [0.6, 24, 14, 150], [0.78, 36, 2, 240], [1, 39, -6.5, 270]],
+    ropes: 0.62,
+  },
   still: { actor: [STAND, [1, 0, 0, 0]], target: [STAND, [1, 0, 0, 0]] },
 } as const satisfies Record<string, Choreo>;
 
 export type MoveId = keyof typeof MOVES;
 
-const BY_TYPE: Record<MoveType, MoveId> = {
-  slam: 'slam',
-  suplex: 'suplex',
-  submission: 'submission',
-  strike: 'flurry',
-  aerial: 'aerial',
-  driver: 'driver',
-  stunner: 'stunner',
-  powerbomb: 'powerbomb',
-  clothesline: 'clothesline',
+// A named move's type narrows it to a family; which member of the family a
+// particular move is comes from its name, so "Skyfall" is always a moonsault
+// and never a moonsault one week and a crossbody the next.
+const BY_TYPE: Record<MoveType, readonly MoveId[]> = {
+  slam: ['slam', 'backBodyDrop', 'spear'],
+  suplex: ['suplex'],
+  submission: ['submission'],
+  strike: ['flurry', 'superkick', 'headbutt', 'dropkick'],
+  aerial: ['aerial', 'moonsault', 'missileDropkick', 'crossbody'],
+  driver: ['driver'],
+  stunner: ['stunner'],
+  powerbomb: ['powerbomb'],
+  clothesline: ['clothesline', 'spear'],
 };
+
+function forMove(move: Move): MoveId {
+  const family = BY_TYPE[move.type];
+  let hash = 0;
+  for (let i = 0; i < move.name.length; i++) hash = (hash * 31 + move.name.charCodeAt(i)) >>> 0;
+  return family[hash % family.length]!;
+}
 
 // What somebody does when they are simply in control, by how they wrestle.
 const CONTROL: Record<MoveStyle, readonly MoveId[]> = {
-  power: ['slam', 'clothesline', 'hold', 'strike'],
-  technical: ['hold', 'suplex', 'strike', 'slam'],
-  aerial: ['strike', 'clothesline', 'suplex', 'strike'],
-  strike: ['strike', 'flurry', 'clothesline', 'strike'],
-  brawl: ['strike', 'flurry', 'slam', 'clothesline'],
+  power: ['slam', 'clothesline', 'hold', 'headbutt', 'elbowDrop', 'cornerSplash', 'backBodyDrop'],
+  technical: ['hold', 'suplex', 'strike', 'dropkick', 'slam', 'elbowDrop'],
+  aerial: ['dropkick', 'strike', 'crossbody', 'clothesline', 'missileDropkick', 'suplex'],
+  strike: ['strike', 'flurry', 'superkick', 'headbutt', 'clothesline', 'dropkick'],
+  brawl: ['strike', 'flurry', 'headbutt', 'slam', 'clothesline', 'cornerSplash', 'spear'],
 };
+
+// What gets somebody a two-count. Every one of these leaves the attacker on
+// their feet and the target flat on their back, which is what a cover needs.
+const NEAR_FALL_LEADS = ['slam', 'clothesline', 'suplex', 'stunner', 'dropkick', 'backBodyDrop', 'superkick', 'missileDropkick'] as const;
+const OVER_THE_TOP = ['elimination', 'clotheslineOver', 'backdropOver'] as const;
 
 const scale = (frames: readonly Frame[], to: number): Frame[] => frames.map(([at, ...rest]) => [at * to, ...rest] as Frame);
 
@@ -201,6 +284,10 @@ export interface StagedBeat {
   duration: number;
 }
 
+/** One move by id, as written — for a move reel, or anything else that wants to look at a single move. */
+export const stageMove = (move: MoveId, duration = 1700): StagedBeat => ({ move, choreo: MOVES[move], duration });
+export const MOVE_IDS = Object.keys(MOVES) as MoveId[];
+
 /**
  * The staging for one beat. `actorInRing` is false when the beat's actor is
  * somebody at ringside (a manager) rather than one of the two in the ring.
@@ -227,9 +314,9 @@ export function stageBeat(
     case 'comeback':
       return pick('flurry');
     case 'signature':
-      return pick(named ? BY_TYPE[named.type] : routine[(index + 1) % routine.length]!);
+      return pick(named ? forMove(named) : routine[(index + 1) % routine.length]!);
     case 'nearFall': {
-      const lead = (['slam', 'clothesline', 'suplex', 'stunner'] as const)[index % 4]!;
+      const lead = NEAR_FALL_LEADS[index % NEAR_FALL_LEADS.length]!;
       return { move: lead, choreo: withCover(MOVES[lead], 0.48, 2), duration: 1800 };
     }
     case 'interference':
@@ -237,13 +324,14 @@ export function stageBeat(
     case 'botch':
       return pick('botch');
     case 'elimination':
-      return pick('elimination');
+      return pick(OVER_THE_TOP[index % OVER_THE_TOP.length]!);
     case 'environmental':
       return pick('still');
     case 'finish': {
-      const lead: MoveId = named ? BY_TYPE[named.type] : 'slam';
+      const lead: MoveId = named ? forMove(named) : 'slam';
       if (finish === 'submission') return { move: 'submission', choreo: MOVES.submission, duration: 2400 };
       // A hold cannot be pinned out of; put them down with something else first.
+      // (Nor can anything that ends with the attacker already lying on them.)
       const pinnable: MoveId = lead === 'submission' ? 'slam' : lead;
       if (finish === 'cleanPin' || finish === 'rollup') return { move: pinnable, choreo: withCover(MOVES[pinnable], 0.5, 3), duration: 3000 };
       return { move: pinnable, choreo: MOVES[pinnable], duration: 1900 };
@@ -272,3 +360,21 @@ export function fromPose(frames: readonly Frame[], from: Pose | undefined, lead:
   const start: Frame = from ? [0, from[0], from[1], from[2]] : STAND;
   return [start, ...frames.map(([at, ...rest]) => [lead + at * (1 - lead), ...rest] as Frame)];
 }
+
+/**
+ * Where a tag partner waits, in their own frame: out past the corner post,
+ * a little below the mat. A wrestler tagging in starts from here.
+ */
+export const APRON: Pose = [-24.5, -1.8, 0];
+
+/** Poses for somebody tagging in: over the top rope from the apron, then the move. */
+export function tagIn(frames: readonly Frame[], lead: number): Frame[] {
+  return [
+    [0, APRON[0], APRON[1], 0],
+    [lead * 0.5, APRON[0] * 0.55, 7, 14],
+    [lead * 0.9, 0, 0.4, 0],
+    ...frames.map(([at, ...rest]) => [lead + at * (1 - lead), ...rest] as Frame),
+  ];
+}
+/** The share of a beat a tag takes before the move starts. */
+export const TAG_LEAD = 0.3;

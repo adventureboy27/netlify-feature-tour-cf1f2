@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { buildPlaybackTimeline, finishCallout } from '../../engine/sim/matchPlayback';
 import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
-import { MatchStage, type StageFighter } from '../match/MatchStage';
+import { MatchStage, type Bystander, type StageFighter } from '../match/MatchStage';
 import { stageBeat } from '../match/choreography';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, promotionTheme } from '../components/chrome';
@@ -232,6 +232,36 @@ export function MatchViewerScreen({
     const taken = actorWrestler ? slotOf(actorWrestler) : null;
     fighters.push({ wrestler: targetWrestler, role: 'target', slot: natural === taken ? (natural === 'left' ? 'right' : 'left') : natural });
   }
+  // A tag match keeps partners on the apron and tags them in; anything
+  // bigger (a battle royal, a gauntlet of bodies) puts the whole field in
+  // the ring behind the two the beat is about.
+  const biggestSide = Math.max(sideA.length, sideB.length);
+  const isTagMatch = biggestSide >= 2 && biggestSide <= 4;
+  const isFieldMatch = biggestSide > 4;
+  // DESIGN: the sim has no "tag" beat — it just names a different member of
+  // the team as the actor. So a tag is staged whenever somebody steps in
+  // for a partner who was in the ring one beat ago.
+  const previous = beatIndex > 0 ? timeline[beatIndex - 1] : undefined;
+  const previousIds = new Set([previous?.actorId, previous?.targetId].filter((id): id is Id => Boolean(id)));
+  const partnerWasIn = (w: Wrestler) => (sideA.includes(w) ? sideA : sideB).some((mate) => mate.id !== w.id && previousIds.has(mate.id));
+  for (const fighter of fighters) {
+    if (isTagMatch && current?.pose !== 'interference' && !previousIds.has(fighter.wrestler.id) && partnerWasIn(fighter.wrestler)) {
+      fighter.taggedIn = true;
+    }
+  }
+  const tagged = fighters.some((f) => f.taggedIn);
+
+  const waiting = visible.filter((w) => !activeIds.has(w.id) && !eliminated.has(w.id));
+  const bystanders: Bystander[] = isTagMatch
+    ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: 'apron' as const }))
+    : isFieldMatch
+      ? waiting.slice(0, 9).map((w) => ({ wrestler: w, slot: slotOf(w), place: 'ring' as const }))
+      : [];
+  const onStage = new Set(bystanders.map((b) => b.wrestler.id));
+  // The rails are for whoever the stage has no room for, and for the eliminated.
+  const railA = restingA.filter((w) => !onStage.has(w.id));
+  const railB = restingB.filter((w) => !onStage.has(w.id));
+
   const staged = current ? stageBeat(current, beatIndex, actorWrestler, Boolean(actorWrestler), result.finish) : null;
 
   /** Somebody waiting on the rail: not in this beat, or out of the match altogether. */
@@ -287,7 +317,9 @@ export function MatchViewerScreen({
               ? current.moveName.toUpperCase()
               : current?.pose === 'signature'
                 ? 'BIG MOVE!'
-                : null;
+                : tagged
+                  ? 'TAG!'
+                  : null;
 
   return (
     <div className="flex h-full flex-col p-6 text-neutral-100">
@@ -323,7 +355,7 @@ export function MatchViewerScreen({
             waits at their own side of the building, and only the two the
             beat is about are in the ring. */}
         <div className="flex w-[92px] shrink-0 flex-col items-center justify-center gap-2 overflow-y-auto bg-neutral-950 py-3">
-          {restingA.map((wrestler) => renderRailWrestler(wrestler, 'left'))}
+          {railA.map((wrestler) => renderRailWrestler(wrestler, 'left'))}
         </div>
 
         <MatchStage
@@ -334,10 +366,11 @@ export function MatchViewerScreen({
           promotionName={world.promotion.name}
           callout={calloutText}
           pyro={current?.pose === 'environmental'}
+          bystanders={bystanders}
         />
 
         <div className="flex w-[92px] shrink-0 flex-col items-center justify-center gap-2 overflow-y-auto bg-neutral-950 py-3">
-          {restingB.map((wrestler) => renderRailWrestler(wrestler, 'right'))}
+          {railB.map((wrestler) => renderRailWrestler(wrestler, 'right'))}
         </div>
 
         {/* Who is in the ring right now — the figures themselves are busy

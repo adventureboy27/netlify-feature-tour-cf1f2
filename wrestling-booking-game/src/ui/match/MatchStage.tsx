@@ -10,7 +10,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArenaBack, ArenaFront, FEET_Y, VIEW } from './Arena';
 import { FIGURE_ASPECT, MatchFigure } from './MatchFigure';
-import { GAP, LEAD_IN, endPose, fromPose, isHome, type Frame, type Pose, type StagedBeat } from './choreography';
+import { APRON, GAP, LEAD_IN, TAG_LEAD, endPose, fromPose, isHome, tagIn, type Frame, type Pose, type StagedBeat } from './choreography';
 import type { Id, Wrestler } from '../../engine/types';
 
 /** Figure width in stage units (hundredths of the stage's width). */
@@ -39,6 +39,16 @@ export interface StageFighter {
   role: 'actor' | 'target';
   /** Which half of the ring they work from. */
   slot: 'left' | 'right';
+  /** They were just tagged in: start on the apron and come over the top rope. */
+  taggedIn?: boolean;
+}
+
+/** Somebody in the match but not in this beat. */
+export interface Bystander {
+  wrestler: Wrestler;
+  slot: 'left' | 'right';
+  /** A tag partner waits on the apron at their corner; a battle royal field stands in the ring. */
+  place: 'apron' | 'ring';
 }
 
 const SHAKE: Keyframe[] = [
@@ -66,6 +76,7 @@ export function MatchStage({
   promotionName,
   callout,
   pyro,
+  bystanders = [],
 }: {
   /** Changes every beat; restarts the choreography. */
   beatKey: number;
@@ -76,6 +87,7 @@ export function MatchStage({
   callout: string | null;
   /** The production gear is the story of this beat, not a wrestler. */
   pyro: boolean;
+  bystanders?: readonly Bystander[];
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
@@ -98,7 +110,8 @@ export function MatchStage({
     const pose = leftAt.current.get(f.wrestler.id);
     return pose !== undefined && !isHome(pose);
   });
-  const lead = anyoneDisplaced ? LEAD_IN : 0;
+  const tagging = fighters.some((f) => f.taggedIn);
+  const lead = tagging ? TAG_LEAD : anyoneDisplaced ? LEAD_IN : 0;
   const duration = staged?.duration ?? 0;
   const when = (at: number) => (lead + at * (1 - lead)) * duration;
 
@@ -110,7 +123,7 @@ export function MatchStage({
       const el = figureRefs.current.get(fighter.wrestler.id);
       if (!el) continue;
       const base: readonly Frame[] = fighter.role === 'actor' ? choreo.actor : choreo.target;
-      const frames = fromPose(base, leftAt.current.get(fighter.wrestler.id), lead);
+      const frames = fighter.taggedIn ? tagIn(base, lead) : fromPose(base, leftAt.current.get(fighter.wrestler.id), lead);
       const d = dir(fighter.slot);
       running.push(
         el.animate(
@@ -171,6 +184,33 @@ export function MatchStage({
             {promotionName.length > 26 ? promotionName.split(/\s+/).map((part) => part[0]).join('') : promotionName}
           </div>
 
+          {/* Everyone in the match who is not in this beat. A battle royal's
+              field stands along the back of the ring, smaller for the
+              distance; a tag partner waits on the apron at their corner. */}
+          {(() => {
+            const inRing = bystanders.filter((b) => b.place === 'ring');
+            return bystanders.map((b) => {
+              const k = b.place === 'ring' ? 0.62 : 0.86;
+              const width = figureW * k;
+              const order = (b.place === 'ring' ? inRing : bystanders.filter((o) => o.place === 'apron' && o.slot === b.slot)).indexOf(b);
+              const x =
+                b.place === 'ring'
+                  ? w / 2 + (inRing.length === 1 ? 0 : ((order / (inRing.length - 1)) * 2 - 1) * 22 * u)
+                  : homeX(b.slot) + dir(b.slot) * (APRON[0] - order * 5) * u;
+              const feet = b.place === 'ring' ? (384 / VIEW.h) * h : feetY - APRON[1] * u;
+              return (
+                <div
+                  key={b.wrestler.id}
+                  data-testid={`bystander-${b.place}`}
+                  className="absolute"
+                  style={{ left: x - width / 2, top: feet - width * FIGURE_ASPECT, width, zIndex: b.place === 'ring' ? 1 : 4, opacity: b.place === 'ring' ? 0.92 : 1 }}
+                >
+                  <MatchFigure wrestler={b.wrestler} />
+                </div>
+              );
+            });
+          })()}
+
           {fighters.map((fighter) => (
             <div
               key={fighter.wrestler.id}
@@ -224,6 +264,20 @@ export function MatchStage({
               </div>
             );
           })}
+
+          {/* The slap of a tag, at the corner it happened in. */}
+          {fighters
+            .filter((f) => f.taggedIn)
+            .map((f) => (
+              <svg
+                key={`${beatKey}-tag-${f.wrestler.id}`}
+                viewBox="-50 -50 100 100"
+                className="mv-burst pointer-events-none absolute"
+                style={{ left: homeX(f.slot) + dir(f.slot) * (APRON[0] + 3) * u, top: feetY - 13 * u, width: 9 * u, height: 9 * u, zIndex: 6 }}
+              >
+                <polygon points="0,-48 9,-17 38,-34 20,-7 48,2 19,11 31,40 6,20 -8,48 -12,17 -42,28 -22,3 -48,-12 -18,-13 -24,-42" fill="#ffffff" stroke="#ffe27a" strokeWidth={3} />
+              </svg>
+            ))}
 
           {/* The count, over the cover. */}
           {cover &&

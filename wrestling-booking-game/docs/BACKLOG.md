@@ -5,6 +5,23 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Match viewer: tags, a battle royal field, and twelve more moves — shipped
+
+- **Tags.** The sim has no tag beat — it just names a different team member as the actor — so the
+  viewer stages a tag whenever somebody steps in for a partner who was in the ring one beat ago: a
+  slap at the corner, a vault over the top rope, "TAG!" on the big screen. Partners wait on the apron
+  as full-body figures instead of as portraits on a rail.
+- **Battle royals** (any side over four): the field stands along the back of the ring behind the two
+  the beat is about. Eliminations rotate through three ways over the top rope: the press-and-toss,
+  a clothesline over, and a back body drop over.
+- **Twelve more moves** (28 total): dropkick, superkick, headbutt, spear, elbow drop, back body drop,
+  corner splash, and three more off the top turnbuckle — missile dropkick, moonsault, crossbody.
+  A named move maps to one member of its type's family by a hash of its name, so the same finisher
+  always looks the same.
+
+Checked every new move frozen at four points in a harness; not yet watched in a real tag match or
+battle royal from a played save.
+
 ## Match viewer: an arena, full-body wrestlers, and real move choreography — shipped
 
 Asked to make the match part look better: a better ring and background, and animations that
