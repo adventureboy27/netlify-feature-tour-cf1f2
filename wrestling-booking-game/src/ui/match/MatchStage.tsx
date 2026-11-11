@@ -123,7 +123,10 @@ export function MatchStage({
   bloody,
   corners,
   eventName,
+  prize,
 }: {
+  /** What hangs over a ladder match: the belt if one is on the line, a briefcase if not. */
+  prize?: 'belt' | 'case';
   /** An interpromotional night: the company in the left corner and the one in the right. */
   corners?: readonly [Corner, Corner];
   eventName?: string;
@@ -420,6 +423,15 @@ export function MatchStage({
                 <line key={i} x1={13 - i * 0.8} y1={16 + i * 15} x2={47 + i * 0.8} y2={16 + i * 15} stroke="#e2c15a" strokeWidth={4} />
               ))}
             </svg>
+          )}
+          {/* What the ladder is for: hanging over the ring until somebody gets a hand on it. */}
+          {scene === 'ladder' && plan && (
+            <div className="mv-until pointer-events-none absolute" style={{ left: sx(plan.centre) - 4 * u, top: 0, width: 8 * u, height: sy(21), animationDelay: `${when(0.86)}ms`, zIndex: 2 }} aria-hidden>
+              <div className="absolute left-1/2 top-0 w-px bg-neutral-400/70" style={{ height: `calc(100% - ${2.6 * u}px)` }} />
+              <div className="absolute inset-x-0 bottom-0" style={{ height: 2.8 * u }}>
+                {prize === 'case' ? <div className="absolute inset-x-[22%] inset-y-0 rounded-sm border border-neutral-900 bg-neutral-300" /> : <Belt />}
+              </div>
+            </div>
           )}
           {(scene === 'table' || scene === 'flamingTable') && targetEnd && (
             <div className="pointer-events-none absolute" style={{ left: sx(midBody(targetEnd).x) - 9 * u, top: sy(4), width: 18 * u, height: 4.4 * u, zIndex: 2 }}>

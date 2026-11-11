@@ -401,6 +401,11 @@ export function MatchViewerScreen({
     );
   }
 
+  // "NEW WORLD HEAVYWEIGHT CHAMPION", "STILL TAG TEAM CHAMPIONS", or just the winner.
+  const several = winnerIds.size > 1;
+  const beltName = titleNames.map((name) => String(name).replace(/\s+(championships?|titles?)$/i, '')).join(' & ');
+  const verdictLine = belt ? `${result.titleChanged ? 'New' : 'Still'} ${beltName} ${several ? 'Champions' : 'Champion'}` : several ? 'Winners' : 'Winner';
+
   const calloutText = over
     ? winnerIds.size === 0
       ? 'NO WINNER'
@@ -472,21 +477,26 @@ export function MatchViewerScreen({
           departed={departed}
           aftermath={aftermath}
           bloody={bloody}
+          prize={segment.titleIds.length > 0 ? 'belt' : 'case'}
         />
 
         {/* Who is in the ring right now — the figures themselves are busy
             being thrown around, so the names stay put down here. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-2 z-10 flex items-center justify-center gap-2 text-[11px] font-semibold">
-          {over
-            ? combined
-                .filter((w) => winnerIds.has(w.id))
-                .slice(0, 4)
-                .map((w) => (
-                  <span key={w.id} className="max-w-[220px] truncate rounded bg-amber-400 px-2 py-0.5 text-neutral-950">
-                    {w.name}
-                  </span>
-                ))
-            : null}
+          {/* The announcement: who won, and what that makes them. */}
+          {over && winnerIds.size > 0 && (
+            <div data-testid="viewer-winner" className="flex max-w-[80%] flex-col items-center rounded-md border border-amber-400/70 bg-neutral-950/90 px-5 py-1.5 text-center">
+              <span className="mv-action text-[22px] leading-tight">
+                {combined
+                  .filter((w) => winnerIds.has(w.id))
+                  .slice(0, 4)
+                  .map((w) => w.name)
+                  .join(' & ')}
+                {winnerIds.size > 4 ? ' & co.' : ''}
+              </span>
+              <span className="text-[12px] font-bold uppercase tracking-[0.18em] text-amber-200">{verdictLine}</span>
+            </div>
+          )}
           {(['left', 'right'] as const).map((slot) => {
             const fighter = over ? undefined : fighters.find((f) => f.slot === slot);
             return fighter ? (
