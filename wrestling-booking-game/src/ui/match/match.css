@@ -33,7 +33,7 @@
 @keyframes mv-burst {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(-20deg); }
   25% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(8deg); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5) rotate(14deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25) rotate(14deg); }
 }
 .mv-burst { opacity: 0; animation: mv-burst 0.42s ease-out both; }
 

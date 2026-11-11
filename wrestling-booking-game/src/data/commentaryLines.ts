@@ -60,7 +60,7 @@
 //   {oldHand} {oldHandYears}     needs 'longCareer'
 
 import type { CommentaryFact, Speaker } from '../engine/sim/commentary';
-import type { MatchBeatKind } from '../engine/types';
+import type { FinishType, MatchBeatKind } from '../engine/types';
 
 /** Which way the colour man leans, and therefore what he is willing to say. */
 export type Leaning = 'heel' | 'face' | 'analyst';
@@ -146,6 +146,58 @@ export const PLAY_BY_PLAY: Partial<Record<MatchBeatKind, readonly string[]>> = {
     'It is over. {winner} stands, {loser} does not.',
   ],
 };
+
+// ---------------------------------------------------------------------------
+// The finish call, when it was not a pinfall. PLAY_BY_PLAY.finish above
+// counts to three in most of its lines, which is a lie about a match that
+// ended in a hold. Keyed by FinishType; anything not listed here uses
+// FINISH_CALLS_PLAIN, which says who won without saying how.
+// ---------------------------------------------------------------------------
+
+export const FINISH_CALLS: Partial<Record<FinishType, readonly string[]>> = {
+  submission: [
+    '{winner} has it locked in — and {loser} taps! {loser} taps out!',
+    'There is nowhere to go. {loser} is tapping, and the referee calls for the bell!',
+    '{winnerFinisher} is on, dead centre of the ring — {loser} gives it up!',
+    '{loser} is fading in that hold... and that is a submission. {winner} wins it.',
+  ],
+  knockout: [
+    '{loser} is out! {loser} is out cold and the referee is waving it off!',
+    'That is a knockout. {winner} put {loseThem} down and {loser} is not getting up.',
+    'One shot, and the lights went out. {winner} by knockout.',
+  ],
+  refereeStoppage: [
+    'The referee has seen enough and waves it off — {winner} wins by stoppage.',
+    'The official steps in and waves it off. {loser} cannot go on. This one is over.',
+  ],
+  injuryStoppage: [
+    'They are stopping it. {loser} is hurt, and this match is over right now.',
+    'The referee is calling for help. {winner} gets the win, and nobody is celebrating.',
+  ],
+  disqualification: [
+    'The referee is calling for the bell — that is a disqualification!',
+    'The referee has thrown it out! {winner} takes it by disqualification.',
+  ],
+  countOut: [
+    'Eight... nine... ten! {loser} never made it back in. {winner} wins by count-out.',
+    'The count reaches ten with {loser} still on the floor. That is it.',
+  ],
+  timeLimitDraw: [
+    'And there is the bell — we are out of time. This one is a draw.',
+    'Time has expired, and neither one of them could finish it.',
+  ],
+  doubleKO: [
+    'Both of them are down! Neither one is answering the count — it is a double knockout!',
+    'Nobody is getting up. The referee has no choice. Nobody wins this one.',
+  ],
+};
+
+export const FINISH_CALLS_PLAIN: readonly string[] = [
+  '{winner} put {loseThem} away, and {loser} has no answer for it.',
+  'It is over. {winner} stands, {loser} does not.',
+  'That is it — {winner} takes this one.',
+  'And that settles it. {winner} gets the win.',
+];
 
 // ---------------------------------------------------------------------------
 // The opening. Always the play-by-play man, always naming who is in there.

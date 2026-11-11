@@ -827,3 +827,60 @@ describe('the broadcast teams', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// The match viewer plays the call and the ring together. These are the
+// promises it relies on to do that.
+// ---------------------------------------------------------------------------
+
+describe('a line knows which beat it is calling', () => {
+  it('stamps nothing before the bell, a beat during the match, and past-the-end after it', () => {
+    for (let i = 0; i < 40; i++) {
+      const ctx = bare();
+      const lines = callTheMatch(rngFromSeed(`beat-${i}`), ctx);
+      const stamps = lines.map((l) => l.beat);
+      const firstStamped = stamps.findIndex((b) => b !== undefined);
+      // Once the bell has gone, every line belongs to a moment.
+      expect(stamps.slice(firstStamped).every((b) => b !== undefined), `seed ${i}`).toBe(true);
+      // And the call never goes backwards.
+      const called = stamps.filter((b): b is number => b !== undefined);
+      expect([...called].sort((a, b) => a - b), `seed ${i}`).toEqual(called);
+      expect(Math.max(...called)).toBeLessThanOrEqual(ctx.beats.length);
+    }
+  });
+
+  it('says who a play-by-play line is about, and it is the two the words name', () => {
+    for (let i = 0; i < 40; i++) {
+      const ctx = bare();
+      const names = new Map([...ctx.sideA, ...ctx.sideB].map((w) => [w.id, w.name]));
+      for (const line of callTheMatch(rngFromSeed(`who-${i}`), ctx)) {
+        if (!line.actorId) continue;
+        expect(line.speaker).toBe('play');
+        expect(line.targetId).toBeDefined();
+        expect(line.targetId).not.toBe(line.actorId);
+        // The pair stamped on a line is the pair its words are about: any
+        // wrestler the text names is one of those two.
+        const stamped = [names.get(line.actorId)!, names.get(line.targetId!)!];
+        for (const name of names.values()) {
+          if (line.text.includes(name)) expect(stamped, line.text).toContain(name);
+        }
+      }
+    }
+  });
+
+  it('calls the finish the way the match actually ended', () => {
+    const counted = /one, two, three|gets the three|hooks the leg/i;
+    for (const finish of ['submission', 'knockout', 'disqualification', 'countOut', 'timeLimitDraw', 'refereeStoppage', 'doubleKO'] as const) {
+      for (let i = 0; i < 25; i++) {
+        const ctx = bare({ finish });
+        const lines = callTheMatch(rngFromSeed(`${finish}-${i}`), ctx);
+        const finishLine = lines.find((l) => l.beat === ctx.beats.length - 1 && l.speaker === 'play');
+        expect(finishLine, `${finish} seed ${i}`).toBeDefined();
+        expect(counted.test(finishLine!.text), `${finish}: "${finishLine!.text}"`).toBe(false);
+      }
+    }
+    // And a pinfall still gets its count somewhere in the pool.
+    const pins = Array.from({ length: 30 }, (_, i) => said(bare({ finish: 'cleanPin' }), `pin-${i}`)).join(' ');
+    expect(counted.test(pins)).toBe(true);
+  });
+});

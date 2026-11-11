@@ -1,18 +1,19 @@
-// The ring, and the two people in it for the current beat.
+// The ring, and the people in it for the current beat.
 //
 // The stage is always 2:1 and sized to fit whatever room it is given; every
-// distance in the choreography is in hundredths of its width, so a move
-// plays the same on a laptop and a 4K monitor. Wrestlers are animated with
-// the Web Animations API straight from choreography.ts's pose tables — the
-// screen that owns this component only says who is in the ring and what the
-// beat is.
+// distance is in hundredths of its width, so a move plays the same on a
+// laptop and a 4K monitor. Each beat, ringPhysics.ts turns the staged move
+// into positions in the ring — starting from wherever the last beat left
+// everybody — and this plays those with the Web Animations API: one track
+// for each body, nine more for its joints.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArenaBack, ArenaFront, FEET_Y, VIEW } from './Arena';
 import { FIGURE_ASPECT, MatchFigure } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { STANCES, autoStance, hipDrop, type Stance } from './rig';
-import { APRON, GAP, LEAD_IN, TAG_LEAD, endPose, fromPose, isHome, tagIn, type Frame, type Pose, type StagedBeat } from './choreography';
+import { FLOOR, GAP, type StagedBeat } from './choreography';
+import { RING, apronX, midBody, planBeat, type Plan, type PlanFighter, type WorldPose } from './ringPhysics';
 import type { Id, Wrestler } from '../../engine/types';
 
 /** Figure width in stage units (hundredths of the stage's width). */
@@ -69,6 +70,8 @@ const ROPE_WOBBLE: Keyframe[] = [
   { transform: 'translateY(-1px)' },
   { transform: 'translateY(0)' },
 ];
+const EASING = 'cubic-bezier(0.33, 0.1, 0.4, 1)';
+const dirOf = (slot: 'left' | 'right'): 1 | -1 => (slot === 'left' ? 1 : -1);
 
 export function MatchStage({
   beatKey,
@@ -83,6 +86,7 @@ export function MatchStage({
   /** Changes every beat; restarts the choreography. */
   beatKey: number;
   fighters: readonly StageFighter[];
+  /** Null while nothing is happening yet — the two stand at their marks. */
   staged: StagedBeat | null;
   accent: string;
   promotionName: string;
@@ -96,54 +100,70 @@ export function MatchStage({
   const ropesRef = useRef<SVGGElement>(null);
   const figureRefs = useRef(new Map<Id, HTMLDivElement>());
   const jointRefs = useRef(new Map<Id, Joints>());
-  // Where the previous beat left each wrestler, so the next one can start
-  // from there instead of blinking them back to their marks.
-  const leftAt = useRef(new Map<Id, Pose>());
+  // Where the last beat left everybody, and where it was centred — the next
+  // one picks up from there.
+  const leftAt = useRef(new Map<Id, WorldPose>());
+  const centre = useRef(0);
   const { w, h } = useStageSize(frameRef);
   const u = w / 100;
   const [hype, setHype] = useState(false);
+  const [plan, setPlan] = useState<Plan | null>(null);
 
   const feetY = (FEET_Y / VIEW.h) * h;
-  const homeX = (slot: 'left' | 'right') => w / 2 + (slot === 'left' ? -1 : 1) * (GAP / 2) * u;
-  const dir = (slot: 'left' | 'right') => (slot === 'left' ? 1 : -1);
-
-  const choreo = staged?.choreo ?? null;
-  const target = fighters.find((f) => f.role === 'target');
-  const anyoneDisplaced = fighters.some((f) => {
-    const pose = leftAt.current.get(f.wrestler.id);
-    return pose !== undefined && !isHome(pose);
-  });
-  const tagging = fighters.some((f) => f.taggedIn);
-  const lead = tagging ? TAG_LEAD : anyoneDisplaced ? LEAD_IN : 0;
+  const sx = (x: number) => w / 2 + x * u;
+  const sy = (y: number) => feetY - y * u;
+  const figureW = FIGURE_W * u;
+  const figureH = figureW * FIGURE_ASPECT;
   const duration = staged?.duration ?? 0;
-  const when = (at: number) => (lead + at * (1 - lead)) * duration;
 
   useLayoutEffect(() => {
-    if (!choreo || u === 0) return;
+    if (u === 0) return;
+    const cast: PlanFighter[] = fighters.map((f) => ({
+      id: f.wrestler.id,
+      role: f.role,
+      dir: dirOf(f.slot),
+      from: leftAt.current.get(f.wrestler.id),
+      taggedIn: Boolean(f.taggedIn),
+    }));
+
+    if (!staged) {
+      // Before the bell: at their marks, facing each other.
+      const standing = new Map<Id, WorldPose>();
+      for (const f of cast) {
+        const pose = { x: centre.current - (f.dir * GAP) / 2, y: 0, rot: 0 };
+        standing.set(f.id, pose);
+        const el = figureRefs.current.get(f.id);
+        if (el) el.style.transform = `translate(${pose.x * u}px, 0px)`;
+      }
+      leftAt.current = standing;
+      setPlan(null);
+      return;
+    }
+
+    const next = planBeat(staged, cast, centre.current);
+    centre.current = next.centre;
+    leftAt.current = next.end;
+    setPlan(next);
+
     const running: Animation[] = [];
-    const next = new Map<Id, Pose>();
-    for (const fighter of fighters) {
-      const el = figureRefs.current.get(fighter.wrestler.id);
-      if (!el) continue;
-      const base: readonly Frame[] = fighter.role === 'actor' ? choreo.actor : choreo.target;
-      const frames = fighter.taggedIn ? tagIn(base, lead) : fromPose(base, leftAt.current.get(fighter.wrestler.id), lead);
-      const d = dir(fighter.slot);
-      const stances: Stance[] = frames.map((frame, i) => STANCES[frame[5] ?? autoStance(frames, i)]);
-      const easing = 'cubic-bezier(0.33, 0.1, 0.4, 1)';
-      const legUnit = (FIGURE_W * u) / 100;
+    const legUnit = figureW / 100;
+    for (const f of cast) {
+      const el = figureRefs.current.get(f.id);
+      const frames = next.tracks.get(f.id);
+      if (!el || !frames) continue;
+      // The stance guess reads a lean relative to the way they face.
+      const facing = frames.map((fr) => [fr.at, f.dir * fr.x, fr.y, f.dir * fr.rot, fr.sy, fr.stance] as const);
+      const stances: Stance[] = frames.map((fr, i) => STANCES[fr.stance ?? autoStance(facing, i)]);
+      el.style.transform = '';
       running.push(
         el.animate(
-          frames.map(([at, x, y, rot, sy = 1], i) => {
+          frames.map((fr, i) => {
             // Bent knees bring the hips down — but only for somebody
             // standing on the mat; a body in the air or lying on it has
             // nothing to sink toward.
-            const grounded = y < 1 && Math.abs(rot) < 45;
+            const grounded = fr.y < 1 && Math.abs(fr.rot) < 45;
             const sink = grounded ? hipDrop(stances[i]!) * legUnit : 0;
-            return {
-              offset: at,
-              transform: `translate(${d * x * u}px, ${-y * u + sink}px) rotate(${d * rot}deg) scaleY(${sy})`,
-              easing,
-            };
+            return { offset: fr.at, transform: `translate(${fr.x * u}px, ${-fr.y * u + sink}px) rotate(${fr.rot}deg) scaleY(${fr.sy})`, easing: EASING };
           }),
           { duration, fill: 'both' },
         ),
@@ -151,46 +171,53 @@ export function MatchStage({
 
       // The limbs. The lead arm and leg are the ones on the opponent's
       // side of the picture: screen-right for whoever works from the left.
-      const joints = jointRefs.current.get(fighter.wrestler.id);
-      if (joints) {
-        const lead = d === 1 ? joints.right : joints.left;
-        const rear = d === 1 ? joints.left : joints.right;
-        const turn = (target: Element, angle: (st: Stance) => number) =>
-          running.push(target.animate(frames.map(([at], i) => ({ offset: at, transform: `rotate(${angle(stances[i]!)}deg)`, easing })), { duration, fill: 'both' }));
-        turn(joints.waist, (st) => d * st.w);
-        turn(lead.shoulder, (st) => -d * st.la[0]);
-        turn(lead.elbow, (st) => -d * st.la[1]);
-        turn(rear.shoulder, (st) => -d * st.ra[0]);
-        turn(rear.elbow, (st) => -d * st.ra[1]);
-        turn(lead.hip, (st) => -d * st.ll[0]);
-        turn(lead.knee, (st) => d * st.ll[1]);
-        turn(rear.hip, (st) => -d * st.rl[0]);
-        turn(rear.knee, (st) => d * st.rl[1]);
-      }
-      next.set(fighter.wrestler.id, endPose(base));
+      const joints = jointRefs.current.get(f.id);
+      if (!joints) continue;
+      const d = f.dir;
+      const lead = d === 1 ? joints.right : joints.left;
+      const rear = d === 1 ? joints.left : joints.right;
+      const turn = (part: Element, angle: (st: Stance) => number) =>
+        running.push(part.animate(frames.map((fr, i) => ({ offset: fr.at, transform: `rotate(${angle(stances[i]!)}deg)`, easing: EASING })), { duration, fill: 'both' }));
+      turn(joints.waist, (st) => d * st.w);
+      turn(lead.shoulder, (st) => -d * st.la[0]);
+      turn(lead.elbow, (st) => -d * st.la[1]);
+      turn(rear.shoulder, (st) => -d * st.ra[0]);
+      turn(rear.elbow, (st) => -d * st.ra[1]);
+      turn(lead.hip, (st) => -d * st.ll[0]);
+      turn(lead.knee, (st) => d * st.ll[1]);
+      turn(rear.hip, (st) => -d * st.rl[0]);
+      turn(rear.knee, (st) => d * st.rl[1]);
     }
-    leftAt.current = next;
 
     const timers: number[] = [];
-    for (const [at, , , big] of choreo.impacts ?? []) {
-      if (!big) continue;
+    for (const impact of next.impacts) {
+      if (!impact.big) continue;
       timers.push(
         window.setTimeout(() => {
           shakeRef.current?.animate(SHAKE, { duration: 380, easing: 'ease-out' });
           ropesRef.current?.animate(ROPE_WOBBLE, { duration: 450, easing: 'ease-out' });
           setHype(true);
-        }, when(at)),
+        }, impact.at * duration),
       );
     }
-    if (choreo.ropes !== undefined) {
-      timers.push(window.setTimeout(() => ropesRef.current?.animate(ROPE_WOBBLE, { duration: 500, easing: 'ease-out' }), when(choreo.ropes)));
+    for (const at of next.ropeHits) {
+      timers.push(window.setTimeout(() => ropesRef.current?.animate(ROPE_WOBBLE, { duration: 500, easing: 'ease-out' }), at * duration));
     }
     timers.push(window.setTimeout(() => setHype(false), duration + 500));
     return () => {
-      running.forEach((a) => a.cancel());
+      // Leave each body where its animation had got to; cancelling outright
+      // would blink everyone back to the centre for a frame.
+      for (const animation of running) {
+        try {
+          animation.commitStyles();
+        } catch {
+          // Not rendered (the figure has gone); nothing to keep.
+        }
+        animation.cancel();
+      }
       timers.forEach((t) => window.clearTimeout(t));
     };
-    // `fighters`/`choreo` are rebuilt every render; the beat key and stage
+    // `fighters`/`staged` are rebuilt every render; the beat key and stage
     // size are what actually mean "play this again".
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [beatKey, u]);
@@ -199,11 +226,10 @@ export function MatchStage({
     if (pyro) setHype(true);
   }, [pyro, beatKey]);
 
-  const figureW = FIGURE_W * u;
-  const figureH = figureW * FIGURE_ASPECT;
-  const targetX = target ? homeX(target.slot) : w / 2;
-  const targetDir = target ? dir(target.slot) : 1;
-  const cover = choreo?.cover;
+  const target = fighters.find((f) => f.role === 'target');
+  const cover = staged?.choreo.cover;
+  const coverAt = cover && target && plan?.end.get(target.wrestler.id);
+  const when = (at: number) => ((plan?.lead ?? 0) + at * (1 - (plan?.lead ?? 0))) * duration;
 
   return (
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
@@ -218,18 +244,17 @@ export function MatchStage({
 
           {/* Everyone in the match who is not in this beat. A battle royal's
               field stands along the back of the ring, smaller for the
-              distance; a tag partner waits on the apron at their corner. */}
+              distance; a tag partner waits on the apron at their corner,
+              and any more of the team on the floor beside it. */}
           {(() => {
-            const inRing = bystanders.filter((b) => b.place === 'ring');
+            const field = bystanders.filter((b) => b.place === 'ring');
             return bystanders.map((b) => {
+              const side = dirOf(b.slot);
               const k = b.place === 'ring' ? 0.62 : 0.86;
               const width = figureW * k;
-              const order = (b.place === 'ring' ? inRing : bystanders.filter((o) => o.place === 'apron' && o.slot === b.slot)).indexOf(b);
-              const x =
-                b.place === 'ring'
-                  ? w / 2 + (inRing.length === 1 ? 0 : ((order / (inRing.length - 1)) * 2 - 1) * 22 * u)
-                  : homeX(b.slot) + dir(b.slot) * (APRON[0] - order * 5) * u;
-              const feet = b.place === 'ring' ? (384 / VIEW.h) * h : feetY - APRON[1] * u;
+              const order = (b.place === 'ring' ? field : bystanders.filter((o) => o.place === 'apron' && o.slot === b.slot)).indexOf(b);
+              const x = b.place === 'ring' ? sx(field.length === 1 ? 0 : ((order / (field.length - 1)) * 2 - 1) * (RING.half - 4)) : sx(apronX(side) - side * order * 5.5);
+              const feet = b.place === 'ring' ? (384 / VIEW.h) * h : sy(order === 0 ? 0 : FLOOR);
               return (
                 <div
                   key={b.wrestler.id}
@@ -253,7 +278,9 @@ export function MatchStage({
               data-testid={`ring-${fighter.role}`}
               className="absolute"
               style={{
-                left: homeX(fighter.slot) - figureW / 2,
+                // Parked on the centre of the ring; the animation's own
+                // translate is the position in it.
+                left: w / 2 - figureW / 2,
                 top: feetY - figureH,
                 width: figureW,
                 transformOrigin: '50% 100%',
@@ -275,92 +302,70 @@ export function MatchStage({
           <ArenaFront accent={accent} ropesRef={ropesRef} />
 
           {/* Impacts: a burst where it landed, and a ring of dust for the big ones. */}
-          {(choreo?.impacts ?? []).map(([at, x, y, big], i) => {
-            const left = targetX + targetDir * x * u;
-            const top = feetY - y * u;
-            const size = (big ? 15 : 9) * u;
+          {(plan?.impacts ?? []).map((impact, i) => {
+            const size = (impact.big ? 11 : 7.5) * u;
+            const delay = `${impact.at * duration}ms`;
             return (
               <div key={`${beatKey}-${i}`}>
-                <svg
-                  viewBox="-50 -50 100 100"
-                  className="mv-burst pointer-events-none absolute"
-                  style={{ left, top, width: size, height: size, animationDelay: `${when(at)}ms`, zIndex: 6 }}
-                >
-                  <polygon
-                    points="0,-48 9,-17 38,-34 20,-7 48,2 19,11 31,40 6,20 -8,48 -12,17 -42,28 -22,3 -48,-12 -18,-13 -24,-42"
-                    fill="#ffe27a"
-                    stroke="#fff"
-                    strokeWidth={3}
-                  />
+                <svg viewBox="-50 -50 100 100" className="mv-burst pointer-events-none absolute" style={{ left: sx(impact.x), top: sy(impact.y), width: size, height: size, animationDelay: delay, zIndex: 6 }}>
+                  <polygon points="0,-48 9,-17 38,-34 20,-7 48,2 19,11 31,40 6,20 -8,48 -12,17 -42,28 -22,3 -48,-12 -18,-13 -24,-42" fill="#ffe27a" stroke="#fff" strokeWidth={3} />
                 </svg>
-                {big && (
-                  <div
-                    className="mv-shock pointer-events-none absolute rounded-[50%] border-2 border-white/70"
-                    style={{ left, top: feetY, width: 30 * u, height: 6 * u, animationDelay: `${when(at)}ms`, zIndex: 1 }}
-                  />
+                {impact.big && (
+                  <div className="mv-shock pointer-events-none absolute rounded-[50%] border-2 border-white/70" style={{ left: sx(impact.x), top: feetY, width: 30 * u, height: 6 * u, animationDelay: delay, zIndex: 1 }} />
                 )}
               </div>
             );
           })}
 
           {/* The slap of a tag, at the corner it happened in. */}
-          {fighters
-            .filter((f) => f.taggedIn)
-            .map((f) => (
-              <svg
-                key={`${beatKey}-tag-${f.wrestler.id}`}
-                viewBox="-50 -50 100 100"
-                className="mv-burst pointer-events-none absolute"
-                style={{ left: homeX(f.slot) + dir(f.slot) * (APRON[0] + 3) * u, top: feetY - 13 * u, width: 9 * u, height: 9 * u, zIndex: 6 }}
-              >
-                <polygon points="0,-48 9,-17 38,-34 20,-7 48,2 19,11 31,40 6,20 -8,48 -12,17 -42,28 -22,3 -48,-12 -18,-13 -24,-42" fill="#ffffff" stroke="#ffe27a" strokeWidth={3} />
-              </svg>
-            ))}
+          {staged &&
+            fighters
+              .filter((f) => f.taggedIn)
+              .map((f) => (
+                <svg
+                  key={`${beatKey}-tag-${f.wrestler.id}`}
+                  viewBox="-50 -50 100 100"
+                  className="mv-burst pointer-events-none absolute"
+                  style={{ left: sx(apronX(dirOf(f.slot)) + dirOf(f.slot) * 2.5), top: sy(13), width: 9 * u, height: 9 * u, zIndex: 6 }}
+                >
+                  <polygon points="0,-48 9,-17 38,-34 20,-7 48,2 19,11 31,40 6,20 -8,48 -12,17 -42,28 -22,3 -48,-12 -18,-13 -24,-42" fill="#ffffff" stroke="#ffe27a" strokeWidth={3} />
+                </svg>
+              ))}
 
           {/* The count, over the cover. */}
           {cover &&
-            target &&
+            coverAt &&
             Array.from({ length: cover.count }, (_, i) => {
               const at = cover.from + ((cover.to - cover.from) * (i + 0.35)) / cover.count;
               return (
                 <span
                   key={`${beatKey}-count-${i}`}
                   className="mv-count pointer-events-none absolute font-black text-white"
-                  style={{
-                    left: targetX - targetDir * (10 - cover.at) * u,
-                    top: feetY - 13 * u,
-                    fontSize: 5.2 * u,
-                    textShadow: '0 3px 0 rgba(0,0,0,0.7)',
-                    animationDelay: `${when(at)}ms`,
-                    zIndex: 7,
-                  }}
+                  style={{ left: sx(midBody(coverAt).x), top: sy(13), fontSize: 5.2 * u, textShadow: '0 3px 0 rgba(0,0,0,0.7)', animationDelay: `${when(at)}ms`, zIndex: 7 }}
                 >
                   {i + 1}!
                 </span>
               );
             })}
 
-          {pyro && (
-            <>
-              {[18, 82].map((x) => (
-                <div
-                  key={`${beatKey}-pyro-${x}`}
-                  className="mv-pyro pointer-events-none absolute"
-                  style={{
-                    left: `${x}%`,
-                    bottom: '12%',
-                    width: 7 * u,
-                    height: 26 * u,
-                    marginLeft: -3.5 * u,
-                    background: 'linear-gradient(to top, #fff3b0, #ff9d2e 35%, rgba(255,80,20,0.5) 70%, transparent)',
-                    filter: 'blur(1.5px)',
-                    borderRadius: '50% 50% 20% 20%',
-                    zIndex: 6,
-                  }}
-                />
-              ))}
-            </>
-          )}
+          {pyro &&
+            [18, 82].map((x) => (
+              <div
+                key={`${beatKey}-pyro-${x}`}
+                className="mv-pyro pointer-events-none absolute"
+                style={{
+                  left: `${x}%`,
+                  bottom: '12%',
+                  width: 7 * u,
+                  height: 26 * u,
+                  marginLeft: -3.5 * u,
+                  background: 'linear-gradient(to top, #fff3b0, #ff9d2e 35%, rgba(255,80,20,0.5) 70%, transparent)',
+                  filter: 'blur(1.5px)',
+                  borderRadius: '50% 50% 20% 20%',
+                  zIndex: 6,
+                }}
+              />
+            ))}
 
           {callout && (
             <div

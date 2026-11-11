@@ -11,23 +11,25 @@
 // own line-by-line pacing (thematic sync, not line-for-line — read that
 // file's top comment before changing the pacing here).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { buildPlaybackTimeline, finishCallout } from '../../engine/sim/matchPlayback';
 import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { MatchStage, type Bystander, type StageFighter } from '../match/MatchStage';
-import { stageBeat } from '../match/choreography';
+import { stageMatch } from '../match/choreography';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, promotionTheme } from '../components/chrome';
 import { stipulationById } from '../../data/stipulations';
 import type { Id, PromotionArchetype, SegmentResult, SegmentRole, Wrestler } from '../../engine/types';
 
 /**
- * How long one beat holds before the next one plays. Long enough for a move
- * to be set up, land, and be seen to have landed (choreography.ts runs most
- * of them at 1.7s).
+ * How long one beat holds for a match whose commentary cannot be tied to
+ * its beats (a save from before lines carried a beat index). A match that
+ * can be is paced by what is said over each beat — see stageMatch.
  */
-const BEAT_PACE_MS = 1900;
+const BEAT_PACE_MS = 2000;
+/** The gap between one line and the next when several are said in a row. */
+const LINE_PACE_MS = 1300;
 
 // The ring's apron, turnbuckle pads and big screen, in the house colour —
 // the same hues chrome.tsx's promotionTheme uses for buttons, as plain hex
@@ -133,35 +135,73 @@ export function MatchViewerScreen({
   onBack: () => void;
 }) {
   const world = useGameStore((s) => s.world);
-  const [beatIndex, setBeatIndex] = useState(0);
+  // Where the playback has got to: -1 is before the bell (the two stand at
+  // their marks while the match is introduced), then one step per beat.
+  const [beatIndex, setBeatIndex] = useState(-1);
+  // How many lines of the current step have been said so far.
+  const [said, setSaid] = useState(0);
   const [linesShown, setLinesShown] = useState(0);
 
   const show = world?.showHistory.find((s) => s.week === matchWeek);
   const segment = show?.segments.find((s) => s.slot === matchSlot);
   const result = segment?.result;
 
-  const competitors = segment?.participants.filter((p) => p.role === 'competitor') ?? [];
-  const { sideA, sideB, winningSide, sideARawSides } = result
-    ? deriveSides(competitors, result, world!.wrestlers)
-    : { sideA: [], sideB: [], winningSide: null as 'a' | 'b' | null, sideARawSides: new Set<number>() };
-  const timeline = result ? buildPlaybackTimeline(result.beats, sideA, sideB, winningSide) : [];
+  // The whole match staged up front — which move, between whom, under which
+  // line — so a beat can depend on the one before it (who is still down,
+  // what was just done). Keyed on the result: it is decided, it never changes.
+  const staging = useMemo(() => {
+    if (!result || !segment || !world) return null;
+    const competitors = segment.participants.filter((p) => p.role === 'competitor');
+    const sides = deriveSides(competitors, result, world.wrestlers);
+    const timeline = buildPlaybackTimeline(result.beats, sides.sideA, sides.sideB, sides.winningSide);
+    const byId = new Map([...sides.sideA, ...sides.sideB].map((w) => [w.id, w] as const));
+    return { ...sides, timeline, ...stageMatch(timeline, result.commentary ?? [], byId, result.finish) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
+  const sideA = staging?.sideA ?? [];
+  const sideB = staging?.sideB ?? [];
+  const sideARawSides = staging?.sideARawSides ?? new Set<number>();
+  const timeline = staging?.timeline ?? [];
+  const moments = staging?.moments ?? [];
+  const synced = staging?.synced ?? false;
   const commentary = result?.commentary ?? [];
+  const lastBeat = moments.length - 1;
 
-  // Two independent tickers, paced so they roughly finish together — see the
-  // "thematic, not line-for-line" note at the top of this file for why they
-  // aren't locked to each other beat-for-beat.
+  // What is being said during this step.
+  const stepLines = !staging ? [] : beatIndex < 0 ? staging.before : beatIndex > lastBeat ? staging.after : (moments[beatIndex]?.lines ?? []);
+
+  // One clock. Each step says its lines one at a time and then moves on —
+  // for a beat, not before its move has had time to play.
   useEffect(() => {
-    if (timeline.length === 0 || beatIndex >= timeline.length - 1) return;
-    const handle = setTimeout(() => setBeatIndex((n) => n + 1), BEAT_PACE_MS);
+    if (!staging || !synced) return;
+    if (said < stepLines.length) {
+      const handle = setTimeout(() => setSaid((n) => n + 1), said === 0 ? 150 : LINE_PACE_MS);
+      return () => clearTimeout(handle);
+    }
+    if (beatIndex > lastBeat) return;
+    const hold = beatIndex < 0 ? 900 : Math.max(500, (moments[beatIndex]?.holdMs ?? 0) - stepLines.length * LINE_PACE_MS);
+    const handle = setTimeout(() => {
+      setBeatIndex((n) => n + 1);
+      setSaid(0);
+    }, hold);
     return () => clearTimeout(handle);
-  }, [beatIndex, timeline.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staging, synced, beatIndex, said, stepLines.length]);
 
+  // An older match, with nothing tying a line to a beat: two tickers paced
+  // to finish together, which is the best that can be done for it.
   useEffect(() => {
-    if (commentary.length === 0 || linesShown >= commentary.length) return;
+    if (!staging || synced || beatIndex >= lastBeat) return;
+    const handle = setTimeout(() => setBeatIndex((n) => n + 1), beatIndex < 0 ? 300 : BEAT_PACE_MS);
+    return () => clearTimeout(handle);
+  }, [staging, synced, beatIndex, lastBeat]);
+  useEffect(() => {
+    if (!staging || synced || linesShown >= commentary.length) return;
     const linePace = Math.max(400, (timeline.length * BEAT_PACE_MS) / commentary.length);
     const handle = setTimeout(() => setLinesShown((n) => n + 1), linePace);
     return () => clearTimeout(handle);
-  }, [linesShown, commentary.length, timeline.length]);
+  }, [staging, synced, linesShown, commentary.length, timeline.length]);
 
   if (!world) return null;
   if (!show || !segment || !result) {
@@ -176,11 +216,27 @@ export function MatchViewerScreen({
   const theme = promotionTheme(world.promotion.identity);
   const stipulation = segment.stipulation ? stipulationById(segment.stipulation) : null;
   const titleNames = segment.titleIds.map((id) => world.titles.find((t) => t.id === id)?.name).filter(Boolean);
-  const current = timeline[beatIndex];
-  const done = beatIndex >= timeline.length - 1 && linesShown >= commentary.length;
+  const moment = beatIndex >= 0 ? moments[Math.min(beatIndex, lastBeat)] : undefined;
+  const current = moment?.beat;
+  const done = synced
+    ? beatIndex > lastBeat && said >= stepLines.length
+    : beatIndex >= lastBeat && linesShown >= commentary.length;
+
+  // Everything said so far, in order: all of the earlier steps, and as much
+  // of this one as has been reached.
+  const heard = !staging
+    ? []
+    : synced
+      ? [
+          ...(beatIndex >= 0 ? staging.before : []),
+          ...moments.slice(0, Math.max(0, Math.min(beatIndex, moments.length))).flatMap((m) => m.lines),
+          ...stepLines.slice(0, said),
+        ]
+      : commentary.slice(0, linesShown);
 
   const skip = () => {
-    setBeatIndex(Math.max(0, timeline.length - 1));
+    setBeatIndex(Math.max(0, lastBeat));
+    setSaid(moments[lastBeat]?.lines.length ?? 0);
     setLinesShown(commentary.length);
   };
 
@@ -206,7 +262,7 @@ export function MatchViewerScreen({
   // everything about "what's happened up to now," so a separate synced Set
   // would just be one more thing to keep in step with them.
   const eliminated = new Set(
-    timeline.slice(0, beatIndex + 1).flatMap((b) => (b.pose === 'elimination' && b.targetId ? [b.targetId] : [])),
+    moments.slice(0, beatIndex + 1).flatMap((m) => (m.beat.pose === 'elimination' && m.targetId ? [m.targetId] : [])),
   );
 
   // Everyone rests on their own side — the sketch this screen was built from
@@ -215,15 +271,17 @@ export function MatchViewerScreen({
   // tight to the centre) could land right on top of a neighbour a few
   // degrees away. Only whoever the current beat is actually about moves to
   // the middle; everyone else just stands where they already were.
-  const activeIds = new Set([current?.actorId, current?.targetId].filter((id): id is Id => Boolean(id)));
+  // Before the bell the two who open the match are the ones standing in it.
+  const onNow = moment ?? moments[0];
+  const activeIds = new Set([onNow?.actorId, onNow?.targetId].filter((id): id is Id => Boolean(id)));
   const restingA = visible.filter((w) => sideA.includes(w) && !activeIds.has(w.id));
   const restingB = visible.filter((w) => sideB.includes(w) && !activeIds.has(w.id));
 
   // The one or two people the beat is about, placed in the ring. sideA
   // works from the left, sideB from the right; if both happen to be on the
   // same side (a partner turning on a partner), the target takes the other mark.
-  const actorWrestler = combined.find((w) => w.id === current?.actorId);
-  const targetWrestler = combined.find((w) => w.id === current?.targetId && w.id !== current?.actorId);
+  const actorWrestler = combined.find((w) => w.id === onNow?.actorId);
+  const targetWrestler = combined.find((w) => w.id === onNow?.targetId && w.id !== onNow?.actorId);
   const slotOf = (w: Wrestler): 'left' | 'right' => (sideA.includes(w) ? 'left' : 'right');
   const fighters: StageFighter[] = [];
   if (actorWrestler) fighters.push({ wrestler: actorWrestler, role: 'actor', slot: slotOf(actorWrestler) });
@@ -241,11 +299,11 @@ export function MatchViewerScreen({
   // DESIGN: the sim has no "tag" beat — it just names a different member of
   // the team as the actor. So a tag is staged whenever somebody steps in
   // for a partner who was in the ring one beat ago.
-  const previous = beatIndex > 0 ? timeline[beatIndex - 1] : undefined;
+  const previous = beatIndex > 0 ? moments[Math.min(beatIndex, lastBeat) - 1] : undefined;
   const previousIds = new Set([previous?.actorId, previous?.targetId].filter((id): id is Id => Boolean(id)));
   const partnerWasIn = (w: Wrestler) => (sideA.includes(w) ? sideA : sideB).some((mate) => mate.id !== w.id && previousIds.has(mate.id));
   for (const fighter of fighters) {
-    if (isTagMatch && current?.pose !== 'interference' && !previousIds.has(fighter.wrestler.id) && partnerWasIn(fighter.wrestler)) {
+    if (isTagMatch && moment && beatIndex <= lastBeat && current?.pose !== 'interference' && !previousIds.has(fighter.wrestler.id) && partnerWasIn(fighter.wrestler)) {
       fighter.taggedIn = true;
     }
   }
@@ -262,7 +320,8 @@ export function MatchViewerScreen({
   const railA = restingA.filter((w) => !onStage.has(w.id));
   const railB = restingB.filter((w) => !onStage.has(w.id));
 
-  const staged = current ? stageBeat(current, beatIndex, actorWrestler, Boolean(actorWrestler), result.finish) : null;
+  // Nothing is staged before the bell, or once the last beat has played out.
+  const staged = moment && beatIndex <= lastBeat ? moment.staged : null;
 
   /** Somebody waiting on the rail: not in this beat, or out of the match altogether. */
   function renderRailWrestler(wrestler: Wrestler, side: 'left' | 'right') {
@@ -359,7 +418,7 @@ export function MatchViewerScreen({
         </div>
 
         <MatchStage
-          beatKey={beatIndex}
+          beatKey={Math.min(beatIndex, lastBeat)}
           fighters={fighters}
           staged={staged}
           accent={ARENA_ACCENT[world.promotion.identity] ?? ARENA_ACCENT.territory}
@@ -414,8 +473,8 @@ export function MatchViewerScreen({
       {/* ---- commentary, bottom third ------------------------------------ */}
       {commentary.length > 0 && world.promotion.commentaryTeam ? (
         <CommentaryFeed
-          lines={commentary}
-          shown={linesShown}
+          lines={heard}
+          shown={heard.length}
           playName={world.promotion.commentaryTeam.playByPlayName}
           colourName={world.promotion.commentaryTeam.colourName}
         />
@@ -458,6 +517,12 @@ function CommentaryFeed({
   playName: string;
   colourName: string;
 }) {
+  // Keep the newest line in view: it is the one about what is happening in
+  // the ring right now, and it is no use below the fold.
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' });
+  }, [shown]);
   return (
     <div className="mt-3 flex-1 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900" data-testid="commentary-feed">
       <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950/60 px-3 py-1.5">
@@ -470,9 +535,13 @@ function CommentaryFeed({
           <Avatar name={colourName} tone="colour" />
         </span>
       </div>
-      <div className="flex h-full max-h-[220px] flex-col gap-1.5 overflow-y-auto px-3 py-2">
+      <div ref={scroller} className="flex h-full max-h-[220px] flex-col gap-1.5 overflow-y-auto px-3 py-2">
         {lines.slice(0, shown).map((line, i) => (
-          <div key={i} className={`flex items-end gap-1.5 ${line.speaker === 'play' ? 'justify-start' : 'justify-end'}`}>
+          <div
+            key={i}
+            data-testid="commentary-line"
+            className={`flex items-end gap-1.5 transition-opacity ${line.speaker === 'play' ? 'justify-start' : 'justify-end'} ${i === shown - 1 ? '' : 'opacity-60'}`}
+          >
             {line.speaker === 'play' && <Avatar name={line.name} tone="play" />}
             <div
               className={`max-w-[70%] rounded-lg px-2.5 py-1.5 text-xs leading-snug ${

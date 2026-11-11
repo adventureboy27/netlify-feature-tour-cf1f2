@@ -50,6 +50,9 @@ export const STANCES = {
   kickout: s(8, [124, 22], [96, 30], [72, 12], [58, 24]),
   tap: s(0, [104, 92], [-30, 20], [6, 30], [-6, 52]),
   celebrate: s(-4, [168, 8], [-168, 8], [4, 4], [-4, 4]),
+  stomp: s(-6, [30, 60], [-30, 70], [74, 94], [-6, 8]),
+  knee: s(-8, [40, 90], [30, 95], [84, 98], [-8, 8]),
+  kneel: s(10, [30, 60], [26, 70], [80, 98], [-12, 90]),
 } as const satisfies Record<string, Stance>;
 
 export type StanceId = keyof typeof STANCES;

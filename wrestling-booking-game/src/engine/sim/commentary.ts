@@ -41,6 +41,8 @@ import { Cap, HE, pronounsFor } from '../career/pronouns';
 import type { FinishType, Id, MatchBeat, MatchBeatKind, Title, Wrestler, WorldSettings } from '../types';
 import {
   PLAY_BY_PLAY,
+  FINISH_CALLS,
+  FINISH_CALLS_PLAIN,
   COLOUR,
   BANTER,
   COMEBACKS,
@@ -144,6 +146,21 @@ export interface CommentaryLine {
   /** Whose mouth it came out of, so the window can put a name on it. */
   name: string;
   text: string;
+  /**
+   * Which beat of the match this line is calling: an index into the same
+   * `beats` the result carries. Absent before the bell (the opener, the
+   * tale of the tape); one past the last beat for anything said after the
+   * finish. The match viewer uses it to show a line at the moment the thing
+   * it describes happens, rather than on a clock of its own.
+   */
+  beat?: number;
+  /**
+   * For a play-by-play line that names them: who the line says is doing it,
+   * and who it is being done to. The viewer stages exactly these two, so the
+   * ring never shows one person on top while the call names the other.
+   */
+  actorId?: Id;
+  targetId?: Id;
 }
 
 /** Who is on the headset. Stored on the promotion so it never changes mid-run. */
@@ -483,6 +500,8 @@ function filler(ctx: CommentaryContext, rng: Rng) {
 }
 
 /** Templates whose every declared fact is true, and which fit this leaning. */
+const isPinfall = (finish: FinishType) => finish === 'cleanPin' || finish === 'rollup';
+
 function eligible(
   templates: readonly ColourTemplate[],
   facts: ReadonlySet<CommentaryFact>,
@@ -544,10 +563,24 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     momentum = { onTop: momentum.inTrouble, inTrouble: momentum.onTop };
   };
 
-  const play = (text: string) =>
-    lines.push({ speaker: 'play', name: ctx.team.playByPlayName, text: fill(text, momentum) });
+  // Which beat is being called right now; stamped on every line so the
+  // viewer can keep the words and the ring together. Undefined until the bell.
+  let calling: number | undefined;
+  const stamp = (): Pick<CommentaryLine, 'beat'> => (calling === undefined ? {} : { beat: calling });
+  /** `names` — the text is a template about {onTop}/{inTrouble}, so say who those were. */
+  const play = (text: string, names = false) => {
+    const actor = momentum.onTop[0];
+    const target = momentum.inTrouble[0];
+    lines.push({
+      speaker: 'play',
+      name: ctx.team.playByPlayName,
+      text: fill(text, momentum),
+      ...stamp(),
+      ...(names && actor && target ? { actorId: actor.id, targetId: target.id } : {}),
+    });
+  };
   const colour = (text: string) =>
-    lines.push({ speaker: 'colour', name: ctx.team.colourName, text: fill(text, momentum) });
+    lines.push({ speaker: 'colour', name: ctx.team.colourName, text: fill(text, momentum), ...stamp() });
 
   // ---- who, and what for -------------------------------------------------
   // A genuine one-on-one gets a real tale of the tape below — the debut and
@@ -651,7 +684,7 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
   const budget = s.commentaryMaxLines;
   const finishBeat = ctx.beats.find((b) => b.kind === 'finish') ?? null;
 
-  for (const beat of ctx.beats) {
+  for (const [beatIndex, beat] of ctx.beats.entries()) {
     if (beat.kind === 'finish') continue;
     // Two lines held back: the finish call, and something after it.
     if (lines.length >= budget - 2) break;
@@ -659,12 +692,17 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     // A hope spot *is* the turn. Handing the advantage over here is the whole
     // reason consecutive lines read as one fight.
     if (beat.kind === 'hopeSpot') turnOver();
+    calling = beatIndex;
 
     const options = (PLAY_BY_PLAY[beat.kind] ?? []).filter((t) => !usedPlay.has(t));
     if (options.length > 0) {
       const line = pick(rng, options);
       usedPlay.add(line);
-      play(line);
+      // Every template here is written about {onTop} and {inTrouble}, so
+      // those are the two the line is about — whatever ids the beat itself
+      // carries. (The fallback below, the beat's own text, is not stamped:
+      // that text was written about the beat's own actor.)
+      play(line, true);
     } else {
       // Nothing left in the caller's vocabulary for this kind of beat. The
       // written highlight is still true and still about this match, which
@@ -707,8 +745,16 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
   // Always called, always by the play-by-play man, always the last of the
   // action. A call that runs out of room before the finish has failed.
   momentum = { onTop: winners, inTrouble: losers };
-  const finishCalls = (PLAY_BY_PLAY.finish ?? []).filter((t) => !usedPlay.has(t));
-  play(finishCalls.length > 0 ? pick(rng, finishCalls) : (finishBeat?.text ?? '{winner} takes it.'));
+  calling = finishBeat ? ctx.beats.indexOf(finishBeat) : ctx.beats.length;
+  // Called the way it actually ended. The pinfall calls count to three; a
+  // match that ended in a hold, a knockout or a disqualification gets a call
+  // written for that, and anything else gets one that does not say how.
+  const finishPool = isPinfall(ctx.finish)
+    ? (PLAY_BY_PLAY.finish ?? [])
+    : (FINISH_CALLS[ctx.finish] ?? FINISH_CALLS_PLAIN);
+  const finishCalls = finishPool.filter((t) => !usedPlay.has(t));
+  play(finishCalls.length > 0 ? pick(rng, finishCalls) : (finishBeat?.text ?? '{winner} takes it.'), true);
+  calling = ctx.beats.length;
 
   // ---- and out -----------------------------------------------------------
   const freshClosers = eligible(CLOSERS, facts, ctx.team.leaning, usedColour, null);

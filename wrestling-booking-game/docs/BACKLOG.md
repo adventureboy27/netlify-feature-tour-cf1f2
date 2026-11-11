@@ -5,6 +5,53 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Match viewer: the ring shows what the call says, the match flows, the ring is solid — shipped
+
+Asked directly: do the moves in commentary match the moves in the ring ("it has to"), is there enough
+for an entertaining, non-repetitive match, do wrestlers get up and carry on from where they are, and
+do the ring, ropes and floor respect collision. Before this: no, no, no and no. The call and the ring
+picked their moves independently; a match was five moves and a pin; everybody walked back to two
+marks between beats; and a body lying near the edge had its head through the ropes.
+
+**The call and the ring are one thing now.**
+- `engine/sim/commentary.ts`: every line carries the `beat` it calls, and a play-by-play line carries
+  the `actorId`/`targetId` its words are about. No new RNG draws.
+- Found on the way: the finish call was drawn from one pool regardless of how the match ended, so a
+  submission could be called "one, two, three". `data/commentaryLines.ts` gains `FINISH_CALLS` keyed
+  by finish type; the pinfall pool is now only used for pinfalls.
+- `ui/match/choreography.ts` `SAID`: ordered patterns from words to moves ("backbreaker", "stomps in
+  the corner", "catches the foot"). Authority order for a beat: the commentary line, the beat's own
+  highlight text, the attacker's named move, then a choice of the viewer's own. 17 moves were added
+  so every play-by-play line has something specific to be (45 total). A test fails if a
+  play-by-play line is ever added that no pattern understands.
+- The viewer shows a line at the moment its beat starts, stages the two wrestlers the line names
+  (which caught the ring showing A on top while the call named B), and holds each beat long enough
+  to read what was said over it.
+
+**It flows.**
+- `stageMatch` stages the whole match in one pass, so a beat knows what came before it: nothing is
+  repeated within five moves, and a target left on the mat gets ground work (stomp, elbow drop, leg
+  drop, ground and pound, being dragged up) instead of standing up to be knocked down again.
+- DESIGN: the sim records only the handful of beats worth a sentence. Between two of them the viewer
+  now stages up to two unspoken exchanges — whoever was on top carries on, in their own style — so a
+  match is 9-15 exchanges rather than 5. Control still only changes hands where the sim says it did.
+- `ui/match/ringPhysics.ts`: a move starts from wherever the last one left the pair; the exchange
+  re-forms around where they ended up. Somebody down gets up through a knee where they fell, or
+  stays down if the next move is done to a downed opponent.
+
+**The ring is solid.** Same file. An exchange that would not fit where it starts is slid along until
+it does; any pose still through the ropes is pushed back in (and the ropes shake); nothing goes
+below the mat; rope and corner moves are moved to the actual ropes and posts; the only way out is
+over the top rope, and it ends on the arena floor, 10.8 units below the mat.
+
+`ui/match/match.test.ts` (54 tests) checks all of it without a browser, including every move from
+five starting positions and both facings for rope and mat violations. Probed in a played save: six
+matches, 51 staged exchanges, 21 of 21 recorded beats called, zero back-to-back repeats.
+
+Not done: wrestlers do not collide with each other (bodies overlap in a grapple by design, and by
+accident when one walks past a body on the mat); the battle-royal field and the referee are not
+part of the physics; old saves' matches have untagged commentary and fall back to clock pacing.
+
 ## Match viewer: jointed wrestlers — shipped
 
 Asked for pivot points at the shoulders, elbows, knees and waist (and whether pins and kickouts
