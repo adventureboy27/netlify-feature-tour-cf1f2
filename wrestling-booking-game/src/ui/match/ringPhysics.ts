@@ -48,6 +48,12 @@ export const RING = {
   floorHalf: 45,
 } as const;
 
+// The space a battle royal's field brawls in (FieldBrawl.tsx): drawn
+// smaller than the two at the front, with their feet toward the back edge
+// of the mat. `half` is half the mat's width back there in the field's own,
+// smaller, units.
+export const FIELD = { scale: 0.6, feetY: 388, half: 33 } as const;
+
 /** Where a tag partner stands: on the apron, just outside their corner. */
 export const apronX = (side: 1 | -1) => -side * (RING.half + 3.2);
 
@@ -90,7 +96,7 @@ const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n
 /** Screen x of the head, given the feet and a screen lean. */
 const headX = (x: number, rot: number) => x + Math.sin(rad(rot)) * RING.tall;
 const headY = (y: number, rot: number) => y + Math.cos(rad(rot)) * RING.tall;
-const inRing = (pose: WorldPose) => Math.abs(pose.x) <= RING.half + 0.5 && pose.y > FLOOR / 2;
+const inRing = (pose: WorldPose, half: number = RING.half) => Math.abs(pose.x) <= half + 0.5 && pose.y > FLOOR / 2;
 /** On the floor in front of the ring. */
 // (Lower than the side floor an eliminated wrestler lands on, with room for a body lying on it.)
 export const onFrontFloor = (pose: WorldPose) => pose.y < FLOOR - 0.5;
@@ -103,20 +109,32 @@ function span(x: number, rot: number): [number, number] {
   return [Math.min(x, hx) - pad, Math.max(x, hx) + pad];
 }
 
-export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], lastCentre: number): Plan {
+export interface PlanOptions {
+  /** Half-width of the space to keep everybody inside, if not the ring's own. */
+  half?: number;
+  /**
+   * Stage the exchange here rather than wherever the pair ended up. Used by
+   * the brawls in a battle royal's field, where each pair has its own patch
+   * of the ring and must not wander into the next one's.
+   */
+  near?: number;
+}
+
+export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], lastCentre: number, options: PlanOptions = {}): Plan {
   const { choreo, meta } = staged;
   const target = fighters.find((f) => f.role === 'target');
   const zone = staged.zone ?? 'ring';
   // Where the ground is and where the walls are, for this beat.
   const ground = zone === 'floor' ? FRONT_FLOOR : 0;
-  const ringEdge = RING.half - 0.4;
+  const ringHalf = options.half ?? RING.half;
+  const ringEdge = ringHalf - 0.4;
   const edge = zone === 'ring' ? ringEdge : RING.floorHalf;
   // On the way out or back in, a pose is held by whichever it is in at that
   // height: the ropes while it is up on the mat, the barricades once it is
   // down on the floor.
   const edgeAt = (y: number) => (zone === 'ring' ? ringEdge : zone === 'floor' ? RING.floorHalf : y > FLOOR / 2 ? ringEdge : RING.floorHalf);
   // Somebody is "here" for this beat if the last one left them in the place it starts.
-  const here = (pose: WorldPose) => (zone === 'floor' || zone === 'in' ? onFrontFloor(pose) : inRing(pose));
+  const here = (pose: WorldPose) => (zone === 'floor' || zone === 'in' ? onFrontFloor(pose) : inRing(pose, ringHalf));
 
   // ---- the target is already down ----------------------------------------
   const targetWasDown = Boolean(target?.from && here(target.from) && lying(target.from));
@@ -140,7 +158,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
   if (meta.anchor && anchored) {
     // Put that wrestler's `at` on the ropes behind them.
     // (On the floor, the thing behind them is a barricade.)
-    const rope = -anchored.dir * ((zone === 'floor' ? RING.floorHalf : RING.half) - RING.body);
+    const rope = -anchored.dir * ((zone === 'floor' ? RING.floorHalf : ringHalf) - RING.body);
     centre = rope - anchored.dir * meta.anchor.at + (anchored.dir * GAP) / 2;
   } else if (staysDown && target?.from) {
     // Go to them: the move happens where they are lying.
@@ -148,7 +166,8 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
     centre = target.from.x - target.dir * lieAt + (target.dir * GAP) / 2;
   } else {
     const known = fighters.filter((f) => f.from && here(f.from) && !f.taggedIn);
-    if (known.length === 2) centre = (known[0]!.from!.x + known[1]!.from!.x) / 2;
+    if (options.near !== undefined) centre = options.near;
+    else if (known.length === 2) centre = (known[0]!.from!.x + known[1]!.from!.x) / 2;
     else if (known.length === 1) centre = known[0]!.from!.x + (known[0]!.dir * GAP) / 2;
     else centre = lastCentre;
 
@@ -225,8 +244,8 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
       if (leaving) {
         // Out is over the top: clear the rope while crossing it, then the
         // floor is the floor.
-        const outside = Math.abs(wx) > RING.half + 1.5;
-        if (!outside && Math.abs(wx) > RING.half - 3) wy = Math.max(wy, RING.topRope + 1);
+        const outside = Math.abs(wx) > ringHalf + 1.5;
+        if (!outside && Math.abs(wx) > ringHalf - 3) wy = Math.max(wy, RING.topRope + 1);
         if (outside) wy = Math.max(wy, FLOOR + Math.max(0, -Math.cos(rad(wrot)) * RING.tall));
       } else if (zone !== 'ring') {
         // Outside: barricades either side, and the floor underneath. (On the

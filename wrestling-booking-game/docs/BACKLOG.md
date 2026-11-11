@@ -5,6 +5,30 @@ read. Roughly in the order it is worth doing.
 
 ---
 
+## Match viewer: everybody is fighting, all the time — shipped
+
+"In a battle royal everyone is actually fighting. But when a move is announced, that is the next move
+done. So there's always action and it flows." Before this a battle royal's field stood in a row at
+the back while two people wrestled, and tag partners stood motionless on the apron.
+
+- **`ui/match/FieldBrawl.tsx`**: the field is paired off in a stable order, each pair at its own
+  station along the back of the ring, each looping default moves (`BRAWL` in choreography.ts) on its
+  own clock, jointed like the two at the front. They trade who is on top every move, so nobody is
+  seen to win an exchange the sim never recorded, and nothing in `BRAWL` can put anybody out — an
+  elimination still only happens where the sim says it did, at the front, over the real ropes. When
+  somebody leaves (called to the front, or eliminated) the rest re-pair and walk to their stations.
+  An odd one out prowls their patch rather than standing still.
+- Same ring physics, via two new `planBeat` options: `half` (the field's own, smaller, space) and
+  `near` (stay at your station). `playback.ts` now holds the animation code both layers share.
+- **Tag teams**: the team in control makes its own tags during unspoken stretches (only that team —
+  the one taking the beating cannot reach a corner), and whoever the caller names next is tagged
+  back in for it. Partners on the apron lean and shout instead of standing still.
+- The called move is still the very next thing done: tested.
+
+Checked in a harness with a field of eight (56fps headless, six of seven sampled field figures in
+constant motion; the seventh was the odd one out, since fixed) and in tests. Not yet watched in a
+real battle royal from a played save.
+
 ## Match viewer: more called moves, and no standing around — shipped
 
 Asked for more commentary lines naming moves, the move landing on the right wrestler, and a match

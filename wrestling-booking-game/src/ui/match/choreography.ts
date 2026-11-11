@@ -527,6 +527,12 @@ const CONTROL: Record<MoveStyle, readonly MoveId[]> = {
   strike: ['strike', 'superkick', 'kneeLift', 'flurry', 'headbutt', 'clothesline', 'dropkick', 'cornerSplash'],
   brawl: ['strike', 'headbutt', 'flurry', 'slam', 'cornerStomp', 'clothesline', 'spear', 'kneeLift', 'cornerWhip'],
 };
+// What two people do to each other when nobody is calling it — the brawls
+// in a battle royal's field. Nothing that needs the ropes, a corner or a
+// downed opponent, and nothing that puts anybody out: in a battle royal
+// that would be an elimination, and those only happen where the simulation
+// says they did.
+export const BRAWL: readonly MoveId[] = ['strike', 'headbutt', 'lockup', 'flurry', 'kneeLift', 'clothesline', 'shove', 'hold', 'takedown', 'fireUp', 'dropkick', 'counter', 'slam', 'superkick'];
 // With somebody already on the mat, the fight goes down there with them.
 const GROUND: readonly MoveId[] = ['stomp', 'elbowDrop', 'pickUp', 'legDrop', 'groundPound', 'aerial', 'moonsault'];
 const OPENING: readonly MoveId[] = ['lockup', 'shove', 'hold', 'sprawl', 'lockupCorner', 'shoulderBlock'];
@@ -769,6 +775,12 @@ export function stageMatch(
    * you lose.
    */
   allowOutside = false,
+  /**
+   * The two sides of a tag match. With it, the team in control makes its
+   * own tags during the unspoken stretches — the sim only says who was in
+   * for the moments it recorded, and a team that never tags is not a team.
+   */
+  teams: readonly (readonly Id[])[] = [],
 ): { moments: MatchMoment[]; before: StagedLine[]; after: StagedLine[]; synced: boolean } {
   const synced = commentary.some((line) => line.beat !== undefined);
   const before = synced ? commentary.filter((line) => line.beat === undefined) : [];
@@ -842,9 +854,15 @@ export function stageMatch(
     // said — the call itself is read over its own move, the rest over these.
     const toRead = last.lines.reduce((ms, line) => ms + reading(line), 0) - last.staged.duration;
     const between = Math.max(Math.min(2, most), Math.min(most, Math.ceil(toRead / 1700)));
+    // Only the side on top gets to tag: the one taking the beating is the
+    // one who cannot reach their corner. Whoever the caller names next is
+    // tagged back in for it.
+    const corner = teams.find((team) => team.includes(last.actorId!)) ?? [];
+    let working: Id = last.actorId;
     for (let i = 0; i < between; i++) {
+      if (corner.length > 1 && fillerIndex % 3 === 1) working = corner[(corner.indexOf(working) + 1) % corner.length]!;
       // 1000+ keeps a filler's "index" (which only rotates its choice of move) clear of the real beats'.
-      stage({ kind: 'control', pose: 'control', text: '', significant: false, actorId: last.actorId, targetId: last.targetId, moveName: null }, 1000 + fillerIndex++, [], true, coming ? [coming] : []);
+      stage({ kind: 'control', pose: 'control', text: '', significant: false, actorId: working, targetId: last.targetId, moveName: null }, 1000 + fillerIndex++, [], true, coming ? [coming] : []);
     }
   });
   return { moments, before, after, synced };

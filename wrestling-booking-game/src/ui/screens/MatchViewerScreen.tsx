@@ -175,7 +175,9 @@ export function MatchViewerScreen({
     // the top is elimination, and that is the only way anybody leaves.
     const isBattleRoyal = segment.stipulation === 'battleRoyal' || timeline.some((b) => b.pose === 'elimination') || Math.max(sides.sideA.length, sides.sideB.length) > 4;
     const allowOutside = !isBattleRoyal && segment.stipulation !== null && segment.stipulation !== undefined && FIGHTS_OUTSIDE.has(segment.stipulation);
-    return { ...sides, timeline, ...stageMatch(timeline, result.commentary ?? [], byId, result.finish, allowOutside) };
+    const biggest = Math.max(sides.sideA.length, sides.sideB.length);
+    const teams = biggest >= 2 && biggest <= 4 ? [sides.sideA.map((w) => w.id), sides.sideB.map((w) => w.id)] : [];
+    return { ...sides, timeline, ...stageMatch(timeline, result.commentary ?? [], byId, result.finish, allowOutside, teams) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
@@ -343,7 +345,7 @@ export function MatchViewerScreen({
   const bystanders: Bystander[] = isTagMatch
     ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: 'apron' as const }))
     : isFieldMatch
-      ? waiting.slice(0, 9).map((w) => ({ wrestler: w, slot: slotOf(w), place: 'ring' as const }))
+      ? waiting.slice(0, 8).map((w) => ({ wrestler: w, slot: slotOf(w), place: 'ring' as const }))
       : [];
   const onStage = new Set(bystanders.map((b) => b.wrestler.id));
   // The rails are for whoever the stage has no room for, and for the eliminated.

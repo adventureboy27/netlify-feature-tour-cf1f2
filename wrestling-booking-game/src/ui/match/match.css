@@ -64,7 +64,17 @@
 }
 .mv-breathe { transform-origin: 50% 100%; animation: mv-breathe 0.9s ease-in-out infinite alternate; }
 
+/* A partner on the apron: leaning in, shouting, never quite still. */
+@keyframes mv-cheer {
+  0%, 100% { transform: rotate(-1.5deg) translateY(0); }
+  30% { transform: rotate(2.5deg) translateY(-1.5%); }
+  60% { transform: rotate(-0.5deg) translateY(0); }
+  80% { transform: rotate(2deg) translateY(-2.5%); }
+}
+.mv-cheer { transform-origin: 50% 100%; animation: mv-cheer 1.7s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
+  .mv-cheer { animation: none; }
   .mv-breathe { animation: none; }
   .mv-crowd, .mv-cone, .mv-flash { animation: none; }
 }

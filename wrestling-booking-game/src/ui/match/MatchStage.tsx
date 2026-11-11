@@ -11,9 +11,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArenaBack, ArenaFront, FEET_Y, VIEW } from './Arena';
 import { FIGURE_ASPECT, MatchFigure } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
-import { STANCES, autoStance, hipDrop, type Stance } from './rig';
-import { FLOOR, FRONT_FLOOR, GAP, type StagedBeat } from './choreography';
-import { RING, apronX, midBody, onFrontFloor, planBeat, type Plan, type PlanFighter, type WorldPose } from './ringPhysics';
+import { playPlan } from './playback';
+import { FieldBrawl } from './FieldBrawl';
+import { FLOOR, GAP, type StagedBeat } from './choreography';
+import { apronX, midBody, planBeat, type Plan, type PlanFighter, type WorldPose } from './ringPhysics';
 import type { Id, Wrestler } from '../../engine/types';
 
 /** Figure width in stage units (hundredths of the stage's width). */
@@ -70,51 +71,6 @@ const ROPE_WOBBLE: Keyframe[] = [
   { transform: 'translateY(-1px)' },
   { transform: 'translateY(0)' },
 ];
-// A pose table is a handful of key poses. Played pose-to-pose with an ease
-// on each step, every key pose is a dead stop — the puppet-show look. So
-// each channel (position, lean, every joint) is run through a smooth curve
-// and re-sampled finely, and the browser is given those.
-const SAMPLE_MS = 34;
-
-/**
- * A curve through the keys that never overshoots them (monotone cubic,
- * Fritsch-Carlson). The no-overshoot part matters: ringPhysics.ts has
- * already made every key pose legal, and a curve that swung wide between
- * two of them would put a head through the ropes after all.
- */
-function curve(times: readonly number[], values: readonly number[]): (t: number) => number {
-  const n = times.length;
-  if (n === 1) return () => values[0]!;
-  const slope: number[] = [];
-  for (let i = 0; i < n - 1; i++) slope.push((values[i + 1]! - values[i]!) / Math.max(1e-6, times[i + 1]! - times[i]!));
-  const tangent: number[] = [slope[0]!];
-  for (let i = 1; i < n - 1; i++) tangent.push(slope[i - 1]! * slope[i]! <= 0 ? 0 : (slope[i - 1]! + slope[i]!) / 2);
-  tangent.push(slope[n - 2]!);
-  for (let i = 0; i < n - 1; i++) {
-    if (slope[i] === 0) {
-      tangent[i] = 0;
-      tangent[i + 1] = 0;
-      continue;
-    }
-    const a = tangent[i]! / slope[i]!;
-    const b = tangent[i + 1]! / slope[i]!;
-    const size = a * a + b * b;
-    if (size > 9) {
-      const k = 3 / Math.sqrt(size);
-      tangent[i] = k * a * slope[i]!;
-      tangent[i + 1] = k * b * slope[i]!;
-    }
-  }
-  return (t) => {
-    let i = 0;
-    while (i < n - 2 && t > times[i + 1]!) i++;
-    const h = Math.max(1e-6, times[i + 1]! - times[i]!);
-    const p = Math.min(1, Math.max(0, (t - times[i]!) / h));
-    const p2 = p * p;
-    const p3 = p2 * p;
-    return (2 * p3 - 3 * p2 + 1) * values[i]! + (p3 - 2 * p2 + p) * h * tangent[i]! + (-2 * p3 + 3 * p2) * values[i + 1]! + (p3 - p2) * h * tangent[i + 1]!;
-  };
-}
 const dirOf = (slot: 'left' | 'right'): 1 | -1 => (slot === 'left' ? 1 : -1);
 
 export function MatchStage({
@@ -189,60 +145,11 @@ export function MatchStage({
     leftAt.current = next.end;
     setPlan(next);
 
-    const running: Animation[] = [];
-    const legUnit = figureW / 100;
     for (const f of cast) {
       const el = figureRefs.current.get(f.id);
-      const frames = next.tracks.get(f.id);
-      if (!el || !frames) continue;
-      // The stance guess reads a lean relative to the way they face.
-      const facing = frames.map((fr) => [fr.at, f.dir * fr.x, fr.y, f.dir * fr.rot, fr.sy, fr.stance] as const);
-      const stances: Stance[] = frames.map((fr, i) => STANCES[fr.stance ?? autoStance(facing, i)]);
-      const times = frames.map((fr) => fr.at);
-      const steps = Math.max(2, Math.round(duration / SAMPLE_MS));
-      const offsets = Array.from({ length: steps + 1 }, (_, i) => i / steps);
-      const channel = (values: number[]) => {
-        const at = curve(times, values);
-        return offsets.map(at);
-      };
-      const play = (part: Element, transforms: string[]) =>
-        running.push(part.animate(transforms.map((transform, i) => ({ offset: offsets[i]!, transform })), { duration, fill: 'both' }));
-
-      // Bent knees bring the hips down — but only for somebody standing on
-      // the mat or the floor; a body in the air or lying down has nothing
-      // to sink toward.
-      const sink = frames.map((fr, i) => {
-        const height = fr.y - (onFrontFloor(fr) ? FRONT_FLOOR : 0);
-        return height < 1 && Math.abs(fr.rot) < 45 ? hipDrop(stances[i]!) * legUnit : 0;
-      });
-      const [xs, ys, rots, squash] = [
-        channel(frames.map((fr) => fr.x * u)),
-        channel(frames.map((fr, i) => -fr.y * u + sink[i]!)),
-        channel(frames.map((fr) => fr.rot)),
-        channel(frames.map((fr) => fr.sy)),
-      ];
-      el.style.transform = '';
-      play(el, offsets.map((_, i) => `translate(${xs[i]!.toFixed(2)}px, ${ys[i]!.toFixed(2)}px) rotate(${rots[i]!.toFixed(2)}deg) scaleY(${squash[i]!.toFixed(3)})`));
-
-      // The limbs. The lead arm and leg are the ones on the opponent's
-      // side of the picture: screen-right for whoever works from the left.
-      const joints = jointRefs.current.get(f.id);
-      if (!joints) continue;
-      const d = f.dir;
-      const lead = d === 1 ? joints.right : joints.left;
-      const rear = d === 1 ? joints.left : joints.right;
-      const turn = (part: Element, angle: (st: Stance) => number) =>
-        play(part, channel(stances.map(angle)).map((deg) => `rotate(${deg.toFixed(2)}deg)`));
-      turn(joints.waist, (st) => d * st.w);
-      turn(lead.shoulder, (st) => -d * st.la[0]);
-      turn(lead.elbow, (st) => -d * st.la[1]);
-      turn(rear.shoulder, (st) => -d * st.ra[0]);
-      turn(rear.elbow, (st) => -d * st.ra[1]);
-      turn(lead.hip, (st) => -d * st.ll[0]);
-      turn(lead.knee, (st) => d * st.ll[1]);
-      turn(rear.hip, (st) => -d * st.rl[0]);
-      turn(rear.knee, (st) => d * st.rl[1]);
+      if (el) el.style.transform = '';
     }
+    const running = playPlan(next, cast, (id) => figureRefs.current.get(id), (id) => jointRefs.current.get(id), u, figureW, duration);
 
     const timers: number[] = [];
     for (const impact of next.impacts) {
@@ -298,30 +205,27 @@ export function MatchStage({
           </div>
 
           {/* Everyone in the match who is not in this beat. A battle royal's
-              field stands along the back of the ring, smaller for the
-              distance; a tag partner waits on the apron at their corner,
-              and any more of the team on the floor beside it. */}
-          {(() => {
-            const field = bystanders.filter((b) => b.place === 'ring');
-            return bystanders.map((b) => {
+              field is paired off and fighting along the back of the ring the
+              whole time (FieldBrawl); a tag partner waits on the apron at
+              their corner, and any more of the team on the floor beside it. */}
+          <FieldBrawl wrestlers={bystanders.filter((b) => b.place === 'ring').map((b) => b.wrestler)} stageWidth={w} stageHeight={h} figureWidth={figureW} />
+          {bystanders
+            .filter((b) => b.place === 'apron')
+            .map((b) => {
               const side = dirOf(b.slot);
-              const k = b.place === 'ring' ? 0.62 : 0.86;
-              const width = figureW * k;
-              const order = (b.place === 'ring' ? field : bystanders.filter((o) => o.place === 'apron' && o.slot === b.slot)).indexOf(b);
-              const x = b.place === 'ring' ? sx(field.length === 1 ? 0 : ((order / (field.length - 1)) * 2 - 1) * (RING.half - 4)) : sx(apronX(side) - side * order * 5.5);
-              const feet = b.place === 'ring' ? (384 / VIEW.h) * h : sy(order === 0 ? 0 : FLOOR);
+              const width = figureW * 0.86;
+              const order = bystanders.filter((o) => o.place === 'apron' && o.slot === b.slot).indexOf(b);
               return (
                 <div
                   key={b.wrestler.id}
-                  data-testid={`bystander-${b.place}`}
-                  className="absolute"
-                  style={{ left: x - width / 2, top: feet - width * FIGURE_ASPECT, width, zIndex: b.place === 'ring' ? 1 : 4, opacity: b.place === 'ring' ? 0.92 : 1 }}
+                  data-testid="bystander-apron"
+                  className="mv-cheer absolute"
+                  style={{ left: sx(apronX(side) - side * order * 5.5) - width / 2, top: sy(order === 0 ? 0 : FLOOR) - width * FIGURE_ASPECT, width, zIndex: 4, animationDelay: `${-order * 0.4 - (side === 1 ? 0 : 0.6)}s` }}
                 >
                   <MatchFigure wrestler={b.wrestler} />
                 </div>
               );
-            });
-          })()}
+            })}
 
           {fighters.map((fighter) => (
             <div

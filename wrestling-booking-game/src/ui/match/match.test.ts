@@ -11,8 +11,8 @@ import { PLAY_BY_PLAY } from '../../data/commentaryLines';
 import { generateWrestlers } from '../../engine/generate/wrestler';
 import { rngFromSeed } from '../../engine/rng';
 import type { PlaybackBeat } from '../../engine/sim/matchPlayback';
-import { DOWN, FLOOR, FRONT_FLOOR, META, MOVE_IDS, endPose, isDown, moveSaid, stageMatch, stageMove, understands, type MoveId } from './choreography';
-import { RING, onFrontFloor, planBeat, type PlanFighter, type WorldPose } from './ringPhysics';
+import { BRAWL, DOWN, FLOOR, FRONT_FLOOR, GAP, META, MOVE_IDS, endPose, isDown, moveSaid, stageMatch, stageMove, understands, type MoveId } from './choreography';
+import { FIELD, RING, onFrontFloor, planBeat, type PlanFighter, type WorldPose } from './ringPhysics';
 
 const [alpha, bravo] = generateWrestlers(rngFromSeed('match-viewer'), 2) as [ReturnType<typeof generateWrestlers>[number], ReturnType<typeof generateWrestlers>[number]];
 const cast = new Map([alpha, bravo].map((w) => [w.id, w] as const));
@@ -265,6 +265,71 @@ describe('fighting outside', () => {
           expect(Math.max(Math.abs(pose.x), Math.abs(headX)), `${m.staged.move} ends inside`).toBeLessThanOrEqual(RING.half + 0.01);
         }
       }
+    }
+  });
+});
+
+describe('there is always action', () => {
+  it('a battle royal field brawls where it stands, for as long as it likes, without leaving or eliminating anybody', () => {
+    for (const move of BRAWL) {
+      expect(META[move]?.exits, `${move} must not put anybody out`).toBeUndefined();
+      expect(META[move]?.anchor, `${move} must not need the ropes`).toBeUndefined();
+      expect(META[move]?.needsDown ?? false, `${move} must not need a downed opponent`).toBe(false);
+    }
+    const rad = (deg: number) => (deg * Math.PI) / 180;
+    for (const station of [-24, 0, 24]) {
+      const left = new Map<string, WorldPose>();
+      for (let round = 0; round < 60; round++) {
+        const cast = [
+          fighter('a', round % 2 === 0 ? 'actor' : 'target', 1, left.get('a')),
+          fighter('b', round % 2 === 0 ? 'target' : 'actor', -1, left.get('b')),
+        ];
+        const plan = planBeat(stageMove(BRAWL[(round * 5) % BRAWL.length]!), cast, station, { half: FIELD.half, near: station });
+        for (const [id, frames] of plan.tracks) {
+          for (const frame of frames.slice(1)) {
+            const head = frame.x + Math.sin(rad(frame.rot)) * RING.tall;
+            const where = `round ${round} at station ${station}: x=${frame.x.toFixed(1)}`;
+            expect(Math.max(Math.abs(frame.x), Math.abs(head)), where).toBeLessThanOrEqual(FIELD.half + 0.01);
+            expect(frame.y, where).toBeGreaterThanOrEqual(-0.01);
+            // And it stays on its own patch: within a couple of body lengths of the station.
+            expect(Math.abs(frame.x - station), where).toBeLessThan(GAP / 2 + RING.tall + 8);
+          }
+          left.set(id, plan.end.get(id)!);
+        }
+      }
+    }
+  });
+
+  it('a tag team in control makes its own tags, and only that team', () => {
+    const [charlie, delta] = generateWrestlers(rngFromSeed('partners'), 2);
+    const four = new Map([alpha, bravo, charlie!, delta!].map((w) => [w.id, w] as const));
+    const timeline = Array.from({ length: 6 }, (_, i) => beat(i === 0 ? 'exchange' : i === 5 ? 'finish' : 'control'));
+    const teams = [[alpha.id, charlie!.id], [bravo.id, delta!.id]];
+    const { moments } = stageMatch(timeline, [], four, 'cleanPin', false, teams);
+    const attackers = new Set(moments.map((m) => m.actorId));
+    // The partner gets in...
+    expect(attackers.has(charlie!.id)).toBe(true);
+    // ...the other side, which is taking the beating throughout, never does.
+    expect(attackers.has(delta!.id)).toBe(false);
+    expect(moments.every((m) => m.targetId === bravo.id)).toBe(true);
+    // And every beat the simulation recorded is still alpha's, as recorded.
+    expect(moments.filter((m) => !m.filler).every((m) => m.actorId === alpha.id)).toBe(true);
+  });
+
+  it('the announced move is the very next thing done', () => {
+    const timeline = [beat('exchange'), beat('control'), beat('control'), beat('finish')];
+    const lines = [
+      { speaker: 'play' as const, name: 'P', text: 'Backbreaker, and A holds them there across the knee.', beat: 1, actorId: alpha.id, targetId: bravo.id },
+      { speaker: 'play' as const, name: 'P', text: 'Clothesline! A nearly takes their head off.', beat: 2, actorId: alpha.id, targetId: bravo.id },
+    ];
+    const { moments } = stageMatch(timeline, lines, cast, 'cleanPin');
+    for (const [text, move] of [['Backbreaker', 'backbreaker'], ['Clothesline', 'clothesline']] as const) {
+      const called = moments.find((m) => m.lines.some((l) => l.text.startsWith(text)))!;
+      expect(called.staged.move).toBe(move);
+      // Unspoken work leads up to it, and it is not that same move.
+      const before = moments[moments.indexOf(called) - 1]!;
+      expect(before.filler).toBe(true);
+      expect(before.staged.move).not.toBe(move);
     }
   });
 });
