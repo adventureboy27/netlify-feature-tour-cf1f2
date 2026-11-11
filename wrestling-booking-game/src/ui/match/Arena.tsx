@@ -111,7 +111,10 @@ export const ArenaBack = memo(function ArenaBack({
   cage = false,
   corners,
   eventName,
+  noRing = false,
 }: {
+  /** An arena-floor match: no ring is drawn at all. */
+  noRing?: boolean;
   /** More than one company in the building: each has a corner, and half the ring. */
   corners?: readonly [Corner, Corner];
   /** What the night is called, for the big screen, when it is not an ordinary show. */
@@ -239,6 +242,22 @@ export const ArenaBack = memo(function ArenaBack({
       <ellipse cx={600} cy={500} rx={520} ry={95} fill="url(#mv-pool)" opacity={0.16} />
       <ellipse cx={600} cy={546} rx={400} ry={20} fill="#000" opacity={0.55} />
 
+      {noRing ? (
+        <g>
+          {/* No ring: bare concrete, a painted mark where one would stand, and the barricade pulled in close on both sides. */}
+          <ellipse cx={600} cy={452} rx={372} ry={74} fill="#2a2d35" />
+          <ellipse cx={600} cy={452} rx={372} ry={74} fill="none" stroke={accent} strokeOpacity={0.45} strokeWidth={4} strokeDasharray="18 14" />
+          <path d="M 380,430 L 470,446 M 700,470 L 800,452 M 540,486 L 600,474" stroke="#15171c" strokeWidth={3} strokeLinecap="round" />
+          {[218, 982].map((x) => (
+            <g key={x}>
+              <rect x={x - 26} y={352} width={52} height={112} rx={3} fill="#0e0f13" stroke="#2b2f38" strokeWidth={2} />
+              <rect x={x - 26} y={352} width={52} height={6} fill={accent} opacity={0.6} />
+              <path d={`M ${x - 14},366 L ${x - 14},458 M ${x},366 L ${x},458 M ${x + 14},366 L ${x + 14},458`} stroke="#23262e" strokeWidth={3} />
+            </g>
+          ))}
+        </g>
+      ) : (
+        <g>
       {/* Ring steps. */}
       <polygon points="170,536 250,536 250,470 214,470 214,500 170,500" fill="#3a3f4a" />
       <polygon points="170,500 214,500 214,470 250,470 250,476 220,476 220,506 170,506" fill="#565c69" />
@@ -282,15 +301,17 @@ export const ArenaBack = memo(function ArenaBack({
         <polygon points={`${MAT.frontL},${MAT.frontY} ${MAT.frontR},${MAT.frontY} ${MAT.frontR},538 ${MAT.frontL},538`} fill="url(#mv-apron)" />
       )}
       <rect x={MAT.frontL} y={MAT.frontY} width={MAT.frontR - MAT.frontL} height={5} fill="#ffffff" opacity={0.35} />
+        </g>
+      )}
     </svg>
   );
 });
 
 /** The front ropes and posts — drawn over the wrestlers, who stand behind them. */
-export const ArenaFront = memo(function ArenaFront({ accent, ropesRef, cage = false, corners }: { accent: string; ropesRef: React.Ref<SVGGElement>; /** The near wall of a cage, between the camera and the wrestlers. */ cage?: boolean; corners?: readonly [Corner, Corner] }) {
+export const ArenaFront = memo(function ArenaFront({ accent, ropesRef, cage = false, corners, noRing = false }: { noRing?: boolean; accent: string; ropesRef: React.Ref<SVGGElement>; /** The near wall of a cage, between the camera and the wrestlers. */ cage?: boolean; corners?: readonly [Corner, Corner] }) {
   return (
     <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-      <g ref={ropesRef}>
+      <g ref={ropesRef} style={noRing ? { display: 'none' } : undefined}>
         {ROPES_FRONT.map((y) => (
           <g key={y} strokeLinecap="round">
             <line x1={MAT.frontL} y1={y + 1.5} x2={MAT.frontR} y2={y + 1.5} stroke="#000" strokeWidth={6} opacity={0.3} />
@@ -309,7 +330,7 @@ export const ArenaFront = memo(function ArenaFront({ accent, ropesRef, cage = fa
           <rect x={MAT.frontL} y={176} width={MAT.frontR - MAT.frontL} height={MAT.frontY - 176} fill="none" stroke="#7b8494" strokeWidth={5} />
         </g>
       )}
-      {[MAT.frontL, MAT.frontR].map((x) => (
+      {(noRing ? [] : [MAT.frontL, MAT.frontR]).map((x) => (
         <g key={x}>
           <rect x={x - 7} y={286} width={14} height={MAT.frontY - 286 + 6} fill="#343944" />
           <rect x={x - 7} y={286} width={5} height={MAT.frontY - 286 + 6} fill="#4c5260" />

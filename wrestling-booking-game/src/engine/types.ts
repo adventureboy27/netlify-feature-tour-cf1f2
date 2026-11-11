@@ -504,6 +504,14 @@ export interface Wrestler {
    * and its stakes. See data/stipulations.ts and Gimmick.masked.
    */
   masked: boolean;
+  /**
+   * Lost the mask in a mask-against-mask match. `masked` going false says
+   * they are bare-faced now; this says it was taken, in a ring, for good —
+   * so nothing puts another one on them for the look of it.
+   */
+  unmaskedInRing?: boolean;
+  /** Lost a hair-against-hair match: the head is shaved, and stays shaved. */
+  headShaved?: boolean;
 
   // Employment
   promotionId: Id | null;

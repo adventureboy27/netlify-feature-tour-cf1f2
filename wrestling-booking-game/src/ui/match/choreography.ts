@@ -326,6 +326,13 @@ const BODIES = {
     ropes: 0.6,
   },
   // ---- what particular rules call for -------------------------------------
+  // Thrown face-first into the cage wall. Only where there is one.
+  intoCage: {
+    actor: [STAND, [0.12, 5, 0, 8], [0.28, 4, 0, -22], [0.5, 3, 0, 0], [0.8, 3, 0, 0], [1, 3, 0, 0]],
+    target: [STAND, [0.12, 4, 0, 10], [0.4, -9, 0, -8], [0.48, -10.5, 1.5, -24], [0.58, -10.5, 1, -20], [0.72, -8, 0, 30], [0.88, -6, DOWN, 90], [1, -6, DOWN, 90]],
+    impacts: [[0.48, -10, 13, true]],
+    ropes: 0.48,
+  },
   // Legal only where the rules say there are no disqualifications.
   chairShot: {
     actor: [STAND, [0.25, 5, 0, -14], [0.42, 9, 0, 22], [0.6, 7, 0, 6], [1, 3, 0, 0]],
@@ -419,6 +426,7 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   groundPound: { actor: '- run kneel punch wind punch wind punch guard', target: 'flat flat flat flat flat flat flat flat' },
   pickUp: { actor: '- bend carry wind punch guard', target: 'flat flat stagger guard stagger stagger' },
   tossOutside: { actor: '- reach punch guard crouch crouch guard', target: '- bend spear flat flat flat flat' },
+  intoCage: { actor: '- reach wind guard celebrate guard', target: '- guard run stagger stagger bend flat flat' },
   chairShot: { actor: '- swingUp swingDown guard -', target: '- guard fall flat flat' },
   teeter: { actor: '- reach reach punch reach stagger guard', target: '- stagger stagger fall fall stagger guard' },
   doubleDown: { actor: '- run clothes fall flat flat', target: '- run clothes fall flat flat' },
@@ -467,6 +475,7 @@ export interface MoveMeta {
 
 export const META: Partial<Record<MoveId, MoveMeta>> = {
   whip: { anchor: { who: 'target', at: -14.5 } },
+  intoCage: { anchor: { who: 'target', at: -10.5 } },
   cornerWhip: { anchor: { who: 'target', at: -10.5 } },
   cornerSplash: { anchor: { who: 'target', at: -18 } },
   cornerStomp: { anchor: { who: 'target', at: -8.5 } },
@@ -503,6 +512,7 @@ const SAID: readonly (readonly [RegExp, MoveId | 'top' | 'finisher' | 'over'])[]
   // before the names of the moves they are about. ("Ducks the clothesline"
   // is a counter, not a clothesline.)
   [/ducks |blocks it|coming in|knees up|boot up|counters?\b/i, 'counter'],
+  [/into the (cage|steel|mesh|fence)|off the cage|cage wall/i, 'intoCage'],
   [/buckles|whip into the corner|into the turnbuckle/i, 'cornerWhip'],
   [/reversal|reverses|sends .* across and follows|irish whip/i, 'whip'],
   // Moves by name. The most specific name first: a "missile dropkick" is
@@ -698,6 +708,11 @@ function moveNamed(wrestler: Wrestler | undefined, name: string | null): Move | 
  */
 export type Zone = 'ring' | 'out' | 'floor' | 'in';
 
+/** What a no-disqualification match finds under the ring. All swung the same way. */
+export const WEAPONS = ['chair', 'kendo', 'can'] as const;
+export type Weapon = (typeof WEAPONS)[number];
+const weaponAt = (n: number): Weapon => WEAPONS[Math.abs(n) % WEAPONS.length]!;
+
 export interface StagedBeat {
   move: MoveId;
   choreo: Choreo;
@@ -705,7 +720,7 @@ export interface StagedBeat {
   /** Absent means the ring. */
   zone?: Zone;
   /** Something in the attacker's hands. */
-  prop?: 'chair';
+  prop?: Weapon;
   /** Furniture this beat needs in the ring. */
   scene?: 'ladder' | 'table' | 'flamingTable' | 'casket';
   /** Milliseconds the choreography runs for. */
@@ -757,16 +772,24 @@ export function stageBeat(
   const style = actor?.moveSet.style ?? 'brawl';
   const named = moveNamed(actor, beat.moveName);
   const conduct = context.conduct ?? STANDARD;
-  const built = (move: MoveId, choreo: Choreo, duration: number): StagedBeat => ({ move, choreo, meta: META[move] ?? {}, duration, ...(move === 'chairShot' ? { prop: 'chair' as const } : {}) });
+  const built = (move: MoveId, choreo: Choreo, duration: number): StagedBeat => ({ move, choreo, meta: META[move] ?? {}, duration, ...(move === 'chairShot' ? { prop: weaponAt(index + context.recent.length) } : {}) });
   // Where there are no disqualifications, a chair is one more thing to do.
-  const armed = (options: readonly MoveId[]): readonly MoveId[] => (conduct.weapons ? [...options.slice(0, 2), 'chairShot', ...options.slice(2)] : options);
+  // And where there is a cage, the cage is one more thing to hit somebody with.
+  const armed = (options: readonly MoveId[]): readonly MoveId[] => {
+    const withChair: readonly MoveId[] = conduct.weapons ? [...options.slice(0, 2), 'chairShot', ...options.slice(2)] : options;
+    return conduct.cage ? [withChair[0]!, 'intoCage', ...withChair.slice(1)] : withChair;
+  };
+  // With no ring there are no ropes to run, no corner to be put in and
+  // nothing to climb: anything that needs one becomes a slam on the concrete.
+  const needsRing = (id: MoveId) => Boolean(META[id]?.anchor || META[id]?.exits || META[id]?.actorExits) || id === 'tossOutside' || id === 'rollInside';
+  const grounded = (id: MoveId): MoveId => (conduct.noRing && needsRing(id) ? 'slam' : !conduct.cage && id === 'intoCage' ? 'cornerWhip' : id);
   const pick = (id: MoveId, duration = 1700) => built(id, MOVES[id], duration);
   // The same beat with a word shouted over it.
   const shouting = (staged: StagedBeat, text: string, at = 0.8): StagedBeat => ({ ...staged, choreo: { ...staged.choreo, shouts: [...(staged.choreo.shouts ?? []), { at, text }] } });
   // The first of these not staged recently; if they all were, rotate.
   const fresh = (options: readonly MoveId[]): MoveId => {
-    const usable = options.filter((id) => (META[id]?.needsDown ?? false) === false || context.targetDown);
-    const pool = usable.length > 0 ? usable : options;
+    const usable = options.filter((id) => ((META[id]?.needsDown ?? false) === false || context.targetDown) && grounded(id) === id);
+    const pool = usable.length > 0 ? usable : conduct.noRing ? (['slam'] as const) : options;
     // Start somewhere different in the list each time, or every knockdown
     // would be followed by the same first two things on it.
     const turn = index % pool.length;
@@ -781,7 +804,8 @@ export function stageBeat(
     return word;
   };
   // Commentary first, then the highlight text the beat was written with.
-  const heard = resolve(saidIn(context.said)) ?? resolve(saidIn(beat.text));
+  const said = resolve(saidIn(context.said)) ?? resolve(saidIn(beat.text));
+  const heard = said ? grounded(said) : null;
   // Something done to a downed opponent, called while they are on their
   // feet: put them down first, in the same breath. An elbow drop does that
   // by itself; for the rest, the nearest thing that opens with a knockdown.
@@ -810,7 +834,7 @@ export function stageBeat(
       return built(lead, withCover(MOVES[lead], 0.48, 2), 2000);
     }
     case 'finish': {
-      const lead: MoveId = named ? forMove(named) : (spoken ?? 'slam');
+      const lead: MoveId = grounded(named ? forMove(named) : (spoken ?? 'slam'));
       // Something that leaves the attacker standing over a flat opponent.
       const decisive: MoveId = NEAR_FALL_LEADS.includes(lead) || ['driver', 'stunner', 'superkick'].includes(lead) ? lead : 'slam';
       switch (conduct.finish) {
@@ -834,7 +858,7 @@ export function stageBeat(
         case 'countOut':
           return { ...shouting(built('throwOut', withCount(MOVES.throwOut, 0.4, 10, false), 4600), 'COUNT OUT!', 0.985), zone: 'out' };
         case 'dq':
-          return shouting(pick('chairShot', 1900), 'DISQUALIFIED!', 0.72);
+          return { ...shouting(pick('chairShot', 1900), 'DISQUALIFIED!', 0.72), prop: 'chair' };
         case 'draw':
           return shouting(pick('lockup', 1900), "TIME'S UP!", 0.7);
         case 'doubleKO':
@@ -848,7 +872,7 @@ export function stageBeat(
       return pick(decisive);
     }
     case 'signature':
-      return pick(named ? forMove(named) : (spoken ?? fresh(CONTROL[style].filter((id) => id !== 'hold' && id !== 'strike'))), 1800);
+      return pick(grounded(named ? forMove(named) : (spoken ?? fresh(CONTROL[style].filter((id) => id !== 'hold' && id !== 'strike')))), 1800);
     case 'exchange':
       return pick(spoken ?? fresh(OPENING));
     case 'comeback':
@@ -978,7 +1002,7 @@ export function stageMatch(
   const excursion = (actorId: Id, targetId: Id, seed: number) => {
     const filler = (): PlaybackBeat => ({ kind: 'control', pose: 'control', text: '', significant: false, actorId, targetId, moveName: null });
     const add = (move: MoveId, zone: Zone) => {
-      moments.push({ beat: filler(), actorId, targetId, staged: { ...stageMove(move, zone === 'floor' ? 1700 : 1900), zone, ...(move === 'chairShot' ? { prop: 'chair' as const } : {}) }, lines: [], holdMs: zone === 'floor' ? 1700 : 1900, filler: true });
+      moments.push({ beat: filler(), actorId, targetId, staged: { ...stageMove(move, zone === 'floor' ? 1700 : 1900), zone, ...(move === 'chairShot' ? { prop: weaponAt(seed) } : {}) }, lines: [], holdMs: zone === 'floor' ? 1700 : 1900, filler: true });
       recent.push(move);
     };
     add('tossOutside', 'out');
@@ -1056,11 +1080,16 @@ export function stageMatch(
     // one who cannot reach their corner. Whoever the caller names next is
     // tagged back in for it.
     const corner = teams.find((team) => team.includes(last.actorId!)) ?? [];
-    let working: Id = last.actorId;
+    // A squash is one-way traffic: whatever the last recorded beat was, the
+    // work between the beats is all the winner's.
+    const closer = timeline[timeline.length - 1]!;
+    const squashed = conduct.squash && closer.actorId && closer.targetId && closer.actorId !== closer.targetId;
+    let working: Id = squashed ? closer.actorId! : last.actorId;
+    const taking: Id = squashed ? closer.targetId! : last.targetId;
     for (let i = 0; i < between; i++) {
       if (corner.length > 1 && fillerIndex % 3 === 1) working = corner[(corner.indexOf(working) + 1) % corner.length]!;
       // 1000+ keeps a filler's "index" (which only rotates its choice of move) clear of the real beats'.
-      stage({ kind: 'control', pose: 'control', text: '', significant: false, actorId: working, targetId: last.targetId, moveName: null }, 1000 + fillerIndex++, [], true, coming ? [coming] : []);
+      stage({ kind: 'control', pose: 'control', text: '', significant: false, actorId: working, targetId: taking, moveName: null }, 1000 + fillerIndex++, [], true, coming ? [coming] : []);
     }
   });
   return { moments, before, after, synced };

@@ -294,8 +294,13 @@ export function MatchViewerScreen({
   // wrestler is unmasked from tonight on), so the mask is put back for the
   // match itself and removed where it was actually lost: at the end.
   const decided = result.winnerSide !== null && result.winnerWrestlerIds.length > 0 && !isNonDecisiveFinish(result.finish);
-  const unmaskedIds = segment.stipulation === 'maskVsMask' && decided ? [...sideA, ...sideB].filter((w) => !result.winnerWrestlerIds.includes(w.id)).map((w) => w.id) : [];
-  const combined = [...sideA, ...sideB].map((w) => (unmaskedIds.includes(w.id) ? { ...w, masked: !over } : w));
+  const loserIds = decided ? [...sideA, ...sideB].filter((w) => !result.winnerWrestlerIds.includes(w.id)).map((w) => w.id) : [];
+  const unmaskedIds = segment.stipulation === 'maskVsMask' ? loserIds : [];
+  // Hair against hair is the same: the head is already shaved by the time
+  // this is watched, so the hair is worn for the match and comes off after.
+  const shavedIds = segment.stipulation === 'hairVsHair' ? loserIds : [];
+  const leavingIds = segment.stipulation === 'loserLeaves' ? loserIds : [];
+  const combined = [...sideA, ...sideB].map((w) => (unmaskedIds.includes(w.id) ? { ...w, masked: !over, unmaskedInRing: over } : shavedIds.includes(w.id) ? { ...w, headShaved: over } : w));
   const onSideA = new Set(sideA.map((w) => w.id));
 
   // Whoever's at ringside for this match — present the whole way through,
@@ -503,10 +508,16 @@ export function MatchViewerScreen({
                 {winnerIds.size > 4 ? ' & co.' : ''}
               </span>
               <span className="text-[12px] font-bold uppercase tracking-[0.18em] text-amber-200">{verdictLine}</span>
-              {unmaskedIds.length > 0 && (
-                <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-300">
-                  {combined.filter((w) => unmaskedIds.includes(w.id)).map((w) => w.name).join(' & ')} — unmasked
-                </span>
+              {[
+                [unmaskedIds, 'unmasked'],
+                [shavedIds, 'head shaved'],
+                [leavingIds, 'must leave'],
+              ].map(([ids, fate]) =>
+                (ids as string[]).length > 0 ? (
+                  <span key={fate as string} className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-300">
+                    {combined.filter((w) => (ids as string[]).includes(w.id)).map((w) => w.name).join(' & ')} — {fate as string}
+                  </span>
+                ) : null,
               )}
             </div>
           )}

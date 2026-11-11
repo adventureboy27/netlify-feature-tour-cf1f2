@@ -22,6 +22,8 @@ import {
 import { ComposedPortrait } from "../paperdoll/ComposedPortrait";
 import { BODY_RIG, LEG_RIG, type BodyRig } from "./rig";
 import { MatchFigure } from "./MatchFigure";
+import { Pelvis, Shin, Thigh, legwearOf, type Legwear } from "./legwear";
+import type { Weapon } from "./choreography";
 import type { Wrestler } from "../../engine/types";
 
 type JointEl = HTMLElement | SVGGElement;
@@ -122,8 +124,8 @@ function Arm({
   look: ComposedLook;
   cut: ReturnType<typeof cuts>;
   register: (part: "shoulder" | "elbow", el: JointEl | null) => void;
-  /** This hand has a chair in it. */
-  held?: boolean;
+  /** This hand has something in it. */
+  held?: Weapon | false;
 }) {
   return (
     <div
@@ -142,7 +144,9 @@ function Arm({
         <div className={FILL} style={{ clipPath: cut.fore }}>
           <ComposedPortrait look={look} alt="" />
         </div>
-        {held && <Chair at={cut.hand} />}
+        {held === "chair" && <Chair at={cut.hand} />}
+        {held === "kendo" && <Kendo at={cut.hand} />}
+        {held === "can" && <TrashCan at={cut.hand} />}
       </div>
     </div>
   );
@@ -151,20 +155,18 @@ function Arm({
 function Leg({
   side,
   skin,
-  trunks,
+  gear,
   register,
 }: {
   side: "left" | "right";
   skin: string;
-  trunks: string;
+  gear: Legwear;
   register: (part: "hip" | "knee", el: JointEl | null) => void;
 }) {
   // Written for the screen-left leg; `m` mirrors every x for the right one
   // (mirroring the coordinates, not the group, so a rotation still turns
   // the same way on both legs).
   const m = (x: number) => (side === "left" ? x : 100 - x);
-  const d = (points: readonly (readonly [number, number])[]) =>
-    `M ${points.map(([x, y]) => `${m(x)},${y}`).join(" L ")} Z`;
   const origin = ([x, y]: readonly [number, number]) => `${m(x)}px ${y}px`;
   return (
     <g
@@ -183,51 +185,33 @@ function Leg({
           willChange: "transform",
         }}
       >
-        <path
-          d={d([
-            [33, 50],
-            [46.6, 50],
-            [46, 58],
-            [33.6, 58],
-          ])}
-          fill={skin}
-        />
-        <path
-          d={`M ${m(33)},56 L ${m(46.8)},56 L ${m(46)},78 L ${m(46.5)},84 L ${m(26.5)},84 C ${m(26)},80 ${m(29.5)},78.5 ${m(33.8)},78 Z`}
-          fill="#15151a"
-        />
-        <path
-          d={d([
-            [33, 56],
-            [46.8, 56],
-            [46.6, 60],
-            [33.2, 60],
-          ])}
-          fill={trunks}
-        />
+        <Shin m={m} skin={skin} gear={gear} />
       </g>
-      <path
-        d={d([
-          [30, 14],
-          [49.6, 20],
-          [47, 47],
-          [32.5, 47],
-        ])}
-        fill={skin}
-      />
-      <path
-        d={d([
-          [44, 20],
-          [49.6, 20],
-          [47, 47],
-          [44.5, 47],
-        ])}
-        fill="#000"
-        opacity={0.18}
-      />
-      {/* The kneepad rides on the thigh and covers the joint. */}
-      <ellipse cx={m(39.8)} cy={47} rx={8.6} ry={7} fill="#1c1c22" />
+      <Thigh m={m} skin={skin} gear={gear} />
     </g>
+  );
+}
+
+/** A kendo stick: long, thin, and held at one end. */
+function Kendo({ at }: { at: { left: string; top: string } }) {
+  return (
+    <svg viewBox="0 0 12 110" className="absolute" style={{ left: at.left, top: at.top, width: "5%", transform: "translate(-50%, -88%)" }} aria-hidden>
+      <rect x={3} y={2} width={6} height={106} rx={3} fill="#d8b46a" stroke="#6b4a1c" strokeWidth={1.2} />
+      <path d="M 3,24 L 9,24 M 3,48 L 9,48 M 3,72 L 9,72" stroke="#6b4a1c" strokeWidth={1.4} />
+      <rect x={2.4} y={88} width={7.2} height={20} rx={3} fill="#2a2a30" />
+    </svg>
+  );
+}
+
+/** A dented steel trash can, swung by the rim. */
+function TrashCan({ at }: { at: { left: string; top: string } }) {
+  return (
+    <svg viewBox="0 0 60 80" className="absolute" style={{ left: at.left, top: at.top, width: "28%", transform: "translate(-50%, -80%)" }} aria-hidden>
+      <path d="M 8,8 L 52,8 L 47,76 L 13,76 Z" fill="#9aa3b2" stroke="#4b5260" strokeWidth={2} />
+      <path d="M 16,10 L 19,74 M 26,10 L 27,74 M 34,10 L 33,74 M 44,10 L 41,74" stroke="#6b7482" strokeWidth={2} />
+      <ellipse cx={30} cy={8} rx={23} ry={5} fill="#c3cad6" stroke="#4b5260" strokeWidth={2} />
+      <path d="M 12,40 L 22,46 L 14,54" stroke="#4b5260" strokeWidth={2} fill="none" />
+    </svg>
   );
 }
 
@@ -235,11 +219,14 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
   wrestler,
   onJoints,
   held,
+  weapon = "chair",
   blindfold = false,
   bloody = false,
 }: {
-  /** Which SCREEN-side hand has a chair in it, if either. */
+  /** Which SCREEN-side hand has something in it, if either. */
   held?: 'left' | 'right';
+  /** What that something is. */
+  weapon?: Weapon;
   /** A blindfold match: both of them wear one. */
   blindfold?: boolean;
   /** Busted open. */
@@ -303,7 +290,7 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
 
   // No base art for this person: nothing to cut joints into.
   if (!look) return <MatchFigure wrestler={wrestler} />;
-  const trunks = look.waistband?.color ?? look.top?.color ?? "#1d1d24";
+  const gear = legwearOf(subject!, look);
   const female = wrestler.gender === "f";
 
   return (
@@ -325,28 +312,16 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
           <Leg
             side="left"
             skin={look.skinColor}
-            trunks={trunks}
+            gear={gear}
             register={(part, el) => register(`l.${part}`)(el)}
           />
           <Leg
             side="right"
             skin={look.skinColor}
-            trunks={trunks}
+            gear={gear}
             register={(part, el) => register(`r.${part}`)(el)}
           />
-          <path
-            d={
-              female
-                ? "M 32.5,0 L 67.5,0 L 70.5,14 L 54,23 L 50,18 L 46,23 L 29.5,14 Z"
-                : "M 31.5,0 L 68.5,0 L 70.5,16 L 52.5,24 L 50,20 L 47.5,24 L 29.5,16 Z"
-            }
-            fill={trunks}
-          />
-          <path
-            d="M 32,0 L 68,0 L 68.4,4 L 31.6,4 Z"
-            fill="#000"
-            opacity={0.25}
-          />
+          <Pelvis female={female} gear={gear} />
         </svg>
       </div>
 
@@ -389,13 +364,13 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
           look={look}
           cut={geometry.left}
           register={(part, el) => register(`l.${part}`)(el)}
-          held={held === "left"}
+          held={held === "left" && weapon}
         />
         <Arm
           look={look}
           cut={geometry.right}
           register={(part, el) => register(`r.${part}`)(el)}
-          held={held === "right"}
+          held={held === "right" && weapon}
         />
       </div>
       {/* Reserve the legs' height in the layout: they are absolutely placed. */}

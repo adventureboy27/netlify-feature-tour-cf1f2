@@ -79,6 +79,10 @@ export interface LookSubject {
   gimmickId?: string;
   /** Gimmick.name, if known — a name like "The Corsair" picks a whole costume theme. */
   gimmickName?: string;
+  /** The mask was taken in a match: no mask of any kind, decorative ones included. */
+  bareFaced?: boolean;
+  /** The head was shaved in a match: no hair. */
+  shaved?: boolean;
 }
 
 /**
@@ -90,6 +94,8 @@ export function lookSubjectOf(person: {
   id: string;
   gender?: 'm' | 'f';
   masked?: boolean;
+  unmaskedInRing?: boolean;
+  headShaved?: boolean;
   gimmick?: { id?: string; name?: string; category?: string };
 }): LookSubject | undefined {
   if (!person.gender) return undefined;
@@ -100,6 +106,8 @@ export function lookSubjectOf(person: {
     gimmickCategory: person.gimmick?.category,
     gimmickId: person.gimmick?.id,
     gimmickName: person.gimmick?.name,
+    bareFaced: person.unmaskedInRing ?? false,
+    shaved: person.headShaved ?? false,
   };
 }
 
@@ -284,7 +292,7 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
   // luchador design — hockey, monster and ninja masks stay with the acts
   // that are mechanically masked — and it hides hair and beard like a real one.
   const luchaMasks = props.filter((p) => p.id.includes('luchador'));
-  if (luchaMasks.length > 0 && gear() < COSMETIC_MASK) {
+  if (luchaMasks.length > 0 && gear() < COSMETIC_MASK && !subject.bareFaced) {
     return { ...shared, hair: null, facial: null, paint: null, acc: null, prop: worn(pick(gear, luchaMasks), () => accent(gear)) };
   }
 
@@ -295,7 +303,7 @@ export function assignLook(subject: LookSubject): ComposedLook | null {
 
   return {
     ...shared,
-    hair: worn(hairAsset, () => hairColor),
+    hair: subject.shaved ? null : worn(hairAsset, () => hairColor),
     facial: worn(facialAsset, () => hairColor),
     paint,
     acc,

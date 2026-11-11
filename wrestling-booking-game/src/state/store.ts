@@ -3037,10 +3037,12 @@ export const useGameStore = create<GameStore>()(
             const lineRng = rngFromSeed(`stipulationConsequence:${segment.slot}:${world.week}`);
             for (const loser of losers) {
               if (consequence === 'shaveHead') {
-                // Purely cosmetic — nothing else in the sim reads it, so
-                // there's nothing to write down beyond the write-up's line.
+                // Purely cosmetic — nothing in the sim reads it — but the
+                // portrait does: a head shaved on television stays shaved.
+                loser.headShaved = true;
               } else if (consequence === 'unmask') {
                 loser.masked = false;
+                loser.unmaskedInRing = true;
               } else {
                 const terms = exitTerms(loser, 'fired', world.settings, world.promotion.name);
                 world.promotion.bankBalance -= terms.severance;

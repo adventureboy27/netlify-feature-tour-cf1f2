@@ -6267,3 +6267,26 @@ morale and health by their own rules, so their balance is unchanged, and no RNG 
 - Also in this batch (viewer): a prize hangs over a ladder match; the ending names the winner and the belt.
 - Tests: new store test that every participant on a joint card gains a match and the right win/loss.
   206 files / 3,501 tests; build clean. Not measured in a played save.
+
+## Match viewer — the remaining match-type gaps, and gear from the waist down
+
+Written without rendering (the owner asked for no renders until told): everything here is verified by
+`tsc`, the build and tests only, and still needs looking at.
+
+- **Weapons:** a kendo stick and a trash can beside the chair (`WEAPONS`; all swung with the chair's move).
+- **Cage:** a new `intoCage` move, staged and called only in a cage match.
+- **Arena floor:** `conduct.noRing` — the arena is drawn with no ring (concrete, barricades), and nothing
+  that needs a rope, a corner or a climb is staged; it becomes a slam on the floor.
+- **Squash:** the unspoken work between recorded beats is all the winner's.
+- **Hair vs hair / mask vs mask:** the loss is now stored (`Wrestler.headShaved`, `unmaskedInRing`). A
+  shaved head has no hair in every portrait; a mask lost in the ring is never replaced by a decorative
+  one. In the viewer the hair or mask is worn for the match and gone at the end, and the nameplate says so.
+  DESIGN: the shave is permanent — nothing grows it back yet.
+- **Loser leaves town:** the nameplate says who must leave. No walk-off staged.
+- **Lumberjacks:** left alone — `DeckStacking.lumberjacks` exists but nothing in the game can fill it.
+- **Legwear and footwear** (`ui/match/legwear.tsx`): trunks, shorts, tights, trousers or a skirt; a side
+  stripe; kneepads or none; tall boots, short boots, kickpads, sneakers, cowboy boots or bare feet.
+  Seeded from wrestler + gimmick on its own stream (existing looks do not change), coloured from the top
+  half, and following the costume (gi → trousers and bare feet, luchador → tights and kickpads, cowboy →
+  jeans and western boots, pirate, ninja, chef, hockey). One set of shapes for both figure types.
+- Tests: `match.test.ts` 90. 206 files / 3,508 tests; build clean.

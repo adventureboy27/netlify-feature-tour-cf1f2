@@ -27,6 +27,10 @@ export interface Conduct {
   multiFall: boolean;
   /** A pin counts wherever it happens, the floor included. */
   fallsAnywhere: boolean;
+  /** There is no ring at all: bare floor, and nothing to climb or bounce off. */
+  noRing: boolean;
+  /** One of them is there to be beaten, and is. */
+  squash: boolean;
   /**
    * What a near fall is in this match: a cover and a two-count; a hold
    * somebody fights out of; a referee's count over somebody who beats it;
@@ -50,6 +54,8 @@ export const STANDARD: Conduct = {
   blindfold: false,
   multiFall: false,
   fallsAnywhere: false,
+  noRing: false,
+  squash: false,
   nearFall: 'cover',
   elimination: 'fall',
   finish: 'pin',
@@ -95,13 +101,15 @@ export function conductOf(segment: Pick<Segment, 'stipulation' | 'rules'>, finis
     tags: !allIn && biggest > 1,
     // Nowhere to go in a cage; a ladder match stays where the ladder is; and
     // in a battle royal the floor is where you go when you have lost.
-    outside: !battleRoyal && !cage && stipulation !== 'ladder' && (rules.countOuts === 'none' || stipulation === 'arenaFloor' || stipulation === 'fallsCountAnywhere'),
+    outside: !battleRoyal && !cage && stipulation !== 'ladder' && stipulation !== 'arenaFloor' && (rules.countOuts === 'none' || stipulation === 'arenaFloor' || stipulation === 'fallsCountAnywhere'),
     weapons,
     overTheTop: battleRoyal,
     cage,
     blindfold: stipulation === 'blindfoldMatch',
     multiFall: rules.aim === 'twoOfThree' || rules.aim === 'ironMan',
     fallsAnywhere: stipulation === 'fallsCountAnywhere',
+    noRing: stipulation === 'arenaFloor',
+    squash: stipulation === 'squash',
     nearFall: battleRoyal ? 'teeter' : knockoutOnly ? 'count' : rules.falls === 'subsOnly' || rules.aim === 'submissionOnly' ? 'hold' : 'cover',
     elimination: battleRoyal ? 'overTop' : 'fall',
     finish: finishOf(finish, stipulation, rules, battleRoyal),

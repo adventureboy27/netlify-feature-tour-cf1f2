@@ -432,9 +432,9 @@ describe('the rules of the match are the rules of the picture', () => {
     }
     const long = Array.from({ length: 9 }, (_, i) => beat(i === 0 ? 'exchange' : i === 8 ? 'finish' : 'control'));
     const armed = stageMatch(long, [], cast, 'cleanPin', { conduct: rulebook('hardcore') }).moments;
-    expect(armed.some((m) => m.staged.prop === 'chair')).toBe(true);
+    expect(armed.some((m) => m.staged.prop !== undefined)).toBe(true);
     const clean = stageMatch(long, [], cast, 'cleanPin', { conduct: rulebook(null) }).moments;
-    expect(clean.some((m) => m.staged.prop === 'chair')).toBe(false);
+    expect(clean.some((m) => m.staged.prop !== undefined)).toBe(false);
   });
 
   it("a disqualification is the loser's doing", () => {
@@ -558,5 +558,80 @@ describe('a match known only by its result', () => {
     const tag = exhibitionOf([[alpha.id, 'c'], [bravo.id, 'd']], [bravo.id, 'd'], 'cleanPin');
     expect(tag.result.winnerSide).toBe(1);
     expect(conductOf(tag.segment, 'cleanPin', [2, 2]).tags).toBe(true);
+  });
+});
+
+describe('the fixes to the match types', () => {
+  const needsRing = (id: MoveId) => Boolean(META[id]?.anchor || META[id]?.exits || META[id]?.actorExits) || id === 'tossOutside' || id === 'rollInside';
+
+  it('an arena-floor match never uses a rope, a corner or the floor outside', () => {
+    const conduct = rulebook('arenaFloor');
+    expect(conduct).toMatchObject({ noRing: true, outside: false });
+    const said = [{ speaker: 'play' as const, name: 'P', text: 'Off the top rope with a crossbody!', beat: 1, actorId: alpha.id, targetId: bravo.id }];
+    const moments = stageMatch([beat('exchange'), beat('control'), beat('whip'), beat('nearFall'), beat('comeback'), beat('signature'), beat('finish')], said, cast, 'cleanPin', { conduct }).moments;
+    expect(moments.filter((m) => needsRing(m.staged.move)).map((m) => m.staged.move)).toEqual([]);
+    expect(moments.every((m) => (m.staged.zone ?? 'ring') === 'ring')).toBe(true);
+  });
+
+  it('only a cage match throws anybody into a cage', () => {
+    const caged = played(rulebook('steelCage'));
+    expect(caged.some((m) => m.staged.move === 'intoCage')).toBe(true);
+    for (const stip of [null, 'noDQ', 'hardcore', 'ladder']) expect(played(rulebook(stip)).some((m) => m.staged.move === 'intoCage')).toBe(false);
+  });
+
+  it('a hardcore match finds more than one thing to swing', () => {
+    const conduct = rulebook('hardcore');
+    const long = stageMatch(Array.from({ length: 9 }, (_, i) => beat(i === 8 ? 'finish' : i % 2 ? 'control' : 'comeback')), [], cast, 'cleanPin', { conduct }).moments;
+    const found = new Set(long.map((m) => m.staged.prop).filter(Boolean));
+    expect(found.size).toBeGreaterThan(1);
+    // And whatever is in the hand, it is in the hand for a swing.
+    for (const m of long) if (m.staged.prop) expect(m.staged.move).toBe('chairShot');
+  });
+
+  it('a squash is one-way traffic between the recorded beats', () => {
+    const conduct = rulebook('squash');
+    const their = (pose: PlaybackBeat['pose']): PlaybackBeat => ({ ...beat(pose), actorId: bravo.id, targetId: alpha.id });
+    const moments = stageMatch([beat('exchange'), their('control'), their('comeback'), beat('control'), beat('finish')], [], cast, 'cleanPin', { conduct }).moments;
+    expect(moments.filter((m) => m.filler).every((m) => m.actorId === alpha.id && m.targetId === bravo.id)).toBe(true);
+  });
+});
+
+describe('from the waist down', () => {
+  it('is the same every time, changes with the gimmick, and matches the costume', async () => {
+    const { assignLook, lookSubjectOf } = await import('../paperdoll/assignLook');
+    const { legwearOf } = await import('./legwear');
+    const seen = { bottoms: new Set<string>(), feet: new Set<string>() };
+    const people = generateWrestlers(rngFromSeed('legs'), 120);
+    for (const w of people) {
+      const subject = lookSubjectOf(w);
+      if (!subject) continue;
+      const look = assignLook(subject);
+      if (!look) continue;
+      const gear = legwearOf(subject, look);
+      expect(legwearOf(subject, look)).toEqual(gear);
+      seen.bottoms.add(gear.bottom);
+      seen.feet.add(gear.footwear);
+      // Nobody wears kneepads over trousers, and only women are put in a skirt.
+      if (gear.bottom === 'pants') expect(gear.kneepads).toBeNull();
+      if (gear.bottom === 'skirt') expect(w.gender).toBe('f');
+      // The trim has to show against what it is on.
+      if (gear.stripe) expect(gear.stripe).not.toBe(gear.color);
+      const top = `${look.top?.asset.id ?? ''} ${look.outer?.asset.id ?? ''}`;
+      if (/karate/.test(top)) expect(gear).toMatchObject({ bottom: 'pants', footwear: 'barefoot' });
+    }
+    // A roster is not all in black trunks and black boots any more.
+    expect(seen.bottoms.size).toBeGreaterThanOrEqual(4);
+    expect(seen.feet.size).toBeGreaterThanOrEqual(4);
+  });
+
+  it('a shaved head has no hair, and a mask lost in the ring is never replaced', async () => {
+    const { assignLook, lookSubjectOf } = await import('../paperdoll/assignLook');
+    for (const w of generateWrestlers(rngFromSeed('stakes'), 200)) {
+      const subject = lookSubjectOf({ ...w, masked: false, headShaved: true, unmaskedInRing: true });
+      const look = subject && assignLook(subject);
+      if (!look) continue;
+      expect(look.hair).toBeNull();
+      expect(look.prop?.asset.id ?? '').not.toMatch(/luchador|mask/);
+    }
   });
 });

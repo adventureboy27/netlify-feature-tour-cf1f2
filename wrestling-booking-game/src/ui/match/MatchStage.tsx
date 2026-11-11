@@ -362,10 +362,10 @@ export function MatchStage({
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
       {w > 0 && (
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
-          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} />
+          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} />
 
           {/* The apron is the nearest thing this building has to a nameplate. */}
-          {corners ? (
+          {conduct?.noRing ? null : corners ? (
             corners.map((corner, n) => (
               <div
                 key={n}
@@ -486,7 +486,8 @@ export function MatchStage({
                   <div className="mv-breathe">
                     <ArticulatedFigure
                       wrestler={fighter.wrestler}
-                      held={!over && !leaving && staged?.prop === 'chair' && fighter === actor ? (dirOf(fighter.slot) === 1 ? 'right' : 'left') : undefined}
+                      held={!over && !leaving && staged?.prop && fighter === actor ? (dirOf(fighter.slot) === 1 ? 'right' : 'left') : undefined}
+                      weapon={staged?.prop}
                       blindfold={conduct?.blindfold}
                       bloody={bloody?.has(id)}
                       onJoints={(joints) => {
@@ -501,7 +502,7 @@ export function MatchStage({
             );
           })}
 
-          <ArenaFront accent={accent} ropesRef={ropesRef} cage={conduct?.cage} corners={corners} />
+          <ArenaFront accent={accent} ropesRef={ropesRef} cage={conduct?.cage} corners={corners} noRing={conduct?.noRing} />
 
           {/* A casket, at ringside, with somebody in it. */}
           {scene === 'casket' && targetEnd && (
