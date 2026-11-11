@@ -18,6 +18,7 @@ import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { MatchStage, type Aftermath, type Bystander, type StageFighter } from '../match/MatchStage';
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
+import { isNonDecisiveFinish } from '../../engine/sim/finish';
 import { exhibitionOf, type WatchResult } from '../match/exhibition';
 import type { Corner } from '../match/Arena';
 import { CUP_NAME } from '../../engine/world/cup';
@@ -288,7 +289,14 @@ export function MatchViewerScreen({
 
   // Everyone in the match, sideA first. However many that is, they are all
   // on screen: see FieldBrawl for how thirty people fit in a ring.
-  const combined = [...sideA, ...sideB];
+  // Mask against mask: the loser's comes off, for good, the moment it is over.
+  // By the time anybody watches this the game has already taken it (the
+  // wrestler is unmasked from tonight on), so the mask is put back for the
+  // match itself and removed where it was actually lost: at the end.
+  const decided = result.winnerSide !== null && result.winnerWrestlerIds.length > 0 && !isNonDecisiveFinish(result.finish);
+  const unmaskedIds = segment.stipulation === 'maskVsMask' && decided ? [...sideA, ...sideB].filter((w) => !result.winnerWrestlerIds.includes(w.id)).map((w) => w.id) : [];
+  const combined = [...sideA, ...sideB].map((w) => (unmaskedIds.includes(w.id) ? { ...w, masked: !over } : w));
+  const onSideA = new Set(sideA.map((w) => w.id));
 
   // Whoever's at ringside for this match — present the whole way through,
   // not just when something happens to them.
@@ -318,7 +326,7 @@ export function MatchViewerScreen({
   // same side (a partner turning on a partner), the target takes the other mark.
   const actorWrestler = combined.find((w) => w.id === onNow?.actorId);
   const targetWrestler = combined.find((w) => w.id === onNow?.targetId && w.id !== onNow?.actorId);
-  const slotOf = (w: Wrestler): 'left' | 'right' => (sideA.includes(w) ? 'left' : 'right');
+  const slotOf = (w: Wrestler): 'left' | 'right' => (onSideA.has(w.id) ? 'left' : 'right');
   const fighters: StageFighter[] = [];
   if (actorWrestler) fighters.push({ wrestler: actorWrestler, role: 'actor', slot: slotOf(actorWrestler) });
   if (targetWrestler) {
@@ -336,7 +344,7 @@ export function MatchViewerScreen({
   // for a partner who was in the ring one beat ago.
   const previous = beatIndex > 0 ? moments[Math.min(beatIndex, lastBeat) - 1] : undefined;
   const previousIds = new Set([previous?.actorId, previous?.targetId].filter((id): id is Id => Boolean(id)));
-  const partnerWasIn = (w: Wrestler) => (sideA.includes(w) ? sideA : sideB).some((mate) => mate.id !== w.id && previousIds.has(mate.id));
+  const partnerWasIn = (w: Wrestler) => (onSideA.has(w.id) ? sideA : sideB).some((mate) => mate.id !== w.id && previousIds.has(mate.id));
   for (const fighter of fighters) {
     if (isTagMatch && moment && beatIndex <= lastBeat && current?.pose !== 'interference' && !previousIds.has(fighter.wrestler.id) && partnerWasIn(fighter.wrestler)) {
       fighter.taggedIn = true;
@@ -495,6 +503,11 @@ export function MatchViewerScreen({
                 {winnerIds.size > 4 ? ' & co.' : ''}
               </span>
               <span className="text-[12px] font-bold uppercase tracking-[0.18em] text-amber-200">{verdictLine}</span>
+              {unmaskedIds.length > 0 && (
+                <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-300">
+                  {combined.filter((w) => unmaskedIds.includes(w.id)).map((w) => w.name).join(' & ')} — unmasked
+                </span>
+              )}
             </div>
           )}
           {(['left', 'right'] as const).map((slot) => {
