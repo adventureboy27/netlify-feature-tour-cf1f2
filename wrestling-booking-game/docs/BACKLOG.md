@@ -6219,3 +6219,23 @@ staging obeys it. UI only — the engine, its RNG stream and every result are un
   FieldBrawl,Arena}`, `match.css`, `ui/screens/MatchViewerScreen.tsx`.
 - Tests: `match.test.ts` 76 (new "rules of the match" block). Verified: `tsc` clean; 206 files / 3,493
   tests; `npm run build` clean; headless render of each ending and prop with no page errors.
+
+## Match viewer — the referee's voice, without a referee
+
+No referee figure. Instead the things one would shout are slammed over the ring in poster lettering
+(`.mv-action` / `.mv-shout` in `match.css`; system display faces only, nothing fetched): much bigger count
+numbers, "KICK OUT!!" on every two-count, "TAP OUT!" on a submission, and one for each other ending
+(ELIMINATED!, BACK UP!, OUT!, COUNT OUT!, ESCAPED!, THROUGH THE TABLE!, DISQUALIFIED!, FIRST BLOOD! …).
+They ride on the choreography (`Choreo.shouts`), so they land on the frame they describe. The titantron
+no longer repeats NEAR FALL / ELIMINATED / the finish type during the beat.
+
+Gaps closed from the previous entry:
+- **Two-out-of-three falls and iron man** now show more than one fall. The sim decides the winner, not the
+  score, so the earlier falls are staged in the unspoken stretches and go to whoever the sim had on top
+  there; the arithmetic is kept honest (always 2-0 or 2-1; a draw is one each). "FIRST FALL!", "ONE FALL EACH!".
+- **Falls count anywhere**: the trip to the floor includes a cover and a kickout down there. The deciding
+  fall is still staged in the ring.
+- The beaten tag partner at the end falls toward the ring instead of half out of frame.
+- Gauntlet: `preset: 'gauntlet'` exists in the type but nothing in the game can book one, so there is
+  nothing to stage. Left alone.
+- Tests: `match.test.ts` 81. Verified: `tsc` clean; 206 files / 3,498 tests; build clean; headless renders.

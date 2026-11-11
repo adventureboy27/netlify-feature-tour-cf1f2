@@ -46,6 +46,16 @@ export interface Choreo {
    * three), or standing over somebody who is down (to ten).
    */
   cover?: { from: number; to: number; count: number; at: number };
+  /**
+   * What a referee would be shouting, without the referee: big words over
+   * the ring at the moment they are true. "KICK OUT!!", "TAP OUT!".
+   */
+  shouts?: readonly Shout[];
+}
+
+export interface Shout {
+  at: number;
+  text: string;
 }
 
 /** Distance between the two wrestlers' home marks, in stage units. */
@@ -633,7 +643,7 @@ function withCover(base: Choreo, split: number, count: 2 | 3): Choreo {
   }
   actor.push([0.86, ax, 3.6, 90, 1, 'cover'], [0.93, ax - 4, 4, 30, 1, 'stagger'], [1, ax - 6, 0, 0, 1, 'guard']);
   target.push([0.86, tx, DOWN, -90, 1, 'flat'], [0.93, tx, DOWN + 1.5, -70, 1, 'kickout'], [1, tx, DOWN, -62, 1, 'kickout']);
-  return { ...base, actor, target, impacts, ropes, cover: { from: down, to: 0.86, count, at: tx } };
+  return { ...base, actor, target, impacts, ropes, cover: { from: down, to: 0.86, count, at: tx }, shouts: [{ at: 0.87, text: 'KICK OUT!!' }] };
 }
 
 /** A cover on somebody who is already down: no move first, just the pin. */
@@ -660,7 +670,7 @@ function withCount(base: Choreo, split: number, count: number, beatsIt: boolean)
   if (beatsIt) {
     actor.push([1, Math.min(stood[1], 2), stood[2], 0, 1, 'guard']);
     target.push([0.84, tx, ty, trot, 1, 'flat'], [0.93, tx, ty - DOWN + 0.2, normalizeRot(trot) * 0.3, 1, 'kneel'], [1, tx, ty - DOWN, 0, 1, 'stagger']);
-    return { ...base, actor, target, impacts: base.impacts?.map(([at, ...r]) => [at * split, ...r] as Impact), ropes: base.ropes === undefined ? undefined : base.ropes * split, cover: { from, to: 0.84, count, at: tx } };
+    return { ...base, actor, target, impacts: base.impacts?.map(([at, ...r]) => [at * split, ...r] as Impact), ropes: base.ropes === undefined ? undefined : base.ropes * split, cover: { from, to: 0.84, count, at: tx }, shouts: [{ at: 0.86, text: 'BACK UP!' }] };
   }
   actor.push([0.9, Math.min(stood[1], 2), stood[2], 0, 1, 'guard'], [1, Math.min(stood[1], 2), stood[2], 0, 1, 'celebrate']);
   target.push([1, tx, ty, trot, 1, 'flat']);
@@ -673,7 +683,7 @@ function holdEscaped(): Choreo {
   const target = scale(MOVES.submission.target, 0.8);
   actor.push([0.9, 5, 0, -20, 1, 'stagger'], [1, 3, 0, 0, 1, 'guard']);
   target.push([0.9, 1, 0.4, 40, 1, 'kneel'], [1, 1, 0, 8, 1, 'guard']);
-  return { actor, target };
+  return { actor, target, shouts: [{ at: 0.8, text: 'BREAKS FREE!' }] };
 }
 
 function moveNamed(wrestler: Wrestler | undefined, name: string | null): Move | undefined {
@@ -751,6 +761,8 @@ export function stageBeat(
   // Where there are no disqualifications, a chair is one more thing to do.
   const armed = (options: readonly MoveId[]): readonly MoveId[] => (conduct.weapons ? [...options.slice(0, 2), 'chairShot', ...options.slice(2)] : options);
   const pick = (id: MoveId, duration = 1700) => built(id, MOVES[id], duration);
+  // The same beat with a word shouted over it.
+  const shouting = (staged: StagedBeat, text: string, at = 0.8): StagedBeat => ({ ...staged, choreo: { ...staged.choreo, shouts: [...(staged.choreo.shouts ?? []), { at, text }] } });
   // The first of these not staged recently; if they all were, rotate.
   const fresh = (options: readonly MoveId[]): MoveId => {
     const usable = options.filter((id) => (META[id]?.needsDown ?? false) === false || context.targetDown);
@@ -783,14 +795,14 @@ export function stageBeat(
     case 'environmental':
       return pick('still');
     case 'elimination': {
-      if (conduct.elimination === 'overTop') return pick(spoken && OVER_THE_TOP.includes(spoken) ? spoken : fresh(OVER_THE_TOP));
+      if (conduct.elimination === 'overTop') return shouting(pick(spoken && OVER_THE_TOP.includes(spoken) ? spoken : fresh(OVER_THE_TOP)), 'ELIMINATED!', 0.82);
       // Anywhere else somebody is eliminated the ordinary way: beaten.
-      if (context.targetDown) return built('still', coverOnly(3), 2200);
+      if (context.targetDown) return shouting(built('still', coverOnly(3), 2200), 'ELIMINATED!', 0.98);
       const lead = fresh(NEAR_FALL_LEADS);
-      return built(lead, withCover(MOVES[lead], 0.5, 3), 3000);
+      return shouting(built(lead, withCover(MOVES[lead], 0.5, 3), 3000), 'ELIMINATED!', 0.98);
     }
     case 'nearFall': {
-      if (conduct.nearFall === 'teeter') return pick('teeter', 1900);
+      if (conduct.nearFall === 'teeter') return shouting(pick('teeter', 1900), 'HANGS ON!', 0.72);
       if (conduct.nearFall === 'hold') return built('submission', holdEscaped(), 2200);
       const lead = spoken && NEAR_FALL_LEADS.includes(spoken) ? spoken : fresh(NEAR_FALL_LEADS);
       if (conduct.nearFall === 'count') return built(lead, withCount(MOVES[lead], 0.42, 8, true), 3200);
@@ -803,34 +815,34 @@ export function stageBeat(
       const decisive: MoveId = NEAR_FALL_LEADS.includes(lead) || ['driver', 'stunner', 'superkick'].includes(lead) ? lead : 'slam';
       switch (conduct.finish) {
         case 'submission':
-          return built('submission', MOVES.submission, 2600);
+          return shouting(built('submission', MOVES.submission, 2600), 'TAP OUT!', 0.78);
         case 'pin':
           return built(decisive, withCover(MOVES[decisive], 0.5, 3), 3200);
         case 'count10':
-          return built(decisive, withCount(MOVES[decisive], 0.36, 10, false), 4400);
+          return shouting(built(decisive, withCount(MOVES[decisive], 0.36, 10, false), 4400), 'OUT!', 0.985);
         case 'overTop':
-          return pick(fresh(OVER_THE_TOP), 2000);
+          return shouting(pick(fresh(OVER_THE_TOP), 2000), 'ELIMINATED!', 0.82);
         case 'escape':
-          return pick('escapeCage', 2800);
+          return shouting(pick('escapeCage', 2800), 'ESCAPED!', 0.88);
         case 'climb':
-          return { ...pick('climbLadder', 3200), scene: 'ladder' };
+          return { ...shouting(pick('climbLadder', 3200), 'GOT IT!', 0.9), scene: 'ladder' };
         case 'table':
         case 'flamingTable':
-          return { ...pick('powerbomb', 2200), scene: conduct.finish };
+          return { ...shouting(pick('powerbomb', 2200), 'THROUGH THE TABLE!', 0.78), scene: conduct.finish };
         case 'casket':
-          return { ...pick('tossOutside', 2400), zone: 'out', scene: 'casket' };
+          return { ...shouting(pick('tossOutside', 2400), 'LID SHUT!', 0.9), zone: 'out', scene: 'casket' };
         case 'countOut':
-          return { ...built('throwOut', withCount(MOVES.throwOut, 0.4, 10, false), 4600), zone: 'out' };
+          return { ...shouting(built('throwOut', withCount(MOVES.throwOut, 0.4, 10, false), 4600), 'COUNT OUT!', 0.985), zone: 'out' };
         case 'dq':
-          return pick('chairShot', 1900);
+          return shouting(pick('chairShot', 1900), 'DISQUALIFIED!', 0.72);
         case 'draw':
-          return pick('lockup', 1900);
+          return shouting(pick('lockup', 1900), "TIME'S UP!", 0.7);
         case 'doubleKO':
-          return pick('doubleDown', 2200);
+          return shouting(pick('doubleDown', 2200), 'BOTH DOWN!', 0.75);
         case 'blood':
-          return pick('headbutt', 1900);
+          return shouting(pick('headbutt', 1900), 'FIRST BLOOD!', 0.7);
         case 'knockout':
-          return built(lead === 'submission' ? 'slam' : lead, MOVES[lead === 'submission' ? 'slam' : lead], 2000);
+          return shouting(built(lead === 'submission' ? 'slam' : lead, MOVES[lead === 'submission' ? 'slam' : lead], 2000), 'KNOCKED OUT!', 0.85);
       }
       // (Unreachable; the switch above is exhaustive. Keeps the compiler honest if a finish is added.)
       return pick(decisive);
@@ -970,6 +982,12 @@ export function stageMatch(
       recent.push(move);
     };
     add('tossOutside', 'out');
+    if (conduct.fallsAnywhere) {
+      // Falls count anywhere: so somebody tries for one out here.
+      const lead: MoveId = seed % 2 ? 'slam' : 'suplex';
+      moments.push({ beat: filler(), actorId, targetId, staged: { move: lead, choreo: withCover(MOVES[lead], 0.48, 2), meta: META[lead] ?? {}, zone: 'floor', duration: 2200 }, lines: [], holdMs: 2200, filler: true });
+      recent.push(lead);
+    } else
     add(FLOOR_WORK.filter((id) => id !== 'chairShot')[seed % (FLOOR_WORK.length - (conduct.weapons ? 1 : 0))]!, 'floor');
     // Where chairs are legal, the floor is where one gets found.
     add(conduct.weapons ? 'chairShot' : FLOOR_WORK[(seed + 3) % FLOOR_WORK.length]!, 'floor');
@@ -977,11 +995,53 @@ export function stageMatch(
     add('rollInside', 'in');
     downId = targetId;
   };
+  // DESIGN: the simulation decides who wins a two-out-of-three-falls or iron
+  // man match, not the score. The picture still has to be that kind of match,
+  // so the falls before the last are staged in the unspoken stretches, given
+  // to whoever the simulation had on top at that point. The arithmetic is
+  // kept honest against the result: the winner's side takes one before the
+  // finish, the other side takes one only if there is a place for both —
+  // so the decider is always 2-0 or 2-1 (and a draw is one fall each).
+  const sideOf = (id: Id | null | undefined) => (id ? (options.teams ?? []).findIndex((team) => team.includes(id)) : -1);
+  const sameSide = (a: Id | null, b: Id | null) => Boolean(a && b && (a === b || (sideOf(a) >= 0 && sideOf(a) === sideOf(b))));
+  const fallAfter = new Map<number, string>();
+  if (conduct.multiFall && timeline.length >= 4) {
+    const closer = timeline[timeline.length - 1]!;
+    const winner = conduct.finish === 'dq' ? closer.targetId : closer.actorId;
+    const gaps = timeline.map((_, i) => i).filter((i) => i >= 1 && i < timeline.length - 2 && i !== outsideAfter && CARRIES_ON.includes(timeline[i]!.pose) && timeline[i]!.actorId && timeline[i]!.targetId && !sameSide(timeline[i]!.actorId, timeline[i]!.targetId));
+    const theirs = gaps.find((i) => sameSide(timeline[i]!.actorId, winner));
+    const other = gaps.find((i) => !sameSide(timeline[i]!.actorId, winner) && i !== theirs);
+    const drawn = conduct.finish === 'draw' || conduct.finish === 'doubleKO';
+    if (theirs !== undefined && (!drawn || other !== undefined)) {
+      const order = [theirs, ...(other !== undefined ? [other] : [])].sort((a, b) => a - b);
+      order.forEach((i, n) => fallAfter.set(i, n === 0 ? 'FIRST FALL!' : 'ONE FALL EACH!'));
+    }
+  }
   timeline.forEach((beat, index) => {
     stage(beat, index, synced ? commentary.filter((line) => line.beat === index) : [], false);
     const last = moments[moments.length - 1]!;
     const next = timeline[index + 1];
     if (!next || !last.actorId || !last.targetId || !CARRIES_ON.includes(beat.pose)) return;
+    const fall = fallAfter.get(index);
+    if (fall) {
+      const lead: MoveId = (['slam', 'suplex', 'powerbomb', 'superkick'] as const)[index % 4]!;
+      const choreo = downId === last.targetId ? coverOnly(3) : withCover(MOVES[lead], 0.5, 3);
+      const move: MoveId = downId === last.targetId ? 'still' : lead;
+      const duration = move === 'still' ? 2200 : 3000;
+      moments.push({
+        beat: { kind: 'control', pose: 'control', text: '', significant: false, actorId: last.actorId, targetId: last.targetId, moveName: null },
+        actorId: last.actorId,
+        targetId: last.targetId,
+        staged: { move, choreo: { ...choreo, shouts: [{ at: 0.98, text: fall }] }, meta: META[move] ?? {}, duration },
+        lines: [],
+        // A fall is a full stop: the bell, a breath, and they go again.
+        holdMs: duration + 900,
+        filler: true,
+      });
+      recent.push(move);
+      downId = last.targetId;
+      return;
+    }
     if (index === outsideAfter) {
       excursion(last.actorId, last.targetId, timeline.length + index);
       return;

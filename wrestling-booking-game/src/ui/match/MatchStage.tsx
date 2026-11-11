@@ -304,7 +304,7 @@ export function MatchStage({
         cheers.set(id, [frame(0, to, 'celebrate'), frame(0.5, { ...to, y: to.y + 0.7 }, 'lift'), frame(1, to, 'celebrate')]);
       } else if (!leftAt.current.has(id)) {
         // A beaten partner, still at their corner: down off the apron.
-        frames.push(frame(0.5, { x: apronX(side) - side * 2, y: FLOOR + 3, rot: -side * 50 }, 'fall'), frame(1, { x: apronX(side) - side * 3, y: FLOOR + DOWN, rot: -side * 90 }, 'flat'));
+        frames.push(frame(0.5, { x: apronX(side) - side * 2, y: FLOOR + 3, rot: side * 50 }, 'fall'), frame(1, { x: apronX(side) - side * 9, y: FLOOR + DOWN, rot: side * 90 }, 'flat'));
       } else if (wasDown || outside) {
         frames.push(frame(1, from, 'flat'));
       } else {
@@ -526,13 +526,25 @@ export function MatchStage({
               return (
                 <span
                   key={`${beatKey}-count-${i}`}
-                  className="mv-count pointer-events-none absolute font-black text-white"
-                  style={{ left: sx(midBody(targetEnd).x), top: sy(targetEnd.y + 11), fontSize: (cover.count > 3 ? 4.2 : 5.2) * u, textShadow: '0 3px 0 rgba(0,0,0,0.7)', animationDelay: `${when(at)}ms`, zIndex: 9 }}
+                  className="mv-count mv-action pointer-events-none absolute"
+                  style={{ left: sx(midBody(targetEnd).x), top: sy(targetEnd.y + 17), fontSize: (cover.count > 3 ? 8 : 11) * u, animationDelay: `${when(at)}ms`, zIndex: 11 }}
                 >
                   {i + 1}!
                 </span>
               );
             })}
+
+          {/* What a referee would shout, with no referee: big words over the ring. */}
+          {!over &&
+            (staged?.choreo.shouts ?? []).map((shout, i) => (
+              <span
+                key={`${beatKey}-shout-${i}`}
+                className="mv-shout mv-action pointer-events-none absolute whitespace-nowrap"
+                style={{ left: sx(Math.max(-12, Math.min(12, plan?.centre ?? 0))), top: sy(20), fontSize: Math.max(4.5, Math.min(9, 88 / shout.text.length)) * u, animationDelay: `${when(shout.at)}ms`, zIndex: 12 }}
+              >
+                {shout.text}
+              </span>
+            ))}
 
           {pyro &&
             [18, 82].map((x) => (

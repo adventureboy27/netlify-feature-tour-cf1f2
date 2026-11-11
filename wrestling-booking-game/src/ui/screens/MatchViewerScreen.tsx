@@ -13,7 +13,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../../state/store';
-import { buildPlaybackTimeline, finishCallout } from '../../engine/sim/matchPlayback';
+import { buildPlaybackTimeline } from '../../engine/sim/matchPlayback';
 import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { MatchStage, type Aftermath, type Bystander, type StageFighter } from '../match/MatchStage';
 import { stageMatch } from '../match/choreography';
@@ -369,13 +369,9 @@ export function MatchViewerScreen({
         : winnerIds.size > 1
           ? 'YOUR WINNERS!'
           : 'YOUR WINNER!'
-    : current?.pose === 'finish'
-      ? finishCallout(result.finish)
-      : current?.pose === 'elimination'
-        ? 'ELIMINATED!'
-        : current?.pose === 'nearFall'
-          ? 'NEAR FALL!'
-          : interferingManager
+    : current?.pose === 'finish' || current?.pose === 'elimination' || current?.pose === 'nearFall'
+      ? (current.moveName?.toUpperCase() ?? null)
+      : interferingManager
             ? 'INTERFERENCE!'
             : current?.moveName
               ? current.moveName.toUpperCase()

@@ -91,3 +91,29 @@
   .mv-breathe { animation: none; }
   .mv-crowd, .mv-cone, .mv-flash { animation: none; }
 }
+
+/* The referee's voice without the referee: poster lettering, slammed on. */
+.mv-action {
+  font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', 'Franklin Gothic Heavy', 'Arial Black', sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #ffe23d;
+  -webkit-text-stroke: 0.09em #1c0a00;
+  paint-order: stroke fill;
+  text-shadow: 0.06em 0.07em 0 #e0261c, 0.12em 0.14em 0 rgba(0, 0, 0, 0.75);
+  user-select: none;
+}
+.mv-count.mv-action { color: #fff; animation-duration: 0.7s; }
+@keyframes mv-shout {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-10deg) scale(3); }
+  12% { opacity: 1; transform: translate(-50%, -50%) rotate(-5deg) scale(0.9); }
+  20% { transform: translate(-50%, -50%) rotate(-5deg) scale(1.12); }
+  28% { transform: translate(-48%, -52%) rotate(-6deg) scale(1); }
+  36% { transform: translate(-52%, -49%) rotate(-4deg) scale(1.03); }
+  44%, 80% { opacity: 1; transform: translate(-50%, -50%) rotate(-5deg) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -70%) rotate(-5deg) scale(1.25); }
+}
+.mv-shout { opacity: 0; animation: mv-shout 1.25s cubic-bezier(0.2, 0.9, 0.3, 1) both; }

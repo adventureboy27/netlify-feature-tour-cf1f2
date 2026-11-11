@@ -485,3 +485,50 @@ describe('the rules of the match are the rules of the picture', () => {
     expect(rulebook(null)).toMatchObject({ tags: false, allIn: false });
   });
 });
+
+describe('what the referee would be shouting', () => {
+  const shoutsOf = (moments: ReturnType<typeof played>) => moments.flatMap((m) => (m.staged.choreo.shouts ?? []).map((s) => s.text));
+
+  it('a kickout is shouted on every two-count, and never on the three', () => {
+    const moments = played(rulebook(null));
+    const twos = moments.filter((m) => m.staged.choreo.cover?.count === 2);
+    expect(twos.length).toBeGreaterThan(0);
+    for (const m of twos) expect(m.staged.choreo.shouts?.map((s) => s.text)).toContain('KICK OUT!!');
+    expect(moments[moments.length - 1]!.staged.choreo.shouts ?? []).toEqual([]);
+  });
+
+  it('a submission is a tap out', () => {
+    const moments = played(rulebook(null, 'submission'), 'submission');
+    expect(moments[moments.length - 1]!.staged.choreo.shouts?.map((s) => s.text)).toEqual(['TAP OUT!']);
+  });
+
+  it('every shout lands inside its beat', () => {
+    for (const stip of [null, 'submissionMatch', 'lastManStanding', 'battleRoyal', 'steelCage', 'ladder', 'tables']) {
+      for (const m of played(rulebook(stip))) for (const s of m.staged.choreo.shouts ?? []) expect(s.at).toBeGreaterThan(0), expect(s.at).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('two out of three falls: the falls before the last are staged, and the score adds up', () => {
+    const conduct = rulebook(null, 'cleanPin', { aim: 'twoOfThree' });
+    expect(conduct.multiFall).toBe(true);
+    const their = (pose: PlaybackBeat['pose']): PlaybackBeat => ({ ...beat(pose), actorId: bravo.id, targetId: alpha.id });
+    // The winner on top early, the loser later: one fall each, then the decider.
+    const both = stageMatch([beat('exchange'), beat('control'), beat('control'), their('comeback'), their('control'), beat('comeback'), beat('finish')], [], cast, 'cleanPin', { conduct }).moments;
+    const falls = both.filter((m) => m.staged.choreo.cover?.count === 3);
+    expect(falls.map((m) => m.actorId)).toEqual([alpha.id, bravo.id, alpha.id]);
+    expect(shoutsOf(both).filter((t) => t.includes('FALL'))).toEqual(['FIRST FALL!', 'ONE FALL EACH!']);
+    // The loser never on top: two straight, and never a fall for the loser.
+    const sweep = played(conduct).filter((m) => m.staged.choreo.cover?.count === 3);
+    expect(sweep.map((m) => m.actorId)).toEqual([alpha.id, alpha.id]);
+    // An ordinary match has exactly one.
+    expect(played(rulebook(null)).filter((m) => m.staged.choreo.cover?.count === 3)).toHaveLength(1);
+  });
+
+  it('falls count anywhere: somebody goes for a pin on the floor', () => {
+    const conduct = rulebook('fallsCountAnywhere');
+    expect(conduct.fallsAnywhere).toBe(true);
+    const moments = played(conduct);
+    expect(moments.some((m) => m.staged.zone === 'floor' && m.staged.choreo.cover?.count === 2)).toBe(true);
+    expect(played(rulebook('streetFight')).some((m) => m.staged.zone === 'floor' && m.staged.choreo.cover)).toBe(false);
+  });
+});

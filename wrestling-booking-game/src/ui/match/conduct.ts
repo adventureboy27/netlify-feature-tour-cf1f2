@@ -23,6 +23,10 @@ export interface Conduct {
   overTheTop: boolean;
   cage: boolean;
   blindfold: boolean;
+  /** More than one fall decides it: two out of three, or an iron man match. */
+  multiFall: boolean;
+  /** A pin counts wherever it happens, the floor included. */
+  fallsAnywhere: boolean;
   /**
    * What a near fall is in this match: a cover and a two-count; a hold
    * somebody fights out of; a referee's count over somebody who beats it;
@@ -44,6 +48,8 @@ export const STANDARD: Conduct = {
   overTheTop: false,
   cage: false,
   blindfold: false,
+  multiFall: false,
+  fallsAnywhere: false,
   nearFall: 'cover',
   elimination: 'fall',
   finish: 'pin',
@@ -94,6 +100,8 @@ export function conductOf(segment: Pick<Segment, 'stipulation' | 'rules'>, finis
     overTheTop: battleRoyal,
     cage,
     blindfold: stipulation === 'blindfoldMatch',
+    multiFall: rules.aim === 'twoOfThree' || rules.aim === 'ironMan',
+    fallsAnywhere: stipulation === 'fallsCountAnywhere',
     nearFall: battleRoyal ? 'teeter' : knockoutOnly ? 'count' : rules.falls === 'subsOnly' || rules.aim === 'submissionOnly' ? 'hold' : 'cover',
     elimination: battleRoyal ? 'overTop' : 'fall',
     finish: finishOf(finish, stipulation, rules, battleRoyal),
