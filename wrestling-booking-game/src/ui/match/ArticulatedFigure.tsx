@@ -22,7 +22,7 @@ import {
 import { ComposedPortrait } from "../paperdoll/ComposedPortrait";
 import { BODY_RIG, LEG_RIG, type BodyRig } from "./rig";
 import { MatchFigure } from "./MatchFigure";
-import { LegDefs, Pelvis, Shin, Thigh, legwearOf, type Legwear } from "./legwear";
+import { Pelvis, Shin, Thigh, legwearOf, type Legwear } from "./legwear";
 import type { Weapon } from "./choreography";
 import type { Wrestler } from "../../engine/types";
 
@@ -311,7 +311,6 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
           style={{ top: "96.5%" }}
           aria-hidden
         >
-          <LegDefs />
           <Leg
             side="left"
             skin={look.skinColor}

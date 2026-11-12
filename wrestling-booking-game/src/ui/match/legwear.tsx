@@ -127,28 +127,50 @@ const closed = (m: Mirror, points: readonly (readonly [number, number])[]) => `M
 // highlight down the front and a shadow down the inside.
 const LINE = { stroke: '#0b0b0e', strokeOpacity: 0.5, strokeWidth: 0.7, strokeLinejoin: 'round' as const };
 
-/** Clip bands shared by every leg: "from the boot-top down", "the shorts' length", and so on. */
-export function LegDefs() {
-  return (
-    <defs>
-      {([
-        ['mv-leg-short', 0, 35.5],
-        ['mv-leg-56', 56, 90],
-        ['mv-leg-70', 70, 90],
-        ['mv-leg-73', 73, 90],
-        ['mv-leg-pad', 55, 77],
-        ['mv-leg-56b', 56, 59.6],
-        ['mv-leg-70b', 70, 72.2],
-        ['mv-leg-73b', 73, 75.2],
-        ['mv-leg-sole', 82.4, 90],
-      ] as const).map(([id, from, to]) => (
-        <clipPath key={id} id={id} clipPathUnits="userSpaceOnUse">
-          <rect x={-60} y={from} width={220} height={to - from} />
-        </clipPath>
-      ))}
-    </defs>
-  );
+// Parts of a leg — the shorts' length of a thigh, a boot from its top down —
+// are cut from the leg's own curves by arithmetic, not by a clip. A clip
+// band does not turn with a leg that is swung round by its joint: a boot on
+// a dropkick came out as no boot and a sole floating beside it.
+type Pt = readonly [number, number];
+type Curve = readonly [Pt, Pt, Pt];
+/** Where a quadratic edge that runs down the leg crosses height `y`. */
+function at([p0, c, p1]: Curve, y: number): Pt {
+  const a = p0[1] - 2 * c[1] + p1[1];
+  const b = 2 * (c[1] - p0[1]);
+  const k = p0[1] - y;
+  const t = Math.min(1, Math.max(0, Math.abs(a) < 1e-6 ? -k / b : (-b + Math.sqrt(Math.max(0, b * b - 4 * a * k))) / (2 * a)));
+  return [(1 - t) * (1 - t) * p0[0] + 2 * t * (1 - t) * c[0] + t * t * p1[0], y];
 }
+/** The stretch of that edge between two heights, as points. */
+const run = (edge: Curve, from: number, to: number, steps = 6): Pt[] => Array.from({ length: steps + 1 }, (_, i) => at(edge, from + ((to - from) * i) / steps));
+const through = (m: Mirror, points: readonly Pt[]) => points.map(([x, y]) => `${m(x).toFixed(2)},${y.toFixed(2)}`).join(' L ');
+
+const thighEdges = (female: boolean, loose: boolean): { outer: Curve; inner: Curve; seam: Curve } => {
+  const bulge = (female ? 28.6 : 26.4) - (loose ? 1.4 : 0);
+  const [outer, inner] = loose ? [31.2, 48.2] : [32.5, 47];
+  return { outer: [[30, 14], [bulge, 30], [outer, 47]], inner: [[49.6, 20], [50, 33], [inner, 47]], seam: [[32.2, 15], [bulge + 2.6, 30], [34.4, 47]] };
+};
+const shinEdges = (female: boolean): { outer: Curve; inner: Curve; seam: Curve } => ({
+  outer: [[33, 50], [female ? 31.4 : 30, 61], [33.8, 78]],
+  inner: [[46.6, 50], [female ? 47.6 : 48.4, 62], [46, 78]],
+  seam: [[34.6, 50], [32.6, 61], [35.6, 77]],
+});
+/** The thigh from the hip down to `y`. */
+const thighDownTo = (m: Mirror, female: boolean, y: number) => {
+  const e = thighEdges(female, false);
+  return `M ${through(m, [...run(e.outer, 14, y), ...run(e.inner, Math.max(20, y), 20).slice(y < 20 ? 6 : 0)])} Z`;
+};
+/** A band of the shin between two heights. */
+const shinBand = (m: Mirror, female: boolean, from: number, to: number) => {
+  const e = shinEdges(female);
+  return `M ${through(m, [...run(e.outer, from, to, 4), ...run(e.inner, to, from, 4)])} Z`;
+};
+/** The shin from `y` down, foot included. */
+const shinFrom = (m: Mirror, female: boolean, y: number) => {
+  const e = shinEdges(female);
+  return `M ${through(m, run(e.outer, y, 78, 5))} C ${m(29.5)},78.5 ${m(26)},80 ${m(26.5)},84 L ${m(46.5)},84 L ${through(m, run(e.inner, 78, y, 5))} Z`;
+};
+const seamLine = (m: Mirror, seam: Curve, from: number, to: number) => `M ${through(m, run(seam, from, to, 5))}`;
 
 const thighPath = (m: Mirror, female: boolean, loose: boolean) => {
   const bulge = (female ? 28.6 : 26.4) - (loose ? 1.4 : 0);
@@ -172,10 +194,10 @@ export function Thigh({ m, skin, gear, female = false }: { m: Mirror; skin: stri
   return (
     <>
       <path d={leg} fill={long ? gear.color : skin} {...LINE} />
-      {gear.bottom === 'shorts' && <path d={leg} fill={gear.color} clipPath="url(#mv-leg-short)" {...LINE} />}
+      {gear.bottom === 'shorts' && <path d={thighDownTo(m, female, 35.5)} fill={gear.color} {...LINE} />}
       {gear.stripe && long && <path d={seam} stroke={gear.stripe} strokeWidth={2.6} fill="none" />}
-      {gear.stripe && gear.bottom === 'shorts' && <path d={seam} stroke={gear.stripe} strokeWidth={2.6} fill="none" clipPath="url(#mv-leg-short)" />}
-      {gear.bottom === 'shorts' && <path d={closed(m, [[27, 33.8], [50, 33.8], [50, 35.5], [27, 35.5]])} fill="#000" opacity={0.25} clipPath="url(#mv-leg-short)" />}
+      {gear.stripe && gear.bottom === 'shorts' && <path d={seamLine(m, thighEdges(female, false).seam, 15, 34.6)} stroke={gear.stripe} strokeWidth={2.6} fill="none" />}
+      {gear.bottom === 'shorts' && <path d={`M ${through(m, [at(thighEdges(female, false).outer, 33.8), at(thighEdges(female, false).inner, 33.8), at(thighEdges(female, false).inner, 35.5), at(thighEdges(female, false).outer, 35.5)])} Z`} fill="#000" opacity={0.25} />}
       {/* Light down the front of the thigh, shadow down the inside, and the line of the muscle on a bare leg. */}
       <path d={`M ${m(33.6)},19 Q ${m(bulge + 4.4)},31 ${m(35.6)},44`} stroke="#fff" strokeOpacity={0.13} strokeWidth={2.4} strokeLinecap="round" fill="none" />
       <path d={`M ${m(44.2)},20 L ${m(49.6)},20 Q ${m(50)},33 ${m(47)},47 L ${m(44.6)},47 Q ${m(46.4)},33 ${m(44.2)},20 Z`} fill="#000" opacity={0.2} />
@@ -193,17 +215,17 @@ export function Shin({ m, skin, gear, female = false }: { m: Mirror; skin: strin
   const loose = gear.bottom === 'pants';
   const calf = long ? gear.color : skin;
   const leg = shinPath(m, female);
-  const from = gear.footwear === 'boots' || gear.footwear === 'kickpads' || gear.footwear === 'cowboy' ? 'mv-leg-56' : gear.footwear === 'shortBoots' ? 'mv-leg-70' : gear.footwear === 'sneakers' ? 'mv-leg-73' : null;
+  const from = gear.footwear === 'boots' || gear.footwear === 'kickpads' || gear.footwear === 'cowboy' ? 56 : gear.footwear === 'shortBoots' ? 70 : gear.footwear === 'sneakers' ? 73 : null;
   return (
     <>
       {/* The whole lower leg and foot, in skin or in tights; whatever is on the foot goes over it. */}
       <path d={leg} fill={calf} {...LINE} />
-      {gear.footwear === 'barefoot' && long && <path d={leg} fill={skin} clipPath="url(#mv-leg-73)" {...LINE} />}
+      {gear.footwear === 'barefoot' && long && <path d={shinFrom(m, female, 73)} fill={skin} {...LINE} />}
       {gear.stripe && long && !loose && <path d={`M ${m(34.6)},50 Q ${m(32.6)},61 ${m(35.6)},77`} stroke={gear.stripe} strokeWidth={2.2} fill="none" />}
 
-      {from && <path d={leg} fill={gear.bootColor} clipPath={`url(#${from})`} {...LINE} />}
+      {from !== null && <path d={shinFrom(m, female, from)} fill={gear.bootColor} {...LINE} />}
       {/* The band round the top of the boot: the leg's own shape, a few units of it. */}
-      {from && gear.footwear !== 'kickpads' && gear.footwear !== 'cowboy' && <path d={leg} fill={gear.trim} clipPath={`url(#${from}b)`} />}
+      {from !== null && gear.footwear !== 'kickpads' && gear.footwear !== 'cowboy' && <path d={shinBand(m, female, from, from + (gear.footwear === 'boots' ? 3.6 : 2.2))} fill={gear.trim} />}
       {gear.footwear === 'boots' && <path d={`M ${m(39.9)},62 L ${m(39.9)},76`} stroke="#fff" strokeOpacity={0.25} strokeWidth={1.1} strokeDasharray="1.6 1.8" />}
       {gear.footwear === 'cowboy' && (
         <>
@@ -214,11 +236,11 @@ export function Shin({ m, skin, gear, female = false }: { m: Mirror; skin: strin
       )}
       {gear.footwear === 'kickpads' && (
         <>
-          <path d={leg} fill={gear.color} clipPath="url(#mv-leg-pad)" {...LINE} />
+          <path d={shinBand(m, female, 55, 77)} fill={gear.color} {...LINE} />
           <path d={closed(m, [[38.2, 55], [41.6, 55], [41.4, 77], [38.4, 77]])} fill={gear.trim} />
         </>
       )}
-      {gear.footwear === 'sneakers' && <path d={leg} fill="#f2f2f4" clipPath="url(#mv-leg-sole)" />}
+      {gear.footwear === 'sneakers' && <path d={closed(m, [[26.6, 82.4], [46.4, 82.4], [46.5, 84], [26.5, 84]])} fill="#f2f2f4" />}
 
       {/* Light down the shin, shadow down the inside of the calf. */}
       <path d={`M ${m(35.4)},53 Q ${m(33.8)},62 ${m(36)},74`} stroke="#fff" strokeOpacity={0.12} strokeWidth={2} strokeLinecap="round" fill="none" />
