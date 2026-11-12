@@ -14,7 +14,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArenaBack, ArenaFront, FEET_Y, VIEW, type Corner } from './Arena';
-import { Belt, type BeltLook } from './Belt';
+import { Belt, placeOf, type BeltLook } from './Belt';
 import { bell, crowd, hit, hitFor } from './sound';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
@@ -117,11 +117,14 @@ export function MatchStage({
   shed,
   belt,
   champions,
+  spoils,
 }: {
   /** The title this match is for: what the belt looks like wherever one is drawn. */
   belt?: BeltLook;
-  /** Who walked in as champion. They wear it until the bell. */
-  champions?: ReadonlySet<Id>;
+  /** Every belt each of them walked in with, the one on the line first. Worn until the bell. */
+  champions?: ReadonlyMap<Id, readonly BeltLook[]>;
+  /** Every belt each winner leaves with, the one just won or kept first. */
+  spoils?: ReadonlyMap<Id, readonly BeltLook[]>;
   /** What came off somebody when it was over: a mask, or their hair. */
   shed?: readonly { id: Id; kind: 'mask' | 'hair' }[];
   /** Really injured in this match, from the moment it happened: they carry it for the rest of it. */
@@ -516,8 +519,9 @@ export function MatchStage({
                         else jointRefs.current.delete(id);
                       }}
                     />
-                    {won && aftermath?.belt && <Belt look={belt} />}
-                    {!staged && !over && champions?.has(id) && <Belt look={belt} at="waist" />}
+                    {/* Up to four belts on one person: held up, round the waist, and over each shoulder. */}
+                    {won && aftermath?.belt && (spoils?.get(id) ?? (belt ? [belt] : [])).slice(0, 4).map((look, n) => <Belt key={look.id} look={look} at={placeOf(n, true)} />)}
+                    {!staged && !over && (champions?.get(id) ?? []).slice(0, 3).map((look, n) => <Belt key={look.id} look={look} at={placeOf(n, false)} />)}
                   </div>
                 </div>
               </div>

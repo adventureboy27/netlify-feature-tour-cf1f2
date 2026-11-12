@@ -76,7 +76,18 @@ function Emblem({ kind, ink }: { kind: number; ink: string }) {
   }
 }
 
-export function Belt({ look = DEFAULT, at = 'overhead' }: { look?: BeltLook; at?: 'overhead' | 'waist' }) {
+/** Where on a figure a belt goes. One round the waist; a second and third go over the shoulders. */
+export type BeltPlace = 'overhead' | 'waist' | 'shoulder' | 'otherShoulder';
+const PLACES: Record<BeltPlace, React.CSSProperties> = {
+  overhead: { left: '12%', top: '-3%', width: '76%' },
+  waist: { left: '22%', top: '51.5%', width: '56%' },
+  shoulder: { left: '8%', top: '21%', width: '46%', transform: 'rotate(62deg)' },
+  otherShoulder: { left: '46%', top: '21%', width: '46%', transform: 'rotate(-62deg)' },
+};
+/** Where the n-th belt somebody is carrying goes, given whether the first is being held up. */
+export const placeOf = (n: number, raised: boolean): BeltPlace => (raised ? (['overhead', 'waist', 'shoulder', 'otherShoulder'] as const) : (['waist', 'shoulder', 'otherShoulder'] as const))[n] ?? 'otherShoulder';
+
+export function Belt({ look = DEFAULT, at = 'overhead' }: { look?: BeltLook; at?: BeltPlace }) {
   const seed = hash(look.id);
   const { strap, plate: metal } = look.colorway;
   const ink = 'rgba(0,0,0,0.55)';
@@ -92,7 +103,7 @@ export function Belt({ look = DEFAULT, at = 'overhead' }: { look?: BeltLook; at?
     <svg
       viewBox="0 0 120 40"
       className="pointer-events-none absolute"
-      style={at === 'waist' ? { left: '22%', top: '51.5%', width: '56%' } : { left: '12%', top: '-3%', width: '76%' }}
+      style={PLACES[at]}
       data-belt={look.tier}
       aria-hidden
     >

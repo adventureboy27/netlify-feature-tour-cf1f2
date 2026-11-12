@@ -28,7 +28,7 @@ import { CUP_NAME } from '../../engine/world/cup';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, promotionTheme } from '../components/chrome';
 import { stipulationById } from '../../data/stipulations';
-import type { Id, PromotionArchetype, FinishType, SegmentRole, Wrestler } from '../../engine/types';
+import type { Id, PromotionArchetype, FinishType, SegmentRole, Title, Wrestler } from '../../engine/types';
 
 /**
  * How long one beat holds for a match whose commentary cannot be tied to
@@ -475,8 +475,20 @@ export function MatchViewerScreen({
   // The belt this match is for, and who walked in with it: whoever holds it
   // now if it did not change hands, whoever held it before if it did.
   const beltLook = world.titles.find((t) => segment.titleIds.includes(t.id));
-  const heldBefore = beltLook ? (result.titleChanged ? (beltLook.history[beltLook.history.length - 2]?.holderIds ?? []) : beltLook.currentHolderIds) : [];
-  const champions = new Set(heldBefore.filter((id) => combined.some((w) => w.id === id)));
+  // Somebody can hold more than one. They walk in with all of them — the one
+  // on the line round the waist, the rest over the shoulders — and a winner
+  // leaves with all of theirs. Read off who holds what now; for the titles
+  // this match was for, "before" is the previous reign if it changed hands.
+  const onTheLine = (title: Title) => segment.titleIds.includes(title.id);
+  const before = (title: Title) => (onTheLine(title) && result.titleChanged ? (title.history[title.history.length - 2]?.holderIds ?? []) : title.currentHolderIds);
+  const carried = (holders: (title: Title) => readonly Id[]) =>
+    new Map(
+      combined
+        .map((w) => [w.id, world.titles.filter((t) => holders(t).includes(w.id)).sort((a, b) => Number(onTheLine(b)) - Number(onTheLine(a)))] as const)
+        .filter(([, belts]) => belts.length > 0),
+    );
+  const champions = carried(before);
+  const spoils = carried((title) => title.currentHolderIds);
   // Anybody really injured carries it from the moment it happened.
   const hurt = new Set([...(staging?.hurtFrom ?? [])].filter(([, at]) => beatIndex > at).map(([id]) => id));
   const injuredHere = (result.injuries ?? []).filter((injury) => combined.some((w) => w.id === injury.wrestlerId));
@@ -596,6 +608,7 @@ export function MatchViewerScreen({
           hurt={hurt}
           belt={beltLook}
           champions={champions}
+          spoils={spoils}
           shed={over ? [...unmaskedIds.map((id) => ({ id, kind: 'mask' as const })), ...shavedIds.map((id) => ({ id, kind: 'hair' as const }))] : undefined}
         />
 
