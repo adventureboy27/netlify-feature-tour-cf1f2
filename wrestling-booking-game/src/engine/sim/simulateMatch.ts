@@ -1,0 +1,588 @@
+// Match simulation orchestrator — wires kayfabe -> win probability -> finish
+// -> rating -> narrative into the single entry point callers use.
+
+import type { Rng } from '../rng';
+import { chance, clamp, weightedPick, rngFromSeed, pick } from '../rng';
+import type {
+  Title,
+  Id,
+  Wrestler,
+  MatchRules,
+  Stipulation,
+  FinishType,
+  RatingBreakdownEntry,
+  MatchBeat,
+  WorldSettings,
+  Rivalry,
+} from '../types';
+import { shootRatingBonus, shootInjuryMultiplier, heatFromMatch, type HeatChange } from './rivalry';
+import { rollBotch } from './ringcraft';
+import { rollPyroBurn } from './pyro';
+import { rollGearFailure, type GearUnitInPlay } from './gearFailure';
+import { ratingToStars } from '../economy/showRating';
+import { injuryProneness } from '../career/personality';
+import type { RingsideTotals } from './ringside';
+import { ruleAdjustedWeights, kayfabeScore } from './kayfabe';
+import { pairWinProbability, multiManWinProbabilities } from './winProbability';
+import { orderEliminations, pickEliminators } from './battleRoyal';
+import { orderFactionEliminations, pickFactionEliminators } from './factionDestroyer';
+import { rollFinish, isDrawFinish, isNonDecisiveFinish } from './finish';
+import { computeMatchRating } from './matchRating';
+import { paceEffect } from './pacing';
+import { generateBeats, type EliminationEvent } from './narrative';
+import { effectiveRules } from '../../data/stipulations';
+
+export interface SimParticipant {
+  wrestlerId: Id;
+  side: number;
+}
+
+export interface SimulateMatchContext {
+  rules: MatchRules;
+  stipulation: Stipulation | null;
+  requirementsMet: boolean;
+  isPPV: boolean;
+  matchLengthMinutes: number;
+  settings: WorldSettings;
+  /** For entity-seeded, shared-rng-free identity decisions (who eliminated whom, who took the pin) — see sim/battleRoyal.ts's pickEliminators. */
+  week: number;
+
+  /** Deck-stacking odds shifts in percentage points, keyed by side. Empty until M4. */
+  deckStackingShiftsBySide?: Record<number, number>;
+  /** Managers, referee and any guest referee at ringside (§10). */
+  ringside?: RingsideTotals;
+  /**
+   * 0-1. What the owned ring/mat cuts off the odds of getting hurt tonight —
+   * a real ring is a safer ring for everyone standing in it, not just the
+   * two people wrestling, which is why this lives here rather than only in
+   * store.ts's competitor-specific injury roll. See
+   * engine/economy/production.ts's productionEffects().injuryReduction,
+   * finally being read by something.
+   */
+  equipmentInjuryReduction?: number;
+  /**
+   * Did tonight's show fire pyro at all — the pyro rung or the pyro-charges
+   * show extra. Nothing rolls unless this is true; see sim/pyro.ts.
+   */
+  pyroActive?: boolean;
+  /**
+   * Tonight's assigned match-prop units (a ladder, a cage, tables) for this
+   * segment's stipulation, if it needs any — see data/matchProps.ts. Empty
+   * or undefined means none assigned, which degrades to zero equipment-
+   * failure risk rather than manufacturing risk from nothing.
+   */
+  gearUnitsInPlay?: GearUnitInPlay[];
+  /** 0-1. Pre-folded from gearUnitsInPlay by the caller — see engine/economy/matchProps.ts's aggregateBreakChance. */
+  gearFailureChance?: number;
+  /** 0-1. Worst condition among gearUnitsInPlay, pre-folded the same way equipmentInjuryReduction is. */
+  gearUnitRisk?: number;
+  /** Rating bonus for the spectacle of extra units in play — see matchProps.ts's spectacleBonus. */
+  gearSpectacleBonus?: number;
+  titlePrestige?: number | null;
+  /** The rivalry these two are in, if any — drives heat, bad blood, and injury risk. */
+  rivalry?: Rivalry | null;
+  hardcoreSaturation?: number;
+  slotExpectedPopularity?: number | null;
+  instructionModifier?: number;
+  territoryFit?: number;
+  /** Rating points for suiting (or clashing with) the promotion's house style. */
+  houseStyleFit?: number;
+  /** Friends or enemies across the ring. See career/relationships.ts. */
+  relationshipHeat?: number;
+  /** Belts on the line, so the highlight can say what the match was for. */
+  titles?: readonly Title[];
+  /** True for the last match on the card — it earns a longer write-up. */
+  isMainEvent?: boolean;
+  /** First on the card, where a hot start is worth most. */
+  isOpener?: boolean;
+  /** How numb the crowd is to this pace, 0-100. */
+  paceSaturation?: number;
+  pairChemistryBonus?: number;
+  overexposurePenalty?: number;
+  staleGimmickPenalty?: number;
+  signatureStipulationFit?: number;
+  /** Every highlight-reel beat already spent tonight, shared across every match on the card. See narrative.ts's generateBeats. */
+  usedBeats?: Set<string>;
+}
+
+export interface MatchSimResult {
+  winnerSide: number | null; // null for a draw
+  winnerWrestlerIds: Id[];
+  finish: FinishType;
+  rating: number;
+  stars: number;
+  ratingBreakdown: RatingBreakdownEntry[];
+  /**
+   * Whoever blew a spot, if anybody did. Named so the caller can charge it to
+   * them; the write-up already carries the sentence. See sim/ringcraft.ts.
+   */
+  botchedById: Id | null;
+  beats: MatchBeat[];
+  /** Whoever the official caught in the act, so the office can act on it. */
+  caughtManagerId?: string | null;
+  winProbabilitiesBySide: Record<number, number>;
+  /**
+   * Combined injury multiplier for this match — the stipulation's, escalated
+   * by any real animosity. Callers apply it when rolling injuries (M3); it is
+   * surfaced here so a shoot rivalry's cost is computed in one place.
+   */
+  injuryMultiplier: number;
+  /** Multipliers the aftermath applies to what the match cost the people in it. */
+  healthCostMultiplier: number;
+  energyCostMultiplier: number;
+  /** Added to the promotion's counter for this pace. */
+  paceSaturationAdded: number;
+  /** How the rivalry moved, if these two were in one. Caller commits it. */
+  heatChange: HeatChange | null;
+  /** Which owned match-prop unit gave out, if the finish was 'equipmentFailure'. */
+  gearFailureUnitId?: Id | null;
+  /**
+   * The full chronological elimination order for a per-member elimination
+   * match (Faction Destroyer only) — `beats` above is a highlight reel,
+   * capped and evenly spread across the real order, so it cannot answer
+   * "who went out first, second, third." Only set when `finish` is
+   * 'lastFactionStanding'.
+   */
+  factionEliminationOrder?: Id[];
+}
+
+function mean(values: number[]): number {
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+export function simulateMatch(
+  rng: Rng,
+  participants: SimParticipant[],
+  wrestlerById: Map<Id, Wrestler>,
+  ctx: SimulateMatchContext,
+): MatchSimResult {
+  const sides = [...new Set(participants.map((p) => p.side))].sort((a, b) => a - b);
+  const isMultiMan = sides.length > 2;
+  const isLadderOrHighSpot = ctx.stipulation?.id === 'ladder';
+
+  // §9: a stipulation carries its own rules. Picking No-DQ *is* turning
+  // disqualifications off — the player doesn't also have to find the switch.
+  // Layered here rather than written back to the card so the booking stays
+  // whatever the player typed if they later drop the stipulation.
+  const rules = effectiveRules(ctx.rules, ctx.stipulation);
+  const rivalry = ctx.rivalry ?? null;
+
+  // A ladder, a cage, a table are hardware, and cheap hardware is real risk
+  // on top of the stipulation's own flat injuryMult — see data/stipulations.ts's
+  // hardwareGearSensitive. Prefers the specific unit(s) actually assigned
+  // tonight (gearUnitRisk) over the general ring/mat proxy, so a promotion
+  // running a ladder match on a pro-spec ladder reads safer than one running
+  // it on the last owned unit held together with tape — falls back to the
+  // general proxy only if nothing was ever assigned. Scales down as safety
+  // climbs, same as everything else in this stack, and never quite to
+  // nothing.
+  const gearUnitRisk = ctx.gearUnitRisk ?? (1 - (ctx.equipmentInjuryReduction ?? 0));
+  const hardwareGearRisk = ctx.stipulation?.hardwareGearSensitive
+    ? 1 + gearUnitRisk * ctx.settings.hardwareGearRiskAtWorst
+    : 1;
+
+  const weights = ruleAdjustedWeights(rules, isLadderOrHighSpot, isMultiMan);
+
+  const sideMembers = new Map<number, Wrestler[]>();
+  const sideKayfabe = new Map<number, number>();
+  for (const side of sides) {
+    const members = participants.filter((p) => p.side === side).map((p) => wrestlerById.get(p.wrestlerId)!);
+    sideMembers.set(side, members);
+    sideKayfabe.set(side, mean(members.map((w) => kayfabeScore(w, weights))));
+  }
+
+  // What the booker stacked, plus what is standing at ringside. A manager
+  // helps his man and costs the other — see sim/ringside.ts. Folded in here
+  // rather than applied separately so both go through the same clamp: the sim
+  // picks the winner (§0) and nothing is allowed to make a match a formality.
+  // Did anybody's corner actually pull their attention tonight?
+  //
+  // Rolled rather than applied flat, so a manager at ringside is a threat
+  // that occasionally lands rather than a permanent tax nobody can see. See
+  // sim/ringside.ts.
+  const distracted: Record<number, number> = {};
+  let distractedName: string | null = null;
+  // Who did it, and who it happened to — the write-up already named the
+  // manager, but nothing pointed the Match Viewer at an actual portrait for
+  // either of them. `side` here is the victim's own side (ringsideTotals
+  // keys distractionBy/distractionById by the victim, not the manager's own
+  // corner), and sideMembers already holds real Wrestler[] per side.
+  let distractedById: Id | null = null;
+  let distractedTargetId: Id | null = null;
+  for (const key of Object.keys(ctx.ringside?.distractionChance ?? {})) {
+    const side = Number(key);
+    const odds = ctx.ringside?.distractionChance?.[side] ?? 0;
+    if (odds <= 0 || !chance(rng, odds)) continue;
+    distracted[side] = -(ctx.ringside?.distractionPenalty?.[side] ?? 0);
+    distractedName = ctx.ringside?.distractionBy?.[side] ?? distractedName;
+    distractedById = ctx.ringside?.distractionById?.[side] ?? distractedById;
+    distractedTargetId = sideMembers.get(side)?.[0]?.id ?? distractedTargetId;
+  }
+
+  const ringsideShifts = ctx.ringside?.winShift ?? {};
+  const booked = ctx.deckStackingShiftsBySide ?? {};
+  const stackingShifts: Record<number, number> = {};
+  for (const side of new Set(
+    [...Object.keys(booked), ...Object.keys(ringsideShifts), ...Object.keys(distracted)].map(Number),
+  )) {
+    stackingShifts[side] = (booked[side] ?? 0) + (ringsideShifts[side] ?? 0) + (distracted[side] ?? 0);
+  }
+  const winProbabilitiesBySide: Record<number, number> = {};
+  let winnerSide: number;
+
+  if (sides.length === 2) {
+    const [a, b] = sides as [number, number];
+    const p = pairWinProbability(
+      sideKayfabe.get(a)!,
+      sideKayfabe.get(b)!,
+      stackingShifts[a] ?? 0,
+      ctx.settings.oddsClampMin,
+      ctx.settings.oddsClampMax,
+    );
+    winProbabilitiesBySide[a] = p;
+    winProbabilitiesBySide[b] = 1 - p;
+    winnerSide = chance(rng, p) ? a : b;
+  } else {
+    const scores = sides.map((s) => sideKayfabe.get(s)!);
+    const shifts = sides.map((s) => stackingShifts[s] ?? 0);
+    const probs = multiManWinProbabilities(scores, shifts);
+    sides.forEach((s, i) => (winProbabilitiesBySide[s] = probs[i]!));
+    winnerSide = weightedPick(rng, sides.map((s, i) => [s, probs[i]!] as const));
+  }
+
+  // Faction Destroyer: No-DQ, no rules — there is no disqualification path
+  // to catch a manager into, and eliminations below are computed off this
+  // winnerSide, so nothing may flip it afterward. Declared this early so it
+  // can guard the caught-manager roll immediately below as well.
+  const isFactionDestroyer = ctx.stipulation?.id === 'factionDestroyer';
+
+  // The manager gets caught.
+  //
+  // Rolled here, before anything derives from who won, so the members, the
+  // rating and the write-up all agree about it. Only against the side that
+  // was going to win: a corner that cheated its man to a loss has already
+  // been punished by the scoreboard.
+  //
+  // The client eats the disqualification and the manager walks away having
+  // cost somebody else a match, which is exactly the shape of the job.
+  let caughtManager: string | null = null;
+  let caughtManagerId: string | null = null;
+  const cornerRisk = ctx.ringside?.caughtRisk?.[winnerSide] ?? 0;
+  if (!isFactionDestroyer && cornerRisk > 0 && sides.length === 2 && rng.next() < cornerRisk) {
+    caughtManager = ctx.ringside?.caughtBy?.[winnerSide] ?? null;
+    caughtManagerId = ctx.ringside?.caughtById?.[winnerSide] ?? null;
+    winnerSide = sides.find((sd) => sd !== winnerSide) ?? winnerSide;
+  }
+
+  const winnerProbability = winProbabilitiesBySide[winnerSide]!;
+  const isUpset = winnerProbability < 0.5;
+  const winnerMembers = sideMembers.get(winnerSide)!;
+  const loserMembers = sides.filter((s) => s !== winnerSide).flatMap((s) => sideMembers.get(s)!);
+  const winnerIsTechnician = winnerMembers.some((w) => w.archetype === 'technician');
+
+  // Faction Destroyer only: elimination happens per MEMBER, not per SIDE — a
+  // side can lose members and keep fighting until the other side has
+  // nobody left, exactly like a traditional Survivor Series elimination
+  // match. See sim/factionDestroyer.ts. Computed up front because it
+  // decides who the "winner" and "pinned/pinner" actually are for the rest
+  // of this function — the winning SIDE and the surviving MEMBERS are not
+  // the same thing here.
+  const factionElimination = isFactionDestroyer
+    ? (() => {
+        const loserSide = sides.find((s) => s !== winnerSide)!;
+        const order = orderFactionEliminations(
+          rng,
+          loserMembers,
+          winnerMembers,
+          winProbabilitiesBySide[loserSide] ?? 0.01,
+          winnerProbability,
+        );
+        const eliminatorMap = pickFactionEliminators(order.order, order.survivorIds, ctx.week);
+        const events: EliminationEvent[] = order.order.map((eliminatedId) => {
+          const eliminatorId = eliminatorMap.get(eliminatedId) ?? null;
+          const eliminated = wrestlerById.get(eliminatedId)!;
+          const eliminator = eliminatorId ? wrestlerById.get(eliminatorId) : null;
+          return {
+            eliminatedId: eliminated.id,
+            eliminatedName: eliminated.name,
+            eliminatorId: eliminator?.id ?? null,
+            eliminatorName: eliminator?.name ?? null,
+          };
+        });
+        const survivors = order.survivorIds.map((id) => wrestlerById.get(id)!);
+        const lastEliminatedId = order.order[order.order.length - 1] ?? null;
+        const lastEliminatorId = lastEliminatedId ? (eliminatorMap.get(lastEliminatedId) ?? null) : null;
+        return { events, survivors, lastEliminatedId, lastEliminatorId };
+      })()
+    : null;
+  // Whoever actually made it to the end, for a Faction Destroyer match —
+  // "the winner" downstream (the finish line, winnerWrestlerIds) means a
+  // genuine survivor, not just anyone on the side that happened to win.
+  const effectiveWinnerMembers = factionElimination?.survivors ?? winnerMembers;
+
+  // Who specifically took the fall, and who specifically delivered it — for
+  // a 1v1 match this degenerates to the only member of each side; for a tag
+  // team or a battle royal's final two, this used to be silently "whoever
+  // is listed first," which was never a decision, just array position. Each
+  // pick is its own entity-seeded stream, not the shared `rng` — a tag
+  // match's pinned member cannot shift a single other roll in this match.
+  // Faction Destroyer: the "pin" is the last elimination — whoever put the
+  // final member of the losing side away.
+  const pinnedId = factionElimination
+    ? (factionElimination.lastEliminatedId ?? undefined)
+    : loserMembers.length > 1
+      ? pick(rngFromSeed(`pinned:${loserMembers.map((w) => w.id).sort().join(',')}:${ctx.week}`), loserMembers).id
+      : loserMembers[0]?.id;
+  const pinnerId = factionElimination
+    ? (factionElimination.lastEliminatorId ?? undefined)
+    : winnerMembers.length > 1
+      ? pick(rngFromSeed(`pinner:${winnerMembers.map((w) => w.id).sort().join(',')}:${ctx.week}`), winnerMembers).id
+      : winnerMembers[0]?.id;
+
+  // Battle royal only: ordering dressing on the winner already decided
+  // above — never overrides winnerSide, only decides what order everybody
+  // else went out in, so the highlight reel can read like a battle royal
+  // instead of an instant multi-way roll with extra bodies in it. See
+  // sim/battleRoyal.ts.
+  const eliminationOrder =
+    !isFactionDestroyer && isMultiMan && ctx.stipulation?.id === 'battleRoyal'
+      ? orderEliminations(rng, sides, winnerSide, winProbabilitiesBySide)
+      : null;
+  const eliminatorsBySide = eliminationOrder ? pickEliminators(eliminationOrder, sideMembers, ctx.week) : null;
+  const eliminations: EliminationEvent[] | undefined = factionElimination
+    ? factionElimination.events
+    : eliminationOrder
+      ? eliminationOrder.slice(0, -1).flatMap((side): EliminationEvent[] => {
+          const eliminated = sideMembers.get(side)?.[0];
+          if (!eliminated) return [];
+          const eliminatorId = eliminatorsBySide?.get(side) ?? null;
+          const eliminator = eliminatorId ? wrestlerById.get(eliminatorId) : null;
+          return [
+            {
+              eliminatedId: eliminated.id,
+              eliminatedName: eliminated.name,
+              eliminatorId: eliminator?.id ?? null,
+              eliminatorName: eliminator?.name ?? null,
+            },
+          ];
+        })
+      : undefined;
+
+  // What the pace is worth here, and what it costs. Worked out once and used
+  // by the finish roll, the rating and the aftermath — the same call has to
+  // move all three or it is not a real lever.
+  const pace = paceEffect({
+    pace: rules.pace,
+    participants: sides.flatMap((s) => sideMembers.get(s)!),
+    isMainEvent: ctx.isMainEvent ?? false,
+    isOpener: ctx.isOpener ?? false,
+    saturation: ctx.paceSaturation ?? 0,
+    settings: ctx.settings,
+  });
+
+  // Zero for any match not booked with hardware-needing gear actually
+  // assigned — see FinishRollContext's doc comment on equipmentFailureWeight.
+  const equipmentFailureWeight = ctx.stipulation?.gearFamilyId
+    ? (ctx.gearFailureChance ?? 0) * ctx.settings.equipmentFailureWeightScale
+    : 0;
+
+  const finish: FinishType = isFactionDestroyer
+    ? // The match ends the instant one side has nobody left — never rolled,
+      // same non-negotiable as every other finish, just decided structurally
+      // instead of by rollFinish.
+      'lastFactionStanding'
+    : caughtManager
+      ? // Nothing else it can be. The official saw it.
+        'disqualification'
+      : rollFinish(rng, {
+    rules,
+    violenceLevel: ctx.stipulation?.violenceLevel ?? 0,
+    winnerIsTechnician,
+    isUpset,
+    isCloselyMatched: Math.abs(winnerProbability - 0.5) < 0.1,
+    finishWeights: ctx.stipulation?.finishWeights,
+    equipmentFailureWeight,
+    injuryMultiplier:
+      (ctx.stipulation?.injuryMult ?? 1) *
+      shootInjuryMultiplier(rivalry ?? undefined, ctx.settings) *
+      // Nobody to stop it when it goes wrong.
+      (ctx.ringside?.injuryMultiplier ?? 1) *
+      // And what the booker asked them to go out and do.
+      pace.injuryMultiplier *
+      // A better ring is a safer ring, for everyone in it.
+      (1 - (ctx.equipmentInjuryReduction ?? 0)) *
+      // The ladder itself, the cage itself, the table itself.
+      hardwareGearRisk,
+    // A crooked or incompetent official makes a screwy finish likelier; a
+    // manager at ringside makes interference likelier still.
+    ringsideWeights: ctx.ringside
+      ? {
+          screwy: ctx.ringside.screwyFinishWeight,
+          interference: ctx.ringside.interferenceWeight,
+          decisive: ctx.ringside.decisiveFinishWeight,
+          hasOfficial: ctx.ringside.hasOfficial,
+        }
+      : undefined,
+      });
+  const draw = isDrawFinish(finish);
+
+  const allParticipants = sides.flatMap((s) => sideMembers.get(s)!);
+  const { rating, stars, breakdown } = computeMatchRating(rng, {
+    participants: allParticipants,
+    settings: ctx.settings,
+    winProbability: winnerProbability,
+    isPPV: ctx.isPPV,
+    stipulation: ctx.stipulation,
+    requirementsMet: ctx.requirementsMet,
+    matchLengthMinutes: ctx.matchLengthMinutes,
+    simVariance: ctx.settings.simVariance,
+    finish,
+    titlePrestige: ctx.titlePrestige ?? null,
+    rivalryHeat: rivalry && rivalry.resolvedWeek === null ? rivalry.heat : 0,
+    shootHeatBonus: shootRatingBonus(rivalry ?? undefined, ctx.settings),
+    hardcoreSaturation: ctx.hardcoreSaturation ?? 0,
+    slotExpectedPopularity: ctx.slotExpectedPopularity ?? null,
+    instructionModifier: (ctx.instructionModifier ?? 0) + (ctx.ringside?.ratingBonus ?? 0),
+    paceBonus: pace.ratingBonus,
+    paceCeiling: pace.ratingCeiling,
+    territoryFit: ctx.territoryFit ?? 0,
+    houseStyleFit: ctx.houseStyleFit ?? 0,
+    relationshipHeat: ctx.relationshipHeat ?? 0,
+    pairChemistryBonus: ctx.pairChemistryBonus ?? 0,
+    overexposurePenalty: ctx.overexposurePenalty ?? 0,
+    staleGimmickPenalty: ctx.staleGimmickPenalty ?? 0,
+    signatureStipulationFit: ctx.signatureStipulationFit ?? 0,
+    gearSpectacleBonus: ctx.gearSpectacleBonus ?? 0,
+  });
+
+  // Did somebody lose their place out there. Rolled after the rating because
+  // it is a thing that happened *in* the match rather than a property of the
+  // people in it — and it is charged to the match, said out loud, and
+  // occasionally hurts whoever blew it. See sim/ringcraft.ts.
+  const botch = rollBotch(rng, allParticipants, ctx.matchLengthMinutes, ctx.settings);
+  const botchBeat: MatchBeat[] = botch
+    ? [{ kind: 'botch' as const, significant: true, text: botch.text, actorId: botch.workerId }]
+    : [];
+
+  // The entrance pyro, if this show fired any. Same shape as a botch — its
+  // own roll, its own line, and it only ever fires at all when the show
+  // actually lit the fuse. See sim/pyro.ts.
+  const pyroBurn = rollPyroBurn(
+    rng,
+    allParticipants,
+    ctx.pyroActive ?? false,
+    ctx.equipmentInjuryReduction ?? 0,
+    ctx.settings,
+  );
+  const pyroBurnBeat: MatchBeat[] = pyroBurn
+    ? [{ kind: 'pyroBurn' as const, significant: true, text: pyroBurn.text, actorId: pyroBurn.workerId }]
+    : [];
+
+  // Which specific unit gets blamed — only ever rolled when the finish
+  // itself already landed on 'equipmentFailure', the narrowest form of
+  // "only draw when the feature is actively engaged": this is already the
+  // rare tail of an already-rare weighted pick. See sim/gearFailure.ts.
+  const gearFailure = finish === 'equipmentFailure' ? rollGearFailure(rng, ctx.gearUnitsInPlay ?? []) : null;
+  const gearFailureBeat: MatchBeat[] = gearFailure
+    ? [{ kind: 'gearFailure' as const, significant: true, text: gearFailure.text }]
+    : [];
+
+  const finalRating = clamp(rating - (botch?.ratingCost ?? 0) - (pyroBurn?.ratingCost ?? 0), 3, 100);
+  const finalStars = ratingToStars(finalRating);
+
+  // §0: a result that flipped with no sentence explaining it reads as the sim
+  // glitching. Whoever got caught is named, at the top of the highlights.
+  // A distraction that swung a match and said nothing would be the same
+  // invisible tax in a different shape. When it lands, it is in the write-up.
+  const distractionBeat: MatchBeat[] = distractedName
+    ? [
+        {
+          kind: 'interference' as const,
+          significant: true,
+          actorId: distractedById,
+          targetId: distractedTargetId,
+          text: `${distractedName} pulled the attention at ringside at exactly the wrong moment.`,
+        },
+      ]
+    : [];
+
+  const cornerBeat: MatchBeat[] = caughtManager
+    ? [
+        {
+          kind: 'finish' as const,
+          significant: true,
+          text: `${caughtManager} was caught in the act at ringside, and the referee called for the bell.`,
+          actorId: caughtManagerId,
+        },
+      ]
+    : [];
+
+  const beats = generateBeats(
+    rng,
+    {
+      winnerMembers: effectiveWinnerMembers,
+      loserMembers,
+      finish,
+      stars,
+      rating,
+      stipulation: ctx.stipulation,
+      titles: ctx.titles,
+      shootHeat: rivalry?.shootHeat ?? 0,
+      isMainEvent: ctx.isMainEvent ?? false,
+      eliminations,
+      pinnedId,
+      pinnerId,
+    },
+    ctx.usedBeats,
+  );
+
+  // A grudge stipulation settled decisively is the blowoff — the feud ends
+  // and the winner banks the heat as popularity (§12.5). A screwjob finish in
+  // the same match settles nothing, so the rivalry rolls on hotter.
+  const isDecisiveBlowoff = Boolean(ctx.stipulation?.isBlowoff) && !draw && !isNonDecisiveFinish(finish);
+
+  const heatChange =
+    rivalry && rivalry.resolvedWeek === null
+      ? heatFromMatch(rivalry, { segmentRating: rating, finish, isDecisiveBlowoff, settings: ctx.settings })
+      : null;
+
+  return {
+    winnerSide: draw ? null : winnerSide,
+    winnerWrestlerIds: draw ? [] : effectiveWinnerMembers.map((w) => w.id),
+    finish,
+    rating: finalRating,
+    stars: finalStars,
+    ratingBreakdown: breakdown,
+    beats: [...cornerBeat, ...distractionBeat, ...botchBeat, ...pyroBurnBeat, ...gearFailureBeat, ...beats],
+    /** Who blew a spot, if anybody did. The caller decides what it costs them. */
+    botchedById: botch?.workerId ?? null,
+    /** Which owned unit gave out, if the finish was 'equipmentFailure'. The caller applies the consequence. */
+    gearFailureUnitId: gearFailure?.unitId ?? null,
+    caughtManagerId,
+    factionEliminationOrder: factionElimination?.events.map((e) => e.eliminatedId),
+    winProbabilitiesBySide,
+    injuryMultiplier:
+      (ctx.stipulation?.injuryMult ?? 1) *
+      shootInjuryMultiplier(rivalry ?? undefined, ctx.settings) *
+      // Nobody to stop it when it goes wrong.
+      (ctx.ringside?.injuryMultiplier ?? 1) *
+      pace.injuryMultiplier *
+      // A spot that went wrong badly enough to hurt somebody.
+      (botch?.hurtSomebody ? ctx.settings.botchInjuryMultiplier : 1) *
+      // The pyro caught somebody badly enough to leave a mark.
+      (pyroBurn?.hurtSomebody ? ctx.settings.pyroBurnInjuryMultiplier : 1) *
+      // And some bodies simply break more than others. See the Made Of Glass
+      // trait in career/personality.ts — this is where it has teeth.
+      Math.max(...allParticipants.map((p) => injuryProneness(p))) *
+      // A better ring is a safer ring, for everyone in it.
+      (1 - (ctx.equipmentInjuryReduction ?? 0)) *
+      // The ladder itself, the cage itself, the table itself.
+      hardwareGearRisk,
+    // What the night takes out of them, and how numb the crowd now is to
+    // being shown this.
+    healthCostMultiplier: pace.healthCostMultiplier,
+    energyCostMultiplier: pace.energyCostMultiplier,
+    paceSaturationAdded: pace.saturationAdded,
+    heatChange,
+  };
+}
