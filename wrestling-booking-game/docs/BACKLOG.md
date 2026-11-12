@@ -6349,3 +6349,13 @@ casket. No page or console errors; nobody left the picture. Two things fixed fro
   would fill. Nobody has listened to any of this — it was checked only for running without error.
 - Also since the last entry: legs redrawn to match the painted torso, and their gear cut from the leg's
   own curves. 206 files / 3,513 tests; build clean.
+
+## Match viewer — more than one belt, and prizes that are not belts
+
+- A wrestler carries every title they hold: the one on the line round the waist, the rest over the
+  shoulders; a winner holds up what was at stake and wears the others (`champions` / `spoils`).
+- A title named a Cup, Crown, Trophy, Gold Medal, Ring or Briefcase (all offered by `TITLE_PRESETS`) is
+  drawn as that object (`prizeKind`, `Prize` in `Belt.tsx`): a crown is worn, a medal hangs round the neck,
+  the rest are carried at the side and held up when won. The nameplate says "Wins / Keeps the …".
+- The Iron Crown (`world.crown`) is worn by whoever carries it, and won in the Crucible final.
+- Known limit: holders are read as they are now, so an old replay shows today's extra belts.

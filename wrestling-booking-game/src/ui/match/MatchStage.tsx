@@ -14,7 +14,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArenaBack, ArenaFront, FEET_Y, VIEW, type Corner } from './Arena';
-import { Belt, placeOf, type BeltLook } from './Belt';
+import { Belt, Prize, prizeKind, type BeltLook } from './Belt';
 import { bell, crowd, hit, hitFor } from './sound';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
@@ -367,6 +367,19 @@ export function MatchStage({
     if (pyro) setHype(true);
   }, [pyro, beatKey]);
 
+  // Everything somebody is carrying. Belts take the waist and shoulders in
+  // order; a crown, a medal or a cup has its own place and does not use one up.
+  const carry = (looks: readonly BeltLook[], raised: boolean) => {
+    let belts = 0;
+    return looks.slice(0, 5).map((look, i) => {
+      const isBelt = prizeKind(look) === 'belt';
+      // Only the first thing is ever held up: the one this match was for.
+      const node = <Prize key={look.id} look={look} n={isBelt ? belts : i === 0 ? 0 : 1} raised={raised} />;
+      if (isBelt) belts += 1;
+      else if (i === 0 && raised) belts += 1;
+      return node;
+    });
+  };
   const target = fighters.find((f) => f.role === 'target');
   const actor = fighters.find((f) => f.role === 'actor');
   const cover = over ? undefined : staged?.choreo.cover;
@@ -520,8 +533,8 @@ export function MatchStage({
                       }}
                     />
                     {/* Up to four belts on one person: held up, round the waist, and over each shoulder. */}
-                    {won && aftermath?.belt && (spoils?.get(id) ?? (belt ? [belt] : [])).slice(0, 4).map((look, n) => <Belt key={look.id} look={look} at={placeOf(n, true)} />)}
-                    {!staged && !over && (champions?.get(id) ?? []).slice(0, 3).map((look, n) => <Belt key={look.id} look={look} at={placeOf(n, false)} />)}
+                    {won && aftermath?.belt && carry(spoils?.get(id) ?? (belt ? [belt] : []), true)}
+                    {!staged && !over && carry(champions?.get(id) ?? [], false)}
                   </div>
                 </div>
               </div>

@@ -10,7 +10,28 @@
 
 import type { Title } from '../../engine/types';
 
-export type BeltLook = Pick<Title, 'id' | 'tier' | 'division' | 'colorway'>;
+export type BeltLook = Pick<Title, 'id' | 'tier' | 'division' | 'colorway'> & { name?: string };
+
+/**
+ * Not everything a company puts on the line is a belt. A title can be
+ * called a Cup, a Crown, a Trophy, a Gold Medal, a Ring or a Briefcase, and
+ * the interpromotional tournament is fought for the Iron Crown — and none
+ * of those should be drawn as a strap with a plate on it.
+ */
+export type PrizeKind = 'belt' | 'cup' | 'trophy' | 'crown' | 'medal' | 'ring' | 'case';
+export function prizeKind(look: BeltLook | undefined): PrizeKind {
+  const name = (look?.name ?? '').toLowerCase();
+  if (/\bcrown\b/.test(name)) return 'crown';
+  if (/\bcup\b/.test(name)) return 'cup';
+  if (/\btrophy\b/.test(name)) return 'trophy';
+  if (/\bmedal\b/.test(name)) return 'medal';
+  if (/\bring\b/.test(name)) return 'ring';
+  if (/\bbriefcase\b/.test(name)) return 'case';
+  return 'belt';
+}
+
+/** The Iron Crown: not a title in the books, so it has no record to draw from. */
+export const IRON_CROWN: BeltLook = { id: 'iron-crown', name: 'The Iron Crown', tier: 'world', division: 'open', colorway: { strap: '#2a2d33', plate: '#aab2bf' } };
 
 function hash(s: string): number {
   let h = 2166136261;
@@ -86,6 +107,104 @@ const PLACES: Record<BeltPlace, React.CSSProperties> = {
 };
 /** Where the n-th belt somebody is carrying goes, given whether the first is being held up. */
 export const placeOf = (n: number, raised: boolean): BeltPlace => (raised ? (['overhead', 'waist', 'shoulder', 'otherShoulder'] as const) : (['waist', 'shoulder', 'otherShoulder'] as const))[n] ?? 'otherShoulder';
+
+/**
+ * Where a prize that is not a belt goes. A crown is worn and a medal hangs
+ * round the neck whatever is happening; a cup, a trophy, a ring or a
+ * briefcase is carried at the side, and held up by whoever has just won it.
+ */
+const WORN: Record<Exclude<PrizeKind, 'belt'>, { carried: React.CSSProperties | null; raised: React.CSSProperties }> = {
+  crown: { carried: { left: '35%', top: '2.6%', width: '30%' }, raised: { left: '35%', top: '2.6%', width: '30%' } },
+  medal: { carried: { left: '39%', top: '16.5%', width: '22%' }, raised: { left: '39%', top: '16.5%', width: '22%' } },
+  cup: { carried: { left: '70%', top: '37%', width: '30%' }, raised: { left: '32%', top: '-15%', width: '36%' } },
+  trophy: { carried: { left: '70%', top: '35%', width: '28%' }, raised: { left: '34%', top: '-17%', width: '32%' } },
+  case: { carried: { left: '68%', top: '50%', width: '34%' }, raised: { left: '30%', top: '-9%', width: '40%' } },
+  ring: { carried: null, raised: { left: '41%', top: '-8%', width: '18%' } },
+};
+
+function PrizeArt({ kind, metal, jewel }: { kind: Exclude<PrizeKind, 'belt'>; metal: string; jewel: string }) {
+  const ink = 'rgba(0,0,0,0.55)';
+  const line = { stroke: ink, strokeWidth: 1.6, strokeLinejoin: 'round' as const };
+  switch (kind) {
+    case 'crown':
+      return (
+        <svg viewBox="0 0 60 36" className="block w-full" aria-hidden>
+          <path d="M 6,30 L 3,8 L 16,19 L 22,4 L 30,17 L 38,4 L 44,19 L 57,8 L 54,30 Z" fill={metal} {...line} />
+          <rect x={6} y={27} width={48} height={7} rx={2} fill={metal} {...line} />
+          {[3, 22, 38, 57].map((x, i) => <circle key={x} cx={x} cy={i === 0 || i === 3 ? 8 : 4} r={2.6} fill={jewel} stroke={ink} strokeWidth={0.8} />)}
+          {[16, 30, 44].map((x) => <circle key={x} cx={x} cy={30.5} r={2} fill={jewel} />)}
+          <path d="M 9,29 L 20,29 L 14,12 Z" fill="#fff" opacity={0.18} />
+        </svg>
+      );
+    case 'medal':
+      return (
+        <svg viewBox="0 0 40 60" className="block w-full" aria-hidden>
+          <path d="M 4,0 L 20,34 L 36,0 L 28,0 L 20,18 L 12,0 Z" fill={jewel} stroke={ink} strokeWidth={1} />
+          <circle cx={20} cy={42} r={14} fill={metal} {...line} />
+          <circle cx={20} cy={42} r={9.5} fill="none" stroke={ink} strokeWidth={1} />
+          <path d="M 20,34.5 L 22.2,39.6 L 27.8,40.1 L 23.5,43.7 L 24.8,49.1 L 20,46.2 L 15.2,49.1 L 16.5,43.7 L 12.2,40.1 L 17.8,39.6 Z" fill={ink} />
+        </svg>
+      );
+    case 'cup':
+      return (
+        <svg viewBox="0 0 60 70" className="block w-full" aria-hidden>
+          <path d="M 12,10 Q 0,10 2,22 Q 4,32 16,32 M 48,10 Q 60,10 58,22 Q 56,32 44,32" fill="none" stroke={metal} strokeWidth={4} />
+          <path d="M 12,10 Q 0,10 2,22 Q 4,32 16,32 M 48,10 Q 60,10 58,22 Q 56,32 44,32" fill="none" stroke={ink} strokeWidth={1} />
+          <path d="M 12,4 L 48,4 Q 48,34 30,40 Q 12,34 12,4 Z" fill={metal} {...line} />
+          <rect x={26} y={39} width={8} height={12} fill={metal} {...line} />
+          <path d="M 16,51 L 44,51 L 48,62 L 12,62 Z" fill={metal} {...line} />
+          <rect x={9} y={61} width={42} height={7} rx={1.5} fill="#2a2018" stroke="#0b0806" strokeWidth={1.2} />
+          <path d="M 17,7 L 24,7 L 22,30 Q 18,24 17,7 Z" fill="#fff" opacity={0.25} />
+        </svg>
+      );
+    case 'trophy':
+      return (
+        <svg viewBox="0 0 50 80" className="block w-full" aria-hidden>
+          {/* A figure with its arms up, on a column, on a block. */}
+          <circle cx={25} cy={7} r={5} fill={metal} {...line} />
+          <path d="M 25,12 L 31,16 L 40,4 L 43,7 L 33,24 L 31,38 L 19,38 L 17,24 L 7,7 L 10,4 L 19,16 Z" fill={metal} {...line} />
+          <rect x={20} y={38} width={10} height={18} fill={metal} {...line} />
+          <path d="M 12,56 L 38,56 L 41,66 L 9,66 Z" fill={metal} {...line} />
+          <rect x={5} y={65} width={40} height={12} rx={1.5} fill="#2a2018" stroke="#0b0806" strokeWidth={1.2} />
+          <rect x={14} y={68.5} width={22} height={5} fill={metal} opacity={0.9} />
+        </svg>
+      );
+    case 'case':
+      return (
+        <svg viewBox="0 0 70 50" className="block w-full" aria-hidden>
+          <path d="M 26,12 L 26,5 Q 26,2 29,2 L 41,2 Q 44,2 44,5 L 44,12" fill="none" stroke="#1b1d22" strokeWidth={3.4} />
+          <rect x={3} y={11} width={64} height={36} rx={4} fill={metal} {...line} />
+          <path d="M 3,27 L 67,27" stroke={ink} strokeWidth={1.2} />
+          <rect x={12} y={23} width={8} height={8} rx={1.5} fill="#e9e9ee" stroke={ink} strokeWidth={0.8} />
+          <rect x={50} y={23} width={8} height={8} rx={1.5} fill="#e9e9ee" stroke={ink} strokeWidth={0.8} />
+          <path d="M 8,14 L 20,14 L 14,44 L 6,44 Z" fill="#fff" opacity={0.2} />
+        </svg>
+      );
+    case 'ring':
+      return (
+        <svg viewBox="0 0 40 46" className="block w-full" aria-hidden>
+          <circle cx={20} cy={28} r={14} fill="none" stroke={metal} strokeWidth={6} />
+          <circle cx={20} cy={28} r={17} fill="none" stroke={ink} strokeWidth={1} />
+          <circle cx={20} cy={28} r={11} fill="none" stroke={ink} strokeWidth={1} />
+          <path d="M 12,10 L 20,1 L 28,10 L 20,17 Z" fill={jewel} {...line} />
+          <path d="M 15,9 L 20,3.5 L 20,14 Z" fill="#fff" opacity={0.4} />
+        </svg>
+      );
+  }
+}
+
+/** A title's prize, whatever it is, where it belongs on the figure: `n` counts only the belts somebody is carrying. */
+export function Prize({ look, n, raised }: { look: BeltLook; n: number; raised: boolean }) {
+  const kind = prizeKind(look);
+  if (kind === 'belt') return <Belt look={look} at={placeOf(n, raised)} />;
+  const place = raised && n === 0 ? WORN[kind].raised : WORN[kind].carried;
+  if (!place) return null;
+  return (
+    <div className="pointer-events-none absolute" style={place} data-prize={kind}>
+      <PrizeArt kind={kind} metal={look.colorway.plate} jewel={JEWELS[hash(look.id) % JEWELS.length]!} />
+    </div>
+  );
+}
 
 export function Belt({ look = DEFAULT, at = 'overhead' }: { look?: BeltLook; at?: BeltPlace }) {
   const seed = hash(look.id);

@@ -20,6 +20,7 @@ import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
 import { isNonDecisiveFinish } from '../../engine/sim/finish';
 import { setSoundOn, soundOn } from '../match/sound';
+import { IRON_CROWN, prizeKind, type BeltLook } from '../match/Belt';
 import { callTheMatch } from '../../engine/sim/commentary';
 import { rngFromSeed } from '../../engine/rng';
 import { exhibitionOf, type WatchResult } from '../match/exhibition';
@@ -470,7 +471,8 @@ export function MatchViewerScreen({
   // and they are the ones holding it now — won tonight, or kept.
   const winnerIds = new Set(result.winnerSide === null ? [] : result.winnerWrestlerIds);
   const holdsIt = world.titles.some((title) => segment.titleIds.includes(title.id) && title.currentHolderIds.some((id) => winnerIds.has(id)));
-  const belt = segment.titleIds.length > 0 && winnerIds.size > 0 && (result.titleChanged || holdsIt);
+  const wonTheCrown = special?.kind === 'cup' && special.index === (world.lastCup?.bouts.length ?? 0) - 1 && winnerIds.size > 0;
+  const belt = wonTheCrown || (segment.titleIds.length > 0 && winnerIds.size > 0 && (result.titleChanged || holdsIt));
   const aftermath: Aftermath | undefined = over ? { winners: winnerIds, belt } : undefined;
   // The belt this match is for, and who walked in with it: whoever holds it
   // now if it did not change hands, whoever held it before if it did.
@@ -487,8 +489,16 @@ export function MatchViewerScreen({
         .map((w) => [w.id, world.titles.filter((t) => holders(t).includes(w.id)).sort((a, b) => Number(onTheLine(b)) - Number(onTheLine(a)))] as const)
         .filter(([, belts]) => belts.length > 0),
     );
-  const champions = carried(before);
-  const spoils = carried((title) => title.currentHolderIds);
+  const champions: Map<Id, readonly BeltLook[]> = carried(before);
+  const spoils: Map<Id, readonly BeltLook[]> = carried((title) => title.currentHolderIds);
+  // The Iron Crown is not a title in the books, but whoever carries it wears
+  // it — and the final of the tournament is the match it is won in.
+  const crownFinal = special?.kind === 'cup' && special.index === (world.lastCup?.bouts.length ?? 0) - 1;
+  const crowned = world.crown?.wrestlerId;
+  if (crowned && combined.some((w) => w.id === crowned)) {
+    if (!crownFinal) champions.set(crowned, [...(champions.get(crowned) ?? []), IRON_CROWN]);
+    spoils.set(crowned, crownFinal ? [IRON_CROWN, ...(spoils.get(crowned) ?? [])] : [...(spoils.get(crowned) ?? []), IRON_CROWN]);
+  }
   // Anybody really injured carries it from the moment it happened.
   const hurt = new Set([...(staging?.hurtFrom ?? [])].filter(([, at]) => beatIndex > at).map(([id]) => id));
   const injuredHere = (result.injuries ?? []).filter((injury) => combined.some((w) => w.id === injury.wrestlerId));
@@ -518,12 +528,24 @@ export function MatchViewerScreen({
   // "NEW WORLD HEAVYWEIGHT CHAMPION", "STILL TAG TEAM CHAMPIONS", or just the winner.
   const several = winnerIds.size > 1;
   const beltName = titleNames.map((name) => String(name).replace(/\s+(championships?|titles?)$/i, '')).join(' & ');
-  const verdictLine = belt ? `${result.titleChanged ? 'New' : 'Still'} ${beltName} ${several ? 'Champions' : 'Champion'}` : several ? 'Winners' : 'Winner';
+  // A cup or a crown is won and kept, not "championed".
+  const notABelt = titleNames.length > 0 && titleNames.every((name) => prizeKind({ name: String(name) } as BeltLook) !== 'belt');
+  const verdictLine = wonTheCrown
+    ? 'Wins the Iron Crown'
+    : belt
+      ? notABelt
+        ? `${result.titleChanged ? (several ? 'Win' : 'Wins') : several ? 'Keep' : 'Keeps'} the ${titleNames.join(' & ')}`
+        : `${result.titleChanged ? 'New' : 'Still'} ${beltName} ${several ? 'Champions' : 'Champion'}`
+      : several
+        ? 'Winners'
+        : 'Winner';
 
   const calloutText = over
     ? winnerIds.size === 0
       ? 'NO WINNER'
-      : belt
+      : wonTheCrown
+        ? 'THE IRON CROWN!'
+        : belt
         ? result.titleChanged
           ? winnerIds.size > 1
             ? 'NEW CHAMPIONS!'
