@@ -8,7 +8,7 @@
 import { memo } from 'react';
 import { assignLook, lookSubjectOf } from '../paperdoll/assignLook';
 import { ComposedPortrait } from '../paperdoll/ComposedPortrait';
-import { Pelvis, Shin, Thigh, legwearOf, type Legwear } from './legwear';
+import { LegDefs, Pelvis, Shin, Thigh, legwearOf, type Legwear } from './legwear';
 import type { Wrestler } from '../../engine/types';
 
 /**
@@ -29,10 +29,11 @@ function Legs({ skin, gear, female }: { skin: string; gear: Legwear; female: boo
   const right = (x: number) => 100 - x;
   return (
     <svg viewBox="0 0 100 84" className="block w-full" style={{ marginTop: '-3.5%' }} aria-hidden>
+      <LegDefs />
       {[left, right].map((m, n) => (
         <g key={n}>
-          <Shin m={m} skin={skin} gear={gear} />
-          <Thigh m={m} skin={skin} gear={gear} />
+          <Shin m={m} skin={skin} gear={gear} female={female} />
+          <Thigh m={m} skin={skin} gear={gear} female={female} />
         </g>
       ))}
       <Pelvis female={female} gear={gear} />

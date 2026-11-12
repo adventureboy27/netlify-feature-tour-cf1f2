@@ -22,7 +22,7 @@ import {
 import { ComposedPortrait } from "../paperdoll/ComposedPortrait";
 import { BODY_RIG, LEG_RIG, type BodyRig } from "./rig";
 import { MatchFigure } from "./MatchFigure";
-import { Pelvis, Shin, Thigh, legwearOf, type Legwear } from "./legwear";
+import { LegDefs, Pelvis, Shin, Thigh, legwearOf, type Legwear } from "./legwear";
 import type { Weapon } from "./choreography";
 import type { Wrestler } from "../../engine/types";
 
@@ -156,11 +156,13 @@ function Leg({
   side,
   skin,
   gear,
+  female,
   register,
 }: {
   side: "left" | "right";
   skin: string;
   gear: Legwear;
+  female: boolean;
   register: (part: "hip" | "knee", el: JointEl | null) => void;
 }) {
   // Written for the screen-left leg; `m` mirrors every x for the right one
@@ -185,9 +187,9 @@ function Leg({
           willChange: "transform",
         }}
       >
-        <Shin m={m} skin={skin} gear={gear} />
+        <Shin m={m} skin={skin} gear={gear} female={female} />
       </g>
-      <Thigh m={m} skin={skin} gear={gear} />
+      <Thigh m={m} skin={skin} gear={gear} female={female} />
     </g>
   );
 }
@@ -309,16 +311,19 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
           style={{ top: "96.5%" }}
           aria-hidden
         >
+          <LegDefs />
           <Leg
             side="left"
             skin={look.skinColor}
             gear={gear}
+            female={female}
             register={(part, el) => register(`l.${part}`)(el)}
           />
           <Leg
             side="right"
             skin={look.skinColor}
             gear={gear}
+            female={female}
             register={(part, el) => register(`r.${part}`)(el)}
           />
           <Pelvis female={female} gear={gear} />
