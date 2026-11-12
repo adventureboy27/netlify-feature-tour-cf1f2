@@ -512,6 +512,8 @@ export interface Wrestler {
   unmaskedInRing?: boolean;
   /** Lost a hair-against-hair match: the head is shaved, and stays shaved. */
   headShaved?: boolean;
+  /** The week it has grown back by. */
+  headShavedUntilWeek?: number;
 
   // Employment
   promotionId: Id | null;
@@ -3247,6 +3249,8 @@ export interface WorldSettings {
   matchHealthCostPerViolence: number;
   matchEnergyCost: number;
   matchFatiguePerMatch: number;
+  /** How long a head shaved in a hair-against-hair match stays shaved. */
+  shavedHeadWeeks: number;
   weeklyHealthRecovery: number;
   weeklyEnergyRecovery: number;
   weeklyFatigueRecovery: number;

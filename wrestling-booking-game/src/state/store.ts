@@ -3040,6 +3040,7 @@ export const useGameStore = create<GameStore>()(
                 // Purely cosmetic — nothing in the sim reads it — but the
                 // portrait does: a head shaved on television stays shaved.
                 loser.headShaved = true;
+                loser.headShavedUntilWeek = world.week + world.settings.shavedHeadWeeks;
               } else if (consequence === 'unmask') {
                 loser.masked = false;
                 loser.unmaskedInRing = true;
@@ -7183,6 +7184,11 @@ export const useGameStore = create<GameStore>()(
         for (const w of Object.values(world.wrestlers)) {
           if (w.deceased || w.careerStatus === 'retired') continue;
           restWeek(w, worked.has(w.id), world.settings, recoveryFor(w.promotionId));
+          // Hair grows back.
+          if (w.headShaved && w.headShavedUntilWeek !== undefined && world.week >= w.headShavedUntilWeek) {
+            w.headShaved = false;
+            w.headShavedUntilWeek = undefined;
+          }
           // What a book costs the man carrying it. He is on the road for all
           // of them every week — attention says he cannot focus on any one,
           // and this is the half that accumulates until he is no use to

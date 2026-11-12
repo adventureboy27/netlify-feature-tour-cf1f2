@@ -1427,6 +1427,7 @@ export function defaultWorldSettings(): WorldSettings {
     matchHealthCostPerViolence: 1.6,
     matchEnergyCost: 12,
     matchFatiguePerMatch: 6,
+    shavedHeadWeeks: 26,
     weeklyHealthRecovery: 6,
     weeklyEnergyRecovery: 22,
     weeklyFatigueRecovery: 9,

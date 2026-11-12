@@ -36,7 +36,7 @@ export interface Conduct {
    * somebody fights out of; a referee's count over somebody who beats it;
    * or, in a battle royal, hanging over the top rope and not going.
    */
-  nearFall: 'cover' | 'hold' | 'count' | 'teeter';
+  nearFall: 'cover' | 'hold' | 'count' | 'teeter' | 'climb';
   /** How somebody leaves a match that eliminates people. */
   elimination: 'overTop' | 'fall';
   /** What the last thing that happens looks like. */
@@ -110,7 +110,8 @@ export function conductOf(segment: Pick<Segment, 'stipulation' | 'rules'>, finis
     fallsAnywhere: stipulation === 'fallsCountAnywhere',
     noRing: stipulation === 'arenaFloor',
     squash: stipulation === 'squash',
-    nearFall: battleRoyal ? 'teeter' : knockoutOnly ? 'count' : rules.falls === 'subsOnly' || rules.aim === 'submissionOnly' ? 'hold' : 'cover',
+    // In a cage you win by getting out, so the near thing is nearly getting out.
+    nearFall: cage && rules.aim === 'escape' ? 'climb' : battleRoyal ? 'teeter' : knockoutOnly ? 'count' : rules.falls === 'subsOnly' || rules.aim === 'submissionOnly' ? 'hold' : 'cover',
     elimination: battleRoyal ? 'overTop' : 'fall',
     finish: finishOf(finish, stipulation, rules, battleRoyal),
   };

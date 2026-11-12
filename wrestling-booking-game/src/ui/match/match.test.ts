@@ -635,3 +635,20 @@ describe('from the waist down', () => {
     }
   });
 });
+
+describe('the last gaps', () => {
+  it('a cage match you win by escaping has near-escapes, not near falls', () => {
+    const conduct = rulebook('steelCage', 'escape');
+    expect(conduct.nearFall).toBe('climb');
+    const moments = played(conduct, 'escape');
+    const near = moments.filter((m) => m.beat.pose === 'nearFall');
+    expect(near.length).toBeGreaterThan(0);
+    for (const m of near) {
+      expect(m.staged.move).toBe('cageClimb');
+      expect(m.staged.choreo.cover).toBeUndefined();
+      // Dragged back: the climber ends up on the mat, inside.
+      expect(isDown(endPose(m.staged.choreo.actor))).toBe(true);
+    }
+    expect(moments[moments.length - 1]!.staged.move).toBe('escapeCage');
+  });
+});

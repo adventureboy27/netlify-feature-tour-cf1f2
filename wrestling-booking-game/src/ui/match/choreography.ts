@@ -351,6 +351,13 @@ const BODIES = {
     impacts: [[0.46, 7, 13, true]],
   },
   // Over the cage wall and down to the floor: the attacker is the one who leaves.
+  // Halfway up the cage wall and dragged back down: a cage match's near thing.
+  cageClimb: {
+    actor: [STAND, [0.1, 6, 0, 14], [0.22, 2, 0, 0], [0.4, -13, 5, 0], [0.56, -13, 11, 0], [0.72, -13, 11, 0], [0.82, -11, 4, -50], [0.92, -9, DOWN, -90], [1, -9, DOWN, -90]],
+    target: [STAND, [0.1, 1, 0, -14], [0.22, 1, DOWN, -90], [0.46, 1, DOWN, -90], [0.56, 3, 0.4, -30], [0.68, 22, 0, 8], [0.76, 23, 0, 12], [0.9, 21, 0, 0], [1, 20, 0, 0]],
+    impacts: [[0.1, 2, 12], [0.9, -9, 2, true]],
+    ropes: 0.44,
+  },
   escapeCage: {
     actor: [STAND, [0.1, 6, 0, 14], [0.22, 2, 0, 0], [0.4, -13, 5, 0], [0.56, -13, 13, 0], [0.7, -15.5, 15, -28], [0.85, -19, 2, 0], [1, -19, FLOOR, 0, 0.9]],
     target: [STAND, [0.1, 1, 0, -14], [0.22, 1, DOWN, -90], [1, 1, DOWN, -90]],
@@ -430,6 +437,7 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   chairShot: { actor: '- swingUp swingDown guard -', target: '- guard fall flat flat' },
   teeter: { actor: '- reach reach punch reach stagger guard', target: '- stagger stagger fall fall stagger guard' },
   doubleDown: { actor: '- run clothes fall flat flat', target: '- run clothes fall flat flat' },
+  cageClimb: { actor: '- punch run climb climb climb fall flat flat', target: '- stagger flat flat kneel run reach guard guard' },
   escapeCage: { actor: '- punch run climb climb tuck fall crouch', target: '- stagger flat flat' },
   climbLadder: { actor: '- punch run climb climb climb lift celebrate', target: '- stagger flat flat' },
   throwOut: { actor: '- reach punch guard celebrate', target: '- bend spear flat flat flat flat' },
@@ -490,6 +498,7 @@ export const META: Partial<Record<MoveId, MoveMeta>> = {
   clotheslineOver: { anchor: { who: 'target', at: -9 }, exits: 0.55 },
   backdropOver: { anchor: { who: 'actor', at: -10 }, exits: 0.55 },
   teeter: { anchor: { who: 'target', at: -9.5 } },
+  cageClimb: { anchor: { who: 'actor', at: -13 }, knockdownBy: 0.22 },
   escapeCage: { anchor: { who: 'actor', at: -13 }, actorExits: 0.6, knockdownBy: 0.22 },
   climbLadder: { knockdownBy: 0.22 },
   stomp: { needsDown: true },
@@ -828,6 +837,7 @@ export function stageBeat(
     case 'nearFall': {
       if (conduct.nearFall === 'teeter') return shouting(pick('teeter', 1900), 'HANGS ON!', 0.72);
       if (conduct.nearFall === 'hold') return built('submission', holdEscaped(), 2200);
+      if (conduct.nearFall === 'climb') return shouting(pick('cageClimb', 2800), 'DRAGGED BACK!', 0.8);
       const lead = spoken && NEAR_FALL_LEADS.includes(spoken) ? spoken : fresh(NEAR_FALL_LEADS);
       if (conduct.nearFall === 'count') return built(lead, withCount(MOVES[lead], 0.42, 8, true), 3200);
       if (context.targetDown) return built('still', coverOnly(2), 1600);

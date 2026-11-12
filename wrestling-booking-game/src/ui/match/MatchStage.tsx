@@ -125,7 +125,10 @@ export function MatchStage({
   eventName,
   prize,
   hurt,
+  shed,
 }: {
+  /** What came off somebody when it was over: a mask, or their hair. */
+  shed?: readonly { id: Id; kind: 'mask' | 'hair' }[];
   /** Really injured in this match, from the moment it happened: they carry it for the rest of it. */
   hurt?: ReadonlySet<Id>;
   /** What hangs over a ladder match: the belt if one is on the line, a briefcase if not. */
@@ -578,6 +581,26 @@ export function MatchStage({
                   {/* Called the way it is counted: "1...", "...2...", "...3!" — the bang only on a count that finishes. */}
                   {i === 0 ? `${i + 1}...` : i === cover.count - 1 && (cover.count === 3 || cover.count === 10) ? `...${i + 1}!` : `...${i + 1}...`}
                 </span>
+              );
+            })}
+
+          {/* The stakes, paid: the mask or the hair, dropped on the mat beside whoever lost it. */}
+          {over &&
+            (shed ?? []).map(({ id, kind }) => {
+              const at = leftAt.current.get(id);
+              if (!at) return null;
+              return (
+                <svg key={`shed-${id}`} viewBox="0 0 40 30" className="mv-shed pointer-events-none absolute" style={{ left: sx(at.x) - 2.2 * u, top: sy(Math.max(at.y, 0) + 1.2), width: 4.4 * u, height: 3.3 * u, zIndex: 8 }} aria-hidden>
+                  {kind === 'mask' ? (
+                    <>
+                      <path d="M 4,6 Q 20,-2 36,6 L 33,24 Q 20,30 7,24 Z" fill="#c8102e" stroke="#1a0508" strokeWidth={2} />
+                      <path d="M 10,11 L 17,13 L 16,17 L 10,15 Z M 30,11 L 23,13 L 24,17 L 30,15 Z" fill="#0a0a0d" />
+                      <path d="M 16,22 L 24,22" stroke="#f2c94c" strokeWidth={2} />
+                    </>
+                  ) : (
+                    <path d="M 3,22 Q 6,8 12,18 Q 14,4 20,16 Q 24,2 28,17 Q 33,7 37,22 Q 20,30 3,22 Z" fill="#3a2a1c" stroke="#150e08" strokeWidth={1.5} />
+                  )}
+                </svg>
               );
             })}
 

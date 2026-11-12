@@ -6290,3 +6290,15 @@ Written without rendering (the owner asked for no renders until told): everythin
   half, and following the costume (gi → trousers and bare feet, luchador → tights and kickpads, cowboy →
   jeans and western boots, pirate, ninja, chef, hockey). One set of shapes for both figure types.
 - Tests: `match.test.ts` 90. 206 files / 3,508 tests; build clean.
+
+## Match viewer — injuries, and the last listed gaps (still unrendered)
+
+- A real injury (`result.injuries`) shows: a shout where the viewer places it, a red pulse, stoop and
+  medic's cross from then on, a kneeling winner, and a plate naming who is out and for how long.
+- Cage: a near fall in an escape-rules cage match is a climb that gets dragged back (`cageClimb`).
+- Loser leaves town, and the last one out of a battle royal, get up and walk off at the end.
+- Mask vs mask / hair vs hair: the mask or the hair drops on the mat beside the loser.
+- A shaved head grows back after `settings.shavedHeadWeeks` (26).
+- Still open: nobody fights on top of the cage; interpromotional matches have no commentary; the Crucible
+  and sponsor-tournament record tallies have no test of their own; the Prompt Sheet is at v4.1.
+- Tests: `match.test.ts` 91. 206 files / 3,510 tests; build clean. Nothing here has been rendered.

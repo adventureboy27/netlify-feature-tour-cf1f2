@@ -378,7 +378,10 @@ export function MatchViewerScreen({
   // A battle royal's last elimination is its finish, and whoever went out
   // then has left the match like everybody before them.
   const lastOut = over && conduct.finish === 'overTop' ? moments[lastBeat]?.targetId : null;
-  const departed = lastOut ? new Set([...eliminated, lastOut]) : eliminated;
+  // Loser leaves town: when it is over, they get up and go, like anybody
+  // else who is out of a match. The last one over the top does the same.
+  const gone = new Set<Id>(over ? [...leavingIds, ...(lastOut ? [lastOut] : [])] : []);
+  const departed = gone.size > 0 ? new Set([...eliminated, ...gone]) : eliminated;
 
   const waiting = combined.filter((w) => !activeIds.has(w.id) && !departed.has(w.id));
   const bystanders: Bystander[] = isTagMatch
@@ -498,7 +501,7 @@ export function MatchViewerScreen({
       <Panel elevation="hero" className="relative mt-3 flex min-h-[420px] flex-[2] overflow-hidden bg-black" data-testid="match-ring">
         <MatchStage
           beatKey={Math.min(beatIndex, lastBeat)}
-          fighters={fighters}
+          fighters={gone.size > 0 ? fighters.filter((f) => !gone.has(f.wrestler.id)) : fighters}
           staged={staged}
           accent={ARENA_ACCENT[world.promotion.identity] ?? ARENA_ACCENT.territory}
           promotionName={world.promotion.name}
@@ -513,6 +516,7 @@ export function MatchViewerScreen({
           bloody={bloody}
           prize={segment.titleIds.length > 0 ? 'belt' : 'case'}
           hurt={hurt}
+          shed={over ? [...unmaskedIds.map((id) => ({ id, kind: 'mask' as const })), ...shavedIds.map((id) => ({ id, kind: 'hair' as const }))] : undefined}
         />
 
         {/* Who is in the ring right now — the figures themselves are busy
