@@ -6302,3 +6302,13 @@ Written without rendering (the owner asked for no renders until told): everythin
 - Still open: nobody fights on top of the cage; interpromotional matches have no commentary; the Crucible
   and sponsor-tournament record tallies have no test of their own; the Prompt Sheet is at v4.1.
 - Tests: `match.test.ts` 91. 206 files / 3,510 tests; build clean. Nothing here has been rendered.
+
+## Match viewer — the open items closed
+
+- `cageTop`: both climb the wall, trade on top, one comes off. Cage matches only; called by "up on the cage".
+- Joint-show and Crucible matches are now called by the house announcers (`callTheMatch` on the re-created
+  beats, seeded off the match — no shared-stream draw). Still a re-creation of the result, not a recording.
+- `tallyMatch` has a unit test. The Crucible / Breakfast Belt call sites themselves are still untested.
+- Rendered and checked: render pass of legwear, weapons, cage, arena floor, injuries, endings; a stubbed
+  title mask-vs-mask match end to end (new-champion line, unmasked line, injury plate); the Cup panel's
+  Watch button clicked in the running app. 206 files / 3,514 tests; build clean.

@@ -19,6 +19,8 @@ import { MatchStage, type Aftermath, type Bystander, type StageFighter } from '.
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
 import { isNonDecisiveFinish } from '../../engine/sim/finish';
+import { callTheMatch } from '../../engine/sim/commentary';
+import { rngFromSeed } from '../../engine/rng';
 import { exhibitionOf, type WatchResult } from '../match/exhibition';
 import type { Corner } from '../match/Arena';
 import { CUP_NAME } from '../../engine/world/cup';
@@ -161,14 +163,70 @@ export function MatchViewerScreen({
   // Those nights keep the result of a match and not its beats: see exhibition.ts.
   const exhibition = useMemo(() => {
     if (!world || !special) return null;
+    // Nobody recorded a call for these nights, so the house announcers call
+    // the re-creation: the same caller the player's own shows use, seeded off
+    // the match so it says the same thing every time it is watched.
+    const called = (made: ReturnType<typeof exhibitionOf>, key: string, isMain: boolean) => {
+      const team = world.promotion.commentaryTeam;
+      const people = (side: number) => made.segment.participants.filter((p) => p.side === side).map((p) => world.wrestlers[p.wrestlerId]).filter((w): w is Wrestler => Boolean(w));
+      const [a, b] = [people(0), people(1)];
+      if (!world.settings.commentaryEnabled || !team || a.length === 0 || b.length === 0) return made;
+      const commentary = callTheMatch(rngFromSeed(`${world.settings.seed}-exhibition-${key}`), {
+        team,
+        sideA: a,
+        sideB: b,
+        winningSide: made.result.winnerSide === null ? null : made.result.winnerSide === 0 ? 'a' : 'b',
+        managers: [],
+        refereeName: null,
+        guestRefereeName: null,
+        refereeMiss: null,
+        titles: [],
+        championName: null,
+        championWeeks: 0,
+        titleChanged: false,
+        stipulationName: null,
+        shootHeat: 0,
+        isMainEvent: isMain,
+        finish: made.result.finish,
+        rating: 70,
+        beats: made.result.beats,
+        injuries: [],
+        hurtComingIn: null,
+        incidentText: null,
+        crowd: 'hot',
+        upset: false,
+        formerChampionName: null,
+        formerChampionTitle: null,
+        otherBeltHolderName: null,
+        otherBeltName: null,
+        onATearName: null,
+        onATearRun: 0,
+        slumpingName: null,
+        slumpingRun: 0,
+        debutantName: null,
+        secondGenName: null,
+        secondGenParentName: null,
+        oldHandName: null,
+        oldHandYears: 0,
+        timesMet: 0,
+        feudWeeks: 0,
+        feudMatches: 0,
+        isBlowoff: false,
+        townName: world.territories.find((t) => t.id === world.promotion.homeTerritoryId)?.name ?? world.territories[0]?.name ?? 'town',
+        weatherLine: null,
+        isPPV: true,
+        settings: world.settings,
+      });
+      return { ...made, result: { ...made.result, commentary } };
+    };
     if (special.kind === 'cup') {
       const bout = world.lastCup?.bouts[special.index];
-      return bout ? exhibitionOf([[bout.aId], [bout.bId]], [bout.winnerId], bout.finish as FinishType) : null;
+      return bout ? called(exhibitionOf([[bout.aId], [bout.bId]], [bout.winnerId], bout.finish as FinishType), `cup-${world.lastCup!.year}-${special.index}`, special.index === world.lastCup!.bouts.length - 1) : null;
     }
     const match = world.lastSupershow?.show.matches[special.index];
     if (!match) return null;
     const side = (n: number) => match.participantIds.filter((_, i) => match.sides[i] === n);
-    return exhibitionOf([side(0), side(1)], match.winnerSide === null ? [] : match.winnerIds, match.finish, match.stipulationId);
+    return called(exhibitionOf([side(0), side(1)], match.winnerSide === null ? [] : match.winnerIds, match.finish, match.stipulationId), `supershow-${world.lastSupershow!.week}-${special.index}`, special.index === world.lastSupershow!.show.matches.length - 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [special?.kind, special?.index, world?.lastCup, world?.lastSupershow]);
   const show = special ? undefined : world?.showHistory.find((s) => s.week === matchWeek);

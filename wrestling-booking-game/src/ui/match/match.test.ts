@@ -575,8 +575,9 @@ describe('the fixes to the match types', () => {
 
   it('only a cage match throws anybody into a cage', () => {
     const caged = played(rulebook('steelCage'));
-    expect(caged.some((m) => m.staged.move === 'intoCage')).toBe(true);
-    for (const stip of [null, 'noDQ', 'hardcore', 'ladder']) expect(played(rulebook(stip)).some((m) => m.staged.move === 'intoCage')).toBe(false);
+    const usesCage = (m: { staged: { move: MoveId } }) => m.staged.move === 'intoCage' || m.staged.move === 'cageTop';
+    expect(caged.some(usesCage)).toBe(true);
+    for (const stip of [null, 'noDQ', 'hardcore', 'ladder']) expect(played(rulebook(stip)).some(usesCage)).toBe(false);
   });
 
   it('a hardcore match finds more than one thing to swing', () => {
@@ -650,5 +651,32 @@ describe('the last gaps', () => {
       expect(isDown(endPose(m.staged.choreo.actor))).toBe(true);
     }
     expect(moments[moments.length - 1]!.staged.move).toBe('escapeCage');
+  });
+});
+
+describe('closing out', () => {
+  it('a fight on top of the cage happens in a cage and nowhere else, and somebody comes off it', () => {
+    const line = [{ speaker: 'play' as const, name: 'P', text: 'They are both up on the cage!', beat: 1, actorId: alpha.id, targetId: bravo.id }];
+    const timeline = [beat('exchange'), beat('control'), beat('finish')];
+    const caged = stageMatch(timeline, line, cast, 'cleanPin', { conduct: rulebook('steelCage') }).moments;
+    const called = caged.find((m) => m.lines.length > 0)!;
+    expect(called.staged.move).toBe('cageTop');
+    expect(isDown(endPose(called.staged.choreo.target))).toBe(true);
+    // The one who stayed up comes back down to the mat before the next thing happens.
+    expect(endPose(called.staged.choreo.actor)[1]).toBe(0);
+    const open = stageMatch(timeline, line, cast, 'cleanPin', { conduct: rulebook(null) }).moments;
+    expect(open.some((m) => m.staged.move === 'cageTop' || m.staged.move === 'intoCage')).toBe(false);
+  });
+
+  it('a tallied match goes on the record, the ledger and the career marks, and nowhere else', async () => {
+    const { tallyMatch } = await import('../../engine/sim/aftermath');
+    const [w] = generateWrestlers(rngFromSeed('tally'), 1);
+    const before = { ...w!.record, matches: w!.career.matches, pop: w!.popularity, health: w!.health };
+    tallyMatch(w!, 'win', 80);
+    tallyMatch(w!, 'loss', 40);
+    expect(w!.record).toMatchObject({ wins: before.wins + 1, losses: before.losses + 1, draws: before.draws });
+    expect(w!.career.matches).toBe(before.matches + 2);
+    expect(w!.career.bestMatchRating).toBeGreaterThanOrEqual(80);
+    expect([w!.popularity, w!.health]).toEqual([before.pop, before.health]);
   });
 });

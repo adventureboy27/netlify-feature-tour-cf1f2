@@ -358,6 +358,13 @@ const BODIES = {
     impacts: [[0.1, 2, 12], [0.9, -9, 2, true]],
     ropes: 0.44,
   },
+  // Both of them up the wall, trading on top of it, and one comes off the hard way.
+  cageTop: {
+    actor: [STAND, [0.12, 2, 0, 0], [0.3, -13, 5, 0], [0.45, -13, 12.5, 0], [0.6, -13, 12.5, 8], [0.7, -13, 12.5, -6], [0.84, -13, 12.5, 0], [0.94, -12, 3, 0], [1, -11, 0, 0]],
+    target: [STAND, [0.15, 10, 0, 8], [0.32, 23.5, 4, 0], [0.47, 23.5, 12, 0], [0.6, 23.5, 12, -8], [0.7, 22, 11, -30], [0.82, 19, 3, -80], [0.9, 18, DOWN, -90], [1, 18, DOWN, -90]],
+    impacts: [[0.62, -12, 27], [0.9, -4, 2, true]],
+    ropes: 0.4,
+  },
   escapeCage: {
     actor: [STAND, [0.1, 6, 0, 14], [0.22, 2, 0, 0], [0.4, -13, 5, 0], [0.56, -13, 13, 0], [0.7, -15.5, 15, -28], [0.85, -19, 2, 0], [1, -19, FLOOR, 0, 0.9]],
     target: [STAND, [0.1, 1, 0, -14], [0.22, 1, DOWN, -90], [1, 1, DOWN, -90]],
@@ -438,6 +445,7 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   teeter: { actor: '- reach reach punch reach stagger guard', target: '- stagger stagger fall fall stagger guard' },
   doubleDown: { actor: '- run clothes fall flat flat', target: '- run clothes fall flat flat' },
   cageClimb: { actor: '- punch run climb climb climb fall flat flat', target: '- stagger flat flat kneel run reach guard guard' },
+  cageTop: { actor: '- run climb climb punch punch celebrate climb guard', target: '- run climb climb punch fall fall flat flat' },
   escapeCage: { actor: '- punch run climb climb tuck fall crouch', target: '- stagger flat flat' },
   climbLadder: { actor: '- punch run climb climb climb lift celebrate', target: '- stagger flat flat' },
   throwOut: { actor: '- reach punch guard celebrate', target: '- bend spear flat flat flat flat' },
@@ -499,6 +507,7 @@ export const META: Partial<Record<MoveId, MoveMeta>> = {
   backdropOver: { anchor: { who: 'actor', at: -10 }, exits: 0.55 },
   teeter: { anchor: { who: 'target', at: -9.5 } },
   cageClimb: { anchor: { who: 'actor', at: -13 }, knockdownBy: 0.22 },
+  cageTop: { anchor: { who: 'actor', at: -13 } },
   escapeCage: { anchor: { who: 'actor', at: -13 }, actorExits: 0.6, knockdownBy: 0.22 },
   climbLadder: { knockdownBy: 0.22 },
   stomp: { needsDown: true },
@@ -521,6 +530,7 @@ const SAID: readonly (readonly [RegExp, MoveId | 'top' | 'finisher' | 'over'])[]
   // before the names of the moves they are about. ("Ducks the clothesline"
   // is a counter, not a clothesline.)
   [/ducks |blocks it|coming in|knees up|boot up|counters?\b/i, 'counter'],
+  [/top of the cage|atop the cage|up on the cage|both (of them )?climbing/i, 'cageTop'],
   [/into the (cage|steel|mesh|fence)|off the cage|cage wall/i, 'intoCage'],
   [/buckles|whip into the corner|into the turnbuckle/i, 'cornerWhip'],
   [/reversal|reverses|sends .* across and follows|irish whip/i, 'whip'],
@@ -786,12 +796,12 @@ export function stageBeat(
   // And where there is a cage, the cage is one more thing to hit somebody with.
   const armed = (options: readonly MoveId[]): readonly MoveId[] => {
     const withChair: readonly MoveId[] = conduct.weapons ? [...options.slice(0, 2), 'chairShot', ...options.slice(2)] : options;
-    return conduct.cage ? [withChair[0]!, 'intoCage', ...withChair.slice(1)] : withChair;
+    return conduct.cage ? [withChair[0]!, 'intoCage', withChair[1] ?? 'strike', 'cageTop', ...withChair.slice(2)] : withChair;
   };
   // With no ring there are no ropes to run, no corner to be put in and
   // nothing to climb: anything that needs one becomes a slam on the concrete.
   const needsRing = (id: MoveId) => Boolean(META[id]?.anchor || META[id]?.exits || META[id]?.actorExits) || id === 'tossOutside' || id === 'rollInside';
-  const grounded = (id: MoveId): MoveId => (conduct.noRing && needsRing(id) ? 'slam' : !conduct.cage && id === 'intoCage' ? 'cornerWhip' : id);
+  const grounded = (id: MoveId): MoveId => (conduct.noRing && needsRing(id) ? 'slam' : !conduct.cage && (id === 'intoCage' || id === 'cageTop') ? 'cornerWhip' : id);
   const pick = (id: MoveId, duration = 1700) => built(id, MOVES[id], duration);
   // The same beat with a word shouted over it.
   const shouting = (staged: StagedBeat, text: string, at = 0.8): StagedBeat => ({ ...staged, choreo: { ...staged.choreo, shouts: [...(staged.choreo.shouts ?? []), { at, text }] } });
