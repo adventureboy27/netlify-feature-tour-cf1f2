@@ -885,6 +885,8 @@ export function stageBeat(
           return shouting(pick('doubleDown', 2200), 'BOTH DOWN!', 0.75);
         case 'blood':
           return shouting(pick('headbutt', 1900), 'FIRST BLOOD!', 0.7);
+        case 'stoppage':
+          return shouting(built(lead === 'submission' ? 'slam' : lead, MOVES[lead === 'submission' ? 'slam' : lead], 2000), 'MATCH STOPPED!', 0.85);
         case 'knockout':
           return shouting(built(lead === 'submission' ? 'slam' : lead, MOVES[lead === 'submission' ? 'slam' : lead], 2000), 'KNOCKED OUT!', 0.85);
       }

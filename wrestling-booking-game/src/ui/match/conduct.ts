@@ -40,7 +40,7 @@ export interface Conduct {
   /** How somebody leaves a match that eliminates people. */
   elimination: 'overTop' | 'fall';
   /** What the last thing that happens looks like. */
-  finish: 'pin' | 'submission' | 'knockout' | 'count10' | 'overTop' | 'escape' | 'climb' | 'table' | 'flamingTable' | 'casket' | 'countOut' | 'dq' | 'draw' | 'doubleKO' | 'blood';
+  finish: 'pin' | 'submission' | 'knockout' | 'count10' | 'overTop' | 'escape' | 'climb' | 'table' | 'flamingTable' | 'casket' | 'countOut' | 'dq' | 'draw' | 'doubleKO' | 'blood' | 'stoppage';
 }
 
 /** An ordinary one-fall match. */
@@ -67,6 +67,8 @@ function finishOf(finish: FinishType, stipulation: string | null, rules: MatchRu
   if (battleRoyal) return 'overTop';
   if (finish === 'disqualification') return 'dq';
   if (finish === 'countOut') return 'countOut';
+  // Stopped because somebody could not go on: nobody climbs a ladder after that.
+  if (finish === 'injuryStoppage' || finish === 'refereeStoppage') return 'stoppage';
   if (finish === 'escape') return 'escape';
   if (finish === 'submission') return 'submission';
   // Somebody won it, by some decisive means. What that looks like is the

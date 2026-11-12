@@ -6321,3 +6321,15 @@ Owner's call. Neither could be booked: `preset: 'gauntlet'`, `SegmentRole` 'lumb
 (the role, the preset, the field, and the "Lumberjacks (stacked)" row of the §10 table). The pay-per-view
 *name* "The Gauntlet" stays — it is a show name, not a match type. An old save's leftover empty
 `lumberjacks` array is ignored. 206 files / 3,513 tests; build clean.
+
+## Match viewer — played through on real shows
+
+Three real shows from a new game (auto-filled card, `resolveWeek`), eighteen matches, every one opened in
+the viewer, watched for a stretch and skipped to its ending: plain, steel cage, ladder, tables, flaming
+tables, hardcore, battle royal, last man standing, submission, no DQ, falls count anywhere, street fight,
+casket. No page or console errors; nobody left the picture. Two things fixed from it:
+- A match stopped for an injury (or by the referee) shouted "KNOCKED OUT!". It is its own finish now
+  (`conduct.finish: 'stoppage'`, "MATCH STOPPED!"), and a stopped ladder match no longer shows the climb.
+- The winner and injury plates sat on top of the company's name on the apron. They are in the top-left
+  corner of the ring once the match is over.
+- Not exercised by those shows: title changes, hair/mask/loser-leaves stakes, a full-size battle royal.

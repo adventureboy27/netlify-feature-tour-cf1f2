@@ -579,10 +579,10 @@ export function MatchViewerScreen({
 
         {/* Who is in the ring right now — the figures themselves are busy
             being thrown around, so the names stay put down here. */}
-        <div className={`pointer-events-none absolute inset-x-0 bottom-2 z-10 flex items-center justify-center gap-2 text-[11px] font-semibold ${over ? 'flex-col' : ''}`}>
+        <div className={`pointer-events-none absolute z-10 flex gap-2 text-[11px] font-semibold ${over ? 'left-3 top-3 flex-col items-start' : 'inset-x-0 bottom-2 items-center justify-center'}`}>
           {/* Somebody was really hurt: said plainly, and for how long, once it is over. */}
           {over && injuredHere.length > 0 && (
-            <div data-testid="viewer-injuries" className="flex max-w-[80%] flex-col items-center rounded-md border border-red-500/80 bg-red-950/90 px-4 py-1 text-center">
+            <div data-testid="viewer-injuries" className="flex flex-col items-start rounded-md border border-red-500/80 bg-red-950/90 px-4 py-1 text-left">
               {injuredHere.map((injury) => (
                 <span key={injury.wrestlerId} className="text-[11px] font-semibold uppercase tracking-[0.12em] text-red-100">
                   {injury.name} — injured{injury.outFor ? ` · ${injury.outFor}` : ''}
@@ -592,7 +592,7 @@ export function MatchViewerScreen({
           )}
           {/* The announcement: who won, and what that makes them. */}
           {over && winnerIds.size > 0 && (
-            <div data-testid="viewer-winner" className="flex max-w-[80%] flex-col items-center rounded-md border border-amber-400/70 bg-neutral-950/90 px-5 py-1.5 text-center">
+            <div data-testid="viewer-winner" className="flex flex-col items-start rounded-md border border-amber-400/70 bg-neutral-950/90 px-5 py-1.5 text-left">
               <span className="mv-action text-[22px] leading-tight">
                 {combined
                   .filter((w) => winnerIds.has(w.id))
