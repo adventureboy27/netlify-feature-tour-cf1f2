@@ -266,14 +266,17 @@ export function SectionHead({
   children,
   hint,
   className = '',
+  id,
 }: {
+  /** An anchor, so a contents list can scroll to this section. */
+  id?: string;
   children: React.ReactNode;
   /** A few words of context, sat on the same line at the right. */
   hint?: React.ReactNode;
   className?: string;
 }) {
   return (
-    <div className={`mb-2 mt-5 flex items-center gap-3 ${className}`}>
+    <div id={id} className={`mb-2 mt-5 flex scroll-mt-4 items-center gap-3 ${className}`}>
       <h2 className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">{children}</h2>
       <div className="h-px flex-1 bg-neutral-800" />
       {hint && <span className="shrink-0 text-[11px] text-neutral-600">{hint}</span>}

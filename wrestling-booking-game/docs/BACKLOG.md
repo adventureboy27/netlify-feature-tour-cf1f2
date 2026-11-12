@@ -6403,3 +6403,18 @@ Owner's report: the interface was very confusing; lose no content. Nothing was r
 - Not restyled: the inside of the other screens (Office, Roster, Finance, Promotion, Results) beyond their
   headings. The card still has its own "Run the show" button as well as the strip's.
 - 206 files / 3,515 tests; build clean; rendered on the card, roster and office.
+
+## Making it less of a read and more of a game
+
+Owner's brief: not frustrating, interesting, above all fun — and nothing the player needs cut from results.
+- **Results, added to and not cut.** Under the lede: three boxes (match of the night with a Watch button,
+  titles on the line and changed, who was hurt and for how long) and a "Jump to" row for the sections that
+  are on that week's page. Every existing section and line is unchanged and in the same place.
+- **The match viewer is findable**: "Watch the match" on every bout in the house colour, "Watch the main
+  event" in the results header.
+- **A good night is said out loud**: Sold out! / An instant classic! / New champion! / What a night! as
+  badges on the results, with a crowd roar if sound is on. After the fact only.
+- **The key to the roster chips** opens by itself the first time and now covers the small status chips.
+- **Quick start** on the new-game screen: the standard company in one click; the full setup is still below.
+- Not measured: whether any of this is fun. That needs somebody to play ten weeks.
+- 206 files / 3,515 tests; build clean; rendered through new game → first results.

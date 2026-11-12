@@ -223,6 +223,21 @@ export function NewGameScreen() {
         </section>
       )}
 
+      {/* For somebody who wants to see the game before deciding anything
+          about it: the standard company, the default names, straight in.
+          Everything below is still there for anybody who wants to choose. */}
+      {step === 1 && (
+        <section className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-600/60 bg-amber-950/20 p-3">
+          <div>
+            <div className="text-sm font-semibold text-amber-200">Quick start</div>
+            <div className="text-xs text-neutral-400">A standard company with a full roster and money in the bank. No setup — you are booking your first show in one click.</div>
+          </div>
+          <button type="button" data-testid="quick-start" onClick={() => newGame()} className="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-neutral-950 hover:bg-amber-400">
+            Start now
+          </button>
+        </section>
+      )}
+
       <div className="mb-4 flex gap-2 text-[11px] text-neutral-500">
         <span className={step === 1 ? 'text-emerald-400' : ''}>1. How many</span>
         <span>›</span>

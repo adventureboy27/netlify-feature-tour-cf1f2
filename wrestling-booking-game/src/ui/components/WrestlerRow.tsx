@@ -11,6 +11,7 @@
 // problem. Every coloured thing on this row also says its meaning in words,
 // so it survives being colourblind or simply new.
 
+import { usePref } from './Hint';
 import type { Id, Stable, Title, Wrestler, WorldSettings } from '../../engine/types';
 import { scout, alignmentLabel, type Availability } from '../../engine/career/scouting';
 import { billedAs } from '../../engine/generate/nickname';
@@ -171,8 +172,10 @@ export function WrestlerRow({
  * job.
  */
 export function RowKey() {
+  // Open until it has been seen once: a key nobody knows is there explains nothing.
+  const [seen, setSeen] = usePref('key.rosterTags');
   return (
-    <details className="mb-2 rounded border border-neutral-800 bg-neutral-950">
+    <details className="mb-2 rounded border border-neutral-800 bg-neutral-950" open={!seen} onToggle={(e) => { if (!(e.currentTarget as HTMLDetailsElement).open) setSeen(true); }}>
       <summary className="cursor-pointer px-2 py-1.5 text-[11px] text-neutral-500">What the tags mean</summary>
       <div className="flex flex-col gap-1.5 px-2 pb-2 text-[11px] text-neutral-400">
         <p>
@@ -190,6 +193,18 @@ export function RowKey() {
           <Tag className={AVAILABILITY_STYLE.good}>On a roll</Tag>
           <Tag className={AVAILABILITY_STYLE.neutral}>Fresh</Tag> — whether they can work tonight, and what the night
           will cost them.
+        </p>
+        <p>
+          The small chips: <Tag className="bg-amber-400 text-neutral-950">★ CHAMP</Tag> holds a title ·{' '}
+          <Tag className="bg-rose-900 text-rose-100">✚ 3w</Tag> injured, weeks out ·{' '}
+          <Tag className="bg-amber-950 text-amber-300">☾ TIRED</Tag> low on energy ·{' '}
+          <Tag className="bg-emerald-950 text-emerald-300">☺</Tag>
+          <Tag className="bg-rose-950 text-rose-300">☹</Tag> how happy they are ·{' '}
+          <Tag className="bg-neutral-800 text-neutral-300">F</Tag>
+          <Tag className="bg-neutral-800 text-neutral-300">H</Tag>
+          <Tag className="bg-neutral-800 text-neutral-300">T</Tag> face, heel, tweener ·{' '}
+          <Tag className="bg-neutral-800 text-neutral-400">60w</Tag> weeks left on their contract (red when it is running out).
+          Hover any chip to have it spelled out.
         </p>
         <p>
           Under each name: what they are for, and in red, the reason you might leave them off. A face against a heel

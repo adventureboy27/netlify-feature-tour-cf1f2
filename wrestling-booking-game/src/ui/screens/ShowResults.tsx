@@ -6,7 +6,9 @@
 // play-by-play) and its rating breakdown panel, which is the one numeric
 // surface in the game.
 
+import { useEffect, useState } from 'react';
 import { useGameStore } from '../../state/store';
+import { crowd } from '../match/sound';
 import { sortWire, WIRE_KIND_LABELS } from '../../engine/world/wire';
 import { stipulationById } from '../../data/stipulations';
 import { incidentById } from '../../data/incidents';
@@ -45,6 +47,17 @@ const FINISH_TEXT: Record<FinishType, string> = {
   lastFactionStanding: 'last one standing',
 };
 
+/** The page's sections, in order: what the contents list at the top jumps to. */
+const SECTIONS: readonly (readonly [string, string])[] = [
+  ['The card', 'card'],
+  ['On the microphone', 'microphone'],
+  ['The fans', 'fans'],
+  ['Around the business', 'around'],
+  ['This week', 'business'],
+  ['Elsewhere tonight', 'elsewhere'],
+  ['Running feuds', 'feuds'],
+];
+
 export function ShowResults({
   show,
   onContinue,
@@ -59,6 +72,20 @@ export function ShowResults({
   onOpenStory?: (storyId: string) => void;
 }) {
   const world = useGameStore((s) => s.world);
+  // A good night gets a roar from the crowd when its results are opened —
+  // once per show, and only if the viewer's sound is on.
+  useEffect(() => {
+    const matches = show.segments.filter((s) => s.kind !== 'promo' && s.result !== null);
+    const good = show.attendance >= show.venueCapacity || show.showStars >= 4 || matches.some((s) => s.result!.stars >= 4.5 || s.result!.titleChanged);
+    if (good) crowd('roar', 200);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show.id]);
+  // Some sections only exist on a week that has something in them; the
+  // contents list offers the ones that are actually on the page.
+  const [present, setPresent] = useState<string[]>([]);
+  useEffect(() => {
+    setPresent(SECTIONS.map(([, id]) => id).filter((id) => document.getElementById(`results-${id}`)));
+  }, [show.id]);
   if (!world) return null;
 
   // The last match on the card that has a result to play back.
@@ -72,6 +99,22 @@ export function ShowResults({
   };
   const townName = world.territories.find((t) => t.id === show.territoryId)?.name ?? 'The town';
   const booked = show.segments.filter((s) => s.kind !== 'promo' && s.result !== null);
+
+  // The headlines, read off what already happened — nothing here is new
+  // information, it is the same results counted.
+  const topMatch = booked.map((segment) => ({ segment, stars: segment.result!.stars })).sort((a, b) => b.stars - a.stars)[0];
+  const titleMatches = booked.filter((s) => s.titleIds.length > 0).length;
+  const titleChanges = booked.filter((s) => s.result!.titleChanged).length;
+  const hurt = booked.flatMap((s) => s.result!.injuries);
+  // Something worth a cheer. After the fact, always: the game says when a
+  // night went well, it never says in advance that one will go badly.
+  const cheers = [
+    ...(show.attendance >= show.venueCapacity ? ['Sold out!'] : []),
+    ...(topMatch && topMatch.stars >= 4.5 ? ['An instant classic!'] : []),
+    ...(titleChanges > 0 ? [titleChanges > 1 ? 'New champions!' : 'New champion!'] : []),
+    ...(show.showStars >= 4 ? ['What a night!'] : []),
+  ];
+
   const promos = show.segments.filter((s) => s.kind === 'promo' && s.promoResult);
   const confrontations = show.segments.filter((s) => s.kind === 'confrontation' && s.confrontationResult);
 
@@ -192,6 +235,63 @@ export function ShowResults({
           </ul>
         </div>
 
+        {/* The night at a glance, and a way round the page.
+            DESIGN: this adds; it does not replace. Every line it points at
+            is still below, in full, exactly where it was — the page is long
+            because a lot happened, and nothing the player needs is cut to
+            make it shorter. This is a contents list and three headlines. */}
+        <div className="border-t border-neutral-800 px-4 py-3" data-testid="results-glance">
+          {cheers.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {cheers.map((cheer) => (
+                <span key={cheer} className="cheer-pop font-display rounded-md bg-amber-400 px-3 py-1.5 text-[15px] text-neutral-950 shadow-lg shadow-amber-500/30">
+                  {cheer}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="grid gap-2 sm:grid-cols-3">
+            <div className="rounded-lg border border-neutral-800 bg-black/30 p-2.5">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Match of the night</div>
+              {topMatch ? (
+                <>
+                  <div className="mt-0.5 truncate text-[13px] font-semibold text-neutral-100">{topMatch.segment.participants.filter((x) => x.role === 'competitor').map((x) => wrestlerName(x.wrestlerId)).join(', ')}</div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Stars stars={topMatch.stars} />
+                    {onWatch && (
+                      <button type="button" onClick={() => onWatch(topMatch.segment.slot)} className="rounded bg-neutral-800 px-2 py-0.5 text-[10px] font-semibold text-neutral-200 hover:bg-neutral-700">
+                        ▶ Watch
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="mt-0.5 text-[13px] text-neutral-500">No matches ran.</div>
+              )}
+            </div>
+            <div className="rounded-lg border border-neutral-800 bg-black/30 p-2.5">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Titles</div>
+              <div className="mt-0.5 text-[13px] text-neutral-100">
+                {titleMatches === 0 ? <span className="text-neutral-500">None on the line</span> : `${titleMatches} on the line · ${titleChanges} changed hands`}
+              </div>
+            </div>
+            <div className={`rounded-lg border p-2.5 ${hurt.length > 0 ? 'border-rose-900/70 bg-rose-950/20' : 'border-neutral-800 bg-black/30'}`}>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Hurt tonight</div>
+              <div className="mt-0.5 text-[13px] text-neutral-100">
+                {hurt.length === 0 ? <span className="text-neutral-500">Nobody</span> : hurt.map((h) => `${h.name} (${h.outFor})`).join(' · ')}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="text-neutral-600">Jump to</span>
+            {SECTIONS.filter(([, id]) => present.includes(id)).map(([label, id]) => (
+              <button key={id} type="button" onClick={() => document.getElementById(`results-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-full border border-neutral-800 bg-neutral-900 px-2.5 py-0.5 text-neutral-300 hover:border-neutral-600">
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* The night's money, on its own ground so it reads as a ledger
             rather than as four more sentences. */}
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-neutral-800 bg-neutral-950/60 px-4 py-3 sm:grid-cols-4">
@@ -253,7 +353,7 @@ export function ShowResults({
         </section>
       )}
 
-      <SectionHead hint={`${booked.length} ${booked.length === 1 ? 'match' : 'matches'}`}>The card</SectionHead>
+      <SectionHead id="results-card" hint={`${booked.length} ${booked.length === 1 ? 'match' : 'matches'}`}>The card</SectionHead>
 
       <div className="flex flex-col gap-3">
         {booked.map((segment) => {
@@ -448,7 +548,7 @@ export function ShowResults({
 
       {promos.length > 0 && (
         <section>
-          <SectionHead>On the microphone</SectionHead>
+          <SectionHead id="results-microphone">On the microphone</SectionHead>
           <div className="flex flex-col gap-1.5">
             {promos.map((slot, i) => {
               const speaker = slot.promoSpeakerId ? world.wrestlers[slot.promoSpeakerId] : null;
@@ -540,7 +640,7 @@ function FanReaction() {
 
   return (
     <section>
-      <SectionHead hint={verdict}>The fans</SectionHead>
+      <SectionHead id="results-fans" hint={verdict}>The fans</SectionHead>
       <div className="flex flex-col gap-1">
         {tweets.map((tweet) => (
           <article
@@ -577,7 +677,7 @@ function AroundTheBusiness() {
 
   return (
     <section>
-      <SectionHead>Around the business</SectionHead>
+      <SectionHead id="results-around">Around the business</SectionHead>
       <div className="flex flex-col gap-1.5">
         {elsewhere.map((entry) => (
           <article
@@ -670,7 +770,7 @@ function TheWire() {
 
   return (
     <section>
-      <SectionHead>This week in the business</SectionHead>
+      <SectionHead id="results-business">This week in the business</SectionHead>
       <div className="flex flex-col gap-1.5">
         {items.map((item) => (
           <article
@@ -704,7 +804,7 @@ function ElsewhereTonight() {
 
   return (
     <section>
-      <SectionHead hint="what the competition ran">Elsewhere tonight</SectionHead>
+      <SectionHead id="results-elsewhere" hint="what the competition ran">Elsewhere tonight</SectionHead>
       <div className="flex flex-col gap-1.5">
         {shows.map((show) => {
           const promotion = world.rivals.find((r) => r.id === show.promotionId);
@@ -754,7 +854,7 @@ function RivalryDigest() {
 
   return (
     <section>
-      <SectionHead hint="carries into next week">Running feuds</SectionHead>
+      <SectionHead id="results-feuds" hint="carries into next week">Running feuds</SectionHead>
       <div className="flex flex-col gap-1.5">
         {live.map((rivalry) => {
           const people = rivalry.participantIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
