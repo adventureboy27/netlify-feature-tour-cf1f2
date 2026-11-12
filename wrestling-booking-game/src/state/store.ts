@@ -3040,7 +3040,9 @@ export const useGameStore = create<GameStore>()(
                 // Purely cosmetic — nothing in the sim reads it — but the
                 // portrait does: a head shaved on television stays shaved.
                 loser.headShaved = true;
-                loser.headShavedUntilWeek = world.week + world.settings.shavedHeadWeeks;
+                // A save from before this setting existed has no value for it; the
+                // default stands in, so that save's shaved heads grow back too.
+                loser.headShavedUntilWeek = world.week + (world.settings.shavedHeadWeeks ?? defaultWorldSettings().shavedHeadWeeks);
               } else if (consequence === 'unmask') {
                 loser.masked = false;
                 loser.unmaskedInRing = true;
