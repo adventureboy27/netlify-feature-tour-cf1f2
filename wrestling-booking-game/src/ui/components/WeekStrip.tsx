@@ -32,7 +32,10 @@ export function WeekStrip({ state, screen, onNavigate, onRunShow, accent }: { st
     { id: 'results', label: 'Results', note: state.resultsUnread ? 'unread' : state.hasResults ? 'last show' : 'none yet', attention: state.resultsUnread },
   ];
   // The next thing, in the order the week actually goes.
-  const next: { label: string; go: () => void } = state.resultsUnread
+  const next: { label: string; go: () => void } = screen === 'results' && state.hasResults
+    ? // Reading the results is the end of the week; the card is the start of the next.
+      { label: 'Next week', go: () => onNavigate('booking') }
+    : state.resultsUnread
     ? { label: 'Read the results', go: () => onNavigate('results') }
     : state.officeWaiting > 0 && screen !== 'office'
       ? { label: 'Answer the office', go: () => onNavigate('office') }

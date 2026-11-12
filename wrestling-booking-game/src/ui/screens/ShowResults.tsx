@@ -61,6 +61,9 @@ export function ShowResults({
   const world = useGameStore((s) => s.world);
   if (!world) return null;
 
+  // The last match on the card that has a result to play back.
+  const mainEventSlot = [...show.segments].reverse().find((s) => s.result && s.result.beats.length > 0)?.slot ?? null;
+
   // The announcer uses the nickname when there is one — that is the whole
   // point of having earned it.
   const wrestlerName = (id: string) => {
@@ -149,13 +152,26 @@ export function ShowResults({
 
           <div className="mt-3 flex items-end justify-between gap-3">
             <BigStars stars={show.showStars} />
-            <button
-              type="button"
-              onClick={onContinue}
-              className={`shrink-0 rounded-lg px-5 py-2.5 text-sm font-semibold text-white ${theme.action}`}
-            >
-              Next week →
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Straight to the top of the bill, for anybody who came to see it rather than read it. */}
+              {onWatch && mainEventSlot !== null && (
+                <button
+                  type="button"
+                  data-testid="watch-main-event"
+                  onClick={() => onWatch(mainEventSlot)}
+                  className="font-display flex items-center gap-2 rounded-lg border border-amber-400/60 bg-black/40 px-4 py-2.5 text-[15px] text-amber-300 transition hover:bg-amber-400/10"
+                >
+                  <span aria-hidden>▶</span> Watch the main event
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onContinue}
+                className={`rounded-lg px-5 py-2.5 text-sm font-semibold text-white ${theme.action}`}
+              >
+                Next week →
+              </button>
+            </div>
           </div>
 
           <ul className="mt-3 flex flex-col gap-1.5" data-testid="show-lede">
@@ -284,9 +300,11 @@ export function ShowResults({
                       type="button"
                       data-testid={`watch-${segment.slot}`}
                       onClick={() => onWatch(segment.slot)}
-                      className="rounded bg-neutral-800 px-2 py-1 text-[10px] font-semibold text-neutral-200 hover:bg-neutral-700"
+                      // The one thing on this page that moves. It used to be a
+                      // grey chip the size of the star rating beside it.
+                      className={`font-display flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] text-white shadow shadow-black/60 transition hover:brightness-110 ${theme.action}`}
                     >
-                      ▶ Watch
+                      <span aria-hidden>▶</span> Watch the match
                     </button>
                   )}
                   <Stars stars={result.stars} />
