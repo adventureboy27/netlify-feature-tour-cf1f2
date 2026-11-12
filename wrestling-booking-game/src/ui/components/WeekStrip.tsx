@@ -40,28 +40,35 @@ export function WeekStrip({ state, screen, onNavigate, onRunShow, accent }: { st
         ? { label: 'Go to the card', go: () => onNavigate('booking') }
         : { label: 'Run the show', go: onRunShow };
   return (
-    <div data-testid="week-strip" className="flex items-center gap-2 border-t border-neutral-800/70 px-4 py-1.5">
-      <span className="mr-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-600">This week</span>
+    <div data-testid="week-strip" className="flex items-center gap-1 border-t border-white/5 bg-black/30 px-4 py-2">
+      <span className="font-display mr-3 text-[13px] text-neutral-500">This week</span>
       {steps.map((step, i) => {
         const here = screen === step.id;
         return (
-          <div key={step.id} className="flex items-center gap-2">
-            {i > 0 && <span className="text-neutral-700">›</span>}
+          <div key={step.id} className="flex items-center gap-1">
+            {i > 0 && <span className="h-px w-6 bg-neutral-700" aria-hidden />}
             <button
               type="button"
               onClick={() => onNavigate(step.id)}
               aria-current={here ? 'step' : undefined}
-              className={`flex items-baseline gap-1.5 rounded-md px-2 py-1 text-left transition ${here ? 'bg-neutral-800 text-neutral-50' : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200'}`}
+              className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-left transition ${here ? 'border-amber-400/60 bg-neutral-800 text-neutral-50' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200'}`}
             >
-              <span className="text-[12px] font-semibold">{step.label}</span>
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-black ${here ? 'step-here bg-amber-400 text-neutral-950' : step.attention ? 'bg-amber-500/90 text-neutral-950' : 'bg-neutral-800 text-neutral-400'}`}>{i + 1}</span>
+              <span className="text-[12px] font-bold">{step.label}</span>
               <span className={`text-[10.5px] ${step.attention ? 'font-semibold text-amber-300' : 'text-neutral-500'}`}>{step.note}</span>
             </button>
           </div>
         );
       })}
-      <span className="text-neutral-700">›</span>
-      <button type="button" data-testid="week-next" onClick={next.go} disabled={state.folded} className={`ml-auto rounded-md px-3 py-1 text-[12px] font-semibold text-white disabled:opacity-40 ${accent}`}>
+      <button
+        type="button"
+        data-testid="week-next"
+        onClick={next.go}
+        disabled={state.folded}
+        className={`font-display ml-auto flex items-center gap-2 rounded-lg px-4 py-2 text-[15px] text-white shadow-lg shadow-black/50 transition hover:brightness-110 disabled:opacity-40 ${accent}`}
+      >
         {next.label}
+        <span aria-hidden>→</span>
       </button>
     </div>
   );

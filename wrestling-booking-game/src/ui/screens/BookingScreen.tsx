@@ -12,6 +12,8 @@
 // use instead of a phone's one column.
 
 import { useMemo } from 'react';
+import { PaperDoll } from '../paperdoll/PaperDoll';
+import { lookSubjectOf } from '../paperdoll/assignLook';
 import { useGameStore } from '../../state/store';
 import { usePref } from '../components/Hint';
 import { signedReferees, sharpnessLabel, refereeGrade, isAvailable } from '../../engine/sim/referees';
@@ -112,7 +114,7 @@ export function BookingScreen({
           {tonightIsPPV ? (
             <>
               <div className="text-[10px] uppercase tracking-wide text-amber-500">Pay-per-view</div>
-              <h1 className="text-lg font-semibold text-amber-400">{tonightsName ?? 'The big one'}</h1>
+              <h1 className="text-amber-400">{tonightsName ?? 'The big one'}</h1>
             </>
           ) : (
             <>
@@ -122,7 +124,7 @@ export function BookingScreen({
               <div className="text-[10px] uppercase tracking-wide text-neutral-500">
                 {televisedShow?.day ?? 'Tonight'}
               </div>
-              <h1 className="text-lg font-semibold">{televisedShow?.name ?? "This week's card"}</h1>
+              <h1 className="text-3xl">{televisedShow?.name ?? "This week's card"}</h1>
             </>
           )}
           {tonightsHoliday && (
@@ -372,14 +374,18 @@ function SlotCard({
     <Tag
       {...(locked ? {} : { type: 'button', onClick: onOpen })}
       data-testid={`segment-${index}`}
-      className={`flex flex-col gap-1.5 rounded-lg border p-3 text-left transition ${
+      className={`fight-card flex flex-col gap-1.5 rounded-xl border p-3 text-left ${
         locked
-          ? 'border-rose-900/60 bg-rose-950/20'
-          : 'border-neutral-800 bg-neutral-900 hover:border-neutral-600'
+          ? 'border-rose-900/60'
+          : summary.participants.length === 0
+            ? 'fight-card-empty border-dashed border-neutral-700 hover:border-amber-500/70'
+            : index === total - 1
+              ? 'border-amber-500/50 hover:border-amber-400'
+              : 'border-neutral-700/80 hover:border-neutral-500'
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[11px] uppercase tracking-wide text-neutral-500">{slotLabel(index, total)}</div>
+        <div className={`font-display text-[13px] ${index === total - 1 ? 'text-amber-400' : 'text-neutral-400'}`}>{slotLabel(index, total)}</div>
         {locked && (
           <span className="rounded bg-rose-950 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-rose-300">
             Faction Destroyer — locked
@@ -388,11 +394,32 @@ function SlotCard({
       </div>
       <div className="text-sm font-medium">
         {summary.participants.length === 0 ? (
-          <span className="text-neutral-600">Empty</span>
+          <span className="flex items-center gap-2 py-3 text-neutral-500">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-neutral-600 text-lg leading-none">+</span>
+            Book this match
+          </span>
         ) : (
-          summary.sides
-            .map((side) => summary.participants.filter((p) => p.side === side).map((p) => p.wrestler.name).join(' & '))
-            .join('  vs  ')
+          // The tale of the tape in miniature: each corner's faces, turned to
+          // look at each other, with the versus between them.
+          <div className="flex items-stretch gap-2">
+            {summary.sides.slice(0, 4).map((side, n) => {
+              const corner = summary.participants.filter((p) => p.side === side);
+              return (
+                <div key={side} className="flex min-w-0 flex-1 items-center gap-2">
+                  {n > 0 && <span className="font-display shrink-0 text-[15px] text-rose-500">vs</span>}
+                  <div className={`flex min-w-0 flex-1 flex-col gap-1 ${n > 0 && summary.sides.length === 2 ? 'items-end text-right' : ''}`}>
+                    <div className="flex -space-x-2">
+                      {corner.slice(0, 3).map((p) => (
+                        <PaperDoll key={p.wrestler.id} photoDataUrl={p.wrestler.photoDataUrl} name={p.wrestler.name} size="thumb" flip={n > 0} lookSubject={lookSubjectOf(p.wrestler)} className="rounded-full ring-2 ring-black" />
+                      ))}
+                      {corner.length > 3 && <span className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-800 text-xs text-neutral-300 ring-2 ring-black">+{corner.length - 3}</span>}
+                    </div>
+                    <span className="max-w-full truncate text-[13px] font-semibold leading-tight">{corner.map((p) => p.wrestler.name).join(' & ')}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
       <div className="flex flex-wrap items-center gap-1.5">

@@ -6389,3 +6389,17 @@ Owner's report: the interface was very confusing; lose no content. Nothing was r
 - Interface memory (read hints, folded groups) is in localStorage under `wbg.ui.v1`, not in the save.
 - Not done: other long screens (Office's eight tabs, Roster, Finance) were not restructured; only two
   explanations use `Hint` so far. 206 files / 3,515 tests; build clean; rendered through one full week.
+
+## Interface pass 2 — a broadcast look for the shell
+
+- `index.css`: lit-from-above background with a faint canvas weave, a `.font-display` poster face (system
+  faces only) picked up by every screen's `h1`, quiet scrollbars, a visible keyboard focus ring.
+- Header: the promotion's name in the display face. Week strip: a numbered stepper with the current step
+  lit, and the next action as a large button.
+- Sidebar: a line icon per destination and a marker bar on the current one.
+- Card: match slots are fight cards — each corner's faces turned toward the other, a "VS", a gold edge on
+  the main event, a dashed "+ Book this match" for an empty slot.
+- The browser's request for `/favicon.ico` was the 404 in the console; an inline icon ends it.
+- Not restyled: the inside of the other screens (Office, Roster, Finance, Promotion, Results) beyond their
+  headings. The card still has its own "Run the show" button as well as the strip's.
+- 206 files / 3,515 tests; build clean; rendered on the card, roster and office.

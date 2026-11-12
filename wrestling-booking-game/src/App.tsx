@@ -149,7 +149,7 @@ export default function App() {
             <div className="flex min-w-0 items-center gap-2">
               <PromotionMark name={world.promotion.name} archetype={world.promotion.identity} size="small" />
               <div className="min-w-0">
-                <div className={`truncate text-base font-black leading-tight tracking-tight ${theme.ink}`}>
+                <div className={`font-display truncate text-[22px] drop-shadow-[0_2px_0_rgba(0,0,0,0.6)] ${theme.ink}`}>
                   {world.promotion.name}
                 </div>
                 <div className="mt-0.5 text-[11px] leading-tight text-neutral-500">
