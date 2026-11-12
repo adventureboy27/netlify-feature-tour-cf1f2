@@ -6333,3 +6333,19 @@ casket. No page or console errors; nobody left the picture. Two things fixed fro
 - The winner and injury plates sat on top of the company's name on the apron. They are in the top-left
   corner of the ring once the match is over.
 - Not exercised by those shows: title changes, hair/mask/loser-leaves stakes, a full-size battle royal.
+
+## Match viewer — real belts, and the sound of a match
+
+- **Belts** (`ui/match/Belt.tsx`): each title is drawn from its own `colorway`, with a main plate shaped by
+  tier (world shield, secondary oval, tag/trios paired rounds, hardcore slab, television screen,
+  cruiserweight wings), and an emblem, jewels and side plates seeded from the title id. Women's titles
+  carry a coloured strap edge. The champion wears it at the waist before the bell; it is held up at the
+  end and hangs over a ladder match.
+- **Sound** (`ui/match/sound.ts`): synthesised with Web Audio, no files and nothing fetched — punch, kick,
+  mat slam, count, chair, kendo stick, trash can, cage, table, the bell (one to start, three to end) and a
+  crowd swell on anything shouted. Scheduled on the audio clock against the same impact times the picture
+  uses. A Sound on/off button in the viewer header, remembered in localStorage.
+- DESIGN: no grunts. A synthesised voice sounds like a machine; `voice()` is the empty slot recorded ones
+  would fill. Nobody has listened to any of this — it was checked only for running without error.
+- Also since the last entry: legs redrawn to match the painted torso, and their gear cut from the leg's
+  own curves. 206 files / 3,513 tests; build clean.

@@ -14,6 +14,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArenaBack, ArenaFront, FEET_Y, VIEW, type Corner } from './Arena';
+import { Belt, type BeltLook } from './Belt';
+import { bell, crowd, hit, hitFor } from './sound';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { playPlan, settle } from './playback';
@@ -95,19 +97,6 @@ const planOf = (tracks: Map<Id, WorldFrame[]>): Plan => ({
   end: new Map([...tracks].map(([id, frames]) => [id, { x: frames[frames.length - 1]!.x, y: frames[frames.length - 1]!.y, rot: frames[frames.length - 1]!.rot }])),
 });
 
-/** A championship belt, held up. */
-function Belt() {
-  return (
-    <svg viewBox="0 0 120 40" className="pointer-events-none absolute" style={{ left: '14%', top: '-2%', width: '72%' }} aria-hidden>
-      <path d="M 2,14 L 40,10 L 80,10 L 118,14 L 118,26 L 80,30 L 40,30 L 2,26 Z" fill="#2a2018" stroke="#0e0a06" strokeWidth={1.5} />
-      <rect x={40} y={3} width={40} height={34} rx={8} fill="#e2b33c" stroke="#8a6412" strokeWidth={2} />
-      <circle cx={60} cy={20} r={9} fill="#f6dc8a" stroke="#8a6412" strokeWidth={1.5} />
-      <rect x={14} y={12} width={16} height={16} rx={4} fill="#e2b33c" stroke="#8a6412" strokeWidth={1.5} />
-      <rect x={90} y={12} width={16} height={16} rx={4} fill="#e2b33c" stroke="#8a6412" strokeWidth={1.5} />
-    </svg>
-  );
-}
-
 export function MatchStage({
   beatKey,
   fighters,
@@ -126,7 +115,13 @@ export function MatchStage({
   prize,
   hurt,
   shed,
+  belt,
+  champions,
 }: {
+  /** The title this match is for: what the belt looks like wherever one is drawn. */
+  belt?: BeltLook;
+  /** Who walked in as champion. They wear it until the bell. */
+  champions?: ReadonlySet<Id>;
   /** What came off somebody when it was over: a mask, or their hair. */
   shed?: readonly { id: Id; kind: 'mask' | 'hair' }[];
   /** Really injured in this match, from the moment it happened: they carry it for the rest of it. */
@@ -227,6 +222,14 @@ export function MatchStage({
     const running = playPlan(next, cast, (id) => figureRefs.current.get(id), (id) => jointRefs.current.get(id), u, figureW, duration);
 
     const timers: number[] = [];
+    // What it sounds like: every impact, the hand on the mat for a count, the
+    // crowd for anything shouted. Scheduled on the audio clock, so it lands
+    // on the frame it belongs to however busy the page is.
+    for (const impact of next.impacts) hit(hitFor(staged.move, Boolean(impact.big), staged.prop, staged.scene), impact.at * duration);
+    const counted = staged.choreo.cover;
+    if (counted) for (let i = 0; i < counted.count; i++) hit('count', (next.lead + (counted.from + ((counted.to - counted.from) * (i + 0.35)) / counted.count) * (1 - next.lead)) * duration);
+    for (const shout of staged.choreo.shouts ?? []) crowd('pop', (next.lead + shout.at * (1 - next.lead)) * duration);
+    if (beatKey === 0) bell(1);
     for (const impact of next.impacts) {
       if (!impact.big) continue;
       timers.push(
@@ -342,6 +345,8 @@ export function MatchStage({
     }
     const running = playPlan(arrive, cast, (id) => figureRefs.current.get(id), (id) => jointRefs.current.get(id), u, figureW, 1500);
     setHype(true);
+    bell(3);
+    crowd('roar', 250);
     const loop: Animation[] = [];
     const timer = window.setTimeout(() => {
       const cheering = cast.filter((f) => cheers.has(f.id));
@@ -440,7 +445,7 @@ export function MatchStage({
             <div className="mv-until pointer-events-none absolute" style={{ left: sx(plan.centre) - 4 * u, top: 0, width: 8 * u, height: sy(28.2), animationDelay: `${when(0.86)}ms`, zIndex: 9 }} aria-hidden>
               <div className="absolute left-1/2 top-0 w-px bg-neutral-400/70" style={{ height: `calc(100% - ${2.6 * u}px)` }} />
               <div className="absolute inset-x-0 bottom-0" style={{ height: 2.8 * u }}>
-                {prize === 'case' ? <div className="absolute inset-x-[22%] inset-y-0 rounded-sm border border-neutral-900 bg-neutral-300" /> : <Belt />}
+                {prize === 'case' ? <div className="absolute inset-x-[22%] inset-y-0 rounded-sm border border-neutral-900 bg-neutral-300" /> : <Belt look={belt} />}
               </div>
             </div>
           )}
@@ -511,7 +516,8 @@ export function MatchStage({
                         else jointRefs.current.delete(id);
                       }}
                     />
-                    {won && aftermath?.belt && <Belt />}
+                    {won && aftermath?.belt && <Belt look={belt} />}
+                    {!staged && !over && champions?.has(id) && <Belt look={belt} at="waist" />}
                   </div>
                 </div>
               </div>

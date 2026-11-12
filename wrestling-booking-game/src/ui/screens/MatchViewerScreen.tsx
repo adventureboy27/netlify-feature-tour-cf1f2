@@ -19,6 +19,7 @@ import { MatchStage, type Aftermath, type Bystander, type StageFighter } from '.
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
 import { isNonDecisiveFinish } from '../../engine/sim/finish';
+import { setSoundOn, soundOn } from '../match/sound';
 import { callTheMatch } from '../../engine/sim/commentary';
 import { rngFromSeed } from '../../engine/rng';
 import { exhibitionOf, type WatchResult } from '../match/exhibition';
@@ -159,6 +160,7 @@ export function MatchViewerScreen({
   // How many lines of the whole call have been said so far.
   const [said, setSaid] = useState(0);
   const [linesShown, setLinesShown] = useState(0);
+  const [sound, setSound] = useState(soundOn);
 
   // Those nights keep the result of a match and not its beats: see exhibition.ts.
   const exhibition = useMemo(() => {
@@ -470,6 +472,11 @@ export function MatchViewerScreen({
   const holdsIt = world.titles.some((title) => segment.titleIds.includes(title.id) && title.currentHolderIds.some((id) => winnerIds.has(id)));
   const belt = segment.titleIds.length > 0 && winnerIds.size > 0 && (result.titleChanged || holdsIt);
   const aftermath: Aftermath | undefined = over ? { winners: winnerIds, belt } : undefined;
+  // The belt this match is for, and who walked in with it: whoever holds it
+  // now if it did not change hands, whoever held it before if it did.
+  const beltLook = world.titles.find((t) => segment.titleIds.includes(t.id));
+  const heldBefore = beltLook ? (result.titleChanged ? (beltLook.history[beltLook.history.length - 2]?.holderIds ?? []) : beltLook.currentHolderIds) : [];
+  const champions = new Set(heldBefore.filter((id) => combined.some((w) => w.id === id)));
   // Anybody really injured carries it from the moment it happened.
   const hurt = new Set([...(staging?.hurtFrom ?? [])].filter(([, at]) => beatIndex > at).map(([id]) => id));
   const injuredHere = (result.injuries ?? []).filter((injury) => combined.some((w) => w.id === injury.wrestlerId));
@@ -534,7 +541,19 @@ export function MatchViewerScreen({
         subtitle={titleNames.length > 0 ? titleNames.join(' & ') : undefined}
         onBack={onBack}
         right={
-          !done ? (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              data-testid="viewer-sound"
+              onClick={() => {
+                setSoundOn(!sound);
+                setSound(!sound);
+              }}
+              className="rounded bg-neutral-800 px-3 py-1.5 text-xs font-semibold text-neutral-300 hover:bg-neutral-700"
+            >
+              {sound ? 'Sound on' : 'Sound off'}
+            </button>
+            {!done ? (
             <button
               type="button"
               data-testid="viewer-skip"
@@ -551,7 +570,8 @@ export function MatchViewerScreen({
             >
               Back to results
             </button>
-          )
+          )}
+          </div>
         }
       />
 
@@ -574,6 +594,8 @@ export function MatchViewerScreen({
           bloody={bloody}
           prize={segment.titleIds.length > 0 ? 'belt' : 'case'}
           hurt={hurt}
+          belt={beltLook}
+          champions={champions}
           shed={over ? [...unmaskedIds.map((id) => ({ id, kind: 'mask' as const })), ...shavedIds.map((id) => ({ id, kind: 'hair' as const }))] : undefined}
         />
 
