@@ -800,7 +800,7 @@ interface Segment {
 interface SegmentRole {
   wrestlerId: string;
   side: number;              // 0, 1, 2... for teams; -1 for non-competitors
-  role: 'competitor' | 'manager' | 'referee' | 'announcer' | 'lumberjack';
+  role: 'competitor' | 'manager' | 'referee' | 'announcer';
 }
 ```
 
@@ -1214,7 +1214,7 @@ Rules screen is the model; each option is a real simulation input, not flavor.
 ```ts
 interface MatchRules {
   preset: 'singles' | 'tag' | 'sixMan' | 'triple' | 'fatal4' | 'battleRoyal'
-        | 'handicap' | 'gauntlet' | 'tornado';
+        | 'handicap' | 'tornado';
   format: 'individuals' | 'teams' | 'elimination';
   ruleStrictness: 'strict' | 'lenient' | 'none';   // DQ enforcement
   aim: 'firstFall' | 'twoOfThree' | 'ironMan' | 'lastStanding' | 'firstBlood'
@@ -1391,7 +1391,6 @@ interface DeckStacking {
   assignedReferee: RefereeAssignment | null;
   ringsideManagers: { wrestlerId: string; forSide: number }[];
   plannedRunIn: RunIn | null;
-  lumberjacks: string[];
   preMatchAngle: 'none' | 'beatdown' | 'hype' | 'sneakAttack';
   instructions: MatchInstruction;
 }
@@ -1423,7 +1422,6 @@ type MatchInstruction =
 | Run-in, late | +14 | Half fee; 20% backfire; DQ if rules strict |
 | Run-in, at finish | +18 | Half fee; forces DQ finish under strict rules |
 | Pre-match beatdown | +11 | Target loses 12 health; −6 their morale |
-| Lumberjacks (stacked) | +8 | Fees for each; +4 rating |
 | Opponent booked twice same night | +10 | −8 rating on both their matches |
 | Opponent injured/low health | up to +20 | Injury risk ×1.7 for them |
 | Stipulation archetype mismatch | +6 to the fitting archetype | −4 rating |

@@ -1230,7 +1230,6 @@ export interface MatchRules {
     | 'fatal4'
     | 'battleRoyal'
     | 'handicap'
-    | 'gauntlet'
     | 'tornado';
   format: 'individuals' | 'teams' | 'elimination';
   ruleStrictness: 'strict' | 'lenient' | 'none';
@@ -1278,7 +1277,6 @@ export interface DeckStacking {
   assignedReferee: RefereeAssignment | null;
   ringsideManagers: { wrestlerId: Id; forSide: number }[];
   plannedRunIn: RunIn | null;
-  lumberjacks: Id[];
   preMatchAngle: 'none' | 'beatdown' | 'hype' | 'sneakAttack';
   instructions: MatchInstruction;
 }
@@ -1424,7 +1422,7 @@ export type ShowType = 'tvTaping' | 'ppv' | 'houseShow' | 'charity';
 export interface SegmentRole {
   wrestlerId: Id;
   side: number; // 0, 1, 2... for teams; -1 for non-competitors
-  role: 'competitor' | 'manager' | 'referee' | 'lumberjack';
+  role: 'competitor' | 'manager' | 'referee';
 }
 
 export interface Segment {

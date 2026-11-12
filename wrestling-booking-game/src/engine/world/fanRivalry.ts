@@ -138,7 +138,6 @@ export function buildFanRivalryMatchSegment(
       assignedReferee: null,
       ringsideManagers: [],
       plannedRunIn: null,
-      lumberjacks: [],
       preMatchAngle: 'none',
       instructions: 'callItInTheRing',
     } satisfies DeckStacking,

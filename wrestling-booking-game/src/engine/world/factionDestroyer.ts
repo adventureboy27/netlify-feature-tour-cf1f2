@@ -92,7 +92,6 @@ export function buildForcedSegment(slot: number, stableA: Stable, stableB: Stabl
       assignedReferee: null,
       ringsideManagers: [],
       plannedRunIn: null,
-      lumberjacks: [],
       preMatchAngle: 'none',
       instructions: 'callItInTheRing',
     } satisfies DeckStacking,

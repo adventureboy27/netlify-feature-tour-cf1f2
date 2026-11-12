@@ -6312,3 +6312,12 @@ Written without rendering (the owner asked for no renders until told): everythin
 - Rendered and checked: render pass of legwear, weapons, cage, arena floor, injuries, endings; a stubbed
   title mask-vs-mask match end to end (new-champion line, unmasked line, injury plate); the Cup panel's
   Watch button clicked in the running app. 206 files / 3,514 tests; build clean.
+
+## Removed: gauntlet matches and lumberjacks
+
+Owner's call. Neither could be booked: `preset: 'gauntlet'`, `SegmentRole` 'lumberjack' and
+`DeckStacking.lumberjacks` existed in the types and the spec and nothing read or set them. Removed from
+`types.ts`, the three places that initialised an empty `lumberjacks`, and `booking-game-design.md`
+(the role, the preset, the field, and the "Lumberjacks (stacked)" row of the §10 table). The pay-per-view
+*name* "The Gauntlet" stays — it is a show name, not a match type. An old save's leftover empty
+`lumberjacks` array is ignored. 206 files / 3,513 tests; build clean.
