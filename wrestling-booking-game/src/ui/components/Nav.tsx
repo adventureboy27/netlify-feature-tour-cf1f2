@@ -12,6 +12,8 @@
 // So: a persistent left sidebar, always visible, nothing behind anything.
 
 import type { PromotionTheme } from './chrome';
+import { usePref } from './Hint';
+import type { ReactNode } from 'react';
 
 export type Screen =
   | 'office'
@@ -141,7 +143,10 @@ export function Sidebar({
   onNavigate,
   theme,
   officeBadge,
+  badges = {},
 }: {
+  /** Other destinations with something waiting. */
+  badges?: Partial<Record<Screen, boolean>>;
   screen: Screen;
   onNavigate: (screen: Screen) => void;
   theme: PromotionTheme;
@@ -149,12 +154,9 @@ export function Sidebar({
   officeBadge: boolean;
 }) {
   return (
-    <nav className="flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-neutral-800/80 bg-neutral-950/95 py-3">
+    <nav className="flex h-screen w-48 shrink-0 flex-col overflow-y-auto border-r border-neutral-800/80 bg-neutral-950/95 py-3">
       {SIDEBAR_GROUPS.map((group) => (
-        <div key={group.label} className="mb-3 px-2.5">
-          <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-600">
-            {group.label}
-          </div>
+        <SidebarGroup key={group.label} label={group.label} holdsCurrent={group.items.some((item) => item.id === screen)}>
           <div className="flex flex-col gap-0.5">
             {group.items.map((item) => {
               const active = screen === item.id;
@@ -164,23 +166,49 @@ export function Sidebar({
                   type="button"
                   onClick={() => onNavigate(item.id)}
                   aria-current={active ? 'page' : undefined}
+                  // The description is still here — on hover, and for a screen
+                  // reader — it just no longer takes three lines of the list.
+                  title={item.blurb}
                   className={`w-full rounded-lg px-2.5 py-1.5 text-left transition ${
                     active ? `${theme.ink} bg-neutral-900 shadow-panel` : 'text-neutral-400 hover:bg-neutral-900/70 hover:text-neutral-200'
                   }`}
                 >
                   <span className="flex items-center gap-1.5 text-[13px] font-semibold">
                     {item.label}
-                    {item.id === 'office' && officeBadge && (
+                    {((item.id === 'office' && officeBadge) || badges[item.id]) && (
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_6px_1px_rgba(251,191,36,0.7)]" />
                     )}
                   </span>
-                  <span className="mt-0.5 block text-[10.5px] leading-snug text-neutral-600">{item.blurb}</span>
+                  <span className="sr-only">{item.blurb}</span>
                 </button>
               );
             })}
           </div>
-        </div>
+        </SidebarGroup>
       ))}
     </nav>
+  );
+}
+
+/** The weekly loop and the roster stay open; the archive and the admin fold away until wanted. */
+const FOLDED_BY_DEFAULT = new Set(['History', 'Admin']);
+
+function SidebarGroup({ label, holdsCurrent, children }: { label: string; holdsCurrent: boolean; children: ReactNode }) {
+  const [folded, setFolded] = usePref(`nav.folded.${label}`, FOLDED_BY_DEFAULT.has(label));
+  // Never hide the screen you are on.
+  const open = !folded || holdsCurrent;
+  return (
+    <div className="mb-3 px-2.5">
+      <button
+        type="button"
+        onClick={() => setFolded(!folded)}
+        aria-expanded={open}
+        className="mb-1 flex w-full items-center justify-between px-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-600 hover:text-neutral-400"
+      >
+        {label}
+        <span aria-hidden>{open ? '–' : '+'}</span>
+      </button>
+      {open && children}
+    </div>
   );
 }

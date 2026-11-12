@@ -2,7 +2,7 @@
 // advance a week. §8's full weekly order (the office, travel, the world tick)
 // arrives with the milestones that own those systems; this is the spine they
 // hang on.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Id } from './engine/types';
 import { weekLine } from './engine/world/calendar';
 import { useGameStore } from './state/store';
@@ -38,6 +38,7 @@ import { Money } from './ui/components/display';
 import { promotionTheme } from './ui/components/chrome';
 import { PromotionMark } from './ui/components/PromotionMark';
 import { Sidebar, type Screen } from './ui/components/Nav';
+import { WeekStrip } from './ui/components/WeekStrip';
 import { getReducedMotionPreference } from './ui/reducedMotion';
 
 /** Before a world exists, the app is a much smaller state machine — the title screen and its two doors. */
@@ -61,6 +62,16 @@ export default function App() {
   // below), not a push — only drill-down screens grow this stack.
   const [navStack, setNavStack] = useState<NavTarget[]>([{ screen: 'booking' }]);
   const [preGameView, setPreGameView] = useState<PreGameView>('title');
+  // The week of the last show whose results have been looked at. A save that
+  // is continued counts whatever it already had as read.
+  const [readResultsWeek, setReadResultsWeek] = useState<number | null>(null);
+  const newestShowWeek = world?.showHistory[world.showHistory.length - 1]?.week ?? null;
+  const onResults = navStack[navStack.length - 1]!.screen === 'results';
+  const firstLook = useRef(true);
+  useEffect(() => {
+    if (firstLook.current || onResults) setReadResultsWeek(newestShowWeek);
+    if (world) firstLook.current = false;
+  }, [newestShowWeek, onResults, world]);
   const screen = navStack[navStack.length - 1]!.screen;
   const params = navStack[navStack.length - 1]!.params;
   const reduceMotion = getReducedMotionPreference();
@@ -80,6 +91,8 @@ export default function App() {
   }
 
   const lastShow = world.showHistory[world.showHistory.length - 1] ?? null;
+  // Results are "unread" from the moment a show runs until its page is opened.
+  const resultsUnread = Boolean(lastShow) && lastShow!.week !== readResultsWeek && screen !== 'results';
 
   function runShow() {
     if (world?.folded) {
@@ -121,7 +134,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-neutral-950">
-      <Sidebar screen={screen} onNavigate={resetTo} theme={theme} officeBadge={officeBadge} />
+      <Sidebar screen={screen} onNavigate={resetTo} theme={theme} officeBadge={officeBadge} badges={{ results: resultsUnread }} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* The status bar: who you are, what week it is, and what is in the
@@ -161,6 +174,20 @@ export default function App() {
               </div>
             </div>
           </div>
+          <WeekStrip
+            state={{
+              officeWaiting: (world.pendingEvent ? 1 : 0) + world.approachOffers.length,
+              booked: world.currentCard.filter((s) => new Set(s.participants.map((p) => p.side)).size >= 2).length,
+              slots: world.currentCard.length,
+              resultsUnread,
+              hasResults: Boolean(lastShow),
+              folded: Boolean(world.folded),
+            }}
+            screen={screen}
+            onNavigate={resetTo}
+            onRunShow={runShow}
+            accent={theme.action}
+          />
         </header>
 
         {/* Keyed off the *whole* nav target, not just the screen id — a

@@ -5,6 +5,7 @@
 // Kept deliberately small: singles only, no stipulation, no titles, no
 // managers, no referee picking. See engine/sim/darkMatch.ts for why.
 
+import { Hint } from './Hint';
 import { useGameStore } from '../../state/store';
 import { billedAs } from '../../engine/generate/nickname';
 import { findRivalry } from '../../engine/sim/rivalry';
@@ -30,13 +31,12 @@ export function DarkMatchSlots() {
 
   return (
     <section className="mt-4">
-      <h2 className="mb-1 text-sm font-medium text-neutral-300">Dark matches</h2>
-      <p className="mb-2 text-[11px] text-neutral-500">
+      <Hint id="darkMatches" title="Dark matches">
         Optional. These never air and never move the TV rating one bit — but the crowd in the building sees every
         second of them, the people in them develop exactly the same as anybody on the card, and it is a genuinely
         real match: it can go great, it can go horribly wrong, and it can hurt somebody just as badly as anything
         else on the night.
-      </p>
+      </Hint>
 
       <div className="flex flex-col gap-2">
         {world.currentDarkMatches.map((slot, index) => {

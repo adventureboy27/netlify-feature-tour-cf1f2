@@ -6370,3 +6370,22 @@ casket. No page or console errors; nobody left the picture. Two things fixed fro
 - Dark footwear has a pale edge so a raised boot reads against the crowd; a leg stripe carries over a bare knee.
 - Rendered: all of the above, plus the Iron Crown final ("THE IRON CROWN!", "Wins the Iron Crown").
   206 files / 3,515 tests; build clean.
+
+## Interface pass — the week as a loop, and less on screen at once
+
+Owner's report: the interface was very confusing; lose no content. Nothing was removed.
+- **Week strip** (`ui/components/WeekStrip.tsx`) under the header on every screen: Office › Card › Results
+  with what is outstanding on each, and one button for the next step (it runs the show from the card).
+  DESIGN: it reports counts and navigates; it never advises — a half-booked card still runs from it.
+- **Sidebar**: names only (descriptions on hover and for screen readers), 64 → 48 wide, History and Admin
+  folded by default and remembered, the group holding the current screen never hidden.
+- **First-week guide** on the card until the first show has run, dismissible: how the screen works, not
+  what to book.
+- **Promotion** is five tabs — Identity and titles, Tonight's show, Television, Equipment, Save file —
+  the same sections in the same order.
+- **Explanations fold away** (`ui/components/Hint.tsx`): shown in full once with "Got it", then a "?" beside
+  the heading. Applied to promos and dark matches.
+- **A quiet Office** says how much of the card is booked and where the card is.
+- Interface memory (read hints, folded groups) is in localStorage under `wbg.ui.v1`, not in the save.
+- Not done: other long screens (Office's eight tabs, Roster, Finance) were not restructured; only two
+  explanations use `Hint` so far. 206 files / 3,515 tests; build clean; rendered through one full week.

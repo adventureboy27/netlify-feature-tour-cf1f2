@@ -13,6 +13,7 @@
 
 import { useMemo } from 'react';
 import { useGameStore } from '../../state/store';
+import { usePref } from '../components/Hint';
 import { signedReferees, sharpnessLabel, refereeGrade, isAvailable } from '../../engine/sim/referees';
 import { Odds, HeatBadge } from '../components/display';
 import {
@@ -105,6 +106,7 @@ export function BookingScreen({
 
   return (
     <div className="p-6 text-neutral-100">
+      {world.showHistory.length === 0 && <FirstWeekGuide />}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           {tonightIsPPV ? (
@@ -640,5 +642,46 @@ function WhatTheyWant() {
         ))}
       </ul>
     </details>
+  );
+}
+
+/**
+ * How the screen works, the first week only.
+ *
+ * DESIGN: this explains the interface and nothing else. It says where to
+ * click to book a match; it does not say who to book, or that an empty slot
+ * is a bad idea. The game never warns the player before a bad decision, and
+ * a guide that did would be a way round that rule.
+ */
+function FirstWeekGuide() {
+  const [dismissed, setDismissed] = usePref('guide.firstWeek');
+  if (dismissed) return null;
+  const steps: [string, string][] = [
+    ['Pick a slot', 'Each box below is a match on tonight\u2019s show. Click one to choose who is in it.'],
+    ['Or fill it in one go', '\u201cFill the card\u201d books whatever is still empty. You can change any of it afterwards.'],
+    ['Run the show', 'The button at the top right plays the whole night. Results arrive all at once.'],
+    ['Then read the results', 'Every match gets a write-up, and a Watch button to see it played out.'],
+  ];
+  return (
+    <div data-testid="first-week-guide" className="mb-4 rounded-lg border border-sky-800/70 bg-sky-950/30 p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-300">Your first week — how this screen works</span>
+        <button type="button" onClick={() => setDismissed(true)} className="rounded bg-neutral-800 px-2 py-0.5 text-[11px] font-medium text-neutral-300 hover:bg-neutral-700">
+          Got it
+        </button>
+      </div>
+      <ol className="grid gap-2 sm:grid-cols-4">
+        {steps.map(([title, body], i) => (
+          <li key={title} className="rounded border border-neutral-800 bg-neutral-950/60 p-2">
+            <div className="text-xs font-semibold text-neutral-100">
+              <span className="mr-1.5 text-sky-400">{i + 1}</span>
+              {title}
+            </div>
+            <p className="mt-0.5 text-[11px] leading-snug text-neutral-400">{body}</p>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-[11px] text-neutral-500">The strip across the top of every screen shows where you are in the week. Everything else in the sidebar can wait.</p>
+    </div>
   );
 }

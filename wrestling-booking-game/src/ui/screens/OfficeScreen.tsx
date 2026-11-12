@@ -464,6 +464,11 @@ function DeskTab() {
       ) : (
         <p className="rounded border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-500">
           Dead quiet week around the office. Not a single soul at your door.
+          {/* Where the week is, when it is not here: a count, not advice. */}
+          <span className="mt-1 block text-xs text-neutral-600">
+            {world.currentCard.filter((s) => new Set(s.participants.map((p) => p.side)).size >= 2).length} of {world.currentCard.length} segments
+            on this week's card are booked. The card is the next stop along the top of the screen.
+          </span>
         </p>
       )}
 

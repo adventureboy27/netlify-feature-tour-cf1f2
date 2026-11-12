@@ -140,11 +140,34 @@ export function PromotionScreen() {
   const { venue } = projection;
   const livingRivals = world.rivals.filter((r) => r.closedWeek === null);
 
+  const [tab, setTab] = useState<PromotionTab>('identity');
   return (
     <div className="p-3 pb-6 text-neutral-100">
       <h1 className="mb-3 text-base font-semibold">The promotion</h1>
 
-      <IdentityPanel />
+      {/* One screen used to hold all of this in a single scroll. It is the
+          same content, in the same order, a section at a time. */}
+      <div className="mb-3 flex flex-wrap gap-1.5" role="tablist">
+        {PROMOTION_TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            data-testid={`promotion-tab-${t.id}`}
+            onClick={() => setTab(t.id)}
+            title={t.blurb}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold ${tab === t.id ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'identity' && <IdentityPanel />}
+
+      {tab === 'show' && (
+        <>
 
       {/* ---- projection ------------------------------------------------ */}
       <section className="mb-4 rounded border border-neutral-800 bg-neutral-900 p-3">
@@ -171,10 +194,16 @@ export function PromotionScreen() {
       </section>
 
       {/* ---- who is paying for all this -------------------------------- */}
-      <BroadcastPanel />
+        </>
+      )}
+
+      {tab === 'tv' && <BroadcastPanel />}
 
       {/* ---- getting things in and out --------------------------------- */}
-      <FileTransfer />
+      {tab === 'save' && <FileTransfer />}
+
+      {tab === 'show' && (
+        <>
 
       <ResidencyDeal />
 
@@ -302,6 +331,11 @@ export function PromotionScreen() {
         </div>
       </section>
 
+        </>
+      )}
+
+      {tab === 'gear' && (
+        <>
       {/* ---- capital purchases ------------------------------------------ */}
       <section>
         <h2 className="mb-2 text-sm font-medium text-neutral-300">Bought once — travels to every show</h2>
@@ -492,9 +526,20 @@ export function PromotionScreen() {
           })}
         </div>
       </section>
+        </>
+      )}
     </div>
   );
 }
+
+type PromotionTab = 'identity' | 'show' | 'tv' | 'gear' | 'save';
+const PROMOTION_TABS: { id: PromotionTab; label: string; blurb: string }[] = [
+  { id: 'identity', label: 'Identity and titles', blurb: 'Your name, your house style, your belts and your groups.' },
+  { id: 'show', label: "Tonight's show", blurb: 'The building, the ticket price, the stands and what tonight costs.' },
+  { id: 'tv', label: 'Television', blurb: 'Who broadcasts you and who sponsors you.' },
+  { id: 'gear', label: 'Equipment', blurb: 'What you own: the ring, the rig, and the ladders, cages and tables.' },
+  { id: 'save', label: 'Save file', blurb: 'Keep a copy of this save, or load one.' },
+];
 
 /**
  * Who you are. Editable until the first show goes out — after that the belts
