@@ -193,6 +193,17 @@ function PrizeArt({ kind, metal, jewel }: { kind: Exclude<PrizeKind, 'belt'>; me
   }
 }
 
+/** A prize on its own, filling whatever box it is put in: what hangs over a ladder match. */
+export function PrizeHung({ look }: { look?: BeltLook }) {
+  const kind = prizeKind(look);
+  if (kind === 'belt' || !look) return <Belt look={look} />;
+  return (
+    <div className="absolute inset-x-[30%] bottom-0" data-prize={kind}>
+      <PrizeArt kind={kind} metal={look.colorway.plate} jewel={JEWELS[hash(look.id) % JEWELS.length]!} />
+    </div>
+  );
+}
+
 /** A title's prize, whatever it is, where it belongs on the figure: `n` counts only the belts somebody is carrying. */
 export function Prize({ look, n, raised }: { look: BeltLook; n: number; raised: boolean }) {
   const kind = prizeKind(look);

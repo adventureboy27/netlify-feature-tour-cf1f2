@@ -14,7 +14,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArenaBack, ArenaFront, FEET_Y, VIEW, type Corner } from './Arena';
-import { Belt, Prize, prizeKind, type BeltLook } from './Belt';
+import { Prize, PrizeHung, prizeKind, type BeltLook } from './Belt';
 import { bell, crowd, hit, hitFor } from './sound';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
@@ -461,7 +461,7 @@ export function MatchStage({
             <div className="mv-until pointer-events-none absolute" style={{ left: sx(plan.centre) - 4 * u, top: 0, width: 8 * u, height: sy(28.2), animationDelay: `${when(0.86)}ms`, zIndex: 9 }} aria-hidden>
               <div className="absolute left-1/2 top-0 w-px bg-neutral-400/70" style={{ height: `calc(100% - ${2.6 * u}px)` }} />
               <div className="absolute inset-x-0 bottom-0" style={{ height: 2.8 * u }}>
-                {prize === 'case' ? <div className="absolute inset-x-[22%] inset-y-0 rounded-sm border border-neutral-900 bg-neutral-300" /> : <Belt look={belt} />}
+                {prize === 'case' ? <div className="absolute inset-x-[22%] inset-y-0 rounded-sm border border-neutral-900 bg-neutral-300" /> : <PrizeHung look={belt} />}
               </div>
             </div>
           )}
@@ -534,6 +534,8 @@ export function MatchStage({
                     />
                     {/* Up to four belts on one person: held up, round the waist, and over each shoulder. */}
                     {won && aftermath?.belt && carry(spoils?.get(id) ?? (belt ? [belt] : []), true)}
+                    {/* A champion who wins a match the belt was not on the line in still leaves wearing it. */}
+                    {won && aftermath && !aftermath.belt && carry(spoils?.get(id) ?? [], false)}
                     {!staged && !over && carry(champions?.get(id) ?? [], false)}
                   </div>
                 </div>

@@ -205,6 +205,8 @@ export function Thigh({ m, skin, gear, female = false }: { m: Mirror; skin: stri
       {/* The knee rides on the thigh and covers the joint: a pad, or just a knee. */}
       <ellipse cx={m(39.8)} cy={47} rx={gear.kneepads ? 8.6 : loose ? 8.4 : 7.4} ry={gear.kneepads ? 7 : 6} fill={kneeColor} {...(gear.kneepads ? LINE : {})} />
       {gear.kneepads && <ellipse cx={m(38.6)} cy={45.6} rx={4.6} ry={3} fill="#fff" opacity={0.14} />}
+      {/* The stripe carries on over a bare knee, so it is one line from hip to boot however the leg bends. */}
+      {gear.stripe && long && !gear.kneepads && <ellipse cx={m(34.4)} cy={47.6} rx={1.3} ry={4.2} fill={gear.stripe} />}
     </>
   );
 }
@@ -223,7 +225,8 @@ export function Shin({ m, skin, gear, female = false }: { m: Mirror; skin: strin
       {gear.footwear === 'barefoot' && long && <path d={shinFrom(m, female, 73)} fill={skin} {...LINE} />}
       {gear.stripe && long && !loose && <path d={`M ${m(34.6)},50 Q ${m(32.6)},61 ${m(35.6)},77`} stroke={gear.stripe} strokeWidth={2.2} fill="none" />}
 
-      {from !== null && <path d={shinFrom(m, female, from)} fill={gear.bootColor} {...LINE} />}
+      {/* Black leather against a dark crowd is a hole in the picture: dark footwear gets a pale edge so a raised boot still reads as one. */}
+      {from !== null && <path d={shinFrom(m, female, from)} fill={gear.bootColor} {...(gear.bootColor === BLACK ? { stroke: '#8a93a3', strokeOpacity: 0.85, strokeWidth: 0.7, strokeLinejoin: 'round' as const } : LINE)} />}
       {/* The band round the top of the boot: the leg's own shape, a few units of it. */}
       {from !== null && gear.footwear !== 'kickpads' && gear.footwear !== 'cowboy' && <path d={shinBand(m, female, from, from + (gear.footwear === 'boots' ? 3.6 : 2.2))} fill={gear.trim} />}
       {gear.footwear === 'boots' && <path d={`M ${m(39.9)},62 L ${m(39.9)},76`} stroke="#fff" strokeOpacity={0.25} strokeWidth={1.1} strokeDasharray="1.6 1.8" />}

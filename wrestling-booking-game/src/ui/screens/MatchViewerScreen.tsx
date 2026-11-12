@@ -21,6 +21,7 @@ import { conductOf, STANDARD } from '../match/conduct';
 import { isNonDecisiveFinish } from '../../engine/sim/finish';
 import { setSoundOn, soundOn } from '../match/sound';
 import { IRON_CROWN, prizeKind, type BeltLook } from '../match/Belt';
+import { heldComingOut, heldGoingIn } from '../match/titleNight';
 import { callTheMatch } from '../../engine/sim/commentary';
 import { rngFromSeed } from '../../engine/rng';
 import { exhibitionOf, type WatchResult } from '../match/exhibition';
@@ -482,7 +483,14 @@ export function MatchViewerScreen({
   // leaves with all of theirs. Read off who holds what now; for the titles
   // this match was for, "before" is the previous reign if it changed hands.
   const onTheLine = (title: Title) => segment.titleIds.includes(title.id);
-  const before = (title: Title) => (onTheLine(title) && result.titleChanged ? (title.history[title.history.length - 2]?.holderIds ?? []) : title.currentHolderIds);
+  // Read off each title's own history at the week this was fought, so a
+  // replay of an old show has the belts people held then, not the ones they
+  // hold now. A change on the night closes one reign and opens the next in
+  // the same week: "before" is the reign that began earlier, "after" the
+  // one still open when the week ended.
+  const nightOf = show?.week ?? (special?.kind === 'cup' ? world.lastCup?.week : world.lastSupershow?.week) ?? world.week;
+  const before = (title: Title) => heldGoingIn(title, nightOf, onTheLine(title) && result.titleChanged);
+  const after = (title: Title) => heldComingOut(title, nightOf);
   const carried = (holders: (title: Title) => readonly Id[]) =>
     new Map(
       combined
@@ -490,7 +498,7 @@ export function MatchViewerScreen({
         .filter(([, belts]) => belts.length > 0),
     );
   const champions: Map<Id, readonly BeltLook[]> = carried(before);
-  const spoils: Map<Id, readonly BeltLook[]> = carried((title) => title.currentHolderIds);
+  const spoils: Map<Id, readonly BeltLook[]> = carried(after);
   // The Iron Crown is not a title in the books, but whoever carries it wears
   // it — and the final of the tournament is the match it is won in.
   const crownFinal = special?.kind === 'cup' && special.index === (world.lastCup?.bouts.length ?? 0) - 1;
@@ -530,6 +538,7 @@ export function MatchViewerScreen({
   const beltName = titleNames.map((name) => String(name).replace(/\s+(championships?|titles?)$/i, '')).join(' & ');
   // A cup or a crown is won and kept, not "championed".
   const notABelt = titleNames.length > 0 && titleNames.every((name) => prizeKind({ name: String(name) } as BeltLook) !== 'belt');
+  const prizeWord = ({ cup: 'CUP', crown: 'CROWN', trophy: 'TROPHY', medal: 'MEDAL', ring: 'RING', case: 'BRIEFCASE', belt: 'TITLE' } as const)[prizeKind({ name: String(titleNames[0] ?? '') } as BeltLook)];
   const verdictLine = wonTheCrown
     ? 'Wins the Iron Crown'
     : belt
@@ -545,6 +554,8 @@ export function MatchViewerScreen({
       ? 'NO WINNER'
       : wonTheCrown
         ? 'THE IRON CROWN!'
+        : belt && notABelt
+        ? `${result.titleChanged ? 'WINS' : 'KEEPS'} THE ${prizeWord}!`
         : belt
         ? result.titleChanged
           ? winnerIds.size > 1

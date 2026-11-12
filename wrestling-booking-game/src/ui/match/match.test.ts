@@ -680,3 +680,29 @@ describe('closing out', () => {
     expect([w!.popularity, w!.health]).toEqual([before.pop, before.health]);
   });
 });
+
+describe('who held the belt on the night', () => {
+  const reign = (holderIds: string[], startWeek: number, endWeek: number | null) => ({ holderIds, startWeek, endWeek }) as never;
+  it('reads an old show from the history, not from today', async () => {
+    const { heldGoingIn, heldComingOut } = await import('./titleNight');
+    // a held it from week 1, lost it to b in week 10, who lost it to c in week 20.
+    const title = { history: [reign(['a'], 1, 10), reign(['b'], 10, 20), reign(['c'], 20, null)] };
+    // Week 5: a, in and out.
+    expect([heldGoingIn(title, 5, false), heldComingOut(title, 5)]).toEqual([['a'], ['a']]);
+    // The night it changed: a walked in with it, b walked out.
+    expect([heldGoingIn(title, 10, true), heldComingOut(title, 10)]).toEqual([['a'], ['b']]);
+    // A later match on a show long after: b, not today's champion c.
+    expect(heldGoingIn(title, 15, false)).toEqual(['b']);
+    expect(heldComingOut(title, 25)).toEqual(['c']);
+  });
+  it('a vacant title has nobody walking in, and a vacated one nobody walking out', async () => {
+    const { heldGoingIn, heldComingOut } = await import('./titleNight');
+    const won = { history: [reign(['a'], 7, null)] };
+    expect([heldGoingIn(won, 7, true), heldComingOut(won, 7)]).toEqual([[], ['a']]);
+    // The same reign, in a different match that night: a is already champion.
+    expect(heldGoingIn(won, 7, false)).toEqual(['a']);
+    const vacated = { history: [reign(['a'], 1, 9)] };
+    expect([heldGoingIn(vacated, 9, false), heldComingOut(vacated, 9)]).toEqual([['a'], []]);
+    expect(heldGoingIn({ history: [] }, 3, false)).toEqual([]);
+  });
+});

@@ -6359,3 +6359,14 @@ casket. No page or console errors; nobody left the picture. Two things fixed fro
   the rest are carried at the side and held up when won. The nameplate says "Wins / Keeps the …".
 - The Iron Crown (`world.crown`) is worn by whoever carries it, and won in the Crucible final.
 - Known limit: holders are read as they are now, so an old replay shows today's extra belts.
+
+## Match viewer — the open items from the belt and leg work
+
+- Belts on an old replay are read from each title's history for the week of the show
+  (`ui/match/titleNight.ts`, tested), not from today's holder. Vacant and vacated titles handled.
+- A champion who wins a non-title match leaves wearing their belts.
+- A cup, crown or trophy title: the big screen says "WINS / KEEPS THE CUP!", and that object, not a belt,
+  hangs over its ladder match.
+- Dark footwear has a pale edge so a raised boot reads against the crowd; a leg stripe carries over a bare knee.
+- Rendered: all of the above, plus the Iron Crown final ("THE IRON CROWN!", "Wins the Iron Crown").
+  206 files / 3,515 tests; build clean.
