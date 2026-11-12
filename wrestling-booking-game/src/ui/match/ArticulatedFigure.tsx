@@ -195,7 +195,7 @@ function Leg({
 /** A kendo stick: long, thin, and held at one end. */
 function Kendo({ at }: { at: { left: string; top: string } }) {
   return (
-    <svg viewBox="0 0 12 110" className="absolute" style={{ left: at.left, top: at.top, width: "5%", transform: "translate(-50%, -88%)" }} aria-hidden>
+    <svg viewBox="0 0 12 110" className="absolute" style={{ left: at.left, top: at.top, width: "9%", transform: "translate(-50%, -88%)" }} aria-hidden>
       <rect x={3} y={2} width={6} height={106} rx={3} fill="#d8b46a" stroke="#6b4a1c" strokeWidth={1.2} />
       <path d="M 3,24 L 9,24 M 3,48 L 9,48 M 3,72 L 9,72" stroke="#6b4a1c" strokeWidth={1.4} />
       <rect x={2.4} y={88} width={7.2} height={20} rx={3} fill="#2a2a30" />

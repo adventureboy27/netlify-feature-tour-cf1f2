@@ -437,7 +437,7 @@ export function MatchStage({
           )}
           {/* What the ladder is for: hanging over the ring until somebody gets a hand on it. */}
           {scene === 'ladder' && plan && (
-            <div className="mv-until pointer-events-none absolute" style={{ left: sx(plan.centre) - 4 * u, top: 0, width: 8 * u, height: sy(21), animationDelay: `${when(0.86)}ms`, zIndex: 2 }} aria-hidden>
+            <div className="mv-until pointer-events-none absolute" style={{ left: sx(plan.centre) - 4 * u, top: 0, width: 8 * u, height: sy(28.2), animationDelay: `${when(0.86)}ms`, zIndex: 9 }} aria-hidden>
               <div className="absolute left-1/2 top-0 w-px bg-neutral-400/70" style={{ height: `calc(100% - ${2.6 * u}px)` }} />
               <div className="absolute inset-x-0 bottom-0" style={{ height: 2.8 * u }}>
                 {prize === 'case' ? <div className="absolute inset-x-[22%] inset-y-0 rounded-sm border border-neutral-900 bg-neutral-300" /> : <Belt />}

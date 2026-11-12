@@ -245,14 +245,14 @@ export const ArenaBack = memo(function ArenaBack({
       {noRing ? (
         <g>
           {/* No ring: bare concrete, a painted mark where one would stand, and the barricade pulled in close on both sides. */}
-          <ellipse cx={600} cy={452} rx={372} ry={74} fill="#2a2d35" />
-          <ellipse cx={600} cy={452} rx={372} ry={74} fill="none" stroke={accent} strokeOpacity={0.45} strokeWidth={4} strokeDasharray="18 14" />
-          <path d="M 380,430 L 470,446 M 700,470 L 800,452 M 540,486 L 600,474" stroke="#15171c" strokeWidth={3} strokeLinecap="round" />
+          <ellipse cx={600} cy={408} rx={372} ry={62} fill="#2a2d35" />
+          <ellipse cx={600} cy={408} rx={372} ry={62} fill="none" stroke={accent} strokeOpacity={0.45} strokeWidth={4} strokeDasharray="18 14" />
+          <path d="M 380,392 L 470,408 M 700,432 L 800,414 M 540,448 L 600,436" stroke="#15171c" strokeWidth={3} strokeLinecap="round" />
           {[218, 982].map((x) => (
             <g key={x}>
-              <rect x={x - 26} y={352} width={52} height={112} rx={3} fill="#0e0f13" stroke="#2b2f38" strokeWidth={2} />
-              <rect x={x - 26} y={352} width={52} height={6} fill={accent} opacity={0.6} />
-              <path d={`M ${x - 14},366 L ${x - 14},458 M ${x},366 L ${x},458 M ${x + 14},366 L ${x + 14},458`} stroke="#23262e" strokeWidth={3} />
+              <rect x={x - 26} y={318} width={52} height={104} rx={3} fill="#0e0f13" stroke="#2b2f38" strokeWidth={2} />
+              <rect x={x - 26} y={318} width={52} height={6} fill={accent} opacity={0.6} />
+              <path d={`M ${x - 14},332 L ${x - 14},416 M ${x},332 L ${x},416 M ${x + 14},332 L ${x + 14},416`} stroke="#23262e" strokeWidth={3} />
             </g>
           ))}
         </g>
