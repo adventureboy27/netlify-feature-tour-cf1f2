@@ -87,6 +87,19 @@ const ROPE_WOBBLE: Keyframe[] = [
   { transform: 'translateY(0)' },
 ];
 const dirOf = (slot: 'left' | 'right'): 1 | -1 => (slot === 'left' ? 1 : -1);
+
+/**
+ * Where the cameras are: scattered through the stands (the band of the
+ * picture the crowd is drawn in), placed by arithmetic rather than by dice so
+ * they are in the same seats every time.
+ */
+const SPARKLES = Array.from({ length: 46 }, (_, i) => {
+  const a = Math.sin(i * 12.9898) * 43758.5453;
+  const b = Math.sin(i * 78.233) * 12543.123;
+  const c = Math.sin(i * 37.719) * 9631.77;
+  const frac = (n: number) => n - Math.floor(n);
+  return { x: 2 + frac(a) * 96, y: 27 + frac(b) * 29, size: 1.6 + frac(c) * 2.6, delay: frac(a + b) * 2.4, every: 1.1 + frac(b + c) * 1.7 };
+});
 const frame = (at: number, pose: WorldPose, stance?: WorldFrame['stance']): WorldFrame => ({ at, ...pose, sy: 1, stance });
 const planOf = (tracks: Map<Id, WorldFrame[]>): Plan => ({
   tracks,
@@ -413,6 +426,17 @@ export function MatchStage({
               style={{ left: (262 / VIEW.w) * w, width: (676 / VIEW.w) * w, top: (462 / VIEW.h) * h, height: (70 / VIEW.h) * h, fontSize: Math.min(3.4, 68 / Math.max(8, promotionName.length)) * u }}
             >
               {promotionName}
+            </div>
+          )}
+
+          {/* A champion with the belt in the air: every camera in the building
+              goes off. Flashes scattered through the crowd, behind the ring,
+              each on its own beat so the stands glitter rather than blink. */}
+          {aftermath?.belt && (
+            <div className="pointer-events-none absolute inset-0" style={{ zIndex: 1 }} data-testid="camera-flashes" aria-hidden>
+              {SPARKLES.map((s, i) => (
+                <span key={i} className="mv-sparkle absolute" style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size * u, height: s.size * u, animationDelay: `${s.delay}s`, animationDuration: `${s.every}s` }} />
+              ))}
             </div>
           )}
 
