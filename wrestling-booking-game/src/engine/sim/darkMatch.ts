@@ -36,6 +36,7 @@ import { computeAftermath, type AftermathChange } from './aftermath';
 import { rollCasualty, stoppageCasualty, injuryFrom, outFor, type Casualty } from './casualties';
 import { houseStyleRatingBonus } from './houseStyle';
 import { workingHurtRisk } from '../world/titleDefence';
+import { stoppageVictimOf } from './interpromotional';
 
 export interface DarkMatchContext {
   rules: MatchRules;
@@ -85,7 +86,8 @@ export function resolveDarkMatch(
   // A stretcher job still has to be able to say who and why, whether or not
   // anybody outside the building ever finds out.
   if (sim.finish === 'injuryStoppage') {
-    const hurt = people.find((p) => !sim.winnerWrestlerIds.includes(p.id));
+    const victimId = stoppageVictimOf(sim.finish, sim.winnerWrestlerIds, people.map((p) => p.id));
+    const hurt = people.find((p) => p.id === victimId);
     if (hurt && !hurt.injury) {
       const casualty = stoppageCasualty(rng, {
         personId: hurt.id,

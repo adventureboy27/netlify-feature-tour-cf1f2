@@ -10,8 +10,10 @@
 
 import type { Rng } from '../rng';
 import { clamp } from '../rng';
-import type { Id, MatchRules, Tournament, Wrestler, WorldSettings, Promotion } from '../types';
+import type { Id, MatchBeat, MatchRules, Tournament, Wrestler, WorldSettings, Promotion } from '../types';
 import { simulateMatch, type SimParticipant } from '../sim/simulateMatch';
+import { computeAftermath, type AftermathChange } from '../sim/aftermath';
+import { stoppageVictimOf } from '../sim/interpromotional';
 import {
   createTournament,
   bookableMatches,
@@ -46,6 +48,16 @@ export interface CupBout {
   rating: number;
   /** Straight from the sim, so the write-up can say how it ended. */
   finish: string;
+  /** The match as the sim played it, so it can be watched like any other. */
+  beats: MatchBeat[];
+  rules: MatchRules;
+  isMainEvent: boolean;
+  /** What the match does to each of the two: the same rules as a card's own match. */
+  aftermath: AftermathChange[];
+  /** Who was hurt, set by the caller that rolls the casualties. */
+  injuries?: { wrestlerId: Id; name: string; role: string; text: string; outFor: string }[];
+  /** Set by the caller that books the announcers. */
+  commentary?: { speaker: 'play' | 'colour'; name: string; text: string; beat?: number; actorId?: string; targetId?: string }[];
 }
 
 export interface CupResult {
@@ -202,6 +214,8 @@ export function runCup(rng: Rng, ctx: CupRunContext): CupResult | null {
         ? clamp(result.rating + ctx.settings.tournamentFinalRatingBonus, 3, 100)
         : result.rating;
 
+      const bothWrestlers = [byId.get(aId), byId.get(bId)].filter((w): w is Wrestler => Boolean(w));
+      const stopped = stoppageVictimOf(result.finish, result.winnerWrestlerIds, [aId, bId]);
       bouts.push({
         round: tie.round,
         roundLabel: roundName(tie.round, totalRounds(tournament)),
@@ -210,6 +224,19 @@ export function runCup(rng: Rng, ctx: CupRunContext): CupResult | null {
         winnerId,
         rating,
         finish: result.finish,
+        beats: result.beats,
+        rules: CUP_RULES,
+        isMainEvent: isFinalTie,
+        aftermath: computeAftermath({
+          participants: bothWrestlers,
+          winnerIds: result.winnerWrestlerIds,
+          finish: result.finish,
+          rating,
+          stipulation: null,
+          isMainEvent: isFinalTie,
+          couldNotContinueIds: stopped ? [stopped] : [],
+          settings: ctx.settings,
+        }),
       });
 
       tournament = recordResult(tournament, tie.id, winnerId);

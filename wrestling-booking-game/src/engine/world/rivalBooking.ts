@@ -17,9 +17,16 @@
 // talent away and their shows get worse.
 
 import type { Rng } from '../rng';
+import { stoppageVictimOf } from '../sim/interpromotional';
+
+/** The one who could not go on, as a list for the aftermath (empty when nobody was stopped). */
+const stopped = (finish: FinishType, winnerIds: readonly Id[], people: readonly Wrestler[]): Id[] => {
+  const victim = stoppageVictimOf(finish, winnerIds, people.map((w) => w.id));
+  return victim ? [victim] : [];
+};
 import { isSuspended } from '../career/discipline';
 import { chance, clamp, randInt } from '../rng';
-import type { FinishType, Id, MatchRules, Promotion, Segment, Stable, Title, Wrestler, WorldSettings, WrestlingStyle } from '../types';
+import type { FinishType, Id, MatchBeat, MatchRules, Promotion, Segment, Stable, Title, Wrestler, WorldSettings, WrestlingStyle } from '../types';
 import { availableTeams } from './tagTeams';
 import { simulateMatch, type SimParticipant } from '../sim/simulateMatch';
 import { computeShowRating, ratingToStars, TV_SLOT_WEIGHTS } from '../economy/showRating';
@@ -54,7 +61,7 @@ import { stipulationById } from '../../data/stipulations';
  * under normal rules. The AI does not book gimmick rules it cannot reason
  * about; its variety comes from its signature stipulation, below.
  */
-const RIVAL_MATCH_RULES: MatchRules = {
+export const RIVAL_MATCH_RULES: MatchRules = {
   preset: 'singles',
   format: 'individuals',
   ruleStrictness: 'lenient',
@@ -121,6 +128,20 @@ export interface RivalMatch {
   teamIds?: [Id, Id];
   /** Which side won, so the caller can credit the right team. */
   winnerSide: number | null;
+  /**
+   * The match as the sim played it — the same beats a card's own match has,
+   * so a joint show's match can be watched the same way. Kept on the result
+   * rather than re-run, because the sim's answer is the one that counts.
+   */
+  beats: MatchBeat[];
+  rules: MatchRules;
+  isMainEvent: boolean;
+  /** The sim's injury multiplier for this match, so casualties can be rolled the same way the card rolls them. */
+  injuryMultiplier: number;
+  /** The call, when a booker's announcers made one. Set by the caller, not here. */
+  commentary?: { speaker: 'play' | 'colour'; name: string; text: string; beat?: number; actorId?: string; targetId?: string }[];
+  /** Who was hurt, and how — set by the caller that rolls the casualties. */
+  injuries?: { wrestlerId: Id; name: string; role: string; text: string; outFor: string }[];
 }
 
 /** A talking segment on a rival's show. */
@@ -462,6 +483,10 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
       stipulationId,
       teamIds: booked.teamIds,
       winnerSide: result.winnerSide,
+      beats: result.beats,
+      rules: RIVAL_MATCH_RULES,
+      isMainEvent,
+      injuryMultiplier: result.injuryMultiplier,
       aftermath: computeAftermath({
         participants: everyone,
         winnerIds: result.winnerWrestlerIds,
@@ -469,6 +494,8 @@ export function runRivalShow(rng: Rng, ctx: RivalBookingContext): RivalShow | nu
         rating: result.rating,
         stipulation,
         isMainEvent,
+        // Stopped is stopped, however the rest of the card reads it.
+        couldNotContinueIds: stopped(result.finish, result.winnerWrestlerIds, everyone),
         promotion: ctx.promotion,
         settings: ctx.settings,
       }),

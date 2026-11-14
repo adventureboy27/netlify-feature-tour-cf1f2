@@ -22,9 +22,7 @@ import { isNonDecisiveFinish } from '../../engine/sim/finish';
 import { setSoundOn, soundOn } from '../match/sound';
 import { IRON_CROWN, prizeKind, type BeltLook } from '../match/Belt';
 import { heldComingOut, heldGoingIn } from '../match/titleNight';
-import { callTheMatch } from '../../engine/sim/commentary';
-import { rngFromSeed } from '../../engine/rng';
-import { exhibitionOf, type WatchResult } from '../match/exhibition';
+import type { WatchResult, WatchSegment } from '../match/exhibition';
 import type { Corner } from '../match/Arena';
 import { CUP_NAME } from '../../engine/world/cup';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -164,73 +162,56 @@ export function MatchViewerScreen({
   const [linesShown, setLinesShown] = useState(0);
   const [sound, setSound] = useState(soundOn);
 
-  // Those nights keep the result of a match and not its beats: see exhibition.ts.
-  const exhibition = useMemo(() => {
+  // A match from a joint show or the Crucible is played back from the same
+  // stored record as any other match: its beats, its call, its injuries.
+  const exhibition = useMemo((): { segment: WatchSegment; result: WatchResult } | null => {
     if (!world || !special) return null;
-    // Nobody recorded a call for these nights, so the house announcers call
-    // the re-creation: the same caller the player's own shows use, seeded off
-    // the match so it says the same thing every time it is watched.
-    const called = (made: ReturnType<typeof exhibitionOf>, key: string, isMain: boolean) => {
-      const team = world.promotion.commentaryTeam;
-      const people = (side: number) => made.segment.participants.filter((p) => p.side === side).map((p) => world.wrestlers[p.wrestlerId]).filter((w): w is Wrestler => Boolean(w));
-      const [a, b] = [people(0), people(1)];
-      if (!world.settings.commentaryEnabled || !team || a.length === 0 || b.length === 0) return made;
-      const commentary = callTheMatch(rngFromSeed(`${world.settings.seed}-exhibition-${key}`), {
-        team,
-        sideA: a,
-        sideB: b,
-        winningSide: made.result.winnerSide === null ? null : made.result.winnerSide === 0 ? 'a' : 'b',
-        managers: [],
-        refereeName: null,
-        guestRefereeName: null,
-        refereeMiss: null,
-        titles: [],
-        championName: null,
-        championWeeks: 0,
-        titleChanged: false,
-        stipulationName: null,
-        shootHeat: 0,
-        isMainEvent: isMain,
-        finish: made.result.finish,
-        rating: 70,
-        beats: made.result.beats,
-        injuries: [],
-        hurtComingIn: null,
-        incidentText: null,
-        crowd: 'hot',
-        upset: false,
-        formerChampionName: null,
-        formerChampionTitle: null,
-        otherBeltHolderName: null,
-        otherBeltName: null,
-        onATearName: null,
-        onATearRun: 0,
-        slumpingName: null,
-        slumpingRun: 0,
-        debutantName: null,
-        secondGenName: null,
-        secondGenParentName: null,
-        oldHandName: null,
-        oldHandYears: 0,
-        timesMet: 0,
-        feudWeeks: 0,
-        feudMatches: 0,
-        isBlowoff: false,
-        townName: world.territories.find((t) => t.id === world.promotion.homeTerritoryId)?.name ?? world.territories[0]?.name ?? 'town',
-        weatherLine: null,
-        isPPV: true,
-        settings: world.settings,
-      });
-      return { ...made, result: { ...made.result, commentary } };
-    };
     if (special.kind === 'cup') {
       const bout = world.lastCup?.bouts[special.index];
-      return bout ? called(exhibitionOf([[bout.aId], [bout.bId]], [bout.winnerId], bout.finish as FinishType), `cup-${world.lastCup!.year}-${special.index}`, special.index === world.lastCup!.bouts.length - 1) : null;
+      if (!bout || !bout.beats) return null;
+      const winnerSide = bout.winnerId === bout.aId ? 0 : 1;
+      return {
+        segment: {
+          participants: [
+            { wrestlerId: bout.aId, side: 0, role: 'competitor' as const },
+            { wrestlerId: bout.bId, side: 1, role: 'competitor' as const },
+          ],
+          stipulation: null,
+          rules: bout.rules,
+          titleIds: [],
+          managerIds: [],
+        },
+        result: {
+          beats: bout.beats,
+          commentary: bout.commentary ?? [],
+          finish: bout.finish as FinishType,
+          winnerSide,
+          winnerWrestlerIds: [bout.winnerId],
+          titleChanged: false,
+          injuries: bout.injuries ?? [],
+        } satisfies WatchResult,
+      };
     }
     const match = world.lastSupershow?.show.matches[special.index];
-    if (!match) return null;
-    const side = (n: number) => match.participantIds.filter((_, i) => match.sides[i] === n);
-    return called(exhibitionOf([side(0), side(1)], match.winnerSide === null ? [] : match.winnerIds, match.finish, match.stipulationId), `supershow-${world.lastSupershow!.week}-${special.index}`, special.index === world.lastSupershow!.show.matches.length - 1);
+    if (!match || !match.beats) return null;
+    return {
+      segment: {
+        participants: match.participantIds.map((wrestlerId, i) => ({ wrestlerId, side: match.sides[i] ?? 0, role: 'competitor' as const })),
+        stipulation: match.stipulationId,
+        rules: match.rules,
+        titleIds: [],
+        managerIds: [],
+      },
+      result: {
+        beats: match.beats,
+        commentary: match.commentary ?? [],
+        finish: match.finish,
+        winnerSide: match.winnerSide,
+        winnerWrestlerIds: match.winnerIds,
+        titleChanged: false,
+        injuries: match.injuries ?? [],
+      } satisfies WatchResult,
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [special?.kind, special?.index, world?.lastCup, world?.lastSupershow]);
   const show = special ? undefined : world?.showHistory.find((s) => s.week === matchWeek);

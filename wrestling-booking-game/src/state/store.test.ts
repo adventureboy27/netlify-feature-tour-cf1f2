@@ -2008,6 +2008,13 @@ describe('the joint show', () => {
     const after = tally();
     const result = useGameStore.getState().world!.lastSupershow!;
     expect(result.show.matches.length).toBeGreaterThan(0);
+    // A joint-show match is played the same way as any other: it has its
+    // beats to be watched by, and its injuries (if any) are on the record.
+    for (const match of result.show.matches) {
+      expect(match.beats.length).toBeGreaterThan(0);
+      expect(match.rules).toBeTruthy();
+      expect(Array.isArray(match.injuries)).toBe(true);
+    }
     for (const match of result.show.matches) {
       for (const id of match.participantIds) {
         // Worked once more than before, whatever else happened to them.

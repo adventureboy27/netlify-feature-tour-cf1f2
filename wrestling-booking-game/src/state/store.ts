@@ -364,6 +364,7 @@ import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/h
 import { driftFanTaste, styleRunShare } from '../engine/world/fanTaste';
 import { computeAftermath, applyAftermath, restWeek, tallyMatch } from '../engine/sim/aftermath';
 import { resolveDarkMatch } from '../engine/sim/darkMatch';
+import { stoppageVictimOf } from '../engine/sim/interpromotional';
 import { runRivalShow, canWork, type RivalShow } from '../engine/world/rivalBooking';
 import {
   openingOffer,
@@ -2383,7 +2384,10 @@ export const useGameStore = create<GameStore>()(
           // A stretcher job actually puts somebody out — that is what makes
           // the finish worth fearing rather than just worth fewer points.
           if (result.finish === 'injuryStoppage') {
-            const hurt = participantWrestlers.find((p) => !result.winnerWrestlerIds.includes(p.id));
+            // The stoppage rule lives in one place: the one who could not go
+            // on is the one who lost, and that is who is carried out.
+            const victimId = stoppageVictimOf(result.finish, result.winnerWrestlerIds, participantIds);
+            const hurt = participantWrestlers.find((p) => p.id === victimId);
             if (hurt && !hurt.injury) {
               putOut(
                 stoppageCasualty(rng, {

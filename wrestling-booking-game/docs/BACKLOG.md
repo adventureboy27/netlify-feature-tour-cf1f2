@@ -6418,3 +6418,30 @@ Owner's brief: not frustrating, interesting, above all fun — and nothing the p
 - **Quick start** on the new-game screen: the standard company in one click; the full setup is still below.
 - Not measured: whether any of this is fun. That needs somebody to play ten weeks.
 - 206 files / 3,515 tests; build clean; rendered through new game → first results.
+
+## Joint shows and the Crucible play by the same rules as every other match
+
+Owner's direction: no reason for interpromotional matches to differ; a stoppage gives the win to the one
+who was not hurt (never on a DQ); a match that cannot happen touches no record.
+- **Played and recorded the same way.** Each joint-show match and each Crucible bout keeps the sim's beats,
+  rules and aftermath, is called by the player's announcers (`engine/sim/interpromotional.ts`,
+  `callInterpromotional`, seeded from the match), and is watched from that record. The viewer's
+  re-created "exhibition" is gone; `ui/match/exhibition.ts` now holds only the viewer's types.
+- **Injuries and the body.** These nights previously never hurt anybody. Casualties are rolled per match
+  (`rollMatchCasualties`, on seeded streams, so the rest of the week is unchanged) and put on the person by
+  `putCasualtyOn`, the same rules as the televised card.
+- **The record and the body.** Each person in those matches gets `applyAftermath` (momentum, popularity,
+  health, record, career marks) instead of the record alone. The night's own money, morale and §16 swings
+  are unchanged and still on top.
+- **Stoppage.** One rule, `stoppageVictimOf`: the one who could not go on loses; the healthy opponent wins;
+  a disqualification is not a stoppage. The televised card, dark matches, joint shows and the Crucible all
+  call it. Tests hold it.
+- **No record for a match that cannot happen.** Audited: a cancelled night, a segment pulled when no
+  stand-in exists, a joint-show match that is struck, and a side left empty all produce no match and so no
+  record. Only matches with two live sides reach the tally.
+- Not done: Breakfast Belt bouts (a sponsor tournament of the player's own roster) still have no replay.
+  Joint shows and Crucibles played before this change have no stored beats, so their Watch button reports
+  the match as no longer on file.
+- Tests: `interpromotional.test.ts` (stoppage rule, casualties, no re-roll of the hurt); store test checks
+  every joint-show match has beats, rules and injuries. 207 files / 3,517 tests; build clean. A Crucible was
+  run in the browser and played back from the stored record.

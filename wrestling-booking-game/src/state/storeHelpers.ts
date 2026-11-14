@@ -45,7 +45,8 @@ import type { StorylineBeatKind } from '../data/storylineBeats';
 import { findRivalry, createRivalry } from '../engine/sim/rivalry';
 import { resolveConfrontation } from '../engine/sim/confrontation';
 import { promoShowContribution } from '../engine/sim/promo';
-import { gradeFromLength, severityOf } from '../engine/sim/casualties';
+import { gradeFromLength, severityOf, aggravate, weeksFromGrade, aggravationLine, outFor, type Casualty } from '../engine/sim/casualties';
+import { stipulationById } from '../data/stipulations';
 import { recordInjury } from '../engine/career/theBody';
 import { wire, biddingOpenedLine, biddingSettledLine, retirementLine } from '../engine/world/wire';
 import { retire } from '../engine/career/retirement';
@@ -63,7 +64,10 @@ import { kindForSize } from '../engine/world/tagTeams';
 import { grudgeAgainst, grudgeLine, rememberNight } from '../engine/world/grudges';
 import { creditPay } from '../engine/career/ledger';
 import { ledgerOf } from '../engine/career/ledgerAccess';
-import { tallyMatch } from '../engine/sim/aftermath';
+import { applyAftermath, computeAftermath } from '../engine/sim/aftermath';
+import { callInterpromotional, rollMatchCasualties } from '../engine/sim/interpromotional';
+import type { Injury } from '../engine/types';
+import { rngFromSeed } from '../engine/rng';
 import { crossPromoStakes } from '../engine/world/supershow';
 import { clampMorale } from '../engine/career/morale';
 import { broadcasterById } from '../data/broadcasters';
@@ -725,14 +729,75 @@ export function settleSupershow(world: World, rng: Rng): void {
     );
   }
 
-  // The record. Every match on the card counts on the books of everybody
-  // who worked it, exactly as a match on anybody's own show does.
-  for (const match of result.show.matches) {
-    for (const change of match.aftermath) {
+  // Every match on the card is a match: it is judged by the same rules as
+  // one on the player's own show. Injuries are rolled (on their own seeded
+  // stream, so the rest of the week is not reshuffled), the record and the
+  // body are changed the same way, and the night gets its own call.
+  // A match that never happened is not in result.show.matches at all, so it
+  // cannot reach any of this.
+  const town = world.territories.find((t) => t.id === booking.deal.hostTerritoryId)?.name ?? 'the venue';
+  result.show.matches.forEach((match, index) => {
+    const people = match.participantIds.map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
+    if (people.length < 2) return;
+    const stipulation = match.stipulationId ? (stipulationById(match.stipulationId) ?? null) : null;
+    const { casualties, stoppedIds } = rollMatchCasualties(
+      rngFromSeed(`joint-casualties:${world.settings.seed}:${world.week}:${index}`),
+      {
+        finish: match.finish,
+        winnerIds: match.winnerIds,
+        beats: match.beats,
+        people,
+        injuryMultiplier: match.injuryMultiplier,
+        week: world.week,
+        settings: world.settings,
+        stipulationId: match.stipulationId,
+      },
+    );
+    for (const { casualty, injury } of casualties) putCasualtyOn(world, casualty, injury);
+    match.injuries = casualties.map(({ casualty }) => ({
+      wrestlerId: casualty.personId,
+      name: casualty.name,
+      role: casualty.role,
+      text: casualty.text,
+      outFor: outFor(casualty.weeks, world.settings),
+    }));
+    const changes = computeAftermath({
+      participants: people,
+      winnerIds: match.winnerIds,
+      finish: match.finish,
+      rating: match.rating,
+      stipulation,
+      isMainEvent: match.isMainEvent,
+      couldNotContinueIds: stoppedIds,
+      settings: world.settings,
+    });
+    for (const change of changes) {
       const person = world.wrestlers[change.wrestlerId];
-      if (person) tallyMatch(person, change.outcome, match.rating);
+      if (person) applyAftermath(person, change, world.settings, match.rating);
     }
-  }
+    const sides = [0, 1].map((side) => match.participantIds.filter((_, i) => match.sides[i] === side).map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w)));
+    const team = world.promotion.commentaryTeam;
+    if (world.settings.commentaryEnabled && team && sides[0]!.length > 0 && sides[1]!.length > 0) {
+      match.commentary = callInterpromotional(
+        rngFromSeed(`joint-call:${world.settings.seed}:${world.week}:${index}`),
+        team,
+        {
+          sideA: sides[0]!,
+          sideB: sides[1]!,
+          winningSide: match.winnerSide === null ? null : match.winnerSide === 0 ? 'a' : 'b',
+          finish: match.finish,
+          rating: match.rating,
+          beats: match.beats,
+          injuries: (match.injuries ?? []).map((i) => ({ name: i.name, text: i.text })),
+          isMainEvent: match.isMainEvent,
+          titleName: null,
+          titleChanged: false,
+        },
+        world.settings,
+        town,
+      );
+    }
+  });
 
   // The money. The company banks its share of a gate neither of them
   // could have drawn alone, and pays its own people out of it.
@@ -1881,4 +1946,37 @@ export function couldInvade(
     }
   }
   return invaders;
+}
+
+/**
+ * Put a casualty from a match onto the person it happened to.
+ *
+ * The same rules as an injury in the televised card: it costs health, it
+ * stacks onto an injury already carried (keeping the worse of the two), it
+ * goes into the permanent history, and the player reads about it. The
+ * televised card has its own copy of this in store.ts; a night that is not
+ * on television uses this one, so the two cannot drift apart silently.
+ */
+export function putCasualtyOn(world: World, casualty: Casualty, injury: Injury): void {
+  const person = world.wrestlers[casualty.personId];
+  if (!person) return;
+  person.health = clamp(person.health - world.settings.casualtyHealthCost, 0, 100);
+  person.career.longestInjuryWeeks = Math.max(person.career.longestInjuryWeeks, casualty.weeks);
+  const existing = person.injury;
+  if (existing) {
+    const before = existing.severity;
+    const worse = aggravate(existing.grade, injury.grade, world.settings);
+    person.injury = {
+      ...existing,
+      grade: worse,
+      severity: severityOf(worse, world.settings),
+      weeksRemaining: weeksFromGrade(worse, world.settings),
+      totalWeeks: Math.max(existing.totalWeeks, weeksFromGrade(worse, world.settings)),
+    };
+    world.weeklyNews.push(wire('misfortune', aggravationLine(person.name, before, person.injury.severity), world.week + 1, 'normal'));
+  } else {
+    person.injury = injury;
+  }
+  person.injuryHistory = recordInjury(person.injuryHistory ?? [], injury, world.settings.startingYear + Math.floor(world.week / 52));
+  person.clearedToWorkHurt = false;
 }

@@ -10,7 +10,11 @@ import { clamp } from '../../engine/rng';
 import { wire } from '../../engine/world/wire';
 import { creditPay } from '../../engine/career/ledger';
 import { ledgerOf } from '../../engine/career/ledgerAccess';
-import { tallyMatch } from '../../engine/sim/aftermath';
+import { applyAftermath } from '../../engine/sim/aftermath';
+import { callInterpromotional, rollMatchCasualties } from '../../engine/sim/interpromotional';
+import { putCasualtyOn } from '../storeHelpers';
+import { outFor } from '../../engine/sim/casualties';
+import { rngFromSeed } from '../../engine/rng';
 import { canWork } from '../../engine/world/rivalBooking';
 import {
   willEnter,
@@ -26,7 +30,7 @@ import {
   CUP_TROPHY,
 } from '../../engine/world/cup';
 import { runCup, cupStandingFor } from '../../engine/world/cupRun';
-import type { Id, Wrestler } from '../../engine/types';
+import type { FinishType, Id, Wrestler } from '../../engine/types';
 
 type CupSlice = Pick<GameStore, 'answerCupEntry' | 'dismissCupResult'>;
 
@@ -83,15 +87,61 @@ export const createCupSlice: StateCreator<GameStore, [['zustand/immer', never]],
 
       world.lastCup = result;
 
-      // Every bout in the bracket is a real match with a winner and a loser,
-      // and goes on both records.
-      for (const bout of result.bouts) {
-        const loserId = bout.winnerId === bout.aId ? bout.bId : bout.aId;
-        const winner = world.wrestlers[bout.winnerId];
-        const loser = world.wrestlers[loserId];
-        if (winner) tallyMatch(winner, 'win', bout.rating);
-        if (loser) tallyMatch(loser, 'loss', bout.rating);
-      }
+      // Every bout in the bracket is a match, judged by the same rules as
+      // one on the player's own show: injuries rolled on their own seeded
+      // stream, the record and the body changed the same way, and the night
+      // called by the announcers. Nothing here is special-cased for the
+      // Crucible; it is a tournament of ordinary matches.
+      const crucibleTown = world.territories.find((t) => t.id === world.promotion.homeTerritoryId)?.name ?? 'the venue';
+      result.bouts.forEach((bout, index) => {
+        const people = [bout.aId, bout.bId].map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
+        if (people.length < 2) return;
+        const { casualties } = rollMatchCasualties(
+          rngFromSeed(`crucible-casualties:${world.settings.seed}:${result.year}:${index}`),
+          {
+            finish: bout.finish as FinishType,
+            winnerIds: [bout.winnerId],
+            beats: bout.beats,
+            people,
+            injuryMultiplier: 1,
+            week: world.week,
+            settings: world.settings,
+          },
+        );
+        for (const { casualty, injury } of casualties) putCasualtyOn(world, casualty, injury);
+        bout.injuries = casualties.map(({ casualty }) => ({
+          wrestlerId: casualty.personId,
+          name: casualty.name,
+          role: casualty.role,
+          text: casualty.text,
+          outFor: outFor(casualty.weeks, world.settings),
+        }));
+        for (const change of bout.aftermath) {
+          const person = world.wrestlers[change.wrestlerId];
+          if (person) applyAftermath(person, change, world.settings, bout.rating);
+        }
+        const team = world.promotion.commentaryTeam;
+        if (world.settings.commentaryEnabled && team) {
+          bout.commentary = callInterpromotional(
+            rngFromSeed(`crucible-call:${world.settings.seed}:${result.year}:${index}`),
+            team,
+            {
+              sideA: [people[0]!],
+              sideB: [people[1]!],
+              winningSide: bout.winnerId === bout.aId ? 'a' : 'b',
+              finish: bout.finish as FinishType,
+              rating: bout.rating,
+              beats: bout.beats,
+              injuries: (bout.injuries ?? []).map((i) => ({ name: i.name, text: i.text })),
+              isMainEvent: bout.isMainEvent,
+              titleName: null,
+              titleChanged: false,
+            },
+            world.settings,
+            crucibleTown,
+          );
+        }
+      });
 
       // What the night took out of anybody who worked it more than once.
       // A single-night bracket is meant to be a body decision as much as a
