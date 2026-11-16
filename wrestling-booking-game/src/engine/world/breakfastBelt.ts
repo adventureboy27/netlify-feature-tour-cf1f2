@@ -15,7 +15,9 @@
 
 import type { Rng } from '../rng';
 import { shuffle } from '../rng';
-import type { Id, MatchRules, Wrestler, WorldSettings } from '../types';
+import type { Id, MatchBeat, MatchRules, Wrestler, WorldSettings } from '../types';
+import { computeAftermath, type AftermathChange } from '../sim/aftermath';
+import { stoppageVictimOf } from '../sim/interpromotional';
 import { canWork } from './rivalBooking';
 import { simulateMatch, type SimParticipant } from '../sim/simulateMatch';
 import {
@@ -31,7 +33,7 @@ import {
 export const BREAKFAST_BELT_NAME = 'The Rise & Grind Breakfast Blend Championship';
 export const BREAKFAST_BELT_NICKNAME = 'the Breakfast Belt';
 
-const BELT_RULES: MatchRules = {
+export const BELT_RULES: MatchRules = {
   preset: 'singles',
   format: 'individuals',
   ruleStrictness: 'strict',
@@ -73,6 +75,15 @@ export interface BreakfastBeltBout {
   winnerId: Id;
   rating: number;
   finish: string;
+  /** The match as the sim played it — the same record a card's own match keeps. */
+  beats: MatchBeat[];
+  isMainEvent: boolean;
+  /** What the bout does to the two people in it, worked out the same way as any match. */
+  aftermath: AftermathChange[];
+  /** The call, when the caller books the announcers. */
+  commentary?: { speaker: 'play' | 'colour'; name: string; text: string; beat?: number; actorId?: string; targetId?: string }[];
+  /** Who was hurt in it, set by the caller that rolls the casualties. */
+  injuries?: { wrestlerId: Id; name: string; role: string; text: string; outFor: string }[];
 }
 
 export interface BreakfastBeltRunResult {
@@ -159,6 +170,7 @@ export function runBreakfastBeltTournament(
       workedTonight.set(aId, (workedTonight.get(aId) ?? 0) + 1);
       workedTonight.set(bId, (workedTonight.get(bId) ?? 0) + 1);
 
+      const stopped = stoppageVictimOf(result.finish, result.winnerWrestlerIds, [aId, bId]);
       bouts.push({
         round: tie.round,
         roundLabel: roundName(tie.round, totalRounds(tournament)),
@@ -167,6 +179,18 @@ export function runBreakfastBeltTournament(
         winnerId,
         rating: result.rating,
         finish: result.finish,
+        beats: result.beats,
+        isMainEvent: isFinalTie,
+        aftermath: computeAftermath({
+          participants: [byId.get(aId), byId.get(bId)].filter((w): w is Wrestler => Boolean(w)),
+          winnerIds: result.winnerWrestlerIds,
+          finish: result.finish,
+          rating: result.rating,
+          stipulation: null,
+          isMainEvent: isFinalTie,
+          couldNotContinueIds: stopped ? [stopped] : [],
+          settings,
+        }),
       });
 
       tournament = recordResult(tournament, tie.id, winnerId);

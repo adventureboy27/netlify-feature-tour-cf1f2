@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import type { FinishType } from '../engine/types';
 import { rngFromSeed, rngFromState } from '../engine/rng';
 import { saveGame, loadGame, exportSave, importSave } from './persist';
 import {
@@ -68,6 +69,7 @@ import {
   releaseFromShakeup,
   tickNetworkDemand,
   vacateTeamHeldTitles,
+  putCasualtyOn,
 } from './storeHelpers';
 import { createCardBuilderSlice } from './slices/cardBuilder';
 import { createEventsSlice } from './slices/events';
@@ -362,9 +364,9 @@ import { isNonDecisiveFinish } from '../engine/sim/finish';
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
 import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
 import { driftFanTaste, styleRunShare } from '../engine/world/fanTaste';
-import { computeAftermath, applyAftermath, restWeek, tallyMatch } from '../engine/sim/aftermath';
+import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/aftermath';
 import { resolveDarkMatch } from '../engine/sim/darkMatch';
-import { stoppageVictimOf } from '../engine/sim/interpromotional';
+import { stoppageVictimOf, rollMatchCasualties, callInterpromotional } from '../engine/sim/interpromotional';
 import { runRivalShow, canWork, type RivalShow } from '../engine/world/rivalBooking';
 import {
   openingOffer,
@@ -5341,14 +5343,64 @@ export const useGameStore = create<GameStore>()(
               const byId = new Map(entrantIds.map((id) => [id, world.wrestlers[id]!]));
               const result = runBreakfastBeltTournament(storyRng, entrantIds, byId, world.settings, world.week);
               if (result) {
-                // The bracket's bouts count on the records like any other match.
-                for (const bout of result.bouts) {
-                  const loserId = bout.winnerId === bout.aId ? bout.bId : bout.aId;
-                  const winner = world.wrestlers[bout.winnerId];
-                  const loser = world.wrestlers[loserId];
-                  if (winner) tallyMatch(winner, 'win', bout.rating);
-                  if (loser) tallyMatch(loser, 'loss', bout.rating);
-                }
+                // Every bout is a match, judged the same way as one on the card:
+                // injuries rolled on their own seeded stream (so the bracket and
+                // the story's later rolls are untouched), then the same aftermath
+                // for both people — which also writes the record.
+                result.bouts.forEach((bout, index) => {
+                  const people = [bout.aId, bout.bId].map((id) => world.wrestlers[id]).filter((w): w is Wrestler => Boolean(w));
+                  if (people.length < 2) return;
+                  const { casualties } = rollMatchCasualties(
+                    rngFromSeed(`breakfast-casualties:${world.settings.seed}:${world.week}:${index}`),
+                    {
+                      finish: bout.finish as FinishType,
+                      winnerIds: [bout.winnerId],
+                      beats: bout.beats,
+                      people,
+                      injuryMultiplier: 1,
+                      week: world.week,
+                      settings: world.settings,
+                    },
+                  );
+                  for (const { casualty, injury } of casualties) putCasualtyOn(world, casualty, injury);
+                  bout.injuries = casualties.map(({ casualty }) => ({
+                    wrestlerId: casualty.personId,
+                    name: casualty.name,
+                    role: casualty.role,
+                    text: casualty.text,
+                    outFor: outFor(casualty.weeks, world.settings),
+                  }));
+                  for (const change of bout.aftermath) {
+                    const person = world.wrestlers[change.wrestlerId];
+                    if (person) applyAftermath(person, change, world.settings, bout.rating);
+                  }
+                  // The night's call, when the promotion has announcers: seeded from the bout.
+                  const team = world.promotion.commentaryTeam;
+                  if (world.settings.commentaryEnabled && team) {
+                    const [a, b] = people as [Wrestler, Wrestler];
+                    const winningA = bout.winnerId === bout.aId;
+                    bout.commentary = callInterpromotional(
+                      rngFromSeed(`breakfast-call:${world.settings.seed}:${world.week}:${index}`),
+                      team,
+                      {
+                        // Booked as aId against bId, so the call names them the same way.
+                        sideA: [a],
+                        sideB: [b],
+                        winningSide: winningA ? 'a' : 'b',
+                        finish: bout.finish as FinishType,
+                        rating: bout.rating,
+                        beats: bout.beats,
+                        injuries: (bout.injuries ?? []).map((i) => ({ name: i.name, text: i.text })),
+                        isMainEvent: bout.isMainEvent,
+                        titleName: null,
+                        titleChanged: false,
+                      },
+                      world.settings,
+                      world.territories.find((t) => t.id === world.promotion.homeTerritoryId)?.name ?? 'the venue',
+                    );
+                  }
+                });
+                world.breakfastBeltRun = { week: world.week, bouts: result.bouts };
                 for (const worn of result.wornOut) {
                   const person = world.wrestlers[worn.wrestlerId];
                   if (person) person.health = clamp(person.health - worn.cost, 0, 100);

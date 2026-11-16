@@ -6445,3 +6445,21 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Tests: `interpromotional.test.ts` (stoppage rule, casualties, no re-roll of the hurt); store test checks
   every joint-show match has beats, rules and injuries. 207 files / 3,517 tests; build clean. A Crucible was
   run in the browser and played back from the stored record.
+
+## The Breakfast Belt tournament, played by the same rules as every other match (option 3)
+
+- **Stage one — the rules.** Each bout gets the sim's beats, the same aftermath as any match (momentum,
+  popularity, health, record, career marks, via `applyAftermath`), and casualties rolled on its own seeded
+  stream (`breakfast-casualties:…`), applied with `putCasualtyOn`. Before this, bouts changed the record and
+  health only, and nobody was ever injured on the sponsor's night.
+- **Proof the bracket did not change.** The same seeds were run before and after stage one: winners,
+  finishes, ratings, and the story's random stream ended in the same state. The new rolls never touch it.
+- **Stage two — watching.** `world.breakfastBeltRun` keeps the bouts (optional, so saves from before it are
+  fine). Each bout has a call from the player's announcers, seeded per bout. The Breakfast Belt panel on the
+  card screen lists the bouts for two weeks after they run, and each can be watched. The final is played
+  for the belt.
+- **Viewer.** The in-house bouts are not shown as a supershow: no company corners, labelled "The Breakfast
+  Belt".
+- Not measured with the balance probe: the tournament runs once per save, roughly seven bouts, so the
+  injury cost is small; a probe run would confirm it.
+- 207 files / 3,517 tests; build clean; a real bracket was generated and one bout watched in the browser.

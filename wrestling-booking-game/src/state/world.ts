@@ -88,6 +88,7 @@ import { defaultFanTaste } from '../engine/world/fanTaste';
 import { applyRosterEntry, type RosterEntry } from '../engine/world/roster-io';
 import { seedRelationships } from '../engine/career/relationships';
 import type { SupershowBooking, SupershowOffer, SupershowResult } from '../engine/world/supershowRun';
+import type { BreakfastBeltBout } from '../engine/world/breakfastBelt';
 import type { CupResult } from '../engine/world/cupRun';
 import type { WeeklyStatement } from '../engine/economy/statement';
 import type { Residency } from '../engine/economy/residency';
@@ -481,6 +482,8 @@ export interface World {
   /** The Crucible's invitation, waiting on the fee (§16-adjacent, see cup.ts). */
   pendingCupEntry: CupInvitation | null;
   lastCup: CupResult | null;
+  /** The Breakfast Belt tournament's bouts, kept so they can be watched. Null before it runs, and in saves from before it was kept. */
+  breakfastBeltRun?: { week: number; bouts: BreakfastBeltBout[] } | null;
   /** Who carries the Iron Crown, until somebody takes it off them. */
   crown: CrownReign | null;
   /** Year of the last Crucible, so one year cannot run two. */
@@ -1317,6 +1320,7 @@ export function createInitialWorld(rng: Rng, settings: WorldSettings, plan?: New
     lastSupershowSeason: null,
     pendingCupEntry: null,
     lastCup: null,
+    breakfastBeltRun: null,
     crown: null,
     lastCupYear: null,
     cupHistory: [],

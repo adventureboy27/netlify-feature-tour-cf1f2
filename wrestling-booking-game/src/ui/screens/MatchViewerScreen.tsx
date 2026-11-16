@@ -23,6 +23,7 @@ import { setSoundOn, soundOn } from '../match/sound';
 import { IRON_CROWN, prizeKind, type BeltLook } from '../match/Belt';
 import { heldComingOut, heldGoingIn } from '../match/titleNight';
 import type { WatchResult, WatchSegment } from '../match/exhibition';
+import { BELT_RULES as BREAKFAST_RULES } from '../../engine/world/breakfastBelt';
 import type { Corner } from '../match/Arena';
 import { CUP_NAME } from '../../engine/world/cup';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -54,7 +55,7 @@ const ARENA_ACCENT: Record<PromotionArchetype, string> = {
 
 /** Which match of an interpromotional night to play. */
 export interface SpecialMatch {
-  kind: 'supershow' | 'cup';
+  kind: 'supershow' | 'cup' | 'breakfast';
   index: number;
 }
 
@@ -166,6 +167,36 @@ export function MatchViewerScreen({
   // stored record as any other match: its beats, its call, its injuries.
   const exhibition = useMemo((): { segment: WatchSegment; result: WatchResult } | null => {
     if (!world || !special) return null;
+    if (special.kind === 'breakfast') {
+      const run = world.breakfastBeltRun;
+      const bout = run?.bouts[special.index];
+      if (!run || !bout || !bout.beats) return null;
+      const final = special.index === run.bouts.length - 1;
+      // The final is for the belt, and it changed hands in it: the viewer
+      // names it the same way as any title match.
+      const title = final ? world.titles.find((t) => t.id === world.breakfastBeltTitleId) : undefined;
+      return {
+        segment: {
+          participants: [
+            { wrestlerId: bout.aId, side: 0, role: 'competitor' as const },
+            { wrestlerId: bout.bId, side: 1, role: 'competitor' as const },
+          ],
+          stipulation: null,
+          rules: BREAKFAST_RULES,
+          titleIds: title ? [title.id] : [],
+          managerIds: [],
+        },
+        result: {
+          beats: bout.beats,
+          commentary: bout.commentary ?? [],
+          finish: bout.finish as FinishType,
+          winnerSide: bout.winnerId === bout.aId ? 0 : 1,
+          winnerWrestlerIds: [bout.winnerId],
+          titleChanged: Boolean(title),
+          injuries: bout.injuries ?? [],
+        } satisfies WatchResult,
+      };
+    }
     if (special.kind === 'cup') {
       const bout = world.lastCup?.bouts[special.index];
       if (!bout || !bout.beats) return null;
@@ -441,8 +472,10 @@ export function MatchViewerScreen({
     const company = rival ?? world.promotion;
     return { name: company.name, accent: ARENA_ACCENT[company.identity] ?? ARENA_ACCENT.territory };
   };
-  const left = special ? companyOf(sideA[0]) : null;
-  const right = special ? companyOf(sideB[0]) : null;
+  // Two companies in the building only on a joint night or the Crucible; the sponsor's tournament is in-house.
+  const interpromotional = special && special.kind !== 'breakfast';
+  const left = interpromotional ? companyOf(sideA[0]) : null;
+  const right = interpromotional ? companyOf(sideB[0]) : null;
   // Two companies with the same house colour still need telling apart.
   // The player's company keeps its own; the visitors take the other one.
   const clash = Boolean(left && right && left.accent === right.accent && left.name !== right.name);
@@ -610,7 +643,7 @@ export function MatchViewerScreen({
           accent={ARENA_ACCENT[world.promotion.identity] ?? ARENA_ACCENT.territory}
           promotionName={world.promotion.name}
           corners={corners}
-          eventName={special ? (special.kind === 'cup' ? CUP_NAME : 'Supershow') : undefined}
+          eventName={special ? (special.kind === 'cup' ? CUP_NAME : special.kind === 'breakfast' ? 'The Breakfast Belt' : 'Supershow') : undefined}
           callout={calloutText}
           pyro={!over && current?.pose === 'environmental'}
           bystanders={bystanders}

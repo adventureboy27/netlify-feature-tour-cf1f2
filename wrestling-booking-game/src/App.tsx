@@ -47,7 +47,7 @@ type PreGameView = 'title' | 'newGame' | 'settings';
 /** One entry on the navigation stack — which screen, and (for a drill-down screen) which id or slot it's about. */
 interface NavTarget {
   screen: Screen;
-  params?: { wrestlerId?: Id; slotIndex?: number; matchWeek?: number; matchSlot?: number; storyId?: string; special?: { kind: 'supershow' | 'cup'; index: number } };
+  params?: { wrestlerId?: Id; slotIndex?: number; matchWeek?: number; matchSlot?: number; storyId?: string; special?: { kind: 'supershow' | 'cup' | 'breakfast'; index: number } };
 }
 
 export default function App() {

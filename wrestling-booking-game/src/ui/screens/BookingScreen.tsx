@@ -57,7 +57,7 @@ export function BookingScreen({
 }: {
   onRunShow: () => void;
   /** Play back a match from the last joint show or tournament. */
-  onWatchSpecial?: (special: { kind: 'supershow' | 'cup'; index: number }) => void;
+  onWatchSpecial?: (special: { kind: 'supershow' | 'cup' | 'breakfast'; index: number }) => void;
   /** A slot tile was tapped — `cast` says whether it already has both sides filled. */
   onOpenSlot: (slotIndex: number, cast: boolean) => void;
 }) {
@@ -337,6 +337,7 @@ export function BookingScreen({
             this rail simply isn't there. */}
         <div className="flex flex-col gap-3">
           <ThisWeekStrip />
+          <BreakfastBeltPanel onWatch={onWatchSpecial && ((index) => onWatchSpecial({ kind: 'breakfast', index }))} />
           <CupPanel onWatch={onWatchSpecial && ((index) => onWatchSpecial({ kind: 'cup', index }))} />
           <SupershowPanel onWatch={onWatchSpecial && ((index) => onWatchSpecial({ kind: 'supershow', index }))} />
           <BiddingWarPanel />
@@ -709,6 +710,39 @@ function FirstWeekGuide() {
         ))}
       </ol>
       <p className="mt-2 text-[11px] text-neutral-500">The strip across the top of every screen shows where you are in the week. Everything else in the sidebar can wait.</p>
+    </div>
+  );
+}
+
+/**
+ * The sponsor's tournament, for a week or two after it ran: each bout can be
+ * watched from the same record as any other match.
+ */
+function BreakfastBeltPanel({ onWatch }: { onWatch?: (boutIndex: number) => void }) {
+  const world = useGameStore((s) => s.world);
+  const run = world?.breakfastBeltRun ?? null;
+  if (!world || !run || world.week - run.week > 2) return null;
+  const champion = world.wrestlers[run.bouts[run.bouts.length - 1]?.winnerId ?? ''];
+  const nameOf = (id: string) => world.wrestlers[id]?.name ?? 'somebody';
+  return (
+    <div className="mb-3 rounded border border-amber-800/70 bg-amber-950/20 p-3" data-testid="breakfast-panel">
+      <div className="text-[10px] uppercase tracking-wide text-amber-400/80">The sponsor&apos;s tournament</div>
+      <h2 className="mt-0.5 text-sm font-semibold text-amber-200">{champion ? `${champion.name} took the Breakfast Belt` : 'The Breakfast Belt'}</h2>
+      <ol className="mt-2 space-y-1">
+        {run.bouts.map((bout, index) => (
+          <li key={`${bout.round}-${index}`} className="flex items-center justify-between gap-2 text-[11px]">
+            <span className="truncate text-neutral-300">
+              <span className="text-neutral-500">{bout.roundLabel}: </span>
+              {nameOf(bout.winnerId)} <span className="text-neutral-600">def.</span> {nameOf(bout.winnerId === bout.aId ? bout.bId : bout.aId)}
+            </span>
+            {onWatch && (
+              <button type="button" data-testid={`watch-breakfast-${index}`} onClick={() => onWatch(index)} className="shrink-0 rounded bg-neutral-800 px-1.5 text-[10px] text-neutral-200 hover:bg-neutral-700">
+                Watch
+              </button>
+            )}
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
