@@ -6641,3 +6641,13 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 ## Week progress line: thicker, and green as it fills
 
 - The line is 6px (was 3px) and fills green as the office and card are met, with a soft glow once both are.
+
+## Hand-inked lower body and side-view art (first pass, not wired in)
+
+- Chosen style: hand-inked (outlines, hatched shadow). Two first-pass assets in `src/ui/paperdoll/assets/inked/`:
+  `lower-body.svg` (black trunks, white side stripes, legs, white-soled boots) and `side-view.svg` (profile head,
+  torso, near and far arms and legs, trunks, boots).
+- Rendered as a preview only. Nothing in the game uses them yet. The side view is still blocky; the lower body
+  reads well.
+- Next: wire the lower body into the paper dolls and match figures in place of the current trunks and boots, and
+  render the match figures to check. The side view needs a second pass before it is used.

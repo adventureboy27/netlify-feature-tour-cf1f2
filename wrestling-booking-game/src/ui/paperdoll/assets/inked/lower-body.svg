@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 320">
+  <!-- Hand-inked lower body, front view: black trunks with white side stripes, white-soled boots. -->
+  <g stroke="#0b0b0d" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round">
+    <!-- trunks -->
+    <path d="M52 22 Q120 14 188 22 L196 96 Q186 104 176 98 L170 128 Q120 136 70 128 L64 98 Q54 104 44 96 Z" fill="#17181c"/>
+    <path d="M52 22 Q120 14 188 22 L196 96 Q186 104 176 98 L170 128 Q120 136 70 128 L64 98 Q54 104 44 96 Z" fill="none"/>
+    <!-- waistband -->
+    <path d="M52 22 Q120 14 188 22 L190 34 Q120 26 50 34 Z" fill="#2a2c33"/>
+    <!-- white side stripes -->
+    <path d="M60 40 L56 96 M180 40 L184 96" stroke="#f2f2ee" stroke-width="5" fill="none"/>
+    <!-- legs -->
+    <path d="M70 128 Q74 178 78 214 L104 214 Q106 176 118 136 Z" fill="#17181c"/>
+    <path d="M170 128 Q166 178 162 214 L136 214 Q134 176 122 136 Z" fill="#17181c"/>
+    <path d="M62 116 L66 128" fill="none"/>
+    <!-- stripes down the legs -->
+    <path d="M74 136 Q76 176 80 210" stroke="#f2f2ee" stroke-width="3.5" fill="none"/>
+    <path d="M166 136 Q164 176 160 210" stroke="#f2f2ee" stroke-width="3.5" fill="none"/>
+    <!-- boots -->
+    <path d="M78 214 L104 214 L106 246 Q100 252 74 250 Q70 240 78 214 Z" fill="#101114"/>
+    <path d="M162 214 L136 214 L134 246 Q140 252 166 250 Q170 240 162 214 Z" fill="#101114"/>
+    <!-- white soles -->
+    <path d="M70 250 Q100 258 106 246 L108 254 Q98 262 70 258 Z" fill="#e9e9e4"/>
+    <path d="M170 250 Q140 258 134 246 L132 254 Q142 262 170 258 Z" fill="#e9e9e4"/>
+  </g>
+  <!-- hatched shadow under the waistband and inside the legs -->
+  <g stroke="#000" stroke-width="1" opacity=".45">
+    <path d="M70 60 L74 66 M80 56 L84 64 M90 60 L94 66"/>
+    <path d="M86 150 L90 160 M92 160 L96 170 M96 186 L100 196"/>
+    <path d="M146 150 L142 160 M140 168 L136 178 M136 192 L132 202"/>
+  </g>
+  <!-- ink highlight on the trunks -->
+  <path d="M96 40 Q92 60 96 84" stroke="#4a4d57" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+</svg>
