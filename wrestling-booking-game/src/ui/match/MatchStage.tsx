@@ -189,12 +189,20 @@ export function MatchStage({
    * about the post it is tied to, by just enough to carry the point where the
    * ropes meet the body out by `give`.
    */
+  // What each run of rope is doing now: a smaller shake must not cut short a
+  // bigger bow that is still going (a big landing just after a body hits the
+  // ropes would otherwise snap them straight mid-bow).
+  const bowing = useRef(new Map<SideRopeKey, { until: number; give: number }>());
   const stretchRopes = (side: 1 | -1, give: number = ROPE_GIVE) => {
     const cross = side === 1 ? ROPE_CROSS_X.r : ROPE_CROSS_X.l;
     const out = cross + side * give;
     for (const key of (side === 1 ? ['backR', 'frontR'] : ['backL', 'frontL']) as SideRopeKey[]) {
       const el = sideRopes.current.get(key);
       if (!el) continue;
+      const now = performance.now();
+      const busy = bowing.current.get(key);
+      if (busy && now < busy.until && busy.give > give) continue;
+      bowing.current.set(key, { until: now + 520, give });
       const post = SIDE_ROPE_POST[key];
       const k = (out - post) / (cross - post);
       const recoil = 1 - (k - 1) * 0.35;

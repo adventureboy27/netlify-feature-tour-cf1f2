@@ -6786,3 +6786,14 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   one.
 - New test: a whip puts a body into the ropes by their give and no further, on the side that bows. 96 tests pass.
 - Rendered: the whip match now bows once on the left and once on the right, plus the small give on big landings.
+
+## A body in the ropes leans back into them (rendered at the hit)
+
+- Rendered the moment a body lands in the ropes, frozen at the peak of the bow. Found: the body was still in its
+  running stance with the back leg kicked out, so the foot poked about 6 units past the rope line, past the corner
+  post. A body carried into the ropes now takes the `ropes` stance (`rig.ts`): leaning back into them, arms back
+  over the top rope, legs under it.
+- A smaller shake no longer replaces a bigger bow that is still running (`stretchRopes`). In play the big-landing
+  shake came about 600ms after the bow (which lasts 520ms), so this only guards against an overlap.
+- The bow peaks early: with the ease-out over the whole animation, the furthest point is at about 60ms, then it
+  snaps back past straight.

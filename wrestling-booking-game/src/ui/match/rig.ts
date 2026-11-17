@@ -50,6 +50,9 @@ export const STANCES = {
   kickout: s(8, [124, 22], [96, 30], [72, 12], [58, 24]),
   tap: s(0, [104, 92], [-30, 20], [6, 30], [-6, 52]),
   celebrate: s(-4, [168, 8], [-168, 8], [4, 4], [-4, 4]),
+  // In the ropes: leaning back into them with the arms back over the top one,
+  // legs under the body, so nothing pokes out past the ropes on the far side.
+  ropes: s(-14, [-48, 36], [-58, 30], [6, 8], [-6, 8]),
   // One arm straight out to the side, the mask in that hand; the other up.
   showMask: s(-4, [168, 8], [-95, 8], [4, 4], [-4, 4]),
   swingUp: s(-14, [158, 24], [140, 36], [-6, 8], [14, 16]),

@@ -141,7 +141,7 @@ function poseAt(frames: readonly WorldFrame[], t: number): WorldFrame | undefine
 function setPoseAt(frames: WorldFrame[], t: number, pose: WorldFrame) {
   const near = frames.findIndex((frame) => Math.abs(frame.at - t) < 0.02);
   if (near >= 0) {
-    frames[near] = { ...frames[near]!, x: pose.x };
+    frames[near] = { ...frames[near]!, x: pose.x, stance: pose.stance };
     return;
   }
   const after = frames.findIndex((frame) => frame.at > t);
@@ -289,6 +289,8 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
       let wx = holds && f.from ? f.from.x + f.dir * (x - table[0]![1]) : h + f.dir * x;
       let wy = y + ground;
       const wrot = f.dir * rot;
+      // Carried into the ropes on this frame: drawn leaning back into them.
+      let inRopes = false;
 
       if (leaving) {
         // Out is over the top: clear the rope while crossing it. Past the
@@ -325,12 +327,13 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
             const side = push < 0 ? 1 : -1;
             ropeHits.push({ at: t, side });
             wx += side * RING.ropeGive;
+            inRopes = true;
           }
         }
         // The mat: neither feet nor head go below it.
         wy = Math.max(wy, 0, -Math.cos(rad(wrot)) * RING.tall);
       }
-      frames.push({ at: t, x: wx, y: wy, rot: wrot, sy, stance });
+      frames.push({ at: t, x: wx, y: wy, rot: wrot, sy, stance: inRopes ? 'ropes' : stance });
     }
     // The walk back to the mark is held to the same walls as the move is.
     if (lead > 0 && !holds && !f.taggedIn) {
@@ -370,7 +373,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
         if (at === 0) continue;
         side = at;
         const press = at === 1 ? edge + RING.ropeGive - hi : -edge - RING.ropeGive - lo;
-        setPoseAt(frames, t, { ...pose, x: pose.x + press });
+        setPoseAt(frames, t, { ...pose, x: pose.x + press, stance: 'ropes' });
         break;
       }
     }
