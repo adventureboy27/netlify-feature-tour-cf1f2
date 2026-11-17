@@ -6673,3 +6673,11 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   and bottom-aligned to the feet. Rendered side by side with the front figure.
 - Known gaps: the side view has no mask, hair or painted face, so a masked wrestler's profile looks bare-headed.
   The feet sit about 25px above the front figure's feet. Only the actor turns; the other wrestler does not.
+
+## Side views scrapped
+
+- The side view for across-the-ring moves was judged unusable (no arms, awkward head from the side). Removed:
+  the profile branch and `darker`/`tintProfile` in `ArticulatedFigure.tsx`, the `SIDE_ON_MOVES` list in
+  `MatchStage.tsx`, and `assets/inked/side-view.svg`. Match figures are front-facing again.
+- Kept: the hand-inked top half (ink outline on the portraits, `InkFilter`) and the hand-inked legs.
+- `assets/inked/lower-body.svg` is still in the folder but not used by anything.

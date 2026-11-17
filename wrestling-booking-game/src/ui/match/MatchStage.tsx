@@ -92,9 +92,6 @@ const CELEBRATE_AFTER_MS = 3200;
 
 const dirOf = (slot: 'left' | 'right'): 1 | -1 => (slot === 'left' ? 1 : -1);
 
-// Moves that run across the ring: the one doing them turns side-on for the move.
-const SIDE_ON_MOVES = new Set<string>(['whip', 'crossbody', 'clotheslineOver']);
-
 
 /**
  * Where the cameras are: scattered through the stands (the band of the
@@ -580,7 +577,6 @@ export function MatchStage({
                     )}
                     <ArticulatedFigure
                       wrestler={fighter.wrestler}
-                      profile={fighter === actor && !over && SIDE_ON_MOVES.has(staged?.move ?? '')}
                       held={!over && !leaving && staged?.prop && fighter === actor ? (dirOf(fighter.slot) === 1 ? 'right' : 'left') : undefined}
                       weapon={staged?.prop}
                       blindfold={conduct?.blindfold}
