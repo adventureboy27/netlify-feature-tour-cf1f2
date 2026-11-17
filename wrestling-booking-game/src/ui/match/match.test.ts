@@ -11,6 +11,8 @@ import { PLAY_BY_PLAY } from '../../data/commentaryLines';
 import { generateWrestlers } from '../../engine/generate/wrestler';
 import { rngFromSeed } from '../../engine/rng';
 import type { PlaybackBeat } from '../../engine/sim/matchPlayback';
+import { spotsFor } from '../../engine/sim/narrative';
+import { STIPULATIONS, effectiveRules } from '../../data/stipulations';
 import { BRAWL, DOWN, FLOOR, FRONT_FLOOR, GAP, META, MOVE_IDS, endPose, isDown, moveSaid, stageMatch, stageMove, understands, type MoveId } from './choreography';
 import { STANDARD, conductOf, type Conduct } from './conduct';
 import type { FinishType, MatchRules } from '../../engine/types';
@@ -452,11 +454,14 @@ describe('the rules of the match are the rules of the picture', () => {
       expect(conduct.weapons, stipulation).toBe(true);
       expect(conduct.outside, stipulation).toBe(true);
     }
+    // A chair is in somebody's hand where the simulation recorded one, and
+    // nowhere else — not even in a match where one would be legal.
     const long = Array.from({ length: 9 }, (_, i) => beat(i === 0 ? 'exchange' : i === 8 ? 'finish' : 'control'));
-    const armed = stageMatch(long, [], cast, 'cleanPin', { conduct: rulebook('hardcore') }).moments;
-    expect(armed.some((m) => m.staged.prop !== undefined)).toBe(true);
-    const clean = stageMatch(long, [], cast, 'cleanPin', { conduct: rulebook(null) }).moments;
-    expect(clean.some((m) => m.staged.prop !== undefined)).toBe(false);
+    const unrecorded = stageMatch(long, [], cast, 'cleanPin', { conduct: rulebook('hardcore') }).moments;
+    expect(unrecorded.some((m) => m.staged.prop !== undefined)).toBe(false);
+    const recorded = long.map((b, i) => (i === 3 ? { ...b, spot: 'weaponShot' as const, weapon: 'kendo' as const } : b));
+    const armed = stageMatch(recorded, [], cast, 'cleanPin', { conduct: rulebook('hardcore') }).moments;
+    expect(armed.filter((m) => m.staged.prop !== undefined).map((m) => [m.staged.move, m.staged.prop])).toEqual([['chairShot', 'kendo']]);
   });
 
   it("a disqualification is the loser's doing", () => {
@@ -567,18 +572,43 @@ describe('the fixes to the match types', () => {
     expect(moments.every((m) => (m.staged.zone ?? 'ring') === 'ring')).toBe(true);
   });
 
-  it('only a cage match throws anybody into a cage', () => {
-    const caged = played(rulebook('steelCage'));
+  it('only a cage match throws anybody into a cage — where the simulation said so', () => {
     const usesCage = (m: { staged: { move: MoveId } }) => m.staged.move === 'intoCage' || m.staged.move === 'cageTop';
-    expect(caged.some(usesCage)).toBe(true);
-    for (const stip of [null, 'noDQ', 'hardcore', 'ladder']) expect(played(rulebook(stip)).some(usesCage)).toBe(false);
+    for (const stip of [null, 'noDQ', 'hardcore', 'ladder', 'steelCage']) expect(played(rulebook(stip)).some(usesCage)).toBe(false);
+    const timeline = [beat('exchange'), beat('control', { spot: 'intoCage' }), beat('comeback'), beat('control', { spot: 'cageTop' }), beat('finish')];
+    const caged = stageMatch(timeline, [], cast, 'cleanPin', { conduct: rulebook('steelCage') }).moments.filter((m) => !m.filler);
+    expect(caged.map((m) => m.staged.move).filter((id) => id === 'intoCage' || id === 'cageTop')).toEqual(['intoCage', 'cageTop']);
   });
 
-  it('a hardcore match finds more than one thing to swing', () => {
+  it("the simulation and the ring agree on what every match type's near thing is", () => {
+    const shape: Record<string, Conduct['nearFall']> = { ladderPull: 'ladder', tableFightOff: 'table', casketNear: 'casket', cageClimb: 'climb', teeter: 'teeter', countBeaten: 'count', holdEscape: 'hold' };
+    for (const stip of [null, ...STIPULATIONS.map((x) => x.id)]) {
+      const conduct = rulebook(stip);
+      const rules = effectiveRules(PLAIN_RULES as MatchRules, stip ? (STIPULATIONS.find((x) => x.id === stip) ?? null) : null);
+      const { nearFall } = spotsFor(stip, rules);
+      expect(nearFall ? shape[nearFall] : 'cover', String(stip)).toBe(conduct.nearFall);
+    }
+  });
+
+  it('every recorded spot is staged as itself', () => {
+    const cases: [NonNullable<PlaybackBeat['spot']>, string | null, MoveId][] = [
+      ['ladderShot', 'ladder', 'ladderShot'], ['stepsShot', 'hardcore', 'stepsShot'], ['tableThrough', 'hardcore', 'tablePowerbomb'],
+      ['ladderDive', 'ladder', 'ladderDive'], ['blindSwing', 'blindfoldMatch', 'blindSwing'], ['ladderPull', 'ladder', 'ladderPull'],
+      ['tableFightOff', 'tables', 'tableEscape'], ['casketNear', 'casket', 'casketNear'], ['cageClimb', 'steelCage', 'cageClimb'],
+      ['teeter', 'battleRoyal', 'teeter'], ['holdEscape', 'submissionMatch', 'submission'],
+    ];
+    for (const [spot, stip, move] of cases) {
+      const pose = ['ladderPull', 'tableFightOff', 'casketNear', 'cageClimb', 'teeter', 'holdEscape'].includes(spot) ? 'nearFall' : 'control';
+      const moments = stageMatch([beat('exchange'), beat(pose, { spot }), beat('finish')], [], cast, 'cleanPin', { conduct: rulebook(stip) }).moments.filter((m) => !m.filler);
+      expect(moments[1]!.staged.move, spot).toBe(move);
+    }
+  });
+
+  it('a hardcore match swings whatever the simulation put in the hand', () => {
     const conduct = rulebook('hardcore');
-    const long = stageMatch(Array.from({ length: 9 }, (_, i) => beat(i === 8 ? 'finish' : i % 2 ? 'control' : 'comeback')), [], cast, 'cleanPin', { conduct }).moments;
-    const found = new Set(long.map((m) => m.staged.prop).filter(Boolean));
-    expect(found.size).toBeGreaterThan(1);
+    const timeline = Array.from({ length: 9 }, (_, i) => beat(i === 8 ? 'finish' : i % 2 ? 'control' : 'comeback', i === 1 ? { spot: 'weaponShot', weapon: 'can' } : i === 5 ? { spot: 'weaponShot', weapon: 'chair' } : i === 3 ? { spot: 'ladderShot' } : {}));
+    const long = stageMatch(timeline, [], cast, 'cleanPin', { conduct }).moments;
+    expect(long.map((m) => m.staged.prop).filter(Boolean)).toEqual(['can', 'ladder', 'chair']);
     // And whatever is in the hand, it is in the hand for a swing.
     for (const m of long) if (m.staged.prop) expect(['chairShot', 'ladderShot', 'stepsShot']).toContain(m.staged.move);
   });

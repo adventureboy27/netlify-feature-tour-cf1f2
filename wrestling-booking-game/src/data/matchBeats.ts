@@ -11,13 +11,15 @@
 //   {winner} {loser} {other}   people
 //   {finisher}                 the winner's finishing move
 //   {title}                    the belt on the line
-//   {weapon}                   something to hit somebody with
+//   {weapon}                   something to hit somebody with (recorded on the beat: see WEAPONS)
 //   {eliminated}               battle-royal elimination beats only — who just went out
 //   {eliminatedBy}             BATTLE_ROYAL_ELIMINATION_BY_BEATS only — who put them out
 //
 // Every line here has to read as a *highlight* — the bit somebody would tell
 // you about afterwards — not as play-by-play. "They locked up" is not a
 // highlight. "They locked up and did not break for ninety seconds" is.
+
+import type { MatchSpot, MatchWeapon } from '../engine/types';
 
 export interface BeatTemplate {
   text: string;
@@ -79,7 +81,7 @@ export const CONTROL_BEATS: Record<string, string[]> = {
   hardcore: [
     '{winner} introduced {weapon} to this fight, and the referee simply gave up asking nicely.',
     'This one spilled out into the crowd and stayed there a good long while.',
-    '{winner} went digging under that ring, and whatever came back up became {loser}\'s problem in a hurry.',
+    '{winner} went digging under that ring, came back up with {weapon}, and it became {loser}\'s problem in a hurry.',
     'Nobody sitting in the first three rows left this building with a dry seat.',
   ],
   striker: [
@@ -210,14 +212,35 @@ export const BATTLE_ROYAL_FINAL_BEATS: BeatTemplate[] = [
   { text: 'Two left standing, and every soul in this building is up out of their seat for it.' },
 ];
 
-/** Things to hit somebody with, for the hardcore lines. */
-export const WEAPONS = [
-  'a steel chair',
-  'a trash can lid',
-  'a kendo stick',
-  'somebody’s crutch',
-  'a cookie sheet',
-  'the ring bell',
-  'a stop sign',
-  'a length of chain',
+/**
+ * Things to hit somebody with, for the hardcore lines — only what the match
+ * viewer can put in a hand, so a line that names one is a line it can show.
+ */
+export const WEAPONS: readonly { id: MatchWeapon; text: string }[] = [
+  { id: 'chair', text: 'a steel chair' },
+  { id: 'can', text: 'a trash can' },
+  { id: 'kendo', text: 'a kendo stick' },
 ];
+
+/**
+ * The special matches' spots (types.ts MatchSpot), in the write-up's voice.
+ * {actor} did it, {target} had it done to them (for a near thing: {actor}
+ * nearly won with it, {target} survived it). {weapon} as above.
+ */
+export const SPOT_BEATS: Record<MatchSpot, readonly string[]> = {
+  weaponShot: ['{actor} cracked {target} with {weapon}, and nobody was going to stop it.', '{actor} came up with {weapon} and laid {target} out with it.'],
+  ladderShot: ['{actor} swung a ladder into {target} like it weighed nothing at all.', '{actor} caught {target} square with the ladder, and the whole ring heard it.'],
+  stepsShot: ['{actor} hauled the steel steps up overhead and brought them down on {target}.', '{actor} lifted the ring steps and dropped them on {target} — the sound alone cleared the front row.'],
+  tableThrough: ['{actor} powerbombed {target} clean through a table.', '{actor} set up a table, and {target} went through it.'],
+  ladderDive: ['{actor} climbed to the top of the ladder and came off it onto {target}.', '{actor} jumped off the very top of the ladder and crashed down on {target}.'],
+  blindSwing: ['{actor} threw a haymaker at thin air, and then the two of them walked straight into each other.', 'Neither of them could see a thing: {actor} swung at nothing and {target} stumbled right into the follow-up.'],
+  intoCage: ['{actor} sent {target} face-first into the steel of the cage.', '{actor} rammed {target} into the cage wall, and the whole structure shook.'],
+  cageTop: ['They fought on top of the cage itself, and {target} came off it the hard way.', '{actor} met {target} at the top of the cage and knocked them back down to the mat.'],
+  ladderPull: ['{actor} had a hand on the prize when {target} dragged them back off the ladder.', '{actor} was at the top of the ladder, fingertips on it, and {target} pulled them down.'],
+  tableFightOff: ['{actor} had {target} up for the powerbomb with the table right there, and {target} fought their way free.', '{target} was one second from going through the table and punched out of {actor}\'s grip.'],
+  casketNear: ['{actor} got {target} into the casket — and the lid came flying back open before it could be shut.', '{target} was in the casket with the lid coming down and somehow forced it back open.'],
+  cageClimb: ['{actor} was nearly over the top of the cage when {target} dragged them back in.', '{actor} got a leg over the top of the cage and {target} hauled them back down.'],
+  teeter: ['{target} was halfway over the top rope and somehow hung on.', '{actor} had {target} over the top, feet dangling, and {target} would not go.'],
+  holdEscape: ['{actor} had the hold cinched in and {target} fought their way out of it.', '{target} was a breath away from tapping to {actor} and broke the hold instead.'],
+  countBeaten: ['{actor} left {target} down, and {target} beat the referee\'s count at eight.', 'The referee counted to eight over {target} and they were up again.'],
+};

@@ -6844,3 +6844,23 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - A submission finish now shows "GIVE UP?" once the hold is locked on, then "TAP OUT!" when the hand goes down (beat lengthened 2.6 s → 3.2 s so the two don't overlap).
 - A hold that gets escaped (submission-match near fall) asks "GIVE UP?" before "BREAKS FREE!" (2.2 s → 2.6 s).
 - Checked, unchanged: a count-out finish throws the loser outside, the count runs 1–10 over the ring, and it ends on "COUNT OUT!". It only happens where the rules allow count-outs (the sim gives it zero weight under "no count-outs").
+
+## Every special match has its own spots — recorded by the sim, staged by the viewer
+
+**The rule now:** a special-match spot happens in the write-up, the commentary and the ring, or in none of them. The simulation records it (`MatchBeat.spot`, `MatchBeat.weapon`); the write-up and the play-by-play describe it; the viewer stages exactly that and never invents one.
+
+- **Recorded by the sim** (`engine/sim/narrative.ts` `withSpots`/`spotsFor`): one spot of what the match is built around while the winner is on top, a second by the other side after their comeback in a long enough match, and the match's own kind of near thing. Structural, like battle royal eliminations, so even a short ladder match gets its ladder. Drawn from a seeded stream of its own — the shared stream sees exactly the draws it always did (tested).
+  - Steel cage: into the cage wall, fighting on top of the cage; near thing — climbing out and dragged back.
+  - Ladder: ladder shot, dive off the ladder; near thing — pulled off the ladder with a hand on the prize. The prize now hangs over the ring from the bell.
+  - Tables / Flaming tables: weapon spots; near thing — up for the powerbomb at the table and fighting it off (table survives). Nothing goes through a table before the finish.
+  - Casket: weapon spots; near thing — shut in the casket and forcing the lid back open, then rolled back into the ring.
+  - No DQ / Hardcore / Street Fight / Unsanctioned (anything with no rules): chair, kendo stick or trash can shot; the steel steps; a powerbomb through a table; a ladder shot.
+  - Blindfold: a wild swing at nothing, then walking into each other.
+  - Battle royal / Last Man Standing / Submission: their near things (hanging on at the ropes, beating the count at eight, breaking the hold) are now recorded and written that way instead of "kicked out at two".
+- **Weapons** in the write-up are only what the viewer can draw (chair, kendo stick, trash can), and the one named is recorded — a hardcore finish "with a kendo stick" is a kendo stick in the ring.
+- **Finish lines** fixed where they contradicted the ring: a ladder match recorded as a pin/rollup/interference win now reads as pulling the prize down; flaming tables won with interference goes through the burning table; a tables double KO puts both through the table; a cage knockout goes into the steel.
+- **The viewer no longer invents** chair shots (in the ring or on the floor) or cage spots in unspoken stretches.
+- New art: a ladder and the steel steps as held props; an opening casket.
+- Tests: the sim and viewer agree on every stipulation's near thing; every recorded spot stages as itself; unrecorded matches stage no props.
+
+**Still not synced (pre-existing, generic lines):** some style control lines describe things the viewer approximates ("that guardrail took punishment", "a dive to the floor" stage as ordinary moves); a falls-count-anywhere pin is written as on the floor but staged in the ring; an equipment-failure draw is staged as an ordinary draw.

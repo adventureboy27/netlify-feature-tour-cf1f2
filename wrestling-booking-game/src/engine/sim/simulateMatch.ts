@@ -532,6 +532,8 @@ export function simulateMatch(
       eliminations,
       pinnedId,
       pinnerId,
+      rules,
+      spotSeed: `spots:${ctx.week}:${participants.map((p) => p.wrestlerId).join(',')}`,
     },
     ctx.usedBeats,
   );

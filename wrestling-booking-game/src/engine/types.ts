@@ -1356,8 +1356,42 @@ export type MatchBeatKind =
   | 'elimination'
   | 'finish';
 
+/**
+ * A spot a special match is built around — the thing that makes a ladder
+ * match a ladder match. Recorded on the beat it happened in, so the write-up,
+ * the commentary and the match viewer all describe the same thing: the
+ * viewer stages exactly this, and stages nothing like it that was not
+ * recorded. See engine/sim/narrative.ts's spot pass and data/matchBeats.ts's
+ * SPOT_BEATS.
+ */
+export type MatchSpot =
+  // Something done to somebody, in control of the match.
+  | 'weaponShot'
+  | 'ladderShot'
+  | 'stepsShot'
+  | 'tableThrough'
+  | 'ladderDive'
+  | 'blindSwing'
+  | 'intoCage'
+  | 'cageTop'
+  // The near thing, in a match that is not won by a pin.
+  | 'ladderPull'
+  | 'tableFightOff'
+  | 'casketNear'
+  | 'cageClimb'
+  | 'teeter'
+  | 'holdEscape'
+  | 'countBeaten';
+
+/** What somebody gets hit with — only the things the match viewer can draw. */
+export type MatchWeapon = 'chair' | 'kendo' | 'can';
+
 export interface MatchBeat {
   kind: MatchBeatKind;
+  /** The special-match spot this beat is, if it is one. */
+  spot?: MatchSpot;
+  /** The weapon in it, for a weapon shot (or a finish written with one). */
+  weapon?: MatchWeapon;
   text: string;
   significant: boolean; // only significant beats render in the highlight, §11.5
   /**

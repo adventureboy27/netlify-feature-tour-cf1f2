@@ -55,6 +55,11 @@ export const STIPULATIONS: Stipulation[] = [
     finishWeights: { knockout: 2.2, submission: 0.2 },
     finishFlavor: {
       knockout: 'beat {loser} up the ladder and ripped the prize down off the hook to steal it',
+      // However the sim scored it, a ladder match is won at the top of the
+      // ladder — and the match viewer shows exactly that, so this says it.
+      cleanPin: 'got to the top of the ladder ahead of {loser} and pulled the prize down clean',
+      rollup: 'shoved {loser} off the ladder at the last second and climbed the rest of the way to pull the prize down',
+      interference: 'had the ladder held steady while {loser} was dragged away from it, and pulled the prize down',
       submission: 'caught {loser} at the peak of the ladder and simply would not let them come back down',
       equipmentFailure: 'had {loser} beat to the top when the ladder gave out from under both of them, and nobody ever got a hand on what was hanging up there',
     },
@@ -94,7 +99,7 @@ export const STIPULATIONS: Stipulation[] = [
     impliedRules: { ruleStrictness: 'none', countOuts: 'none', falls: 'anyMeans' },
     finishWeights: { disqualification: 0, countOut: 0, knockout: 2.4, submission: 0.3 },
     finishFlavor: {
-      knockout: 'found a {weapon} when the moment called for it and put {loser} down for the count',
+      knockout: 'found {weapon} when the moment called for it and put {loser} down for the count',
       submission: 'grabbed whatever was closest to force the tap out of {loser}',
     },
     // No rules to break, so no protection from breaking them.
@@ -112,7 +117,7 @@ export const STIPULATIONS: Stipulation[] = [
     impliedRules: { ruleStrictness: 'none', countOuts: 'none' },
     finishWeights: { disqualification: 0, countOut: 0, knockout: 1.8 },
     finishFlavor: {
-      knockout: 'dropped {loser} with a {weapon} that had no business anywhere near a wrestling ring',
+      knockout: 'dropped {loser} with {weapon} that had no business anywhere near a wrestling ring',
     },
     // No rules to break, so no protection from breaking them.
     titleChangesOnDQ: true,
@@ -201,6 +206,7 @@ export const STIPULATIONS: Stipulation[] = [
     },
     finishFlavor: {
       knockout: 'put {loser} through the burning table and the arena lost its mind',
+      interference: 'sent {loser} through the burning table with help from outside',
       doubleKO: 'took {loser} through the fire and neither of them got up',
       equipmentFailure: 'drove {loser} toward the fire right on schedule, except the table held under both of them, and the whole thing died right there',
     },

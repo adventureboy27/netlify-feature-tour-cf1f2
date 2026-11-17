@@ -3,7 +3,8 @@ import { generateBeats, beatCount, type NarrativeContext, type EliminationEvent 
 import { rngFromSeed } from '../rng';
 import { generateWrestlers } from '../generate/wrestler';
 import { createStartingTitles } from '../../data/titles';
-import { stipulationById } from '../../data/stipulations';
+import { stipulationById, effectiveRules } from '../../data/stipulations';
+import { RIVAL_MATCH_RULES } from '../world/rivalBooking';
 import { BATTLE_ROYAL_ELIMINATION_BEATS, BATTLE_ROYAL_ELIMINATION_BY_BEATS, BATTLE_ROYAL_FINAL_BEATS } from '../../data/matchBeats';
 import type { Wrestler } from '../types';
 
@@ -214,5 +215,61 @@ describe('what the reel talks about', () => {
       .map((beat) => beat.text)
       .join(' ');
     expect(/top rope|dive/.test(text)).toBe(true);
+  });
+});
+
+describe('a special match records the spots it is built around', () => {
+  // The write-up, the commentary and the match viewer all read these, so what
+  // the player reads happened is exactly what the ring shows happening.
+  const rulesFor = (id: string | null) => effectiveRules(RIVAL_MATCH_RULES, id ? (stipulationById(id) ?? null) : null);
+  const special = (id: string, rating = 60) => reel({ rating, stipulation: stipulationById(id) ?? null, rules: rulesFor(id) });
+
+  it('a ladder match has its ladder, and its near thing is coming off one', () => {
+    const beats = special('ladder');
+    expect(beats.some((b) => b.spot === 'ladderShot' || b.spot === 'ladderDive')).toBe(true);
+    expect(beats.find((b) => b.kind === 'nearFall')?.spot).toBe('ladderPull');
+  });
+
+  it('even the shortest special match gets its spot', () => {
+    for (const id of ['ladder', 'tables', 'casket', 'steelCage', 'hardcore', 'blindfoldMatch']) {
+      expect(special(id, 12).some((b) => b.spot), id).toBe(true);
+    }
+  });
+
+  it('a near thing that is not a pin, in every match that is not won by one', () => {
+    const want: Record<string, string> = { ladder: 'ladderPull', tables: 'tableFightOff', flamingTables: 'tableFightOff', casket: 'casketNear', steelCage: 'cageClimb', battleRoyal: 'teeter', lastManStanding: 'countBeaten', submissionMatch: 'holdEscape' };
+    for (const [id, spot] of Object.entries(want)) expect(special(id).find((b) => b.kind === 'nearFall')?.spot, id).toBe(spot);
+  });
+
+  it('nothing is put through a table in a tables match before the finish', () => {
+    for (const seed of ['a', 'b', 'c', 'd', 'e']) {
+      const beats = generateBeats(rngFromSeed(seed), ctxFor({ rating: 90, stipulation: stipulationById('tables') ?? null, rules: rulesFor('tables') }));
+      expect(beats.some((b) => b.spot === 'tableThrough')).toBe(false);
+    }
+  });
+
+  it('a weapon named in the write-up is recorded, and is one the viewer can draw', () => {
+    const beats = special('hardcore', 90);
+    for (const b of beats) if (b.spot === 'weaponShot') expect(['chair', 'kendo', 'can']).toContain(b.weapon);
+    const named = beats.filter((b) => /steel chair|kendo stick|trash can/.test(b.text));
+    for (const b of named) expect(b.weapon, b.text).toBeDefined();
+  });
+
+  it('an ordinary match has none', () => {
+    expect(reel({ rules: rulesFor(null) }).some((b) => b.spot)).toBe(false);
+  });
+
+  it('draws nothing extra from the shared stream', () => {
+    // Adding a draw shifts every seeded roll after it (CLAUDE.md), so the
+    // spots come off a stream of their own.
+    const counted = (rules: ReturnType<typeof rulesFor> | undefined) => {
+      const base = rngFromSeed('count');
+      let n = 0;
+      const rng = { next: () => (n++, base.next()) };
+      generateBeats(rng, ctxFor({ rating: 90, stipulation: stipulationById('ladder') ?? null, rules }));
+      return n;
+    };
+    expect(counted(undefined)).toBeGreaterThan(0);
+    expect(counted(rulesFor('ladder'))).toBe(counted(undefined));
   });
 });

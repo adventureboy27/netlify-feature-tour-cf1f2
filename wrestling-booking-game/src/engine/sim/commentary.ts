@@ -694,7 +694,10 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     if (beat.kind === 'hopeSpot') turnOver();
     calling = beatIndex;
 
-    const options = (PLAY_BY_PLAY[beat.kind] ?? []).filter((t) => !usedPlay.has(t));
+    // A special match's spot is called as what it was: the ladder, the
+    // table, the lid coming up — the same words the write-up has, so the
+    // ring the viewer stages it in is never contradicted by the call.
+    const options = beat.spot ? [] : (PLAY_BY_PLAY[beat.kind] ?? []).filter((t) => !usedPlay.has(t));
     if (options.length > 0) {
       const line = pick(rng, options);
       usedPlay.add(line);

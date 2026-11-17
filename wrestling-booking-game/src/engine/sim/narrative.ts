@@ -13,8 +13,8 @@
 // which of those appear. The lines themselves live in data/matchBeats.ts.
 
 import type { Rng } from '../rng';
-import { pick, chance } from '../rng';
-import type { Id, Wrestler, MatchBeat, MatchBeatKind, FinishType, Stipulation, Title } from '../types';
+import { pick, chance, rngFromSeed } from '../rng';
+import type { Id, Wrestler, MatchBeat, MatchBeatKind, FinishType, Stipulation, Title, MatchRules, MatchSpot, MatchWeapon } from '../types';
 import {
   OPENING_BEATS,
   CONTROL_BEATS,
@@ -28,6 +28,7 @@ import {
   BATTLE_ROYAL_ELIMINATION_BY_BEATS,
   BATTLE_ROYAL_FINAL_BEATS,
   WEAPONS,
+  SPOT_BEATS,
   type BeatTemplate,
 } from '../../data/matchBeats';
 
@@ -93,6 +94,16 @@ export interface NarrativeContext {
    */
   pinnedId?: Id;
   pinnerId?: Id;
+  /**
+   * The rules the match was actually fought under (stipulation applied) —
+   * what decides which spots it has. Absent: no spots beyond the plain match.
+   */
+  rules?: MatchRules;
+  /**
+   * Seeds the spot pass's own generator. The spots are drawn from a stream
+   * of their own so that adding them shifts nothing on the shared one.
+   */
+  spotSeed?: string;
 }
 
 /**
@@ -140,14 +151,21 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
   const winnerName = winner?.name ?? 'The winner';
   const loserName = loser?.name ?? 'their opponent';
 
-  const fill = (text: string): string =>
-    text
+  // The weapon is drawn on every fill, named or not (as it always has been —
+  // one draw per line, so nothing downstream on the shared stream moves),
+  // and remembered: a line that names one records which, for the viewer.
+  let lastWeapon: MatchWeapon = 'chair';
+  const fill = (text: string): string => {
+    const weapon = pick(rng, WEAPONS);
+    lastWeapon = weapon.id;
+    return text
       .replace(/\{winner\}/g, winnerName)
       .replace(/\{loser\}/g, loserName)
       .replace(/\{other\}/g, ctx.winnerMembers[1]?.name ?? winnerName)
       .replace(/\{finisher\}/g, winner?.moveSet?.finisher?.name ?? 'the finish')
       .replace(/\{title\}/g, ctx.titles?.[0]?.name ?? 'the championship')
-      .replace(/\{weapon\}/g, pick(rng, WEAPONS));
+      .replace(/\{weapon\}/g, weapon.text);
+  };
 
   const beats: MatchBeat[] = [];
   const used = usedAcrossCard;
@@ -180,7 +198,7 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
     const text = extra ? extra(fill(template.text)) : fill(template.text);
     const actorId = idOverride ? idOverride.actorId : (onTop[0]?.id ?? null);
     const targetId = idOverride ? idOverride.targetId : (inTrouble[0]?.id ?? null);
-    beats.push({ kind, text, significant: true, actorId, targetId });
+    beats.push({ kind, text, significant: true, actorId, targetId, ...spotInLine(template.text, lastWeapon) });
     return true;
   };
   const push = (kind: MatchBeatKind, templates: readonly BeatTemplate[]): void => {
@@ -269,10 +287,108 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
     significant: true,
     actorId: ctx.pinnerId ?? null,
     targetId: ctx.pinnedId ?? null,
+    // Finished with something in the hand: the viewer puts that thing there.
+    ...(flavor?.includes('{weapon}') ? { weapon: lastWeapon } : {}),
   });
 
   // And how the room felt about it, if there is anything left to say.
   if (beats.length < budget && chance(rng, AFTERMATH_CHANCE)) push('control', AFTERMATH_BEATS);
 
-  return beats;
+  return withSpots(beats, ctx, budget);
+}
+
+/** A line that describes a spot names it: recorded, so the viewer shows that. */
+function spotInLine(template: string, weapon: MatchWeapon): Pick<MatchBeat, 'spot' | 'weapon'> {
+  if (template.includes('{weapon}')) return { spot: 'weaponShot', weapon };
+  if (/through the timekeeper/i.test(template)) return { spot: 'tableThrough' };
+  return {};
+}
+
+/**
+ * What a special match is built around, and what its near thing looks like.
+ * Mirrors ui/match/conduct.ts's reading of the same rules — the two have to
+ * agree, or the write-up says one thing and the ring shows another.
+ */
+export function spotsFor(stipulation: string | null, rules: MatchRules | undefined): { control: MatchSpot[]; nearFall: MatchSpot | null } {
+  const weapons = rules?.ruleStrictness === 'none';
+  const furniture = stipulation === 'ladder' || stipulation === 'tables' || stipulation === 'flamingTables' || stipulation === 'casket';
+  const control: MatchSpot[] = [];
+  if (stipulation === 'steelCage') control.push('intoCage', 'cageTop');
+  if (stipulation === 'ladder') control.push('ladderShot', 'ladderDive');
+  if (stipulation === 'blindfoldMatch') control.push('blindSwing');
+  if (weapons) {
+    control.push('weaponShot', 'stepsShot');
+    // Through a table ends a tables match; a ladder match has its own ladder spots.
+    if (!furniture) control.push('tableThrough', 'ladderShot');
+  }
+  const battleRoyal = stipulation === 'battleRoyal' || rules?.preset === 'battleRoyal';
+  const knockoutOnly = rules?.falls === 'knockout' || rules?.aim === 'lastStanding';
+  const subsOnly = rules?.falls === 'subsOnly' || rules?.aim === 'submissionOnly';
+  const nearFall: MatchSpot | null =
+    stipulation === 'steelCage' && rules?.aim === 'escape' ? 'cageClimb'
+    : stipulation === 'ladder' ? 'ladderPull'
+    : stipulation === 'tables' || stipulation === 'flamingTables' ? 'tableFightOff'
+    : stipulation === 'casket' ? 'casketNear'
+    : battleRoyal ? 'teeter'
+    : knockoutOnly ? 'countBeaten'
+    : subsOnly ? 'holdEscape'
+    : null;
+  return { control: [...new Set(control)], nearFall };
+}
+
+/**
+ * The spots, written into the reel: one or two of what the match is built
+ * around while the winner is on top (the second, in a long enough match, by
+ * the other side once they have fought back), and the near thing in the
+ * shape this match has one. Structural, like a battle royal's eliminations —
+ * a ladder match gets its ladder however short its write-up.
+ */
+function withSpots(beats: MatchBeat[], ctx: NarrativeContext, budget: number): MatchBeat[] {
+  const plan = spotsFor(ctx.stipulation?.id ?? null, ctx.rules);
+  if (plan.control.length === 0 && !plan.nearFall) return beats;
+  const rng = rngFromSeed(ctx.spotSeed ?? `spots:${ctx.winnerMembers.map((w) => w.id).join(',')}:${ctx.loserMembers.map((w) => w.id).join(',')}:${ctx.rating}`);
+  const everybody = [...ctx.winnerMembers, ...ctx.loserMembers];
+  const nameOf = (id: Id | null | undefined) => everybody.find((w) => w.id === id)?.name ?? 'their opponent';
+  const winnerId = ctx.pinnerId ?? ctx.winnerMembers[0]?.id ?? null;
+  const loserId = ctx.pinnedId ?? ctx.loserMembers[0]?.id ?? null;
+  const write = (spot: MatchSpot, kind: MatchBeatKind, actorId: Id | null, targetId: Id | null): MatchBeat => {
+    const weapon = pick(rng, WEAPONS);
+    const text = pick(rng, SPOT_BEATS[spot])
+      .replace(/\{actor\}/g, nameOf(actorId))
+      .replace(/\{target\}/g, nameOf(targetId))
+      .replace(/\{weapon\}/g, weapon.text);
+    return { kind, text, significant: true, actorId, targetId, spot, ...(spot === 'weaponShot' ? { weapon: weapon.id } : {}) };
+  };
+  const out = [...beats];
+
+  // The near thing: the reel's own near fall becomes this match's kind of
+  // near thing, or one is added just before the finish. The side that is on
+  // top for it (the loser, fighting back) nearly wins it; the other survives.
+  if (plan.nearFall) {
+    const at = out.findIndex((b) => b.kind === 'nearFall');
+    if (at >= 0) {
+      const was = out[at]!;
+      out[at] = write(plan.nearFall, 'nearFall', was.actorId ?? loserId, was.targetId ?? winnerId);
+    } else {
+      const finish = out.findIndex((b) => b.kind === 'finish');
+      out.splice(finish >= 0 ? finish : out.length, 0, write(plan.nearFall, 'nearFall', loserId, winnerId));
+    }
+  }
+
+  if (plan.control.length > 0) {
+    const pool = [...plan.control];
+    const take = () => pool.splice(pool.indexOf(pick(rng, pool)), 1)[0]!;
+    // After the winner's control segment if there is one, else after the opening.
+    const hope = out.findIndex((b) => b.kind === 'hopeSpot');
+    const end = hope >= 0 ? hope : out.findIndex((b) => b.kind === 'nearFall' || b.kind === 'finish');
+    let first = 1;
+    for (let i = 1; i < (end >= 0 ? end : out.length); i++) if (out[i]!.kind === 'control' && !out[i]!.spot) first = i + 1;
+    out.splice(first, 0, write(take(), 'control', winnerId, loserId));
+    // And the other side's turn with it, where the match had room for one.
+    if (budget >= 6 && pool.length > 0) {
+      const back = out.findIndex((b) => b.kind === 'hopeSpot');
+      if (back >= 0) out.splice(back + 1, 0, write(take(), 'control', loserId, winnerId));
+    }
+  }
+  return out;
 }

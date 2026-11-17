@@ -912,25 +912,6 @@ export function stageBeat(
   const named = moveNamed(actor, beat.moveName);
   const conduct = context.conduct ?? STANDARD;
   const built = (move: MoveId, choreo: Choreo, duration: number): StagedBeat => ({ move, choreo, meta: META[move] ?? {}, duration, ...propsFor(move, conduct, index + context.recent.length) });
-  // What makes a special match special, between the bell and the finish:
-  // the weapons where nothing is illegal, the cage where there is one, the
-  // ladder, the blindfold. Woven in with the ordinary moves, one for one, so
-  // a ladder match is about the ladder and not just a match with a ladder
-  // in it at the end.
-  const armed = (options: readonly MoveId[]): readonly MoveId[] => {
-    const special: MoveId[] = [];
-    if (conduct.cage) special.push('intoCage', 'cageTop');
-    if (conduct.furniture === 'ladder') special.push('ladderDive', 'ladderShot');
-    if (conduct.blindfold) special.push('blindSwing');
-    if (conduct.weapons) {
-      special.push('chairShot', 'stepsShot');
-      if (conduct.furniture === null) special.push('tablePowerbomb', 'ladderShot');
-    }
-    if (special.length === 0) return options;
-    const woven: MoveId[] = [];
-    options.forEach((id, i) => woven.push(id, ...(i < special.length ? [special[i]!] : [])));
-    return [...woven, ...special.slice(options.length)];
-  };
   // With no ring there are no ropes to run, no corner to be put in and
   // nothing to climb: anything that needs one becomes a slam on the concrete.
   const needsRing = (id: MoveId) => Boolean(META[id]?.anchor || META[id]?.exits || META[id]?.actorExits) || id === 'tossOutside' || id === 'rollInside';
@@ -973,6 +954,45 @@ export function stageBeat(
   // by itself; for the rest, the nearest thing that opens with a knockdown.
   const spoken: MoveId | null = heard && META[heard]?.needsDown && !context.targetDown ? (heard === 'stomp' ? 'cornerStomp' : heard === 'pickUp' ? 'strike' : 'elbowDrop') : heard;
 
+  // DESIGN: a special match's spots — the ladder, the table, the chair, the
+  // lid coming back up — are things the simulation recorded, and the write-up
+  // and the commentary both describe them. So they are staged exactly where
+  // recorded and nowhere else: the viewer never invents one the player would
+  // then look for in the results and not find.
+  if (beat.spot) {
+    switch (beat.spot) {
+      case 'weaponShot':
+        return { ...pick('chairShot'), prop: beat.weapon ?? weaponAt(index) };
+      case 'ladderShot':
+      case 'stepsShot':
+      case 'intoCage':
+        return pick(beat.spot);
+      case 'tableThrough':
+        return pick('tablePowerbomb', 2200);
+      case 'ladderDive':
+        return pick('ladderDive', 2200);
+      case 'blindSwing':
+        return pick('blindSwing', 2000);
+      case 'cageTop':
+        return pick('cageTop', 2600);
+      case 'ladderPull':
+        return shouting(pick('ladderPull', 2800), 'PULLED DOWN!', 0.8);
+      case 'tableFightOff':
+        return shouting(pick('tableEscape', 2400), 'FIGHTS IT OFF!', 0.6);
+      case 'casketNear':
+        return { ...shouting(pick('casketNear', 3200), 'NOT YET!', 0.84), zone: 'out' };
+      case 'cageClimb':
+        return shouting(pick('cageClimb', 2800), 'DRAGGED BACK!', 0.8);
+      case 'teeter':
+        return shouting(pick('teeter', 1900), 'HANGS ON!', 0.72);
+      case 'holdEscape':
+        return built('submission', holdEscaped(), 2600);
+      case 'countBeaten': {
+        const lead = fresh(NEAR_FALL_LEADS);
+        return built(lead, withCount(MOVES[lead], 0.42, 8, true), 3200);
+      }
+    }
+  }
   switch (beat.pose) {
     case 'interference':
       return actorInRing ? pick('strike') : pick('blindside');
@@ -1029,12 +1049,18 @@ export function stageBeat(
         case 'draw':
           return shouting(pick('lockup', 1900), "TIME'S UP!", 0.7);
         case 'doubleKO':
+          // In a tables match the two of them go through it together.
+          if (conduct.furniture === 'table' || conduct.furniture === 'flamingTable') return { ...shouting(pick('doubleDown', 2200), 'BOTH DOWN!', 0.75), scene: conduct.furniture };
           return shouting(pick('doubleDown', 2200), 'BOTH DOWN!', 0.75);
         case 'blood':
           return shouting(pick('headbutt', 1900), 'FIRST BLOOD!', 0.7);
         case 'stoppage':
           return shouting(built(lead === 'submission' ? 'slam' : lead, MOVES[lead === 'submission' ? 'slam' : lead], 2000), 'MATCH STOPPED!', 0.85);
         case 'knockout':
+          // Written as put away with something in the hand: that, in the hand.
+          if (beat.weapon) return shouting({ ...pick('chairShot', 2000), prop: beat.weapon }, 'KNOCKED OUT!', 0.85);
+          // A cage match's knockout is into the steel ("hammered into the chain-link").
+          if (conduct.cage) return shouting(pick('intoCage', 2000), 'KNOCKED OUT!', 0.85);
           return shouting(built(lead === 'submission' ? 'slam' : lead, MOVES[lead === 'submission' ? 'slam' : lead], 2000), 'KNOCKED OUT!', 0.85);
       }
       // (Unreachable; the switch above is exhaustive. Keeps the compiler honest if a finish is added.)
@@ -1045,11 +1071,11 @@ export function stageBeat(
     case 'exchange':
       return pick(spoken ?? fresh(OPENING));
     case 'comeback':
-      return pick(spoken ?? fresh(armed(COMEBACK)));
+      return pick(spoken ?? fresh(COMEBACK));
     case 'whip':
       return pick(spoken ?? (context.targetDown ? fresh(GROUND) : fresh(WHIPS)));
     case 'control':
-      return pick(spoken ?? (context.targetDown ? fresh(GROUND) : fresh(armed(CONTROL[style]))));
+      return pick(spoken ?? (context.targetDown ? fresh(GROUND) : fresh(CONTROL[style])));
   }
 }
 
@@ -1173,7 +1199,9 @@ export function stageMatch(
   // A trip to the floor replaces the unspoken work in one gap, about a third
   // of the way in: out, a couple of moves down there, and back, all before
   // the next thing the caller has a line for — which is always in the ring.
-  const FLOOR_WORK: readonly MoveId[] = conduct.weapons ? ['whip', 'chairShot', 'slam', 'flurry', 'headbutt', 'clothesline', 'kneeLift', 'suplex'] : ['whip', 'slam', 'flurry', 'headbutt', 'clothesline', 'kneeLift', 'suplex'];
+  // Nothing in anybody's hands down here unless the simulation said so (see
+  // the spot DESIGN note in stageBeat): the floor is fists and the barricade.
+  const FLOOR_WORK: readonly MoveId[] = ['whip', 'slam', 'flurry', 'headbutt', 'clothesline', 'kneeLift', 'suplex'];
   const outsideAfter = allowOutside && timeline.length >= 4 ? Math.max(1, Math.floor(timeline.length / 3)) : -1;
   const excursion = (actorId: Id, targetId: Id, seed: number) => {
     const filler = (): PlaybackBeat => ({ kind: 'control', pose: 'control', text: '', significant: false, actorId, targetId, moveName: null });
@@ -1188,9 +1216,8 @@ export function stageMatch(
       moments.push({ beat: filler(), actorId, targetId, staged: { move: lead, choreo: withCover(MOVES[lead], 0.48, 2), meta: META[lead] ?? {}, zone: 'floor', duration: 2200 }, lines: [], holdMs: 2200, filler: true });
       recent.push(lead);
     } else
-    add(FLOOR_WORK.filter((id) => id !== 'chairShot')[seed % (FLOOR_WORK.length - (conduct.weapons ? 1 : 0))]!, 'floor');
-    // Where chairs are legal, the floor is where one gets found.
-    add(conduct.weapons ? 'chairShot' : FLOOR_WORK[(seed + 3) % FLOOR_WORK.length]!, 'floor');
+    add(FLOOR_WORK[seed % FLOOR_WORK.length]!, 'floor');
+    add(FLOOR_WORK[(seed + 3) % FLOOR_WORK.length]!, 'floor');
     // Whatever the last one did, the target is put down for the trip back.
     add('rollInside', 'in');
     downId = targetId;
