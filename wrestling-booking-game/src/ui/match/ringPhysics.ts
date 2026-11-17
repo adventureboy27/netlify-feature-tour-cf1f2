@@ -123,6 +123,31 @@ const inRing = (pose: WorldPose, half: number = RING.half) => Math.abs(pose.x) <
 export const onFrontFloor = (pose: WorldPose) => pose.y < FLOOR - 0.2;
 const lying = (pose: WorldPose) => isDown([0, pose.y - (onFrontFloor(pose) ? FRONT_FLOOR : 0), pose.rot]);
 
+/** Where a track has a body at time `t`: between its two frames either side, straight-line. */
+function poseAt(frames: readonly WorldFrame[], t: number): WorldFrame | undefined {
+  if (frames.length === 0) return undefined;
+  if (t <= frames[0]!.at) return frames[0];
+  for (let i = 0; i < frames.length - 1; i++) {
+    const a = frames[i]!;
+    const b = frames[i + 1]!;
+    if (t > b.at) continue;
+    const k = b.at === a.at ? 0 : (t - a.at) / (b.at - a.at);
+    return { at: t, x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, rot: a.rot + (b.rot - a.rot) * k, sy: a.sy, stance: a.stance };
+  }
+  return frames[frames.length - 1];
+}
+
+/** Put a body at `pose` at time `t`: moves the frame already there, or adds one between its neighbours. */
+function setPoseAt(frames: WorldFrame[], t: number, pose: WorldFrame) {
+  const near = frames.findIndex((frame) => Math.abs(frame.at - t) < 0.02);
+  if (near >= 0) {
+    frames[near] = { ...frames[near]!, x: pose.x };
+    return;
+  }
+  const after = frames.findIndex((frame) => frame.at > t);
+  frames.splice(after < 0 ? frames.length : after, 0, { ...pose, at: t });
+}
+
 /** The span of the ring a pose occupies, left to right. */
 function span(x: number, rot: number): [number, number] {
   const hx = headX(x, rot);
@@ -326,16 +351,42 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
   }
 
   const when = (at: number) => (lead === 0 ? at : lead + at * (1 - lead));
-  // A move that says it uses the ropes: the ropes behind whoever it is anchored
-  // to, or else the nearer side of the ring.
-  if (choreo.ropes !== undefined) ropeHits.push({ at: when(choreo.ropes), side: anchored ? (-anchored.dir as 1 | -1) : centre >= 0 ? 1 : -1 });
+  // A move that says it uses the ropes (a whip, a run off them, a corner):
+  // whoever is up against the rope line at that moment goes into the ropes by
+  // as much as they give — the same as a body that collides with them above —
+  // and it is their side that bows. Nobody at the line (up on the corner,
+  // climbing the cage) and the ropes still take the weight, on the side the
+  // move is anchored to, or else the nearer one.
+  if (choreo.ropes !== undefined) {
+    const t = when(choreo.ropes);
+    let side: 1 | -1 = anchored ? (-anchored.dir as 1 | -1) : centre >= 0 ? 1 : -1;
+    if (zone === 'ring') {
+      for (const f of fighters) {
+        const frames = tracks.get(f.id);
+        const pose = frames ? poseAt(frames, t) : undefined;
+        if (!frames || !pose || pose.y >= RING.topRope || Math.abs(normalizeRot(pose.rot)) >= 45) continue;
+        const [lo, hi] = span(pose.x, pose.rot);
+        const at = hi > edge - 1 ? 1 : lo < -edge + 1 ? -1 : 0;
+        if (at === 0) continue;
+        side = at;
+        const press = at === 1 ? edge + RING.ropeGive - hi : -edge - RING.ropeGive - lo;
+        setPoseAt(frames, t, { ...pose, x: pose.x + press });
+        break;
+      }
+    }
+    ropeHits.push({ at: t, side });
+  }
+  // One body into the ropes is one hit, however many frames of the move touch
+  // them: the same side again within a moment is the same hit, not another bow.
+  ropeHits.sort((x, y) => x.at - y.at);
+  const hits = ropeHits.filter((hit, i) => !ropeHits.slice(0, i).some((earlier) => earlier.side === hit.side && hit.at - earlier.at < 0.15));
   const targetHome = target ? home(target, centre) : centre;
   const held = staysDown && target?.from ? target.from.x - targetHome - (target?.dir ?? 1) * targetFrames[0]![1] : 0;
   return {
     tracks,
     lead,
     centre,
-    ropeHits,
+    ropeHits: hits,
     end,
     impacts: impacts.map(([at, x, y, big]) => ({
       at: staysDown ? at : when(at),

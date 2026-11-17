@@ -6775,3 +6775,14 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   an accurate description in the sidebar and on the page.
 - Territories: looked at and left alone; it is a clear map with a purpose line already.
 - Rendered after one played week: Results scrolled and jumped, Free agents, Rankings, and the Admin group.
+
+## Rope moves press into the ropes too; one bow per hit (tested, rendered)
+
+- A move that names a moment it uses the ropes (whips, runs off them, corners) now carries whoever is up against
+  the rope line at that moment into the ropes by `RING.ropeGive`, the same as a collision, and that body's side is
+  the one that bows. Nobody at the line (up on the corner, climbing the cage): the ropes still bow, as before.
+- Found while testing: a whip already went into the ropes by collision, twice, and its named ropes moment came just
+  after, on the rebound. That was three bows for one hit. Hits on the same side within 0.15 of a move now count as
+  one.
+- New test: a whip puts a body into the ropes by their give and no further, on the side that bows. 96 tests pass.
+- Rendered: the whip match now bows once on the left and once on the right, plus the small give on big landings.

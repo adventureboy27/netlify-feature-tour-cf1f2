@@ -149,6 +149,26 @@ function fighter(id: string, role: 'actor' | 'target', dir: 1 | -1, from?: World
 }
 
 describe('the ring is solid', () => {
+  it('a whip goes into the ropes, by as much as they give, on the side that bows', () => {
+    for (const dirs of [[1, -1], [-1, 1]] as const) {
+      const plan = planBeat(stageMove('whip'), [fighter('a', 'actor', dirs[0]), fighter('t', 'target', dirs[1])], 0);
+      expect(plan.ropeHits.length).toBeGreaterThan(0);
+      // Whoever is at the ropes at a hit: their outside edge (feet or head), on the side that bows.
+      const reach = Math.max(
+        ...plan.ropeHits.flatMap((hit) =>
+          ['a', 't'].map((id) => {
+            const frame = plan.tracks.get(id)!.find((f) => Math.abs(f.at - hit.at) < 1e-6);
+            if (!frame) return -Infinity;
+            const top = head(frame);
+            return Math.max(hit.side * frame.x, hit.side * top.x) + RING.body * Math.abs(Math.cos(rad(frame.rot)));
+          }),
+        ),
+      );
+      expect(reach).toBeGreaterThan(RING.half - 0.4 + RING.ropeGive - 0.05);
+      expect(reach).toBeLessThanOrEqual(RING.half + RING.ropeGive + 0.01);
+    }
+  });
+
   const rad = (deg: number) => (deg * Math.PI) / 180;
   const head = (f: { x: number; y: number; rot: number }) => ({ x: f.x + Math.sin(rad(f.rot)) * RING.tall, y: f.y + Math.cos(rad(f.rot)) * RING.tall });
   // Everywhere a beat might start from: nowhere in particular, both ends of
