@@ -6605,3 +6605,14 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 
 - The wall is a fixed-height panel (340px) with a grid that scrolls vertically; the heading stays put. Rendered with
   14 trophies: two rows show, and the grid scrolls (438px of content in a 289px window).
+
+## Office screen: a section list that stays put, and the section beside it
+
+- The eight horizontal tabs are now a fixed section list on the left (Decisions, Contracts, Officials, Schedule,
+  Television, Joint shows, Feuds, Trades), each with a one-line description and its badge. The chosen section
+  fills the right, with its name and purpose at the top.
+- It opens on the first section with something waiting, so a decision is never hidden behind a tab the player
+  had no reason to open. A "Waiting on you" line under the heading lists what is outstanding everywhere.
+- Section content is unchanged: every tab body is still rendered as before, nothing removed.
+- Rendered from a new game (nothing waiting; the Decisions section and a section switch both checked). Not yet
+  rendered with badges from a played save.

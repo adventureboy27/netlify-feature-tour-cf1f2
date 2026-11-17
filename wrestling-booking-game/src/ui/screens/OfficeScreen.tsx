@@ -93,7 +93,10 @@ type Tab = 'desk' | 'contracts' | 'officials' | 'trades' | 'television' | 'sched
 
 export function OfficeScreen({ onOpenFeuds }: { onOpenFeuds?: (wrestlerId: Id) => void } = {}) {
   const world = useGameStore((s) => s.world);
-  const [tab, setTab] = useState<Tab>('desk');
+  // The section the player picked. Until they pick one, the screen opens on
+  // the first section with something waiting, so nothing needing an answer is
+  // ever hidden behind a section they had no reason to open.
+  const [picked, setPicked] = useState<Tab | null>(null);
   if (!world) return null;
 
   // What is waiting on each tab. Decisions and notices both count — the badge
@@ -123,16 +126,22 @@ export function OfficeScreen({ onOpenFeuds }: { onOpenFeuds?: (wrestlerId: Id) =
     world.weeklyNews.filter((n) => n.kind === 'official').length +
     (world.referees.some((r) => r.promotionId === world.promotion.id) ? 0 : 1);
 
-  const tabs: { id: Tab; label: string; badge: number }[] = [
-    { id: 'desk', label: 'Desk', badge: onTheDesk },
-    { id: 'contracts', label: 'Contracts', badge: inContracts },
-    { id: 'officials', label: 'Officials', badge: officialsNeedYou },
-    { id: 'trades', label: 'Trades', badge: 0 },
-    { id: 'television', label: 'Television', badge: 0 },
-    { id: 'schedule', label: 'Schedule', badge: 0 },
-    { id: 'joint', label: 'Joint shows', badge: 0 },
-    { id: 'feuds', label: 'Feuds', badge: 0 },
+  // Every section, in the order a new player should meet them: what needs an
+  // answer first, then the things they book and run, then the longer-term.
+  // Each has one plain sentence saying what it is for.
+  const sections: { id: Tab; label: string; blurb: string; badge: number }[] = [
+    { id: 'desk', label: 'Decisions', blurb: 'Things that need your answer this week.', badge: onTheDesk },
+    { id: 'contracts', label: 'Contracts', blurb: 'Renewals, signings, releases and talks.', badge: inContracts },
+    { id: 'officials', label: 'Officials', blurb: 'The referees who keep the count honest.', badge: officialsNeedYou },
+    { id: 'schedule', label: 'Schedule', blurb: 'When shows run and how many a week.', badge: 0 },
+    { id: 'television', label: 'Television', blurb: 'How the TV show is doing and what it pays.', badge: 0 },
+    { id: 'joint', label: 'Joint shows', blurb: 'Nights shared with other promotions.', badge: 0 },
+    { id: 'feuds', label: 'Feuds', blurb: 'Who is in a story with whom, and how hot it is.', badge: 0 },
+    { id: 'trades', label: 'Trades', blurb: 'Swap talent with other promotions.', badge: 0 },
   ];
+  const active: Tab = picked ?? sections.find((t) => t.badge > 0)?.id ?? 'desk';
+  const current = sections.find((t) => t.id === active) ?? sections[0]!;
+  const waiting = sections.filter((t) => t.badge > 0);
 
   return (
     <div className="p-3 pb-6 text-neutral-100">
@@ -141,49 +150,61 @@ export function OfficeScreen({ onOpenFeuds }: { onOpenFeuds?: (wrestlerId: Id) =
 
       <StatusStrip />
 
-      {/* Six tabs do not fit a phone. The strip scrolls inside itself —
-          letting it push the body wide instead shifts the header off screen. */}
-      <div className="-mx-3 mb-3 flex gap-1 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {tabs.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            data-testid={`office-tab-${option.id}`}
-            onClick={() => setTab(option.id)}
-            className={`flex shrink-0 items-center gap-1.5 rounded px-3 py-1 text-xs ${
-              tab === option.id
-                ? 'bg-emerald-600 text-white'
-                : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-            }`}
-          >
-            {option.label}
-            {option.badge > 0 && (
-              <span
-                className={`rounded-full px-1.5 text-[10px] font-semibold ${
-                  tab === option.id ? 'bg-emerald-800 text-white' : 'bg-amber-600 text-white'
-                }`}
-              >
-                {option.badge}
+      {/* A section list that never moves, and the chosen section beside it. */}
+      <div className="grid gap-4 md:grid-cols-[14rem_minmax(0,1fr)]">
+        <nav aria-label="Office sections" className="flex flex-col gap-1 md:sticky md:top-3 md:self-start">
+          <div className="px-2 pb-1 text-[10px] uppercase tracking-wide text-neutral-500">Sections</div>
+          {sections.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              data-testid={`office-tab-${option.id}`}
+              aria-current={active === option.id ? 'page' : undefined}
+              onClick={() => setPicked(option.id)}
+              className={`flex items-center justify-between gap-2 rounded px-3 py-2 text-left ${
+                active === option.id ? 'bg-emerald-700 text-white' : 'bg-neutral-900 text-neutral-200 hover:bg-neutral-800'
+              }`}
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">{option.label}</span>
+                <span className={`block text-[11px] leading-snug ${active === option.id ? 'text-emerald-100' : 'text-neutral-500'}`}>
+                  {option.blurb}
+                </span>
               </span>
-            )}
-          </button>
-        ))}
-      </div>
+              {option.badge > 0 && (
+                <span className="shrink-0 rounded-full bg-amber-600 px-1.5 text-[10px] font-semibold text-white">{option.badge}</span>
+              )}
+            </button>
+          ))}
+        </nav>
 
-      {tab === 'desk' && <DeskTab />}
-      {tab === 'contracts' && <ContractsTab />}
-      {tab === 'officials' && <OfficialsTab />}
-      {tab === 'trades' && <TradesTab />}
-      {tab === 'television' && <TelevisionTab />}
-      {tab === 'schedule' && <ScheduleTab />}
-      {tab === 'joint' && <JointShowsTab />}
-      {tab === 'feuds' && <FeudsTab onOpenFeuds={onOpenFeuds} />}
+        <section className="min-w-0" aria-labelledby="office-section-title">
+          <header className="mb-3 border-b border-neutral-800 pb-2">
+            <h2 id="office-section-title" className="text-lg font-semibold">{current.label}</h2>
+            <p className="text-xs text-neutral-400">{current.blurb}</p>
+            {waiting.length > 0 && (
+              <p className="mt-1 text-xs text-amber-300" data-testid="office-waiting">
+                Waiting on you: {waiting.map((w) => `${w.badge} in ${w.label}`).join(' · ')}
+              </p>
+            )}
+          </header>
+
+          {active === 'desk' && <DeskTab />}
+          {active === 'contracts' && <ContractsTab />}
+          {active === 'officials' && <OfficialsTab />}
+          {active === 'trades' && <TradesTab />}
+          {active === 'television' && <TelevisionTab />}
+          {active === 'schedule' && <ScheduleTab />}
+          {active === 'joint' && <JointShowsTab />}
+          {active === 'feuds' && <FeudsTab onOpenFeuds={onOpenFeuds} />}
+        </section>
+      </div>
     </div>
   );
 }
 
 /**
- * The two things that end a save. Pinned above the tabs and never inside one,
+ * The two things that end a save. Pinned above the sections and never inside one,
  * because a promotion four weeks from the creditors should not be discoverable
  * only by tabbing.
  */
