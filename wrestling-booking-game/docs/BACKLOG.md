@@ -6623,3 +6623,9 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   under the title. Tag teams and the icon key moved below the list and detail, since they are needed less often.
 - Same controls and test ids; nothing removed. Rendered from a new game: the toolbar, the list and the detail pane
   read top to bottom.
+
+## Finance: a section list with a purpose line for each
+
+- Three buttons with unclear names are now a fixed section list (The books, Production, Card size), each with a
+  one-line purpose, and the chosen section has its own heading. Same pattern as the Office.
+- Content unchanged. Rendered from a new game (The books section; the layout reads top to bottom).

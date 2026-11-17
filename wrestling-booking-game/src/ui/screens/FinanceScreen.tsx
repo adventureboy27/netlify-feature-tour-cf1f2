@@ -31,30 +31,53 @@ export function FinanceScreen() {
   const [tab, setTab] = useState<'books' | 'ladder' | 'cardSize'>('books');
   if (!world) return null;
 
+  const sections: { id: 'books' | 'ladder' | 'cardSize'; label: string; blurb: string }[] = [
+    { id: 'books', label: 'The books', blurb: 'What came in and went out, week by week.' },
+    { id: 'ladder', label: 'Production', blurb: 'The gear and transport that let you put on shows.' },
+    { id: 'cardSize', label: 'Card size', blurb: 'How many matches a show has room for.' },
+  ];
+  const current = sections.find((x) => x.id === tab) ?? sections[0]!;
+
   return (
     <div className="space-y-3 p-3 pb-6 text-neutral-100">
       <h1 className="text-base font-semibold">Finance</h1>
-      <div className="flex gap-1">
-        {(['books', 'ladder', 'cardSize'] as const).map((id) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={`flex-1 rounded px-3 py-1.5 text-xs font-medium ${
-              tab === id ? 'bg-emerald-700 text-white' : 'bg-neutral-800 text-neutral-300'
-            }`}
-          >
-            {id === 'books' ? 'The books' : id === 'ladder' ? 'Production' : 'Card size'}
-          </button>
-        ))}
+
+      {/* The same pattern as the office: a section list that stays put, the chosen one beside it. */}
+      <div className="grid gap-4 md:grid-cols-[14rem_minmax(0,1fr)]">
+        <nav aria-label="Finance sections" className="flex flex-col gap-1 md:sticky md:top-3 md:self-start">
+          <div className="px-2 pb-1 text-[10px] uppercase tracking-wide text-neutral-500">Sections</div>
+          {sections.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-current={tab === option.id ? 'page' : undefined}
+              onClick={() => setTab(option.id)}
+              className={`rounded px-3 py-2 text-left ${
+                tab === option.id ? 'bg-emerald-700 text-white' : 'bg-neutral-900 text-neutral-200 hover:bg-neutral-800'
+              }`}
+            >
+              <span className="block text-sm font-semibold">{option.label}</span>
+              <span className={`block text-[11px] leading-snug ${tab === option.id ? 'text-emerald-100' : 'text-neutral-500'}`}>
+                {option.blurb}
+              </span>
+            </button>
+          ))}
+        </nav>
+
+        <section className="min-w-0 space-y-3">
+          <header className="border-b border-neutral-800 pb-2">
+            <h2 className="text-lg font-semibold">{current.label}</h2>
+            <p className="text-xs text-neutral-400">{current.blurb}</p>
+          </header>
+          {tab === 'books' ? (
+            <Books />
+          ) : tab === 'ladder' ? (
+            <Ladder buyRung={buyRung} buyHaulage={buyHaulage} />
+          ) : (
+            <CardSizeLadder buyCardSizeTier={buyCardSizeTier} />
+          )}
+        </section>
       </div>
-      {tab === 'books' ? (
-        <Books />
-      ) : tab === 'ladder' ? (
-        <Ladder buyRung={buyRung} buyHaulage={buyHaulage} />
-      ) : (
-        <CardSizeLadder buyCardSizeTier={buyCardSizeTier} />
-      )}
     </div>
   );
 }
