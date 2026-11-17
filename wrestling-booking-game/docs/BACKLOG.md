@@ -6819,3 +6819,14 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - The kickout: the attacker went from flat to standing in about a tenth of a second. Now the opponent bridges a
   shoulder up, the attacker is thrown up and back off, comes down and is on a knee by the end; the opponent settles.
 - Rendered: a near fall (cover, count, kickout) and a finishing pin (count of three). 96 match tests pass.
+
+## Strikes land at arm's length instead of merging (rendered at impact)
+
+- Strike, clothesline, headbutt and flurry stepped in until the two wrestlers' feet were 3-5 units apart at the
+  moment of impact, against a drawn body about 5 units wide, so the two figures stacked into one shape. The
+  clothesline also ran straight through the target.
+- Now the attacker stays about an arm's length away (9-10 units feet to feet) and the fist, arm, head or knee does
+  the reaching. The clothesline hits from arm's length with a step of follow-through and no run-through; the knee
+  lift is eased back slightly. Impact points and timings unchanged.
+- Rendered each at the instant of impact (and the flurry's three punches): the bodies are apart and the blow
+  lands. The headbutt meets a taller man's upper chest more than his head. 96 match tests pass.

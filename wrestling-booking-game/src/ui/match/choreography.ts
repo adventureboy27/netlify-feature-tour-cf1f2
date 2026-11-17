@@ -85,13 +85,17 @@ const BODIES = {
     actor: [STAND, [0.2, 5.5, 0, 8], [0.4, 6.5, 0, 13], [0.55, 4.5, 0, 5], [0.7, 6.8, 0, 13], [0.85, 4, 0, 4], [1, 0, 0, 0]],
     target: [STAND, [0.2, 5.5, 0, 8], [0.4, 4.5, 0, 4], [0.55, 6.5, 0, 13], [0.7, 4.2, 0, 3], [0.85, 4, 0, 4], [1, 0, 0, 0]],
   },
+  // Strikes land at arm's length: the attacker steps in a little and the fist,
+  // arm, head or knee does the reaching. Stepping all the way in stacked the
+  // two bodies on top of each other, and nothing could be seen landing.
   strike: {
-    actor: [STAND, [0.25, 4, 0, -8], [0.4, 9, 0, 16], [0.55, 7, 0, 4], [1, 0, 0, 0]],
+    actor: [STAND, [0.25, 2, 0, -8], [0.4, 4, 0, 16], [0.55, 3, 0, 4], [1, 0, 0, 0]],
     target: [STAND, [0.4, 0, 0, 0], [0.5, -3, 0, -18], [0.65, -4, 0, -10], [1, 0, 0, 0]],
     impacts: [[0.42, 2, 12]],
   },
   flurry: {
-    actor: [STAND, [0.12, 7, 0, 13], [0.22, 5, 0, 0], [0.34, 8, 0, 15], [0.44, 6, 0, 0], [0.58, 10, 0.6, 20], [0.72, 7, 0, 2], [1, 2, 0, 0]],
+    // Three shots at arm's length, the attacker following the target back.
+    actor: [STAND, [0.12, 4, 0, 13], [0.22, 3, 0, 0], [0.34, 5, 0, 15], [0.44, 4, 0, 0], [0.58, 6.5, 0.6, 20], [0.72, 5, 0, 2], [1, 2, 0, 0]],
     target: [STAND, [0.12, 0, 0, 0], [0.18, -2, 0, -13], [0.3, -2, 0, -4], [0.4, -4, 0, -15], [0.52, -4, 0, -5], [0.64, -7, 0, -26], [0.8, -7, 0, -12], [1, -5, 0, 0]],
     impacts: [[0.14, 2, 12], [0.36, 1, 11], [0.6, -1, 12, true]],
   },
@@ -125,7 +129,9 @@ const BODIES = {
     impacts: [[0.5, 6, 11, true]],
   },
   clothesline: {
-    actor: [STAND, [0.15, -3, 0, -8], [0.45, 11, 0, 15], [0.6, 16, 0, 8], [0.8, 18, 0, 0], [1, 18, 0, 0]],
+    // The arm across the chest from arm's length, a step of follow-through,
+    // and the target goes over backward — the attacker does not run through them.
+    actor: [STAND, [0.15, -3, 0, -8], [0.45, 5, 0, 15], [0.6, 7, 0, 8], [0.8, 7, 0, 0], [1, 7, 0, 0]],
     target: [STAND, [0.42, 0, 0, 0], [0.5, 0, 3, -50], [0.6, 0, 4, -100], [0.68, 0, DOWN, -90, 0.92], [0.74, 0, DOWN + 0.8, -90], [1, 0, DOWN, -90]],
     impacts: [[0.45, 1, 13, true]],
   },
@@ -171,7 +177,8 @@ const BODIES = {
     impacts: [[0.42, 2, 17, true]],
   },
   headbutt: {
-    actor: [STAND, [0.2, 7, 0, 0], [0.35, 8, 0, -13], [0.45, 9, 0, 30], [0.6, 8, 0, 5], [1, 3, 0, 0]],
+    // Foreheads meet: close enough for the heads, not so close the bodies stack.
+    actor: [STAND, [0.2, 3, 0, 0], [0.35, 3, 0, -13], [0.45, 3.5, 0, 22], [0.6, 3, 0, 5], [1, 2, 0, 0]],
     target: [STAND, [0.45, 0, 0, 0], [0.52, -1, 0, -24], [0.7, -3, 0, -12], [0.85, -3, 0, 9], [1, -2, 0, 0]],
     impacts: [[0.46, 3, 17]],
   },
@@ -266,7 +273,7 @@ const BODIES = {
     ropes: 0.5,
   },
   kneeLift: {
-    actor: [STAND, [0.25, 6, 0, 0], [0.4, 8, 0.5, -12], [0.5, 8, 0, 0], [1, 4, 0, 0]],
+    actor: [STAND, [0.25, 5, 0, 0], [0.4, 6.5, 0.5, -12], [0.5, 6.5, 0, 0], [1, 4, 0, 0]],
     target: [STAND, [0.4, 1, 0, 0], [0.46, 1, 0.8, 35], [0.6, 1, 0, 42], [0.8, 1, 0, 34], [1, 1, 0, 20]],
     impacts: [[0.42, 3, 9]],
   },
