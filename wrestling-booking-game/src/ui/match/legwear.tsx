@@ -33,6 +33,9 @@ export interface Legwear {
 }
 
 const BLACK = '#15151a';
+// Black leather against a dark crowd is a hole in the picture. Footwear in black is
+// drawn a shade up, so the boot still has a shape when the leg is raised.
+const LIFTED_BLACK = '#2c3040';
 const WHITE = '#e9e9ee';
 const BROWN = '#5b3a1f';
 const DENIM = '#2f4a73';
@@ -226,7 +229,7 @@ export function Shin({ m, skin, gear, female = false }: { m: Mirror; skin: strin
       {gear.stripe && long && !loose && <path d={`M ${m(34.6)},50 Q ${m(32.6)},61 ${m(35.6)},77`} stroke={gear.stripe} strokeWidth={2.2} fill="none" />}
 
       {/* Black leather against a dark crowd is a hole in the picture: dark footwear gets a pale edge so a raised boot still reads as one. */}
-      {from !== null && <path d={shinFrom(m, female, from)} fill={gear.bootColor} {...(gear.bootColor === BLACK ? { stroke: '#8a93a3', strokeOpacity: 0.85, strokeWidth: 0.7, strokeLinejoin: 'round' as const } : LINE)} />}
+      {from !== null && <path d={shinFrom(m, female, from)} fill={gear.bootColor === BLACK ? LIFTED_BLACK : gear.bootColor} {...(gear.bootColor === BLACK ? { stroke: '#8a93a3', strokeOpacity: 0.85, strokeWidth: 0.7, strokeLinejoin: 'round' as const } : LINE)} />}
       {/* The band round the top of the boot: the leg's own shape, a few units of it. */}
       {from !== null && gear.footwear !== 'kickpads' && gear.footwear !== 'cowboy' && <path d={shinBand(m, female, from, from + (gear.footwear === 'boots' ? 3.6 : 2.2))} fill={gear.trim} />}
       {gear.footwear === 'boots' && <path d={`M ${m(39.9)},62 L ${m(39.9)},76`} stroke="#fff" strokeOpacity={0.25} strokeWidth={1.1} strokeDasharray="1.6 1.8" />}

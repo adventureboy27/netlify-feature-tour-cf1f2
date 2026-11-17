@@ -354,8 +354,19 @@ export function MatchViewerScreen({
   if (!segment || !result) {
     return (
       <div className="p-6 text-neutral-100">
-        <ScreenHeader title="That match is gone" onBack={onBack} />
-        <p className="text-sm text-neutral-500">This show is no longer on file.</p>
+        {special ? (
+          <>
+            <ScreenHeader title="No replay for this match" onBack={onBack} />
+            <p className="text-sm text-neutral-500">
+              This match was played before replays were kept for nights like this one. The result is still on the record.
+            </p>
+          </>
+        ) : (
+          <>
+            <ScreenHeader title="That match is gone" onBack={onBack} />
+            <p className="text-sm text-neutral-500">This show is no longer on file.</p>
+          </>
+        )}
       </div>
     );
   }

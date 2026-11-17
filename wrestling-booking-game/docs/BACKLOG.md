@@ -6463,3 +6463,31 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Not measured with the balance probe: the tournament runs once per save, roughly seven bouts, so the
   injury cost is small; a probe run would confirm it.
 - 207 files / 3,517 tests; build clean; a real bracket was generated and one bout watched in the browser.
+
+## Gaps closed in the final sweep (without renders — owner's standing instruction)
+
+- **"Unread" results removed.** A show runs straight onto its results page, so an unread state could never
+  show. The strip and sidebar no longer carry it; the strip reads "last show".
+- **Old matches say what happened.** A joint-show, Crucible or sponsor match with no stored replay now says
+  "No replay for this match" (the result is still on the record) rather than "no longer on file".
+- **Black footwear** is drawn a shade lighter (`LIFTED_BLACK`) with the pale edge kept. Not yet looked at.
+- **Records.** A store test checks every Crucible bout puts a win and a loss on the right two people and
+  nobody else moves. The sponsor tournament's record path is not tested directly — its story cannot be
+  triggered from a test without a full save.
+- Build clean; 207 files / 3,518 tests.
+
+### Still open, and why
+
+- **Needs renders (waiting on the owner):** dark footwear, camera flashes in motion, results badges and roar,
+  the hair-match ending and "must leave" line, "MATCH STOPPED!", the Breakfast Belt panel, the Iron Crown
+  final, the mask coming off.
+- **Needs a played save:** a real double champion, trophy holder and Iron Crown holder; a sponsor
+  tournament run inside a save.
+- **Needs the owner:** listening to the sound; recorded grunts (audio files); a pull request; playing ten weeks
+  for "fun".
+- **Not started:** restructuring the Office, Roster and Finance screens; folding more help texts;
+  hand-drawn lower-body art and side-view body art (both need art direction, not code); a mask-pull and
+  head-shaving animation.
+- **Not possible from here:** updating the Prompt Sheet (the artifact tools are disconnected).
+- **Measured on paper, not with the probe:** the sponsor tournament is about seven bouts. Injuries run at
+  roughly 5 per 100 matches (docs/BALANCE.md), so about a third of an injury per tournament.

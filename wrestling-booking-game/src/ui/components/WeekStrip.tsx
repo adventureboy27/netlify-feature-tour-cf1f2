@@ -29,14 +29,14 @@ export function WeekStrip({ state, screen, onNavigate, onRunShow, accent }: { st
   const steps: { id: Screen; label: string; note: string; attention: boolean }[] = [
     { id: 'office', label: 'Office', note: state.officeWaiting > 0 ? `${state.officeWaiting} waiting` : 'quiet', attention: state.officeWaiting > 0 },
     { id: 'booking', label: 'Card', note: `${state.booked} of ${state.slots} booked`, attention: false },
-    { id: 'results', label: 'Results', note: state.resultsUnread ? 'unread' : state.hasResults ? 'last show' : 'none yet', attention: state.resultsUnread },
+    { id: 'results', label: 'Results', note: state.hasResults ? 'last show' : 'none yet', attention: false },
   ];
   // The next thing, in the order the week actually goes.
+  // A show runs straight onto its results, so there is never a show the player
+  // has not seen: the strip does not need an "unread" state.
   const next: { label: string; go: () => void } = screen === 'results' && state.hasResults
     ? // Reading the results is the end of the week; the card is the start of the next.
       { label: 'Next week', go: () => onNavigate('booking') }
-    : state.resultsUnread
-    ? { label: 'Read the results', go: () => onNavigate('results') }
     : state.officeWaiting > 0 && screen !== 'office'
       ? { label: 'Answer the office', go: () => onNavigate('office') }
       : screen !== 'booking'

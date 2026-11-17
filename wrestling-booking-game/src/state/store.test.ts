@@ -2040,3 +2040,40 @@ describe('the joint show', () => {
     expect(world.weeklyNews.some((n) => n.text.includes(world.lastSupershow!.verdict.line))).toBe(true);
   });
 });
+
+describe('the Crucible and the sponsor tournament go on the record like any match', () => {
+  const totals = () => {
+    const w = useGameStore.getState().world!;
+    return Object.fromEntries(Object.values(w.wrestlers).map((p) => [p.id, { wins: p.record.wins, losses: p.record.losses, matches: p.career.matches }]));
+  };
+
+  it('every Crucible bout is a win for one person and a loss for the other, and a match played', () => {
+    const w = useGameStore.getState().world!;
+    useGameStore.setState({
+      world: {
+        ...w,
+        pendingCupEntry: { year: 1, fee: 0, likelyField: 4, slotsEach: 2, estimatedPot: 1000, expiresWeek: w.week + 4 },
+        promotion: { ...w.promotion, bankBalance: 10_000_000 },
+      },
+    });
+    const before = totals();
+    useGameStore.getState().answerCupEntry(true);
+    const run = useGameStore.getState().world!.lastCup;
+    expect(run).toBeTruthy();
+    expect(run!.bouts.length).toBeGreaterThan(0);
+    const after = totals();
+    const expected: Record<string, { wins: number; losses: number; matches: number }> = {};
+    for (const bout of run!.bouts) {
+      const loser = bout.winnerId === bout.aId ? bout.bId : bout.aId;
+      expected[bout.winnerId] = { wins: (expected[bout.winnerId]?.wins ?? 0) + 1, losses: expected[bout.winnerId]?.losses ?? 0, matches: (expected[bout.winnerId]?.matches ?? 0) + 1 };
+      expected[loser] = { wins: expected[loser]?.wins ?? 0, losses: (expected[loser]?.losses ?? 0) + 1, matches: (expected[loser]?.matches ?? 0) + 1 };
+    }
+    for (const [id, delta] of Object.entries(expected)) {
+      expect(after[id]!.wins - before[id]!.wins).toBe(delta.wins);
+      expect(after[id]!.losses - before[id]!.losses).toBe(delta.losses);
+      expect(after[id]!.matches - before[id]!.matches).toBe(delta.matches);
+    }
+    // Nobody who did not wrestle in the bracket moves.
+    for (const id of Object.keys(before)) if (!expected[id]) expect(after[id]).toEqual(before[id]);
+  });
+});
