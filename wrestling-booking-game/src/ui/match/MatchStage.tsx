@@ -88,7 +88,7 @@ const ROPE_WOBBLE: Keyframe[] = [
   { transform: 'translateY(0)' },
 ];
 /** How long after the last move the winners raise their arms: long enough for a mask to come off and land. */
-const CELEBRATE_AFTER_MS = 2300;
+const CELEBRATE_AFTER_MS = 3200;
 
 const dirOf = (slot: 'left' | 'right'): 1 | -1 => (slot === 'left' ? 1 : -1);
 

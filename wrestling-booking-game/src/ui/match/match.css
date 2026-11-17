@@ -180,4 +180,4 @@
   75% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 1.2), 260%) rotate(40deg); }
   100% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 1.4), 340%) rotate(70deg); }
 }
-.mv-pull { animation: mv-pull 1.4s cubic-bezier(0.3, 0, 0.6, 1) 0.15s both; }
+.mv-pull { animation: mv-pull 2.4s cubic-bezier(0.3, 0, 0.6, 1) 0.15s both; }

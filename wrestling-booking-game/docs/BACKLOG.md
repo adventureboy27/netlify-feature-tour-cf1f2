@@ -6519,3 +6519,9 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   the arms go up. Rendered: arms still down at about 1.2 s, raised later.
 - Not fully resolved: the mask is still small at normal size, and the pull is quick. Next: a slightly
   larger pull, if wanted.
+
+## Mask pull, longer (rendered, still small)
+
+- The pull is 2.4 s (was 1.4 s) and the winner holds until 3.2 s (`CELEBRATE_AFTER_MS`).
+- Rendered over about 3 s: the gold mask is visible in the air and on the mat, but at normal size it reads
+  as a small object. Next: enlarge the pull or add a close-up to show it coming off the head.
