@@ -6565,3 +6565,11 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Rendered: the arm is out to the side and the mask is in the air, at about head size, falling onto the mat.
 - Still open: the mask is dropped rather than flung from the hand. A true throw arc from the hand would need the
   pull to start at the winner's hand position.
+
+## Mask thrown from the winner's hand (rendered: flight not clearly visible)
+
+- The first mask off is thrown from the winner's outstretched hand (`mv-toss`, `tossVars` in `MatchStage.tsx`),
+  so it starts at the head, reaches the hand as the arm goes out, then drops to the mat.
+- Rendered: the mask is at the hand in one frame and the loser's copy is on the mat. The arc between them and the
+  landing are not clearly visible in the sampled frames. Not verified beyond that.
+- Shared helper `maskWorn` (`src/ui/paperdoll/maskWorn.ts`) now feeds the viewer and the trophy wall.

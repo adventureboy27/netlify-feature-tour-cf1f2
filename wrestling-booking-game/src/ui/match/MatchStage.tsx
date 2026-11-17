@@ -389,6 +389,25 @@ export function MatchStage({
     if (pyro) setHype(true);
   }, [pyro, beatKey]);
 
+  // The first mask off is thrown by the first winner, from their outstretched hand.
+  const tossId = over ? (shed ?? []).find((s) => s.kind === 'mask' && s.mask)?.id : undefined;
+  const tosser = tossId ? drawn.find((f) => aftermath?.winners.has(f.wrestler.id)) : undefined;
+  const tossVars = (id: Id, headX: number, headY: number, at: WorldPose): Record<string, string> => {
+    if (id !== tossId || !tosser) return {};
+    const hand = leftAt.current.get(tosser.wrestler.id);
+    if (!hand) return {};
+    // The out-to-the-side arm is on the far side of the body from the opponent,
+    // at about shoulder height, a little over half a figure's width out.
+    const handX = sx(hand.x) - dirOf(tosser.slot) * figureW * 0.62;
+    const handY = sy(hand.y) - figureH * 0.7;
+    return {
+      '--hx': `${handX - headX}px`,
+      '--hy': `${handY - headY}px`,
+      '--tx': `${Math.sign(at.x || 1) * figureW * 0.25}px`,
+      '--ty': `${figureW * 0.6 * 3.4}px`,
+    };
+  };
+
   // Everything somebody is carrying. Belts take the waist and shoulders in
   // order; a crown, a medal or a cup has its own place and does not use one up.
   const carry = (looks: readonly BeltLook[], raised: boolean) => {
@@ -645,6 +664,8 @@ export function MatchStage({
             })}
 
           {/* The stakes, paid: the mask or the hair, dropped on the mat beside whoever lost it. */}
+          {/* The winner who took the mask off throws it: it leaves their hand
+              as the arm goes out to the side, then drops to the mat. */}
           {over &&
             (shed ?? []).map(({ id, kind, mask }) => {
               const at = leftAt.current.get(id);
@@ -661,7 +682,7 @@ export function MatchStage({
                 // The loser's own mask, in its own colour: the same art the
                 // figure wore before the bell.
                 return (
-                  <div key={`shed-${id}`} className="mv-pull pointer-events-none absolute" style={{ left: headX - figureW * 0.4, top: headY - figureW * 0.3, width: figureW * 0.8, height: figureW * 0.6, zIndex: 9, '--mv-pull-x': `${Math.sign(at.x || 1) * figureW * 0.18}px` } as React.CSSProperties}>
+                  <div key={`shed-${id}`} className={`${id === tossId ? 'mv-toss' : 'mv-pull'} pointer-events-none absolute`} style={{ left: headX - figureW * 0.4, top: headY - figureW * 0.3, width: figureW * 0.8, height: figureW * 0.6, zIndex: 9, '--mv-pull-x': `${Math.sign(at.x || 1) * figureW * 0.18}px`, ...tossVars(id, headX, headY, at) } as React.CSSProperties}>
                     {/* Drawn as painted when the art has its own colours; otherwise tinted, as on the figure. */}
                     {mask.color ? (
                       <div className="absolute inset-0" style={{ backgroundColor: mask.color, ...maskOnly(mask.url) }} />

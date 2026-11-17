@@ -15,7 +15,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { buildPlaybackTimeline } from '../../engine/sim/matchPlayback';
 import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
-import { assignLook } from '../paperdoll/assignLook';
+import { maskWorn } from '../paperdoll/maskWorn';
 import { MatchStage, type Aftermath, type Bystander, type StageFighter } from '../match/MatchStage';
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
@@ -402,12 +402,7 @@ export function MatchViewerScreen({
   const unmaskedIds = segment.stipulation === 'maskVsMask' ? loserIds : [];
   // The mask a wrestler wore into the match: the same look the figure had
   // before the bell, read from who they were before they lost it.
-  const maskWornBy = (id: Id): { url: string; color: string | null } | null => {
-    const w = world.wrestlers[id];
-    const subject = w ? lookSubjectOf({ ...w, masked: true, unmaskedInRing: false }) : undefined;
-    const look = subject ? assignLook(subject) : null;
-    return look?.prop ? { url: look.prop.asset.url, color: look.prop.color } : null;
-  };
+  const maskWornBy = (id: Id) => maskWorn(world.wrestlers[id]);
   // Hair against hair is the same: the head is already shaved by the time
   // this is watched, so the hair is worn for the match and comes off after.
   const shavedIds = segment.stipulation === 'hairVsHair' ? loserIds : [];

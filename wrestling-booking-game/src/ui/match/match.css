@@ -182,3 +182,12 @@
 }
 .mv-pull { animation: mv-pull 2.4s cubic-bezier(0.3, 0, 0.6, 1) 0.15s both; }
 
+/* The mask thrown off the winner's hand: out of the hand as the arm goes out,
+   then down to the mat. --hx/--hy is the hand, --tx/--ty the mat. */
+@keyframes mv-toss {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  40% { opacity: 1; transform: translate(var(--hx), var(--hy)) rotate(-40deg) scale(1); }
+  100% { opacity: 1; transform: translate(var(--tx), var(--ty)) rotate(200deg) scale(1); }
+}
+.mv-toss { animation: mv-toss 2.2s cubic-bezier(0.3, 0, 0.6, 1) 0.15s both; }
+
