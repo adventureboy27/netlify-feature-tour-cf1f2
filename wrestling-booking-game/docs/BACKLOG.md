@@ -6703,3 +6703,25 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   below the top-rope height a body that reaches the edge is pushed back (`RING.topRope`). The visible ropes are drawn
   separately in `Arena.tsx`. Partners on the apron sit outside that boundary at `apronX`.
 - Not verified: the exact overlap on each side, and a full tag match with tag-in and tag-out.
+
+## The ring overhauled: an apron, real layering, and ropes that give (rendered)
+
+- Root cause of "wrestlers on the wrong side of the front ropes": the front-rope layer had no z-index, so every
+  wrestler (z 2-9) was painted over it. Removing the front ropes hid the symptom; the fix is layering.
+- Layers now follow depth. Behind the wrestlers (`ArenaBack`): the platform, back posts, back ropes and the far half
+  of each side rope. Over them (`ArenaFront`, z 10): the near half of each side rope, the front ropes, the front
+  posts and pads, a cage's near wall. Wrestlers on the floor in front of the ring and walk-offs are above that (z 14+);
+  impact bursts sit above the ropes.
+- The platform is bigger than the ropes: an apron of `RING.apron` (4.5 units, about a foot and a half) on every
+  side, a darker ledge round a lighter canvas. Posts stand at the canvas corners. Steps and the skirt name moved out
+  to suit. The platforms and the apron-rope overlay from before are gone.
+- Tag partners stand on the apron ledge (`apronX`, half + 2.4), outside the side ropes: the near ropes and the
+  front post pass in front of them.
+- Ropes give. A body into the side ropes records which side (`RopeHit` in `ringPhysics.ts`); that side's ropes bow
+  outward from their posts, snap back past straight and settle (`stretchRopes` in `MatchStage.tsx`). Big landings
+  give both sides a little. Climbing over (tag-ins, going out over the top) already clears the top rope.
+- Rendered: a tag stage (apron, partners behind the ropes, front ropes over the wrestlers in the ring), a whip
+  match (rope hits recorded on the left and right in turn), and the left side held at peak stretch.
+- Not changed: there is still no rope geometry in the physics; the ropes are the boundary at `RING.half`. Nobody
+  lands on the apron after going over the top; they land on the floor. Not rendered: the split skirt of an
+  interpromotional night, a cage match and a fight on the floor in front of the ring under the new layering.

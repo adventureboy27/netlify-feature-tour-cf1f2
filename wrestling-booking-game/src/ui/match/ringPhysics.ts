@@ -46,6 +46,12 @@ export const RING = {
   tall: 20,
   /** How far either side of centre the floor in front of the ring runs: barricade to barricade. */
   floorHalf: 45,
+  /**
+   * The apron: the ledge of ring outside the ropes, at the height of the mat.
+   * About a foot and a half — room to stand on with your back to the ropes,
+   * which is where a tag partner waits and where anybody climbing out lands first.
+   */
+  apron: 4.5,
 } as const;
 
 // The space a battle royal's field brawls in (FieldBrawl.tsx): drawn
@@ -54,8 +60,14 @@ export const RING = {
 // smaller, units.
 export const FIELD = { scale: 0.6, feetY: 388, half: 33 } as const;
 
-/** Where a tag partner stands: on the apron, just outside their corner. */
-export const apronX = (side: 1 | -1) => -side * (RING.half + 3.2);
+/** Where a tag partner stands: on the apron, outside the ropes, feet on the ledge. */
+export const apronX = (side: 1 | -1) => -side * (RING.half + 2.4);
+
+/** A body taking the ropes: when, and which side of the ring (1 the right, -1 the left). */
+export interface RopeHit {
+  at: number;
+  side: 1 | -1;
+}
 
 export interface WorldPose {
   x: number;
@@ -86,8 +98,8 @@ export interface Plan {
   lead: number;
   centre: number;
   impacts: { at: number; x: number; y: number; big: boolean }[];
-  /** Moments the ropes take somebody's weight. */
-  ropeHits: number[];
+  /** Moments the ropes take somebody's weight, and which ropes. */
+  ropeHits: RopeHit[];
   end: Map<Id, WorldPose>;
 }
 
@@ -208,7 +220,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
   // ---- the frames, in the ring ---------------------------------------------
   const tracks = new Map<Id, WorldFrame[]>();
   const end = new Map<Id, WorldPose>();
-  const ropeHits: number[] = [];
+  const ropeHits: RopeHit[] = [];
   for (const f of fighters) {
     const h = home(f, centre);
     const frames: WorldFrame[] = [];
@@ -261,7 +273,8 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
         if (wy < RING.topRope) {
           const [lo, hi] = span(wx, wrot);
           const push = hi > edge ? edge - hi : lo < -edge ? -edge - lo : 0;
-          if (Math.abs(push) > 0.35) ropeHits.push(t);
+          // Pushed back left means they were into the right-hand ropes, and the other way about.
+          if (Math.abs(push) > 0.35) ropeHits.push({ at: t, side: push < 0 ? 1 : -1 });
           wx += push;
         }
         // The mat: neither feet nor head go below it.
@@ -288,7 +301,9 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
   }
 
   const when = (at: number) => (lead === 0 ? at : lead + at * (1 - lead));
-  if (choreo.ropes !== undefined) ropeHits.push(when(choreo.ropes));
+  // A move that says it uses the ropes: the ropes behind whoever it is anchored
+  // to, or else the nearer side of the ring.
+  if (choreo.ropes !== undefined) ropeHits.push({ at: when(choreo.ropes), side: anchored ? (-anchored.dir as 1 | -1) : centre >= 0 ? 1 : -1 });
   const targetHome = target ? home(target, centre) : centre;
   const held = staysDown && target?.from ? target.from.x - targetHome - (target?.dir ?? 1) * targetFrames[0]![1] : 0;
   return {

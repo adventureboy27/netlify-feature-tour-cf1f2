@@ -12,9 +12,9 @@
 // walk out of the building, and are not seen again), and, once the match
 // is over, everybody: the winners with their arms up, the rest on the mat.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { maskOnly } from '../paperdoll/ComposedPortrait';
-import { ApronRopes, ArenaBack, ArenaFront, FEET_Y, VIEW, type Corner } from './Arena';
+import { ArenaBack, ArenaFront, FEET_Y, ROPE_CROSS_X, SIDE_ROPE_POST, VIEW, type Corner, type SideRopeKey } from './Arena';
 import { Prize, PrizeHung, prizeKind, type BeltLook } from './Belt';
 import { bell, crowd, hit, hitFor } from './sound';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
@@ -87,6 +87,8 @@ const ROPE_WOBBLE: Keyframe[] = [
   { transform: 'translateY(-1px)' },
   { transform: 'translateY(0)' },
 ];
+/** How far the side ropes bow out when a body hits them, in picture units at the wrestlers' line. */
+const ROPE_GIVE = 20;
 /** How long after the last move the winners raise their arms: long enough for a mask to come off and land. */
 const CELEBRATE_AFTER_MS = 3200;
 
@@ -174,6 +176,34 @@ export function MatchStage({
   const frameRef = useRef<HTMLDivElement>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
   const ropesRef = useRef<SVGGElement>(null);
+  // The four runs of side rope: each half of each side, so a body into the
+  // ropes on one side bows that side out and leaves the other alone.
+  const sideRopes = useRef(new Map<SideRopeKey, SVGGElement>());
+  const onSideRope = useCallback((key: SideRopeKey, el: SVGGElement | null) => {
+    if (el) sideRopes.current.set(key, el);
+    else sideRopes.current.delete(key);
+  }, []);
+  /**
+   * A body into the side ropes: both halves of that side bow outward from
+   * their posts, snap back past straight, and settle. Each half is stretched
+   * about the post it is tied to, by just enough to carry the point where the
+   * ropes meet the body out by `give`.
+   */
+  const stretchRopes = (side: 1 | -1, give: number = ROPE_GIVE) => {
+    const cross = side === 1 ? ROPE_CROSS_X.r : ROPE_CROSS_X.l;
+    const out = cross + side * give;
+    for (const key of (side === 1 ? ['backR', 'frontR'] : ['backL', 'frontL']) as SideRopeKey[]) {
+      const el = sideRopes.current.get(key);
+      if (!el) continue;
+      const post = SIDE_ROPE_POST[key];
+      const k = (out - post) / (cross - post);
+      const recoil = 1 - (k - 1) * 0.35;
+      el.animate(
+        [{ transform: 'scaleX(1)' }, { transform: `scaleX(${k})`, offset: 0.3 }, { transform: `scaleX(${recoil})`, offset: 0.62 }, { transform: 'scaleX(1)' }],
+        { duration: 520, easing: 'ease-out' },
+      );
+    }
+  };
   const figureRefs = useRef(new Map<Id, HTMLDivElement>());
   const jointRefs = useRef(new Map<Id, Joints>());
   // Where the last beat left everybody, and where it was centred — the next
@@ -257,12 +287,16 @@ export function MatchStage({
         window.setTimeout(() => {
           shakeRef.current?.animate(SHAKE, { duration: 380, easing: 'ease-out' });
           ropesRef.current?.animate(ROPE_WOBBLE, { duration: 450, easing: 'ease-out' });
+          // A big landing shakes the whole ring: a little give in the side ropes too.
+          stretchRopes(1, ROPE_GIVE * 0.3);
+          stretchRopes(-1, ROPE_GIVE * 0.3);
           setHype(true);
         }, impact.at * duration),
       );
     }
-    for (const at of next.ropeHits) {
-      timers.push(window.setTimeout(() => ropesRef.current?.animate(ROPE_WOBBLE, { duration: 500, easing: 'ease-out' }), at * duration));
+    // Somebody into the ropes: the ropes on that side take the weight and give.
+    for (const ropeHit of next.ropeHits) {
+      timers.push(window.setTimeout(() => stretchRopes(ropeHit.side), ropeHit.at * duration));
     }
     timers.push(window.setTimeout(() => setHype(false), duration + 500));
     return () => {
@@ -300,7 +334,7 @@ export function MatchStage({
       frames.push(frame(0.4, { x: from.x + side * 2, y: floor, rot: from.rot * 0.2 }, 'kneel'), frame(0.5, { x: from.x + side * 5, y: floor, rot: side * 6 }, 'stagger'));
       for (let i = 1; i <= 4; i++) frames.push(frame(0.5 + i * 0.125, { x: from.x + side * 5 + ((exit.x - from.x - side * 5) * i) / 4, y: floor, rot: side * 7 }, i % 2 ? 'run' : 'stagger'));
       el.style.transform = '';
-      el.style.zIndex = '9';
+      el.style.zIndex = '14';
       const cast: PlanFighter[] = [{ id, role: 'actor', dir: side, from, taggedIn: false }];
       const running = playPlan(planOf(new Map([[id, frames]])), cast, (key) => figureRefs.current.get(key), (key) => jointRefs.current.get(key), u, figureW, 3600);
       running[0]?.finished
@@ -435,7 +469,7 @@ export function MatchStage({
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
       {w > 0 && (
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
-          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} />
+          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} onSideRope={onSideRope} />
 
           {/* The apron is the nearest thing this building has to a nameplate. */}
           {conduct?.noRing ? null : corners ? (
@@ -443,7 +477,7 @@ export function MatchStage({
               <div
                 key={n}
                 className="mv-apron-name absolute flex items-center justify-center whitespace-nowrap text-center"
-                style={{ left: ((n === 0 ? 262 : 624) / VIEW.w) * w, width: (314 / VIEW.w) * w, top: (462 / VIEW.h) * h, height: (70 / VIEW.h) * h, fontSize: Math.min(2.6, 34 / Math.max(8, corner.name.length)) * u }}
+                style={{ left: ((n === 0 ? 200 : 610) / VIEW.w) * w, width: (390 / VIEW.w) * w, top: (468 / VIEW.h) * h, height: (70 / VIEW.h) * h, fontSize: Math.min(2.6, 34 / Math.max(8, corner.name.length)) * u }}
               >
                 {corner.name}
               </div>
@@ -451,7 +485,7 @@ export function MatchStage({
           ) : (
             <div
               className="mv-apron-name absolute flex items-center justify-center whitespace-nowrap text-center"
-              style={{ left: (262 / VIEW.w) * w, width: (676 / VIEW.w) * w, top: (462 / VIEW.h) * h, height: (70 / VIEW.h) * h, fontSize: Math.min(3.4, 68 / Math.max(8, promotionName.length)) * u }}
+              style={{ left: (200 / VIEW.w) * w, width: (800 / VIEW.w) * w, top: (468 / VIEW.h) * h, height: (70 / VIEW.h) * h, fontSize: Math.min(3.4, 68 / Math.max(8, promotionName.length)) * u }}
             >
               {promotionName}
             </div>
@@ -480,32 +514,6 @@ export function MatchStage({
             winners={aftermath?.winners}
             belt={aftermath?.belt ?? false}
           />
-          {/* The apron: a platform at each corner, outside the ropes, for a tag partner to stand on. */}
-          {!over &&
-            (['left', 'right'] as const)
-              .filter((slot) => bystanders.some((b) => b.place === 'apron' && b.slot === slot))
-              .map((slot) => {
-                const side = dirOf(slot);
-                const inner = sx(-side * RING.half);
-                const outer = sx(-side * (RING.half + 5.8));
-                return (
-                  <div
-                    key={`apron-${slot}`}
-                    data-testid="apron-platform"
-                    className="absolute"
-                    style={{
-                      left: Math.min(inner, outer),
-                      width: Math.abs(outer - inner),
-                      // Depth runs the other way up the screen, so take the top edge from whichever is higher.
-                      top: Math.min(sy(4), sy(-4)),
-                      height: Math.abs(sy(4) - sy(-4)),
-                      background: 'linear-gradient(to bottom, #5b6372, #2b303a)',
-                      borderTop: '3px solid #8a93a3',
-                      zIndex: 3,
-                    }}
-                  />
-                );
-              })}
           {!over &&
             bystanders
               .filter((b) => b.place === 'apron')
@@ -524,8 +532,6 @@ export function MatchStage({
                   </div>
                 );
               })}
-          {/* Anybody on the apron is behind the side ropes. */}
-          {!over && <ApronRopes left={bystanders.some((b) => b.place === 'apron' && b.slot === 'left')} right={bystanders.some((b) => b.place === 'apron' && b.slot === 'right')} />}
 
           {/* Furniture a beat calls for: a ladder to climb, a table to go through. */}
           {scene === 'ladder' && plan && (
@@ -590,7 +596,9 @@ export function MatchStage({
                   // Whoever is doing the move is nearer the camera — and anybody
                   // on the floor in front of the ring is in front of its ropes
                   // and posts too, not behind them.
-                  zIndex: (onFloor || leaving ? 5 : 0) + (fighter.role === 'actor' || won ? 3 : 2),
+                  // In the ring and on the apron: under the near ropes (ArenaFront, 10).
+                  // On the floor in front of the ring: over them, nearer the camera than the ring is.
+                  zIndex: (onFloor || leaving ? 12 : 0) + (fighter.role === 'actor' || won ? 3 : 2),
                   willChange: 'transform',
                 }}
               >
@@ -625,7 +633,7 @@ export function MatchStage({
             );
           })}
 
-          <ArenaFront ropesRef={ropesRef} cage={conduct?.cage} noRing={conduct?.noRing} />
+          <ArenaFront ropesRef={ropesRef} cage={conduct?.cage} noRing={conduct?.noRing} accent={accent} corners={corners} onSideRope={onSideRope} />
 
           {/* A casket, at ringside, with somebody in it. */}
           {scene === 'casket' && targetEnd && (
@@ -647,7 +655,7 @@ export function MatchStage({
               const delay = `${impact.at * duration}ms`;
               return (
                 <div key={`${beatKey}-${i}`}>
-                  <svg viewBox="-50 -50 100 100" className="mv-burst pointer-events-none absolute" style={{ left: sx(impact.x), top: sy(impact.y), width: size, height: size, animationDelay: delay, zIndex: 9 }}>
+                  <svg viewBox="-50 -50 100 100" className="mv-burst pointer-events-none absolute" style={{ left: sx(impact.x), top: sy(impact.y), width: size, height: size, animationDelay: delay, zIndex: onFloor ? 16 : 11 }}>
                     <polygon points="0,-48 9,-17 38,-34 20,-7 48,2 19,11 31,40 6,20 -8,48 -12,17 -42,28 -22,3 -48,-12 -18,-13 -24,-42" fill="#ffe27a" stroke="#fff" strokeWidth={3} />
                   </svg>
                   {impact.big && (

@@ -1,12 +1,21 @@
 // The building the match happens in: a dark arena, a crowd, a lighting rig,
 // and a ring seen from the hard-camera side. Drawn in two layers so the
-// wrestlers can stand between them — everything behind the ring's front
-// ropes, then the front ropes and posts over the top.
+// wrestlers stand inside the ring rather than in front of a picture of one:
+// everything further from the camera than the line they stand on goes
+// behind them (the far ropes, the far half of each side rope, the platform),
+// and everything nearer goes over them (the near half of each side rope, the
+// front ropes, the front posts). The front layer sits above every wrestler
+// in the ring and below anybody fighting on the floor in front of it.
+//
+// The ring is a platform bigger than its ropes: an apron about a foot and a
+// half wide runs round the outside, at the height of the mat. That is where
+// a tag partner stands, with the ropes between them and the ring.
 //
 // All coordinates are in one 1200x600 space shared with MatchStage.tsx; the
 // stage is always exactly 2:1, so a point here maps to the same point there.
 
 import { memo, useMemo } from 'react';
+import { RING } from './ringPhysics';
 import './match.css';
 
 export const VIEW = { w: 1200, h: 600 } as const;
@@ -16,6 +25,58 @@ const MAT = { backY: 372, frontY: 452, backL: 350, backR: 850, frontL: 250, fron
 const ROPES_BACK = [244, 284, 324] as const;
 const ROPES_FRONT = [297, 342, 387] as const;
 const ROPE = '#e9e9ec';
+
+// ---- where the ring is, in the picture ------------------------------------
+/** Stage units to picture units, at the line the wrestlers stand on. */
+const UNIT = VIEW.w / 100;
+/** How far from the back of the mat to the front the wrestlers' line runs. */
+const PLANE = (FEET_Y - MAT.backY) / (MAT.frontY - MAT.backY);
+/** Where the side ropes cross that line: the ropes a body actually meets. */
+const CROSS_X = { l: MAT.backL + (MAT.frontL - MAT.backL) * PLANE, r: MAT.backR + (MAT.frontR - MAT.backR) * PLANE } as const;
+const CROSS_Y = ROPES_BACK.map((y, i) => y + (ROPES_FRONT[i]! - y) * PLANE);
+/** The point the ring's sides run toward: everything on the floor scales about it. */
+const VANISH_Y = MAT.backY + ((VIEW.w / 2 - MAT.backL) * (MAT.frontY - MAT.backY)) / (MAT.frontL - MAT.backL);
+const scaleAt = (y: number) => (y - VANISH_Y) / (FEET_Y - VANISH_Y);
+/** The apron's depth past the back and front ropes, in picture units: the same width as at the sides. */
+const APRON_DEPTH = (RING.apron * (MAT.frontY - MAT.backY)) / (RING.half * 2);
+const platformX = (side: -1 | 1, y: number) => VIEW.w / 2 + side * (RING.half + RING.apron) * UNIT * scaleAt(y);
+/** The whole platform: canvas inside the ropes, and the apron round it. */
+const PLATFORM = (() => {
+  const backY = MAT.backY - APRON_DEPTH;
+  const frontY = MAT.frontY + APRON_DEPTH;
+  return { backY, frontY, backL: platformX(-1, backY), backR: platformX(1, backY), frontL: platformX(-1, frontY), frontR: platformX(1, frontY) };
+})();
+/** The bottom of the skirt hanging off the front of the platform. */
+const SKIRT_BOTTOM = PLATFORM.frontY + 86;
+
+/** The four runs of side rope that give when somebody hits them: far and near half, left and right. */
+export type SideRopeKey = 'backL' | 'backR' | 'frontL' | 'frontR';
+/** Where each run is tied to its post: it stretches away from there. */
+export const SIDE_ROPE_POST: Record<SideRopeKey, number> = { backL: MAT.backL, backR: MAT.backR, frontL: MAT.frontL, frontR: MAT.frontR };
+/** Where the side ropes cross the wrestlers' line, left and right. */
+export const ROPE_CROSS_X = CROSS_X;
+
+/** One side's run of three ropes, from its post to where they cross the wrestlers' line. */
+function SideRun({ run, onRef }: { run: SideRopeKey; onRef?: (key: SideRopeKey, el: SVGGElement | null) => void }) {
+  const back = run === 'backL' || run === 'backR';
+  const left = run === 'backL' || run === 'frontL';
+  const postX = SIDE_ROPE_POST[run];
+  const crossX = left ? CROSS_X.l : CROSS_X.r;
+  return (
+    <g
+      ref={(el) => onRef?.(run, el)}
+      stroke={ROPE}
+      strokeWidth={back ? 3 : 3.6}
+      strokeLinecap="round"
+      opacity={back ? 0.8 : 0.95}
+      style={{ transformOrigin: `${postX}px 0px`, transformBox: 'view-box' }}
+    >
+      {ROPES_BACK.map((y, i) => (
+        <line key={y} x1={postX} y1={back ? y : ROPES_FRONT[i]} x2={crossX} y2={CROSS_Y[i]} />
+      ))}
+    </g>
+  );
+}
 
 function seeded(seed: number) {
   let s = seed;
@@ -112,7 +173,10 @@ export const ArenaBack = memo(function ArenaBack({
   corners,
   eventName,
   noRing = false,
+  onSideRope,
 }: {
+  /** Hands over the far halves of the side ropes, so a body hitting them can make them give. */
+  onSideRope?: (key: SideRopeKey, el: SVGGElement | null) => void;
   /** An arena-floor match: no ring is drawn at all. */
   noRing?: boolean;
   /** More than one company in the building: each has a corner, and half the ring. */
@@ -258,21 +322,39 @@ export const ArenaBack = memo(function ArenaBack({
         </g>
       ) : (
         <g>
-      {/* Ring steps. */}
-      <polygon points="170,536 250,536 250,470 214,470 214,500 170,500" fill="#3a3f4a" />
-      <polygon points="170,500 214,500 214,470 250,470 250,476 220,476 220,506 170,506" fill="#565c69" />
+      {/* Ring steps, up to the apron at the near left corner. */}
+      <polygon points={`${PLATFORM.frontL - 80},${SKIRT_BOTTOM - 4} ${PLATFORM.frontL + 2},${SKIRT_BOTTOM - 4} ${PLATFORM.frontL + 2},${PLATFORM.frontY + 10} ${PLATFORM.frontL - 34},${PLATFORM.frontY + 10} ${PLATFORM.frontL - 34},${PLATFORM.frontY + 40} ${PLATFORM.frontL - 80},${PLATFORM.frontY + 40}`} fill="#3a3f4a" />
+      <polygon points={`${PLATFORM.frontL - 80},${PLATFORM.frontY + 40} ${PLATFORM.frontL - 34},${PLATFORM.frontY + 40} ${PLATFORM.frontL - 34},${PLATFORM.frontY + 10} ${PLATFORM.frontL + 2},${PLATFORM.frontY + 10} ${PLATFORM.frontL + 2},${PLATFORM.frontY + 16} ${PLATFORM.frontL - 28},${PLATFORM.frontY + 16} ${PLATFORM.frontL - 28},${PLATFORM.frontY + 46} ${PLATFORM.frontL - 80},${PLATFORM.frontY + 46}`} fill="#565c69" />
 
-      {/* Back posts, back ropes, and the two side runs. */}
+      {/* The platform: the apron all round, then the canvas inside the ropes. */}
+      <polygon points={`${PLATFORM.backL},${PLATFORM.backY} ${PLATFORM.backR},${PLATFORM.backY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontL},${PLATFORM.frontY}`} fill="#8e95a3" />
+      <polygon points={`${PLATFORM.backL},${PLATFORM.backY} ${PLATFORM.backR},${PLATFORM.backY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontL},${PLATFORM.frontY}`} fill="none" stroke={corners ? GOLD : accent} strokeOpacity={0.55} strokeWidth={2.5} />
+      <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="url(#mv-mat)" />
+      {/* Where the canvas turns down under the ropes to the apron: a crease, not a wall. */}
+      <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="none" stroke="#000" strokeOpacity={0.22} strokeWidth={2} />
+      <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />
+      <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />
+      {corners ? (
+        <g>
+          {/* The skirt is split down a slant: one company's half, and the other's. */}
+          <polygon points={`${PLATFORM.frontL},${PLATFORM.frontY} 624,${PLATFORM.frontY} 576,${SKIRT_BOTTOM} ${PLATFORM.frontL},${SKIRT_BOTTOM}`} fill="url(#mv-apron-0)" />
+          <polygon points={`624,${PLATFORM.frontY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontR},${SKIRT_BOTTOM} 576,${SKIRT_BOTTOM}`} fill="url(#mv-apron-1)" />
+          <polygon points={`616,${PLATFORM.frontY} 632,${PLATFORM.frontY} 584,${SKIRT_BOTTOM} 568,${SKIRT_BOTTOM}`} fill={GOLD} />
+        </g>
+      ) : (
+        <polygon points={`${PLATFORM.frontL},${PLATFORM.frontY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontR},${SKIRT_BOTTOM} ${PLATFORM.frontL},${SKIRT_BOTTOM}`} fill="url(#mv-apron)" />
+      )}
+      <rect x={PLATFORM.frontL} y={PLATFORM.frontY} width={PLATFORM.frontR - PLATFORM.frontL} height={5} fill="#ffffff" opacity={0.35} />
+
+      {/* Back posts, back ropes, and the far half of each side run: all of it further from the camera than anybody in the ring. */}
       {[MAT.backL, MAT.backR].map((x) => (
         <rect key={x} x={x - 6} y={232} width={12} height={MAT.backY - 232} fill="#2b2f38" />
       ))}
-      {ROPES_BACK.map((y, i) => (
-        <g key={y} stroke={ROPE} strokeWidth={3} strokeLinecap="round" opacity={0.8}>
-          <line x1={MAT.backL} y1={y} x2={MAT.backR} y2={y} />
-          <line x1={MAT.backL} y1={y} x2={MAT.frontL} y2={ROPES_FRONT[i]} />
-          <line x1={MAT.backR} y1={y} x2={MAT.frontR} y2={ROPES_FRONT[i]} />
-        </g>
+      {ROPES_BACK.map((y) => (
+        <line key={y} x1={MAT.backL} y1={y} x2={MAT.backR} y2={y} stroke={ROPE} strokeWidth={3} strokeLinecap="round" opacity={0.8} />
       ))}
+      <SideRun run="backL" onRef={onSideRope} />
+      <SideRun run="backR" onRef={onSideRope} />
       {[MAT.backL, MAT.backR].map((x) =>
         ROPES_BACK.map((y) => <rect key={`${x}-${y}`} x={x - 9} y={y - 7} width={18} height={14} rx={4} fill={corners ? corners[x === MAT.backL ? 0 : 1].accent : accent} />),
       )}
@@ -285,22 +367,6 @@ export const ArenaBack = memo(function ArenaBack({
           <path d={`M ${MAT.backL},150 L ${MAT.backR},150 M ${MAT.backL},150 L ${MAT.backL},${MAT.backY} M ${MAT.backR},150 L ${MAT.backR},${MAT.backY} M ${MAT.backL},150 L ${MAT.frontL},176 M ${MAT.backR},150 L ${MAT.frontR},176`} stroke="#6f7888" strokeWidth={4} fill="none" />
         </g>
       )}
-
-      {/* Canvas and apron. */}
-      <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="url(#mv-mat)" />
-      <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />
-      <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />
-      {corners ? (
-        <g>
-          {/* The apron is split down a slant: one company's half, and the other's. */}
-          <polygon points={`${MAT.frontL},${MAT.frontY} 624,${MAT.frontY} 576,538 ${MAT.frontL},538`} fill="url(#mv-apron-0)" />
-          <polygon points={`624,${MAT.frontY} ${MAT.frontR},${MAT.frontY} ${MAT.frontR},538 576,538`} fill="url(#mv-apron-1)" />
-          <polygon points={`616,${MAT.frontY} 632,${MAT.frontY} 584,538 568,538`} fill={GOLD} />
-        </g>
-      ) : (
-        <polygon points={`${MAT.frontL},${MAT.frontY} ${MAT.frontR},${MAT.frontY} ${MAT.frontR},538 ${MAT.frontL},538`} fill="url(#mv-apron)" />
-      )}
-      <rect x={MAT.frontL} y={MAT.frontY} width={MAT.frontR - MAT.frontL} height={5} fill="#ffffff" opacity={0.35} />
         </g>
       )}
     </svg>
@@ -308,45 +374,53 @@ export const ArenaBack = memo(function ArenaBack({
 });
 
 /** The front ropes and posts — drawn over the wrestlers, who stand behind them. */
-/** The side ropes again, in front of anybody standing outside them on the apron, so a
-    partner waiting to come in is behind the ropes. Clipped to the strip beside the ring,
-    so the wrestlers inside are not drawn over. */
-export const ApronRopes = memo(function ApronRopes({ left, right }: { left: boolean; right: boolean }) {
-  const reach = 46;
+/**
+ * Everything nearer the camera than the wrestlers' line: the near half of each
+ * side rope, the front ropes, the front posts, and a cage's near wall. Drawn
+ * over everybody in the ring and on the apron, and under anybody fighting on
+ * the floor in front of the ring (MatchStage puts those higher still).
+ */
+export const ArenaFront = memo(function ArenaFront({
+  ropesRef,
+  cage = false,
+  noRing = false,
+  accent,
+  corners,
+  onSideRope,
+}: {
+  noRing?: boolean;
+  ropesRef: React.Ref<SVGGElement>;
+  /** The near wall of a cage, between the camera and the wrestlers. */
+  cage?: boolean;
+  accent: string;
+  corners?: readonly [Corner, Corner];
+  onSideRope?: (key: SideRopeKey, el: SVGGElement | null) => void;
+}) {
   return (
-    <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-      {left && (
-        <g clipPath="url(#mv-apron-clip-left)" stroke={ROPE} strokeWidth={3} strokeLinecap="round" opacity={0.85}>
-          {ROPES_BACK.map((y, i) => (
-            <line key={y} x1={MAT.backL} y1={y} x2={MAT.frontL} y2={ROPES_FRONT[i]} />
+    <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 10 }} aria-hidden>
+      {!noRing && (
+        <g>
+          <SideRun run="frontL" onRef={onSideRope} />
+          <SideRun run="frontR" onRef={onSideRope} />
+          <g ref={ropesRef}>
+            {ROPES_FRONT.map((y) => (
+              <g key={y} strokeLinecap="round">
+                <line x1={MAT.frontL} y1={y + 1.5} x2={MAT.frontR} y2={y + 1.5} stroke="#000" strokeWidth={6} opacity={0.3} />
+                <line x1={MAT.frontL} y1={y} x2={MAT.frontR} y2={y} stroke={ROPE} strokeWidth={4} />
+              </g>
+            ))}
+          </g>
+          {[MAT.frontL, MAT.frontR].map((x) => (
+            <g key={x}>
+              <rect x={x - 7} y={286} width={14} height={MAT.frontY - 286 + 6} fill="#343944" />
+              <rect x={x - 7} y={286} width={5} height={MAT.frontY - 286 + 6} fill="#4c5260" />
+              {ROPES_FRONT.map((y) => (
+                <rect key={y} x={x - 11} y={y - 9} width={22} height={18} rx={5} fill={corners ? corners[x === MAT.frontL ? 0 : 1].accent : accent} stroke="#000" strokeOpacity={0.35} />
+              ))}
+            </g>
           ))}
         </g>
       )}
-      {right && (
-        <g clipPath="url(#mv-apron-clip-right)" stroke={ROPE} strokeWidth={3} strokeLinecap="round" opacity={0.85}>
-          {ROPES_BACK.map((y, i) => (
-            <line key={y} x1={MAT.backR} y1={y} x2={MAT.frontR} y2={ROPES_FRONT[i]} />
-          ))}
-        </g>
-      )}
-      <defs>
-        <clipPath id="mv-apron-clip-left">
-          <rect x={0} y={0} width={MAT.frontL + reach} height={VIEW.h} />
-        </clipPath>
-        <clipPath id="mv-apron-clip-right">
-          <rect x={MAT.frontR - reach} y={0} width={VIEW.w - (MAT.frontR - reach)} height={VIEW.h} />
-        </clipPath>
-      </defs>
-    </svg>
-  );
-});
-
-export const ArenaFront = memo(function ArenaFront({ ropesRef, cage = false, noRing = false }: { noRing?: boolean; ropesRef: React.Ref<SVGGElement>; /** The near wall of a cage, between the camera and the wrestlers. */ cage?: boolean }) {
-  return (
-    <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-      {/* The front ropes are gone: they were drawn over the wrestlers, so anybody near the
-          front read as standing behind them. The ref stays, so the ropes' motion still has a target. */}
-      <g ref={ropesRef} style={noRing ? { display: 'none' } : undefined} />
       {cage && (
         <g>
           <defs>
@@ -358,12 +432,6 @@ export const ArenaFront = memo(function ArenaFront({ ropesRef, cage = false, noR
           <rect x={MAT.frontL} y={176} width={MAT.frontR - MAT.frontL} height={MAT.frontY - 176} fill="none" stroke="#7b8494" strokeWidth={5} />
         </g>
       )}
-      {(noRing ? [] : [MAT.frontL, MAT.frontR]).map((x) => (
-        <g key={x}>
-          <rect x={x - 7} y={286} width={14} height={MAT.frontY - 286 + 6} fill="#343944" />
-          <rect x={x - 7} y={286} width={5} height={MAT.frontY - 286 + 6} fill="#4c5260" />
-        </g>
-      ))}
     </svg>
   );
 });
