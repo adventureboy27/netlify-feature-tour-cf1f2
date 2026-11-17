@@ -739,7 +739,8 @@ function holdEscaped(): Choreo {
   const target = scale(MOVES.submission.target, 0.8);
   actor.push([0.9, 5, 0, -20, 1, 'stagger'], [1, 3, 0, 0, 1, 'guard']);
   target.push([0.9, 1, 0.4, 40, 1, 'kneel'], [1, 1, 0, 8, 1, 'guard']);
-  return { actor, target, shouts: [{ at: 0.8, text: 'BREAKS FREE!' }] };
+  // The referee asks while it is on; the answer is the escape.
+  return { actor, target, shouts: [{ at: 0.3, text: 'GIVE UP?' }, { at: 0.8, text: 'BREAKS FREE!' }] };
 }
 
 function moveNamed(wrestler: Wrestler | undefined, name: string | null): Move | undefined {
@@ -873,7 +874,7 @@ export function stageBeat(
     }
     case 'nearFall': {
       if (conduct.nearFall === 'teeter') return shouting(pick('teeter', 1900), 'HANGS ON!', 0.72);
-      if (conduct.nearFall === 'hold') return built('submission', holdEscaped(), 2200);
+      if (conduct.nearFall === 'hold') return built('submission', holdEscaped(), 2600);
       if (conduct.nearFall === 'climb') return shouting(pick('cageClimb', 2800), 'DRAGGED BACK!', 0.8);
       const lead = spoken && NEAR_FALL_LEADS.includes(spoken) ? spoken : fresh(NEAR_FALL_LEADS);
       if (conduct.nearFall === 'count') return built(lead, withCount(MOVES[lead], 0.42, 8, true), 3200);
@@ -886,7 +887,8 @@ export function stageBeat(
       const decisive: MoveId = NEAR_FALL_LEADS.includes(lead) || ['driver', 'stunner', 'superkick'].includes(lead) ? lead : 'slam';
       switch (conduct.finish) {
         case 'submission':
-          return shouting(built('submission', MOVES.submission, 2600), 'TAP OUT!', 0.78);
+          // The referee asks once the hold is locked on, and the hand answers.
+          return shouting(shouting(built('submission', MOVES.submission, 3200), 'GIVE UP?', 0.38), 'TAP OUT!', 0.8);
         case 'pin':
           return built(decisive, withCover(MOVES[decisive], 0.5, 3), 3200);
         case 'count10':

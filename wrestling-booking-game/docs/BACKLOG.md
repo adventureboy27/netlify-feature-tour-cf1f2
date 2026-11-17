@@ -6838,3 +6838,9 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - **Backbreaker:** the target is laid across the attacker's raised knee — the middle of the back on the knee, head one side, legs the other (new `draped` stance) — instead of lying on the mat beyond it.
 - **Submission:** now a Boston crab — target face down, legs folded up under the attacker's arms, attacker sitting back on it and rocking (new `crab` / `crabbed` / `crabTap` stances), with a hand slapping the mat. Previously one man stood beside another lying down.
 - Not render-checked: the hold-escape variant (it plays the crab at 0.8 speed, then the existing break-free frames).
+
+## The referee asks "GIVE UP?"
+
+- A submission finish now shows "GIVE UP?" once the hold is locked on, then "TAP OUT!" when the hand goes down (beat lengthened 2.6 s → 3.2 s so the two don't overlap).
+- A hold that gets escaped (submission-match near fall) asks "GIVE UP?" before "BREAKS FREE!" (2.2 s → 2.6 s).
+- Checked, unchanged: a count-out finish throws the loser outside, the count runs 1–10 over the ring, and it ends on "COUNT OUT!". It only happens where the rules allow count-outs (the sim gives it zero weight under "no count-outs").

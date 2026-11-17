@@ -519,9 +519,9 @@ describe('what the referee would be shouting', () => {
     expect(moments[moments.length - 1]!.staged.choreo.shouts ?? []).toEqual([]);
   });
 
-  it('a submission is a tap out', () => {
+  it('a submission is a tap out, after the referee asks', () => {
     const moments = played(rulebook(null, 'submission'), 'submission');
-    expect(moments[moments.length - 1]!.staged.choreo.shouts?.map((s) => s.text)).toEqual(['TAP OUT!']);
+    expect(moments[moments.length - 1]!.staged.choreo.shouts?.map((s) => s.text)).toEqual(['GIVE UP?', 'TAP OUT!']);
   });
 
   it('every shout lands inside its beat', () => {
