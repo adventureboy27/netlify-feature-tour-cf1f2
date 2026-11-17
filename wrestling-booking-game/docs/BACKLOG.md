@@ -6533,3 +6533,12 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Rendered over 7 frames: the mask is still only a few dozen pixels against a figure about 60px tall. The
   scale-up is not clearly visible at normal size. Next: a close-up render, or a larger base size on the mask
   element itself rather than a scale multiplier.
+
+## Winner picks up the mask (rendered, hidden behind the callout)
+
+- The first winner now takes the first mask that came off. The loser's copy hides at the pickup (3.2 s), and
+  a raised copy (`HeldMask`, `mv-held`) appears inside the winner's own figure, so it moves with the arms.
+- Rendered and probed: the element is there and animates in at 3.2 s. At the fist it is mostly covered by the
+  "YOUR WINNER!" callout (zIndex 20, above the figure's stacking layer), and it is still small.
+- Not resolved: the callout has to yield during the held pose, or the figure has to draw above it. Also still
+  to do: the profile "Masks won" section, which needs a stored record of each mask won.

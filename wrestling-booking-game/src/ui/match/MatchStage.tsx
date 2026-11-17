@@ -92,6 +92,15 @@ const CELEBRATE_AFTER_MS = 3200;
 
 const dirOf = (slot: 'left' | 'right'): 1 | -1 => (slot === 'left' ? 1 : -1);
 
+// Raised overhead at the hand: the same art as the one that came off.
+function HeldMask({ mask }: { mask: { url: string; color: string | null } }) {
+  return (
+    <div className="mv-held pointer-events-none absolute" style={{ left: '52%', top: '0%', width: '38%', aspectRatio: '1.25', zIndex: 13 }}>
+      {mask.color ? <div className="absolute inset-0" style={{ backgroundColor: mask.color, ...maskOnly(mask.url) }} /> : <img src={mask.url} alt="" className="absolute inset-0 h-full w-full object-contain" />}
+    </div>
+  );
+}
+
 /**
  * Where the cameras are: scattered through the stands (the band of the
  * picture the crowd is drawn in), placed by arithmetic rather than by dice so
@@ -385,6 +394,11 @@ export function MatchStage({
     if (pyro) setHype(true);
   }, [pyro, beatKey]);
 
+  // The mask on the mat that a winner takes: the first one that came off, and
+  // the first person on the winning side of it. Nobody else takes one up.
+  const pickedUp = over ? (shed ?? []).find((s) => s.kind === 'mask' && s.mask) : undefined;
+  const picker = pickedUp ? drawn.find((f) => aftermath?.winners.has(f.wrestler.id)) : undefined;
+
   // Everything somebody is carrying. Belts take the waist and shoulders in
   // order; a crown, a medal or a cup has its own place and does not use one up.
   const carry = (looks: readonly BeltLook[], raised: boolean) => {
@@ -513,6 +527,8 @@ export function MatchStage({
             </div>
           )}
 
+          {/* The first mask that came off is picked up by the first winner and
+              held up with the belt; the copy on the mat is taken with it. */}
           {drawn.map((fighter) => {
             const id = fighter.wrestler.id;
             const leaving = leavers.includes(fighter);
@@ -566,6 +582,7 @@ export function MatchStage({
                     {/* A champion who wins a match the belt was not on the line in still leaves wearing it. */}
                     {won && aftermath && !aftermath.belt && carry(spoils?.get(id) ?? [], false)}
                     {!staged && !over && carry(champions?.get(id) ?? [], false)}
+                    {pickedUp?.mask && picker === fighter && <HeldMask mask={pickedUp.mask} />}
                   </div>
                 </div>
               </div>
@@ -655,7 +672,7 @@ export function MatchStage({
                 // The loser's own mask, in its own colour: the same art the
                 // figure wore before the bell.
                 return (
-                  <div key={`shed-${id}`} className="mv-pull pointer-events-none absolute" style={{ left: headX - figureW * 0.4, top: headY - figureW * 0.3, width: figureW * 0.8, height: figureW * 0.6, zIndex: 9, '--mv-pull-x': `${Math.sign(at.x || 1) * figureW * 0.18}px` } as React.CSSProperties}>
+                  <div key={`shed-${id}`} className={`${pickedUp?.id === id ? 'mv-pulled-away' : 'mv-pull'} pointer-events-none absolute`} style={{ left: headX - figureW * 0.4, top: headY - figureW * 0.3, width: figureW * 0.8, height: figureW * 0.6, zIndex: 9, '--mv-pull-x': `${Math.sign(at.x || 1) * figureW * 0.18}px` } as React.CSSProperties}>
                     {/* Drawn as painted when the art has its own colours; otherwise tinted, as on the figure. */}
                     {mask.color ? (
                       <div className="absolute inset-0" style={{ backgroundColor: mask.color, ...maskOnly(mask.url) }} />
