@@ -6584,3 +6584,11 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   same path. Not rendered yet. The mask art is worked out from the person it came off, as the viewer does.
 - Open question for you: losing a mask match is permanent (`unmaskedInRing`). Should a masked wrestler who loses
   get one back later? I've left it as it is.
+
+## Losing the mask: bigger and longer morale hit
+
+- Mask loss was already permanent (`unmaskedInRing`, now also `maskLostWeek`). Nothing gives it back.
+- Morale: a hit of `moraleMaskLost` (14) in the week it happens, then a drag of `moraleMaskLostWeekly` (1.6) a week
+  that tapers to nothing over `moraleMaskLostWeeks` (10). Shown on the roster card as "Lost the mask..." and
+  "Still raw about losing the mask."
+- Tested: the week count from the loss. Not rendered; the morale numbers are untuned and need a played-save check.

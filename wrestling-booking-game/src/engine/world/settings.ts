@@ -617,6 +617,11 @@ export function defaultWorldSettings(): WorldSettings {
     moraleRoutineLoss: 0.5,
     moraleBadLossGap: 0.35,
     moraleBadLossWeight: 4.5,
+    // A luchador losing the mask is the worst night of his working life, and
+    // the room knows it: a hit in the week, then a drag that lasts weeks.
+    moraleMaskLost: 14,
+    moraleMaskLostWeeks: 10,
+    moraleMaskLostWeekly: 1.6,
     // Two weeks off is a week off. Three is a message. Measured: at a grace
     // of 0 a 24-man roster running a 6-match card lost every person morale
     // every single week, because half the roster is idle by construction.

@@ -517,6 +517,8 @@ export interface Wrestler {
    * so nothing puts another one on them for the look of it.
    */
   unmaskedInRing?: boolean;
+  /** The week they lost their mask in a ring. Morale stays down for a while after. */
+  maskLostWeek?: number;
   /** Masks taken off other people in a ring, oldest first: the trophy wall. */
   masksWon?: MaskTrophy[];
   /** Lost a hair-against-hair match: the head is shaved, and stays shaved. */
@@ -2414,6 +2416,12 @@ export interface WorldSettings {
   /** How far below them the winner has to be before a loss is an insult. */
   moraleBadLossGap: number;
   moraleBadLossWeight: number;
+  /** Lost the mask in a ring: the hit in the week it happens. */
+  moraleMaskLost: number;
+  /** Lost the mask: how many weeks it keeps weighing on them. */
+  moraleMaskLostWeeks: number;
+  /** Lost the mask: the weekly drag at first, tapering to nothing over those weeks. */
+  moraleMaskLostWeekly: number;
   /**
    * Weeks off the card that cost nothing. A roster is always bigger than a
    * card; without this, depth itself would rot a locker room.

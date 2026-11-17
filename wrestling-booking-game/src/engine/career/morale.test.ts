@@ -425,6 +425,13 @@ describe('reading a week off a show', () => {
     expect(moraleContext(person({ id: 'c' }), show, world).workedWithAllies).toBe(1);
   });
 
+  it('counts the weeks since a mask was lost in the ring', () => {
+    const later = { ...world, week: 42 };
+    expect(moraleContext(person({ id: 'a', maskLostWeek: 40 }), show, later).maskLost).toEqual({ weeksAgo: 2 });
+    expect(moraleContext(person({ id: 'a' }), show, later).maskLost).toBeNull();
+    expect(moraleContext(person({ id: 'a', maskLostWeek: 40 }), show, world).maskLost).toBeNull();
+  });
+
   it('handles a week with no show at all', () => {
     const ctx = moraleContext(person({ id: 'a' }), null, world);
     expect(ctx.worked).toBe(false);

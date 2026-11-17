@@ -116,6 +116,8 @@ export interface MoraleContext {
    * pretending to hate somebody is the job and costs nothing.
    */
   carryingSomethingReal: { withName: string; weeklyCost: number } | null;
+  /** Lost the mask in a ring this many weeks ago. Null if they never have. */
+  maskLost?: { weeksAgo: number } | null;
   /**
    * The mood of everybody they were actually in the ring with, 0-100.
    *
@@ -179,6 +181,8 @@ export function moraleContext(
   show: MoraleShow | null,
   world: {
     /** Popularity of everybody who might have beaten them. */
+    /** The week the world is on. Only needed for the mask-loss drag. */
+    week?: number;
     popularityOf: (id: Id) => number;
     /** Ids they get on with, and ids they do not. */
     alliesOf: (id: Id) => ReadonlySet<Id>;
@@ -248,6 +252,7 @@ export function moraleContext(
     weeksIdle: segment ? 0 : world.weeksIdle,
     beltsHeld: world.beltsHeldBy(wrestler.id),
     carryingSomethingReal: world.shootBurden(wrestler.id),
+    maskLost: wrestler.maskLostWeek === undefined || world.week === undefined ? null : { weeksAgo: Math.max(0, world.week - wrestler.maskLostWeek) },
     moodOfTheOthers: others
       .filter((p) => p.role === 'competitor')
       .map((p) => ({
@@ -547,6 +552,18 @@ export function weeklyMorale(
       `Carrying something real with ${ctx.carryingSomethingReal.withName}. It is doing nobody any good.`,
       -ctx.carryingSomethingReal.weeklyCost,
     );
+  }
+
+  // A mask lost in a ring is not a bad loss. It is taken off you in front of
+  // everybody, and the room carries it for weeks: a hit when it happens, then
+  // a drag that tapers off over the stretch set in settings.
+  if (ctx.maskLost && s.moraleMaskLostWeeks > 0 && ctx.maskLost.weeksAgo < s.moraleMaskLostWeeks) {
+    if (ctx.maskLost.weeksAgo === 0) {
+      add('Lost the mask in the ring. Everybody saw it come off.', -s.moraleMaskLost);
+    } else {
+      const left = 1 - ctx.maskLost.weeksAgo / s.moraleMaskLostWeeks;
+      add('Still raw about losing the mask.', -s.moraleMaskLostWeekly * left);
+    }
   }
 
   // The man they blame is still on the books.

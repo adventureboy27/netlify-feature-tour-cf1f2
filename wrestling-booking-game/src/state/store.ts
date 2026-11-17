@@ -3052,6 +3052,7 @@ export const useGameStore = create<GameStore>()(
               } else if (consequence === 'unmask') {
                 loser.masked = false;
                 loser.unmaskedInRing = true;
+                loser.maskLostWeek = world.week;
                 // The first winner takes the mask: it goes on their wall. Stamped
                 // with the week it happened, not the week after.
                 const taker = participantWrestlers.find((w) => w.id === result.winnerWrestlerIds[0]);
@@ -5891,6 +5892,7 @@ export const useGameStore = create<GameStore>()(
           const report = weeklyMorale(
             member,
             moraleContext(member, moraleShow, {
+              week: world.week,
               popularityOf: (other) => world.wrestlers[other]?.popularity ?? 0,
               roster: lockerRoom,
               alliesOf: (who) => alliesOf.get(who) ?? noneSet,
