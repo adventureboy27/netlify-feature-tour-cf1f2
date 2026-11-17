@@ -3052,6 +3052,10 @@ export const useGameStore = create<GameStore>()(
               } else if (consequence === 'unmask') {
                 loser.masked = false;
                 loser.unmaskedInRing = true;
+                // The first winner takes the mask: it goes on their wall. Stamped
+                // with the week it happened, not the week after.
+                const taker = participantWrestlers.find((w) => w.id === result.winnerWrestlerIds[0]);
+                if (taker) taker.masksWon = [...(taker.masksWon ?? []), { week: world.week, fromId: loser.id, fromName: loser.name }];
               } else {
                 const terms = exitTerms(loser, 'fired', world.settings, world.promotion.name);
                 world.promotion.bankBalance -= terms.severance;

@@ -6573,3 +6573,14 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Rendered: the mask is at the hand in one frame and the loser's copy is on the mat. The arc between them and the
   landing are not clearly visible in the sampled frames. Not verified beyond that.
 - Shared helper `maskWorn` (`src/ui/paperdoll/maskWorn.ts`) now feeds the viewer and the trophy wall.
+
+## Masks won: the trophy wall on the wrestler profile (built, not yet rendered)
+
+- `Wrestler.masksWon` (optional, so existing saves load unchanged) records each mask taken in a ring: the week
+  and the name it came off. The first winner takes it, in the mask-against-mask consequence in `store.ts`.
+- `MaskWall` (`src/ui/components/MaskWall.tsx`) shows them on the wrestler profile: the mask, a plate with
+  "from NAME", and the month, week and year.
+- Not yet covered: masks taken in interpromotional nights, the Crucible and the Breakfast Belt run through this
+  same path. Not rendered yet. The mask art is worked out from the person it came off, as the viewer does.
+- Open question for you: losing a mask match is permanent (`unmaskedInRing`). Should a masked wrestler who loses
+  get one back later? I've left it as it is.

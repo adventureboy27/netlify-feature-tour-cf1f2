@@ -362,6 +362,13 @@ export interface MoveSet {
 // §3 — Wrestler
 // ============================================================================
 
+/** A mask taken in a ring: who it came off, and when. The look is worked out from that person. */
+export interface MaskTrophy {
+  week: number;
+  fromId: Id;
+  fromName: string;
+}
+
 export interface Wrestler {
   id: Id;
   name: string; // ring name
@@ -510,6 +517,8 @@ export interface Wrestler {
    * so nothing puts another one on them for the look of it.
    */
   unmaskedInRing?: boolean;
+  /** Masks taken off other people in a ring, oldest first: the trophy wall. */
+  masksWon?: MaskTrophy[];
   /** Lost a hair-against-hair match: the head is shaved, and stays shaved. */
   headShaved?: boolean;
   /** The week it has grown back by. */

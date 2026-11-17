@@ -52,6 +52,7 @@ import { PERKS } from '../../data/perks';
 import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { GimmickHeatMeter, HeatBadge, Money } from './display';
 import { CareerLedger } from './CareerLedger';
+import { MaskWall } from './MaskWall';
 import { WrestlerRow } from './WrestlerRow';
 import { scout } from '../../engine/career/scouting';
 import type { Id, Wrestler, WorldSettings } from '../../engine/types';
@@ -495,6 +496,7 @@ export function WrestlerDetailBody({
 
         {/* Where they have been, and what they did there. */}
         <CareerLedger wrestler={w} settings={world.settings} />
+        <MaskWall wrestler={w} wrestlers={world.wrestlers} settings={world.settings} />
 
         {/* the deal */}
         <div className="mt-1 flex items-center justify-between border-t border-neutral-800 pt-1 text-[10px]">
