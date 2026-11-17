@@ -14,7 +14,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { maskOnly } from '../paperdoll/ComposedPortrait';
-import { ArenaBack, ArenaFront, FEET_Y, VIEW, type Corner } from './Arena';
+import { ApronRopes, ArenaBack, ArenaFront, FEET_Y, VIEW, type Corner } from './Arena';
 import { Prize, PrizeHung, prizeKind, type BeltLook } from './Belt';
 import { bell, crowd, hit, hitFor } from './sound';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
@@ -524,6 +524,8 @@ export function MatchStage({
                   </div>
                 );
               })}
+          {/* Anybody on the apron is behind the side ropes. */}
+          {!over && <ApronRopes left={bystanders.some((b) => b.place === 'apron' && b.slot === 'left')} right={bystanders.some((b) => b.place === 'apron' && b.slot === 'right')} />}
 
           {/* Furniture a beat calls for: a ladder to climb, a table to go through. */}
           {scene === 'ladder' && plan && (

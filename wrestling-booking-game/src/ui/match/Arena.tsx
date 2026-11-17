@@ -308,6 +308,39 @@ export const ArenaBack = memo(function ArenaBack({
 });
 
 /** The front ropes and posts — drawn over the wrestlers, who stand behind them. */
+/** The side ropes again, in front of anybody standing outside them on the apron, so a
+    partner waiting to come in is behind the ropes. Clipped to the strip beside the ring,
+    so the wrestlers inside are not drawn over. */
+export const ApronRopes = memo(function ApronRopes({ left, right }: { left: boolean; right: boolean }) {
+  const reach = 46;
+  return (
+    <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
+      {left && (
+        <g clipPath="url(#mv-apron-clip-left)" stroke={ROPE} strokeWidth={3} strokeLinecap="round" opacity={0.85}>
+          {ROPES_BACK.map((y, i) => (
+            <line key={y} x1={MAT.backL} y1={y} x2={MAT.frontL} y2={ROPES_FRONT[i]} />
+          ))}
+        </g>
+      )}
+      {right && (
+        <g clipPath="url(#mv-apron-clip-right)" stroke={ROPE} strokeWidth={3} strokeLinecap="round" opacity={0.85}>
+          {ROPES_BACK.map((y, i) => (
+            <line key={y} x1={MAT.backR} y1={y} x2={MAT.frontR} y2={ROPES_FRONT[i]} />
+          ))}
+        </g>
+      )}
+      <defs>
+        <clipPath id="mv-apron-clip-left">
+          <rect x={0} y={0} width={MAT.frontL + reach} height={VIEW.h} />
+        </clipPath>
+        <clipPath id="mv-apron-clip-right">
+          <rect x={MAT.frontR - reach} y={0} width={VIEW.w - (MAT.frontR - reach)} height={VIEW.h} />
+        </clipPath>
+      </defs>
+    </svg>
+  );
+});
+
 export const ArenaFront = memo(function ArenaFront({ ropesRef, cage = false, noRing = false }: { noRing?: boolean; ropesRef: React.Ref<SVGGElement>; /** The near wall of a cage, between the camera and the wrestlers. */ cage?: boolean }) {
   return (
     <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>

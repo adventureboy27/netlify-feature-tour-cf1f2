@@ -6694,3 +6694,12 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   so they floated beside the ring posts. Each side with a waiting partner now has an apron platform
   (`apron-platform` in `MatchStage.tsx`), and the partner stands on it.
 - Rendered: a tag stage with one partner on each apron. Both stand on their platform.
+
+## Apron partners behind the side ropes (rendered, overlap checked by eye)
+
+- The side ropes are drawn again in front of anybody on the apron (`ApronRopes` in `Arena.tsx`), clipped to the strip
+  beside the ring so the wrestlers inside are not drawn over.
+- How the ropes work in the physics: there is no rope geometry. `ringPhysics.ts` keeps bodies inside a boundary, and
+  below the top-rope height a body that reaches the edge is pushed back (`RING.topRope`). The visible ropes are drawn
+  separately in `Arena.tsx`. Partners on the apron sit outside that boundary at `apronX`.
+- Not verified: the exact overlap on each side, and a full tag match with tag-in and tag-out.
