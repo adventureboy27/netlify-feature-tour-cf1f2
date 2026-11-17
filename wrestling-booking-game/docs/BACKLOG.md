@@ -6687,3 +6687,10 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - The front ropes and their corner pads were drawn over the wrestlers, so anybody near the front read as behind
   them. Removed from `ArenaFront` (`Arena.tsx`). The front posts and the back ropes stay.
 - Rendered: the wrestler stands in front of the back ropes. Match tests pass (95 of 95).
+
+## Tag partners stand on an apron (rendered)
+
+- Partners waiting for a tag stand at their own corner, outside the ropes. Before this, no platform was drawn there,
+  so they floated beside the ring posts. Each side with a waiting partner now has an apron platform
+  (`apron-platform` in `MatchStage.tsx`), and the partner stands on it.
+- Rendered: a tag stage with one partner on each apron. Both stand on their platform.

@@ -480,6 +480,32 @@ export function MatchStage({
             winners={aftermath?.winners}
             belt={aftermath?.belt ?? false}
           />
+          {/* The apron: a platform at each corner, outside the ropes, for a tag partner to stand on. */}
+          {!over &&
+            (['left', 'right'] as const)
+              .filter((slot) => bystanders.some((b) => b.place === 'apron' && b.slot === slot))
+              .map((slot) => {
+                const side = dirOf(slot);
+                const inner = sx(-side * RING.half);
+                const outer = sx(-side * (RING.half + 5.8));
+                return (
+                  <div
+                    key={`apron-${slot}`}
+                    data-testid="apron-platform"
+                    className="absolute"
+                    style={{
+                      left: Math.min(inner, outer),
+                      width: Math.abs(outer - inner),
+                      // Depth runs the other way up the screen, so take the top edge from whichever is higher.
+                      top: Math.min(sy(4), sy(-4)),
+                      height: Math.abs(sy(4) - sy(-4)),
+                      background: 'linear-gradient(to bottom, #5b6372, #2b303a)',
+                      borderTop: '3px solid #8a93a3',
+                      zIndex: 3,
+                    }}
+                  />
+                );
+              })}
           {!over &&
             bystanders
               .filter((b) => b.place === 'apron')
