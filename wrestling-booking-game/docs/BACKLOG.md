@@ -6592,3 +6592,11 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   that tapers to nothing over `moraleMaskLostWeeks` (10). Shown on the roster card as "Lost the mask..." and
   "Still raw about losing the mask."
 - Tested: the week count from the loss. Not rendered; the morale numbers are untuned and need a played-save check.
+
+## Masks wall rendered (sample trophies, not a played save)
+
+- Rendered `MaskWall` with five sample trophies: each mask is centred on a plate, with "from NAME" and the
+  month, week and year under it. Names wrap instead of truncating.
+- The art is drawn on a figure-sized canvas, so it is enlarged and shifted to fill the plate. Adjust if the
+  mask art set changes.
+- Not yet checked on a real wrestler profile in a played save, nor with a wrestler who has no trophies.
