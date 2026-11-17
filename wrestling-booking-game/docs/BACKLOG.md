@@ -6510,3 +6510,12 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Rendered: the loser's face is bare by the end; the nameplate says UNMASKED.
 - Weak: at viewing size the mask is small and the winner's legs can hide it as it lands. Next step:
   enlarge it and hold the winner's celebration for a beat so the pull reads.
+
+## The mask, bigger, with the celebration held (rendered)
+
+- The falling mask is 80% of the figure's width (was 54%), and it is drawn as the loser's painted mask art
+  when the art has its own colours, tinted otherwise. Rendered: the gold-and-black luchador mask on the mat.
+- The winner holds the guard pose until 2.3 s (`CELEBRATE_AFTER_MS`), so the mask lifts and lands before
+  the arms go up. Rendered: arms still down at about 1.2 s, raised later.
+- Not fully resolved: the mask is still small at normal size, and the pull is quick. Next: a slightly
+  larger pull, if wanted.

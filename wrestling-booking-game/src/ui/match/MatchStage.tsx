@@ -87,6 +87,9 @@ const ROPE_WOBBLE: Keyframe[] = [
   { transform: 'translateY(-1px)' },
   { transform: 'translateY(0)' },
 ];
+/** How long after the last move the winners raise their arms: long enough for a mask to come off and land. */
+const CELEBRATE_AFTER_MS = 2300;
+
 const dirOf = (slot: 'left' | 'right'): 1 | -1 => (slot === 'left' ? 1 : -1);
 
 /**
@@ -338,7 +341,8 @@ export function MatchStage({
           // Won it and got hurt doing it: on one knee, not on the ropes with both arms up.
           frames.push(frame(0.8, to, 'stagger'), frame(1, to, 'kneel'));
         } else {
-          frames.push(frame(0.8, to, 'guard'), frame(1, to, 'celebrate'));
+          // Held on the guard for a beat: the mask comes off and drops before the arms go up.
+          frames.push(frame(0.8, to, 'guard'), frame(1, to, 'guard'));
           cheers.set(id, [frame(0, to, 'celebrate'), frame(0.5, { ...to, y: to.y + 0.7 }, 'lift'), frame(1, to, 'celebrate')]);
         }
       } else if (!leftAt.current.has(id)) {
@@ -368,7 +372,7 @@ export function MatchStage({
     const timer = window.setTimeout(() => {
       const cheering = cast.filter((f) => cheers.has(f.id));
       loop.push(...playPlan(planOf(cheers), cheering, (id) => figureRefs.current.get(id), (id) => jointRefs.current.get(id), u, figureW, 1100, { iterations: Infinity }));
-    }, 1500);
+    }, CELEBRATE_AFTER_MS);
     return () => {
       settle(running);
       loop.forEach((a) => a.cancel());
@@ -651,8 +655,13 @@ export function MatchStage({
                 // The loser's own mask, in its own colour: the same art the
                 // figure wore before the bell.
                 return (
-                  <div key={`shed-${id}`} className="mv-pull pointer-events-none absolute" style={{ left: headX - figureW * 0.27, top: headY - figureW * 0.2, width: figureW * 0.54, height: figureW * 0.4, zIndex: 9, '--mv-pull-x': `${Math.sign(at.x || 1) * figureW * 0.18}px` } as React.CSSProperties}>
-                    <div className="absolute inset-0" style={{ backgroundColor: mask.color ?? '#c8102e', ...maskOnly(mask.url) }} />
+                  <div key={`shed-${id}`} className="mv-pull pointer-events-none absolute" style={{ left: headX - figureW * 0.4, top: headY - figureW * 0.3, width: figureW * 0.8, height: figureW * 0.6, zIndex: 9, '--mv-pull-x': `${Math.sign(at.x || 1) * figureW * 0.18}px` } as React.CSSProperties}>
+                    {/* Drawn as painted when the art has its own colours; otherwise tinted, as on the figure. */}
+                    {mask.color ? (
+                      <div className="absolute inset-0" style={{ backgroundColor: mask.color, ...maskOnly(mask.url) }} />
+                    ) : (
+                      <img src={mask.url} alt="" className="absolute inset-0 h-full w-full object-contain" />
+                    )}
                   </div>
                 );
               }
