@@ -6600,3 +6600,8 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - The art is drawn on a figure-sized canvas, so it is enlarged and shifted to fill the plate. Adjust if the
   mask art set changes.
 - Not yet checked on a real wrestler profile in a played save, nor with a wrestler who has no trophies.
+
+## Masks wall scrolls
+
+- The wall is a fixed-height panel (340px) with a grid that scrolls vertically; the heading stays put. Rendered with
+  14 trophies: two rows show, and the grid scrolls (438px of content in a 289px window).

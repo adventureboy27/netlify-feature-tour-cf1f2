@@ -9,12 +9,12 @@ export function MaskWall({ wrestler, wrestlers, settings }: { wrestler: Wrestler
   const won = wrestler.masksWon ?? [];
   if (won.length === 0) return null;
   return (
-    <section data-testid="mask-wall" className="mt-3 rounded-md border border-amber-900/70 bg-[#2a1d12] p-3">
-      <div className="mb-2 flex items-baseline justify-between">
+    <section data-testid="mask-wall" className="mt-3 flex max-h-[340px] flex-col rounded-md border border-amber-900/70 bg-[#2a1d12] p-3">
+      <div className="mb-2 flex shrink-0 items-baseline justify-between">
         <h4 className="text-[11px] font-black uppercase tracking-widest text-amber-300">Masks won</h4>
         <span className="text-[10px] text-amber-500">{won.length} on the wall</span>
       </div>
-      <div className="flex flex-wrap gap-3">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(118px,1fr))] gap-3 overflow-y-auto pr-1">
         {won.map((trophy, i) => {
           const art = maskWorn(wrestlers[trophy.fromId]);
           const when = weekLabel(trophy.week, settings);
