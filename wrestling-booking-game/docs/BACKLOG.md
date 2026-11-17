@@ -6491,3 +6491,12 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - **Not possible from here:** updating the Prompt Sheet (the artifact tools are disconnected).
 - **Measured on paper, not with the probe:** the sponsor tournament is about seven bouts. Injuries run at
   roughly 5 per 100 matches (docs/BALANCE.md), so about a third of an injury per tournament.
+
+## Rendered: the belt, the sign and the dark boots
+
+- Overhead belt is smaller and lower (`overhead` in `Belt.tsx`), and the "NEW CHAMPION!" sign sits above it
+  (callout z-index raised). Rendered: the belt is clear of the lettering.
+- Waist belt rendered on a champion before the bell: sits on the waist.
+- Dark footwear rendered on the roster sheet (readable navy with a pale edge) and mid-air in a dropkick: the
+  raised boot and the knee joint read cleanly.
+- Breakfast Belt panel rendered: three bouts, Watch on each.

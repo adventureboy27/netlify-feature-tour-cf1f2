@@ -100,7 +100,9 @@ function Emblem({ kind, ink }: { kind: number; ink: string }) {
 /** Where on a figure a belt goes. One round the waist; a second and third go over the shoulders. */
 export type BeltPlace = 'overhead' | 'waist' | 'shoulder' | 'otherShoulder';
 const PLACES: Record<BeltPlace, React.CSSProperties> = {
-  overhead: { left: '12%', top: '-3%', width: '76%' },
+  // Held over the head, a little smaller and lower than the belt round the waist,
+  // so it sits in the picture rather than through the big screen above.
+  overhead: { left: '18%', top: '0.5%', width: '64%' },
   waist: { left: '22%', top: '51.5%', width: '56%' },
   shoulder: { left: '8%', top: '21%', width: '46%', transform: 'rotate(62deg)' },
   otherShoulder: { left: '46%', top: '21%', width: '46%', transform: 'rotate(-62deg)' },

@@ -688,7 +688,7 @@ export function MatchStage({
             <div
               key={`callout-${beatKey}-${over}`}
               className="pointer-events-none absolute flex items-center justify-center px-2 text-center"
-              style={{ left: (430 / VIEW.w) * w, width: (340 / VIEW.w) * w, top: (30 / VIEW.h) * h, height: (118 / VIEW.h) * h, zIndex: 10 }}
+              style={{ left: (430 / VIEW.w) * w, width: (340 / VIEW.w) * w, top: (30 / VIEW.h) * h, height: (118 / VIEW.h) * h, zIndex: 20 }}
             >
               <span
                 className="animate-callout-pop select-none font-black uppercase leading-none tracking-wide text-amber-300"
