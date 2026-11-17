@@ -6797,3 +6797,15 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   shake came about 600ms after the bow (which lasts 520ms), so this only guards against an overlap.
 - The bow peaks early: with the ease-out over the whole animation, the furthest point is at about 60ms, then it
   snaps back past straight.
+
+## Not through the ropes: the body stops where the ropes bow to (rendered)
+
+- The owner saw the body going through the ropes at the hit. Two causes. The `ropes` stance leaned the torso back
+  and threw the arms out behind, so the drawn body reached 3-7 units past the rope line against the 1.6 the physics
+  allows. And the bow began at the instant of the hit and peaked about 50ms later, so the body was briefly past
+  ropes that had not moved yet.
+- Fixed: the `ropes` stance is back flat against the ropes with a slight crunch away from them, arms forward into
+  the ring, legs under the body. A rope hit starts the bow `ROPE_PEAK_MS` (50) early, so the ropes are furthest
+  out when the body is furthest in.
+- Rendered on the animation's own clock at the peak: the near ropes come in from the post and end at his back;
+  the far halves pass behind him. A sliver of shoulder still overlaps where the rope bends.

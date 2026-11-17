@@ -87,6 +87,12 @@ const ROPE_WOBBLE: Keyframe[] = [
   { transform: 'translateY(-1px)' },
   { transform: 'translateY(0)' },
 ];
+/**
+ * How long after it starts the bow is at its furthest (its easing front-loads
+ * it). A rope hit starts the bow this much early, so the ropes are furthest
+ * out at the instant the body is furthest into them, not after it.
+ */
+const ROPE_PEAK_MS = 50;
 /** How far the side ropes bow out when a body hits them, in picture units at the wrestlers' line: as far as the body goes into them. */
 const ROPE_GIVE = RING.ropeGive * (VIEW.w / 100);
 /** How long after the last move the winners raise their arms: long enough for a mask to come off and land. */
@@ -325,7 +331,7 @@ export function MatchStage({
     }
     // Somebody into the ropes: the ropes on that side take the weight and give.
     for (const ropeHit of next.ropeHits) {
-      timers.push(window.setTimeout(() => stretchRopes(ropeHit.side), ropeHit.at * duration));
+      timers.push(window.setTimeout(() => stretchRopes(ropeHit.side), Math.max(0, ropeHit.at * duration - ROPE_PEAK_MS)));
     }
     timers.push(window.setTimeout(() => setHype(false), duration + 500));
     return () => {
