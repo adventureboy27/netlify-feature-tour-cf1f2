@@ -6500,3 +6500,13 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Dark footwear rendered on the roster sheet (readable navy with a pale edge) and mid-air in a dropkick: the
   raised boot and the knee joint read cleanly.
 - Breakfast Belt panel rendered: three bouts, Watch on each.
+
+## The mask comes off properly (rendered, with one weak point)
+
+- The dropped mask is the loser's own mask art in its own colour (`maskWornBy` in the viewer, `maskOnly`
+  shared from ComposedPortrait), not a generic icon.
+- It is pulled up from the head and falls to the mat (`mv-pull`). The pull point follows whether the
+  loser is lying down or standing.
+- Rendered: the loser's face is bare by the end; the nameplate says UNMASKED.
+- Weak: at viewing size the mask is small and the winner's legs can hide it as it lands. Next step:
+  enlarge it and hold the winner's celebration for a beat so the pull reads.

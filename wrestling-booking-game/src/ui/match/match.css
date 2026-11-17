@@ -170,3 +170,14 @@
   animation: mv-sparkle 1.6s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) { .mv-sparkle { animation: none; opacity: 0.5; transform: translate(-50%, -50%) scale(0.6); } }
+
+/* A mask pulled off the head: it lifts and turns away from the face, then
+   drops to the mat where it lands. --mv-pull-x is the side it is pulled to. */
+@keyframes mv-pull {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0deg); }
+  35% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 0.6), -70%) rotate(-18deg); }
+  55% { opacity: 1; transform: translate(var(--mv-pull-x), -110%) rotate(-30deg); }
+  75% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 1.2), 260%) rotate(40deg); }
+  100% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 1.4), 340%) rotate(70deg); }
+}
+.mv-pull { animation: mv-pull 1.4s cubic-bezier(0.3, 0, 0.6, 1) 0.15s both; }

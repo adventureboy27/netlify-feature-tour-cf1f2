@@ -13,6 +13,7 @@
 // is over, everybody: the winners with their arms up, the rest on the mat.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { maskOnly } from '../paperdoll/ComposedPortrait';
 import { ArenaBack, ArenaFront, FEET_Y, VIEW, type Corner } from './Arena';
 import { Prize, PrizeHung, prizeKind, type BeltLook } from './Belt';
 import { bell, crowd, hit, hitFor } from './sound';
@@ -139,7 +140,7 @@ export function MatchStage({
   /** Every belt each winner leaves with, the one just won or kept first. */
   spoils?: ReadonlyMap<Id, readonly BeltLook[]>;
   /** What came off somebody when it was over: a mask, or their hair. */
-  shed?: readonly { id: Id; kind: 'mask' | 'hair' }[];
+  shed?: readonly { id: Id; kind: 'mask' | 'hair'; mask?: { url: string; color: string | null } | null }[];
   /** Really injured in this match, from the moment it happened: they carry it for the rest of it. */
   hurt?: ReadonlySet<Id>;
   /** What hangs over a ladder match: the belt if one is on the line, a briefcase if not. */
@@ -635,20 +636,29 @@ export function MatchStage({
 
           {/* The stakes, paid: the mask or the hair, dropped on the mat beside whoever lost it. */}
           {over &&
-            (shed ?? []).map(({ id, kind }) => {
+            (shed ?? []).map(({ id, kind, mask }) => {
               const at = leftAt.current.get(id);
               if (!at) return null;
+              // Pulled off the head where it was worn, then it falls to the
+              // mat. The head is roughly this far above the feet.
+              // Where the head is: standing, it is high up; lying on the mat
+              // (the usual state after a loss) it is down by the canvas, off
+              // to whichever side the head is on.
+              const lying = Math.abs(Math.abs(at.rot) - 90) < 30;
+              const headX = lying ? sx(at.x + Math.sign(at.rot || 1) * 0) : sx(at.x);
+              const headY = lying ? sy(at.y) - figureW * 0.12 : sy(at.y) - figureH * 0.86;
+              if (kind === 'mask' && mask) {
+                // The loser's own mask, in its own colour: the same art the
+                // figure wore before the bell.
+                return (
+                  <div key={`shed-${id}`} className="mv-pull pointer-events-none absolute" style={{ left: headX - figureW * 0.27, top: headY - figureW * 0.2, width: figureW * 0.54, height: figureW * 0.4, zIndex: 9, '--mv-pull-x': `${Math.sign(at.x || 1) * figureW * 0.18}px` } as React.CSSProperties}>
+                    <div className="absolute inset-0" style={{ backgroundColor: mask.color ?? '#c8102e', ...maskOnly(mask.url) }} />
+                  </div>
+                );
+              }
               return (
-                <svg key={`shed-${id}`} viewBox="0 0 40 30" className="mv-shed pointer-events-none absolute" style={{ left: sx(at.x) - 2.2 * u, top: sy(Math.max(at.y, 0) + 1.2), width: 4.4 * u, height: 3.3 * u, zIndex: 8 }} aria-hidden>
-                  {kind === 'mask' ? (
-                    <>
-                      <path d="M 4,6 Q 20,-2 36,6 L 33,24 Q 20,30 7,24 Z" fill="#c8102e" stroke="#1a0508" strokeWidth={2} />
-                      <path d="M 10,11 L 17,13 L 16,17 L 10,15 Z M 30,11 L 23,13 L 24,17 L 30,15 Z" fill="#0a0a0d" />
-                      <path d="M 16,22 L 24,22" stroke="#f2c94c" strokeWidth={2} />
-                    </>
-                  ) : (
-                    <path d="M 3,22 Q 6,8 12,18 Q 14,4 20,16 Q 24,2 28,17 Q 33,7 37,22 Q 20,30 3,22 Z" fill="#3a2a1c" stroke="#150e08" strokeWidth={1.5} />
-                  )}
+                <svg key={`shed-${id}`} viewBox="0 0 40 30" className="mv-shed pointer-events-none absolute" style={{ left: headX - 2.2 * u, top: headY, width: 4.4 * u, height: 3.3 * u, zIndex: 8 }} aria-hidden>
+                  <path d="M 3,22 Q 6,8 12,18 Q 14,4 20,16 Q 24,2 28,17 Q 33,7 37,22 Q 20,30 3,22 Z" fill="#3a2a1c" stroke="#150e08" strokeWidth={1.5} />
                 </svg>
               );
             })}

@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { buildPlaybackTimeline } from '../../engine/sim/matchPlayback';
 import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
+import { assignLook } from '../paperdoll/assignLook';
 import { MatchStage, type Aftermath, type Bystander, type StageFighter } from '../match/MatchStage';
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
@@ -399,6 +400,14 @@ export function MatchViewerScreen({
   const decided = result.winnerSide !== null && result.winnerWrestlerIds.length > 0 && !isNonDecisiveFinish(result.finish);
   const loserIds = decided ? [...sideA, ...sideB].filter((w) => !result.winnerWrestlerIds.includes(w.id)).map((w) => w.id) : [];
   const unmaskedIds = segment.stipulation === 'maskVsMask' ? loserIds : [];
+  // The mask a wrestler wore into the match: the same look the figure had
+  // before the bell, read from who they were before they lost it.
+  const maskWornBy = (id: Id): { url: string; color: string | null } | null => {
+    const w = world.wrestlers[id];
+    const subject = w ? lookSubjectOf({ ...w, masked: true, unmaskedInRing: false }) : undefined;
+    const look = subject ? assignLook(subject) : null;
+    return look?.prop ? { url: look.prop.asset.url, color: look.prop.color } : null;
+  };
   // Hair against hair is the same: the head is already shaved by the time
   // this is watched, so the hair is worn for the match and comes off after.
   const shavedIds = segment.stipulation === 'hairVsHair' ? loserIds : [];
@@ -667,7 +676,7 @@ export function MatchViewerScreen({
           belt={beltLook}
           champions={champions}
           spoils={spoils}
-          shed={over ? [...unmaskedIds.map((id) => ({ id, kind: 'mask' as const })), ...shavedIds.map((id) => ({ id, kind: 'hair' as const }))] : undefined}
+          shed={over ? [...unmaskedIds.map((id) => ({ id, kind: 'mask' as const, mask: maskWornBy(id) })), ...shavedIds.map((id) => ({ id, kind: 'hair' as const, mask: null }))] : undefined}
         />
 
         {/* Who is in the ring right now — the figures themselves are busy

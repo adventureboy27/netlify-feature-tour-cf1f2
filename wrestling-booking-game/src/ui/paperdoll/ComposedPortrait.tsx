@@ -31,7 +31,7 @@ import type { ComposedLook, Worn } from './assignLook';
 
 const LAYER_CLASS = 'absolute inset-0 h-full w-full object-contain';
 
-function maskOnly(url: string): CSSProperties {
+export function maskOnly(url: string): CSSProperties {
   return {
     WebkitMaskImage: `url(${url})`,
     maskImage: `url(${url})`,
