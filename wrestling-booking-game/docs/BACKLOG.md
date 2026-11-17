@@ -6651,3 +6651,13 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   reads well.
 - Next: wire the lower body into the paper dolls and match figures in place of the current trunks and boots, and
   render the match figures to check. The side view needs a second pass before it is used.
+
+## Hand-inked style on the match figures' legs (rendered)
+
+- The static inked lower body is not used directly: the match legs are separate jointed pieces that turn at the hip
+  and knee, so one picture cannot follow the joints. Instead the inked look is applied to those pieces.
+- `legwear.tsx`: outlines are heavier and darker (0.7 → 1.1 units, half opacity → 0.9), and the seat and the thigh
+  shadow carry a diagonal ink hatch (`inkHatch`). Joints unchanged.
+- Rendered on a match: the trunks, stripes and white-soled boots read with the new line weight and hatch.
+- Not done: the side-view body is not wired into the figures, and the inked look has not been checked on other
+  bottoms (tights, pants, skirts) or on female figures.

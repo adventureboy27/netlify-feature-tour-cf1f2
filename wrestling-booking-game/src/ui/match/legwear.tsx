@@ -128,7 +128,15 @@ const closed = (m: Mirror, points: readonly (readonly [number, number])[]) => `M
 // one side. Straight-sided blocks under it read as a different drawing, so
 // the legs are built the same way — a curved thigh and calf, an outline, a
 // highlight down the front and a shadow down the inside.
-const LINE = { stroke: '#0b0b0e', strokeOpacity: 0.5, strokeWidth: 0.7, strokeLinejoin: 'round' as const };
+// Hand-inked: a heavier, darker line than the flat art, and hatched shadow on the cloth.
+const LINE = { stroke: '#0b0b0e', strokeOpacity: 0.9, strokeWidth: 1.1, strokeLinejoin: 'round' as const };
+
+/** The hatched shadow of an inked drawing: diagonal ink lines laid over a fill. */
+const INK_HATCH = (
+  <pattern id="inkHatch" width="2.4" height="2.4" patternUnits="userSpaceOnUse" patternTransform="rotate(40)">
+    <line x1="0" y1="0" x2="0" y2="2.4" stroke="#000" strokeWidth="0.55" strokeOpacity="0.55" />
+  </pattern>
+);
 
 // Parts of a leg — the shorts' length of a thigh, a boot from its top down —
 // are cut from the leg's own curves by arithmetic, not by a clip. A clip
@@ -203,7 +211,7 @@ export function Thigh({ m, skin, gear, female = false }: { m: Mirror; skin: stri
       {gear.bottom === 'shorts' && <path d={`M ${through(m, [at(thighEdges(female, false).outer, 33.8), at(thighEdges(female, false).inner, 33.8), at(thighEdges(female, false).inner, 35.5), at(thighEdges(female, false).outer, 35.5)])} Z`} fill="#000" opacity={0.25} />}
       {/* Light down the front of the thigh, shadow down the inside, and the line of the muscle on a bare leg. */}
       <path d={`M ${m(33.6)},19 Q ${m(bulge + 4.4)},31 ${m(35.6)},44`} stroke="#fff" strokeOpacity={0.13} strokeWidth={2.4} strokeLinecap="round" fill="none" />
-      <path d={`M ${m(44.2)},20 L ${m(49.6)},20 Q ${m(50)},33 ${m(47)},47 L ${m(44.6)},47 Q ${m(46.4)},33 ${m(44.2)},20 Z`} fill="#000" opacity={0.2} />
+      <path d={`M ${m(44.2)},20 L ${m(49.6)},20 Q ${m(50)},33 ${m(47)},47 L ${m(44.6)},47 Q ${m(46.4)},33 ${m(44.2)},20 Z`} fill="url(#inkHatch)" />
       {!long && gear.bottom !== 'shorts' && <path d={`M ${m(39.4)},22 Q ${m(37.6)},34 ${m(39.6)},43`} stroke="#000" strokeOpacity={0.16} strokeWidth={0.8} fill="none" />}
       {/* The knee rides on the thigh and covers the joint: a pad, or just a knee. */}
       <ellipse cx={m(39.8)} cy={47} rx={gear.kneepads ? 8.6 : loose ? 8.4 : 7.4} ry={gear.kneepads ? 7 : 6} fill={kneeColor} {...(gear.kneepads ? LINE : {})} />
@@ -262,8 +270,12 @@ export function Shin({ m, skin, gear, female = false }: { m: Mirror; skin: strin
 
 /** The seat: drawn over the tops of both legs. */
 export function Pelvis({ female, gear }: { female: boolean; gear: Legwear }) {
+  const seat = gear.bottom === 'skirt' ? null : female ? 'M 32.5,0 L 67.5,0 L 70.5,14 L 54,23 L 50,18 L 46,23 L 29.5,14 Z' : 'M 31.5,0 L 68.5,0 L 70.5,16 L 52.5,24 L 50,20 L 47.5,24 L 29.5,16 Z';
   return (
     <>
+      <defs>{INK_HATCH}</defs>
+      {/* The hatched shadow under the waistband, on the cloth. */}
+      {seat && <path d={seat} fill="url(#inkHatch)" />}
       {gear.bottom === 'skirt' ? (
         <path d="M 31.5,0 L 68.5,0 L 76,30 L 62,33 L 50,31 L 38,33 L 24,30 Z" fill={gear.color} {...LINE} />
       ) : (
