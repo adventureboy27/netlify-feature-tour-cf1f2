@@ -398,6 +398,61 @@ const BODIES = {
     target: [STAND, [0.1, 1, 0, -14], [0.22, 0, DOWN, -90], [1, 0, DOWN, -90]],
     impacts: [[0.1, 2, 12]],
   },
+  // ---- what the furniture and the props are for ---------------------------
+  // A powerbomb with a table under it: the table is the scene's (MatchStage).
+  tablePowerbomb: {
+    actor: [STAND, [0.15, 7, 0, 13], [0.32, 7, 0, -4], [0.48, 7, 0, -6], [0.58, 7, 0, 6], [0.68, 7.5, 0, 34, 0.92], [0.85, 7.5, 0, 18], [1, 7, 0, 0]],
+    target: [STAND, [0.15, 3, 0, 12], [0.32, 5, 5.5, -6], [0.48, 5, 5.8, -10], [0.58, 4, 4.5, -30], [0.68, 1, DOWN, -90, 0.88], [0.74, 1, DOWN + 1.4, -90], [0.82, 1, DOWN, -90], [1, 1, DOWN, -90]],
+    impacts: [[0.68, -7, 1, true]],
+    shouts: [{ at: 0.7, text: 'THROUGH A TABLE!' }],
+  },
+  // A ladder match's near thing: up the ladder, a hand on the prize, and
+  // yanked back down by the legs before it comes free.
+  ladderPull: {
+    actor: [STAND, [0.1, 6, 0, 14], [0.22, 4, 0, 0], [0.36, 7, 4, 0], [0.5, 7, 9, 0], [0.62, 7, 12.5, 0], [0.7, 7, 12.5, 0], [0.78, 6, 7, -40], [0.88, 4, DOWN, -90], [1, 4, DOWN, -90]],
+    target: [STAND, [0.1, 1, 0, -14], [0.22, 0, DOWN, -90], [0.46, 0, DOWN, -90], [0.58, 2, 0.4, -30], [0.66, 4.5, 0, 0], [0.72, 5, 0, 6], [0.8, 5, 0, -12], [1, 4, 0, 0]],
+    impacts: [[0.1, 2, 12], [0.88, 8, 2, true]],
+  },
+  // Up the ladder and off it, onto somebody lying beside it.
+  ladderDive: {
+    actor: [STAND, [0.1, 6, 0, 14], [0.22, 4, 0, 0], [0.34, 7, 5, 0], [0.48, 7, 12.5, 0], [0.56, 7, 12.5, 0, 0.88], [0.66, 9, 16, 40], [0.76, 10, 3.6, 90], [0.82, 10, 4.4, 90], [1, 10, 3.6, 90]],
+    target: [STAND, [0.1, 1, 0, -14], [0.22, 1, DOWN, -90], [0.74, 1, DOWN, -90], [0.78, 1, DOWN - 0.4, -90, 0.84], [0.86, 1, DOWN, -90], [1, 1, DOWN, -90]],
+    impacts: [[0.1, 2, 12], [0.76, -9, 2, true]],
+  },
+  // A ladder swung like a chair: there is more of it.
+  ladderShot: {
+    actor: [STAND, [0.25, 4, 0, -16], [0.42, 8, 0, 22], [0.6, 6, 0, 6], [1, 3, 0, 0]],
+    target: [STAND, [0.42, 0, 0, 0], [0.5, 0, 2, -45], [0.62, 0, DOWN, -90, 0.92], [1, 0, DOWN, -90]],
+    impacts: [[0.43, 2, 14, true]],
+  },
+  // The steel steps, hauled up overhead and brought down on them.
+  stepsShot: {
+    actor: [STAND, [0.3, 5, 0, -10], [0.45, 8, 0, 18], [0.62, 7, 0, 8], [1, 4, 0, 0]],
+    target: [STAND, [0.3, 0, 0, 0], [0.44, 0, 0, 12, 0.9], [0.52, 0, 1.5, -50], [0.64, 0, DOWN, -90, 0.9], [1, 0, DOWN, -90]],
+    impacts: [[0.46, 2, 14, true]],
+  },
+  // A tables match's near thing: up for the powerbomb with the table right
+  // there, and punching free off the shoulders before it happens.
+  tableEscape: {
+    actor: [STAND, [0.15, 7, 0, 13], [0.32, 7, 0, -4], [0.48, 7, 0, -6], [0.58, 7, 0, -14], [0.66, 7, 0, 0], [0.8, 5, 0, -16], [1, 4, 0, 0]],
+    target: [STAND, [0.15, 3, 0, 12], [0.32, 5, 5.5, -6], [0.48, 5, 5.8, -10], [0.56, 5, 5.8, 10], [0.66, 4, 0, 0], [0.76, 4, 0, 14], [1, 3, 0, 0]],
+    impacts: [[0.56, 7, 17], [0.77, 6.5, 14]],
+  },
+  // A casket match's near thing: rolled out into the casket and shut in —
+  // and the lid comes back up before it can be locked.
+  casketNear: {
+    actor: [STAND, [0.12, 7, 0, 10], [0.24, 7, 0, 24], [0.34, 7, 0, 0], [0.44, 6, 1.5, 12], [0.54, 5, G, 0, 0.9], [0.64, 5, G, 20], [0.76, 5, G, 24], [0.84, 1, G, -24], [1, -1, G, 0]],
+    target: [STAND, [0.12, 2, 0, 12], [0.24, 2, 1, 70], [0.3, 2, 0.6, 90], [0.4, 2, G + 4, 90], [0.46, 2, G + DOWN, 90, 0.9], [0.78, 2, G + DOWN, 90], [0.86, 5, G, 20], [1, 5, G, 6]],
+    impacts: [[0.46, 8, G + 1, true], [0.8, -2, G + 5]],
+    ropes: 0.3,
+  },
+  // A blindfold match: a big swing at where they were a second ago, and
+  // then walking straight into each other.
+  blindSwing: {
+    actor: [STAND, [0.2, 2, 0, 0], [0.34, 3, 0, -10], [0.44, 4, 0, 20], [0.56, 4, 0, 4], [0.72, 5, 0, 0], [0.84, 6.5, 0, 0], [0.9, 5.5, 0, -12], [1, 4, 0, 0]],
+    target: [STAND, [0.2, -4, 0, 0], [0.4, -9, 0, -4, 0.86], [0.56, -9, 0, 0], [0.72, -1, 0, 0], [0.84, 5.5, 0, 0], [0.9, 4.5, 0, -12], [1, 3, 0, 0]],
+    impacts: [[0.85, 1.5, 15]],
+  },
   // Thrown out under the ropes and not followed: what a count-out starts with.
   throwOut: {
     actor: [STAND, [0.2, 7, 0, 10], [0.38, 7, 0, 24], [0.55, 7, 0, 0], [1, 5, 0, 0]],
@@ -470,6 +525,14 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   escapeCage: { actor: '- punch run climb climb tuck fall crouch', target: '- stagger flat flat' },
   climbLadder: { actor: '- punch run climb climb climb lift celebrate', target: '- stagger flat flat' },
   throwOut: { actor: '- reach punch guard celebrate', target: '- bend spear flat flat flat flat' },
+  tablePowerbomb: { actor: '- reach carry carry carry crouch guard -', target: '- bend shoulders shoulders fall flat flat flat flat' },
+  ladderPull: { actor: '- punch guard climb climb lift lift fall flat flat', target: '- stagger flat flat kneel reach lift stagger guard' },
+  ladderDive: { actor: '- punch guard climb climb crouch fly cover cover cover', target: '- stagger flat flat flat flat flat' },
+  ladderShot: { actor: '- swingUp swingDown guard -', target: '- guard fall flat flat' },
+  stepsShot: { actor: '- lift swingDown guard -', target: '- guard bend fall flat flat' },
+  tableEscape: { actor: '- reach carry carry stagger guard stagger guard', target: '- bend shoulders shoulders punch guard punch guard' },
+  casketNear: { actor: '- reach punch guard crouch crouch reach reach stagger guard', target: '- bend spear flat flat flat flat seated seated' },
+  blindSwing: { actor: '- reach wind punch stagger reach reach stagger guard', target: '- reach crouch reach reach reach stagger guard' },
   rollInside: { actor: 'guard bend lift guard crouch crouch guard', target: 'flat flat fall flat flat flat' },
 };
 
@@ -508,6 +571,11 @@ export interface MoveMeta {
    * is down already that opening is skipped and they stay where they lie.
    */
   knockdownBy?: number;
+  /**
+   * Happens in the middle of the ring whoever was where: a ladder goes up
+   * under the prize, and the prize hangs over the centre.
+   */
+  atCentre?: boolean;
 }
 
 export const META: Partial<Record<MoveId, MoveMeta>> = {
@@ -530,7 +598,9 @@ export const META: Partial<Record<MoveId, MoveMeta>> = {
   cageClimb: { anchor: { who: 'actor', at: -13 }, knockdownBy: 0.22 },
   cageTop: { anchor: { who: 'actor', at: -13 } },
   escapeCage: { anchor: { who: 'actor', at: -13 }, actorExits: 0.6, knockdownBy: 0.22 },
-  climbLadder: { knockdownBy: 0.22 },
+  climbLadder: { knockdownBy: 0.22, atCentre: true },
+  ladderPull: { knockdownBy: 0.22, atCentre: true },
+  ladderDive: { knockdownBy: 0.22 },
   stomp: { needsDown: true },
   legDrop: { needsDown: true },
   groundPound: { needsDown: true },
@@ -551,6 +621,8 @@ const SAID: readonly (readonly [RegExp, MoveId | 'top' | 'finisher' | 'over'])[]
   // before the names of the moves they are about. ("Ducks the clothesline"
   // is a counter, not a clothesline.)
   [/ducks |blocks it|coming in|knees up|boot up|counters?\b/i, 'counter'],
+  [/steel steps|ring steps|the steps\b/i, 'stepsShot'],
+  [/ladder shot|with the ladder|into the ladder|ladder into/i, 'ladderShot'],
   [/top of the cage|atop the cage|up on the cage|both (of them )?climbing/i, 'cageTop'],
   [/into the (cage|steel|mesh|fence)|off the cage|cage wall/i, 'intoCage'],
   [/buckles|whip into the corner|into the turnbuckle/i, 'cornerWhip'],
@@ -759,6 +831,12 @@ export type Zone = 'ring' | 'out' | 'floor' | 'in';
 export const WEAPONS = ['chair', 'kendo', 'can'] as const;
 export type Weapon = (typeof WEAPONS)[number];
 const weaponAt = (n: number): Weapon => WEAPONS[Math.abs(n) % WEAPONS.length]!;
+/** Anything somebody can have in their hands: the swung weapons, and the heavy things. */
+export type Prop = Weapon | 'ladder' | 'steps';
+/** What each prop move is done with (a chair shot's weapon rotates; see weaponAt). */
+const PROP_OF: Partial<Record<MoveId, Prop>> = { ladderShot: 'ladder', stepsShot: 'steps' };
+/** Moves that only exist where nothing is illegal. */
+const ARMED: readonly MoveId[] = ['chairShot', 'ladderShot', 'stepsShot', 'tablePowerbomb'];
 
 export interface StagedBeat {
   move: MoveId;
@@ -767,9 +845,11 @@ export interface StagedBeat {
   /** Absent means the ring. */
   zone?: Zone;
   /** Something in the attacker's hands. */
-  prop?: Weapon;
-  /** Furniture this beat needs in the ring. */
-  scene?: 'ladder' | 'table' | 'flamingTable' | 'casket';
+  prop?: Prop;
+  /** Furniture this beat needs in the ring. `casketOpen` is a casket whose lid comes back up. */
+  scene?: 'ladder' | 'table' | 'flamingTable' | 'casket' | 'casketOpen';
+  /** The furniture survives the beat (a table nobody went through). */
+  sceneIntact?: boolean;
   /** Milliseconds the choreography runs for. */
   duration: number;
 }
@@ -777,6 +857,18 @@ export interface StagedBeat {
 /** One move by id, as written — for a move reel, or anything else that wants to look at a single move. */
 export const stageMove = (move: MoveId, duration = 1700): StagedBeat => ({ move, choreo: MOVES[move], meta: META[move] ?? {}, duration });
 export const MOVE_IDS = Object.keys(MOVES) as MoveId[];
+
+/** What a move brings with it: something in the hands, furniture in the ring. */
+function propsFor(move: MoveId, conduct: Conduct, n: number): Pick<StagedBeat, 'prop' | 'scene' | 'sceneIntact'> {
+  if (move === 'chairShot') return { prop: weaponAt(n) };
+  const prop = PROP_OF[move];
+  if (prop) return { prop };
+  if (move === 'tablePowerbomb') return { scene: 'table' };
+  if (move === 'tableEscape') return { scene: conduct.furniture === 'flamingTable' ? 'flamingTable' : 'table', sceneIntact: true };
+  if (move === 'ladderPull' || move === 'ladderDive') return { scene: 'ladder' };
+  if (move === 'casketNear') return { scene: 'casketOpen' };
+  return {};
+}
 
 /** What the staging needs to know about the moment a beat starts. */
 export interface BeatContext {
@@ -819,17 +911,40 @@ export function stageBeat(
   const style = actor?.moveSet.style ?? 'brawl';
   const named = moveNamed(actor, beat.moveName);
   const conduct = context.conduct ?? STANDARD;
-  const built = (move: MoveId, choreo: Choreo, duration: number): StagedBeat => ({ move, choreo, meta: META[move] ?? {}, duration, ...(move === 'chairShot' ? { prop: weaponAt(index + context.recent.length) } : {}) });
-  // Where there are no disqualifications, a chair is one more thing to do.
-  // And where there is a cage, the cage is one more thing to hit somebody with.
+  const built = (move: MoveId, choreo: Choreo, duration: number): StagedBeat => ({ move, choreo, meta: META[move] ?? {}, duration, ...propsFor(move, conduct, index + context.recent.length) });
+  // What makes a special match special, between the bell and the finish:
+  // the weapons where nothing is illegal, the cage where there is one, the
+  // ladder, the blindfold. Woven in with the ordinary moves, one for one, so
+  // a ladder match is about the ladder and not just a match with a ladder
+  // in it at the end.
   const armed = (options: readonly MoveId[]): readonly MoveId[] => {
-    const withChair: readonly MoveId[] = conduct.weapons ? [...options.slice(0, 2), 'chairShot', ...options.slice(2)] : options;
-    return conduct.cage ? [withChair[0]!, 'intoCage', withChair[1] ?? 'strike', 'cageTop', ...withChair.slice(2)] : withChair;
+    const special: MoveId[] = [];
+    if (conduct.cage) special.push('intoCage', 'cageTop');
+    if (conduct.furniture === 'ladder') special.push('ladderDive', 'ladderShot');
+    if (conduct.blindfold) special.push('blindSwing');
+    if (conduct.weapons) {
+      special.push('chairShot', 'stepsShot');
+      if (conduct.furniture === null) special.push('tablePowerbomb', 'ladderShot');
+    }
+    if (special.length === 0) return options;
+    const woven: MoveId[] = [];
+    options.forEach((id, i) => woven.push(id, ...(i < special.length ? [special[i]!] : [])));
+    return [...woven, ...special.slice(options.length)];
   };
   // With no ring there are no ropes to run, no corner to be put in and
   // nothing to climb: anything that needs one becomes a slam on the concrete.
   const needsRing = (id: MoveId) => Boolean(META[id]?.anchor || META[id]?.exits || META[id]?.actorExits) || id === 'tossOutside' || id === 'rollInside';
-  const grounded = (id: MoveId): MoveId => (conduct.noRing && needsRing(id) ? 'slam' : !conduct.cage && (id === 'intoCage' || id === 'cageTop') ? 'cornerWhip' : id);
+  const grounded = (id: MoveId): MoveId => {
+    if (conduct.noRing && needsRing(id)) return 'slam';
+    if (!conduct.cage && (id === 'intoCage' || id === 'cageTop')) return 'cornerWhip';
+    // No weapons where they are illegal, whatever was said.
+    if (!conduct.weapons && ARMED.includes(id)) return id === 'tablePowerbomb' ? 'powerbomb' : 'strike';
+    // Through a table ends a tables match: before the finish, it is only nearly.
+    if (id === 'tablePowerbomb' && (conduct.furniture === 'table' || conduct.furniture === 'flamingTable')) return 'tableEscape';
+    if ((id === 'ladderDive' || id === 'ladderPull') && conduct.furniture !== 'ladder') return 'aerial';
+    if (id === 'blindSwing' && !conduct.blindfold) return 'strike';
+    return id;
+  };
   const pick = (id: MoveId, duration = 1700) => built(id, MOVES[id], duration);
   // The same beat with a word shouted over it.
   const shouting = (staged: StagedBeat, text: string, at = 0.8): StagedBeat => ({ ...staged, choreo: { ...staged.choreo, shouts: [...(staged.choreo.shouts ?? []), { at, text }] } });
@@ -876,6 +991,9 @@ export function stageBeat(
       if (conduct.nearFall === 'teeter') return shouting(pick('teeter', 1900), 'HANGS ON!', 0.72);
       if (conduct.nearFall === 'hold') return built('submission', holdEscaped(), 2600);
       if (conduct.nearFall === 'climb') return shouting(pick('cageClimb', 2800), 'DRAGGED BACK!', 0.8);
+      if (conduct.nearFall === 'ladder') return shouting(pick('ladderPull', 2800), 'PULLED DOWN!', 0.8);
+      if (conduct.nearFall === 'table') return shouting(pick('tableEscape', 2400), 'FIGHTS IT OFF!', 0.6);
+      if (conduct.nearFall === 'casket') return { ...shouting(pick('casketNear', 3200), 'NOT YET!', 0.84), zone: 'out' };
       const lead = spoken && NEAR_FALL_LEADS.includes(spoken) ? spoken : fresh(NEAR_FALL_LEADS);
       if (conduct.nearFall === 'count') return built(lead, withCount(MOVES[lead], 0.42, 8, true), 3200);
       if (context.targetDown) return built('still', coverOnly(2), 1600);
@@ -1031,6 +1149,13 @@ export function stageMatch(
     // the commentary to finish: the time it takes to read what was said is
     // covered by the exchanges that follow (see `between` below).
     moments.push({ beat, actorId: actorId ?? null, targetId: targetId ?? null, staged, lines, holdMs: staged.duration, filler });
+    // Out of the casket and still in the match: back into the ring with them.
+    if (staged.move === 'casketNear' && actorId && targetId) {
+      const back = { ...stageMove('rollInside', 1900), zone: 'in' as const };
+      moments.push({ beat: { kind: 'control', pose: 'control', text: '', significant: false, actorId, targetId, moveName: null }, actorId, targetId, staged: back, lines: [], holdMs: 1900, filler: true });
+      recent.push('rollInside');
+      downId = targetId;
+    }
   };
 
   // DESIGN: the simulation records a handful of beats a match — the moments

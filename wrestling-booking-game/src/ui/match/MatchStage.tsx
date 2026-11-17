@@ -581,25 +581,26 @@ export function MatchStage({
               ))}
             </svg>
           )}
-          {/* What the ladder is for: hanging over the ring until somebody gets a hand on it. */}
-          {scene === 'ladder' && plan && (
-            <div className="mv-until pointer-events-none absolute" style={{ left: sx(plan.centre) - 4 * u, top: 0, width: 8 * u, height: sy(28.2), animationDelay: `${when(0.86)}ms`, zIndex: 9 }} aria-hidden>
+          {/* What the ladder is for: hanging over the middle of the ring from the
+              bell, until somebody gets a hand on it. */}
+          {(scene === 'ladder' || conduct?.furniture === 'ladder') && !over && (
+            <div className={`${staged?.move === 'climbLadder' ? 'mv-until ' : ''}pointer-events-none absolute`} style={{ left: sx(0) - 4 * u, top: 0, width: 8 * u, height: sy(28.2), animationDelay: `${when(0.86)}ms`, zIndex: 9 }} aria-hidden>
               <div className="absolute left-1/2 top-0 w-px bg-neutral-400/70" style={{ height: `calc(100% - ${2.6 * u}px)` }} />
               <div className="absolute inset-x-0 bottom-0" style={{ height: 2.8 * u }}>
-                {prize === 'case' ? <div className="absolute inset-x-[22%] inset-y-0 rounded-sm border border-neutral-900 bg-neutral-300" /> : <PrizeHung look={belt} />}
+                {prize === 'case' ? <div className="absolute inset-x-[22%] inset-y-0 rounded-sm border border-neutral-900 bg-neutral-300" /> : <PrizeHung look={belt ?? undefined} />}
               </div>
             </div>
           )}
           {(scene === 'table' || scene === 'flamingTable') && targetEnd && (
-            <div className="pointer-events-none absolute" style={{ left: sx(midBody(targetEnd).x) - 9 * u, top: sy(4), width: 18 * u, height: 4.4 * u, zIndex: 2 }}>
-              <svg viewBox="0 0 180 44" className="mv-until absolute inset-0 h-full w-full" style={{ animationDelay: `${sceneAt * duration}ms` }} aria-hidden>
+            <div className="pointer-events-none absolute" style={{ left: sx(staged?.sceneIntact && plan ? plan.centre + 2.6 * (targetEnd.x - plan.centre) : midBody(targetEnd).x) - 9 * u, top: sy(4), width: 18 * u, height: 4.4 * u, zIndex: 2 }}>
+              <svg viewBox="0 0 180 44" className={`${staged?.sceneIntact ? '' : 'mv-until '}absolute inset-0 h-full w-full`} style={{ animationDelay: `${sceneAt * duration}ms` }} aria-hidden>
                 <rect x={4} y={2} width={172} height={9} rx={2} fill="#8a5a2c" stroke="#4d3015" strokeWidth={2} />
                 <path d="M 24,11 L 20,42 M 156,11 L 160,42" stroke="#4b5260" strokeWidth={5} strokeLinecap="round" />
               </svg>
-              <svg viewBox="0 0 180 44" className="mv-from absolute inset-0 h-full w-full" style={{ animationDelay: `${sceneAt * duration}ms` }} aria-hidden>
+              {!staged?.sceneIntact && <svg viewBox="0 0 180 44" className="mv-from absolute inset-0 h-full w-full" style={{ animationDelay: `${sceneAt * duration}ms` }} aria-hidden>
                 <path d="M 4,6 L 84,30 L 82,38 L 2,15 Z M 176,6 L 96,30 L 98,38 L 178,15 Z" fill="#8a5a2c" stroke="#4d3015" strokeWidth={2} />
                 <path d="M 22,14 L 18,42 M 158,14 L 162,42" stroke="#4b5260" strokeWidth={5} strokeLinecap="round" />
-              </svg>
+              </svg>}
               {scene === 'flamingTable' && (
                 <div
                   className="mv-flame absolute"
@@ -673,6 +674,34 @@ export function MatchStage({
           })}
 
           <ArenaFront ropesRef={ropesRef} cage={conduct?.cage} noRing={conduct?.noRing} accent={accent} corners={corners} onSideRope={onSideRope} />
+
+          {/* A casket at ringside, shut on somebody — and its lid coming back up. */}
+          {scene === 'casketOpen' && target && plan && (() => {
+            const track = plan.tracks.get(target.wrestler.id) ?? [];
+            const lying = track.filter((fr) => fr.at * duration >= when(0.5) && fr.at * duration <= when(0.78)).pop() ?? track[track.length - 1];
+            if (!lying) return null;
+            const mid = midBody(lying);
+            const box = { left: sx(mid.x) - 13 * u, top: sy(lying.y + 3.6), width: 26 * u, height: 7 * u, zIndex: 17 };
+            return (
+              <>
+                <div className="mv-from pointer-events-none absolute" style={{ ...box, animationDelay: `${when(0.5)}ms` }} aria-hidden>
+                  <svg viewBox="0 0 260 70" className="mv-until h-full w-full" style={{ animationDelay: `${when(0.8)}ms` }}>
+                    <path d="M 6,12 L 60,2 L 254,8 L 254,62 L 60,68 L 6,58 Z" fill="#2a1c12" stroke="#0e0906" strokeWidth={3} />
+                    <path d="M 150,14 L 150,56 M 132,28 L 168,28" stroke="#c9a23a" strokeWidth={5} strokeLinecap="round" />
+                  </svg>
+                </div>
+                <svg viewBox="0 0 260 70" className="mv-from pointer-events-none absolute" style={{ ...box, animationDelay: `${when(0.8)}ms` }} aria-hidden>
+                  <path d="M 6,36 L 60,30 L 254,33 L 254,62 L 60,68 L 6,58 Z" fill="#2a1c12" stroke="#0e0906" strokeWidth={3} />
+                  <path d="M 60,30 L 60,68" stroke="#0e0906" strokeWidth={2} />
+                </svg>
+                {/* The lid, thrown back and standing on its end beside it. */}
+                <svg viewBox="0 0 70 200" className="mv-from pointer-events-none absolute" style={{ left: sx(mid.x) + 12 * u, top: sy(lying.y + 15), width: 6 * u, height: 17 * u, transform: 'rotate(14deg)', animationDelay: `${when(0.8)}ms`, zIndex: 11 }} aria-hidden>
+                  <path d="M 10,4 L 60,14 L 64,196 L 6,190 Z" fill="#3a2716" stroke="#0e0906" strokeWidth={3} />
+                  <path d="M 35,60 L 35,130 M 18,82 L 52,82" stroke="#c9a23a" strokeWidth={6} strokeLinecap="round" />
+                </svg>
+              </>
+            );
+          })()}
 
           {/* A casket, at ringside, with somebody in it. */}
           {scene === 'casket' && targetEnd && (

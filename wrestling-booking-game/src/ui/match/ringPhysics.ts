@@ -208,6 +208,14 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
     // (On the floor, the thing behind them is a barricade.)
     const rope = -anchored.dir * ((zone === 'floor' ? RING.floorHalf : ringHalf) - RING.body);
     centre = rope - anchored.dir * meta.anchor.at + (anchored.dir * GAP) / 2;
+  } else if (meta.atCentre) {
+    // Under the prize: the middle of the ring, wherever they were. Somebody
+    // already lying down stays where they lie while it goes up.
+    centre = 0;
+    if (staysDown && target?.from) {
+      const lieX = (target.from.x - home(target, centre)) * target.dir;
+      targetFrames = targetFrames.map((fr) => (isDown([0, fr[2], fr[3]]) ? ([fr[0], lieX, ...fr.slice(2)] as unknown as Frame) : fr));
+    }
   } else if (staysDown && target?.from) {
     // Go to them: the move happens where they are lying.
     const lieAt = targetFrames[0]![1];

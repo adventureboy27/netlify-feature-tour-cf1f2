@@ -191,6 +191,7 @@ export function voice(_gender: 'm' | 'f', _kind: 'effort' | 'pain', _delayMs = 0
 /** Which sound a move's small impacts make. */
 const KICKS: ReadonlySet<string> = new Set(['superkick', 'dropkick', 'missileDropkick', 'kneeLift', 'stomp', 'cornerStomp', 'legDrop']);
 export function hitFor(move: string, big: boolean, prop?: string, scene?: string): Hit {
+  if (move === 'ladderShot' || move === 'stepsShot') return 'chair';
   if (move === 'chairShot') return prop === 'kendo' ? 'kendo' : prop === 'can' ? 'can' : 'chair';
   if (move === 'intoCage' || move === 'cageTop' || move === 'cageClimb') return big ? 'cage' : 'punch';
   if (big && (scene === 'table' || scene === 'flamingTable')) return 'table';

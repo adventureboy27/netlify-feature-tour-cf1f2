@@ -580,7 +580,7 @@ describe('the fixes to the match types', () => {
     const found = new Set(long.map((m) => m.staged.prop).filter(Boolean));
     expect(found.size).toBeGreaterThan(1);
     // And whatever is in the hand, it is in the hand for a swing.
-    for (const m of long) if (m.staged.prop) expect(m.staged.move).toBe('chairShot');
+    for (const m of long) if (m.staged.prop) expect(['chairShot', 'ladderShot', 'stepsShot']).toContain(m.staged.move);
   });
 
   it('a squash is one-way traffic between the recorded beats', () => {

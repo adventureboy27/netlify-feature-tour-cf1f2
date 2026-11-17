@@ -22,6 +22,11 @@ export interface Conduct {
   /** Going over the top rope puts you out. */
   overTheTop: boolean;
   cage: boolean;
+  /**
+   * What the match is built around and has at ringside from the bell: a
+   * ladder under a prize, a table (on fire, or not), a casket.
+   */
+  furniture: 'ladder' | 'table' | 'flamingTable' | 'casket' | null;
   blindfold: boolean;
   /** More than one fall decides it: two out of three, or an iron man match. */
   multiFall: boolean;
@@ -34,9 +39,12 @@ export interface Conduct {
   /**
    * What a near fall is in this match: a cover and a two-count; a hold
    * somebody fights out of; a referee's count over somebody who beats it;
-   * or, in a battle royal, hanging over the top rope and not going.
+   * or, in a battle royal, hanging over the top rope and not going. Where
+   * the match is won with a piece of furniture, the near thing is that
+   * furniture: pulled off the ladder, fighting off the powerbomb at the
+   * table, the casket lid coming back up.
    */
-  nearFall: 'cover' | 'hold' | 'count' | 'teeter' | 'climb';
+  nearFall: 'cover' | 'hold' | 'count' | 'teeter' | 'climb' | 'ladder' | 'table' | 'casket';
   /** How somebody leaves a match that eliminates people. */
   elimination: 'overTop' | 'fall';
   /** What the last thing that happens looks like. */
@@ -51,6 +59,7 @@ export const STANDARD: Conduct = {
   weapons: false,
   overTheTop: false,
   cage: false,
+  furniture: null,
   blindfold: false,
   multiFall: false,
   fallsAnywhere: false,
@@ -96,6 +105,7 @@ export function conductOf(segment: Pick<Segment, 'stipulation' | 'rules'>, finis
   // whether those two are a team or just two more opponents.
   const allIn = battleRoyal || rules.preset === 'triple' || rules.preset === 'fatal4' || rules.preset === 'tornado' || biggest > 4 || (rules.format === 'individuals' && biggest > 1);
   const cage = stipulation === 'steelCage';
+  const furniture: Conduct['furniture'] = stipulation === 'ladder' ? 'ladder' : stipulation === 'tables' ? 'table' : stipulation === 'flamingTables' ? 'flamingTable' : stipulation === 'casket' ? 'casket' : null;
   const weapons = rules.ruleStrictness === 'none';
   const knockoutOnly = rules.falls === 'knockout' || rules.aim === 'lastStanding';
   return {
@@ -107,13 +117,14 @@ export function conductOf(segment: Pick<Segment, 'stipulation' | 'rules'>, finis
     weapons,
     overTheTop: battleRoyal,
     cage,
+    furniture,
     blindfold: stipulation === 'blindfoldMatch',
     multiFall: rules.aim === 'twoOfThree' || rules.aim === 'ironMan',
     fallsAnywhere: stipulation === 'fallsCountAnywhere',
     noRing: stipulation === 'arenaFloor',
     squash: stipulation === 'squash',
     // In a cage you win by getting out, so the near thing is nearly getting out.
-    nearFall: cage && rules.aim === 'escape' ? 'climb' : battleRoyal ? 'teeter' : knockoutOnly ? 'count' : rules.falls === 'subsOnly' || rules.aim === 'submissionOnly' ? 'hold' : 'cover',
+    nearFall: cage && rules.aim === 'escape' ? 'climb' : furniture === 'ladder' ? 'ladder' : furniture === 'table' || furniture === 'flamingTable' ? 'table' : furniture === 'casket' ? 'casket' : battleRoyal ? 'teeter' : knockoutOnly ? 'count' : rules.falls === 'subsOnly' || rules.aim === 'submissionOnly' ? 'hold' : 'cover',
     elimination: battleRoyal ? 'overTop' : 'fall',
     finish: finishOf(finish, stipulation, rules, battleRoyal),
   };

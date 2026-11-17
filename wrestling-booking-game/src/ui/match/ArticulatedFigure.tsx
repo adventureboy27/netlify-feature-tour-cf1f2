@@ -23,7 +23,7 @@ import { ComposedPortrait, InkFilter } from "../paperdoll/ComposedPortrait";
 import { BODY_RIG, LEG_RIG, type BodyRig } from "./rig";
 import { MatchFigure } from "./MatchFigure";
 import { Pelvis, Shin, Thigh, legwearOf, type Legwear } from "./legwear";
-import type { Weapon } from "./choreography";
+import type { Prop } from "./choreography";
 import type { Wrestler } from "../../engine/types";
 
 type JointEl = HTMLElement | SVGGElement;
@@ -125,7 +125,7 @@ function Arm({
   cut: ReturnType<typeof cuts>;
   register: (part: "shoulder" | "elbow", el: JointEl | null) => void;
   /** This hand has something in it. */
-  held?: Weapon | false;
+  held?: Prop | false;
 }) {
   return (
     <div
@@ -147,6 +147,8 @@ function Arm({
         {held === "chair" && <Chair at={cut.hand} />}
         {held === "kendo" && <Kendo at={cut.hand} />}
         {held === "can" && <TrashCan at={cut.hand} />}
+        {held === "ladder" && <Ladder at={cut.hand} />}
+        {held === "steps" && <Steps at={cut.hand} />}
       </div>
     </div>
   );
@@ -205,6 +207,30 @@ function Kendo({ at }: { at: { left: string; top: string } }) {
   );
 }
 
+/** A ladder, gripped by a rung near one end: taller than the man swinging it. */
+function Ladder({ at }: { at: { left: string; top: string } }) {
+  return (
+    <svg viewBox="0 0 40 170" className="absolute" style={{ left: at.left, top: at.top, width: "32%", transform: "translate(-50%, -90%)" }} aria-hidden>
+      <path d="M 8,3 L 8,167 M 32,3 L 32,167" stroke="#c9a23a" strokeWidth={5} strokeLinecap="round" />
+      {Array.from({ length: 9 }, (_, i) => (
+        <line key={i} x1={8} y1={12 + i * 19} x2={32} y2={12 + i * 19} stroke="#e2c15a" strokeWidth={4} />
+      ))}
+      <path d="M 8,3 L 8,167 M 32,3 L 32,167" stroke="#6b5212" strokeWidth={1.2} fill="none" />
+    </svg>
+  );
+}
+
+/** The steel ring steps: a heavy stepped block, held up by its lip. */
+function Steps({ at }: { at: { left: string; top: string } }) {
+  return (
+    <svg viewBox="0 0 90 70" className="absolute" style={{ left: at.left, top: at.top, width: "62%", transform: "translate(-50%, -84%)" }} aria-hidden>
+      <path d="M 4,66 L 4,46 L 30,46 L 30,26 L 58,26 L 58,6 L 86,6 L 86,66 Z" fill="#8c95a4" stroke="#3f4552" strokeWidth={3} strokeLinejoin="round" />
+      <path d="M 4,46 L 30,46 M 30,26 L 58,26 M 58,6 L 86,6" stroke="#c7ced9" strokeWidth={3} />
+      <path d="M 14,56 L 76,56 M 40,36 L 76,36 M 66,16 L 76,16" stroke="#6b7482" strokeWidth={2} />
+    </svg>
+  );
+}
+
 /** A dented steel trash can, swung by the rim. */
 function TrashCan({ at }: { at: { left: string; top: string } }) {
   return (
@@ -228,7 +254,7 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
   /** Which SCREEN-side hand has something in it, if either. */
   held?: 'left' | 'right';
   /** What that something is. */
-  weapon?: Weapon;
+  weapon?: Prop;
   /** A blindfold match: both of them wear one. */
   blindfold?: boolean;
   /** Busted open. */
