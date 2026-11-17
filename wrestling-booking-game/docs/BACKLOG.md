@@ -6661,3 +6661,15 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Rendered on a match: the trunks, stripes and white-soled boots read with the new line weight and hatch.
 - Not done: the side-view body is not wired into the figures, and the inked look has not been checked on other
   bottoms (tights, pants, skirts) or on female figures.
+
+## Top half inked, and a side view for across-the-ring moves (rendered)
+
+- Why the top half looked different: the upper body is the old flat base picture (`m.png` / `f.png`) with the
+  hair, face and top drawn over it. Only the legs had been restyled, so the two halves did not match.
+- Fix: the match figures' portraits take an ink outline (`InkFilter` in `ComposedPortrait.tsx`, a dark edge round
+  every shape). The arms and torso get it too. Rendered: the top half now has the same edges as the legs.
+- Side view: whips, crossbodies and over-the-top clotheslines turn the actor side-on (`SIDE_ON_MOVES` in
+  `MatchStage.tsx`), showing `side-view.svg` tinted to their skin and gear, scaled to the height of a whole figure
+  and bottom-aligned to the feet. Rendered side by side with the front figure.
+- Known gaps: the side view has no mask, hair or painted face, so a masked wrestler's profile looks bare-headed.
+  The feet sit about 25px above the front figure's feet. Only the actor turns; the other wrestler does not.

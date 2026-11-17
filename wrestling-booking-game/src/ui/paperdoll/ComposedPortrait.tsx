@@ -94,16 +94,38 @@ const FRAMING = {
 } as const satisfies Record<string, CSSProperties>;
 export type PortraitFraming = keyof typeof FRAMING;
 
+/** The ink: a dark line where a shape meets the empty space round it, drawn over the
+    picture. Defined once here and used by any portrait marked `inked`. */
+export function InkFilter() {
+  return (
+    <svg width="0" height="0" aria-hidden className="absolute">
+      <filter id="inkEdge" x="-5%" y="-5%" width="110%" height="110%">
+        <feMorphology in="SourceAlpha" operator="dilate" radius="1.1" result="fat" />
+        <feComposite in="fat" in2="SourceAlpha" operator="out" result="edge" />
+        <feFlood floodColor="#0b0b0e" floodOpacity="0.85" />
+        <feComposite in2="edge" operator="in" result="ink" />
+        <feMerge>
+          <feMergeNode in="ink" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </svg>
+  );
+}
+
 export function ComposedPortrait({
   look,
   alt,
   className,
   framing = 'waist',
+  inked = false,
 }: {
   look: ComposedLook;
   alt: string;
   className?: string;
   framing?: PortraitFraming;
+  /** Hand-inked: a dark outline round every edge of the picture. Match figures only. */
+  inked?: boolean;
 }) {
   const clothed = look.top || look.waistband || look.outer;
   // A loose garment (coat, robe, gi) is drawn whole, after the body-clipped
@@ -127,7 +149,7 @@ export function ComposedPortrait({
   );
   return (
     <div role="img" aria-label={alt} className={`relative h-full w-full overflow-hidden ${className ?? ''}`}>
-      <div className="absolute inset-0" style={FRAMING[framing]}>
+      <div className="absolute inset-0" style={{ ...FRAMING[framing], ...(inked ? { filter: 'url(#inkEdge)' } : {}) }}>
         <Layer url={look.baseUrl} color={look.skinColor} sheen={false} />
         {look.baseDetailUrl && <img src={look.baseDetailUrl} alt="" className={LAYER_CLASS} />}
         <div className="absolute inset-0" style={maskOnly(look.baseUrl)}>

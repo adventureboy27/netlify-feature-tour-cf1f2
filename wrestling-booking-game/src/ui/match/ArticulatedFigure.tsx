@@ -19,7 +19,7 @@ import {
   lookSubjectOf,
   type ComposedLook,
 } from "../paperdoll/assignLook";
-import { ComposedPortrait } from "../paperdoll/ComposedPortrait";
+import { ComposedPortrait, InkFilter } from "../paperdoll/ComposedPortrait";
 import { BODY_RIG, LEG_RIG, type BodyRig } from "./rig";
 import { MatchFigure } from "./MatchFigure";
 import { Pelvis, Shin, Thigh, legwearOf, type Legwear } from "./legwear";
@@ -134,7 +134,7 @@ function Arm({
       style={{ transformOrigin: cut.shoulder, willChange: "transform" }}
     >
       <div className={FILL} style={{ clipPath: cut.upper }}>
-        <ComposedPortrait look={look} alt="" />
+        <ComposedPortrait look={look} alt="" inked />
       </div>
       <div
         ref={(el) => register("elbow", el)}
@@ -142,7 +142,7 @@ function Arm({
         style={{ transformOrigin: cut.elbow, willChange: "transform" }}
       >
         <div className={FILL} style={{ clipPath: cut.fore }}>
-          <ComposedPortrait look={look} alt="" />
+          <ComposedPortrait look={look} alt="" inked />
         </div>
         {held === "chair" && <Chair at={cut.hand} />}
         {held === "kendo" && <Kendo at={cut.hand} />}
@@ -217,11 +217,36 @@ function TrashCan({ at }: { at: { left: string; top: string } }) {
   );
 }
 
+import sideViewSvg from "../paperdoll/assets/inked/side-view.svg?raw";
+
+/** A hex colour a little darker, for the far limbs: the near side keeps the true skin. */
+function darker(hex: string, by = 0.82): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  if (Number.isNaN(n) || hex.length !== 7) return hex;
+  const ch = (shift: number) => Math.round(((n >> shift) & 255) * by).toString(16).padStart(2, "0");
+  return `#${ch(16)}${ch(8)}${ch(0)}`;
+}
+
+/** The hand-inked side view, in this wrestler's skin and gear. Its colours are the
+    file's own, swapped for the wrestler's: skin for the near side, a shade darker for
+    the far limbs, the trunks and the boots as they are dressed. */
+function tintProfile(skin: string, trunks: string, boots: string): string {
+  // Bottom-aligned, so the feet sit on the same line as a whole figure's.
+  return sideViewSvg
+    .replace("<svg ", '<svg preserveAspectRatio="xMidYMax meet" ')
+    .replaceAll("#b5804f", skin)
+    .replaceAll("#9a6a45", darker(skin))
+    .replaceAll("#17181c", trunks)
+    .replaceAll("#1a1b20", trunks)
+    .replaceAll("#101114", boots);
+}
+
 export const ArticulatedFigure = memo(function ArticulatedFigure({
   wrestler,
   onJoints,
   held,
   weapon = "chair",
+  profile = false,
   blindfold = false,
   bloody = false,
 }: {
@@ -229,6 +254,8 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
   held?: 'left' | 'right';
   /** What that something is. */
   weapon?: Weapon;
+  /** Turned side-on for a move that runs across the ring: the profile picture instead of the figure. */
+  profile?: boolean;
   /** A blindfold match: both of them wear one. */
   blindfold?: boolean;
   /** Busted open. */
@@ -295,11 +322,26 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
   const gear = legwearOf(subject!, look);
   const female = wrestler.gender === "f";
 
+  if (profile) {
+    return (
+      <div className="relative w-full select-none" style={{ filter: "drop-shadow(0 2px 2px rgba(0,0,0,0.55))" }}>
+        {/* Scaled up from the feet to the height of a whole figure: the drawing is a little smaller than the portrait. */}
+        <div
+          className="w-full [&>svg]:h-full [&>svg]:w-full"
+          style={{ aspectRatio: "0.6", transform: "scale(1.38)", transformOrigin: "50% 100%" }}
+          aria-hidden
+          dangerouslySetInnerHTML={{ __html: tintProfile(look.skinColor, gear.color, gear.bootColor) }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative w-full select-none"
       style={{ filter: "drop-shadow(0 2px 2px rgba(0,0,0,0.55))" }}
     >
+      <InkFilter />
       {/* Legs first, so the upper body's waist overlaps their top edge. */}
       {/* (A square box the width of the figure, so the legs can be hung at
           a percentage of the WIDTH — `top` on its own would be a percentage
@@ -335,7 +377,7 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
         style={{ transformOrigin: "50% 98%", willChange: "transform" }}
       >
         <div className={FILL} style={{ clipPath: geometry.torso }}>
-          <ComposedPortrait look={look} alt={wrestler.name} />
+          <ComposedPortrait look={look} alt={wrestler.name} inked />
           {blindfold && (
             <div
               className="absolute rounded-sm bg-neutral-950"
