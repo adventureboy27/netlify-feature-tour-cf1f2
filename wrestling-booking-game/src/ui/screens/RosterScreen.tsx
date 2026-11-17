@@ -116,19 +116,63 @@ export function RosterScreen({
   return (
     <div className="p-6 text-neutral-100">
       <div className="mb-3 flex items-end justify-between gap-2">
-        <h1 className="text-xl font-black tracking-tight">
-          Roster{' '}
-          <span className="text-neutral-500">
-            {searchActive ? `— showing ${roster.length} of ${fullRoster.length}` : `— ${roster.length}`}
-          </span>
-        </h1>
+        <div>
+          <h1 className="text-xl font-black tracking-tight">
+            Roster{' '}
+            <span className="text-neutral-500">
+              {searchActive ? `— showing ${roster.length} of ${fullRoster.length}` : `— ${roster.length}`}
+            </span>
+          </h1>
+          <p className="text-xs text-neutral-400">Pick a wrestler on the left. Their contract, record and options are on the right.</p>
+        </div>
         <span className="rounded-md border border-neutral-800 bg-neutral-900 px-2 py-1 text-[11px] font-medium text-neutral-400">
           wages <Money amount={roster.reduce((sum, w) => sum + (w.contract?.weeklyRate ?? 0), 0)} />
           <span className="text-neutral-600">/wk</span>
         </span>
       </div>
 
-      <div className="mb-3 flex flex-wrap gap-1.5">
+      {/* One toolbar: find someone, narrow the list, then put it in order. */}
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-neutral-800 bg-neutral-900/60 p-2">
+        <input
+          type="text"
+          data-testid="roster-search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name"
+          className="w-48 rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs placeholder:text-neutral-600"
+        />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-[10px] uppercase tracking-wide text-neutral-500">Show</span>
+          {FILTERS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              data-testid={`roster-filter-${key}`}
+              onClick={() => toggleFilter(key)}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all duration-150 active:scale-95 ${
+                filters.has(key)
+                  ? 'bg-emerald-600 text-white shadow-[0_0_0_1px_rgb(5,150,105),0_0_12px_-2px_rgb(5,150,105)]'
+                  : 'bg-neutral-900 text-neutral-400 ring-1 ring-inset ring-neutral-800 hover:text-neutral-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {searchActive && (
+          <button
+            type="button"
+            data-testid="roster-clear-search"
+            onClick={clearSearch}
+            className="text-[11px] text-neutral-500 underline decoration-dotted hover:text-neutral-300"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-[10px] uppercase tracking-wide text-neutral-500">Sort by</span>
         {(Object.keys(SORTS) as SortKey[]).map((key) => (
           <button
             key={key}
@@ -144,45 +188,6 @@ export function RosterScreen({
           </button>
         ))}
       </div>
-
-      <div className="mb-3 flex flex-wrap items-center gap-1.5">
-        <input
-          type="text"
-          data-testid="roster-search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name"
-          className="w-48 rounded border border-neutral-800 bg-neutral-950 px-2 py-1.5 text-xs placeholder:text-neutral-600"
-        />
-        {FILTERS.map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            data-testid={`roster-filter-${key}`}
-            onClick={() => toggleFilter(key)}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all duration-150 active:scale-95 ${
-              filters.has(key)
-                ? 'bg-emerald-600 text-white shadow-[0_0_0_1px_rgb(5,150,105),0_0_12px_-2px_rgb(5,150,105)]'
-                : 'bg-neutral-900 text-neutral-400 ring-1 ring-inset ring-neutral-800 hover:text-neutral-200'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-        {searchActive && (
-          <button
-            type="button"
-            data-testid="roster-clear-search"
-            onClick={clearSearch}
-            className="text-[11px] text-neutral-500 underline decoration-dotted hover:text-neutral-300"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-
-      <TagTeamPanel />
-      <MotivationKey />
 
       <div className="grid grid-cols-[380px_1fr] gap-4">
         <div className="flex max-h-[75vh] flex-col gap-1.5 overflow-y-auto pr-1">
@@ -233,6 +238,12 @@ export function RosterScreen({
             </p>
           )}
         </div>
+      </div>
+
+      {/* Less often needed: team-building and what the icons mean, below the roster. */}
+      <div className="mt-4">
+        <TagTeamPanel />
+        <MotivationKey />
       </div>
     </div>
   );

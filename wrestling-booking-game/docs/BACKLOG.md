@@ -6616,3 +6616,10 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Section content is unchanged: every tab body is still rendered as before, nothing removed.
 - Rendered from a new game (nothing waiting; the Decisions section and a section switch both checked). Not yet
   rendered with badges from a played save.
+
+## Roster: one toolbar, the list and the wrestler beside it
+
+- Search, the Show filters and Sort by are one toolbar above the list (were three bands). A one-line purpose sits
+  under the title. Tag teams and the icon key moved below the list and detail, since they are needed less often.
+- Same controls and test ids; nothing removed. Rendered from a new game: the toolbar, the list and the detail pane
+  read top to bottom.
