@@ -19,7 +19,7 @@ import {
   lookSubjectOf,
   type ComposedLook,
 } from "../paperdoll/assignLook";
-import { ComposedPortrait } from "../paperdoll/ComposedPortrait";
+import { ComposedPortrait, maskOnly } from "../paperdoll/ComposedPortrait";
 import { BODY_RIG, LEG_RIG, type BodyRig } from "./rig";
 import { MatchFigure } from "./MatchFigure";
 import { Pelvis, Shin, Thigh, legwearOf, type Legwear } from "./legwear";
@@ -115,17 +115,29 @@ function Chair({ at }: { at: { left: string; top: string } }) {
   );
 }
 
+/** A mask in the hand, the same art as the one that came off. Drawn where the hand is. */
+function MaskInHand({ at, mask }: { at: { left: string; top: string }; mask: { url: string; color: string | null } }) {
+  return (
+    <div className="absolute" style={{ left: at.left, top: at.top, width: "75%", aspectRatio: "1", transform: "translate(-50%, -50%)" }}>
+      {mask.color ? <div className="absolute inset-0" style={{ backgroundColor: mask.color, ...maskOnly(mask.url) }} /> : <img src={mask.url} alt="" className="absolute inset-0 h-full w-full object-contain" />}
+    </div>
+  );
+}
+
 function Arm({
   look,
   cut,
   register,
   held = false,
+  heldMask,
 }: {
   look: ComposedLook;
   cut: ReturnType<typeof cuts>;
   register: (part: "shoulder" | "elbow", el: JointEl | null) => void;
   /** This hand has something in it. */
   held?: Weapon | false;
+  /** A mask in this hand, if the winner is holding one up. */
+  heldMask?: { url: string; color: string | null } | null;
 }) {
   return (
     <div
@@ -147,6 +159,7 @@ function Arm({
         {held === "chair" && <Chair at={cut.hand} />}
         {held === "kendo" && <Kendo at={cut.hand} />}
         {held === "can" && <TrashCan at={cut.hand} />}
+        {heldMask && <MaskInHand at={cut.hand} mask={heldMask} />}
       </div>
     </div>
   );
@@ -222,6 +235,7 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
   onJoints,
   held,
   weapon = "chair",
+  heldMask = null,
   blindfold = false,
   bloody = false,
 }: {
@@ -229,6 +243,8 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
   held?: 'left' | 'right';
   /** What that something is. */
   weapon?: Weapon;
+  /** A mask held up in that hand instead of a weapon. */
+  heldMask?: { url: string; color: string | null } | null;
   /** A blindfold match: both of them wear one. */
   blindfold?: boolean;
   /** Busted open. */
@@ -368,13 +384,15 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
           look={look}
           cut={geometry.left}
           register={(part, el) => register(`l.${part}`)(el)}
-          held={held === "left" && weapon}
+          held={held === "left" && !heldMask && weapon}
+          heldMask={held === "left" ? heldMask : null}
         />
         <Arm
           look={look}
           cut={geometry.right}
           register={(part, el) => register(`r.${part}`)(el)}
-          held={held === "right" && weapon}
+          held={held === "right" && !heldMask && weapon}
+          heldMask={held === "right" ? heldMask : null}
         />
       </div>
       {/* Reserve the legs' height in the layout: they are absolutely placed. */}

@@ -92,14 +92,10 @@ const CELEBRATE_AFTER_MS = 3200;
 
 const dirOf = (slot: 'left' | 'right'): 1 | -1 => (slot === 'left' ? 1 : -1);
 
-// Raised overhead at the hand: the same art as the one that came off.
-function HeldMask({ mask }: { mask: { url: string; color: string | null } }) {
-  return (
-    <div className="mv-held pointer-events-none absolute" style={{ left: '50%', top: '0%', width: '16%', aspectRatio: '1', zIndex: 13 }}>
-      {mask.color ? <div className="absolute inset-0" style={{ backgroundColor: mask.color, ...maskOnly(mask.url) }} /> : <img src={mask.url} alt="" className="absolute inset-0 h-full w-full object-contain" />}
-    </div>
-  );
-}
+// Which screen-side hand holds the mask up. The out-to-the-side arm is the one
+// on this side of the figure (see the showMask stance).
+const HOLD_SIDE = 'left' as const;
+
 
 /**
  * Where the cameras are: scattered through the stands (the band of the
@@ -332,6 +328,7 @@ export function MatchStage({
     const winners = people.filter((f) => aftermath.winners.has(f.wrestler.id));
     const tracks = new Map<Id, WorldFrame[]>();
     const cheers = new Map<Id, WorldFrame[]>();
+    const holdsMask = (shed ?? []).some((s) => s.kind === 'mask' && s.mask);
     const middle = Math.max(-8, Math.min(8, centre.current));
     people.forEach((f) => {
       const id = f.wrestler.id;
@@ -352,7 +349,12 @@ export function MatchStage({
         } else {
           // Held on the guard for a beat: the mask comes off and drops before the arms go up.
           frames.push(frame(0.8, to, 'guard'), frame(1, to, 'guard'));
-          cheers.set(id, [frame(0, to, 'celebrate'), frame(0.5, { ...to, y: to.y + 0.7 }, 'lift'), frame(1, to, 'celebrate')]);
+          if (holdsMask && place === 0) {
+            // The one holding the mask keeps the arm out to the side with it.
+            cheers.set(id, [frame(0, to, 'showMask'), frame(1, to, 'showMask')]);
+          } else {
+            cheers.set(id, [frame(0, to, 'celebrate'), frame(0.5, { ...to, y: to.y + 0.7 }, 'lift'), frame(1, to, 'celebrate')]);
+          }
         }
       } else if (!leftAt.current.has(id)) {
         // A beaten partner, still at their corner: down off the apron.
@@ -568,8 +570,9 @@ export function MatchStage({
                     )}
                     <ArticulatedFigure
                       wrestler={fighter.wrestler}
-                      held={!over && !leaving && staged?.prop && fighter === actor ? (dirOf(fighter.slot) === 1 ? 'right' : 'left') : undefined}
+                      held={!over && !leaving && staged?.prop && fighter === actor ? (dirOf(fighter.slot) === 1 ? 'right' : 'left') : picker === fighter && pickedUp?.mask ? HOLD_SIDE : undefined}
                       weapon={staged?.prop}
+                      heldMask={picker === fighter ? pickedUp?.mask ?? null : null}
                       blindfold={conduct?.blindfold}
                       bloody={bloody?.has(id)}
                       onJoints={(joints) => {
@@ -582,7 +585,6 @@ export function MatchStage({
                     {/* A champion who wins a match the belt was not on the line in still leaves wearing it. */}
                     {won && aftermath && !aftermath.belt && carry(spoils?.get(id) ?? [], false)}
                     {!staged && !over && carry(champions?.get(id) ?? [], false)}
-                    {pickedUp?.mask && picker === fighter && <HeldMask mask={pickedUp.mask} />}
                   </div>
                 </div>
               </div>
@@ -723,7 +725,7 @@ export function MatchStage({
           {callout && (
             <div
               key={`callout-${beatKey}-${over}`}
-              className="pointer-events-none absolute flex items-center justify-center px-2 text-center"
+              className={`pointer-events-none absolute flex items-center justify-center px-2 text-center ${pickedUp ? 'mv-callout-aside' : ''}`}
               style={{ left: (430 / VIEW.w) * w, width: (340 / VIEW.w) * w, top: (30 / VIEW.h) * h, height: (118 / VIEW.h) * h, zIndex: 20 }}
             >
               <span

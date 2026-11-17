@@ -6548,3 +6548,12 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - The raised mask is now 16% of the figure's width, which measures 28 x 29 px against a head about 28 px wide.
 - In the frame rendered, the figure had turned away and the mask was hidden behind the body and the callout.
   Still open: the callout and the pose need to stop covering it.
+
+## Victor holds the mask out to the side (rendered)
+
+- The winner who picked up the mask poses with the mask arm straight out to the side (`showMask` stance),
+  and the other arm up. The mask is drawn in that hand (`MaskInHand` in `ArticulatedFigure.tsx`), at about
+  head size, so it moves with the arm.
+- The "YOUR WINNER!" callout slides left (`mv-callout-aside`) from 3.2 s, so it no longer covers the mask.
+- Rendered: the mask sits in the outstretched hand with the callout clear. Not yet checked across other
+  figures or the belt on the same person.
