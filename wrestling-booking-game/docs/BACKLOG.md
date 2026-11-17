@@ -6830,3 +6830,11 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   lift is eased back slightly. Impact points and timings unchanged.
 - Rendered each at the instant of impact (and the flurry's three punches): the bodies are apart and the blow
   lands. The headbutt meets a taller man's upper chest more than his head. 96 match tests pass.
+
+## Powerbomb, stunner, backbreaker and submission read as the real moves
+
+- **Powerbomb:** the target is hoisted to sit on the attacker's shoulders facing them (new `shoulders` stance — thighs over the shoulders, shins down the back), then driven down onto the upper back in front of them. Previously they floated a body-length above the head.
+- **Stunner:** the attacker drops to a seat with the target's jaw on their shoulder (new `buckle` stance, knees going), then the target snaps upright and goes over backward. The burst is at the jaw now.
+- **Backbreaker:** the target is laid across the attacker's raised knee — the middle of the back on the knee, head one side, legs the other (new `draped` stance) — instead of lying on the mat beyond it.
+- **Submission:** now a Boston crab — target face down, legs folded up under the attacker's arms, attacker sitting back on it and rocking (new `crab` / `crabbed` / `crabTap` stances), with a hand slapping the mat. Previously one man stood beside another lying down.
+- Not render-checked: the hold-escape variant (it plays the crab at 0.8 speed, then the existing break-free frames).

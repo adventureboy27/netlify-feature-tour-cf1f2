@@ -66,6 +66,20 @@ export const STANCES = {
   stomp: s(-6, [30, 60], [-30, 70], [74, 94], [-6, 8]),
   knee: s(-8, [40, 90], [30, 95], [84, 98], [-8, 8]),
   kneel: s(10, [30, 60], [26, 70], [80, 98], [-12, 90]),
+  // Sat on the attacker's shoulders, facing them: thighs straight out over
+  // the shoulders, shins hanging down their back, hands on their head.
+  shoulders: s(-6, [50, 60], [40, 70], [88, 92], [84, 96]),
+  // Knees going, chin first: the moment a stunner lands.
+  buckle: s(20, [-20, 30], [-30, 24], [62, 100], [44, 90]),
+  // Bent backward over a knee. Laid out head-away, "forward" is up: the back
+  // arches down on both sides of the knee, arms and legs hanging.
+  draped: s(-22, [-50, 20], [-70, 16], [-28, 20], [-38, 28]),
+  // A Boston crab, both sides of it. The one applying it sits back with the
+  // legs locked under the arms; the one in it lies face down with the legs
+  // folded up and back — laid out head-toward, "up" is backward.
+  crab: s(-6, [40, 70], [30, 80], [84, 122], [72, 120]),
+  crabbed: s(14, [70, 30], [-30, 20], [-62, 20], [-70, 26]),
+  crabTap: s(22, [118, 40], [-30, 20], [-62, 20], [-70, 26]),
 } as const satisfies Record<string, Stance>;
 
 export type StanceId = keyof typeof STANCES;

@@ -114,8 +114,10 @@ const BODIES = {
     impacts: [[0.72, 13, 1, true]],
   },
   powerbomb: {
-    actor: [STAND, [0.15, 7, 0, 13], [0.35, 7, 0, -6], [0.5, 7, 0, -9], [0.68, 8, 0, 36, 0.92], [0.85, 8, 0, 20], [1, 7, 0, 0]],
-    target: [STAND, [0.15, 3, 0, 12], [0.35, 5, 8.5, -10], [0.5, 5, 9.5, -5], [0.68, 1, DOWN, -90, 0.88], [0.74, 1, DOWN + 1.4, -90], [0.82, 1, DOWN, -90], [1, 1, DOWN, -90]],
+    // Bent over, hoisted up to sit on the shoulders facing the attacker, then
+    // driven straight down onto the upper back right in front of them.
+    actor: [STAND, [0.15, 7, 0, 13], [0.32, 7, 0, -4], [0.48, 7, 0, -6], [0.58, 7, 0, 6], [0.68, 7.5, 0, 34, 0.92], [0.85, 7.5, 0, 18], [1, 7, 0, 0]],
+    target: [STAND, [0.15, 3, 0, 12], [0.32, 5, 5.5, -6], [0.48, 5, 5.8, -10], [0.58, 4, 4.5, -30], [0.68, 1, DOWN, -90, 0.88], [0.74, 1, DOWN + 1.4, -90], [0.82, 1, DOWN, -90], [1, 1, DOWN, -90]],
     impacts: [[0.68, -7, 1, true]],
   },
   driver: {
@@ -124,9 +126,11 @@ const BODIES = {
     impacts: [[0.66, 5, 0.5, true]],
   },
   stunner: {
-    actor: [STAND, [0.2, 8, 0, 0], [0.35, 8.5, 0, -10], [0.5, 8.5, 0, 0, 0.7], [0.65, 8.5, 0, 0, 0.76], [1, 5, 0, 0]],
-    target: [STAND, [0.2, 2, 0, 8], [0.35, 3, 0, 22], [0.5, 3, 0, 32, 0.9], [0.6, 1, 3, -10], [0.75, 2, DOWN, -60], [0.85, 1, DOWN, -90], [1, 1, DOWN, -90]],
-    impacts: [[0.5, 6, 11, true]],
+    // The head pulled down onto the attacker's shoulder as they drop to sit:
+    // jaw first, knees going, then snapping straight up and over backward.
+    actor: [STAND, [0.2, 7, 0, 0], [0.35, 7, 0, -10], [0.5, 7, 0, 0], [0.65, 7, 0, 0], [1, 5, 0, 0]],
+    target: [STAND, [0.2, 2, 0, 8], [0.35, 2, 0, 22], [0.5, -5, 0, 10], [0.58, -5, 1.5, -18], [0.72, -5, 2.5, -55], [0.82, -5, DOWN, -90, 0.92], [1, -5, DOWN, -90]],
+    impacts: [[0.5, 1.5, 11, true]],
   },
   clothesline: {
     // The arm across the chest from arm's length, a step of follow-through,
@@ -148,8 +152,11 @@ const BODIES = {
     ropes: 0.44,
   },
   submission: {
-    actor: [STAND, [0.2, 6, 0, 8], [0.38, 7, 0, -8], [0.5, 7, 0, -16], [0.6, 7, 0, -10], [0.7, 7, 0, -18], [0.8, 7, 0, -10], [0.9, 7, 0, -18], [1, 7, 0, -12]],
-    target: [STAND, [0.2, 2, 0, 30], [0.38, 1, DOWN, 90], [0.5, 1.4, DOWN, 90], [0.6, 0.8, DOWN, 90], [0.7, 1.4, DOWN, 90], [0.8, 0.8, DOWN, 90], [0.9, 1.4, DOWN, 90], [1, 1, DOWN, 90]],
+    // A Boston crab: turned face down, both legs folded back up under the
+    // attacker's arms, and the attacker sitting back on it. The hold is the
+    // shape; the squeezing is the attacker rocking back, the tapping a hand.
+    actor: [STAND, [0.2, 6, 0, 8], [0.38, 6, 0, 0], [0.5, 6, 0, -16], [0.6, 6, 0, -10], [0.7, 6, 0, -18], [0.8, 6, 0, -10], [0.9, 6, 0, -18], [1, 6, 0, -14]],
+    target: [STAND, [0.2, 2, 0, 30], [0.38, -2, DOWN, 90], [0.5, -2, DOWN, 90], [0.6, -2, DOWN, 90], [0.7, -2, DOWN, 90], [0.8, -2, DOWN, 90], [0.9, -2, DOWN, 90], [1, -2, DOWN, 90]],
   },
   elimination: {
     actor: [STAND, [0.2, 7, 0, 10], [0.4, 8, 0, -10], [0.55, 9, 0, 22], [1, 5, 0, 0]],
@@ -278,9 +285,11 @@ const BODIES = {
     impacts: [[0.42, 3, 9]],
   },
   backbreaker: {
+    // Picked up across the chest, then dropped back-first across a raised
+    // knee: the middle of the back on the knee, head one side, legs the other.
     actor: [STAND, [0.2, 7, 0, 8], [0.4, 7, 0, -6], [0.55, 7, 0, 0], [0.8, 7, 0, 0], [1, 6, 0, 0]],
-    target: [STAND, [0.2, 3, 0, 5], [0.4, 4, 7, -80], [0.55, 4, 4.6, -90], [0.62, 4, 5.2, -90], [0.8, 4, 4.6, -90], [1, 3, DOWN, -90]],
-    impacts: [[0.55, -5, 5, true]],
+    target: [STAND, [0.2, 3, 0, 5], [0.4, 14, 10, -85], [0.55, 16, 7.5, -90], [0.62, 16, 8.1, -90], [0.8, 16, 7.5, -90], [1, 11, DOWN, -90]],
+    impacts: [[0.55, 3, 6, true]],
   },
   counter: {
     actor: [STAND, [0.25, 0, 0, 0], [0.36, 1, 0, 30, 0.72], [0.5, 3, 0, -10], [0.58, 5, 0, 20], [0.75, 4, 0, 0], [1, 3, 0, 0]],
@@ -412,13 +421,13 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   hold: { actor: '- reach choke choke choke choke -', target: '- bend bend bend bend bend -' },
   slam: { actor: '- reach lift lift bend guard -', target: '- guard fall fall flat flat flat flat' },
   suplex: { actor: '- reach carry lift fall flat stagger -', target: '- bend hang hang fall flat flat flat flat' },
-  powerbomb: { actor: '- reach lift lift crouch guard -', target: '- bend seated seated flat flat flat flat' },
+  powerbomb: { actor: '- reach carry carry carry crouch guard -', target: '- bend shoulders shoulders fall flat flat flat flat' },
   driver: { actor: '- reach carry carry seated seated -', target: '- bend hang hang hang hang flat flat' },
-  stunner: { actor: '- reach choke seated seated -', target: '- guard bend bend stagger fall flat flat' },
+  stunner: { actor: '- reach choke seated seated -', target: '- guard bend buckle stagger fall flat -' },
   clothesline: { actor: '- wind clothes clothes run -', target: '- guard fall fall flat flat flat' },
   whip: { actor: '- reach wind guard wind clothes -', target: '- guard run stagger run fall flat flat' },
   aerial: { actor: '- run crouch crouch fly elbowUp cover cover', target: '- stagger flat flat flat flat flat' },
-  submission: { actor: '- reach choke carry choke carry choke carry choke', target: '- bend tap flat tap flat tap flat tap' },
+  submission: { actor: '- reach crouch crab crab crab crab crab crab', target: '- bend crabbed crabbed crabTap crabbed crabTap crabbed crabTap' },
   elimination: { actor: '- reach lift punch -', target: '- guard fall fall fall fall flat' },
   botch: { actor: '- run fall flat flat flat flat' },
   blindside: { target: '- guard stagger fall flat flat' },
@@ -442,7 +451,7 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   groundHold: { actor: '- reach choke choke choke choke choke', target: '- bend seated seated seated seated seated' },
   cornerWhip: { actor: '- reach wind guard guard', target: '- guard run stagger bend bend flat flat' },
   kneeLift: { actor: '- guard knee guard guard', target: '- guard bend kneel kneel bend' },
-  backbreaker: { actor: '- reach lift kneel kneel guard', target: '- guard fall fall fall fall flat' },
+  backbreaker: { actor: '- reach lift kneel kneel kneel guard', target: '- guard fall draped draped draped flat' },
   counter: { actor: '- guard crouch wind punch guard guard', target: '- run clothes stagger fall flat flat' },
   fireUp: { actor: '- celebrate guard celebrate punch guard punch guard' },
   takedown: { actor: '- guard reach bend guard guard', target: '- kick kick fall flat flat' },
