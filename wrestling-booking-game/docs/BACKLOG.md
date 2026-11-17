@@ -6637,3 +6637,7 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Results are not counted: the strip cannot yet tell this week's show from last week's (shows are stamped with
   the week they ran, and the week advances in the same resolution).
 - Rendered from a new game: Office checked, Card amber, line at 50%. After filling the card: 100%, ready.
+
+## Week progress line: thicker, and green as it fills
+
+- The line is 6px (was 3px) and fills green as the office and card are met, with a soft glow once both are.

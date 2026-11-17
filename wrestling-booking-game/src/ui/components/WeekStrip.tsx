@@ -33,7 +33,7 @@ export function WeekStrip({ state, screen, onNavigate, onRunShow, accent }: { st
   ];
   // The progress line counts the two things a week needs before the show:
   // nothing waiting in the office, and every slot on the card booked. It
-  // turns from amber to green when both are met. Results are not counted: the
+  // fills green as they are met, and glows once both are. Results are not counted: the
   // strip cannot yet tell this week's show from last week's.
   const readySteps = steps.filter((x) => x.id !== 'results');
   const readyCount = readySteps.filter((x) => x.done).length;
@@ -52,7 +52,7 @@ export function WeekStrip({ state, screen, onNavigate, onRunShow, accent }: { st
         : { label: 'Run the show', go: onRunShow };
   return (
     <div data-testid="week-strip" className="relative flex items-center gap-1 border-t border-white/5 bg-black/30 px-4 py-2">
-      {/* Progress through what the week needs before the show: amber until it is all met. */}
+      {/* Progress through what the week needs before the show. */}
       <div
         data-testid="week-progress"
         data-ready={ready ? 'yes' : 'no'}
@@ -61,9 +61,9 @@ export function WeekStrip({ state, screen, onNavigate, onRunShow, accent }: { st
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={progress}
-        className="absolute inset-x-0 bottom-0 h-[3px] bg-neutral-800"
+        className="absolute inset-x-0 bottom-0 h-1.5 bg-neutral-800"
       >
-        <div className={`h-full transition-all duration-500 ${ready ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${progress}%` }} />
+        <div className={`h-full bg-emerald-500 transition-all duration-500 ${ready ? 'shadow-[0_0_8px_rgb(16,185,129)]' : ''}`} style={{ width: `${progress}%` }} />
       </div>
       <span className="font-display mr-3 text-[13px] text-neutral-500">This week</span>
       {steps.map((step, i) => {
