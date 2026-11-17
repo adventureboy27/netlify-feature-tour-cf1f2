@@ -26,11 +26,19 @@ export interface WeekState {
 }
 
 export function WeekStrip({ state, screen, onNavigate, onRunShow, accent }: { state: WeekState; screen: Screen; onNavigate: (screen: Screen) => void; onRunShow: () => void; accent: string }) {
-  const steps: { id: Screen; label: string; note: string; attention: boolean }[] = [
-    { id: 'office', label: 'Office', note: state.officeWaiting > 0 ? `${state.officeWaiting} waiting` : 'quiet', attention: state.officeWaiting > 0 },
-    { id: 'booking', label: 'Card', note: `${state.booked} of ${state.slots} booked`, attention: false },
-    { id: 'results', label: 'Results', note: state.hasResults ? 'last show' : 'none yet', attention: false },
+  const steps: { id: Screen; label: string; note: string; attention: boolean; done: boolean }[] = [
+    { id: 'office', label: 'Office', note: state.officeWaiting > 0 ? `${state.officeWaiting} waiting` : 'quiet', attention: state.officeWaiting > 0, done: state.officeWaiting === 0 },
+    { id: 'booking', label: 'Card', note: `${state.booked} of ${state.slots} booked`, attention: false, done: state.slots > 0 && state.booked >= state.slots },
+    { id: 'results', label: 'Results', note: state.hasResults ? 'last show' : 'none yet', attention: false, done: false },
   ];
+  // The progress line counts the two things a week needs before the show:
+  // nothing waiting in the office, and every slot on the card booked. It
+  // turns from amber to green when both are met. Results are not counted: the
+  // strip cannot yet tell this week's show from last week's.
+  const readySteps = steps.filter((x) => x.id !== 'results');
+  const readyCount = readySteps.filter((x) => x.done).length;
+  const progress = Math.round((readyCount / readySteps.length) * 100);
+  const ready = readyCount === readySteps.length;
   // The next thing, in the order the week actually goes.
   // A show runs straight onto its results, so there is never a show the player
   // has not seen: the strip does not need an "unread" state.
@@ -43,7 +51,20 @@ export function WeekStrip({ state, screen, onNavigate, onRunShow, accent }: { st
         ? { label: 'Go to the card', go: () => onNavigate('booking') }
         : { label: 'Run the show', go: onRunShow };
   return (
-    <div data-testid="week-strip" className="flex items-center gap-1 border-t border-white/5 bg-black/30 px-4 py-2">
+    <div data-testid="week-strip" className="relative flex items-center gap-1 border-t border-white/5 bg-black/30 px-4 py-2">
+      {/* Progress through what the week needs before the show: amber until it is all met. */}
+      <div
+        data-testid="week-progress"
+        data-ready={ready ? 'yes' : 'no'}
+        role="progressbar"
+        aria-label="Week progress: office answered and card booked"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+        className="absolute inset-x-0 bottom-0 h-[3px] bg-neutral-800"
+      >
+        <div className={`h-full transition-all duration-500 ${ready ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${progress}%` }} />
+      </div>
       <span className="font-display mr-3 text-[13px] text-neutral-500">This week</span>
       {steps.map((step, i) => {
         const here = screen === step.id;
@@ -56,7 +77,13 @@ export function WeekStrip({ state, screen, onNavigate, onRunShow, accent }: { st
               aria-current={here ? 'step' : undefined}
               className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-left transition ${here ? 'border-amber-400/60 bg-neutral-800 text-neutral-50' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200'}`}
             >
-              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-black ${here ? 'step-here bg-amber-400 text-neutral-950' : step.attention ? 'bg-amber-500/90 text-neutral-950' : 'bg-neutral-800 text-neutral-400'}`}>{i + 1}</span>
+              <span
+                className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-black ${
+                  here ? 'step-here bg-amber-400 text-neutral-950' : step.done ? 'bg-emerald-600 text-white' : step.attention ? 'bg-amber-500/90 text-neutral-950' : 'bg-neutral-800 text-neutral-400'
+                }`}
+              >
+                {step.done && !here ? '✓' : i + 1}
+              </span>
               <span className="text-[12px] font-bold">{step.label}</span>
               <span className={`text-[10.5px] ${step.attention ? 'font-semibold text-amber-300' : 'text-neutral-500'}`}>{step.note}</span>
             </button>

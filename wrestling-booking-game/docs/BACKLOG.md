@@ -6629,3 +6629,11 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Three buttons with unclear names are now a fixed section list (The books, Production, Card size), each with a
   one-line purpose, and the chosen section has its own heading. Same pattern as the Office.
 - Content unchanged. Rendered from a new game (The books section; the layout reads top to bottom).
+
+## Week strip: a progress line and checks
+
+- A thin progress line runs along the bottom of the week strip. It is amber until the office has nothing waiting
+  and every card slot is booked, then green. Each of those steps gets a check when met.
+- Results are not counted: the strip cannot yet tell this week's show from last week's (shows are stamped with
+  the week they ran, and the week advances in the same resolution).
+- Rendered from a new game: Office checked, Card amber, line at 50%. After filling the card: 100%, ready.
