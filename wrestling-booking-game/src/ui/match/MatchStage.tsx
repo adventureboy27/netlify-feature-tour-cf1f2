@@ -92,10 +92,6 @@ const CELEBRATE_AFTER_MS = 3200;
 
 const dirOf = (slot: 'left' | 'right'): 1 | -1 => (slot === 'left' ? 1 : -1);
 
-// Which screen-side hand holds the mask up. The out-to-the-side arm is the one
-// on this side of the figure (see the showMask stance).
-const HOLD_SIDE = 'left' as const;
-
 
 /**
  * Where the cameras are: scattered through the stands (the band of the
@@ -328,7 +324,8 @@ export function MatchStage({
     const winners = people.filter((f) => aftermath.winners.has(f.wrestler.id));
     const tracks = new Map<Id, WorldFrame[]>();
     const cheers = new Map<Id, WorldFrame[]>();
-    const holdsMask = (shed ?? []).some((s) => s.kind === 'mask' && s.mask);
+    // The winner who took the mask off throws the arm out to the side as it drops.
+    const tossing = (shed ?? []).some((s) => s.kind === 'mask' && s.mask);
     const middle = Math.max(-8, Math.min(8, centre.current));
     people.forEach((f) => {
       const id = f.wrestler.id;
@@ -348,13 +345,9 @@ export function MatchStage({
           frames.push(frame(0.8, to, 'stagger'), frame(1, to, 'kneel'));
         } else {
           // Held on the guard for a beat: the mask comes off and drops before the arms go up.
-          frames.push(frame(0.8, to, 'guard'), frame(1, to, 'guard'));
-          if (holdsMask && place === 0) {
-            // The one holding the mask keeps the arm out to the side with it.
-            cheers.set(id, [frame(0, to, 'showMask'), frame(1, to, 'showMask')]);
-          } else {
-            cheers.set(id, [frame(0, to, 'celebrate'), frame(0.5, { ...to, y: to.y + 0.7 }, 'lift'), frame(1, to, 'celebrate')]);
-          }
+          const hold = tossing && place === 0 ? 'showMask' : 'guard';
+          frames.push(frame(0.8, to, hold), frame(1, to, hold));
+          cheers.set(id, [frame(0, to, 'celebrate'), frame(0.5, { ...to, y: to.y + 0.7 }, 'lift'), frame(1, to, 'celebrate')]);
         }
       } else if (!leftAt.current.has(id)) {
         // A beaten partner, still at their corner: down off the apron.
@@ -395,11 +388,6 @@ export function MatchStage({
   useEffect(() => {
     if (pyro) setHype(true);
   }, [pyro, beatKey]);
-
-  // The mask on the mat that a winner takes: the first one that came off, and
-  // the first person on the winning side of it. Nobody else takes one up.
-  const pickedUp = over ? (shed ?? []).find((s) => s.kind === 'mask' && s.mask) : undefined;
-  const picker = pickedUp ? drawn.find((f) => aftermath?.winners.has(f.wrestler.id)) : undefined;
 
   // Everything somebody is carrying. Belts take the waist and shoulders in
   // order; a crown, a medal or a cup has its own place and does not use one up.
@@ -570,9 +558,8 @@ export function MatchStage({
                     )}
                     <ArticulatedFigure
                       wrestler={fighter.wrestler}
-                      held={!over && !leaving && staged?.prop && fighter === actor ? (dirOf(fighter.slot) === 1 ? 'right' : 'left') : picker === fighter && pickedUp?.mask ? HOLD_SIDE : undefined}
+                      held={!over && !leaving && staged?.prop && fighter === actor ? (dirOf(fighter.slot) === 1 ? 'right' : 'left') : undefined}
                       weapon={staged?.prop}
-                      heldMask={picker === fighter ? pickedUp?.mask ?? null : null}
                       blindfold={conduct?.blindfold}
                       bloody={bloody?.has(id)}
                       onJoints={(joints) => {
@@ -674,7 +661,7 @@ export function MatchStage({
                 // The loser's own mask, in its own colour: the same art the
                 // figure wore before the bell.
                 return (
-                  <div key={`shed-${id}`} className={`${pickedUp?.id === id ? 'mv-pulled-away' : 'mv-pull'} pointer-events-none absolute`} style={{ left: headX - figureW * 0.4, top: headY - figureW * 0.3, width: figureW * 0.8, height: figureW * 0.6, zIndex: 9, '--mv-pull-x': `${Math.sign(at.x || 1) * figureW * 0.18}px` } as React.CSSProperties}>
+                  <div key={`shed-${id}`} className="mv-pull pointer-events-none absolute" style={{ left: headX - figureW * 0.4, top: headY - figureW * 0.3, width: figureW * 0.8, height: figureW * 0.6, zIndex: 9, '--mv-pull-x': `${Math.sign(at.x || 1) * figureW * 0.18}px` } as React.CSSProperties}>
                     {/* Drawn as painted when the art has its own colours; otherwise tinted, as on the figure. */}
                     {mask.color ? (
                       <div className="absolute inset-0" style={{ backgroundColor: mask.color, ...maskOnly(mask.url) }} />
@@ -725,7 +712,7 @@ export function MatchStage({
           {callout && (
             <div
               key={`callout-${beatKey}-${over}`}
-              className={`pointer-events-none absolute flex items-center justify-center px-2 text-center ${pickedUp ? 'mv-callout-aside' : ''}`}
+              className="pointer-events-none absolute flex items-center justify-center px-2 text-center"
               style={{ left: (430 / VIEW.w) * w, width: (340 / VIEW.w) * w, top: (30 / VIEW.h) * h, height: (118 / VIEW.h) * h, zIndex: 20 }}
             >
               <span

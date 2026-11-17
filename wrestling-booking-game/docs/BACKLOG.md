@@ -6557,3 +6557,11 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - The "YOUR WINNER!" callout slides left (`mv-callout-aside`) from 3.2 s, so it no longer covers the mask.
 - Rendered: the mask sits in the outstretched hand with the callout clear. Not yet checked across other
   figures or the belt on the same person.
+
+## Mask toss instead of a hand-held mask (rendered)
+
+- The in-hand mask was still too small, so it is gone. The winner who took the mask off throws the arm out to
+  the side (`showMask` stance) while the mask drops to the mat, and the callout no longer slides.
+- Rendered: the arm is out to the side and the mask is in the air, at about head size, falling onto the mat.
+- Still open: the mask is dropped rather than flung from the hand. A true throw arc from the hand would need the
+  pull to start at the winner's hand position.
