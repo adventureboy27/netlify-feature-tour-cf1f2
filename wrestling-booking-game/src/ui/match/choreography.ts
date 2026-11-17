@@ -667,16 +667,22 @@ function withCover(base: Choreo, split: number, count: 2 | 3): Choreo {
   // the attacker across it.
   const ax = GAP - tx - 3;
   const down = split + 0.15;
-  actor.push([split + 0.06, Math.min(ax, actor[actor.length - 1]![1] + 2), 0, 12, 1, 'reach'], [down, ax, 3.6, 90, 1, 'cover']);
+  // Laid along them and on top of them: the attacker's line sits a body's
+  // thickness above the target's, not through it.
+  const onTop = DOWN + 2.6;
+  actor.push([split + 0.06, Math.min(ax, actor[actor.length - 1]![1] + 2), 0, 12, 1, 'reach'], [down, ax, onTop, 90, 1, 'pin']);
   const impacts = base.impacts?.map(([at, ...r]) => [at * split, ...r] as Impact);
   const ropes = base.ropes === undefined ? undefined : base.ropes * split;
   if (count === 3) {
-    actor.push([1, ax, 3.6, 90, 1, 'cover']);
+    actor.push([1, ax, onTop, 90, 1, 'pin']);
     target.push([1, tx, DOWN, -90, 1, 'flat']);
     return { ...base, actor, target, impacts, ropes, cover: { from: down, to: 0.97, count, at: tx } };
   }
-  actor.push([0.86, ax, 3.6, 90, 1, 'cover'], [0.93, ax - 4, 4, 30, 1, 'stagger'], [1, ax - 6, 0, 0, 1, 'guard']);
-  target.push([0.86, tx, DOWN, -90, 1, 'flat'], [0.93, tx, DOWN + 1.5, -70, 1, 'kickout'], [1, tx, DOWN, -62, 1, 'kickout']);
+  // The kickout: a shoulder up and a bridge that throws the attacker off.
+  // They go up and back off the body, come down, and are on a knee by the
+  // end — not straight up onto their feet.
+  actor.push([0.86, ax, onTop, 90, 1, 'pin'], [0.91, ax - 2.5, onTop + 3, 60, 1, 'fall'], [0.96, ax - 4.5, 1.2, 30, 1, 'crouch'], [1, ax - 5, 0, 8, 1, 'kneel']);
+  target.push([0.86, tx, DOWN, -90, 1, 'flat'], [0.9, tx, DOWN + 1.8, -66, 1, 'kickout'], [0.96, tx, DOWN + 0.8, -76, 1, 'kickout'], [1, tx, DOWN, -84, 1, 'flat']);
   return { ...base, actor, target, impacts, ropes, cover: { from: down, to: 0.86, count, at: tx }, shouts: [{ at: 0.87, text: 'KICK OUT!!' }] };
 }
 

@@ -48,6 +48,10 @@ export const STANCES = {
   elbowUp: s(-10, [152, 124], [30, 60], [16, 30], [-10, 26]),
   cover: s(10, [62, 44], [84, 52], [10, 22], [-22, 44]),
   kickout: s(8, [124, 22], [96, 30], [72, 12], [58, 24]),
+  // A pin: laid flat along the opponent, chest down on them. Laid sideways,
+  // "forward" points down, so the arms reach down across their chest; the legs
+  // stay straight out behind, not up in the air.
+  pin: s(4, [78, 24], [102, 36], [-3, 4], [3, 6]),
   tap: s(0, [104, 92], [-30, 20], [6, 30], [-6, 52]),
   celebrate: s(-4, [168, 8], [-168, 8], [4, 4], [-4, 4]),
   // In the ropes: back flat against them and a little crunch away from them,

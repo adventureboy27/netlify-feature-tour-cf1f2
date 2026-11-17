@@ -6809,3 +6809,13 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   out when the body is furthest in.
 - Rendered on the animation's own clock at the peak: the near ropes come in from the post and end at his back;
   the far halves pass behind him. A sliver of shoulder still overlaps where the rope bends.
+
+## Pins: a lateral press, and a kickout that throws the attacker off (rendered)
+
+- The owner saw the attacker standing on the opponent to pin. Cause: the pin borrowed the `cover` stance (the end
+  of a spear), whose bent hips and knees point the legs up in the air once the body is laid flat, with the torso
+  sat over the opponent's head. A new `pin` stance (`rig.ts`) lies flat along the opponent, chest down, legs
+  straight back, arms down across them, a body's thickness above them (`withCover` in `choreography.ts`).
+- The kickout: the attacker went from flat to standing in about a tenth of a second. Now the opponent bridges a
+  shoulder up, the attacker is thrown up and back off, comes down and is on a knee by the end; the opponent settles.
+- Rendered: a near fall (cover, count, kickout) and a finishing pin (count of three). 96 match tests pass.
