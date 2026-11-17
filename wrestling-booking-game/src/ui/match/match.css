@@ -174,10 +174,10 @@
 /* A mask pulled off the head: it lifts and turns away from the face, then
    drops to the mat where it lands. --mv-pull-x is the side it is pulled to. */
 @keyframes mv-pull {
-  0% { opacity: 1; transform: translate(0, 0) rotate(0deg); }
-  35% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 0.6), -70%) rotate(-18deg); }
-  55% { opacity: 1; transform: translate(var(--mv-pull-x), -110%) rotate(-30deg); }
-  75% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 1.2), 260%) rotate(40deg); }
-  100% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 1.4), 340%) rotate(70deg); }
+  0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  35% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 0.6), -70%) rotate(-18deg) scale(1.45); }
+  55% { opacity: 1; transform: translate(var(--mv-pull-x), -110%) rotate(-30deg) scale(1.7); }
+  75% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 1.2), 260%) rotate(40deg) scale(1.25); }
+  100% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 1.4), 340%) rotate(70deg) scale(1); }
 }
 .mv-pull { animation: mv-pull 2.4s cubic-bezier(0.3, 0, 0.6, 1) 0.15s both; }

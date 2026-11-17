@@ -6525,3 +6525,11 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - The pull is 2.4 s (was 1.4 s) and the winner holds until 3.2 s (`CELEBRATE_AFTER_MS`).
 - Rendered over about 3 s: the gold mask is visible in the air and on the mat, but at normal size it reads
   as a small object. Next: enlarge the pull or add a close-up to show it coming off the head.
+
+## Mask pull, bigger during the lift (rendered, still small)
+
+- The `mv-pull` keyframes now scale the falling mask (1.45 at the lift, 1.7 at the top, 1.25 on the way down,
+  1.0 on the mat), so it is larger while it is in the air. Build and the 95 match tests pass.
+- Rendered over 7 frames: the mask is still only a few dozen pixels against a figure about 60px tall. The
+  scale-up is not clearly visible at normal size. Next: a close-up render, or a larger base size on the mask
+  element itself rather than a scale multiplier.
