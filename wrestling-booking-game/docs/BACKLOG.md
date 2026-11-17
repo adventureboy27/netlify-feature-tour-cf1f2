@@ -6739,3 +6739,12 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   cage (near mesh over the wrestlers), and a falls-count-anywhere brawl in front of the ring.
 - Still not done: the ropes remain a boundary in the physics, not modelled ropes; the bow is drawn. A body lying
   on the front floor is partly below the bottom of the stage (unchanged).
+
+## Promotion: a section list with a purpose line for each (rendered)
+
+- The five tabs are now a section list that stays put (Identity and titles, Tonight's show, Television, Equipment,
+  Save file), each with its purpose visible rather than in a hover tooltip, and the chosen section has its own
+  heading. Same pattern as the Office and Finance. Content unchanged.
+- Fixed in passing: the tab state's hook ran after an early return, against React's rule that hooks run in the
+  same order every render. It now runs first.
+- Rendered from a new game: Identity and titles, then Tonight's show.

@@ -136,33 +136,44 @@ export function PromotionScreen() {
     };
   }, [world]);
 
+  // Before the early return: a hook has to run on every render, in the same order.
+  const [tab, setTab] = useState<PromotionTab>('identity');
   if (!world || !projection) return null;
   const { venue } = projection;
   const livingRivals = world.rivals.filter((r) => r.closedWeek === null);
+  const current = PROMOTION_TABS.find((t) => t.id === tab) ?? PROMOTION_TABS[0]!;
 
-  const [tab, setTab] = useState<PromotionTab>('identity');
   return (
     <div className="p-3 pb-6 text-neutral-100">
       <h1 className="mb-3 text-base font-semibold">The promotion</h1>
 
       {/* One screen used to hold all of this in a single scroll. It is the
-          same content, in the same order, a section at a time. */}
-      <div className="mb-3 flex flex-wrap gap-1.5" role="tablist">
-        {PROMOTION_TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            data-testid={`promotion-tab-${t.id}`}
-            onClick={() => setTab(t.id)}
-            title={t.blurb}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold ${tab === t.id ? 'bg-emerald-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+          same content, in the same order, a section at a time: a list that
+          stays put, and the chosen section beside it, as in the office. */}
+      <div className="grid gap-4 md:grid-cols-[14rem_minmax(0,1fr)]">
+        <nav aria-label="Promotion sections" role="tablist" className="flex flex-col gap-1 md:sticky md:top-3 md:self-start">
+          <div className="px-2 pb-1 text-[10px] uppercase tracking-wide text-neutral-500">Sections</div>
+          {PROMOTION_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              data-testid={`promotion-tab-${t.id}`}
+              onClick={() => setTab(t.id)}
+              className={`rounded px-3 py-2 text-left ${tab === t.id ? 'bg-emerald-700 text-white' : 'bg-neutral-900 text-neutral-200 hover:bg-neutral-800'}`}
+            >
+              <span className="block text-sm font-semibold">{t.label}</span>
+              <span className={`block text-[11px] leading-snug ${tab === t.id ? 'text-emerald-100' : 'text-neutral-500'}`}>{t.blurb}</span>
+            </button>
+          ))}
+        </nav>
+
+        <section className="min-w-0">
+          <header className="mb-3 border-b border-neutral-800 pb-2">
+            <h2 className="text-lg font-semibold">{current.label}</h2>
+            <p className="text-xs text-neutral-400">{current.blurb}</p>
+          </header>
 
       {tab === 'identity' && <IdentityPanel />}
 
@@ -528,6 +539,8 @@ export function PromotionScreen() {
       </section>
         </>
       )}
+        </section>
+      </div>
     </div>
   );
 }
