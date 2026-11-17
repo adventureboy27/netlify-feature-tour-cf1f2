@@ -87,8 +87,8 @@ const ROPE_WOBBLE: Keyframe[] = [
   { transform: 'translateY(-1px)' },
   { transform: 'translateY(0)' },
 ];
-/** How far the side ropes bow out when a body hits them, in picture units at the wrestlers' line. */
-const ROPE_GIVE = 20;
+/** How far the side ropes bow out when a body hits them, in picture units at the wrestlers' line: as far as the body goes into them. */
+const ROPE_GIVE = RING.ropeGive * (VIEW.w / 100);
 /** How long after the last move the winners raise their arms: long enough for a mask to come off and land. */
 const CELEBRATE_AFTER_MS = 3200;
 

@@ -179,9 +179,11 @@ describe('the ring is solid', () => {
               if (id === 'a' && actorExits !== undefined && at >= actorExits - 1e-6) continue;
               const top = head(frame);
               const where = `${move} ${id} at ${frame.at.toFixed(2)} x=${frame.x.toFixed(1)} head=${top.x.toFixed(1)} y=${frame.y.toFixed(1)}`;
+              // Into the ropes, never through them: the ropes give (RING.ropeGive)
+              // when a body lands in them, and that is as far past the line as it goes.
               if (frame.y < RING.topRope) {
-                expect(Math.max(frame.x, top.x), where).toBeLessThanOrEqual(RING.half + 0.01);
-                expect(Math.min(frame.x, top.x), where).toBeGreaterThanOrEqual(-RING.half - 0.01);
+                expect(Math.max(frame.x, top.x), where).toBeLessThanOrEqual(RING.half + RING.ropeGive + 0.01);
+                expect(Math.min(frame.x, top.x), where).toBeGreaterThanOrEqual(-RING.half - RING.ropeGive - 0.01);
               }
               expect(frame.y, where).toBeGreaterThanOrEqual(-0.01);
               expect(top.y, where).toBeGreaterThanOrEqual(-0.01);

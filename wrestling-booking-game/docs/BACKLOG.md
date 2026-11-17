@@ -6748,3 +6748,17 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Fixed in passing: the tab state's hook ran after an early return, against React's rule that hooks run in the
   same order every render. It now runs first.
 - Rendered from a new game: Identity and titles, then Tonight's show.
+
+## Ring: bodies go into the ropes; a body on the front floor fits the picture (rendered)
+
+- Ropes give in the physics, not only in the drawing. `RING.ropeGive` (1.6 units): an upright body that lands in
+  the side ropes is carried that far past the rope line at that moment, and the drawn bow uses the same value.
+  A body lying on the mat is under the bottom rope: it is kept in, with no hit and no bow.
+- The "ring is solid" test now reads "into the ropes, never through them": no further past the line than the
+  ropes give. A wrestler falling flat off the cage had been given the rope give; that was the bug it caught.
+- The floor in front of the ring is raised from -14.3 to -13.2 so a body lying flat there fits the stage. The
+  line telling it from the side floor moved to 0.2 below the side floor, with 0.2 of room on each side.
+- Rendered: a falls-count-anywhere brawl (lying on the front floor, wholly in view; back in the ring behind the
+  ropes) and a whip match (a full hit on each side).
+- Still not modelled: a move anchored on the ropes (a whip) touches the rope line but does not press past it;
+  the bow is drawn for it all the same.

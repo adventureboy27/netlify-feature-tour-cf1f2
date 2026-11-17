@@ -52,6 +52,13 @@ export const RING = {
    * which is where a tag partner waits and where anybody climbing out lands first.
    */
   apron: 4.5,
+  /**
+   * How far the side ropes give when a body hits them. The body is carried
+   * this far past the rope line at the moment it lands in them, and the
+   * ropes are drawn bowed out by the same amount (MatchStage's stretchRopes),
+   * so the body is in the ropes rather than stopped by an invisible wall.
+   */
+  ropeGive: 1.6,
 } as const;
 
 // The space a battle royal's field brawls in (FieldBrawl.tsx): drawn
@@ -110,8 +117,10 @@ const headX = (x: number, rot: number) => x + Math.sin(rad(rot)) * RING.tall;
 const headY = (y: number, rot: number) => y + Math.cos(rad(rot)) * RING.tall;
 const inRing = (pose: WorldPose, half: number = RING.half) => Math.abs(pose.x) <= half + 0.5 && pose.y > FLOOR / 2;
 /** On the floor in front of the ring. */
-// (Lower than the side floor an eliminated wrestler lands on, with room for a body lying on it.)
-export const onFrontFloor = (pose: WorldPose) => pose.y < FLOOR - 0.5;
+// Told apart from the side floor an eliminated wrestler lands on by height:
+// standing there is FLOOR, lying here is FRONT_FLOOR + DOWN, and the line
+// sits between the two with a little room either side.
+export const onFrontFloor = (pose: WorldPose) => pose.y < FLOOR - 0.2;
 const lying = (pose: WorldPose) => isDown([0, pose.y - (onFrontFloor(pose) ? FRONT_FLOOR : 0), pose.rot]);
 
 /** The span of the ring a pose occupies, left to right. */
@@ -280,9 +289,18 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
         if (wy < RING.topRope) {
           const [lo, hi] = span(wx, wrot);
           const push = hi > edge ? edge - hi : lo < -edge ? -edge - lo : 0;
-          // Pushed back left means they were into the right-hand ropes, and the other way about.
-          if (Math.abs(push) > 0.35) ropeHits.push({ at: t, side: push < 0 ? 1 : -1 });
           wx += push;
+          // Pushed back left means they were into the right-hand ropes, and the
+          // other way about. A real hit: the ropes take the weight and the body
+          // goes into them, past the line, by as much as they give. Only a body
+          // more up than down hits the ropes; one lying on the mat is under the
+          // bottom rope and is simply kept in.
+          const upright = Math.abs(normalizeRot(wrot)) < 45;
+          if (Math.abs(push) > 0.35 && upright) {
+            const side = push < 0 ? 1 : -1;
+            ropeHits.push({ at: t, side });
+            wx += side * RING.ropeGive;
+          }
         }
         // The mat: neither feet nor head go below it.
         wy = Math.max(wy, 0, -Math.cos(rad(wrot)) * RING.tall);

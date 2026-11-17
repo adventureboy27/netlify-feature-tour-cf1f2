@@ -69,9 +69,13 @@ const FLOOR_DOWN = FLOOR + DOWN;
 /**
  * The floor in front of the ring, where a fight that spills outside is
  * staged — nearer the camera than the apron, so lower on screen than the
- * floor at the sides where an eliminated wrestler lands.
+ * floor at the sides where an eliminated wrestler lands. Not lower than
+ * this: a body lying flat down here reaches its full width below its
+ * feet, and any lower it runs off the bottom of the picture. And not
+ * higher: lying flat here must still read as below the side floor
+ * (ringPhysics.ts's onFrontFloor tells the two apart by height alone).
  */
-export const FRONT_FLOOR = -14.3;
+export const FRONT_FLOOR = -13.2;
 const G = FRONT_FLOOR;
 
 const STAND: Frame = [0, 0, 0, 0];
