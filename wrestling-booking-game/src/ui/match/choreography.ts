@@ -365,8 +365,9 @@ const BODIES = {
     impacts: [[0.62, -12, 27], [0.9, -4, 2, true]],
     ropes: 0.4,
   },
+  // Over the top of the cage, down onto the apron, then off its edge: an escape is feet on the floor.
   escapeCage: {
-    actor: [STAND, [0.1, 6, 0, 14], [0.22, 2, 0, 0], [0.4, -13, 5, 0], [0.56, -13, 13, 0], [0.7, -15.5, 15, -28], [0.85, -19, 2, 0], [1, -19, FLOOR, 0, 0.9]],
+    actor: [STAND, [0.1, 6, 0, 14], [0.22, 2, 0, 0], [0.4, -13, 5, 0], [0.56, -13, 13, 0], [0.7, -15.5, 15, -28], [0.85, -19, 0.5, 0], [1, -23.5, FLOOR, 0, 0.9]],
     target: [STAND, [0.1, 1, 0, -14], [0.22, 1, DOWN, -90], [1, 1, DOWN, -90]],
     impacts: [[0.1, 2, 12]],
     ropes: 0.44,

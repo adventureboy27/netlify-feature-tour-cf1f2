@@ -139,6 +139,8 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
   // Where the ground is and where the walls are, for this beat.
   const ground = zone === 'floor' ? FRONT_FLOOR : 0;
   const ringHalf = options.half ?? RING.half;
+  // The apron, in whatever units this ring is measured in (a battle royal's field is drawn smaller).
+  const apronWidth = (ringHalf * RING.apron) / RING.half;
   const ringEdge = ringHalf - 0.4;
   const edge = zone === 'ring' ? ringEdge : RING.floorHalf;
   // On the way out or back in, a pose is held by whichever it is in at that
@@ -255,11 +257,16 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
       const wrot = f.dir * rot;
 
       if (leaving) {
-        // Out is over the top: clear the rope while crossing it, then the
-        // floor is the floor.
-        const outside = Math.abs(wx) > ringHalf + 1.5;
-        if (!outside && Math.abs(wx) > ringHalf - 3) wy = Math.max(wy, RING.topRope + 1);
-        if (outside) wy = Math.max(wy, FLOOR + Math.max(0, -Math.cos(rad(wrot)) * RING.tall));
+        // Out is over the top: clear the rope while crossing it. Past the
+        // ropes is the apron, which is ring — the same height as the mat —
+        // so a body over it lands on it, not through it. Only past the
+        // apron's edge is there nothing under them but the floor.
+        const out = Math.abs(wx);
+        const apronEdge = ringHalf + apronWidth;
+        const lean = Math.max(0, -Math.cos(rad(wrot)) * RING.tall);
+        if (out > ringHalf - 3 && out <= ringHalf + 1.5) wy = Math.max(wy, RING.topRope + 1);
+        else if (out > ringHalf + 1.5 && out <= apronEdge) wy = Math.max(wy, lean);
+        else if (out > apronEdge) wy = Math.max(wy, FLOOR + lean);
       } else if (zone !== 'ring') {
         // Outside: barricades either side, and the floor underneath. (On the
         // way out or back in, the table's own heights say where the floor

@@ -294,6 +294,27 @@ export function MatchStage({
         }, impact.at * duration),
       );
     }
+    // Out to the floor and back: in front of the ring is nearer the camera than
+    // the ropes are, so a body there is drawn over them, and back under them
+    // once it is on the apron or the mat again. Switched at the frame it
+    // crosses, not for the whole move.
+    if (staged.zone === 'out' || staged.zone === 'in') {
+      for (const f of cast) {
+        const el = figureRefs.current.get(f.id);
+        const frames = next.tracks.get(f.id);
+        if (!el || !frames || frames.length === 0) continue;
+        const base = f.role === 'actor' ? 3 : 2;
+        const layer = (floor: boolean) => String((floor ? 12 : 0) + base);
+        let wasFloor = onFrontFloor(frames[0]!);
+        el.style.zIndex = layer(wasFloor);
+        for (const frame of frames) {
+          const isFloor = onFrontFloor(frame);
+          if (isFloor === wasFloor) continue;
+          wasFloor = isFloor;
+          timers.push(window.setTimeout(() => (el.style.zIndex = layer(isFloor)), frame.at * duration));
+        }
+      }
+    }
     // Somebody into the ropes: the ropes on that side take the weight and give.
     for (const ropeHit of next.ropeHits) {
       timers.push(window.setTimeout(() => stretchRopes(ropeHit.side), ropeHit.at * duration));
@@ -464,6 +485,10 @@ export function MatchStage({
   // The moment the table (or whatever it is) gets used.
   const sceneAt = plan?.impacts.find((i) => i.big)?.at ?? 0.7;
   const onFloor = !over && staged?.zone !== undefined && staged.zone !== 'ring';
+  // Going out or coming back in, a body is in the ring for part of the move and
+  // on the floor for the rest: the beat effect moves it between the layers as
+  // it goes. Only a move done entirely on the floor starts above the ropes.
+  const wholeBeatOnFloor = !over && staged?.zone === 'floor';
 
   return (
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
@@ -598,7 +623,7 @@ export function MatchStage({
                   // and posts too, not behind them.
                   // In the ring and on the apron: under the near ropes (ArenaFront, 10).
                   // On the floor in front of the ring: over them, nearer the camera than the ring is.
-                  zIndex: (onFloor || leaving ? 12 : 0) + (fighter.role === 'actor' || won ? 3 : 2),
+                  zIndex: (wholeBeatOnFloor || leaving ? 12 : 0) + (fighter.role === 'actor' || won ? 3 : 2),
                   willChange: 'transform',
                 }}
               >

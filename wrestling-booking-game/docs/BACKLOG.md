@@ -6725,3 +6725,17 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Not changed: there is still no rope geometry in the physics; the ropes are the boundary at `RING.half`. Nobody
   lands on the apron after going over the top; they land on the floor. Not rendered: the split skirt of an
   interpromotional night, a cage match and a fight on the floor in front of the ring under the new layering.
+
+## Ring leftovers: the apron is solid, and layers follow the body (rendered)
+
+- The apron is ground. A body going out over the top is held at mat height while it is over the apron and only
+  drops to the floor past the apron's edge (`ringPhysics.ts`, scaled for a battle royal's smaller field).
+- The cage escape now drops onto the apron, then off its edge to the floor: an escape is feet on the floor. The
+  cage test (`escapeCage` ends on the floor, outside the ring) still holds.
+- Bug found in the floor render and fixed: going out or coming back in, the whole move was drawn above the ropes,
+  so a wrestler back on the mat was in front of the front ropes. Now each body switches layer at the frame it
+  crosses between the ring and the floor in front of it. Only a move done wholly on the floor starts above.
+- Rendered: an interpromotional ring (split skirt, each corner's pads in its colours, partners behind the ropes), a
+  cage (near mesh over the wrestlers), and a falls-count-anywhere brawl in front of the ring.
+- Still not done: the ropes remain a boundary in the physics, not modelled ropes; the bow is drawn. A body lying
+  on the front floor is partly below the bottom of the stage (unchanged).
