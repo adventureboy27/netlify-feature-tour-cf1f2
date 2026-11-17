@@ -85,7 +85,6 @@ const SIDEBAR_GROUPS: { label: string; items: SidebarItem[] }[] = [
         label: 'The competition',
         blurb: "Every other company's full roster, and the career that got each and every one of them there.",
       },
-      { id: 'contactSheet', label: 'Contact sheet', blurb: 'Every single face in this entire game, right there on one screen.' },
     ],
   },
   {
@@ -134,6 +133,9 @@ const SIDEBAR_GROUPS: { label: string; items: SidebarItem[] }[] = [
       },
       { id: 'editor', label: 'Editor', blurb: 'Rename anybody, repackage them completely, or build somebody brand new from scratch.' },
       { id: 'settings', label: 'Settings', blurb: 'Export or load a save, erase one, and turn the screen transitions off if they are not your thing.' },
+      // DESIGN: a test sheet of made-up wrestlers for checking the art, not anybody in
+      // this save. Under Talent a new player took it for part of their roster.
+      { id: 'contactSheet', label: 'Art contact sheet', blurb: '100 made-up wrestlers drawn at once, to check the art. Nobody here is in your game.' },
     ],
   },
 ];

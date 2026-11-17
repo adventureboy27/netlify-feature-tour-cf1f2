@@ -129,6 +129,7 @@ export function FreeAgentsScreen({
     <div className="p-6 text-neutral-100">
       <div className="mb-3">
         <h1 className="text-base font-semibold">Free agents — {ranked.length}</h1>
+        <p className="text-xs text-neutral-400">Pick somebody on the left to see what they bring and what they want. Sign them from their card.</p>
         <p className="text-xs text-neutral-500">
           Bank <Money amount={world.promotion.bankBalance} /> · roster {world.promotion.rosterIds.length}
         </p>
@@ -143,7 +144,8 @@ export function FreeAgentsScreen({
 
       {/* Order is a separate question from which reasons are showing — the
           two rows are one "narrow and order" toolbar read top to bottom. */}
-      <div className="mb-1.5 flex flex-wrap gap-1.5">
+      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-[10px] uppercase tracking-wide text-neutral-500">Sort by</span>
         {(Object.keys(SORTS) as SortKey[]).map((key) => (
           <button
             key={key}
@@ -164,7 +166,8 @@ export function FreeAgentsScreen({
       {/* Who's available and why is the whole decision on this screen —
           filtering by it beats scrolling past forty names to find the two
           who just graduated the school. */}
-      <div className="mb-3 flex flex-wrap gap-1.5">
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-[10px] uppercase tracking-wide text-neutral-500">Show</span>
         <button
           type="button"
           data-testid="fa-filter-all"

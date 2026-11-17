@@ -24,7 +24,9 @@ export function ContactSheet() {
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Contact Sheet — {wrestlers.length} wrestlers</h1>
-          <p className="text-xs text-neutral-400">seed: {seed}</p>
+          <p className="text-xs text-neutral-400">
+            Made-up wrestlers, drawn to check the art. Nobody here is in your game. (seed: {seed})
+          </p>
         </div>
         <button
           type="button"

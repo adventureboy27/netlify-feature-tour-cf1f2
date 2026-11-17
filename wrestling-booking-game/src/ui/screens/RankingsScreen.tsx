@@ -29,10 +29,10 @@ import { Tabs, promotionTheme } from '../components/chrome';
 
 type Tab = 'contenders' | 'world' | 'circuits';
 
-const TAB_OPTIONS: { id: Tab; label: string }[] = [
-  { id: 'contenders', label: 'Your contenders' },
-  { id: 'world', label: 'The business' },
-  { id: 'circuits', label: 'The circuits' },
+const TAB_OPTIONS: { id: Tab; label: string; blurb: string }[] = [
+  { id: 'contenders', label: 'Your contenders', blurb: 'Who holds your belts, and who in your company is next in line for a shot.' },
+  { id: 'world', label: 'The business', blurb: 'Every wrestler in the business ranked against each other, whoever they work for.' },
+  { id: 'circuits', label: 'The circuits', blurb: 'How each wrestling scene ranks the talent, by what that scene values.' },
 ];
 
 export function RankingsScreen() {
@@ -63,10 +63,14 @@ export function RankingsScreen() {
 
   return (
     <div className="p-3 pb-6 text-neutral-100">
-      <h1 className="mb-3 text-xl font-black tracking-tight">Rankings</h1>
+      <h1 className="text-xl font-black tracking-tight">Rankings</h1>
+      <p className="mb-3 text-xs text-neutral-400">Where your people stand: in your company, in the whole business, and in each scene.</p>
 
       <div className="mb-3">
         <Tabs options={TAB_OPTIONS} active={tab} onChange={setTab} theme={theme} testIdPrefix="rankings" />
+        <p className="mt-1.5 text-[11px] text-neutral-500" data-testid="rankings-blurb">
+          {TAB_OPTIONS.find((option) => option.id === tab)?.blurb}
+        </p>
       </div>
 
       {tab === 'circuits' ? (

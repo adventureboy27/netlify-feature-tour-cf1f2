@@ -275,8 +275,9 @@ export function SectionHead({
   hint?: React.ReactNode;
   className?: string;
 }) {
+  // Room above it when it is jumped to, so a bar stuck to the top of the page does not sit over it.
   return (
-    <div id={id} className={`mb-2 mt-5 flex scroll-mt-4 items-center gap-3 ${className}`}>
+    <div id={id} className={`mb-2 mt-5 flex scroll-mt-14 items-center gap-3 ${className}`}>
       <h2 className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">{children}</h2>
       <div className="h-px flex-1 bg-neutral-800" />
       {hint && <span className="shrink-0 text-[11px] text-neutral-600">{hint}</span>}

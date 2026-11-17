@@ -6762,3 +6762,16 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   ropes) and a whip match (a full hit on each side).
 - Still not modelled: a move anchored on the ropes (a whip) touches the rope line but does not press past it;
   the bow is drawn for it all the same.
+
+## The remaining screens: Results, Free agents, Rankings, the contact sheet (rendered)
+
+- Results: the "Jump to" links were in the summary and scrolled away on a page about 6,300px tall. They are now a
+  bar stuck to the top of the page, with the section being read lit (the last heading under the bar, or the last
+  section once the page is at its end). Headings leave room for the bar when jumped to. Nothing removed.
+- Free agents: a purpose line, and the two chip rows labelled "Sort by" and "Show", as on the Roster.
+- Rankings: a purpose line, and one sentence under the tabs saying what the chosen tab ranks.
+- Contact sheet: it is a milestone test page of 100 generated wrestlers, none of them in the save, and it sat under
+  Talent with a description saying it showed every face in the game. Moved to Admin as "Art contact sheet", with
+  an accurate description in the sidebar and on the page.
+- Territories: looked at and left alone; it is a clear map with a purpose line already.
+- Rendered after one played week: Results scrolled and jumped, Free agents, Rankings, and the Admin group.

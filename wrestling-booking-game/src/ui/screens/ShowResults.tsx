@@ -86,6 +86,30 @@ export function ShowResults({
   useEffect(() => {
     setPresent(SECTIONS.map(([, id]) => id).filter((id) => document.getElementById(`results-${id}`)));
   }, [show.id]);
+  // Which section is being read: the last one whose heading has gone up under
+  // the contents bar, or the last section of all once the page is at its end
+  // (a short final section never reaches the top). Lit in the bar, so a long
+  // night always says where you are.
+  const [reading, setReading] = useState<string | null>(null);
+  useEffect(() => {
+    const update = () => {
+      const bar = document.querySelector('[data-testid=results-contents]');
+      if (!bar) return;
+      const line = bar.getBoundingClientRect().bottom + 12;
+      let current: string | null = null;
+      for (const id of present) {
+        const head = document.getElementById(`results-${id}`);
+        if (head && head.getBoundingClientRect().top <= line) current = id;
+      }
+      const scroller = bar.closest('main');
+      if (scroller && present.length > 0 && scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4) current = present[present.length - 1]!;
+      setReading(current);
+    };
+    update();
+    // Scroll events do not bubble; caught on the way down, from whatever is scrolling.
+    document.addEventListener('scroll', update, true);
+    return () => document.removeEventListener('scroll', update, true);
+  }, [present]);
   if (!world) return null;
 
   // The last match on the card that has a result to play back.
@@ -282,14 +306,6 @@ export function ShowResults({
               </div>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="text-neutral-600">Jump to</span>
-            {SECTIONS.filter(([, id]) => present.includes(id)).map(([label, id]) => (
-              <button key={id} type="button" onClick={() => document.getElementById(`results-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-full border border-neutral-800 bg-neutral-900 px-2.5 py-0.5 text-neutral-300 hover:border-neutral-600">
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* The night's money, on its own ground so it reads as a ledger
@@ -351,6 +367,26 @@ export function ShowResults({
             ))}
           </div>
         </section>
+      )}
+
+      {/* The night's contents, stuck to the top of the page: every section is
+          one click away however far down the night you have read, and the one
+          you are in is lit. (It used to sit in the summary and scroll away.) */}
+      {present.length > 1 && (
+        <nav aria-label="Sections of the night" data-testid="results-contents" className="sticky top-0 z-20 -mx-3 mb-1 flex flex-wrap items-center gap-1.5 border-b border-neutral-800 bg-neutral-950/95 px-3 py-2 text-[11px] backdrop-blur">
+          <span className="text-neutral-600">Jump to</span>
+          {SECTIONS.filter(([, id]) => present.includes(id)).map(([label, id]) => (
+            <button
+              key={id}
+              type="button"
+              aria-current={reading === id ? 'true' : undefined}
+              onClick={() => document.getElementById(`results-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className={`rounded-full border px-2.5 py-0.5 ${reading === id ? 'border-emerald-600 bg-emerald-900/50 text-emerald-100' : 'border-neutral-800 bg-neutral-900 text-neutral-300 hover:border-neutral-600'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
       )}
 
       <SectionHead id="results-card" hint={`${booked.length} ${booked.length === 1 ? 'match' : 'matches'}`}>The card</SectionHead>
