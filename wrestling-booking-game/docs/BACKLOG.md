@@ -6542,3 +6542,9 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   "YOUR WINNER!" callout (zIndex 20, above the figure's stacking layer), and it is still small.
 - Not resolved: the callout has to yield during the held pose, or the figure has to draw above it. Also still
   to do: the profile "Masks won" section, which needs a stored record of each mask won.
+
+## Held mask sized to the face (measured, not visible in the render)
+
+- The raised mask is now 16% of the figure's width, which measures 28 x 29 px against a head about 28 px wide.
+- In the frame rendered, the figure had turned away and the mask was hidden behind the body and the callout.
+  Still open: the callout and the pose need to stop covering it.

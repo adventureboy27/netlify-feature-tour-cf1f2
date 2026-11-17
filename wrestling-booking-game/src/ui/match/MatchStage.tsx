@@ -95,7 +95,7 @@ const dirOf = (slot: 'left' | 'right'): 1 | -1 => (slot === 'left' ? 1 : -1);
 // Raised overhead at the hand: the same art as the one that came off.
 function HeldMask({ mask }: { mask: { url: string; color: string | null } }) {
   return (
-    <div className="mv-held pointer-events-none absolute" style={{ left: '52%', top: '0%', width: '38%', aspectRatio: '1.25', zIndex: 13 }}>
+    <div className="mv-held pointer-events-none absolute" style={{ left: '50%', top: '0%', width: '16%', aspectRatio: '1', zIndex: 13 }}>
       {mask.color ? <div className="absolute inset-0" style={{ backgroundColor: mask.color, ...maskOnly(mask.url) }} /> : <img src={mask.url} alt="" className="absolute inset-0 h-full w-full object-contain" />}
     </div>
   );
