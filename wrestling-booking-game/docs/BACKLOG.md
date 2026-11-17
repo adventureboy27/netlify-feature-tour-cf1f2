@@ -6681,3 +6681,9 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
   `MatchStage.tsx`, and `assets/inked/side-view.svg`. Match figures are front-facing again.
 - Kept: the hand-inked top half (ink outline on the portraits, `InkFilter`) and the hand-inked legs.
 - `assets/inked/lower-body.svg` is still in the folder but not used by anything.
+
+## Front ropes removed (rendered)
+
+- The front ropes and their corner pads were drawn over the wrestlers, so anybody near the front read as behind
+  them. Removed from `ArenaFront` (`Arena.tsx`). The front posts and the back ropes stay.
+- Rendered: the wrestler stands in front of the back ropes. Match tests pass (95 of 95).

@@ -597,7 +597,7 @@ export function MatchStage({
             );
           })}
 
-          <ArenaFront accent={accent} ropesRef={ropesRef} cage={conduct?.cage} corners={corners} noRing={conduct?.noRing} />
+          <ArenaFront ropesRef={ropesRef} cage={conduct?.cage} noRing={conduct?.noRing} />
 
           {/* A casket, at ringside, with somebody in it. */}
           {scene === 'casket' && targetEnd && (

@@ -308,17 +308,12 @@ export const ArenaBack = memo(function ArenaBack({
 });
 
 /** The front ropes and posts — drawn over the wrestlers, who stand behind them. */
-export const ArenaFront = memo(function ArenaFront({ accent, ropesRef, cage = false, corners, noRing = false }: { noRing?: boolean; accent: string; ropesRef: React.Ref<SVGGElement>; /** The near wall of a cage, between the camera and the wrestlers. */ cage?: boolean; corners?: readonly [Corner, Corner] }) {
+export const ArenaFront = memo(function ArenaFront({ ropesRef, cage = false, noRing = false }: { noRing?: boolean; ropesRef: React.Ref<SVGGElement>; /** The near wall of a cage, between the camera and the wrestlers. */ cage?: boolean }) {
   return (
     <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-      <g ref={ropesRef} style={noRing ? { display: 'none' } : undefined}>
-        {ROPES_FRONT.map((y) => (
-          <g key={y} strokeLinecap="round">
-            <line x1={MAT.frontL} y1={y + 1.5} x2={MAT.frontR} y2={y + 1.5} stroke="#000" strokeWidth={6} opacity={0.3} />
-            <line x1={MAT.frontL} y1={y} x2={MAT.frontR} y2={y} stroke={ROPE} strokeWidth={4} />
-          </g>
-        ))}
-      </g>
+      {/* The front ropes are gone: they were drawn over the wrestlers, so anybody near the
+          front read as standing behind them. The ref stays, so the ropes' motion still has a target. */}
+      <g ref={ropesRef} style={noRing ? { display: 'none' } : undefined} />
       {cage && (
         <g>
           <defs>
@@ -334,9 +329,6 @@ export const ArenaFront = memo(function ArenaFront({ accent, ropesRef, cage = fa
         <g key={x}>
           <rect x={x - 7} y={286} width={14} height={MAT.frontY - 286 + 6} fill="#343944" />
           <rect x={x - 7} y={286} width={5} height={MAT.frontY - 286 + 6} fill="#4c5260" />
-          {ROPES_FRONT.map((y) => (
-            <rect key={y} x={x - 11} y={y - 9} width={22} height={18} rx={5} fill={corners ? corners[x === MAT.frontL ? 0 : 1].accent : accent} stroke="#000" strokeOpacity={0.35} />
-          ))}
         </g>
       ))}
     </svg>
