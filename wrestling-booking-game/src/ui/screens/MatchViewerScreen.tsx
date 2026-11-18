@@ -529,8 +529,13 @@ export function MatchViewerScreen({
   // A tag match that has broken down — the sim recorded it, or it ended in
   // the chaos of interference — has everybody in the ring for that beat.
   const brokenDown = isTagMatch && !over && Boolean(moment) && (current?.spot === 'breakdown' || (current?.pose === 'finish' && result.finish === 'interference'));
+  // Where fighting outside is legal, once the legal men have first taken it
+  // out there the partners come off the apron and fight on the floor too —
+  // back in with everybody when it goes out of control.
+  const firstOut = conduct.outside ? moments.findIndex((m) => m.staged.zone !== undefined && m.staged.zone !== 'ring') : -1;
+  const partnersOut = isTagMatch && !over && firstOut >= 0 && beatIndex >= firstOut;
   const bystanders: Bystander[] = isTagMatch
-    ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: brokenDown ? ('ring' as const) : ('apron' as const) }))
+    ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: brokenDown ? ('ring' as const) : partnersOut ? ('floor' as const) : ('apron' as const) }))
     : isFieldMatch
       ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: 'ring' as const }))
       : [];

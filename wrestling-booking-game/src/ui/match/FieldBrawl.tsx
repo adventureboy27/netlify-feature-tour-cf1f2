@@ -24,7 +24,7 @@ import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
 import { FEET_Y, VIEW } from './Arena';
-import { BRAWL, DOWN, GAP, stageMove, type MoveId } from './choreography';
+import { BRAWL, DOWN, FLOOR, FRONT_FLOOR, GAP, stageMove, type MoveId, type Zone } from './choreography';
 import { RING, planBeat, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
 import { playPlan, settle } from './playback';
 import type { Id, Wrestler } from '../../engine/types';
@@ -42,6 +42,9 @@ const hash = (text: string) => {
  * climbs — a top-rope move back there would be lost, and in the way.
  */
 const FIELD_MOVES: readonly MoveId[] = [...BRAWL, 'whip', 'suplex', 'cornerWhip', 'backBodyDrop', 'shoulderBlock', 'spear', 'clothesline', 'backbreaker'];
+
+/** What a pair does out on the floor: fists, the barricade (a whip, out there), a slam on the concrete. */
+const FLOOR_FIGHT: readonly MoveId[] = ['flurry', 'whip', 'headbutt', 'slam', 'strike', 'kneeLift', 'clothesline'];
 
 // Jointed figures cost five copies of a portrait each. Up to this many the
 // field gets them; past it, plain figures that are thrown about whole.
@@ -66,6 +69,8 @@ export interface Focus {
   actorX: number;
   targetX: number;
   down: boolean;
+  /** The one taking it is out on the floor. */
+  floor: boolean;
 }
 /** A big bump in the featured exchange: where it lands, and when (ms into the beat). */
 export interface Bump {
@@ -85,7 +90,18 @@ interface Station {
 }
 
 /** One pair (or one wrestler with nobody to fight yet), looping. Draws nothing. */
-function Pair({ a, b, station, shared, focus, bump }: { a: Wrestler; b: Wrestler | undefined; station: Station; shared: Shared; focus?: Focus; bump?: Bump }) {
+function Pair({ a, b, station, shared, focus, bump, floorOnly = false, spills = false }: {
+  a: Wrestler;
+  b: Wrestler | undefined;
+  station: Station;
+  shared: Shared;
+  focus?: Focus;
+  bump?: Bump;
+  /** Fighting on the floor at ringside the whole time (tag partners in a no-DQ tag match). */
+  floorOnly?: boolean;
+  /** The rules allow the fight outside: now and then this pair goes out there and back. */
+  spills?: boolean;
+}) {
   const [round, setRound] = useState(0);
   const seed = hash(a.id + (b?.id ?? ''));
   // A big bump from the featured exchange landing on top of this pair
@@ -104,15 +120,37 @@ function Pair({ a, b, station, shared, focus, bump }: { a: Wrestler; b: Wrestler
     if (station.unit === 0) return;
     const hit = knocked !== null && played.current !== knocked;
     if (hit) played.current = knocked;
+    // In front of the ring when they are on the floor, behind its ropes when
+    // they are in it; going out or coming in, they change over as they pass
+    // the ropes.
+    const timers: number[] = [];
+    const layer = (zone: Zone, duration: number) => {
+      const set = (z: string) => {
+        for (const id of [a.id, b?.id]) {
+          const el = id ? shared.figures.get(id) : undefined;
+          if (el) el.style.zIndex = z;
+        }
+      };
+      if (zone === 'floor') set('12');
+      else if (zone === 'ring') set('1');
+      else timers.push(window.setTimeout(() => set(zone === 'out' ? '12' : '1'), duration * (zone === 'out' ? 0.55 : 0.6)));
+    };
+    const onFloor = (id: Id) => (shared.leftAt.get(id)?.y ?? 0) < FLOOR / 2;
     // Nobody left to pair with: they pile in on whoever is taking the move up
     // front — from the far side of them, so they never stand in the attacker.
     if (!b && focus) {
       const dir: 1 | -1 = focus.targetX >= focus.actorX ? -1 : 1;
-      const move = focus.down ? 'stomp' : (['strike', 'kneeLift', 'clothesline'] as const)[round % 3]!;
+      // Back in the ring after it, the way anybody gets back in — under the
+      // bottom rope — before piling in again.
+      const comingBack = !focus.floor && onFloor(a.id);
+      const move: MoveId = comingBack ? 'rollInside' : focus.down ? 'stomp' : (['strike', 'kneeLift', 'clothesline'] as const)[round % 3]!;
       const duration = 1500;
       const cast: PlanFighter[] = [{ id: a.id, role: 'actor', dir, from: shared.leftAt.get(a.id), taggedIn: false }];
       const tx = focus.targetX / station.scale;
-      const plan = planBeat({ ...stageMove(move), duration }, cast, tx - (dir * GAP) / 2, { half: station.half, near: tx - (dir * GAP) / 2 });
+      // Out on the floor after them, if that is where it has gone.
+      const zone: Zone = comingBack ? 'in' : focus.floor ? 'floor' : 'ring';
+      layer(zone, duration);
+      const plan = planBeat({ ...stageMove(move), duration, zone }, cast, tx - (dir * GAP) / 2, { half: station.half, near: tx - (dir * GAP) / 2 });
       for (const [id, pose] of plan.end) shared.leftAt.set(id, pose);
       const el = shared.figures.get(a.id);
       if (el) el.style.transform = '';
@@ -121,6 +159,7 @@ function Pair({ a, b, station, shared, focus, bump }: { a: Wrestler; b: Wrestler
       return () => {
         settle(running);
         window.clearTimeout(timer);
+        timers.forEach((t) => window.clearTimeout(t));
       };
     }
     const cast: PlanFighter[] = b
@@ -132,14 +171,27 @@ function Pair({ a, b, station, shared, focus, bump }: { a: Wrestler; b: Wrestler
       : [{ id: a.id, role: 'actor', dir: 1, from: shared.leftAt.get(a.id), taggedIn: false }];
     // An odd one out has nobody to hit yet, so they prowl their patch
     // looking for somebody: a few steps one way, a few the other.
-    const move = hit ? 'doubleDown' : b ? FIELD_MOVES[(seed + round * 5) % FIELD_MOVES.length]! : (['taunt', 'strike', 'fireUp'] as const)[round % 3]!;
+    let move: MoveId = hit ? 'doubleDown' : b ? FIELD_MOVES[(seed + round * 5) % FIELD_MOVES.length]! : (['taunt', 'strike', 'fireUp'] as const)[round % 3]!;
+    // Where the rules allow it, the fight goes outside: some pairs, now and
+    // then, tossed out, a couple of exchanges on the floor and into the
+    // barricade, and rolled back in. Tag partners in a no-DQ tag match are
+    // out there the whole time.
+    let zone: Zone = 'ring';
+    if (b && !hit) {
+      const wantOut = floorOnly || (spills && seed % 2 === 0 && (round + seed) % 10 < 3);
+      const outThere = onFloor(a.id) && onFloor(b.id);
+      if (wantOut && !outThere) [zone, move] = ['out', 'tossOutside'];
+      else if (wantOut) [zone, move] = ['floor', FLOOR_FIGHT[(seed + round * 3) % FLOOR_FIGHT.length]!];
+      else if (outThere) [zone, move] = ['in', 'rollInside'];
+    }
     // And they do not stand still: each exchange happens a few steps from
     // the last, wandering their part of the ring (a whip takes them to its
     // edge and back on its own).
     const drift = b ? ((((seed >> 3) + round * 7) % 11) - 5) * 1.2 : 0;
     // Each pair keeps its own time, so the field never moves in step.
     const duration = b ? 1500 + (seed % 6) * 110 : 1400;
-    const plan = planBeat({ ...stageMove(move), duration }, cast, station.x, { half: station.half, near: b ? station.x + drift : station.x + GAP / 2 + (round % 2 ? 5 : -5) });
+    layer(zone, duration);
+    const plan = planBeat({ ...stageMove(move), duration, zone }, cast, station.x, { half: station.half, near: b ? station.x + drift : station.x + GAP / 2 + (round % 2 ? 5 : -5) });
     for (const [id, pose] of plan.end) shared.leftAt.set(id, pose);
     for (const f of cast) {
       const el = shared.figures.get(f.id);
@@ -150,9 +202,10 @@ function Pair({ a, b, station, shared, focus, bump }: { a: Wrestler; b: Wrestler
     return () => {
       settle(running);
       window.clearTimeout(timer);
+      timers.forEach((t) => window.clearTimeout(t));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [a.id, b?.id, station.x, station.unit, round, knocked]);
+  }, [a.id, b?.id, station.x, station.unit, round, knocked, floorOnly]);
   return null;
 }
 
@@ -201,7 +254,13 @@ export const FieldBrawl = memo(function FieldBrawl({
   sides,
   focus,
   bump,
+  floorIds,
+  spills = false,
 }: {
+  /** Who is fighting on the floor at ringside instead (tag partners, in a match where that is legal). */
+  floorIds?: ReadonlySet<Id>;
+  /** The rules allow fighting outside: pairs in the ring sometimes take it out there. */
+  spills?: boolean;
   /** The two the camera is on, so the field keeps clear of them and a spare one can pile in. */
   focus?: Focus;
   /** The featured exchange's big bump this beat, if any: a pair it lands on goes down. */
@@ -232,6 +291,8 @@ export const FieldBrawl = memo(function FieldBrawl({
   // their own side, so they come in rather than appear.
   for (const w of wrestlers) {
     const side = sides?.get(w.id);
+    // Off the apron to the floor, for a fight out there: down at ringside on their own side.
+    if (side && floorIds?.has(w.id) && !shared.leftAt.has(w.id)) shared.leftAt.set(w.id, { x: -side * (RING.half + 6), y: FRONT_FLOOR, rot: 0 });
     if (side && !shared.leftAt.has(w.id)) shared.leftAt.set(w.id, { x: -side * (RING.half + 2), y: 0, rot: 0 });
   }
   const pairs = Math.ceil(wrestlers.length / 2);
@@ -314,7 +375,7 @@ export const FieldBrawl = memo(function FieldBrawl({
       {ready &&
         (winners
           ? wrestlers.map((wrestler, i) => <Ending key={wrestler.id} wrestler={wrestler} won={winners.has(wrestler.id)} station={stationOf(Math.floor(i / 2))} shared={shared} />)
-          : Array.from({ length: pairs }, (_, k) => <Pair key={k} a={wrestlers[k * 2]!} b={wrestlers[k * 2 + 1]} station={stationOf(k)} shared={shared} focus={focus} bump={bump} />))}
+          : Array.from({ length: pairs }, (_, k) => <Pair key={k} a={wrestlers[k * 2]!} b={wrestlers[k * 2 + 1]} station={stationOf(k)} shared={shared} focus={focus} bump={bump} floorOnly={Boolean(floorIds?.has(wrestlers[k * 2]!.id))} spills={spills} />))}
     </>
   );
 });

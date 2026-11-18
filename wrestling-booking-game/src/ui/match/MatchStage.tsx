@@ -61,8 +61,12 @@ export interface StageFighter {
 export interface Bystander {
   wrestler: Wrestler;
   slot: 'left' | 'right';
-  /** A tag partner waits on the apron at their corner; everybody in an all-in match is in the ring. */
-  place: 'apron' | 'ring';
+  /**
+   * A tag partner waits on the apron at their corner; everybody in an all-in
+   * match is in the ring; tag partners in a match where the floor is legal
+   * end up fighting each other out there.
+   */
+  place: 'apron' | 'ring' | 'floor';
 }
 
 /** How the match came out, for the picture it ends on. */
@@ -623,15 +627,18 @@ export function MatchStage({
               whole time (FieldBrawl); a tag partner waits on the apron at
               their corner, and any more of the team on the floor beside it. */}
           <FieldBrawl
-            wrestlers={bystanders.filter((b) => b.place === 'ring').map((b) => b.wrestler)}
+            wrestlers={bystanders.filter((b) => b.place === 'ring' || b.place === 'floor').map((b) => b.wrestler)}
             // Anybody coming in from an apron (a tag match breaking down) comes in from their own side.
-            sides={conduct?.tags ? new Map(bystanders.filter((b) => b.place === 'ring').map((b) => [b.wrestler.id, dirOf(b.slot)])) : undefined}
+            sides={conduct?.tags ? new Map(bystanders.filter((b) => b.place === 'ring' || b.place === 'floor').map((b) => [b.wrestler.id, dirOf(b.slot)])) : undefined}
+            floorIds={new Set(bystanders.filter((b) => b.place === 'floor').map((b) => b.wrestler.id))}
+            spills={Boolean(conduct?.outside && conduct.allIn)}
             focus={
               plan && actor && target && !over
                 ? {
                     actorX: plan.tracks.get(actor.wrestler.id)?.[0]?.x ?? 0,
                     targetX: plan.tracks.get(target.wrestler.id)?.[0]?.x ?? 0,
                     down: Boolean(targetEnd && Math.abs(Math.abs(targetEnd.rot) - 90) < 30 && targetEnd.y < 5),
+                    floor: Boolean(targetEnd && onFrontFloor(targetEnd)),
                   }
                 : undefined
             }

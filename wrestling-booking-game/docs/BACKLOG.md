@@ -6924,3 +6924,11 @@ Played a real tag match and a real eight-man battle royal through the game (book
 - **Nobody is left out.** An odd one out — the third man in a triple threat, or the spare in an odd-numbered field — piles in on whoever is taking the move up front, from the far side of them: stomping them if they are down, swinging at them if they are up. No more prowling about looking for somebody.
 - **Collisions.** When the featured exchange has a big bump and a background pair is standing where it lands, that pair goes down with it.
 - Checked with a real tag match, battle royal and triple threat in the viewer. The collisions were not caught on camera in that run (they depend on a bump landing on a pair).
+
+## The fight outside happens at the same time as the fight inside
+
+Where the rules make the floor legal (no count-outs, street fights, no-DQ and the like):
+- **Multi-man matches:** background pairs now take it outside on their own schedule — tossed out under the ropes, a couple of exchanges on the floor (including into the barricade), rolled back in — while the featured exchange carries on wherever it is. Drawn in front of the ring while they are out there, behind its ropes once back in.
+- **Tag matches:** once the legal men have first taken it outside, the partners come off the apron and fight each other on the floor at ringside for the rest of the match, while the legal men work in the ring; they come in with everybody when it goes out of control.
+- **The odd one out follows:** when the featured exchange goes to the floor, the spare wrestler in a triple threat goes out after them to pile in, and rolls back in under the bottom rope when it comes back inside (it had been swinging from inside the ropes at somebody on the floor).
+- Still nothing out there decides anything. Checked with a real tag street fight and triple-threat street fight in the viewer.
