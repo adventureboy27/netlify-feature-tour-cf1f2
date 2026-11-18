@@ -7074,3 +7074,11 @@ The apron screen was flat colour panels that slid in and then sat still. It now 
 - **A physical screen:** a fine LED pixel grid over the picture, a little bloom, a glow round the screen in the scene's colour, and that colour spilling onto the floor in front of the ring.
 - Reduced motion: one still frame of the backdrop, no letter flights, swipes or flares.
 - Checked in renders (headless Chromium has WebGL): the title card (energy, letters landing), the VS card (each side's energy, VS), both packages (energy for a tweener, rays for a fan favourite), the cut to a move (racing grid), the winner (gold rays). Not seen: flames for a heel, the battle-royal reel, the red boo break-up, a star's moment; frame rate on a slow machine (the shader is capped at ~33 fps and the screen is small, but it was not measured).
+
+## Big faces on the Broadcast Ring's screen
+
+The faces on the apron screen were small framed squares. They are now as big as the screen is tall (`BigFace` in ui/match/ApronScreen.tsx): the portrait blown up and pushed up so the screen shows eyes to chin, cutting off the top of the head, against the screen's edge, glowing in their colour from behind, faded into the moving picture on the inside, pushing in slowly. The name sits beside it.
+- VS: side one's face against the left edge with their name to its right, side two's against the right edge with their name to its left (two a side overlap).
+- The packages, the cut to a move, a star's moment and the winner (two at most): the face on the left, the name to the right of it; the rays come from behind the face.
+- The battle-royal reel of everybody keeps small faces (there can be thirty).
+- Tuning lives in three constants at the top of the file (`FACE_WIDE`, `FACE_ZOOM`, `FACE_LIFT`). Checked in renders on the VS card, two packages and the winner, with drawn art. Not checked: an uploaded photo (it is cropped the same way, centred, and where the face sits depends on the photo).

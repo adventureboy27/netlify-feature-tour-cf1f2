@@ -506,3 +506,6 @@
   .mv-tv *, .mv-tv { animation: none !important; }
   .mv-tv-swipe, .mv-tv-flare, .mv-tv-scanline { display: none; }
 }
+/* A big face: a slow push in, toward the eyes. */
+.mv-tv-facepush { transform-origin: 50% 38%; animation: mv-tv-facepush 5s ease-out both; }
+@keyframes mv-tv-facepush { from { transform: scale(1); } to { transform: scale(1.09); } }

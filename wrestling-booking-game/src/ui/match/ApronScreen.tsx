@@ -44,6 +44,10 @@ export interface ScreenAction {
 }
 
 const upper = (s: string) => s.toUpperCase();
+/** A big face: how wide its panel is, how far the portrait is blown up, and how far up it is pushed (cutting the top of the head), all against the screen's height. */
+const FACE_WIDE = 1.9;
+const FACE_ZOOM = 2.6;
+const FACE_LIFT = 0.27;
 const GOLD = '#ffc933';
 
 /** Strong colours for somebody whose gear has none: picked by who they are, so it is always the same one. */
@@ -93,6 +97,33 @@ function Face({ w, size, delay = 0, ring }: { w: Wrestler; size: number; delay?:
         <div className="mv-tv-facesheen absolute inset-0" style={{ animationDelay: `${delay + 0.6}s` }} />
       </div>
       <div className="mv-tv-scanline absolute inset-x-0" style={{ animationDelay: `${delay}s`, boxShadow: `0 0 8px 2px ${c}`, '--tv-face': `${-size}px` } as React.CSSProperties} />
+    </div>
+  );
+}
+
+/**
+ * A face filling the screen top to bottom: zoomed in past the frame so most
+ * of the screen's height is face — the top of the head cut off if it has to
+ * be — and faded into the moving picture on the side the name is on.
+ */
+function BigFace({ w, h, side, delay = 0, ring }: { w: Wrestler; /** The screen's height. */ h: number; /** Which edge of the screen it sits against; it fades toward the other. */ side: 'left' | 'right'; delay?: number; ring?: string }) {
+  const c = ring ?? tvColorOf(w);
+  const width = h * FACE_WIDE;
+  const zoom = h * FACE_ZOOM;
+  const fade = side === 'left' ? 'to right' : 'to left';
+  return (
+    <div
+      className={`relative shrink-0 overflow-hidden ${side === 'left' ? 'mv-tv-inl' : 'mv-tv-inr'}`}
+      style={{ width, height: h, animationDelay: `${delay}s`, WebkitMaskImage: `linear-gradient(${fade}, #000 62%, transparent 100%)`, maskImage: `linear-gradient(${fade}, #000 62%, transparent 100%)` }}
+    >
+      {/* Their colour glowing up behind them. */}
+      <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse 60% 80% at 50% 70%, ${c}cc, transparent 75%)` }} />
+      <div className="mv-tv-facepush absolute" style={{ width: zoom, height: zoom, left: (width - zoom) / 2, top: -zoom * FACE_LIFT }}>
+        <Bust star={w} />
+      </div>
+      {/* Rim light from their side, and a sheen across. */}
+      <div className="absolute inset-0" style={{ background: `linear-gradient(${side === 'left' ? '90deg' : '270deg'}, ${c}66, transparent 35%)`, mixBlendMode: 'screen' }} />
+      <div className="mv-tv-facesheen absolute inset-0" style={{ animationDelay: `${delay + 0.6}s` }} />
     </div>
   );
 }
@@ -155,7 +186,7 @@ export const ApronScreen = memo(function ApronScreen({
   const ch = ((SKIRT_BOTTOM - PLATFORM.frontY) / VIEW.h) * h;
   const face = ch * 0.8;
   /** Where a face on the left sits, as a fraction across: the rays come from behind it. */
-  const faceFocus = (0.03 * cw + face / 2) / cw;
+  const faceFocus = (ch * FACE_WIDE * 0.42) / cw;
 
   const cast = useMemo(() => show.sides.flat(), [show.sides]);
   const castKey = cast.map((c) => c.id).join('|');
@@ -193,13 +224,14 @@ export const ApronScreen = memo(function ApronScreen({
             {/* Each side's half, cut on a slant, glass over the moving light. */}
             <div className="mv-tv-inl absolute inset-y-0 left-0" style={{ width: '55%', background: `linear-gradient(90deg, ${ca}aa, ${ca}11 85%)`, clipPath: 'polygon(0 0, 100% 0, 88% 100%, 0 100%)' }} />
             <div className="mv-tv-inr absolute inset-y-0 right-0" style={{ width: '55%', background: `linear-gradient(270deg, ${cb}aa, ${cb}11 85%)`, clipPath: 'polygon(12% 0, 100% 0, 100% 100%, 0 100%)' }} />
-            <div className="absolute inset-y-0 left-[2.5%] flex items-center gap-2">
-              {a.map((x, i) => <Face key={x.id} w={x} size={face} delay={0.1 + i * 0.12} />)}
-              <Kinetic text={namesA} size={fit(namesA, cw * 0.26, ch * 0.36)} from="slide" delay={0.3} />
+            {/* Each side's faces against their own edge, as big as the screen is tall; the names inward of them. */}
+            <div className="absolute inset-y-0 left-0 flex items-center">
+              {a.map((x, i) => <div key={x.id} style={{ marginLeft: i ? -ch * FACE_WIDE * 0.45 : 0 }}><BigFace w={x} h={ch} side="left" delay={0.1 + i * 0.12} /></div>)}
+              <span style={{ marginLeft: -ch * 0.25 }}><Kinetic text={namesA} size={fit(namesA, cw * 0.2, ch * 0.36)} from="slide" delay={0.3} /></span>
             </div>
-            <div className="absolute inset-y-0 right-[2.5%] flex items-center gap-2">
-              <Kinetic text={namesB} size={fit(namesB, cw * 0.26, ch * 0.36)} from="slide" delay={0.45} />
-              {b.map((x, i) => <Face key={x.id} w={x} size={face} delay={0.25 + i * 0.12} />)}
+            <div className="absolute inset-y-0 right-0 flex items-center">
+              <span style={{ marginRight: -ch * 0.25 }}><Kinetic text={namesB} size={fit(namesB, cw * 0.2, ch * 0.36)} from="slide" delay={0.45} /></span>
+              {b.map((x, i) => <div key={x.id} style={{ marginLeft: i ? -ch * FACE_WIDE * 0.45 : 0 }}><BigFace w={x} h={ch} side="right" delay={0.25 + i * 0.12} /></div>)}
             </div>
             <div className="mv-tv-bolt absolute inset-y-0 left-1/2 -translate-x-1/2" style={{ width: ch * 0.55 }} />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -239,10 +271,10 @@ export const ApronScreen = memo(function ApronScreen({
         node: (
           <div className="absolute inset-0">
             <div className="mv-tv-inl absolute inset-y-0 left-0" style={{ width: '62%', background: `linear-gradient(90deg, ${c}88, transparent)`, clipPath: 'polygon(0 0, 100% 0, 92% 100%, 0 100%)' }} />
-            <div className="absolute inset-y-0 left-[3%] flex items-center">
-              <Face w={x} size={face} />
+            <div className="absolute inset-y-0 left-0">
+              <BigFace w={x} h={ch} side="left" />
             </div>
-            <div className="absolute inset-y-0 flex flex-col justify-center" style={{ left: `calc(3% + ${face * 1.22}px)`, right: '16%' }}>
+            <div className="absolute inset-y-0 flex flex-col justify-center" style={{ left: ch * FACE_WIDE * 0.82, right: '16%' }}>
               {x.nickname && (
                 <span className="mv-tv-fadeup font-bold uppercase" style={{ fontSize: ch * 0.14, color: '#fff3c4', letterSpacing: '0.25em', whiteSpace: 'nowrap', animationDelay: '0.2s', textShadow: '0 0 6px #000' }}>
                   “{x.nickname}”
@@ -288,17 +320,17 @@ export const ApronScreen = memo(function ApronScreen({
   let scene: Scene | undefined = current;
   if (winners) {
     const label = caption ?? (winners.length ? 'YOUR WINNER!' : 'NO WINNER');
-    const across = face * Math.min(3, Math.max(1, winners.length)) * 1.1 + 10;
+    const across = ch * FACE_WIDE * (winners.length > 1 ? 1.37 : 0.82);
     scene = {
       key: `win-${winners.map((x) => x.id).join('|')}`,
       dur: 0,
       bg: { mode: 'rays', a: GOLD, b: winners[0] ? tvColorOf(winners[0]) : accent, focus: faceFocus },
       node: (
         <div className="absolute inset-0">
-          <div className="absolute inset-y-0 left-[3%] flex items-center gap-2">
-            {winners.slice(0, 3).map((x, i) => <Face key={x.id} w={x} size={face} delay={i * 0.1} ring={GOLD} />)}
+          <div className="absolute inset-y-0 left-0 flex items-center">
+            {winners.slice(0, 2).map((x, i) => <div key={x.id} style={{ marginLeft: i ? -ch * FACE_WIDE * 0.45 : 0 }}><BigFace w={x} h={ch} side="left" delay={i * 0.1} ring={GOLD} /></div>)}
           </div>
-          <div className="absolute inset-y-0 flex flex-col justify-center" style={{ left: `calc(3% + ${across}px)`, right: '3%' }}>
+          <div className="absolute inset-y-0 flex flex-col justify-center" style={{ left: across, right: '3%' }}>
             <Kinetic text={label} size={fit(label, cw * 0.55, ch * 0.4)} gold delay={0.2} />
             {winners.length > 0 && (
               <span className="mv-tv-fadeup font-black italic text-white" style={{ fontSize: fit(winners.map((x) => x.name).join(' & '), cw * 0.55, ch * 0.28), textShadow: '0 0 10px #000, 0.06em 0.06em 0 #000', whiteSpace: 'nowrap', animationDelay: '0.8s' }}>
@@ -319,10 +351,10 @@ export const ApronScreen = memo(function ApronScreen({
       node: (
         <div className="mv-tv-shake absolute inset-0">
           <div className="mv-tv-speed absolute inset-0" />
-          <div className="absolute inset-y-0 left-[3%] flex items-center">
-            <Face w={action.actor} size={face} />
+          <div className="absolute inset-y-0 left-0">
+            <BigFace w={action.actor} h={ch} side="left" />
           </div>
-          <div className="absolute inset-y-0 flex flex-col justify-center" style={{ left: `calc(3% + ${face * 1.22}px)`, right: '3%' }}>
+          <div className="absolute inset-y-0 flex flex-col justify-center" style={{ left: ch * FACE_WIDE * 0.82, right: '3%' }}>
             <span className="mv-tv-fadeup font-bold uppercase text-white/90" style={{ fontSize: ch * 0.14, letterSpacing: '0.3em', textShadow: '0 0 6px #000' }}>
               {upper(action.actor.name)}
             </span>
@@ -340,10 +372,10 @@ export const ApronScreen = memo(function ApronScreen({
       bg: { mode: 'rays', a: c, b: '#ffffff', focus: faceFocus, speed: 1.4 },
       node: (
         <div className="absolute inset-0">
-          <div className="absolute inset-y-0 left-[3%] flex items-center">
-            <Face w={star} size={face} />
+          <div className="absolute inset-y-0 left-0">
+            <BigFace w={star} h={ch} side="left" />
           </div>
-          <div className="absolute inset-0 flex items-center justify-center" style={{ paddingLeft: face }}>
+          <div className="absolute inset-0 flex items-center justify-center" style={{ paddingLeft: ch * FACE_WIDE * 0.8 }}>
             <Kinetic text={star.name} size={fit(star.name, cw * 0.7, ch * 0.52)} delay={0.1} />
           </div>
         </div>
