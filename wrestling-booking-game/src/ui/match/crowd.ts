@@ -19,6 +19,13 @@ export interface Reaction {
    * or most of the way through if it has none.
    */
   at?: number;
+  /**
+   * A star's moment: a main eventer (or bigger) the whole building is
+   * reacting to — their introduction, their big moments, their win. The
+   * arena is theirs for it (MatchStage): their face and name on the big
+   * screen, banners, the lights in their colour.
+   */
+  star?: Wrestler;
 }
 
 /** Past this either way, the crowd knows which side they are on. */
@@ -28,13 +35,17 @@ export type Standing = 'face' | 'heel' | 'tweener';
 export const standingOf = (w: Pick<Wrestler, 'alignment'> | undefined): Standing =>
   !w ? 'tweener' : w.alignment > LEAN ? 'face' : w.alignment < -LEAN ? 'heel' : 'tweener';
 
-/** Somebody popular gets it louder. */
-const loud = (w: Pick<Wrestler, 'popularity'> | undefined) => ((w?.popularity ?? 0) >= 70 ? 'roar' : 'pop');
+/** The top of the card: what the game itself calls a main eventer, or a draw. */
+export const isStar = (w: Pick<Wrestler, 'careerStatus'> | undefined) => w?.careerStatus === 'mainEventer' || w?.careerStatus === 'draw';
 
-/** For somebody: cheered if they are a face, booed if a heel, both if neither. */
-const for_ = (w: (Pick<Wrestler, 'alignment' | 'popularity'>) | undefined, size?: 'pop' | 'roar'): Reaction => {
+/** Somebody popular gets it louder; a star always does. */
+const loud = (w: Pick<Wrestler, 'popularity' | 'careerStatus'> | undefined) => ((w?.popularity ?? 0) >= 70 || isStar(w) ? 'roar' : 'pop');
+
+/** For somebody: cheered if they are a face, booed if a heel, both if neither — and the building theirs if they are a star. */
+const for_ = (w: Wrestler | undefined, size?: 'pop' | 'roar'): Reaction => {
   const s = standingOf(w);
-  return { mood: s === 'face' ? 'cheer' : s === 'heel' ? 'boo' : 'mixed', size: size ?? loud(w) };
+  const r: Reaction = { mood: s === 'face' ? 'cheer' : s === 'heel' ? 'boo' : 'mixed', size: size ?? loud(w) };
+  return w && isStar(w) && r.size === 'roar' ? { ...r, star: w } : r;
 };
 
 /** Things done that should not have been: booed whoever did them, unless a face did it (and then it is split). */
@@ -79,12 +90,15 @@ export function reactionTo(beat: PlaybackBeat, actor: Wrestler | undefined, targ
 }
 
 /** Walking out to the ring: each of them, in turn. */
-export const entranceOf = (w: Wrestler): Reaction => ({ ...for_(w), size: loud(w) });
+export const entranceOf = (w: Wrestler): Reaction => for_(w, loud(w));
 
 /** When it is over: for whoever won. Nobody won: split. */
 export function finaleFor(winners: readonly Wrestler[]): Reaction {
   if (winners.length === 0) return { mood: 'mixed', size: 'pop' };
   const faces = winners.filter((w) => standingOf(w) === 'face').length;
   const heels = winners.filter((w) => standingOf(w) === 'heel').length;
-  return { mood: faces > heels ? 'cheer' : heels > faces ? 'boo' : 'mixed', size: 'roar' };
+  const mood = faces > heels ? 'cheer' : heels > faces ? 'boo' : 'mixed';
+  // A star's win is theirs: the first star among the winners gets the building.
+  const star = winners.find((w) => isStar(w));
+  return { mood, size: 'roar', ...(star ? { star } : {}) };
 }

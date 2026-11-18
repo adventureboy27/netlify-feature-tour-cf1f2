@@ -208,6 +208,25 @@ function wrapName(name: string): string[] {
 }
 
 const LAMPS = [150, 380, 600, 820, 1050] as const;
+/**
+ * How each lamp moves and what colour it is: its own sweep (how far, how
+ * fast, which way first) and its own run through the colours, so the rig
+ * never moves or changes together. Fixed by arithmetic, the same every time.
+ */
+const LAMP_MOTION = LAMPS.map((_, i) => {
+  const frac = (n: number) => n - Math.floor(n);
+  const a = frac(Math.sin(i * 12.9898 + 4.1) * 43758.5453);
+  const b = frac(Math.sin(i * 78.233 + 1.7) * 12543.123);
+  const c = frac(Math.sin(i * 37.719 + 9.3) * 9631.77);
+  return {
+    sweep: 7 + a * 11,
+    every: 2.8 + b * 4.4,
+    delay: -c * 8,
+    reverse: a > 0.5,
+    hueEvery: 7 + c * 9,
+    hueDelay: -b * 16,
+  };
+});
 
 /** Everything behind the wrestlers. */
 export const ArenaBack = memo(function ArenaBack({
@@ -222,6 +241,7 @@ export const ArenaBack = memo(function ArenaBack({
   stepsGone = false,
   mood = null,
   moodBig = false,
+  starColor,
   signs,
   onSideRope,
 }: {
@@ -229,6 +249,8 @@ export const ArenaBack = memo(function ArenaBack({
   mood?: 'cheer' | 'boo' | 'ooh' | 'mixed' | null;
   /** ...and it is the full building, not a pop. */
   moodBig?: boolean;
+  /** A star's moment: every lamp in their colour. */
+  starColor?: string;
   /** What the signs in the front row say. */
   signs?: readonly string[];
   /** Somebody has taken the steel steps off the corner: they are not there any more. */
@@ -251,7 +273,7 @@ export const ArenaBack = memo(function ArenaBack({
   showName: boolean;
 }) {
   return (
-    <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className={`absolute inset-0 h-full w-full ${hype ? 'mv-hype' : ''}${mood ? ` mv-mood mv-mood-${mood}${moodBig ? ' mv-mood-big' : ''}` : ''}`} aria-hidden>
+    <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className={`absolute inset-0 h-full w-full ${hype ? 'mv-hype' : ''}${mood ? ` mv-mood mv-mood-${mood}${moodBig ? ' mv-mood-big' : ''}` : ''}${starColor ? ' mv-starlit' : ''}`} aria-hidden>
       <defs>
         <radialGradient id="mv-bg" cx="50%" cy="62%" r="75%">
           <stop offset="0%" stopColor="#1b2030" />
@@ -272,6 +294,19 @@ export const ArenaBack = memo(function ArenaBack({
           <stop offset="0%" stopColor="#ff2a2a" stopOpacity="0.55" />
           <stop offset="100%" stopColor="#ff2a2a" stopOpacity="0" />
         </linearGradient>
+        {/* Each lamp's own colour, running through the rig's gels at its own pace. */}
+        {LAMP_MOTION.map((m, i) => (
+          <linearGradient key={i} id={`mv-cone-${i}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" className="mv-gel" stopColor="#ffffff" stopOpacity="0.26" style={{ animationDuration: `${m.hueEvery}s`, animationDelay: `${m.hueDelay}s` }} />
+            <stop offset="100%" className="mv-gel" stopColor="#ffffff" stopOpacity="0" style={{ animationDuration: `${m.hueEvery}s`, animationDelay: `${m.hueDelay}s` }} />
+          </linearGradient>
+        ))}
+        {starColor && (
+          <linearGradient id="mv-cone-star" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={starColor} stopOpacity="0.6" />
+            <stop offset="100%" stopColor={starColor} stopOpacity="0" />
+          </linearGradient>
+        )}
         <linearGradient id="mv-mat" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#b9bec9" />
           <stop offset="100%" stopColor="#dfe2e8" />
@@ -346,30 +381,21 @@ export const ArenaBack = memo(function ArenaBack({
       {/* Lighting rig, and the beams off it. */}
       <rect x={0} y={14} width={VIEW.w} height={5} fill="#1d2027" />
       <rect x={0} y={24} width={VIEW.w} height={3} fill="#15171d" />
-      {LAMPS.map((x, i) => (
+      {LAMPS.map((x, i) => {
+        const m = LAMP_MOTION[i]!;
+        // Every beam off one lamp sweeps together: the lamp is what moves.
+        const beam = { transformOrigin: `${x}px 26px`, animationDuration: `${m.every}s`, animationDelay: `${m.delay}s`, animationDirection: m.reverse ? 'alternate-reverse' : 'alternate', '--sweep': `${m.sweep}deg` } as React.CSSProperties;
+        return (
         <g key={x}>
-          <polygon
-            className="mv-cone"
-            points={`${x - 9},26 ${x + 9},26 ${x + 150},600 ${x - 150},600`}
-            fill="url(#mv-cone)"
-            style={{ transformOrigin: `${x}px 26px`, animationDelay: `${-i * 1.7}s`, animationDuration: `${6 + i}s` }}
-          />
-          <polygon
-            className="mv-cone mv-cone-bright"
-            points={`${x - 9},26 ${x + 9},26 ${x + 170},600 ${x - 170},600`}
-            fill="url(#mv-cone-bright)"
-            style={{ transformOrigin: `${x}px 26px`, animationDelay: `${-i * 1.7}s`, animationDuration: `${6 + i}s` }}
-          />
-          <polygon
-            className="mv-cone mv-cone-red"
-            points={`${x - 9},26 ${x + 9},26 ${x + 170},600 ${x - 170},600`}
-            fill="url(#mv-cone-red)"
-            style={{ transformOrigin: `${x}px 26px`, animationDelay: `${-i * 0.6}s`, animationDuration: `${2 + i * 0.4}s` }}
-          />
+          <polygon className="mv-cone" points={`${x - 9},26 ${x + 9},26 ${x + 150},600 ${x - 150},600`} fill={`url(#mv-cone-${i})`} style={beam} />
+          <polygon className="mv-cone mv-cone-bright" points={`${x - 9},26 ${x + 9},26 ${x + 170},600 ${x - 170},600`} fill="url(#mv-cone-bright)" style={beam} />
+          <polygon className="mv-cone mv-cone-red" points={`${x - 9},26 ${x + 9},26 ${x + 170},600 ${x - 170},600`} fill="url(#mv-cone-red)" style={beam} />
+          {starColor && <polygon className="mv-cone mv-cone-star" points={`${x - 9},26 ${x + 9},26 ${x + 170},600 ${x - 170},600`} fill="url(#mv-cone-star)" style={beam} />}
           <rect x={x - 11} y={18} width={22} height={11} rx={2} fill="#2a2e38" />
-          <circle cx={x} cy={29} r={5} fill="#fff7dc" />
+          <circle cx={x} cy={29} r={5} fill="#fff7dc" className="mv-lens" style={{ animationDuration: `${m.hueEvery}s`, animationDelay: `${m.hueDelay}s` }} />
         </g>
-      ))}
+        );
+      })}
 
       <Crowd signs={signs} />
       <Flashes />

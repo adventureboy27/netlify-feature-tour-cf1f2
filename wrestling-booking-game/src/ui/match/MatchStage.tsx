@@ -18,6 +18,7 @@ import { ArenaBack, ArenaFront, FEET_Y, ROPE_CROSS_X, SIDE_ROPE_POST, STEPS_X, V
 import { Prize, PrizeHung, prizeKind, type BeltLook } from './Belt';
 import { bell, boo, cheer, crowd, hit, hitFor, mixed, ooh } from './sound';
 import type { Mood, Reaction } from './crowd';
+import { Confetti, StarMoment, starColorOf } from './StarMoment';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { playPlan, settle } from './playback';
@@ -486,19 +487,20 @@ export function MatchStage({
   const litterKey = useRef(0);
   const [stepsGone, setStepsGone] = useState(false);
   // How the room feels right now: shown in the crowd for a moment, then gone.
-  const [mood, setMood] = useState<{ mood: Mood; big: boolean; key: number } | null>(null);
+  const [mood, setMood] = useState<{ mood: Mood; big: boolean; key: number; star?: Wrestler; victory?: boolean } | null>(null);
   const moodKey = useRef(0);
   const moodTimers = useRef<number[]>([]);
   /** The crowd reacting, `delay` ms from now: heard, and seen in the stands. */
-  const react = useCallback((r: Reaction, delay: number) => {
+  const react = useCallback((r: Reaction, delay: number, victory = false) => {
     const play = { cheer, boo, mixed, ooh: (_size: 'pop' | 'roar', ms: number) => ooh(ms) }[r.mood];
     play(r.size, delay);
     moodTimers.current.push(
       window.setTimeout(() => {
         const key = ++moodKey.current;
-        setMood({ mood: r.mood, big: r.size === 'roar', key });
+        setMood({ mood: r.mood, big: r.size === 'roar', key, ...(r.star ? { star: r.star, victory } : {}) });
         if (r.mood === 'cheer' && r.size === 'roar') setHype(true);
-        moodTimers.current.push(window.setTimeout(() => setMood((m) => (m?.key === key ? null : m)), r.size === 'roar' ? 2600 : 1700));
+        // A star's win is held: the building is still theirs while they celebrate.
+        if (!(victory && r.star)) moodTimers.current.push(window.setTimeout(() => setMood((m) => (m?.key === key ? null : m)), r.star ? 2700 : r.size === 'roar' ? 2600 : 1700));
       }, delay),
     );
   }, []);
@@ -916,7 +918,7 @@ export function MatchStage({
     setHype(true);
     bell(3);
     // For whoever won it — or not.
-    react(finale ?? { mood: 'cheer', size: 'roar' }, 250);
+    react(finale ?? { mood: 'cheer', size: 'roar' }, 250, true);
     const loop: Animation[] = [];
     const timer = window.setTimeout(() => {
       const cheering = cast.filter((f) => cheers.has(f.id));
@@ -984,7 +986,7 @@ export function MatchStage({
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
       {w > 0 && (
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
-          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} signs={signs} onSideRope={onSideRope} />
+          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} starColor={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : undefined} signs={signs} onSideRope={onSideRope} />
 
           {/* The apron is the nearest thing this building has to a nameplate. */}
           {conduct?.noRing ? null : corners ? (
@@ -1021,6 +1023,18 @@ export function MatchStage({
                     />
                   )),
                 )}
+            </div>
+          )}
+
+          {/* A star's moment: the building is theirs. */}
+          {mood?.star && (
+            <div key={`star-${mood.key}`} className="pointer-events-none absolute inset-0" style={{ zIndex: 1 }}>
+              <StarMoment star={mood.star} mood={mood.mood} victory={Boolean(mood.victory)} color={starColorOf(mood.star)} u={u} caption={callout} />
+            </div>
+          )}
+          {mood?.star && mood.victory && mood.mood !== 'boo' && (
+            <div key={`confetti-${mood.key}`} className="pointer-events-none absolute inset-0" style={{ zIndex: 19 }}>
+              <Confetti color={starColorOf(mood.star)} u={u} />
             </div>
           )}
 
@@ -1419,7 +1433,7 @@ export function MatchStage({
               : [w * 0.18, w * 0.82]
             ).map((x) => <PyroBurst key={`${beatKey}-pyro-${x}`} left={x} bottom={feetY + 0.5 * u} width={9 * u} height={26 * u} />)}
 
-          {callout && (
+          {callout && !mood?.star && (
             <div
               key={`callout-${beatKey}-${over}`}
               className="pointer-events-none absolute flex items-center justify-center px-2 text-center"

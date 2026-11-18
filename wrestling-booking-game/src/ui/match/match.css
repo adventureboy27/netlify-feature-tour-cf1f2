@@ -30,7 +30,7 @@
    up full. Angry: fists shaking at the ring, and the lights go red. */
 .mv-cone-bright, .mv-cone-red { opacity: 0; transition: opacity 0.35s ease-out; }
 .mv-mood-big.mv-mood-cheer .mv-cone-bright { opacity: 1; }
-.mv-mood-big.mv-mood-boo .mv-cone-red { opacity: 1; animation-name: mv-sway, mv-redpulse; animation-duration: 3s, 0.7s; animation-iteration-count: infinite, infinite; animation-direction: alternate, alternate; }
+.mv-mood-big.mv-mood-boo .mv-cone-red { opacity: 1; animation-name: mv-sweep, mv-redpulse; animation-duration: 3s, 0.7s; animation-iteration-count: infinite, infinite; animation-direction: alternate, alternate; }
 @keyframes mv-redpulse { from { opacity: 0.55; } to { opacity: 1; } }
 .mv-mood-big.mv-mood-cheer .mv-r .mv-p-fist-cheer,
 .mv-mood-big.mv-mood-boo .mv-r .mv-p-fist-boo,
@@ -58,7 +58,16 @@
   from { transform: rotate(-5deg); }
   to { transform: rotate(5deg); }
 }
-.mv-cone { transform-box: view-box; animation: mv-sway 7s ease-in-out infinite alternate; }
+.mv-cone { transform-box: view-box; animation: mv-sweep 5s ease-in-out infinite alternate; }
+/* Each lamp swings its own way, as far as it swings (--sweep, Arena.tsx). */
+@keyframes mv-sweep { from { transform: rotate(calc(-1 * var(--sweep, 5deg))); } to { transform: rotate(var(--sweep, 5deg)); } }
+/* And runs through the gels: mostly white, then gold, magenta, blue, cyan. */
+.mv-gel { animation: mv-gel 10s linear infinite; }
+@keyframes mv-gel { 0%, 18% { stop-color: #ffffff; } 30% { stop-color: #ffc95c; } 46% { stop-color: #ff4fd8; } 62% { stop-color: #4f7bff; } 78% { stop-color: #4ff0ff; } 92%, 100% { stop-color: #ffffff; } }
+.mv-lens { animation: mv-lens 10s linear infinite; }
+@keyframes mv-lens { 0%, 18% { fill: #fff7dc; } 30% { fill: #ffd98a; } 46% { fill: #ff8be6; } 62% { fill: #8faaff; } 78% { fill: #9ff6ff; } 92%, 100% { fill: #fff7dc; } }
+.mv-cone-star { opacity: 0; transition: opacity 0.4s ease-out; }
+.mv-starlit .mv-cone-star { opacity: 1; }
 
 @keyframes mv-flash {
   0%, 92%, 100% { opacity: 0; }
@@ -161,7 +170,7 @@
 @media (prefers-reduced-motion: reduce) {
   .mv-cheer { animation: none; }
   .mv-breathe { animation: none; }
-  .mv-crowd, .mv-cone, .mv-flash { animation: none; }
+  .mv-crowd, .mv-cone, .mv-flash, .mv-gel, .mv-lens { animation: none; }
 }
 
 /* The referee's voice without the referee: poster lettering, slammed on. */
@@ -298,3 +307,20 @@
   animation: mv-flashpop 0.6s ease-out both;
 }
 @media (prefers-reduced-motion: reduce) { .mv-flashpop { animation: none; } }
+
+/* A star's moment (StarMoment.tsx): the screen lights up with them, the
+   banners drop, and on a win the confetti comes down. */
+.mv-starscreen { animation: mv-starscreen 2.6s ease-out both; }
+@keyframes mv-starscreen { 0% { opacity: 0; transform: scale(0.94); } 8% { opacity: 1; transform: scale(1.03); } 14% { transform: scale(1); } 22%, 34%, 46% { filter: brightness(1.6); } 28%, 40%, 52% { filter: brightness(1); } 85% { opacity: 1; } 100% { opacity: 0; } }
+.mv-starname { animation: mv-starname 0.5s ease-out both; }
+@keyframes mv-starname { from { transform: translateX(30%) skewX(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.mv-starbanner { transform-origin: 50% 0; animation: mv-starbanner 2.6s ease-out both; }
+@keyframes mv-starbanner { 0% { transform: scaleY(0); } 14% { transform: scaleY(1.04); } 20% { transform: scaleY(1); } 85% { opacity: 1; } 100% { opacity: 0; transform: scaleY(1); } }
+.mv-confetti { animation-name: mv-confetti; animation-timing-function: linear; animation-iteration-count: infinite; }
+@keyframes mv-confetti { from { top: -3%; transform: translateX(0) rotate(0deg); } to { top: 103%; transform: translateX(var(--drift)) rotate(var(--spin)); } }
+/* A star's win stays up: the screen and banners are theirs until it is over. */
+.mv-starscreen.mv-starhold { animation-name: mv-starscreen-hold; }
+@keyframes mv-starscreen-hold { 0% { opacity: 0; transform: scale(0.94); } 8% { opacity: 1; transform: scale(1.03); } 14% { transform: scale(1); } 22%, 34%, 46% { filter: brightness(1.6); } 28%, 40%, 52%, 100% { filter: brightness(1); opacity: 1; } }
+.mv-starbanner.mv-starhold { animation-name: mv-starbanner-hold; }
+@keyframes mv-starbanner-hold { 0% { transform: scaleY(0); } 14% { transform: scaleY(1.04); } 20%, 100% { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .mv-confetti { display: none; } .mv-starscreen, .mv-starbanner { animation-duration: 0.01s; } }
