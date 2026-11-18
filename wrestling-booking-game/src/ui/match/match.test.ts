@@ -777,3 +777,27 @@ describe('a battle royal stopped for an injury', () => {
     expect(rulebook('battleRoyal', 'cleanPin', {}, [1, 7]).finish).toBe('overTop');
   });
 });
+
+describe('a battle royal elimination is over the top and onto the floor, every time', () => {
+  it('throws out the ones the write-up does not name, in the recorded order, by whoever did it', () => {
+    const field = generateWrestlers(rngFromSeed('royal-field'), 6);
+    const everyone = new Map([...field].map((w) => [w.id, w] as const));
+    const [winner, ...rest] = field;
+    const named = rest[2]!;
+    const order = rest.map((w, i) => ({ out: w.id, by: i === 0 ? winner!.id : rest[i - 1]!.id }));
+    const timeline: PlaybackBeat[] = [
+      beat('exchange', { actorId: winner!.id, targetId: rest[0]!.id }),
+      beat('control', { actorId: winner!.id, targetId: rest[0]!.id }),
+      beat('elimination', { kind: 'elimination', actorId: winner!.id, targetId: named.id }),
+      beat('control', { actorId: winner!.id, targetId: rest[4]!.id }),
+      beat('finish', { actorId: winner!.id, targetId: rest[4]!.id }),
+    ];
+    const moments = stageMatch(timeline, [], everyone, 'cleanPin', { conduct: rulebook('battleRoyal', 'cleanPin', {}, [1, 5]), eliminationOrder: order }).moments;
+    const outs = moments.filter((m) => m.beat.pose === 'elimination');
+    // Everybody but the last one (who goes at the finish), in order.
+    expect(outs.map((m) => m.targetId)).toEqual(rest.slice(0, 4).map((w) => w.id));
+    for (const m of outs) expect(['elimination', 'clotheslineOver', 'backdropOver']).toContain(m.staged.move);
+    // Each over the top rope: the move puts its target out of the ring.
+    for (const m of outs) expect(META[m.staged.move]?.exits).toBeDefined();
+  });
+});

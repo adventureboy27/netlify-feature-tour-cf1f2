@@ -1195,6 +1195,11 @@ export function stageMatch(
     /** The rules the match is fought under (conduct.ts). Absent: an ordinary one-fall match. */
     conduct?: Conduct;
     /**
+     * A battle royal's whole elimination order (SegmentResult.battleRoyalOrder).
+     * The ones the timeline does not name are thrown out over the top too.
+     */
+    eliminationOrder?: readonly { out: Id; by: Id | null }[];
+    /**
      * The two sides of a tag match. With it, the team in control makes its
      * own tags during the unspoken stretches — the sim only says who was in
      * for the moments it recorded, and a team that never tags is not a team.
@@ -1324,8 +1329,56 @@ export function stageMatch(
       order.forEach((i, n) => fallAfter.set(i, n === 0 ? 'FIRST FALL!' : 'ONE FALL EACH!'));
     }
   }
+  // DESIGN: a battle royal's write-up names a few of its eliminations; the
+  // rest still happened, in the order the simulation recorded, and every one
+  // of them is a wrestler going over the top rope and hitting the floor. Each
+  // unnamed one goes in the gap between the named eliminations either side of
+  // it in that order, spread evenly, done by whoever the sim says did it.
+  const throwOuts = new Map<number, { out: Id; by: Id | null }[]>();
+  // (Whoever goes out at the finish goes out at the finish, not before it.)
+  const lastOut = timeline.filter((b) => b.pose === 'finish').pop()?.targetId ?? null;
+  const order = conduct.overTheTop ? (options.eliminationOrder ?? []).filter((e) => e.out !== lastOut) : [];
+  if (order.length > 0) {
+    const named = new Map<Id, number>();
+    timeline.forEach((b, i) => {
+      if (b.pose === 'elimination' && b.targetId) named.set(b.targetId, i);
+    });
+    const finishAt = timeline.map((b) => b.pose).lastIndexOf('finish');
+    const end = finishAt >= 0 ? finishAt : timeline.length;
+    let from = 0;
+    let k = 0;
+    while (k < order.length) {
+      let j = k;
+      while (j < order.length && !named.has(order[j]!.out)) j++;
+      const to = j < order.length ? named.get(order[j]!.out)! : end;
+      const run = order.slice(k, j);
+      run.forEach((entry, n) => {
+        const after = Math.max(from, Math.min(to - 1, from + Math.floor(((n + 1) * (to - from)) / (run.length + 1))));
+        throwOuts.set(after, [...(throwOuts.get(after) ?? []), entry]);
+      });
+      if (j < order.length) from = Math.max(from, named.get(order[j]!.out)!);
+      k = j + 1;
+    }
+  }
+  const thrownOut = new Set<Id>();
+  const champ = (() => {
+    const closer = timeline[timeline.length - 1];
+    return closer ? (conduct.finish === 'dq' ? closer.targetId : closer.actorId) : null;
+  })();
   timeline.forEach((beat, index) => {
     stage(beat, index, synced ? commentary.filter((line) => line.beat === index) : [], false);
+    if (beat.pose === 'elimination' && beat.targetId) thrownOut.add(beat.targetId);
+    for (const [n, { out, by }] of (throwOuts.get(index) ?? []).entries()) {
+      // Whoever put them out, if they are still in it themselves; otherwise the winner.
+      const actorId = by && !thrownOut.has(by) && by !== out ? by : champ;
+      if (!actorId || actorId === out) continue;
+      const move = OVER_THE_TOP[(index + n) % OVER_THE_TOP.length]!;
+      const staged = stageMove(move, 2000);
+      moments.push({ beat: { kind: 'elimination', pose: 'elimination', text: '', significant: false, actorId, targetId: out, moveName: null }, actorId, targetId: out, staged, lines: [], holdMs: 2000, filler: true });
+      recent.push(move);
+      thrownOut.add(out);
+      downId = null;
+    }
     const last = moments[moments.length - 1]!;
     const next = timeline[index + 1];
     if (!next || !last.actorId || !last.targetId || !CARRIES_ON.includes(beat.pose)) return;

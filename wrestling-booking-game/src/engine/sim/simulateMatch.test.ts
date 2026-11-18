@@ -529,9 +529,13 @@ describe('a battle royal keeps its whole elimination order', () => {
     const byId = new Map(roster.map((w) => [w.id, w]));
     const participants: SimParticipant[] = roster.map((w, i) => ({ wrestlerId: w.id, side: i }));
     const result = simulateMatch(rngFromSeed('royal'), participants, byId, baseContext({ stipulation: stipulationById('battleRoyal') ?? null, rules: baseRules({ preset: 'battleRoyal' }) }));
-    const order = result.battleRoyalOrder ?? [];
+    const order = (result.battleRoyalOrder ?? []).map((e) => e.out);
     expect(order).toHaveLength(7);
     expect(new Set(order).size).toBe(7);
     for (const id of result.winnerWrestlerIds) expect(order).not.toContain(id);
+    // And whoever put each one out was still in it to do so.
+    (result.battleRoyalOrder ?? []).forEach((e, i) => {
+      if (e.by) expect(order.slice(0, i)).not.toContain(e.by);
+    });
   });
 });

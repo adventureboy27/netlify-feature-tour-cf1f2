@@ -251,7 +251,8 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
   let lead = 0;
   for (const f of fighters) {
     if (f.taggedIn) {
-      lead = Math.max(lead, 0.3);
+      // Time to make the tag — hands touch at TAG_TOUCH of this — then come in.
+      lead = Math.max(lead, 0.5);
       continue;
     }
     if (!f.from) continue;
@@ -277,10 +278,13 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
       const to = { x: h + f.dir * first[1], y: first[2] + ground, rot: f.dir * first[3] };
       if (f.taggedIn) {
         const from = apronX(f.dir);
+        // On the apron, reaching in over the top rope for the hand — and
+        // only once it has been touched, over the rope and in.
         frames.push({ at: 0, x: from, y: 0, rot: 0, sy: 1, stance: 'stand' });
-        // Over the top rope, not through it.
-        frames.push({ at: lead * 0.5, x: -f.dir * (RING.half - 1), y: TAG_VAULT_HEIGHT, rot: f.dir * 16, sy: 1, stance: 'tuck' });
-        frames.push({ at: lead * 0.92, x: to.x, y: 0.4, rot: 0, sy: 1, stance: 'crouch' });
+        frames.push({ at: lead * 0.3, x: from, y: 0, rot: 0, sy: 1, stance: 'tagIn' });
+        frames.push({ at: lead * TAG_TOUCH, x: from, y: 0, rot: 0, sy: 1, stance: 'tagIn' });
+        frames.push({ at: lead * 0.8, x: -f.dir * (RING.half - 1), y: TAG_VAULT_HEIGHT, rot: f.dir * 16, sy: 1, stance: 'tuck' });
+        frames.push({ at: lead * 0.96, x: to.x, y: 0.4, rot: 0, sy: 1, stance: 'crouch' });
       } else if (f.from) {
         frames.push({ at: 0, ...f.from, sy: 1, stance: lying(f.from) ? 'flat' : undefined });
         if (lying(f.from)) {
@@ -411,4 +415,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
 }
 
 /** Where a pose's head ends up — used to put the referee's count over a cover. */
+/** When, through a tag's lead-in, the two hands meet (both sides use it). */
+export const TAG_TOUCH = 0.55;
+
 export const midBody = (pose: WorldPose) => ({ x: (pose.x + headX(pose.x, pose.rot)) / 2, y: (pose.y + headY(pose.y, pose.rot)) / 2 });

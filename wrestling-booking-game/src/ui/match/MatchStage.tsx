@@ -21,9 +21,9 @@ import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { playPlan, settle } from './playback';
 import { FieldBrawl } from './FieldBrawl';
-import { DOWN, FLOOR, FRONT_FLOOR, GAP, type StagedBeat } from './choreography';
+import { DOWN, FLOOR, FRONT_FLOOR, GAP, TAG_VAULT_HEIGHT, type StagedBeat } from './choreography';
 import { PyroBurst } from './Pyro';
-import { RING, apronX, midBody, onFrontFloor, planBeat, type Plan, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
+import { RING, TAG_TOUCH, apronX, midBody, onFrontFloor, planBeat, type Plan, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
 import type { Conduct } from './conduct';
 import type { Id, Wrestler } from '../../engine/types';
 
@@ -126,6 +126,12 @@ const planOf = (tracks: Map<Id, WorldFrame[]>): Plan => ({
 
 const MAT_SPLAT = 'M 0,-9 C 6,-10 10,-4 8,1 C 12,4 9,10 3,8 C 1,13 -6,11 -6,6 C -12,6 -11,-1 -7,-3 C -9,-8 -4,-10 0,-9 Z M 13,-6 a 2.5,2.5 0 1,0 0.1,0 Z M -12,9 a 2,2 0 1,0 0.1,0 Z M 11,11 a 1.5,1.5 0 1,0 0.1,0 Z';
 
+/**
+ * How far in from the apron the one being tagged out stands to make the tag:
+ * both of them upright, arms up, the two hands meeting above the top rope.
+ */
+const TAG_REACH = 8.6;
+
 /** A splat of blood on the mat: where (ring x, and how far up or down the canvas), how big, which way. */
 export interface Stain {
   x: number;
@@ -151,6 +157,7 @@ export function MatchStage({
   wear,
   stains = [],
   entrancePyro = false,
+  tagOuts = [],
   corners,
   eventName,
   prize,
@@ -201,6 +208,11 @@ export function MatchStage({
   stains?: readonly Stain[];
   /** The show had pyro: it goes off at the ring posts before the bell. */
   entrancePyro?: boolean;
+  /**
+   * Whoever is being tagged out this beat: they go to their corner, touch
+   * the hand of the partner coming in, and climb out to the apron.
+   */
+  tagOuts?: readonly StageFighter[];
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
@@ -277,7 +289,8 @@ export function MatchStage({
   const ending: StageFighter[] = over
     ? bystanders.filter((b) => b.place === 'apron' && !inBeat.has(b.wrestler.id)).map((b) => ({ wrestler: b.wrestler, role: 'target' as const, slot: b.slot }))
     : [];
-  const drawn = [...fighters, ...ending, ...leavers];
+  const tagging = over ? [] : tagOuts.filter((t) => !inBeat.has(t.wrestler.id));
+  const drawn = [...fighters, ...ending, ...leavers, ...tagging];
 
   // ---- the beat ---------------------------------------------------------
   useLayoutEffect(() => {
@@ -323,6 +336,31 @@ export function MatchStage({
     }
     if (drops.length > 0) setDripped((d) => [...d, ...drops].slice(-14));
     const running = playPlan(next, cast, (id) => figureRefs.current.get(id), (id) => jointRefs.current.get(id), u, figureW, duration);
+    // A tag: the one going out walks to their corner, reaches back for the
+    // hand, and once it is touched climbs out to the apron, while the one
+    // coming in (ringPhysics.ts) reaches in for it and then comes over.
+    for (const t of tagging) {
+      const id = t.wrestler.id;
+      const side = dirOf(t.slot);
+      const from = leftAt.current.get(id) ?? { x: -side * (RING.half - 4), y: 0, rot: 0 };
+      // Far enough in from the corner that the two reaching hands meet at the ropes.
+      const corner = { x: apronX(side) + side * TAG_REACH, y: 0, rot: 0 };
+      const lead = Math.max(next.lead, 0.3);
+      const down = Math.abs(Math.abs(from.rot) - 90) < 30;
+      const frames: WorldFrame[] = [frame(0, from, down ? 'flat' : undefined)];
+      if (down) frames.push(frame(lead * 0.15, { x: from.x, y: 0, rot: from.rot * 0.2 }, 'kneel'));
+      frames.push(
+        frame(lead * 0.35, corner, 'tagOut'),
+        frame(lead * TAG_TOUCH, corner, 'tagOut'),
+        frame(lead * 0.8, { x: -side * (RING.half + 0.5), y: TAG_VAULT_HEIGHT * 0.75, rot: 0 }, 'climb'),
+        frame(Math.min(1, lead * 1.05), { x: apronX(side), y: 0, rot: 0 }, 'stand'),
+        frame(1, { x: apronX(side), y: 0, rot: 0 }, 'guard'),
+      );
+      leftAt.current.set(id, { x: apronX(side), y: 0, rot: 0 });
+      const el = figureRefs.current.get(id);
+      if (el) el.style.transform = '';
+      running.push(...playPlan(planOf(new Map([[id, frames]])), [{ id, role: 'actor', dir: side, from, taggedIn: false }], (key) => figureRefs.current.get(key), (key) => jointRefs.current.get(key), u, figureW, duration));
+    }
 
     const timers: number[] = [];
     // What it sounds like: every impact, the hand on the mat for a count, the
@@ -797,7 +835,7 @@ export function MatchStage({
                   key={`${beatKey}-tag-${f.wrestler.id}`}
                   viewBox="-50 -50 100 100"
                   className="mv-burst pointer-events-none absolute"
-                  style={{ left: sx(apronX(dirOf(f.slot)) + dirOf(f.slot) * 2.5), top: sy(13), width: 9 * u, height: 9 * u, zIndex: 6 }}
+                  style={{ left: sx(apronX(dirOf(f.slot)) + dirOf(f.slot) * (TAG_REACH / 2)) - 3.5 * u, top: sy(23.5), width: 7 * u, height: 7 * u, zIndex: 11, animationDelay: `${Math.max(0, (plan?.lead ?? 0.5) * TAG_TOUCH * duration - 100)}ms` }}
                 >
                   <polygon points="0,-48 9,-17 38,-34 20,-7 48,2 19,11 31,40 6,20 -8,48 -12,17 -42,28 -22,3 -48,-12 -18,-13 -24,-42" fill="#ffffff" stroke="#ffe27a" strokeWidth={3} />
                 </svg>
