@@ -138,6 +138,19 @@ const SPARKLES = Array.from({ length: 46 }, (_, i) => {
   const frac = (n: number) => n - Math.floor(n);
   return { x: 2 + frac(a) * 96, y: 27 + frac(b) * 29, size: 1.6 + frac(c) * 2.6, delay: frac(a + b) * 2.4, every: 1.1 + frac(b + c) * 1.7 };
 });
+/**
+ * What an angry crowd throws: cups, balled-up programmes, a can — up out of
+ * the stands behind the ring and down onto the apron and the mat. Placed by
+ * arithmetic, like the cameras, so it is the same every time.
+ */
+const THROWN = Array.from({ length: 11 }, (_, i) => {
+  const frac = (n: number) => n - Math.floor(n);
+  const a = frac(Math.sin(i * 91.7) * 4375.85);
+  const b = frac(Math.sin(i * 17.3) * 2531.2);
+  const x = 12 + a * 76;
+  // From the stands (a third of the way down) to the ring (two thirds), drifting toward the middle.
+  return { x, y: 30 + b * 8, dx: (50 - x) * 0.35 + (b - 0.5) * 8, dy: 26 + a * 8, up: 6 + b * 6, size: 1.6 + a * 1.2, delay: i * 0.13 + b * 0.3, kind: i % 3 };
+});
 const frame = (at: number, pose: WorldPose, stance?: WorldFrame['stance']): WorldFrame => ({ at, ...pose, sy: 1, stance });
 const planOf = (tracks: Map<Id, WorldFrame[]>): Plan => ({
   tracks,
@@ -473,7 +486,8 @@ export function MatchStage({
   const litterKey = useRef(0);
   const [stepsGone, setStepsGone] = useState(false);
   // How the room feels right now: shown in the crowd for a moment, then gone.
-  const [mood, setMood] = useState<Mood | null>(null);
+  const [mood, setMood] = useState<{ mood: Mood; big: boolean; key: number } | null>(null);
+  const moodKey = useRef(0);
   const moodTimers = useRef<number[]>([]);
   /** The crowd reacting, `delay` ms from now: heard, and seen in the stands. */
   const react = useCallback((r: Reaction, delay: number) => {
@@ -481,10 +495,11 @@ export function MatchStage({
     play(r.size, delay);
     moodTimers.current.push(
       window.setTimeout(() => {
-        setMood(r.mood);
+        const key = ++moodKey.current;
+        setMood({ mood: r.mood, big: r.size === 'roar', key });
         if (r.mood === 'cheer' && r.size === 'roar') setHype(true);
+        moodTimers.current.push(window.setTimeout(() => setMood((m) => (m?.key === key ? null : m)), r.size === 'roar' ? 2600 : 1700));
       }, delay),
-      window.setTimeout(() => setMood((m) => (m === r.mood ? null : m)), delay + (r.size === 'roar' ? 2600 : 1700)),
     );
   }, []);
   useEffect(() => () => moodTimers.current.forEach((t) => window.clearTimeout(t)), []);
@@ -969,7 +984,7 @@ export function MatchStage({
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
       {w > 0 && (
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
-          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood} signs={signs} onSideRope={onSideRope} />
+          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} signs={signs} onSideRope={onSideRope} />
 
           {/* The apron is the nearest thing this building has to a nameplate. */}
           {conduct?.noRing ? null : corners ? (
@@ -1006,6 +1021,39 @@ export function MatchStage({
                     />
                   )),
                 )}
+            </div>
+          )}
+
+          {/* The building roaring for somebody: every camera going off, and the
+              light flooding up. Angry at somebody: the room goes red, and
+              cups and rubbish come over the barricade at the ring. */}
+          {mood?.big && (mood.mood === 'cheer' || mood.mood === 'mixed') && (
+            <div key={`roar-${mood.key}`} className="pointer-events-none absolute inset-0" style={{ zIndex: 1 }} aria-hidden>
+              <div className="mv-glow absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 35%, rgba(255,240,200,0.55), rgba(255,220,160,0.18) 55%, transparent 80%)' }} />
+              {SPARKLES.map((sp, i) => (
+                <span key={i} className="mv-sparkle absolute" style={{ left: `${sp.x}%`, top: `${sp.y}%`, width: sp.size * u, height: sp.size * u, animationDelay: `${sp.delay * 0.4}s`, animationDuration: `${sp.every * 0.7}s` }} />
+              ))}
+            </div>
+          )}
+          {mood?.big && mood.mood === 'boo' && (
+            <div key={`angry-${mood.key}`} className="pointer-events-none absolute inset-0" style={{ zIndex: 1 }} aria-hidden>
+              <div className="mv-redwash absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(255,70,60,0.8) 0%, rgba(230,50,45,0.6) 40%, rgba(220,60,50,0.22) 68%, transparent 88%)' }} />
+              {THROWN.map((t, i) => (
+                <svg
+                  key={i}
+                  viewBox="0 0 20 24"
+                  className="mv-thrown"
+                  style={{ left: `${t.x}%`, top: `${t.y}%`, width: t.size * u, height: t.size * 1.2 * u, animationDelay: `${t.delay}s`, '--dx': `${t.dx * u}px`, '--dy': `${t.dy * u}px`, '--up': `${t.up * u}px` } as React.CSSProperties}
+                >
+                  {t.kind === 0 ? (
+                    <path d="M 3,3 L 17,3 L 14,22 L 6,22 Z" fill="#f2efe6" stroke="#8a8478" strokeWidth={1.2} />
+                  ) : t.kind === 1 ? (
+                    <path d="M 4,6 C 2,2 9,1 10,4 C 13,0 19,4 15,8 C 19,12 13,18 10,14 C 6,19 0,13 4,6 Z" fill="#d9d2bf" stroke="#8a8478" strokeWidth={1} />
+                  ) : (
+                    <rect x={4} y={2} width={11} height={20} rx={3} fill="#b8322a" stroke="#5e1611" strokeWidth={1.2} />
+                  )}
+                </svg>
+              ))}
             </div>
           )}
 

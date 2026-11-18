@@ -148,6 +148,12 @@ const Crowd = memo(function Crowd({ signs = [] }: { signs?: readonly string[] })
                   <>
                     <path className="mv-p mv-p-cheer" d={up} {...lit} />
                     <path className="mv-p mv-p-boo" d={down} {...lit} />
+                    {/* Fists, for when it is really going: both up and pumping, or one shaking at the ring. */}
+                    <g className="mv-p mv-p-fist-cheer" fill={lit.stroke} stroke="none">
+                      <circle cx={sx - r * 1.95} cy={sy - r * 1.75} r={r * 0.55} />
+                      <circle cx={sx + r * 1.95} cy={sy - r * 1.75} r={r * 0.55} />
+                    </g>
+                    <circle className="mv-p mv-p-fist-boo" cx={sx + side * r * 2.4} cy={sy - r * 0.95} r={r * 0.55} fill={lit.stroke} stroke="none" />
                     <path className="mv-p mv-p-ooh" d={head} {...lit} />
                   </>
                 )}
@@ -215,11 +221,14 @@ export const ArenaBack = memo(function ArenaBack({
   noRing = false,
   stepsGone = false,
   mood = null,
+  moodBig = false,
   signs,
   onSideRope,
 }: {
   /** How the room feels right now (see ui/match/crowd.ts). */
   mood?: 'cheer' | 'boo' | 'ooh' | 'mixed' | null;
+  /** ...and it is the full building, not a pop. */
+  moodBig?: boolean;
   /** What the signs in the front row say. */
   signs?: readonly string[];
   /** Somebody has taken the steel steps off the corner: they are not there any more. */
@@ -242,7 +251,7 @@ export const ArenaBack = memo(function ArenaBack({
   showName: boolean;
 }) {
   return (
-    <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className={`absolute inset-0 h-full w-full ${hype ? 'mv-hype' : ''}${mood ? ` mv-mood mv-mood-${mood}` : ''}`} aria-hidden>
+    <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className={`absolute inset-0 h-full w-full ${hype ? 'mv-hype' : ''}${mood ? ` mv-mood mv-mood-${mood}${moodBig ? ' mv-mood-big' : ''}` : ''}`} aria-hidden>
       <defs>
         <radialGradient id="mv-bg" cx="50%" cy="62%" r="75%">
           <stop offset="0%" stopColor="#1b2030" />
@@ -252,6 +261,16 @@ export const ArenaBack = memo(function ArenaBack({
         <linearGradient id="mv-cone" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+        {/* The lights for the room's big moments: full white when it is
+            roaring for somebody, red when it is angry. */}
+        <linearGradient id="mv-cone-bright" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fff6d8" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#fff6d8" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="mv-cone-red" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ff2a2a" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#ff2a2a" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="mv-mat" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#b9bec9" />
@@ -334,6 +353,18 @@ export const ArenaBack = memo(function ArenaBack({
             points={`${x - 9},26 ${x + 9},26 ${x + 150},600 ${x - 150},600`}
             fill="url(#mv-cone)"
             style={{ transformOrigin: `${x}px 26px`, animationDelay: `${-i * 1.7}s`, animationDuration: `${6 + i}s` }}
+          />
+          <polygon
+            className="mv-cone mv-cone-bright"
+            points={`${x - 9},26 ${x + 9},26 ${x + 170},600 ${x - 170},600`}
+            fill="url(#mv-cone-bright)"
+            style={{ transformOrigin: `${x}px 26px`, animationDelay: `${-i * 1.7}s`, animationDuration: `${6 + i}s` }}
+          />
+          <polygon
+            className="mv-cone mv-cone-red"
+            points={`${x - 9},26 ${x + 9},26 ${x + 170},600 ${x - 170},600`}
+            fill="url(#mv-cone-red)"
+            style={{ transformOrigin: `${x}px 26px`, animationDelay: `${-i * 0.6}s`, animationDuration: `${2 + i * 0.4}s` }}
           />
           <rect x={x - 11} y={18} width={22} height={11} rx={2} fill="#2a2e38" />
           <circle cx={x} cy={29} r={5} fill="#fff7dc" />

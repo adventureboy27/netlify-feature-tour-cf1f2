@@ -26,6 +26,33 @@
 .mv-mood-mixed .mv-r:not(.mv-fan) .mv-p-boo { display: inline; }
 .mv-mood-boo .mv-crowd { animation-name: mv-jeer; animation-duration: 0.5s; }
 @keyframes mv-jeer { from { transform: translateY(0); } to { transform: translateY(2px); } }
+/* The big moments. Roaring for somebody: fists up and pumping, the lights
+   up full. Angry: fists shaking at the ring, and the lights go red. */
+.mv-cone-bright, .mv-cone-red { opacity: 0; transition: opacity 0.35s ease-out; }
+.mv-mood-big.mv-mood-cheer .mv-cone-bright { opacity: 1; }
+.mv-mood-big.mv-mood-boo .mv-cone-red { opacity: 1; animation-name: mv-sway, mv-redpulse; animation-duration: 3s, 0.7s; animation-iteration-count: infinite, infinite; animation-direction: alternate, alternate; }
+@keyframes mv-redpulse { from { opacity: 0.55; } to { opacity: 1; } }
+.mv-mood-big.mv-mood-cheer .mv-r .mv-p-fist-cheer,
+.mv-mood-big.mv-mood-boo .mv-r .mv-p-fist-boo,
+.mv-mood-big.mv-mood-mixed .mv-r.mv-fan .mv-p-fist-cheer,
+.mv-mood-big.mv-mood-mixed .mv-r:not(.mv-fan) .mv-p-fist-boo { display: inline; }
+.mv-mood-big.mv-mood-boo .mv-crowd { animation-name: mv-shake; animation-duration: 0.14s; }
+@keyframes mv-shake { from { transform: translate(-1.5px, 0); } to { transform: translate(1.5px, 1px); } }
+/* Over the whole picture: warm light flooding in, or a red wash. */
+.mv-glow { animation: mv-glow 2.4s ease-out both; mix-blend-mode: screen; }
+@keyframes mv-glow { 0% { opacity: 0; } 15% { opacity: 1; } 70% { opacity: 0.8; } 100% { opacity: 0; } }
+.mv-redwash { animation: mv-redwash 2.6s ease-in-out both; mix-blend-mode: multiply; }
+@keyframes mv-redwash { 0% { opacity: 0; } 12% { opacity: 0.85; } 30% { opacity: 0.55; } 48% { opacity: 0.85; } 66% { opacity: 0.55; } 100% { opacity: 0; } }
+/* Cups and rubbish thrown at the ring: up out of the stands, over, and down onto the apron. */
+.mv-thrown { position: absolute; animation: mv-thrown 1.3s cubic-bezier(0.3, 0, 0.7, 1) both; }
+@keyframes mv-thrown {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+  8% { opacity: 1; }
+  50% { transform: translate(calc(var(--dx) * 0.5), calc(var(--dy) * 0.5 - var(--up))) rotate(260deg); }
+  85% { opacity: 1; transform: translate(var(--dx), var(--dy)) rotate(520deg); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(560deg); }
+}
+@media (prefers-reduced-motion: reduce) { .mv-thrown, .mv-redwash, .mv-glow { animation-duration: 0.01s; } .mv-mood-big.mv-mood-boo .mv-crowd { animation: none; } }
 
 @keyframes mv-sway {
   from { transform: rotate(-5deg); }
