@@ -329,3 +329,29 @@
 .mv-bulb { animation: mv-bulb 2.6s ease-in-out infinite alternate; }
 @keyframes mv-bulb { from { opacity: 0.55; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .mv-bulb { animation: none; } }
+
+/* The premium ring's LED posts: the light runs through the colours, each post a beat behind the last. */
+.mv-ledpost {
+  color: #ff2b6a;
+  animation: mv-ledcycle 7s linear infinite;
+  filter: drop-shadow(0 0 5px currentColor);
+}
+.mv-ledpost-held {
+  animation: mv-ledpulse 0.9s ease-in-out infinite;
+}
+@keyframes mv-ledcycle {
+  0% { color: #ff2b6a; }
+  16% { color: #b13cff; }
+  33% { color: #3d7bff; }
+  50% { color: #20e3ff; }
+  66% { color: #3cff7a; }
+  83% { color: #ffd23c; }
+  100% { color: #ff2b6a; }
+}
+@keyframes mv-ledpulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mv-ledpost, .mv-ledpost-held { animation: none; }
+}

@@ -7037,3 +7037,12 @@ A new piece of equipment, the **Premium Ring** ($350,000, $1,100 upkeep a show; 
 - Patterns behind words keep out of the box round the letters so the words read on black. At most 30 frames a second; with reduced motion it holds still and changes only when the room does.
 - Interpromotional nights keep the split company skirt; no-ring matches draw no ring.
 - Checked by rendering a forced premium-ring show: the scrolling name, the wipe, the initials, the sparkle, a reaction, the winner scenes; and the shop card (greyed out, "Needs a professional ring first"). Not checked: a boo or "ooh" on the sign in a render (the scenes are written; the renders caught a mixed reaction and a cheer), the billing scene mid-flash, and the TV/attendance balance of the new piece in a long played save — it is the dearest thing in the shop, and nothing was probed.
+
+## The Premium Ring's mat, turnbuckles and LED posts
+
+The Premium Ring now dresses the whole ring, not just the apron (ui/match/Arena.tsx: `PremiumCanvas`, `Pad`, `LedPost`; match.css `.mv-ledpost`):
+- **The mat.** A band of the company's colour round the edge of the canvas with a gold pinstripe inside it, a sunburst of rays out from the middle, and a medallion in the centre — the company's colour, a gold rim — with the company's initials laid flat across it, all in the mat's own perspective.
+- **The turnbuckles.** Glossy black pads with a stripe of the company's colour, a gold seam and a highlight, on all twelve.
+- **The posts.** All four are LED: a lit strip of separate lights down each post and a lit cap, glowing, cycling through the colours with each post a beat behind the next. When a star has the building they hold on the star's colour and pulse; when the room is furious they hold red. With reduced motion they stay still.
+- Interpromotional nights keep the old split look (the mat logo and the apron belong to two companies).
+- Checked in renders of a forced premium-ring show: the mat, the pads and the posts cycling, staggered. Not seen in a render: the posts held on a star's colour, or red (the test match had no star and no big boo); the code path is the same colour the lighting rig already uses for those moments.

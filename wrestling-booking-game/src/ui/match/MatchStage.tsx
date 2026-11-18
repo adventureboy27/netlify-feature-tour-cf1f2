@@ -1324,7 +1324,7 @@ export function MatchStage({
             );
           })}
 
-          <ArenaFront ropesRef={ropesRef} cage={conduct?.cage} noRing={conduct?.noRing} accent={accent} corners={corners} onSideRope={onSideRope} ring={setting.ring} />
+          <ArenaFront ropesRef={ropesRef} cage={conduct?.cage} noRing={conduct?.noRing} accent={accent} corners={corners} onSideRope={onSideRope} ring={setting.ring} led={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : mood?.mood === 'boo' && mood.big ? '#ff2b25' : undefined} />
 
           {/* A casket at ringside, shut on somebody — and its lid coming back up. */}
           {scene === 'casketOpen' && target && plan && (() => {

@@ -265,6 +265,86 @@ function wrapName(name: string): string[] {
 }
 
 
+// ---- the premium ring's dressing -------------------------------------------
+
+/** The company's initials, printed in the middle of a premium canvas. */
+const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).map((w) => w[0]!.toUpperCase()).join('').slice(0, 4);
+
+/**
+ * A ring post with a lit LED strip down its face, the light cycling through
+ * colours (match.css .mv-ledpost) — or held on one colour when the building
+ * belongs to somebody (a star's colour) or is furious (red).
+ */
+function LedPost({ x, top, bottom, width, delay, color }: { x: number; top: number; bottom: number; width: number; delay: number; color?: string }) {
+  const strip = width * 0.46;
+  return (
+    <g>
+      <rect x={x - width / 2} y={top} width={width} height={bottom - top} rx={2} fill="#121318" />
+      <g className={color ? 'mv-ledpost mv-ledpost-held' : 'mv-ledpost'} style={{ animationDelay: `${-delay}s`, ...(color ? { color } : {}) }}>
+        <rect x={x - strip / 2 - 3} y={top - 2} width={strip + 6} height={bottom - top + 4} rx={4} fill="currentColor" opacity={0.28} />
+        <rect x={x - strip / 2} y={top + 2} width={strip} height={bottom - top - 4} rx={2} fill="currentColor" />
+        {/* Cap on top: lit from inside. */}
+        <rect x={x - width / 2 - 1} y={top - 6} width={width + 2} height={7} rx={2} fill="currentColor" />
+      </g>
+      {/* LED segments: the strip is a run of separate lights, not a tube. */}
+      {Array.from({ length: Math.floor((bottom - top - 4) / 7) }, (_, i) => (
+        <rect key={i} x={x - strip / 2} y={top + 2 + i * 7 + 5.5} width={strip} height={1.5} fill="#000" opacity={0.45} />
+      ))}
+      <rect x={x + strip / 2 + 1} y={top} width={1.5} height={bottom - top} fill="#ffffff" opacity={0.12} />
+    </g>
+  );
+}
+
+/** A turnbuckle pad: on the premium ring a glossy black wrap with a stripe of the company's colour and a gold seam. */
+function Pad({ x, y, w, h, fill, premium, stroke }: { x: number; y: number; w: number; h: number; fill: string; premium: boolean; stroke?: boolean }) {
+  if (!premium) return <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={h * 0.28} fill={fill} stroke={stroke ? '#000' : undefined} strokeOpacity={0.35} />;
+  return (
+    <g>
+      <rect x={x - w / 2 - 1} y={y - h / 2 - 1} width={w + 2} height={h + 2} rx={h * 0.32} fill={GOLD} />
+      <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={h * 0.3} fill="#0c0d11" />
+      <rect x={x - w / 2} y={y - h * 0.14} width={w} height={h * 0.28} fill={fill} />
+      <rect x={x - w / 2 + 3} y={y - h / 2 + 2} width={w - 6} height={h * 0.16} rx={1.5} fill="#ffffff" opacity={0.28} />
+    </g>
+  );
+}
+
+/**
+ * The premium ring's canvas: a band of the company's colour round the edge
+ * with a gold pinstripe, a sunburst out from the middle, and the company's
+ * initials laid flat in a gold-rimmed medallion — all in the mat's own
+ * perspective.
+ */
+function PremiumCanvas({ accent, name }: { accent: string; name: string }) {
+  const cx = 600;
+  const cy = 412;
+  const inset = (k: number) => {
+    const pts: [number, number][] = [[MAT.backL, MAT.backY], [MAT.backR, MAT.backY], [MAT.frontR, MAT.frontY], [MAT.frontL, MAT.frontY]];
+    return pts.map(([x, y]) => `${x + (cx - x) * k},${y + (cy - y) * k}`).join(' ');
+  };
+  const rays = Array.from({ length: 28 }, (_, i) => {
+    const a = (i / 28) * Math.PI * 2;
+    const r0 = 100;
+    const r1 = 210;
+    return { x0: cx + Math.cos(a) * r0, y0: cy + Math.sin(a) * r0 * 0.19, x1: cx + Math.cos(a) * r1, y1: cy + Math.sin(a) * r1 * 0.19, i };
+  });
+  const initials = initialsOf(name);
+  return (
+    <g>
+      <polygon points={inset(0.035)} fill="none" stroke={accent} strokeWidth={9} opacity={0.85} />
+      <polygon points={inset(0.075)} fill="none" stroke={GOLD} strokeWidth={1.6} opacity={0.9} />
+      {rays.map((r) => (
+        <line key={r.i} x1={r.x0} y1={r.y0} x2={r.x1} y2={r.y1} stroke={r.i % 2 ? GOLD : accent} strokeWidth={r.i % 2 ? 2 : 4} opacity={0.35} strokeLinecap="round" />
+      ))}
+      <ellipse cx={cx} cy={cy} rx={104} ry={21} fill={accent} opacity={0.92} />
+      <ellipse cx={cx} cy={cy} rx={104} ry={21} fill="none" stroke={GOLD} strokeWidth={3} />
+      <ellipse cx={cx} cy={cy} rx={92} ry={17.5} fill="none" stroke="#ffffff" strokeWidth={1.2} opacity={0.6} />
+      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" transform={`translate(${cx} ${cy}) scale(1 0.24) translate(${-cx} ${-cy})`} fontSize={Math.min(104, 260 / Math.max(1, initials.length))} fontWeight={900} fontStyle="italic" fill="#ffffff" stroke="#000" strokeOpacity={0.35} strokeWidth={4} style={{ letterSpacing: '0.04em' }}>
+        {initials}
+      </text>
+    </g>
+  );
+}
+
 /** What the ring is made of, as drawn: the canvas, the apron and its skirt, the ropes, the pads. */
 export const RING_LOOK = {
   pro: { platform: '#8e95a3', mat: ['#b9bec9', '#dfe2e8'], skirt: null as string | null, rope: '#e9e9ec', pad: null as string | null },
@@ -344,6 +424,8 @@ export const ArenaBack = memo(function ArenaBack({
   /** Put the promotion's name on the big screen (off while a callout is using it). */
   showName: boolean;
 }) {
+  // The LED posts: held on a star's colour, or red when the room is furious; otherwise cycling.
+  const ledColor = starColor ?? (mood === 'boo' && moodBig ? '#ff2b25' : undefined);
   return (
     <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className={`absolute inset-0 h-full w-full ${hype ? 'mv-hype' : ''}${mood ? ` mv-mood mv-mood-${mood}${moodBig ? ' mv-mood-big' : ''}` : ''}${starColor ? ' mv-starlit' : ''}`} aria-hidden>
       <defs>
@@ -526,8 +608,9 @@ export const ArenaBack = memo(function ArenaBack({
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="url(#mv-mat)" />
       {/* Where the canvas turns down under the ropes to the apron: a crease, not a wall. */}
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="none" stroke="#000" strokeOpacity={0.22} strokeWidth={2} />
-      {(setting.ring === 'pro' || setting.ring === 'premium') && <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />}
-      {(setting.ring === 'pro' || setting.ring === 'premium') && <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />}
+      {setting.ring === 'premium' && !corners && <PremiumCanvas accent={accent} name={name} />}
+      {(setting.ring === 'pro' || (setting.ring === 'premium' && corners)) && <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />}
+      {(setting.ring === 'pro' || (setting.ring === 'premium' && corners)) && <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />}
       {setting.ring === 'plywood' && (
         // A tarp over plywood: creased, patched with tape.
         <path d="M 420,396 L 470,436 M 690,384 L 760,404 M 330,440 L 420,446 M 560,380 L 590,392" stroke="#4c5866" strokeWidth={2} opacity={0.7} />
@@ -559,16 +642,20 @@ export const ArenaBack = memo(function ArenaBack({
       <rect x={PLATFORM.frontL} y={PLATFORM.frontY} width={PLATFORM.frontR - PLATFORM.frontL} height={5} fill="#ffffff" opacity={0.35} />
 
       {/* Back posts, back ropes, and the far half of each side run: all of it further from the camera than anybody in the ring. */}
-      {[MAT.backL, MAT.backR].map((x) => (
-        <rect key={x} x={x - 6} y={232} width={12} height={MAT.backY - 232} fill="#2b2f38" />
-      ))}
+      {[MAT.backL, MAT.backR].map((x, n) =>
+        setting.ring === 'premium' ? (
+          <LedPost key={x} x={x} top={232} bottom={MAT.backY} width={12} delay={n * 0.5 + 1} color={ledColor} />
+        ) : (
+          <rect key={x} x={x - 6} y={232} width={12} height={MAT.backY - 232} fill="#2b2f38" />
+        ),
+      )}
       {ROPES_BACK.map((y) => (
         <line key={y} x1={MAT.backL} y1={y} x2={MAT.backR} y2={y} stroke={RING_LOOK[setting.ring].rope} strokeWidth={3} strokeLinecap="round" opacity={0.8} />
       ))}
       <SideRun run="backL" onRef={onSideRope} />
       <SideRun run="backR" onRef={onSideRope} />
       {[MAT.backL, MAT.backR].map((x) =>
-        ROPES_BACK.map((y) => <rect key={`${x}-${y}`} x={x - 9} y={y - 7} width={18} height={14} rx={4} fill={RING_LOOK[setting.ring].pad ?? (corners ? corners[x === MAT.backL ? 0 : 1].accent : accent)} />),
+        ROPES_BACK.map((y) => <Pad key={`${x}-${y}`} x={x} y={y} w={18} h={14} premium={setting.ring === 'premium'} fill={RING_LOOK[setting.ring].pad ?? (corners ? corners[x === MAT.backL ? 0 : 1].accent : accent)} />),
       )}
 
       {cage && (
@@ -600,9 +687,12 @@ export const ArenaFront = memo(function ArenaFront({
   corners,
   onSideRope,
   ring = 'pro',
+  led,
 }: {
   /** What the ring is made of (RING_LOOK). */
   ring?: Setting['ring'];
+  /** The LED posts held on one colour: a star's, or red for fury. Absent: cycling. */
+  led?: string;
   noRing?: boolean;
   ropesRef: React.Ref<SVGGElement>;
   /** The near wall of a cage, between the camera and the wrestlers. */
@@ -625,12 +715,18 @@ export const ArenaFront = memo(function ArenaFront({
               </g>
             ))}
           </g>
-          {[MAT.frontL, MAT.frontR].map((x) => (
+          {[MAT.frontL, MAT.frontR].map((x, n) => (
             <g key={x}>
-              <rect x={x - 7} y={286} width={14} height={MAT.frontY - 286 + 6} fill="#343944" />
-              <rect x={x - 7} y={286} width={5} height={MAT.frontY - 286 + 6} fill="#4c5260" />
+              {ring === 'premium' ? (
+                <LedPost x={x} top={286} bottom={MAT.frontY + 6} width={14} delay={n * 0.5} color={led} />
+              ) : (
+                <>
+                  <rect x={x - 7} y={286} width={14} height={MAT.frontY - 286 + 6} fill="#343944" />
+                  <rect x={x - 7} y={286} width={5} height={MAT.frontY - 286 + 6} fill="#4c5260" />
+                </>
+              )}
               {ROPES_FRONT.map((y) => (
-                <rect key={y} x={x - 11} y={y - 9} width={22} height={18} rx={5} fill={RING_LOOK[ring].pad ?? (corners ? corners[x === MAT.frontL ? 0 : 1].accent : accent)} stroke="#000" strokeOpacity={0.35} />
+                <Pad key={y} x={x} y={y} w={22} h={18} premium={ring === 'premium'} stroke fill={RING_LOOK[ring].pad ?? (corners ? corners[x === MAT.frontL ? 0 : 1].accent : accent)} />
               ))}
             </g>
           ))}
