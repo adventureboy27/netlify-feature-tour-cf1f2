@@ -1236,8 +1236,10 @@ function stagePlain(
       // The gear giving out in the middle of it (a replaceable one: the
       // match goes on, with another from under the ring).
       if (beat.kind === 'gearFailure' && conduct.furniture === 'ladder') return { ...shouting(pick('ladderCollapse', 3000), 'IT GAVE WAY!', 0.8), scene: 'ladder' };
+      // In a tables match the table that "gave out" is one that would not
+      // break: into it, and it holds. Broken, it would have been the finish.
       if (beat.kind === 'gearFailure' && (conduct.furniture === 'table' || conduct.furniture === 'flamingTable'))
-        return { ...shouting(pick('tableEscape', 2400), 'IT GAVE WAY!', 0.6), scene: conduct.furniture, sceneIntact: false };
+        return { ...shouting(built('tablePowerbomb', { ...MOVES.tablePowerbomb, shouts: [] }, 2400), 'IT HELD!', 0.75), scene: conduct.furniture, sceneIntact: true };
       return pick('still');
     case 'elimination': {
       if (conduct.elimination === 'overTop') return shouting(pick(spoken && OVER_THE_TOP.includes(spoken) ? spoken : fresh(OVER_THE_TOP)), 'ELIMINATED!', 0.82);

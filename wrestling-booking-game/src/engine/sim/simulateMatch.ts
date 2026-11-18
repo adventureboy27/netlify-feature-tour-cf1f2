@@ -2,7 +2,7 @@
 // -> rating -> narrative into the single entry point callers use.
 
 import { withRingProps } from './ringProps';
-import { REPLACED_FROM_UNDER_THE_RING } from '../../data/ringProps';
+import { REPLACED_FROM_UNDER_THE_RING, TABLE_HELD_LINES, THROUGH_A_TABLE_WINS } from '../../data/ringProps';
 import type { Rng } from '../rng';
 import { chance, clamp, weightedPick, rngFromSeed, pick } from '../rng';
 import type {
@@ -436,7 +436,8 @@ export function simulateMatch(
   // still pays for it (store.ts gearFailureUnitId).
   const gearGaveOut = rolledFinish === 'equipmentFailure';
   const replacedFinish = gearGaveOut ? REPLACED_FROM_UNDER_THE_RING[ctx.stipulation?.gearFamilyId ?? ''] : undefined;
-  const finish: FinishType = replacedFinish ?? rolledFinish;
+  // A tables match is won by putting somebody through one — never both at once.
+  const finish: FinishType = replacedFinish ?? THROUGH_A_TABLE_WINS[ctx.stipulation?.gearFamilyId ?? '']?.[rolledFinish] ?? rolledFinish;
   const draw = isDrawFinish(finish);
 
   const allParticipants = sides.flatMap((s) => sideMembers.get(s)!);
@@ -503,7 +504,12 @@ export function simulateMatch(
         {
           kind: 'gearFailure' as const,
           significant: true,
-          text: gearFailure.text,
+          // A table "giving out" in a tables match is one that would not
+          // break with somebody on it: that is no finish, so it is said that way.
+          text:
+            replacedFinish && ctx.stipulation?.gearFamilyId === 'tables'
+              ? TABLE_HELD_LINES[0]!.replace('{actor}', loserMembers[0]?.name ?? 'Somebody').replace('{target}', winnerMembers[0]?.name ?? 'their opponent')
+              : gearFailure.text,
           ...(replacedFinish ? { actorId: loserMembers[0]?.id ?? null, targetId: winnerMembers[0]?.id ?? null } : {}),
         },
       ]

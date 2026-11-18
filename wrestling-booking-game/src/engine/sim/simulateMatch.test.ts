@@ -441,6 +441,40 @@ describe('simulateMatch', () => {
     expect(broke!.beats.slice(at + 1, finishAt).some((b) => b.fetched?.item === 'ladder' && b.fetched.from === 'underRing')).toBe(true);
   });
 
+  it('ends a tables match only with somebody put through a table by the other, who wins it — never both through, never a table that held', () => {
+    const roster = makeRoster(18, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const finishes = new Set<string>();
+    let held = 0;
+    for (let i = 0; i < 400; i++) {
+      const result = simulateMatch(
+        rngFromSeed(`through-a-table-${i}`),
+        participants,
+        byId,
+        baseContext({
+          stipulation: stipulationById('flamingTables')!,
+          gearFailureChance: i % 2 ? 1 : 0,
+          gearUnitsInPlay: [{ id: 'table-unit-1', name: 'Folding Table', condition: 5 }],
+        }),
+      );
+      finishes.add(result.finish);
+      expect(result.finish).not.toBe('doubleKO');
+      expect(result.finish).not.toBe('equipmentFailure');
+      const gave = result.beats.find((b) => b.kind === 'gearFailure');
+      if (gave) {
+        held++;
+        expect(gave.text).toMatch(/never gave|held/);
+        expect(result.winnerSide).not.toBeNull();
+      }
+    }
+    expect(held).toBeGreaterThan(0);
+    expect(finishes.has('knockout')).toBe(true);
+  });
+
   it('a tag match finish names a real, resolvable pinned/pinner pair — not always the first-listed member', () => {
     const roster = makeRoster(17, 4);
     const byId = new Map(roster.map((w) => [w.id, w]));

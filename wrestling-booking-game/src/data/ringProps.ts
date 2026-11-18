@@ -53,3 +53,19 @@ export const STEPS_OFF_THE_CORNER_LINES: readonly string[] = [
   '{actor} pulled the steel steps away from the corner of the ring.',
   '{actor} tore the steel steps loose from the corner.',
 ];
+
+/**
+ * In a tables match the only way it ends is somebody going through a table
+ * and the table breaking — and then the one who put them through has won it.
+ * Nobody goes through together and nobody walks away: a finish the dice
+ * call a double knockout is the one who did the putting through winning.
+ */
+export const THROUGH_A_TABLE_WINS: Partial<Record<string, Partial<Record<FinishType, FinishType>>>> = {
+  tables: { doubleKO: 'knockout' },
+};
+
+/** A tables match's table that would not break. {actor} put {target} into it. */
+export const TABLE_HELD_LINES: readonly string[] = [
+  '{actor} drove {target} into the table and the wood never gave. A table that does not break does not win a tables match.',
+  '{actor} put {target} down on the table and it held — not a crack in it, and nothing to call.',
+];
