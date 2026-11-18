@@ -22,7 +22,7 @@
 // Nothing here decides anything about the match. It only stages a beat the
 // simulation already produced.
 
-import type { FinishType, Id, Move, MoveStyle, MoveType, Wrestler } from '../../engine/types';
+import type { FinishType, Id, Move, MoveStyle, MoveType, OfficialMoment, Wrestler } from '../../engine/types';
 import type { PlaybackBeat } from '../../engine/sim/matchPlayback';
 import type { StanceId } from './rig';
 import { STANDARD, type Conduct } from './conduct';
@@ -900,6 +900,25 @@ export interface StagedBeat {
   sceneIntact?: boolean;
   /** Milliseconds the choreography runs for. */
   duration: number;
+  /**
+   * What the referee does in this beat, beyond counting any cover (which he
+   * always does): turned away to the apron, flattened, calling for the bell,
+   * raising the wrong hand. Only ever set from what the sim recorded the
+   * official doing (MatchBeat.official) or from how the match ended.
+   */
+  referee?: RefCue;
+  /**
+   * Milliseconds the picture holds after the move before the next beat: long
+   * enough to read what was shouted over the end of it (a foot on the rope).
+   */
+  linger?: number;
+}
+
+/** The referee's part in a beat. See MatchStage's referee. */
+export interface RefCue {
+  act: 'turned' | 'bumped' | 'bell' | 'wrongHand' | 'watch';
+  /** When, as a fraction of the move (after the walk-in). Default: the whole beat. */
+  at?: number;
 }
 
 /** One move by id, as written — for a move reel, or anything else that wants to look at a single move. */
@@ -928,6 +947,8 @@ export interface BeatContext {
   recent: readonly MoveId[];
   /** The rules this match is fought under. Absent: an ordinary one-fall match. */
   conduct?: Conduct;
+  /** What the official did in the recorded beat before this one, if anything. */
+  previousOfficial?: OfficialMoment;
 }
 
 /** Whether a line says anything the staging can act on at all. */
@@ -955,6 +976,124 @@ export function stageBeat(
   actor: Wrestler | undefined,
   actorInRing: boolean,
   context: BeatContext = { said: null, targetDown: false, recent: [] },
+): StagedBeat {
+  const conduct = context.conduct ?? STANDARD;
+  const own = beat.official ? officialBeat(beat.official, Boolean(beat.ringsideId), conduct, context) : null;
+  if (own) return own;
+  const staged = stagePlain(beat, index, actor, actorInRing, context);
+  // The finish after somebody was caught or ran in, in a disqualification:
+  // the bell is what is left of it.
+  if (beat.pose === 'finish' && conduct.finish === 'dq' && (context.previousOfficial === 'caught' || context.previousOfficial === 'runIn')) {
+    return { ...withShout(stageMove('still', 2200), 'DISQUALIFIED!', 0.4), referee: { act: 'bell', at: 0.25 } };
+  }
+  const called = beat.official ? officiated(staged, beat.official) : staged;
+  return called.referee || beat.pose !== 'finish' ? called : { ...called, referee: finishCue(conduct) };
+}
+
+const withShout = (staged: StagedBeat, text: string, at: number): StagedBeat => ({
+  ...staged,
+  choreo: { ...staged.choreo, shouts: [...(staged.choreo.shouts ?? []), { at, text }] },
+});
+
+/** How the referee ends a match that was not counted: he calls for the bell. */
+function finishCue(conduct: Conduct): RefCue | undefined {
+  switch (conduct.finish) {
+    case 'submission':
+      return { act: 'bell', at: 0.82 };
+    case 'dq':
+      return { act: 'bell', at: 0.75 };
+    case 'stoppage':
+    case 'knockout':
+    case 'doubleKO':
+    case 'blood':
+      return { act: 'bell', at: 0.86 };
+    case 'draw':
+      return { act: 'bell', at: 0.72 };
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * A moment that is the official's own — somebody ran in, a corner mugged
+ * somebody, he missed something — staged as what the write-up says.
+ */
+function officialBeat(official: OfficialMoment, fromOutside: boolean, conduct: Conduct, context: BeatContext): StagedBeat | null {
+  const move = (id: MoveId, duration: number) => ({ ...stageMove(id, duration), ...propsFor(id, conduct, context.recent.length) });
+  switch (official) {
+    case 'runIn':
+      // In full view for a disqualification; behind his back otherwise.
+      return { ...withShout(move('blindside', 2400), 'RUN-IN!', 0.15), referee: { act: conduct.finish === 'dq' ? 'watch' : 'turned' } };
+    case 'missedInterference':
+      return fromOutside
+        ? { ...withShout(withShout(move('blindside', 2400), 'RUN-IN!', 0.15), 'REF NEVER SAW IT!', 0.82), referee: { act: 'turned' } }
+        : { ...withShout(move('blindside', 2200), 'REF NEVER SAW IT!', 0.8), referee: { act: 'turned' } };
+    case 'mugging':
+      // Put out to the floor, where the muscle is waiting (MatchStage).
+      return { ...withShout(move('tossOutside', 3000), 'MUGGED!', 0.9), zone: 'out', referee: { act: 'turned' } };
+    case 'distracted':
+      return { ...withShout(move('strike', 2000), 'DISTRACTION!', 0.15), referee: { act: 'turned' } };
+    case 'caught':
+      return { ...withShout(move('still', 2200), 'CAUGHT!', 0.3), referee: { act: 'bell', at: 0.45 } };
+    case 'lowBlow':
+      return { ...withShout(withShout(move('kneeLift', 1900), 'LOW BLOW!', 0.4), "REF DIDN'T SEE IT!", 0.8), referee: { act: 'turned' } };
+    case 'foreignObject':
+      // A chair, whether or not this match allows one: that is the point.
+      return { ...withShout({ ...stageMove('chairShot', 2000), prop: 'chair' }, "REF DIDN'T SEE IT!", 0.8), referee: { act: 'turned' } };
+    case 'missedTag':
+      return { ...withShout(move('strike', 1900), 'MISSED THE TAG!', 0.6), referee: { act: 'turned' } };
+    case 'wrongLegalMan':
+      return withShout(move('flurry', 2000), 'WRONG MAN!', 0.6);
+    case 'outOfPosition': {
+      const staged = move('whip', 2200);
+      const hit = staged.choreo.impacts?.[0]?.[0] ?? 0.5;
+      return { ...withShout(staged, 'REF BUMP!', Math.min(0.9, hit + 0.05)), referee: { act: 'bumped', at: hit } };
+    }
+    default:
+      return null;
+  }
+}
+
+/** A counted beat, counted the way the official counted it. */
+function officiated(staged: StagedBeat, official: OfficialMoment): StagedBeat {
+  const cover = staged.choreo.cover;
+  // Just after the last count lands (the count is shown at 0.35 of each slot).
+  const at = cover ? Math.min(0.95, cover.from + ((cover.to - cover.from) * (cover.count - 0.65)) / cover.count + 0.03) : 0.9;
+  const held = (b: StagedBeat): StagedBeat => ({ ...b, linger: 1100 });
+  switch (official) {
+    case 'fastCount': {
+      if (!cover) return staged;
+      const quick = { ...cover, to: cover.from + (cover.to - cover.from) * 0.45 };
+      return held(withShout({ ...staged, choreo: { ...staged.choreo, cover: quick } }, 'FAST COUNT!', Math.min(0.95, quick.to + 0.04)));
+    }
+    case 'guestSlowCount':
+    case 'slowCount': {
+      if (!cover) return staged;
+      // A near fall he was slow on gets to one before the shoulder is up.
+      const slow = cover.count < 3 ? { ...cover, from: cover.from + (cover.to - cover.from) * 0.4, count: 1 } : cover;
+      return withShout({ ...staged, choreo: { ...staged.choreo, cover: slow } }, 'SLOW COUNT!', cover.count < 3 ? at : cover.from + (cover.to - cover.from) * 0.5);
+    }
+    case 'footOnRope':
+      return held(withShout(staged, 'FOOT ON THE ROPE!', at));
+    case 'shoulderUp':
+      return held(withShout(staged, 'SHOULDER WAS UP!', at));
+    case 'lostCountOut':
+      return withShout(staged, 'LOST THE COUNT!', cover ? cover.from + (cover.to - cover.from) * 0.5 : 0.6);
+    case 'lateStoppage':
+      return { ...withShout(staged, 'STOP THE MATCH!', 0.5), referee: { act: 'bell', at: 0.95 } };
+    case 'blewTheFinish':
+      return held({ ...withShout(staged, 'WRONG HAND!', 0.92), referee: { act: 'wrongHand', at: 0.88 } });
+    default:
+      return staged;
+  }
+}
+
+function stagePlain(
+  beat: PlaybackBeat,
+  index: number,
+  actor: Wrestler | undefined,
+  actorInRing: boolean,
+  context: BeatContext,
 ): StagedBeat {
   const style = actor?.moveSet.style ?? 'brawl';
   const named = moveNamed(actor, beat.moveName);
@@ -1239,6 +1378,7 @@ export function stageMatch(
   const allowOutside = conduct.outside;
   const recent: MoveId[] = [];
   let downId: Id | null = null;
+  let previousOfficial: OfficialMoment | undefined;
   const moments: MatchMoment[] = [];
   // After the last finish there is no more wrestling, whatever the reel says
   // about the room: the winner stands over the one still down.
@@ -1265,6 +1405,15 @@ export function stageMatch(
     // ring may never show one person winning while the words name the other.
     let actorId = call?.actorId ?? beat.actorId;
     let targetId = call?.actorId ? (call.targetId ?? beat.targetId) : beat.targetId;
+    // A corner's moment (somebody at ringside holds the referee): the one in
+    // the ring with the victim is the one who takes advantage of it. The
+    // people outside are drawn by MatchStage, not as one of the two.
+    if (!filler && (beat.official === 'mugging' || beat.official === 'distracted' || beat.official === 'caught') && !(actorId && wrestlers.has(actorId))) {
+      const last = [...moments].reverse().find((m) => (m.actorId === targetId || m.targetId === targetId) && m.actorId && m.targetId);
+      const opponent = last ? (last.actorId === targetId ? last.targetId : last.actorId) : [...wrestlers.keys()].find((id) => id !== targetId);
+      actorId = opponent ?? null;
+      if (beat.official === 'caught' && !targetId) targetId = [...wrestlers.keys()].find((id) => id !== actorId) ?? null;
+    }
     // A disqualification is something the LOSER did: it is their chair.
     if (beat.pose === 'finish' && conduct.finish === 'dq') [actorId, targetId] = [targetId, actorId];
     const actor = actorId ? wrestlers.get(actorId) : undefined;
@@ -1273,17 +1422,19 @@ export function stageMatch(
       targetDown: targetId !== null && targetId === downId,
       recent: [...recent.slice(-5), ...avoid],
       conduct,
+      previousOfficial: filler ? undefined : previousOfficial,
     });
+    if (!filler) previousOfficial = beat.official;
     recent.push(staged.move);
     downId = targetId && isDown(endPose(staged.choreo.target)) ? targetId : actorId && isDown(endPose(staged.choreo.actor)) ? actorId : null;
     // A beat lasts exactly as long as its move. Nobody stands waiting for
     // the commentary to finish: the time it takes to read what was said is
     // covered by the exchanges that follow (see `between` below).
-    moments.push({ beat, actorId: actorId ?? null, targetId: targetId ?? null, staged, lines, holdMs: staged.duration, filler });
+    moments.push({ beat, actorId: actorId ?? null, targetId: targetId ?? null, staged, lines, holdMs: staged.duration + (staged.linger ?? 0), filler });
     if (outThere || pinnedOutThere) moments[moments.length - 1] = { ...moments[moments.length - 1]!, staged: { ...staged, zone: 'floor' } };
     // Out on the floor (the casket, a dive, the guardrail) and still in the
     // match: back into the ring with them.
-    if ((staged.move === 'casketNear' || staged.move === 'floorDive' || outThere) && actorId && targetId) {
+    if ((staged.move === 'casketNear' || staged.move === 'floorDive' || outThere || beat.official === 'mugging') && actorId && targetId) {
       const back = { ...stageMove('rollInside', 1900), zone: 'in' as const };
       moments.push({ beat: { kind: 'control', pose: 'control', text: '', significant: false, actorId, targetId, moveName: null }, actorId, targetId, staged: back, lines: [], holdMs: 1900, filler: true });
       recent.push('rollInside');

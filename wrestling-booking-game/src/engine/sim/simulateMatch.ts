@@ -503,6 +503,8 @@ export function simulateMatch(
           significant: true,
           actorId: distractedById,
           targetId: distractedTargetId,
+          official: 'distracted' as const,
+          ...(distractedById ? { ringsideId: distractedById } : {}),
           text: `${distractedName} pulled the attention at ringside at exactly the wrong moment.`,
         },
       ]
@@ -515,6 +517,8 @@ export function simulateMatch(
           significant: true,
           text: `${caughtManager} was caught in the act at ringside, and the referee called for the bell.`,
           actorId: caughtManagerId,
+          official: 'caught' as const,
+          ...(caughtManagerId ? { ringsideId: caughtManagerId } : {}),
         },
       ]
     : [];
@@ -557,7 +561,11 @@ export function simulateMatch(
     rating: finalRating,
     stars: finalStars,
     ratingBreakdown: breakdown,
-    beats: [...cornerBeat, ...distractionBeat, ...botchBeat, ...pyroBurnBeat, ...gearFailureBeat, ...beats],
+    // What the corner did happened when it happened: the distraction that
+    // swung it and the manager caught doing it come just before the finish
+    // they decided, not at the top — the call and the ring play the reel in
+    // order, and the bell cannot ring at the opening lock-up.
+    beats: justBeforeFinish([...botchBeat, ...pyroBurnBeat, ...gearFailureBeat, ...beats], [...distractionBeat, ...cornerBeat]),
     /** Who blew a spot, if anybody did. The caller decides what it costs them. */
     botchedById: botch?.workerId ?? null,
     /** Which owned unit gave out, if the finish was 'equipmentFailure'. The caller applies the consequence. */
@@ -590,4 +598,17 @@ export function simulateMatch(
     paceSaturationAdded: pace.saturationAdded,
     heatChange,
   };
+}
+
+/** `extra` slotted in ahead of the last finish beat (or at the end, if there is none). */
+function justBeforeFinish(beats: MatchBeat[], extra: MatchBeat[]): MatchBeat[] {
+  if (extra.length === 0) return beats;
+  let at = beats.length;
+  for (let i = beats.length - 1; i >= 0; i--) {
+    if (beats[i]!.kind === 'finish') {
+      at = i;
+      break;
+    }
+  }
+  return [...beats.slice(0, at), ...extra, ...beats.slice(at)];
 }

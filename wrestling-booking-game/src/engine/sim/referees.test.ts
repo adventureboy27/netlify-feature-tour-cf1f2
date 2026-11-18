@@ -225,6 +225,18 @@ describe('the things they miss', () => {
     return missed / 3000;
   };
 
+  it('only says a fall was counted in a match that ended on one, and only wrongs the man who lost', () => {
+    const worst = { ...seedRefereePool().sort((a, b) => a.competence - b.competence)[0]!, sharpness: 0 };
+    const rng = rngFromSeed('no-pin');
+    for (let i = 0; i < 2000; i++) {
+      const miss = rollRefereeMiss(rng, ctxFor({ ...worst }, { finish: 'submission', loserIds: ['w2'] }));
+      if (!miss) continue;
+      expect(['footOnRope', 'shoulderUp', 'wrongLegalMan', 'lostCountOut']).not.toContain(miss.missId);
+      if (miss.missId !== 'slowCount') expect(miss.text).not.toMatch(/\b(pin|cover|counted|fall)\b/i);
+      if (miss.victimId) expect(miss.victimId).toBe('w2');
+    }
+  });
+
   it('gives every miss a name and more than one way to say it', () => {
     for (const miss of REFEREE_MISSES) {
       expect(miss.label.length).toBeGreaterThan(0);

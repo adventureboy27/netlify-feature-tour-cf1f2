@@ -463,6 +463,9 @@ export interface RingsideTotals {
   muggingDamage: Record<number, number>;
   muggingBy: Record<number, string>;
   muggingDistractor: Record<number, string>;
+  /** Who those two are, so the viewer can put them where they were. */
+  muggingById?: Record<number, Id>;
+  muggingDistractorById?: Record<number, Id>;
 }
 
 /** Everything at ringside, rolled into what the sim needs. */
@@ -525,6 +528,8 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
   const muggingDamageBySide: Record<number, number> = {};
   const muggingBy: Record<number, string> = {};
   const muggingDistractor: Record<number, string> = {};
+  const muggingById: Record<number, Id> = {};
+  const muggingDistractorById: Record<number, Id> = {};
 
   for (const { manager, client, attention: focus } of ctx.managers) {
     const raw = managerEffect(manager, client, ctx.settings);
@@ -618,6 +623,8 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
           muggingDamageBySide[side] = muggingDamage(muscle.manager!, ctx.settings);
           muggingBy[side] = muscle.manager!.name;
           muggingDistractor[side] = distractor.manager!.name;
+          muggingById[side] = muscle.manager!.id;
+          muggingDistractorById[side] = distractor.manager!.id;
         }
       }
     }
@@ -656,6 +663,8 @@ export function ringsideTotals(ctx: RingsideContext): RingsideTotals {
     muggingDamage: muggingDamageBySide,
     muggingBy,
     muggingDistractor,
+    muggingById,
+    muggingDistractorById,
     ratingBonus: clamp(ratingBonus, -20, 20),
     screwyFinishWeight,
     interferenceWeight,

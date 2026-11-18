@@ -16,7 +16,7 @@
 // a commentary feed that agree on who's on top at any point in the match
 // (thematic sync) rather than a guarantee that a specific line lands on the
 // exact beat its pose plays (line-for-line sync) — see docs/BACKLOG.md.
-import type { FinishType, Id, MatchAction, MatchBeat, MatchBeatKind, MatchSpot, MatchWeapon, Wrestler } from '../types';
+import type { FinishType, Id, MatchAction, MatchBeat, MatchBeatKind, MatchSpot, MatchWeapon, OfficialMoment, Wrestler } from '../types';
 
 export type BeatPose =
   | 'exchange'
@@ -48,6 +48,10 @@ export interface PlaybackBeat {
   action?: MatchAction;
   /** Who this beat busted open, if anybody. */
   bleeding?: Id;
+  /** What the official did in it (see sim/officiating.ts). */
+  official?: OfficialMoment;
+  /** Somebody outside the match who was in it: a manager, a man running in. */
+  ringsideId?: Id;
 }
 
 /** Beats with no clean "one side did something to the other" shape — a ring-side effect, not a pose. */
@@ -161,6 +165,8 @@ export function buildPlaybackTimeline(
       ...(beat.weapon ? { weapon: beat.weapon } : {}),
       ...(beat.action ? { action: beat.action } : {}),
       ...(beat.bleeding ? { bleeding: beat.bleeding } : {}),
+      ...(beat.official ? { official: beat.official } : {}),
+      ...(beat.ringsideId ? { ringsideId: beat.ringsideId } : {}),
     };
   });
 }

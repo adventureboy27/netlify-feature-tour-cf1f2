@@ -904,3 +904,27 @@ describe('a line that says what happened is called as that', () => {
     expect(call.text).toContain(doer.name);
   });
 });
+
+describe('what the official did', () => {
+  it('shouts the foot on the rope on the finish it was counted over', () => {
+    const beats = BEATS.map((b) => (b.kind === 'finish' ? { ...b, official: 'footOnRope' as const } : b));
+    const lines = callTheMatch(rngFromSeed('rope'), bare({ refereeName: 'Nils Overgaard', beats }));
+    const rope = lines.find((l) => /rope/i.test(l.text) && l.text.includes('Nils Overgaard'));
+    expect(rope).toBeDefined();
+    expect(rope!.beat).toBe(beats.length - 1);
+  });
+
+  it('calls a fast count by the guest in the shirt', () => {
+    const beats = BEATS.map((b) => (b.kind === 'finish' ? { ...b, official: 'fastCount' as const } : b));
+    const text = said(bare({ guestRefereeName: 'Rex Dunmore', beats }), 'fast');
+    expect(text).toMatch(/fast count/i);
+  });
+
+  it('says a run-in the way the write-up says it, on its own beat', () => {
+    const runIn: MatchBeat = { kind: 'interference', text: 'Cutter hit the ring and laid Bo Halvorsen out.', significant: true, official: 'runIn', ringsideId: 'c', actorId: 'c', targetId: 'b' };
+    const beats = [...BEATS.slice(0, -1), runIn, BEATS[BEATS.length - 1]!];
+    const lines = callTheMatch(rngFromSeed('run'), bare({ beats }));
+    const line = lines.find((l) => l.text === runIn.text);
+    expect(line?.beat).toBe(beats.length - 2);
+  });
+});

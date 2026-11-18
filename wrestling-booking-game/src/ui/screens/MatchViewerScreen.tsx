@@ -14,9 +14,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { buildPlaybackTimeline, type PlaybackBeat } from '../../engine/sim/matchPlayback';
-import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { maskWorn } from '../paperdoll/maskWorn';
-import { MatchStage, type Aftermath, type Bystander, type StageFighter, type Stain } from '../match/MatchStage';
+import { MatchStage, type Aftermath, type Bystander, type CornerCue, type RingsidePerson, type StageFighter, type Stain } from '../match/MatchStage';
+import { initialsOf } from '../match/Ringside';
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
 import { isNonDecisiveFinish } from '../../engine/sim/finish';
@@ -464,6 +464,25 @@ export function MatchViewerScreen({
   );
   const interferingManager =
     current?.pose === 'interference' ? ringsideManagers.find((m) => m.id === current.actorId) : undefined;
+  // The same people, standing on the floor of the ring picture.
+  const ringsidePeople: RingsidePerson[] = ringsideManagers.map((m) => {
+    const own = m.id.startsWith('mgr-of-') ? world.wrestlers[m.id.slice('mgr-of-'.length)] : undefined;
+    return { id: m.id, slot: m.side === 'a' ? 'left' : 'right', face: own ? { wrestler: own } : { photoDataUrl: m.photoDataUrl, initials: initialsOf(m.name) } };
+  });
+  // What they are doing this beat, exactly as recorded: up on the apron
+  // with the official, or into somebody on the floor.
+  const atRingside = (id: Id | null | undefined) => (id && ringsidePeople.some((p) => p.id === id) ? id : undefined);
+  const cornerCues: CornerCue[] = [];
+  if (current && beatIndex <= lastBeat) {
+    const outside = atRingside(current.ringsideId);
+    if (current.official === 'mugging') {
+      if (outside) cornerCues.push({ id: outside, act: 'apron' });
+      const muscle = atRingside(current.actorId);
+      if (muscle) cornerCues.push({ id: muscle, act: 'mug' });
+    } else if (outside && (current.official === 'distracted' || current.official === 'caught' || current.official === 'missedInterference')) {
+      cornerCues.push({ id: outside, act: 'apron' });
+    }
+  }
 
   // Every elimination beat played so far, tallied fresh each render rather
   // than tracked as its own state — `timeline`/`beatIndex` already say
@@ -480,14 +499,28 @@ export function MatchViewerScreen({
   // The one or two people the beat is about, placed in the ring. sideA
   // works from the left, sideB from the right; if both happen to be on the
   // same side (a partner turning on a partner), the target takes the other mark.
-  const actorWrestler = combined.find((w) => w.id === onNow?.actorId);
+  // Somebody who is not in the match and ran in: the write-up names them,
+  // so they are in the ring for that beat — over the top from the floor,
+  // and gone again after it.
+  const runnerOf = (m: (typeof moments)[number] | undefined) => {
+    const id = m && (m.beat.official === 'runIn' || m.beat.official === 'missedInterference') ? m.beat.ringsideId : undefined;
+    const who = id ? world.wrestlers[id] : undefined;
+    return who && !combined.some((w) => w.id === who.id) ? who : undefined;
+  };
+  const runner = moment && beatIndex <= lastBeat ? runnerOf(moment) : undefined;
+  const ranIn = new Set(moments.slice(0, Math.max(0, beatIndex)).flatMap((m) => { const who = runnerOf(m); return who ? [who.id] : []; }));
+  const actorWrestler = runner && onNow?.actorId === runner.id ? runner : combined.find((w) => w.id === onNow?.actorId);
   const targetWrestler = combined.find((w) => w.id === onNow?.targetId && w.id !== onNow?.actorId);
   const slotOf = (w: Wrestler): 'left' | 'right' => (onSideA.has(w.id) ? 'left' : 'right');
   const fighters: StageFighter[] = [];
-  if (actorWrestler) fighters.push({ wrestler: actorWrestler, role: 'actor', slot: slotOf(actorWrestler) });
+  if (actorWrestler && actorWrestler === runner) {
+    // From the far side of whoever they are going after.
+    const theirs = targetWrestler ? slotOf(targetWrestler) : 'right';
+    fighters.push({ wrestler: runner, role: 'actor', slot: theirs === 'left' ? 'right' : 'left', runIn: true });
+  } else if (actorWrestler) fighters.push({ wrestler: actorWrestler, role: 'actor', slot: slotOf(actorWrestler) });
   if (targetWrestler) {
     const natural = slotOf(targetWrestler);
-    const taken = actorWrestler ? slotOf(actorWrestler) : null;
+    const taken = fighters[0] ? fighters[0].slot : null;
     fighters.push({ wrestler: targetWrestler, role: 'target', slot: natural === taken ? (natural === 'left' ? 'right' : 'left') : natural });
   }
   // The rules say who is in the ring. A tag match keeps partners on the
@@ -523,7 +556,7 @@ export function MatchViewerScreen({
   // Loser leaves town: when it is over, they get up and go, like anybody
   // else who is out of a match. The last one over the top does the same.
   const gone = new Set<Id>(over ? [...leavingIds, ...(lastOut ? [lastOut] : [])] : []);
-  const departed = gone.size > 0 ? new Set([...eliminated, ...gone]) : eliminated;
+  const departed = gone.size > 0 || ranIn.size > 0 ? new Set([...eliminated, ...gone, ...ranIn]) : eliminated;
 
   const waiting = combined.filter((w) => !activeIds.has(w.id) && !departed.has(w.id) && !tagOuts.some((t) => t.wrestler.id === w.id));
   // A tag match that has broken down — the sim recorded it, or it ended in
@@ -536,8 +569,9 @@ export function MatchViewerScreen({
   const partnersOut = isTagMatch && !over && firstOut >= 0 && beatIndex >= firstOut;
   const bystanders: Bystander[] = isTagMatch
     ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: brokenDown ? ('ring' as const) : partnersOut ? ('floor' as const) : ('apron' as const) }))
-    : isFieldMatch
-      ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: 'ring' as const }))
+    : isFieldMatch || runner
+      ? // Somebody ran in: whoever it was for is still in the ring, and gets their boots in too.
+        waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: 'ring' as const }))
       : [];
 
   // An interpromotional night: each side's company has a corner and half the
@@ -613,20 +647,21 @@ export function MatchViewerScreen({
   // Nothing is staged before the bell, or once the last beat has played out.
   const staged = moment && beatIndex <= lastBeat ? moment.staged : null;
 
-  /** One ringside manager — smaller than a competitor, present the whole way through. */
-  function renderRingsideManager(manager: RingsideManager, side: 'left' | 'right') {
-    const isInterfering = interferingManager?.id === manager.id;
-    const animClass = isInterfering ? (side === 'left' ? 'animate-ring-interfere-left' : 'animate-ring-interfere-right') : '';
-
+  /**
+   * One ringside manager's name, by their corner. They are standing on the
+   * floor in the picture (MatchStage); this says who that is, and lights up
+   * when they are the one getting involved.
+   */
+  function renderRingsideManager(manager: RingsideManager, _side: 'left' | 'right') {
+    const involved = interferingManager?.id === manager.id || cornerCues.some((c) => c.id === manager.id);
     return (
-      <div key={manager.id} className={`flex items-center gap-1 ${isInterfering ? 'z-10' : 'opacity-75'}`}>
-        <div key={beatIndex} className={animClass}>
-          <PaperDoll photoDataUrl={manager.photoDataUrl} name={manager.name} lookSubject={lookSubjectOf(manager)} size="thumb" flip={side === 'right'} />
-        </div>
-        <span className="max-w-[70px] truncate rounded bg-neutral-950/80 px-1 py-0.5 text-[9px] leading-tight text-neutral-400">
-          {manager.name}
-        </span>
-      </div>
+      <span
+        key={manager.id}
+        data-testid="ringside-name"
+        className={`max-w-[120px] truncate rounded px-1.5 py-0.5 text-[10px] leading-tight ${involved ? 'bg-amber-400 font-bold text-neutral-950' : 'bg-neutral-950/80 text-neutral-400'}`}
+      >
+        {manager.name}
+      </span>
     );
   }
 
@@ -664,7 +699,9 @@ export function MatchViewerScreen({
         : winnerIds.size > 1
           ? 'YOUR WINNERS!'
           : 'YOUR WINNER!'
-    : current?.pose === 'finish' || current?.pose === 'elimination' || current?.pose === 'nearFall'
+    : current?.official === 'caught' || (current?.pose === 'finish' && staged?.move === 'still')
+      ? null
+      : current?.pose === 'finish' || current?.pose === 'elimination' || current?.pose === 'nearFall'
       ? (current.moveName?.toUpperCase() ?? null)
       : interferingManager
             ? 'INTERFERENCE!'
@@ -739,6 +776,9 @@ export function MatchViewerScreen({
           stains={earlierStains}
           entrancePyro={entrancePyro}
           tagOuts={tagOuts}
+          referee={{ guest: segment.guestRefereeId ? (world.wrestlers[segment.guestRefereeId] ?? null) : null }}
+          ringside={ringsidePeople}
+          corner={cornerCues}
           prize={segment.titleIds.length > 0 ? 'belt' : 'case'}
           hurt={hurt}
           belt={beltLook}

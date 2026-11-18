@@ -30,7 +30,7 @@
 
 import type { Rng } from '../rng';
 import { chance, clamp, pick, randInt } from '../rng';
-import type { Contract, Id, Referee, RefereeMissRecord, WorldSettings } from '../types';
+import type { Contract, FinishType, Id, Referee, RefereeMissRecord, WorldSettings } from '../types';
 import {
   REFEREE_BLURBS,
   REFEREE_FIRST_NAMES,
@@ -235,6 +235,17 @@ export interface MissContext {
   competitorIds: readonly Id[];
   hasTags: boolean;
   hadInterference: boolean;
+  /**
+   * How it ended, when known: a foot on the rope needs a three-count to have
+   * been counted over it. See data/refereeMisses.ts's `needs`.
+   */
+  finish?: FinishType;
+  /**
+   * The losing side, when there was one. A call that went against somebody
+   * went against the one it cost — the man whose shoulder was up is the man
+   * who was pinned.
+   */
+  loserIds?: readonly Id[];
   settings: WorldSettings;
 }
 
@@ -271,16 +282,23 @@ export function rollRefereeMiss(
 ): RefereeMissRecord | null {
   if (!chance(rng, missChance(ctx.referee, ctx.settings))) return null;
 
-  const options = missesFor(ctx.hasTags, ctx.hadInterference).filter(
+  const options = missesFor(ctx.hasTags, ctx.hadInterference, ctx.finish).filter(
     (m) => !m.needsVictim || ctx.competitorIds.length > 0,
   );
   if (options.length === 0) return null;
 
   const miss = pick(rng, options);
-  const victimId = miss.needsVictim && ctx.competitorIds.length > 0 ? pick(rng, ctx.competitorIds) : null;
+  // One draw either way, so which pool it comes from never moves the stream.
+  const wronged = ctx.loserIds && ctx.loserIds.length > 0 ? ctx.loserIds : ctx.competitorIds;
+  const victimId = miss.needsVictim && ctx.competitorIds.length > 0 ? pick(rng, wronged) : null;
 
-  const fresh = miss.lines.filter((line) => !usedLines.has(line));
-  const template = pick(rng, fresh.length > 0 ? fresh : miss.lines);
+  // A line that has the fall counted is only true of a match that ended on
+  // one. Filtering the lines never changes how many draws this takes.
+  const pinned = !ctx.finish || ['cleanPin', 'rollup', 'interference'].includes(ctx.finish);
+  const said = pinned || miss.when === 'counts' ? miss.lines : miss.lines.filter((line) => !/\b(pin|cover|counted|fall)\b/i.test(line));
+  const lines = said.length > 0 ? said : miss.lines;
+  const fresh = lines.filter((line) => !usedLines.has(line));
+  const template = pick(rng, fresh.length > 0 ? fresh : lines);
   usedLines.add(template);
 
   return {

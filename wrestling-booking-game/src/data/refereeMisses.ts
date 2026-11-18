@@ -1,3 +1,4 @@
+import type { FinishType } from '../engine/types';
 // The things an official does not see.
 //
 // A bad referee is only worth paying less for if the player can watch him be
@@ -16,6 +17,18 @@
 // 'tag' needs more than one a side, 'interference' needs somebody outside to
 // have got involved, 'any' fits anywhere.
 
+/**
+ * Which finishes each kind of miss can happen in. A three-count counted over
+ * a foot on the rope needs a three-count; a stoppage left too late needs a
+ * stoppage; raising the wrong hand needs a hand to raise.
+ */
+const FINISH_NEEDS: Record<NonNullable<RefereeMiss['needs']>, ReadonlySet<FinishType>> = {
+  pin: new Set<FinishType>(['cleanPin', 'rollup', 'interference']),
+  countOut: new Set<FinishType>(['countOut']),
+  stoppage: new Set<FinishType>(['refereeStoppage', 'injuryStoppage', 'knockout', 'submission']),
+  decision: new Set<FinishType>(['cleanPin', 'rollup', 'interference', 'submission', 'knockout', 'countOut', 'disqualification', 'refereeStoppage']),
+};
+
 export type MissContext = 'any' | 'tag' | 'interference';
 
 export interface RefereeMiss {
@@ -32,6 +45,17 @@ export interface RefereeMiss {
    * official around.
    */
   severity: number;
+  /**
+   * Where in the match it happened, which is where the viewer puts the
+   * referee doing it: on the finish itself, on every count he made, or a
+   * moment of its own just before the finish.
+   */
+  when: 'finish' | 'counts' | 'during';
+  /**
+   * Only possible in a match that ended this way. A foot on the rope needs a
+   * three-count to have been counted over it.
+   */
+  needs?: 'pin' | 'countOut' | 'stoppage' | 'decision';
 }
 
 export const REFEREE_MISSES: RefereeMiss[] = [
@@ -47,6 +71,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: true,
     context: 'any',
     severity: 0.8,
+    when: 'finish',
+    needs: 'pin',
   },
   {
     id: 'shoulderUp',
@@ -60,6 +86,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: true,
     context: 'any',
     severity: 0.9,
+    when: 'finish',
+    needs: 'pin',
   },
   {
     id: 'lowBlow',
@@ -73,6 +101,7 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: true,
     context: 'any',
     severity: 0.7,
+    when: 'during',
   },
   {
     id: 'foreignObject',
@@ -86,6 +115,7 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: true,
     context: 'any',
     severity: 0.85,
+    when: 'during',
   },
   {
     id: 'missedTag',
@@ -99,6 +129,7 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: true,
     context: 'tag',
     severity: 0.6,
+    when: 'during',
   },
   {
     id: 'wrongLegalMan',
@@ -112,6 +143,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: true,
     context: 'tag',
     severity: 0.75,
+    when: 'during',
+    needs: 'pin',
   },
   {
     id: 'missedInterference',
@@ -125,6 +158,7 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: true,
     context: 'interference',
     severity: 0.8,
+    when: 'during',
   },
   {
     id: 'slowCount',
@@ -138,6 +172,7 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: false,
     context: 'any',
     severity: 0.35,
+    when: 'counts',
   },
   {
     id: 'outOfPosition',
@@ -151,6 +186,7 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: false,
     context: 'any',
     severity: 0.3,
+    when: 'during',
   },
   {
     id: 'lostCountOut',
@@ -164,6 +200,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: false,
     context: 'any',
     severity: 0.4,
+    when: 'finish',
+    needs: 'countOut',
   },
   {
     id: 'lateStoppage',
@@ -177,6 +215,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: true,
     context: 'any',
     severity: 0.7,
+    when: 'finish',
+    needs: 'stoppage',
   },
   {
     id: 'blewTheFinish',
@@ -190,6 +230,8 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     needsVictim: false,
     context: 'any',
     severity: 0.65,
+    when: 'finish',
+    needs: 'decision',
   },
 ];
 
@@ -198,8 +240,9 @@ export function refereeMissById(id: string): RefereeMiss | undefined {
 }
 
 /** The misses that make sense for this match. */
-export function missesFor(hasTags: boolean, hadInterference: boolean): RefereeMiss[] {
+export function missesFor(hasTags: boolean, hadInterference: boolean, finish?: FinishType): RefereeMiss[] {
   return REFEREE_MISSES.filter((m) => {
+    if (finish && m.needs && !FINISH_NEEDS[m.needs].has(finish)) return false;
     if (m.context === 'tag') return hasTags;
     if (m.context === 'interference') return hadInterference;
     return true;

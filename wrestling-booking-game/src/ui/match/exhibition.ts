@@ -5,7 +5,7 @@
 import type { Id, MatchRules, Segment, SegmentResult, SegmentRole } from '../../engine/types';
 
 /** As much of a booked segment as the viewer reads. */
-export type WatchSegment = Pick<Segment, 'participants' | 'stipulation' | 'rules' | 'titleIds' | 'managerIds'> & {
+export type WatchSegment = Pick<Segment, 'participants' | 'stipulation' | 'rules' | 'titleIds' | 'managerIds'> & Partial<Pick<Segment, 'guestRefereeId'>> & {
   participants: (SegmentRole | { wrestlerId: Id; side: number; role: 'competitor' })[];
   rules: MatchRules;
 };

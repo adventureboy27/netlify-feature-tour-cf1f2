@@ -60,7 +60,7 @@
 //   {oldHand} {oldHandYears}     needs 'longCareer'
 
 import type { CommentaryFact, Speaker } from '../engine/sim/commentary';
-import type { FinishType, MatchAction, MatchBeatKind } from '../engine/types';
+import type { FinishType, MatchAction, MatchBeatKind, OfficialMoment } from '../engine/types';
 
 /** Which way the colour man leans, and therefore what he is willing to say. */
 export type Leaning = 'heel' | 'face' | 'analyst';
@@ -195,6 +195,55 @@ export const PLAY_BY_PLAY: Partial<Record<MatchBeatKind, readonly string[]>> = {
 // — {onTop} — to {inTrouble}, and saying the same thing the line says, so the
 // highlight, the call and the ring are one event.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// What the official did, called as it happens. Stamped on the beat by
+// engine/sim/officiating.ts; the viewer has the referee doing it at the same
+// moment. {ref} is whoever is in the shirt, {onTop}/{inTrouble} as ever.
+// ---------------------------------------------------------------------------
+
+export const OFFICIAL_CALLS: Partial<Record<OfficialMoment, readonly string[]>> = {
+  fastCount: [
+    'That was a FAST count! {ref} could not get that hand down quick enough!',
+    "Fast count! {ref} didn't even pretend there!",
+  ],
+  guestSlowCount: [
+    'Slow count! Look at {ref} taking their sweet time!',
+    "{ref} is in no hurry whatsoever — that's a slow count and everybody can see it!",
+  ],
+  slowCount: [
+    'That count from {ref} was a half-second slow — again.',
+    'Come on, {ref}, count the man!',
+  ],
+  footOnRope: [
+    "The foot was on the rope! The foot was ON THE ROPE and {ref} counted three!",
+    "{ref} never saw the foot on the bottom rope!",
+  ],
+  shoulderUp: [
+    "The shoulder was up! {ref} counted three anyway!",
+    "{inTrouble} got the shoulder up — and {ref} brought the hand down regardless!",
+  ],
+  blewTheFinish: [
+    "Wait — {ref} has raised the wrong hand! Somebody tell the official!",
+    'Confusion at the bell — {ref} has got this all wrong!',
+  ],
+  lateStoppage: [
+    "Stop it, {ref}! {inTrouble} has had enough — how long is this going to go on?",
+    "{ref} should have stopped this a minute ago!",
+  ],
+  lostCountOut: [
+    "Hold on — {ref} has lost the count! One, two, three, three, four?",
+    "{ref} has no idea what number that's on!",
+  ],
+  caught: [
+    '{ref} saw it! {ref} saw the whole thing and that is the bell!',
+    "The manager's been caught red-handed, and {ref} is calling for the bell!",
+  ],
+  distracted: [
+    "{ref} is tied up with the manager on the apron — never mind that, look in the ring!",
+    'The distraction at ringside has the official looking the wrong way!',
+  ],
+};
 
 export const ACTION_CALLS: Record<MatchAction, readonly string[]> = {
   lockup: ['And they lock up. Neither one of them giving an inch.', 'Collar and elbow — and neither of them is moving.'],

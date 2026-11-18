@@ -38,10 +38,11 @@
 import type { Rng } from '../rng';
 import { pick, chance } from '../rng';
 import { Cap, HE, pronounsFor } from '../career/pronouns';
-import type { FinishType, Id, MatchBeat, MatchBeatKind, Title, Wrestler, WorldSettings } from '../types';
+import type { FinishType, Id, MatchBeat, MatchBeatKind, OfficialMoment, Title, Wrestler, WorldSettings } from '../types';
 import {
   PLAY_BY_PLAY,
   ACTION_CALLS,
+  OFFICIAL_CALLS,
   FINISH_CALLS,
   FINISH_CALLS_PLAIN,
   COLOUR,
@@ -56,6 +57,22 @@ import {
   type ColourTemplate,
   type Leaning,
 } from '../../data/commentaryLines';
+
+/**
+ * Official moments that are a beat of their own (sim/officiating.ts), written
+ * in full already: the call says what the write-up says rather than a
+ * template about whoever is on top.
+ */
+const OWN_TEXT: ReadonlySet<OfficialMoment> = new Set([
+  'lowBlow',
+  'foreignObject',
+  'missedTag',
+  'wrongLegalMan',
+  'missedInterference',
+  'outOfPosition',
+  'mugging',
+  'runIn',
+]);
 
 /**
  * Everything a colour line is allowed to be about.
@@ -583,6 +600,15 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
   const colour = (text: string) =>
     lines.push({ speaker: 'colour', name: ctx.team.colourName, text: fill(text, momentum), ...stamp() });
 
+  /** The official's moment, in the play-by-play man's words, if there are any for it. */
+  const callOfficial = (moment: OfficialMoment) => {
+    const pool = (OFFICIAL_CALLS[moment] ?? []).filter((t) => !usedPlay.has(t));
+    if (pool.length === 0) return;
+    const line = pick(rng, pool);
+    usedPlay.add(line);
+    play(line);
+  };
+
   // ---- who, and what for -------------------------------------------------
   // A genuine one-on-one gets a real tale of the tape below — the debut and
   // lineage openers would just repeat what that is about to say, so they sit
@@ -683,7 +709,9 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
 
   // ---- the match ---------------------------------------------------------
   const budget = s.commentaryMaxLines;
-  const finishBeat = ctx.beats.find((b) => b.kind === 'finish') ?? null;
+  // The one that ended it: the last. (A manager caught at ringside is a
+  // finish of its own just before it.)
+  const finishBeat = [...ctx.beats].reverse().find((b) => b.kind === 'finish') ?? null;
 
   for (const [beatIndex, beat] of ctx.beats.entries()) {
     if (beat.kind === 'finish') continue;
@@ -698,7 +726,10 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     // A special match's spot is called as what it was: the ladder, the
     // table, the lid coming up — the same words the write-up has, so the
     // ring the viewer stages it in is never contradicted by the call.
-    const options = beat.spot ? [] : (beat.action ? ACTION_CALLS[beat.action] : (PLAY_BY_PLAY[beat.kind] ?? [])).filter((t) => !usedPlay.has(t));
+    // A moment of its own the official was in (a run-in, a mugging, what he
+    // missed) is said the way the write-up says it: those are its names.
+    const ownWords = beat.spot || (beat.official && beat.ringsideId) || (beat.official && OWN_TEXT.has(beat.official));
+    const options = ownWords ? [] : (beat.action ? ACTION_CALLS[beat.action] : (PLAY_BY_PLAY[beat.kind] ?? [])).filter((t) => !usedPlay.has(t));
     // A line about something that happened is said about who did it.
     const everyone = [...ctx.sideA, ...ctx.sideB];
     const doer = beat.action ? everyone.find((w) => w.id === beat.actorId) : undefined;
@@ -719,6 +750,8 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
       // makes it a better fallback than saying the same thing twice.
       play(beat.text);
     }
+    // ...and what the official did in it, when it was something to shout about.
+    if (beat.official && !ownWords) callOfficial(beat.official);
     momentum = held;
 
     // And then the man beside him — but only if there is something real to
@@ -765,6 +798,8 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     : (FINISH_CALLS[ctx.finish] ?? FINISH_CALLS_PLAIN);
   const finishCalls = finishPool.filter((t) => !usedPlay.has(t));
   play(finishCalls.length > 0 ? pick(rng, finishCalls) : (finishBeat?.text ?? '{winner} takes it.'), true);
+  // A fast count, a foot on the rope, the wrong hand raised: said as it happens.
+  for (const b of ctx.beats) if (b.kind === 'finish' && b.official) callOfficial(b.official);
   calling = ctx.beats.length;
 
   // ---- and out -----------------------------------------------------------

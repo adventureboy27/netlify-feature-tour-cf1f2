@@ -23,6 +23,8 @@ import { playPlan, settle } from './playback';
 import { FieldBrawl } from './FieldBrawl';
 import { DOWN, FLOOR, FRONT_FLOOR, GAP, TAG_VAULT_HEIGHT, type StagedBeat } from './choreography';
 import { PyroBurst } from './Pyro';
+import { PERSON_VIEW, Person, type Face, type PersonParts } from './Ringside';
+import { playPerson, restingAt, slaps, waving, type PersonMoment } from './officiate';
 import { RING, TAG_TOUCH, apronX, midBody, onFrontFloor, planBeat, type Plan, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
 import type { Conduct } from './conduct';
 import type { Id, Wrestler } from '../../engine/types';
@@ -55,6 +57,21 @@ export interface StageFighter {
   slot: 'left' | 'right';
   /** They were just tagged in: start on the apron and come over the top rope. */
   taggedIn?: boolean;
+  /** Not in the match: they run in from the floor, and leave again after. */
+  runIn?: boolean;
+}
+
+/** Somebody at ringside for the whole match: a manager, on the floor by their client's corner. */
+export interface RingsidePerson {
+  id: Id;
+  slot: 'left' | 'right';
+  face: Face;
+}
+
+/** What somebody outside the ropes does this beat: up on the apron at the referee, or into the victim on the floor. */
+export interface CornerCue {
+  id: Id;
+  act: 'apron' | 'mug';
 }
 
 /** Somebody in the match but not in this beat. */
@@ -146,6 +163,83 @@ export interface Stain {
   turn: number;
 }
 
+/**
+ * What the referee does over one beat: follows the action from a step back,
+ * gets down and counts any cover, and does whatever the beat says he did —
+ * turns his back, goes down, calls for the bell, raises a hand.
+ */
+function refereeMoments(
+  from: PersonMoment,
+  plan: Plan,
+  staged: StagedBeat,
+  target: WorldPose | undefined,
+  side: 1 | -1,
+  T: (at: number) => number,
+  duration: number,
+): PersonMoment[] {
+  const edge = RING.half - 4;
+  const inside = (x: number) => Math.max(-edge, Math.min(edge, x));
+  const home = inside(plan.centre + (plan.centre >= 0 ? -11 : 11));
+  const out: PersonMoment[] = [{ ...from, t: 0, back: false, arm: 0 }];
+  let ready = 0;
+  if (from.pose === 'down') {
+    // Up off the mat first, slowly.
+    ready = Math.min(duration * 0.45, 900);
+    out.push({ t: ready * 0.55, x: from.x, y: 0, pose: 'kneel', arm: -30 }, { t: ready, x: from.x, y: 0, pose: 'stand' });
+  }
+  const after = (t: number) => Math.max(ready, t);
+  const at = (t: number, x: number, extra: Partial<PersonMoment> = {}): PersonMoment => ({ t: after(t), x, y: 0, pose: 'stand', ...extra });
+  const cue = staged.referee;
+  const cover = staged.choreo.cover;
+  const walkIn = plan.lead * duration;
+
+  if (cue?.act === 'turned') {
+    // At the ropes with his back to the ring, arm out at whoever has him there.
+    const x = side * (RING.half - 3);
+    out.push(at(walkIn * 0.85 + 120, x), at(walkIn + 260, x, { back: true, arm: side === 1 ? -95 : 95 }));
+    return [...out, { ...out[out.length - 1]!, t: duration }];
+  }
+  if (cue?.act === 'bumped') {
+    const hit = plan.impacts[0];
+    const x = inside((hit?.x ?? plan.centre) + 2);
+    const when = T(cue.at ?? 0.5);
+    const fall: 1 | -1 = x >= plan.centre ? 1 : -1;
+    out.push(at(Math.max(walkIn, when - 380), x), at(when, x, { arm: -40 }), { t: after(when + 240), x: inside(x + fall * 2), y: 0, pose: 'down', fall });
+    return [...out, { ...out[out.length - 1]!, t: duration }];
+  }
+  let last = home;
+  if (cover && target) {
+    const times = Array.from({ length: cover.count }, (_, i) => T(cover.from + ((cover.to - cover.from) * (i + 0.35)) / cover.count));
+    const inRing = Math.abs(target.x) <= RING.half && target.y > FLOOR / 2;
+    const start = T(cover.from);
+    if (inRing && cover.count <= 3) {
+      // Down beside them, a hand on the mat for every count.
+      const x = inside(midBody(target).x + 3);
+      out.push(at(walkIn, home), at(start - 320, x), { t: after(start - 60), x, y: 0, pose: 'kneel', arm: -60 }, ...slaps(times, x, 0).map((m) => ({ ...m, t: after(m.t) })));
+      const done = times[times.length - 1]! + 260;
+      out.push({ t: after(done), x, y: 0, pose: 'kneel', arm: -40 });
+      if (!staged.referee) out.push(at(done + 380, x));
+      last = x;
+    } else {
+      // On his feet over somebody down, or at the ropes over somebody on the floor: the arm counts.
+      const x = inRing ? inside(target.x + 5) : Math.sign(target.x || 1) * (RING.half - 3);
+      out.push(at(walkIn, home), at(start - 300, x));
+      for (const t of times) out.push(at(t - 160, x, { arm: -130 }), at(t, x, { arm: -45 }));
+      last = x;
+    }
+  } else {
+    out.push(at(walkIn, home));
+  }
+  if (cue?.act === 'bell') {
+    const kneeling = out[out.length - 1]!.pose === 'kneel';
+    const from = T(cue.at ?? 0.85);
+    if (kneeling) out.push(at(from - 200, last));
+    out.push(...waving(after(from), duration, last, 0));
+  }
+  if (cue?.act === 'wrongHand') out.push(at(T(cue.at ?? 0.9), last, { arm: -168 }));
+  return [...out, { ...out.reduce((a, b) => (b.t >= a.t ? b : a)), t: duration }];
+}
+
 export function MatchStage({
   beatKey,
   fighters,
@@ -164,6 +258,9 @@ export function MatchStage({
   stains = [],
   entrancePyro = false,
   tagOuts = [],
+  referee,
+  ringside = [],
+  corner = [],
   corners,
   eventName,
   prize,
@@ -219,6 +316,12 @@ export function MatchStage({
    * the hand of the partner coming in, and climb out to the apron.
    */
   tagOuts?: readonly StageFighter[];
+  /** Who is in the shirt: the house official, or a wrestler as guest referee. Absent: nobody is drawn. */
+  referee?: { guest: Wrestler | null };
+  /** Managers at ringside, there the whole match. */
+  ringside?: readonly RingsidePerson[];
+  /** This beat: what the people outside the ropes are doing. */
+  corner?: readonly CornerCue[];
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
@@ -278,12 +381,44 @@ export function MatchStage({
   // Blood that has hit the mat in this match: wherever somebody who is
   // bleeding was when a beat began, and it stays for the rest of the night.
   const [dripped, setDripped] = useState<Stain[]>([]);
+  // The referee and the people on the floor: their parts, and where each
+  // beat left them.
+  const refParts = useRef<PersonParts | null>(null);
+  const refAt = useRef<PersonMoment>({ t: 0, x: 11, y: 0, pose: 'stand' });
+  const personParts = useRef(new Map<Id, PersonParts>());
+  const personBox = useRef(new Map<Id, HTMLDivElement>());
+  const personAt = useRef(new Map<Id, PersonMoment>());
+  const onRefParts = useCallback((parts: PersonParts | null) => {
+    refParts.current = parts;
+  }, []);
+  const personHandlers = useRef(new Map<Id, { parts: (p: PersonParts | null) => void; box: (el: HTMLDivElement | null) => void }>());
+  const handlersFor = (id: Id) => {
+    let made = personHandlers.current.get(id);
+    if (!made) {
+      made = {
+        parts: (p) => (p ? personParts.current.set(id, p) : personParts.current.delete(id)),
+        box: (el) => (el ? personBox.current.set(id, el) : personBox.current.delete(id)),
+      };
+      personHandlers.current.set(id, made);
+    }
+    return made;
+  };
 
   const feetY = (FEET_Y / VIEW.h) * h;
   const sx = (x: number) => w / 2 + x * u;
   const sy = (y: number) => feetY - y * u;
   const figureW = FIGURE_W * u;
   const figureH = figureW * FIGURE_ASPECT;
+  // The people at the ring are drawn a little smaller than the wrestlers, and
+  // the referee a step upstage of them, so he is behind the two he watches.
+  const personH = figureH * 0.84;
+  const personW = (personH * PERSON_VIEW.w) / PERSON_VIEW.h;
+  const REF_UPSTAGE = 2.2;
+  const ringsideBase = (person: RingsidePerson): PersonMoment => {
+    const dir = dirOf(person.slot);
+    const order = ringside.filter((o) => o.slot === person.slot).indexOf(person);
+    return { t: 0, x: -dir * (RING.half + 9 + order * 5), y: FLOOR, pose: 'stand' };
+  };
   const duration = staged?.duration ?? 0;
   const over = Boolean(aftermath);
 
@@ -307,6 +442,7 @@ export function MatchStage({
       dir: dirOf(f.slot),
       from: leftAt.current.get(f.wrestler.id),
       taggedIn: Boolean(f.taggedIn),
+      runIn: Boolean(f.runIn),
       wear: wear?.get(f.wrestler.id) ?? 0,
     }));
 
@@ -318,8 +454,17 @@ export function MatchStage({
         const el = figureRefs.current.get(f.id);
         if (el) el.style.transform = `translate(${pose.x * u}px, 0px)`;
       }
+      // The referee between them, a step back; the managers on the floor.
+      const people: Animation[] = [];
+      if (refParts.current) people.push(...playPerson(refParts.current, [refAt.current], 10, u));
+      for (const person of ringside) {
+        const parts = personParts.current.get(person.id);
+        const at = personAt.current.get(person.id) ?? ringsideBase(person);
+        personAt.current.set(person.id, at);
+        if (parts) people.push(...playPerson(parts, [at], 10, u));
+      }
       setPlan(null);
-      return;
+      return () => settle(people);
     }
 
     const next = planBeat(staged, cast, centre.current);
@@ -365,6 +510,53 @@ export function MatchStage({
       const el = figureRefs.current.get(id);
       if (el) el.style.transform = '';
       running.push(...playPlan(planOf(new Map([[id, frames]])), [{ id, role: 'actor', dir: side, from, taggedIn: false }], (key) => figureRefs.current.get(key), (key) => jointRefs.current.get(key), u, figureW, duration));
+    }
+
+    // ---- the referee, and the people on the floor --------------------------
+    const T = (at: number) => (next.lead + at * (1 - next.lead)) * duration;
+    const targetCast = cast.find((f) => f.role === 'target');
+    const targetLast = targetCast ? next.end.get(targetCast.id) : undefined;
+    const runner = fighters.find((f) => f.runIn);
+    // Which ropes he goes to with his back to the ring: the manager up on the
+    // apron if there is one; away from whoever is running in; otherwise away
+    // from the two of them.
+    const onApron = corner.find((c) => c.act === 'apron');
+    const apronPerson = onApron ? ringside.find((p) => p.id === onApron.id) : undefined;
+    const refSide: 1 | -1 = apronPerson ? (-dirOf(apronPerson.slot) as 1 | -1) : runner ? dirOf(runner.slot) : next.centre >= 0 ? -1 : 1;
+    if (refParts.current) {
+      const moments = refereeMoments(refAt.current, next, staged, targetLast, refSide, T, duration);
+      refAt.current = restingAt(moments.reduce((a, b) => (b.t >= a.t ? b : a)));
+      running.push(...playPerson(refParts.current, moments, duration, u));
+    }
+    for (const person of ringside) {
+      const parts = personParts.current.get(person.id);
+      const box = personBox.current.get(person.id);
+      const base = ringsideBase(person);
+      const from = personAt.current.get(person.id) ?? base;
+      const dir = dirOf(person.slot);
+      const cue = corner.find((c) => c.id === person.id);
+      const moments: PersonMoment[] = [{ ...from, t: 0, back: false, arm: 0 }];
+      let front = false;
+      if (cue?.act === 'apron') {
+        // Up on the apron, at the official: shouting, pointing, keeping him there.
+        const apron = apronX(dir);
+        moments.push({ t: next.lead * duration * 0.55, x: apron + dir * 2.5, y: FLOOR, pose: 'stand' }, { t: next.lead * duration, x: apron, y: 0, pose: 'stand', arm: -120 });
+        moments.push(...waving(next.lead * duration + 150, duration, apron, 0).map((m) => ({ ...m, arm: (m.arm ?? 0) * 0.85 })));
+      } else if (cue?.act === 'mug' && targetLast) {
+        // Waiting where the victim lands, and into him while the official is held.
+        front = onFrontFloor(targetLast);
+        const y = front ? FRONT_FLOOR : FLOOR;
+        const x = midBody(targetLast).x + dir * 4;
+        moments.push({ t: T(0.5), x, y, pose: 'stand', arm: -40 });
+        for (let at = T(0.66), n = 0; at < duration; at += 260, n++) moments.push({ t: at, x, y, pose: 'stand', arm: n % 2 ? -10 : -150 });
+      } else if (Math.abs(from.x - base.x) > 0.5 || Math.abs(from.y - base.y) > 0.5) {
+        // Back to their spot on the floor.
+        moments.push({ t: Math.min(duration * 0.35, 700), x: from.x + (base.x - from.x) * 0.3, y: base.y, pose: 'stand' }, { ...base, t: Math.min(duration * 0.8, 1500) });
+      }
+      moments.push({ ...moments[moments.length - 1]!, t: duration });
+      personAt.current.set(person.id, restingAt(moments[moments.length - 1]!));
+      if (box) box.style.zIndex = front ? '15' : '4';
+      if (parts) running.push(...playPerson(parts, moments, duration, u));
     }
 
     const timers: number[] = [];
@@ -445,10 +637,14 @@ export function MatchStage({
       const side = from.x >= 0 ? 1 : -1;
       const floor = Math.abs(from.x) > RING.half + 1 ? (onFrontFloor(from) ? FRONT_FLOOR : FLOOR) : FRONT_FLOOR;
       const exit = { x: side * 64, y: floor, rot: 0 };
-      const frames: WorldFrame[] = [frame(0, from, 'flat')];
-      if (Math.abs(from.x) <= RING.half + 1 && from.y > FLOOR / 2) frames.push(frame(0.22, { x: from.x, y: floor + DOWN, rot: from.rot }, 'flat'));
-      frames.push(frame(0.4, { x: from.x + side * 2, y: floor, rot: from.rot * 0.2 }, 'kneel'), frame(0.5, { x: from.x + side * 5, y: floor, rot: side * 6 }, 'stagger'));
-      for (let i = 1; i <= 4; i++) frames.push(frame(0.5 + i * 0.125, { x: from.x + side * 5 + ((exit.x - from.x - side * 5) * i) / 4, y: floor, rot: side * 7 }, i % 2 ? 'run' : 'stagger'));
+      // Somebody still on their feet (whoever ran in, job done) just goes,
+      // out under the bottom rope; somebody beaten gets up off the mat first.
+      const standing = Math.abs(Math.abs(from.rot) - 90) >= 30;
+      const frames: WorldFrame[] = [frame(0, from, standing ? 'guard' : 'flat')];
+      if (Math.abs(from.x) <= RING.half + 1 && from.y > FLOOR / 2) frames.push(frame(0.22, { x: standing ? side * (RING.half + 0.5) : from.x, y: standing ? 2 : floor + DOWN, rot: standing ? side * 70 : from.rot }, standing ? 'tuck' : 'flat'));
+      const off = standing && Math.abs(from.x) <= RING.half + 1 ? side * (RING.half + 3) - side * 5 : from.x;
+      frames.push(frame(0.4, { x: off + side * 2, y: floor, rot: standing ? 0 : from.rot * 0.2 }, standing ? 'run' : 'kneel'), frame(0.5, { x: off + side * 5, y: floor, rot: side * 6 }, standing ? 'run' : 'stagger'));
+      for (let i = 1; i <= 4; i++) frames.push(frame(0.5 + i * 0.125, { x: off + side * 5 + ((exit.x - off - side * 5) * i) / 4, y: floor, rot: side * 7 }, i % 2 || standing ? 'run' : 'stagger'));
       el.style.transform = '';
       el.style.zIndex = '14';
       const cast: PlanFighter[] = [{ id, role: 'actor', dir: side, from, taggedIn: false }];
@@ -519,6 +715,20 @@ export function MatchStage({
       if (el) el.style.transform = '';
     }
     const running = playPlan(arrive, cast, (id) => figureRefs.current.get(id), (id) => jointRefs.current.get(id), u, figureW, 1500);
+    // The referee raises the winner's hand — or, with nobody to raise, waves it off.
+    if (refParts.current) {
+      const from = refAt.current;
+      const first = winners[0] ? arrive.end.get(winners[0].wrestler.id) : undefined;
+      const inRing = first && Math.abs(first.x) <= RING.half;
+      const x = first && inRing ? Math.max(-edge + 2, Math.min(edge - 2, first.x + (first.x > 0 ? -5 : 5))) : from.x;
+      const moments: PersonMoment[] = [{ ...from, t: 0, back: false, arm: 0 }];
+      if (from.pose !== 'stand') moments.push({ t: 450, x: from.x, y: 0, pose: 'kneel' });
+      moments.push({ t: 900, x, y: 0, pose: 'stand' });
+      if (first && inRing) moments.push({ t: 1250, x, y: 0, pose: 'stand', arm: -168 }, { t: 1500, x, y: 0, pose: 'stand', arm: -168 });
+      else moments.push(...waving(950, 1500, x, 0));
+      refAt.current = restingAt(moments[moments.length - 1]!);
+      running.push(...playPerson(refParts.current, moments, 1500, u));
+    }
     setHype(true);
     bell(3);
     crowd('roar', 250);
@@ -688,6 +898,20 @@ export function MatchStage({
                   </div>
                 );
               })}
+
+          {/* The referee: a step upstage of the two he is watching, in the
+              stripes — or a wrestler in them, as guest referee. */}
+          {referee && (
+            <div className="pointer-events-none absolute" data-testid={referee.guest ? 'guest-referee' : 'referee'} style={{ left: w / 2 - personW / 2, top: feetY - REF_UPSTAGE * u - personH, width: personW, zIndex: 1 }}>
+              <Person id={referee.guest ? `guest-${referee.guest.id}` : 'referee'} outfit="stripes" face={referee.guest ? { wrestler: referee.guest } : {}} onParts={onRefParts} />
+            </div>
+          )}
+          {/* The managers, on the floor by their man's corner. */}
+          {ringside.map((person) => (
+            <div key={person.id} ref={handlersFor(person.id).box} data-testid="ringside-person" className="pointer-events-none absolute" style={{ left: w / 2 - personW / 2, top: feetY - personH, width: personW, zIndex: 4 }}>
+              <Person id={`rs-${person.id}`} outfit="suit" face={person.face} onParts={handlersFor(person.id).parts} />
+            </div>
+          ))}
 
           {/* Furniture a beat calls for: a ladder to climb, a table to go through. */}
           {scene === 'ladder' && plan && (

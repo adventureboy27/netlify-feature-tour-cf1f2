@@ -97,6 +97,8 @@ export interface PlanFighter {
   /** Where the last beat left them, if they were in it. */
   from: WorldPose | undefined;
   taggedIn: boolean;
+  /** Not in the match at all: runs in from the floor, onto the apron and over the top. */
+  runIn?: boolean;
   /** How beaten up they are, 0-1: somebody battered is slower off the mat. */
   wear?: number;
 }
@@ -223,7 +225,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
     const lieAt = targetFrames[0]![1];
     centre = target.from.x - target.dir * lieAt + (target.dir * GAP) / 2;
   } else {
-    const known = fighters.filter((f) => f.from && here(f.from) && !f.taggedIn);
+    const known = fighters.filter((f) => f.from && here(f.from) && !f.taggedIn && !f.runIn);
     if (options.near !== undefined) centre = options.near;
     else if (known.length === 2) centre = (known[0]!.from!.x + known[1]!.from!.x) / 2;
     else if (known.length === 1) centre = known[0]!.from!.x + (known[0]!.dir * GAP) / 2;
@@ -255,6 +257,10 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
       lead = Math.max(lead, 0.5);
       continue;
     }
+    if (f.runIn) {
+      lead = Math.max(lead, 0.42);
+      continue;
+    }
     if (!f.from) continue;
     if (f === target && staysDown) continue;
     const first = local(f)[0]!;
@@ -276,7 +282,15 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
     if (lead > 0 && !holds) {
       const first = table[0]!;
       const to = { x: h + f.dir * first[1], y: first[2] + ground, rot: f.dir * first[3] };
-      if (f.taggedIn) {
+      if (f.runIn) {
+        // Down the aisle, up onto the apron, over the top rope.
+        const floorX = -f.dir * (RING.half + 16);
+        frames.push({ at: 0, x: floorX, y: FLOOR, rot: 0, sy: 1, stance: 'run' });
+        frames.push({ at: lead * 0.45, x: apronX(f.dir) - f.dir * 3, y: FLOOR, rot: f.dir * 8, sy: 1, stance: 'run' });
+        frames.push({ at: lead * 0.62, x: apronX(f.dir), y: 0, rot: 0, sy: 1, stance: 'climb' });
+        frames.push({ at: lead * 0.8, x: -f.dir * (RING.half - 1), y: TAG_VAULT_HEIGHT, rot: f.dir * 16, sy: 1, stance: 'tuck' });
+        frames.push({ at: lead * 0.96, x: to.x, y: 0.4, rot: 0, sy: 1, stance: 'crouch' });
+      } else if (f.taggedIn) {
         const from = apronX(f.dir);
         // On the apron, reaching in over the top rope for the hand — and
         // only once it has been touched, over the rope and in.
@@ -350,7 +364,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
       frames.push({ at: t, x: wx, y: wy, rot: wrot, sy, stance: inRopes ? 'ropes' : stance });
     }
     // The walk back to the mark is held to the same walls as the move is.
-    if (lead > 0 && !holds && !f.taggedIn) {
+    if (lead > 0 && !holds && !f.taggedIn && !f.runIn) {
       for (const frame of frames) {
         if (frame.at >= lead || frame.at === 0) continue;
         const wall = edgeAt(frame.y);

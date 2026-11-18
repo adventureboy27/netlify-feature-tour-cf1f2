@@ -1450,7 +1450,51 @@ export interface MatchBeat {
    */
   actorId?: Id | null;
   targetId?: Id | null;
+  /**
+   * What the official did in this beat, when the write-up says he did
+   * something: missed it, counted it fast or slow, turned his back, got
+   * flattened, caught somebody. The viewer puts the referee there doing it.
+   * See sim/officiating.ts.
+   */
+  official?: OfficialMoment;
+  /**
+   * Somebody who is not in the match but was in this beat: the manager
+   * holding the referee's attention, the man running in. The viewer draws
+   * them where they were.
+   */
+  ringsideId?: Id;
 }
+
+/**
+ * The official's part in a beat. The referee misses (data/refereeMisses.ts)
+ * by id, plus what a guest referee with an agenda does with his hand, and
+ * what the people outside the ropes do to him.
+ */
+export type OfficialMoment =
+  | 'footOnRope'
+  | 'shoulderUp'
+  | 'lowBlow'
+  | 'foreignObject'
+  | 'missedTag'
+  | 'wrongLegalMan'
+  | 'missedInterference'
+  | 'slowCount'
+  | 'outOfPosition'
+  | 'lostCountOut'
+  | 'lateStoppage'
+  | 'blewTheFinish'
+  /** A guest referee getting his hand down quick for the side he favours. */
+  | 'fastCount'
+  /** ...and in no hurry at all for the other side. */
+  | 'guestSlowCount'
+  /** A manager at ringside has him by the ropes. */
+  | 'distracted'
+  /** He saw the manager do it, and called for the bell. */
+  | 'caught'
+  /** The mouthpiece holds him while the muscle goes to work on the floor. */
+  | 'mugging'
+  /** Somebody who is not in the match hit the ring. */
+  | 'runIn';
 
 // DESIGN: SegmentResult is referenced by Segment but never defined.
 export interface SegmentResult {

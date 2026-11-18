@@ -101,6 +101,7 @@ import {
   guestRefereeHealthCost,
 } from '../engine/sim/ringside';
 import { refereeMissById } from '../data/refereeMisses';
+import { pickRunIn, placeGuestCounts, placeMiss, placeMugging, placeRunIn } from '../engine/sim/officiating';
 import {
   managerFromWrestler,
   learnOnTheJob,
@@ -2269,6 +2270,68 @@ export const useGameStore = create<GameStore>()(
             guestRefereeUses += 1;
           }
 
+          // ---- who else was in it ----------------------------------------
+          // Somebody ran in, and a guest referee did something with his
+          // hand. Both are decided above (the finish, the agenda); this puts
+          // them on the beats where they happened, by name, so the write-up,
+          // the call and the ring all show the same thing. Its own seeded
+          // stream: not one draw comes off the shared one (CLAUDE.md).
+          {
+            const officiating = rngFromSeed(`${world.settings.seed}-official-${world.week}-${i}`);
+            const competitorsBySide = new Map<number, Wrestler[]>();
+            for (const p of segment.participants) {
+              if (p.role !== 'competitor') continue;
+              const w = wrestlerById.get(p.wrestlerId);
+              if (w) competitorsBySide.set(p.side, [...(competitorsBySide.get(p.side) ?? []), w]);
+            }
+            const winnerIds = new Set(result.winnerWrestlerIds);
+            const inTheMatch = new Set(participantIds);
+            const winners = [...competitorsBySide.values()].flat().filter((w) => winnerIds.has(w.id));
+            const losers = [...competitorsBySide.values()].flat().filter((w) => !winnerIds.has(w.id));
+
+            const runInFor = result.finish === 'interference' ? winners : result.finish === 'disqualification' && !result.caughtManagerId ? losers : [];
+            const runInAt = result.finish === 'interference' ? losers : winners;
+            if (runInFor.length > 0 && runInAt.length > 0) {
+              const helped = new Set(runInFor.map((w) => w.id));
+              const eligible = (w: Wrestler | undefined): w is Wrestler =>
+                Boolean(w) && !inTheMatch.has(w!.id) && w!.role === 'wrestler' && canWork(w!, world.settings, world.week);
+              const allies = world.stables
+                .filter((st) => st.disbandedWeek === null && st.memberIds.some((id) => helped.has(id)))
+                .flatMap((st) => st.memberIds.map((id) => world.wrestlers[id]))
+                .filter(eligible);
+              // A disqualification with nobody to run in was the loser's own
+              // doing; the finish line already says the match broke down.
+              const anybody =
+                result.finish === 'interference'
+                  ? world.promotion.rosterIds.map((id) => world.wrestlers[id]).filter(eligible)
+                  : [];
+              const runner = pickRunIn(officiating, [...new Map(allies.map((w) => [w.id, w])).values()], anybody);
+              if (runner) {
+                const finishBeat = result.beats.find((b) => b.kind === 'finish');
+                const victim =
+                  (result.finish === 'interference' ? runInAt.find((w) => w.id === finishBeat?.targetId) : undefined) ?? runInAt[0]!;
+                result.beats = placeRunIn(result.beats, {
+                  runnerId: runner.id,
+                  runnerName: runner.name,
+                  victimId: victim.id,
+                  victimName: victim.name,
+                  disqualified: result.finish === 'disqualification',
+                  rng: officiating,
+                });
+              }
+            }
+
+            if (officiatingWrestler && agenda && agenda.favoursSide !== null) {
+              result.beats = placeGuestCounts(result.beats, {
+                guestName: officiatingWrestler.name,
+                favoured: new Set((competitorsBySide.get(agenda.favoursSide) ?? []).map((w) => w.id)),
+                finish: result.finish,
+                nameOf: (id) => wrestlerById.get(id)?.name ?? 'somebody',
+                rng: officiating,
+              });
+            }
+          }
+
           // ---- what the official missed ----------------------------------
           // The rule about nothing happening off-screen applies to
           // officiating too. A cheap referee is not a hidden multiplier on a
@@ -2290,6 +2353,12 @@ export const useGameStore = create<GameStore>()(
                 competitorIds: participantIds,
                 hasTags: [...sideSizes.values()].some((n) => n > 1),
                 hadInterference: result.finish === 'interference' || result.finish === 'disqualification',
+                finish: result.finish,
+                loserIds: participantIds.filter(
+                  (id) =>
+                    !result.winnerWrestlerIds.includes(id) &&
+                    segment.participants.some((p) => p.wrestlerId === id && p.role === 'competitor'),
+                ),
                 settings: world.settings,
               },
               usedRefereeMissLines,
@@ -2297,7 +2366,18 @@ export const useGameStore = create<GameStore>()(
 
             if (miss) {
               const victim = miss.victimId ? wrestlerById.get(miss.victimId) : null;
-              misses.push(nameTheVictim(miss, victim?.name ?? null));
+              const named = nameTheVictim(miss, victim?.name ?? null);
+              misses.push(named);
+              // ...and where in the match it happened, so the ring shows it.
+              result.beats = placeMiss(result.beats, named, {
+                winnerIds: result.winnerWrestlerIds,
+                loserIds: participantIds.filter(
+                  (id) =>
+                    !result.winnerWrestlerIds.includes(id) &&
+                    segment.participants.some((p) => p.wrestlerId === id && p.role === 'competitor'),
+                ),
+                finish: result.finish,
+              });
               // A blown call costs the match on the night and costs the
               // wrestler it went against real morale — which is exactly why
               // signing the cheapest official in the business is a way to
@@ -2558,15 +2638,23 @@ export const useGameStore = create<GameStore>()(
             // §0: nothing happens to anybody off-screen. It is in the write-up
             // with both names on it, because a match that swung on something
             // the player never saw reads as the sim cheating.
-            tonightsBeats.push({
-              participantIds: [victim.id],
-              kind: 'interference',
-              text: muggingLine(
-                ringside.muggingBy?.[side] ?? 'The muscle',
-                ringside.muggingDistractor?.[side] ?? 'The mouthpiece',
-                victim.name,
-              ),
-            });
+            const mugging = muggingLine(
+              ringside.muggingBy?.[side] ?? 'The muscle',
+              ringside.muggingDistractor?.[side] ?? 'The mouthpiece',
+              victim.name,
+            );
+            tonightsBeats.push({ participantIds: [victim.id], kind: 'interference', text: mugging });
+            // In the match too: it happened during it, at ringside, and the
+            // ring shows the official held at the ropes while it did.
+            const muscleId = ringside.muggingById?.[side];
+            if (muscleId) {
+              result.beats = placeMugging(result.beats, {
+                muscleId,
+                distractorId: ringside.muggingDistractorById?.[side] ?? null,
+                victimId: victim.id,
+                text: mugging,
+              });
+            }
           }
 
           for (const assignment of segment.managerIds ?? []) {
