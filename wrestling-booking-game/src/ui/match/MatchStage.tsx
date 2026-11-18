@@ -127,10 +127,12 @@ const planOf = (tracks: Map<Id, WorldFrame[]>): Plan => ({
 const MAT_SPLAT = 'M 0,-9 C 6,-10 10,-4 8,1 C 12,4 9,10 3,8 C 1,13 -6,11 -6,6 C -12,6 -11,-1 -7,-3 C -9,-8 -4,-10 0,-9 Z M 13,-6 a 2.5,2.5 0 1,0 0.1,0 Z M -12,9 a 2,2 0 1,0 0.1,0 Z M 11,11 a 1.5,1.5 0 1,0 0.1,0 Z';
 
 /**
- * How far in from the apron the one being tagged out stands to make the tag:
- * both of them upright, arms up, the two hands meeting above the top rope.
+ * Where the tag is made: in the team's own corner, the one going out with
+ * their back against the ropes right by the post, the one coming in on the
+ * apron just the other side of them. Nowhere else is a legal tag. Both reach
+ * straight up and the two hands meet over the top rope, above the post.
  */
-const TAG_REACH = 8.6;
+const tagCorner = (side: 1 | -1) => -side * (RING.half - 1.4);
 
 /** A splat of blood on the mat: where (ring x, and how far up or down the canvas), how big, which way. */
 export interface Stain {
@@ -343,8 +345,7 @@ export function MatchStage({
       const id = t.wrestler.id;
       const side = dirOf(t.slot);
       const from = leftAt.current.get(id) ?? { x: -side * (RING.half - 4), y: 0, rot: 0 };
-      // Far enough in from the corner that the two reaching hands meet at the ropes.
-      const corner = { x: apronX(side) + side * TAG_REACH, y: 0, rot: 0 };
+      const corner = { x: tagCorner(side), y: 0, rot: 0 };
       const lead = Math.max(next.lead, 0.3);
       const down = Math.abs(Math.abs(from.rot) - 90) < 30;
       const frames: WorldFrame[] = [frame(0, from, down ? 'flat' : undefined)];
@@ -835,7 +836,7 @@ export function MatchStage({
                   key={`${beatKey}-tag-${f.wrestler.id}`}
                   viewBox="-50 -50 100 100"
                   className="mv-burst pointer-events-none absolute"
-                  style={{ left: sx(apronX(dirOf(f.slot)) + dirOf(f.slot) * (TAG_REACH / 2)) - 3.5 * u, top: sy(23.5), width: 7 * u, height: 7 * u, zIndex: 11, animationDelay: `${Math.max(0, (plan?.lead ?? 0.5) * TAG_TOUCH * duration - 100)}ms` }}
+                  style={{ left: sx((apronX(dirOf(f.slot)) + tagCorner(dirOf(f.slot))) / 2 + dirOf(f.slot) * 1.5) - 3.5 * u, top: sy(23.5), width: 7 * u, height: 7 * u, zIndex: 11, animationDelay: `${Math.max(0, (plan?.lead ?? 0.5) * TAG_TOUCH * duration - 100)}ms` }}
                 >
                   <polygon points="0,-48 9,-17 38,-34 20,-7 48,2 19,11 31,40 6,20 -8,48 -12,17 -42,28 -22,3 -48,-12 -18,-13 -24,-42" fill="#ffffff" stroke="#ffe27a" strokeWidth={3} />
                 </svg>

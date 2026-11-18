@@ -66,11 +66,11 @@ export const STANCES = {
   stomp: s(-6, [30, 60], [-30, 70], [74, 94], [-6, 8]),
   knee: s(-8, [40, 90], [30, 95], [84, 98], [-8, 8]),
   kneel: s(10, [30, 60], [26, 70], [80, 98], [-12, 90]),
-  // A tag, from both sides of the ropes, high over the top rope: the one
-  // coming in reaches up and in with the lead hand; the one going out reaches
-  // up and back to the corner. Raised, the two hands meet rather than pass.
-  tagIn: s(0, [158, 4], [12, 30], [6, 10], [-6, 8]),
-  tagOut: s(0, [20, 40], [-158, 4], [8, 12], [-8, 10]),
+  // A tag, in the corner, from both sides of the ropes: each reaches straight
+  // up — the one coming in with the hand nearer the ring, the one going out
+  // with the hand nearer the corner — and the two meet over the post.
+  tagIn: s(0, [174, 2], [12, 30], [6, 10], [-6, 8]),
+  tagOut: s(0, [20, 40], [-174, 2], [8, 12], [-8, 10]),
   // Sat on the attacker's shoulders, facing them: thighs straight out over
   // the shoulders, shins hanging down their back, hands on their head.
   shoulders: s(-6, [50, 60], [40, 70], [88, 92], [84, 96]),
