@@ -12,15 +12,24 @@
 /** [shoulder, elbow] or [hip, knee]. */
 type Limb = readonly [number, number];
 export interface Stance {
-  /** Waist: positive bends the upper body toward the opponent. */
+  /**
+   * How far the upper body bends, toward the opponent if positive. Shared
+   * between the waist and the middle of the back (playback.ts), so the back
+   * curves rather than hinging at the belt.
+   */
   w: number;
+  /**
+   * More bend at the middle of the back alone, on top of its share of `w`:
+   * a body doubling over, or arching back, curls up past what the hips do.
+   */
+  c?: number;
   la: Limb;
   ra: Limb;
   ll: Limb;
   rl: Limb;
 }
 
-const s = (w: number, la: Limb, ra: Limb, ll: Limb, rl: Limb): Stance => ({ w, la, ra, ll, rl });
+const s = (w: number, la: Limb, ra: Limb, ll: Limb, rl: Limb, c = 0): Stance => ({ w, la, ra, ll, rl, c });
 
 export const STANCES = {
   stand: s(0, [0, 0], [0, 0], [0, 0], [0, 0]),
@@ -31,28 +40,31 @@ export const STANCES = {
   choke: s(18, [72, 105], [52, 115], [14, 20], [-12, 10]),
   lift: s(-8, [165, 8], [152, 12], [8, 18], [-6, 14]),
   carry: s(-6, [105, 65], [92, 70], [10, 22], [-8, 16]),
-  bend: s(38, [22, 10], [18, 12], [6, 16], [-6, 16]),
-  stagger: s(-16, [-45, 34], [-62, 22], [12, 24], [-12, 6]),
-  fall: s(-12, [142, 22], [154, 18], [32, 34], [16, 48]),
-  hang: s(4, [172, 8], [164, 12], [10, 20], [-6, 30]),
+  // Doubled over: a knee to the gut, a body shot, set up for a move.
+  bend: s(46, [22, 10], [18, 12], [10, 22], [-6, 20], 11),
+  // Rocked back by it: arched, arms flung behind, knees going.
+  stagger: s(-26, [-45, 34], [-62, 22], [16, 30], [-12, 12], -9),
+  fall: s(-22, [142, 22], [154, 18], [32, 34], [16, 48], -8),
+  hang: s(4, [172, 8], [164, 12], [10, 20], [-6, 30], -6),
   flat: s(0, [38, 16], [-34, 18], [9, 14], [-7, 5]),
   run: s(16, [55, 85], [-42, 85], [48, 62], [-28, 34]),
-  crouch: s(24, [34, 85], [30, 88], [52, 98], [38, 98]),
-  seated: s(6, [60, 40], [50, 46], [86, 84], [80, 88]),
+  crouch: s(26, [34, 85], [30, 88], [52, 98], [38, 98], 5),
+  seated: s(10, [60, 40], [50, 46], [86, 84], [80, 88], 3),
   kick: s(-32, [-32, 44], [42, 64], [98, 4], [-10, 12]),
   dropkick: s(12, [-30, 22], [-36, 26], [84, 4], [78, 6]),
   fly: s(0, [152, 10], [164, 8], [-10, 10], [6, 22]),
-  tuck: s(42, [62, 95], [58, 98], [74, 104], [70, 108]),
+  tuck: s(48, [62, 95], [58, 98], [74, 104], [70, 108], 11),
   spear: s(4, [102, 10], [98, 14], [-20, 10], [-42, 32]),
   clothes: s(12, [92, 0], [-30, 64], [44, 58], [-26, 30]),
   elbowUp: s(-10, [152, 124], [30, 60], [16, 30], [-10, 26]),
   cover: s(10, [62, 44], [84, 52], [10, 22], [-22, 44]),
-  kickout: s(8, [124, 22], [96, 30], [72, 12], [58, 24]),
+  // Shoulder up off the mat: a crunch, chest curling up off it.
+  kickout: s(16, [124, 22], [96, 30], [72, 12], [58, 24], 9),
   // A pin: laid flat along the opponent, chest down on them. Laid sideways,
   // "forward" points down, so the arms reach down across their chest; the legs
   // stay straight out behind, not up in the air.
   pin: s(4, [78, 24], [102, 36], [-3, 4], [3, 6]),
-  tap: s(0, [104, 92], [-30, 20], [6, 30], [-6, 52]),
+  tap: s(6, [104, 92], [-30, 20], [6, 30], [-6, 52], 5),
   celebrate: s(-4, [168, 8], [-168, 8], [4, 4], [-4, 4]),
   // In the ropes: back flat against them and a little crunch away from them,
   // arms forward into the ring, legs under the body. Nothing reaches back
@@ -75,16 +87,16 @@ export const STANCES = {
   // the shoulders, shins hanging down their back, hands on their head.
   shoulders: s(-6, [50, 60], [40, 70], [88, 92], [84, 96]),
   // Knees going, chin first: the moment a stunner lands.
-  buckle: s(20, [-20, 30], [-30, 24], [62, 100], [44, 90]),
+  buckle: s(28, [-20, 30], [-30, 24], [62, 100], [44, 90], 8),
   // Bent backward over a knee. Laid out head-away, "forward" is up: the back
   // arches down on both sides of the knee, arms and legs hanging.
-  draped: s(-22, [-50, 20], [-70, 16], [-28, 20], [-38, 28]),
+  draped: s(-26, [-50, 20], [-70, 16], [-28, 20], [-38, 28], -8),
   // A Boston crab, both sides of it. The one applying it sits back with the
   // legs locked under the arms; the one in it lies face down with the legs
   // folded up and back — laid out head-toward, "up" is backward.
   crab: s(-6, [40, 70], [30, 80], [84, 122], [72, 120]),
-  crabbed: s(14, [70, 30], [-30, 20], [-62, 20], [-70, 26]),
-  crabTap: s(22, [118, 40], [-30, 20], [-62, 20], [-70, 26]),
+  crabbed: s(22, [70, 30], [-30, 20], [-62, 20], [-70, 26], 9),
+  crabTap: s(28, [118, 40], [-30, 20], [-62, 20], [-70, 26], 10),
 } as const satisfies Record<string, Stance>;
 
 export type StanceId = keyof typeof STANCES;

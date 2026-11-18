@@ -108,7 +108,15 @@ export function playPlan(
     const lead = d === 1 ? joints.right : joints.left;
     const rear = d === 1 ? joints.left : joints.right;
     const turn = (part: Element, angle: (st: Stance) => number) => play(part, channel(stances.map(angle)).map((deg) => `rotate(${deg.toFixed(2)}deg)`));
-    turn(joints.waist, (st) => d * st.w);
+    // The bend of the upper body, shared between the waist and the middle
+    // of the back where the figure has both — a curve, not a hinge — plus
+    // whatever extra curl the pose puts in the back alone.
+    if (joints.chest) {
+      turn(joints.waist, (st) => d * st.w * 0.72);
+      turn(joints.chest, (st) => d * (st.w * 0.28 + (st.c ?? 0)));
+    } else {
+      turn(joints.waist, (st) => d * (st.w + (st.c ?? 0)));
+    }
     turn(lead.shoulder, (st) => -d * st.la[0]);
     turn(lead.elbow, (st) => -d * st.la[1]);
     turn(rear.shoulder, (st) => -d * st.ra[0]);

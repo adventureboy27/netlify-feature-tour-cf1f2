@@ -6932,3 +6932,10 @@ Where the rules make the floor legal (no count-outs, street fights, no-DQ and th
 - **Tag matches:** once the legal men have first taken it outside, the partners come off the apron and fight each other on the floor at ringside for the rest of the match, while the legal men work in the ring; they come in with everybody when it goes out of control.
 - **The odd one out follows:** when the featured exchange goes to the floor, the spare wrestler in a triple threat goes out after them to pile in, and rolls back in under the bottom rope when it comes back inside (it had been swinging from inside the ropes at somebody on the floor).
 - Still nothing out there decides anything. Checked with a real tag street fight and triple-threat street fight in the viewer.
+
+## A second bend in the body: the back curves
+
+The figures bent at one point, the waist, and only lightly — so a body taking a chop tipped back stiff from the belt like a plank. Now:
+- **A joint at the middle of the back** (`ArticulatedFigure.tsx` `SPINE_Y`, about the bottom of the ribs). The torso art is drawn in two overlapping pieces, belly-and-hips and chest-head-arms; the bend is shared between the waist and the middle of the back (playback.ts), so the back curves instead of hinging. Arms ride on the chest.
+- **Poses can curl the back further** (`Stance.c`), and the selling and in-a-move poses now bend a good deal more: doubled over from a knee or body shot, arched back from a chop with the knees going, curled tight when tucked, crunched up off the mat on a kickout, the back bent across a knee or under a Boston crab.
+- Tuned against a visible kink at the seam: most of the bend sits at the waist, the rest in the back. Rechecked the reworked moves (powerbomb, stunner, backbreaker, Boston crab, suplex, clothesline) — all still read.

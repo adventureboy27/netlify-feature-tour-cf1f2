@@ -30,6 +30,8 @@ type JointEl = HTMLElement | SVGGElement;
 /** A figure's joints, by SCREEN side — MatchStage knows which side is the lead. */
 export interface Joints {
   waist: JointEl;
+  /** The middle of the back: the bend shared with the waist, so a body curves instead of hinging. */
+  chest?: JointEl;
   left: { shoulder: JointEl; elbow: JointEl; hip: JointEl; knee: JointEl };
   right: { shoulder: JointEl; elbow: JointEl; hip: JointEl; knee: JointEl };
 }
@@ -37,6 +39,12 @@ export interface Joints {
 // ComposedPortrait draws the figure at 86%, sat on the bottom edge (see its
 // FRAMING.waist). A point on the 512 canvas lands here in the portrait box:
 const SCALE = 0.86;
+/**
+ * The middle of the back, in the 512 canvas: about the bottom of the ribs.
+ * The upper body bends here as well as at the waist, the two pieces drawn
+ * with a little overlap so the seam never opens.
+ */
+const SPINE_Y = 340;
 const px = (x: number) => 50 + ((x / 512) * 100 - 50) * SCALE;
 const py = (y: number) => 100 - (100 - (y / 512) * 100) * SCALE;
 const poly = (points: readonly (readonly [number, number])[]) =>
@@ -366,6 +374,7 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
     if (keys.every((k) => p[k])) {
       onJoints({
         waist: p.waist!,
+        chest: p.chest ?? undefined,
         left: {
           shoulder: p["l.shoulder"]!,
           elbow: p["l.elbow"]!,
@@ -429,36 +438,54 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
         className="relative aspect-square w-full"
         style={{ transformOrigin: "50% 98%", willChange: "transform" }}
       >
+        {/* Below the middle of the back: belly and hips, bending at the waist. */}
         <div className={FILL} style={{ clipPath: geometry.torso }}>
-          <ComposedPortrait look={look} alt={wrestler.name} inked />
-          {blindfold && (
-            <div
-              className="absolute rounded-sm bg-neutral-950"
-              style={{ left: `${px(rig.cx - rig.head.halfWidth * 1.1)}%`, width: `${px(rig.cx + rig.head.halfWidth * 1.1) - px(rig.cx - rig.head.halfWidth * 1.1)}%`, top: `${py(rig.head.top + rig.head.tall * 0.4)}%`, height: `${py(rig.head.top + rig.head.tall * 0.62) - py(rig.head.top + rig.head.tall * 0.4)}%` }}
-            />
-          )}
-          {(wear >= 0.2 || burned || bloody) && <Damage rig={rig} wear={wear} burned={burned} bloody={bloody} bare={!look.top && !look.outer} face={!wrestler.masked} />}
-          {wrestler.photoDataUrl && (
-            <img
-              src={wrestler.photoDataUrl}
-              alt=""
-              className="absolute rounded-full border border-black/60 object-cover"
-              style={{ left: "38%", top: "13.5%", width: "24%", height: "24%" }}
-            />
-          )}
+          <div className={FILL} style={{ clipPath: `inset(${py(SPINE_Y - 4).toFixed(2)}% 0 0 0)` }}>
+            <ComposedPortrait look={look} alt="" inked />
+            {(wear >= 0.2 || burned || bloody) && <Damage rig={rig} wear={wear} burned={burned} bloody={bloody} bare={!look.top && !look.outer} face={!wrestler.masked} />}
+          </div>
         </div>
-        <Arm
-          look={look}
-          cut={geometry.left}
-          register={(part, el) => register(`l.${part}`)(el)}
-          held={held === "left" && weapon}
-        />
-        <Arm
-          look={look}
-          cut={geometry.right}
-          register={(part, el) => register(`r.${part}`)(el)}
-          held={held === "right" && weapon}
-        />
+        {/* Above it — chest, head and arms — bending again at the middle of
+            the back, so a body taking a chop arches and one taking a knee
+            doubles over, instead of tipping stiff from the belt. */}
+        <div
+          ref={register("chest")}
+          className={FILL}
+          style={{ transformOrigin: `50% ${py(SPINE_Y).toFixed(2)}%`, willChange: "transform" }}
+        >
+          <div className={FILL} style={{ clipPath: geometry.torso }}>
+            <div className={FILL} style={{ clipPath: `inset(0 0 ${(100 - py(SPINE_Y + 4)).toFixed(2)}% 0)` }}>
+              <ComposedPortrait look={look} alt={wrestler.name} inked />
+              {blindfold && (
+                <div
+                  className="absolute rounded-sm bg-neutral-950"
+                  style={{ left: `${px(rig.cx - rig.head.halfWidth * 1.1)}%`, width: `${px(rig.cx + rig.head.halfWidth * 1.1) - px(rig.cx - rig.head.halfWidth * 1.1)}%`, top: `${py(rig.head.top + rig.head.tall * 0.4)}%`, height: `${py(rig.head.top + rig.head.tall * 0.62) - py(rig.head.top + rig.head.tall * 0.4)}%` }}
+                />
+              )}
+              {(wear >= 0.2 || burned || bloody) && <Damage rig={rig} wear={wear} burned={burned} bloody={bloody} bare={!look.top && !look.outer} face={!wrestler.masked} />}
+              {wrestler.photoDataUrl && (
+                <img
+                  src={wrestler.photoDataUrl}
+                  alt=""
+                  className="absolute rounded-full border border-black/60 object-cover"
+                  style={{ left: "38%", top: "13.5%", width: "24%", height: "24%" }}
+                />
+              )}
+            </div>
+          </div>
+          <Arm
+            look={look}
+            cut={geometry.left}
+            register={(part, el) => register(`l.${part}`)(el)}
+            held={held === "left" && weapon}
+          />
+          <Arm
+            look={look}
+            cut={geometry.right}
+            register={(part, el) => register(`r.${part}`)(el)}
+            held={held === "right" && weapon}
+          />
+        </div>
       </div>
       {/* Reserve the legs' height in the layout: they are absolutely placed. */}
       <div style={{ paddingTop: "81%" }} />
