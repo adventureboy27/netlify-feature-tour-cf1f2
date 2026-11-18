@@ -6914,7 +6914,7 @@ Played a real tag match and a real eight-man battle royal through the game (book
 
 ## Tag matches break down; the field fights harder
 
-- **Breakdowns are recorded and staged.** A tag match (two or more a side; not a cage, a tornado tag or a battle royal) now has a breakdown written into its record just before the near fall or the finish — "It broke down — all four of them in the ring at once…" — and the call says the same. In the ring: "BREAKDOWN!", the legal men brawl down front while the partners come in through the ropes from their own sides and pair off behind them, then back to the apron after. A tag match that ends in interference finishes the same way, everybody in.
+- **Breakdowns are recorded and staged.** A tag match (two or more a side; not a cage, a tornado tag or a battle royal) now has a breakdown written into its record just before the near fall or the finish — "It broke down — all four of them in the ring at once…" — and the call says the same. In the ring: "OUT OF CONTROL!", the legal men brawl down front while the partners come in through the ropes from their own sides and pair off behind them, then back to the apron after. A tag match that ends in interference finishes the same way, everybody in.
 - **The background fights are livelier.** Pairs now use ring work as well as the standing brawl — whips into the ropes and the corner, suplexes, body drops, shoulder blocks, a spear, a backbreaker — and wander their part of the ring a few steps each exchange instead of fighting on one spot. Still nothing that decides anything, and nothing off the top rope.
 - Not done: the background fights colliding with the main exchange.
 

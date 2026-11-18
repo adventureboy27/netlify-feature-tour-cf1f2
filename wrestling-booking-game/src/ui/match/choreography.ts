@@ -1008,7 +1008,7 @@ export function stageBeat(
       case 'breakdown':
         // The two legal men at it down front; the partners are in behind
         // them (MatchViewerScreen puts them in the ring for this beat).
-        return shouting(pick('flurry', 2600), 'BREAKDOWN!', 0.25);
+        return shouting(pick('flurry', 2600), 'OUT OF CONTROL!', 0.25);
       case 'ladderPull':
         return shouting(pick('ladderPull', 2800), 'PULLED DOWN!', 0.8);
       case 'tableFightOff':
