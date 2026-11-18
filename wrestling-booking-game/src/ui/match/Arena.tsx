@@ -15,6 +15,8 @@
 // stage is always exactly 2:1, so a point here maps to the same point there.
 
 import { memo, useMemo } from 'react';
+import { Entrance, HouseLights, NoScreen, Room, SoundStacks } from './Venue';
+import { FULL_PRODUCTION, type Setting } from './setting';
 import { RING } from './ringPhysics';
 import './match.css';
 
@@ -92,24 +94,75 @@ function seeded(seed: number) {
  * heads at a two-count — and, split, some of each. A few in the front row
  * hold signs about the people in this match.
  */
-const Crowd = memo(function Crowd({ signs = [] }: { signs?: readonly string[] }) {
+/** How many rows, and how far back they go, for each kind of room. */
+const CROWD_ROWS: Record<Setting['family'], readonly { y: number; r: number; gap: number; light: number; signs: number }[]> = {
+  arena: [
+    { y: 222, r: 7.5, gap: 20, light: 8, signs: 0.035 },
+    { y: 252, r: 9, gap: 24, light: 10, signs: 0.035 },
+    { y: 285, r: 10.5, gap: 28, light: 12, signs: 0.035 },
+    { y: 320, r: 12.5, gap: 33, light: 15, signs: 0.13 },
+  ],
+  stadium: [
+    { y: 168, r: 5, gap: 13, light: 6, signs: 0 },
+    { y: 194, r: 6.2, gap: 16, light: 7, signs: 0.02 },
+    { y: 222, r: 7.5, gap: 20, light: 8, signs: 0.035 },
+    { y: 252, r: 9, gap: 24, light: 10, signs: 0.035 },
+    { y: 285, r: 10.5, gap: 28, light: 12, signs: 0.035 },
+    { y: 320, r: 12.5, gap: 33, light: 15, signs: 0.13 },
+  ],
+  theatre: [
+    { y: 252, r: 9, gap: 24, light: 10, signs: 0.02 },
+    { y: 285, r: 10.5, gap: 28, light: 12, signs: 0.03 },
+    { y: 320, r: 12.5, gap: 33, light: 15, signs: 0.13 },
+  ],
+  club: [
+    { y: 270, r: 10, gap: 30, light: 10, signs: 0.03 },
+    { y: 315, r: 12.5, gap: 36, light: 14, signs: 0.13 },
+  ],
+  hall: [
+    { y: 270, r: 10, gap: 30, light: 32, signs: 0.03 },
+    { y: 315, r: 12.5, gap: 36, light: 36, signs: 0.13 },
+  ],
+  gym: [
+    { y: 234, r: 8.5, gap: 24, light: 36, signs: 0.03 },
+    { y: 262, r: 9.5, gap: 27, light: 38, signs: 0.03 },
+    { y: 292, r: 10.5, gap: 30, light: 40, signs: 0.04 },
+    { y: 322, r: 12, gap: 34, light: 42, signs: 0.13 },
+  ],
+  openAir: [
+    { y: 230, r: 8, gap: 22, light: 14, signs: 0.03 },
+    { y: 258, r: 9, gap: 25, light: 16, signs: 0.03 },
+    { y: 288, r: 10.5, gap: 29, light: 18, signs: 0.04 },
+    { y: 318, r: 12, gap: 33, light: 20, signs: 0.13 },
+  ],
+  backyard: [{ y: 318, r: 12.5, gap: 42, light: 22, signs: 0.13 }],
+};
+
+const Crowd = memo(function Crowd({ signs = [], family = 'arena', fill = 0.9 }: { signs?: readonly string[]; family?: Setting['family']; fill?: number }) {
+  // In a room with the house lights on the crowd are people in shirts, not
+  // silhouettes in the dark.
+  const lit = family === 'gym' || family === 'hall';
   const rows = useMemo(() => {
     const rnd = seeded(11);
-    const spec = [
-      { y: 222, r: 7.5, gap: 20, light: 8, signs: 0.035 },
-      { y: 252, r: 9, gap: 24, light: 10, signs: 0.035 },
-      { y: 285, r: 10.5, gap: 28, light: 12, signs: 0.035 },
-      { y: 320, r: 12.5, gap: 33, light: 15, signs: 0.13 },
-    ];
+    const who = seeded(23);
+    const spec = CROWD_ROWS[family];
     return spec.map((row, k) => {
       const people = [];
+      const empty: { x: number; y: number; r: number }[] = [];
       for (let x = -10 + rnd() * row.gap; x < VIEW.w + 10; x += row.gap * (0.85 + rnd() * 0.3)) {
         const y = row.y + (rnd() - 0.5) * 6;
-        people.push({ x, y, l: row.light + rnd() * 5, hue: 215 + rnd() * 30, armsUp: rnd() < 0.14, sign: rnd() < row.signs, reacts: rnd() < 0.72, fan: rnd() < 0.55, thumbs: rnd() < 0.6 });
+        const hueSeed = rnd();
+        const person = { x, y, l: row.light + rnd() * 5, hue: lit ? hueSeed * 360 : 215 + hueSeed * 30, armsUp: rnd() < 0.14, sign: rnd() < row.signs, reacts: rnd() < 0.72, fan: rnd() < 0.55, thumbs: rnd() < 0.6 };
+        // As full as the night was: an empty seat where nobody bought one.
+        // (The front row fills first.)
+        const here = who() < Math.min(1, fill * (k === spec.length - 1 ? 1.4 : 1));
+        if (here) people.push(person);
+        else if (lit || family === 'theatre' || family === 'club') empty.push({ x, y, r: row.r });
       }
-      return { ...row, k, people };
+      return { ...row, k, people, empty };
     });
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [family, Math.round(fill * 20)]);
   let signAt = 0;
   let signClear = -Infinity;
   return (
@@ -118,15 +171,19 @@ const Crowd = memo(function Crowd({ signs = [] }: { signs?: readonly string[] })
         signClear = -Infinity;
         return (
         <g key={row.k} className={`mv-crowd mv-crowd-${row.k}`}>
+          {/* Seats nobody sat in. */}
+          {row.empty.map((e, i) => (
+            <path key={`e${i}`} d={`M ${e.x - e.r},${e.y + e.r * 0.6} L ${e.x + e.r},${e.y + e.r * 0.6} L ${e.x + e.r * 0.9},${e.y + e.r * 2} M ${e.x - e.r},${e.y + e.r * 0.6} L ${e.x - e.r},${e.y - e.r * 0.6} L ${e.x + e.r},${e.y - e.r * 0.6} L ${e.x + e.r},${e.y + e.r * 0.6} M ${e.x - e.r * 0.9},${e.y + e.r * 0.6} L ${e.x - e.r},${e.y + e.r * 3}`} stroke={lit ? '#5c626c' : '#2a2c33'} strokeWidth={e.r * 0.25} fill="none" />
+          ))}
           {row.people.map((p, i) => {
-            const fill = `hsl(${p.hue}, 12%, ${p.l}%)`;
+            const colour = `hsl(${p.hue}, ${lit ? 34 : 12}%, ${p.l}%)`;
             const r = row.r;
             const sx = p.x;
             const sy = p.y;
             const arm = { strokeWidth: r * 0.55, strokeLinecap: 'round' as const, fill: 'none' };
             // Arms thrown up (or out) catch the light: a shade lighter and
             // thicker than the body, so a reacting crowd reads from the back.
-            const lit = { ...arm, strokeWidth: r * 0.7, stroke: `hsl(${p.hue}, 16%, ${p.l + 16}%)` };
+            const litArm = { ...arm, strokeWidth: r * 0.7, stroke: `hsl(${p.hue}, 16%, ${p.l + 16}%)` };
             const up = `M ${sx - r * 1.2},${sy + r * 1.4} L ${sx - r * 1.9},${sy - r * 1.6} M ${sx + r * 1.2},${sy + r * 1.4} L ${sx + r * 1.9},${sy - r * 1.6}`;
             // An arm thrust up and out at the ring, thumb turned down — one side or the other.
             const side = p.thumbs ? 1 : -1;
@@ -140,21 +197,21 @@ const Crowd = memo(function Crowd({ signs = [] }: { signs?: readonly string[] })
             else text = null;
             if (text) signAt++;
             return (
-              <g key={i} fill={fill} stroke={fill} className={`${p.reacts ? 'mv-r' : ''}${p.fan ? ' mv-fan' : ''}`}>
+              <g key={i} fill={colour} stroke={colour} className={`${p.reacts ? 'mv-r' : ''}${p.fan ? ' mv-fan' : ''}`}>
                 <ellipse cx={sx} cy={sy + r * 2.3} rx={r * 1.5} ry={r * 1.5} stroke="none" />
                 <circle cx={sx} cy={sy} r={r} stroke="none" />
                 {p.armsUp && <path className="mv-p-idle" d={up} {...arm} />}
                 {p.reacts && (
                   <>
-                    <path className="mv-p mv-p-cheer" d={up} {...lit} />
-                    <path className="mv-p mv-p-boo" d={down} {...lit} />
+                    <path className="mv-p mv-p-cheer" d={up} {...litArm} />
+                    <path className="mv-p mv-p-boo" d={down} {...litArm} />
                     {/* Fists, for when it is really going: both up and pumping, or one shaking at the ring. */}
-                    <g className="mv-p mv-p-fist-cheer" fill={lit.stroke} stroke="none">
+                    <g className="mv-p mv-p-fist-cheer" fill={litArm.stroke} stroke="none">
                       <circle cx={sx - r * 1.95} cy={sy - r * 1.75} r={r * 0.55} />
                       <circle cx={sx + r * 1.95} cy={sy - r * 1.75} r={r * 0.55} />
                     </g>
-                    <circle className="mv-p mv-p-fist-boo" cx={sx + side * r * 2.4} cy={sy - r * 0.95} r={r * 0.55} fill={lit.stroke} stroke="none" />
-                    <path className="mv-p mv-p-ooh" d={head} {...lit} />
+                    <circle className="mv-p mv-p-fist-boo" cx={sx + side * r * 2.4} cy={sy - r * 0.95} r={r * 0.55} fill={litArm.stroke} stroke="none" />
+                    <path className="mv-p mv-p-ooh" d={head} {...litArm} />
                   </>
                 )}
                 {showSign && (
@@ -207,6 +264,16 @@ function wrapName(name: string): string[] {
   return [words.slice(0, per).join(' '), words.slice(per, per * 2).join(' '), words.slice(per * 2).join(' ')].filter(Boolean);
 }
 
+
+/** What the ring is made of, as drawn: the canvas, the apron and its skirt, the ropes, the pads. */
+export const RING_LOOK = {
+  pro: { platform: '#8e95a3', mat: ['#b9bec9', '#dfe2e8'], skirt: null as string | null, rope: '#e9e9ec', pad: null as string | null },
+  // Real mat and ropes, no frills: a plain black skirt, black pads, no logo.
+  basic: { platform: '#7f838d', mat: ['#a9adb5', '#cdd0d6'], skirt: '#141519', rope: '#e2e2e2', pad: '#18191d' },
+  // Off the trailer: plywood under a tarp, hemp rope, tape for pads.
+  plywood: { platform: '#8b6a43', mat: ['#6f7e8f', '#8a99a9'], skirt: '#6e5233', rope: '#b99c6b', pad: '#7b7f87' },
+};
+
 const LAMPS = [150, 380, 600, 820, 1050] as const;
 /**
  * How each lamp moves and what colour it is: its own sweep (how far, how
@@ -243,8 +310,11 @@ export const ArenaBack = memo(function ArenaBack({
   moodBig = false,
   starColor,
   signs,
+  setting = FULL_PRODUCTION,
   onSideRope,
 }: {
+  /** The room and what was in it (ui/match/setting.ts). */
+  setting?: Setting;
   /** How the room feels right now (see ui/match/crowd.ts). */
   mood?: 'cheer' | 'boo' | 'ooh' | 'mixed' | null;
   /** ...and it is the full building, not a pop. */
@@ -308,8 +378,8 @@ export const ArenaBack = memo(function ArenaBack({
           </linearGradient>
         )}
         <linearGradient id="mv-mat" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#b9bec9" />
-          <stop offset="100%" stopColor="#dfe2e8" />
+          <stop offset="0%" stopColor={RING_LOOK[setting.ring].mat[0]} />
+          <stop offset="100%" stopColor={RING_LOOK[setting.ring].mat[1]} />
         </linearGradient>
         <linearGradient id="mv-apron" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={accent} />
@@ -338,12 +408,15 @@ export const ArenaBack = memo(function ArenaBack({
         </radialGradient>
       </defs>
 
-      <rect width={VIEW.w} height={VIEW.h} fill="url(#mv-bg)" />
+      <Room setting={setting} />
+      <Entrance setting={setting} accent={accent} />
+      <SoundStacks setting={setting} />
 
-      {/* The big screen over the entrance. */}
-      <rect x={430} y={30} width={340} height={118} rx={6} fill="#07080c" stroke={accent} strokeOpacity={0.7} strokeWidth={2} />
-      <rect x={438} y={38} width={324} height={102} rx={3} fill={accent} opacity={0.14} />
-      {showName && !corners && (
+      {/* The big screen over the entrance — or, with none, whatever hangs there instead. */}
+      {!setting.screen && !corners && <NoScreen setting={setting} name={name} accent={accent} />}
+      {(setting.screen || corners) && <rect x={430} y={30} width={340} height={118} rx={6} fill="#07080c" stroke={accent} strokeOpacity={0.7} strokeWidth={2} />}
+      {(setting.screen || corners) && <rect x={438} y={38} width={324} height={102} rx={3} fill={accent} opacity={0.14} />}
+      {showName && !corners && setting.screen && (
         <text x={600} y={97} textAnchor="middle" fontSize={24} fontWeight={800} letterSpacing={2} fill={accent} opacity={0.75} style={{ textTransform: 'uppercase' }}>
           {name.length > 22 ? name.split(/\s+/).map((w) => w[0]).join('') : name}
         </text>
@@ -378,10 +451,11 @@ export const ArenaBack = memo(function ArenaBack({
         </g>
       )}
 
-      {/* Lighting rig, and the beams off it. */}
-      <rect x={0} y={14} width={VIEW.w} height={5} fill="#1d2027" />
-      <rect x={0} y={24} width={VIEW.w} height={3} fill="#15171d" />
-      {LAMPS.map((x, i) => {
+      {/* Lighting rig, and the beams off it — or the house lights, with no rig. */}
+      <HouseLights setting={setting} />
+      {setting.lights && <rect x={0} y={14} width={VIEW.w} height={5} fill="#1d2027" />}
+      {setting.lights && <rect x={0} y={24} width={VIEW.w} height={3} fill="#15171d" />}
+      {setting.lights && LAMPS.map((x, i) => {
         const m = LAMP_MOTION[i]!;
         // Every beam off one lamp sweeps together: the lamp is what moves.
         const beam = { transformOrigin: `${x}px 26px`, animationDuration: `${m.every}s`, animationDelay: `${m.delay}s`, animationDirection: m.reverse ? 'alternate-reverse' : 'alternate', '--sweep': `${m.sweep}deg` } as React.CSSProperties;
@@ -397,19 +471,29 @@ export const ArenaBack = memo(function ArenaBack({
         );
       })}
 
-      <Crowd signs={signs} />
-      <Flashes />
+      <Crowd signs={signs} family={setting.family} fill={setting.fill} />
+      {(setting.family === 'arena' || setting.family === 'stadium') && <Flashes />}
 
-      {/* Barricade. */}
-      <rect x={0} y={336} width={VIEW.w} height={46} fill="#0b0c10" />
-      <rect x={0} y={336} width={VIEW.w} height={4} fill={accent} opacity={0.55} />
-      {Array.from({ length: 13 }, (_, i) => (
-        <rect key={i} x={i * 100 - 2} y={336} width={4} height={46} fill="#16181e" />
-      ))}
+      {/* Steel barricades — or, with none, a rope on posts in a big room and nothing at all in a small one. */}
+      {setting.barricades ? (
+        <g>
+          <rect x={0} y={336} width={VIEW.w} height={46} fill="#0b0c10" />
+          <rect x={0} y={336} width={VIEW.w} height={4} fill={accent} opacity={0.55} />
+          {Array.from({ length: 13 }, (_, i) => (
+            <rect key={i} x={i * 100 - 2} y={336} width={4} height={46} fill="#16181e" />
+          ))}
+        </g>
+      ) : (setting.family === 'arena' || setting.family === 'stadium' || setting.family === 'theatre') && (
+        <g>
+          {Array.from({ length: 9 }, (_, i) => (
+            <rect key={i} x={i * 150 - 2} y={346} width={5} height={30} fill="#555b66" />
+          ))}
+          <path d="M 0,350 Q 75,362 150,350 Q 225,362 300,350 Q 375,362 450,350 Q 525,362 600,350 Q 675,362 750,350 Q 825,362 900,350 Q 975,362 1050,350 Q 1125,362 1200,350" fill="none" stroke="#a2242c" strokeWidth={3} />
+        </g>
+      )}
 
-      {/* Floor, and the pool of light the ring sits in. */}
-      <rect x={0} y={380} width={VIEW.w} height={220} fill="url(#mv-floor)" />
-      <ellipse cx={600} cy={500} rx={520} ry={95} fill="url(#mv-pool)" opacity={0.16} />
+      {/* The pool of light the ring sits in — a lit rig's, not the house lights'. */}
+      {setting.lights && <ellipse cx={600} cy={500} rx={520} ry={95} fill="url(#mv-pool)" opacity={0.16} />}
       <ellipse cx={600} cy={546} rx={400} ry={20} fill="#000" opacity={0.55} />
 
       {noRing ? (
@@ -435,19 +519,37 @@ export const ArenaBack = memo(function ArenaBack({
       </>}
 
       {/* The platform: the apron all round, then the canvas inside the ropes. */}
-      <polygon points={`${PLATFORM.backL},${PLATFORM.backY} ${PLATFORM.backR},${PLATFORM.backY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontL},${PLATFORM.frontY}`} fill="#8e95a3" />
+      <polygon points={`${PLATFORM.backL},${PLATFORM.backY} ${PLATFORM.backR},${PLATFORM.backY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontL},${PLATFORM.frontY}`} fill={RING_LOOK[setting.ring].platform} />
       <polygon points={`${PLATFORM.backL},${PLATFORM.backY} ${PLATFORM.backR},${PLATFORM.backY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontL},${PLATFORM.frontY}`} fill="none" stroke={corners ? GOLD : accent} strokeOpacity={0.55} strokeWidth={2.5} />
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="url(#mv-mat)" />
       {/* Where the canvas turns down under the ropes to the apron: a crease, not a wall. */}
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="none" stroke="#000" strokeOpacity={0.22} strokeWidth={2} />
-      <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />
-      <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />
+      {setting.ring === 'pro' && <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />}
+      {setting.ring === 'pro' && <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />}
+      {setting.ring === 'plywood' && (
+        // A tarp over plywood: creased, patched with tape.
+        <path d="M 420,396 L 470,436 M 690,384 L 760,404 M 330,440 L 420,446 M 560,380 L 590,392" stroke="#4c5866" strokeWidth={2} opacity={0.7} />
+      )}
       {corners ? (
         <g>
           {/* The skirt is split down a slant: one company's half, and the other's. */}
           <polygon points={`${PLATFORM.frontL},${PLATFORM.frontY} 624,${PLATFORM.frontY} 576,${SKIRT_BOTTOM} ${PLATFORM.frontL},${SKIRT_BOTTOM}`} fill="url(#mv-apron-0)" />
           <polygon points={`624,${PLATFORM.frontY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontR},${SKIRT_BOTTOM} 576,${SKIRT_BOTTOM}`} fill="url(#mv-apron-1)" />
           <polygon points={`616,${PLATFORM.frontY} 632,${PLATFORM.frontY} 584,${SKIRT_BOTTOM} 568,${SKIRT_BOTTOM}`} fill={GOLD} />
+        </g>
+      ) : RING_LOOK[setting.ring].skirt ? (
+        <g>
+          <polygon points={`${PLATFORM.frontL},${PLATFORM.frontY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontR},${SKIRT_BOTTOM} ${PLATFORM.frontL},${SKIRT_BOTTOM}`} fill={RING_LOOK[setting.ring].skirt!} />
+          {setting.ring === 'plywood' &&
+            // Bare plywood sheets, and cinder blocks under the corners.
+            Array.from({ length: 8 }, (_, i) => {
+              const x = PLATFORM.frontL + ((PLATFORM.frontR - PLATFORM.frontL) * (i + 1)) / 8;
+              return <line key={i} x1={x} y1={PLATFORM.frontY} x2={x} y2={SKIRT_BOTTOM - 26} stroke="#4f3a24" strokeWidth={2} />;
+            })}
+          {setting.ring === 'plywood' &&
+            [PLATFORM.frontL + 10, (PLATFORM.frontL + PLATFORM.frontR) / 2 - 30, PLATFORM.frontR - 70].map((x) => (
+              <rect key={x} x={x} y={SKIRT_BOTTOM - 26} width={60} height={26} fill="#8d8f93" stroke="#5c5e62" strokeWidth={2} />
+            ))}
         </g>
       ) : (
         <polygon points={`${PLATFORM.frontL},${PLATFORM.frontY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontR},${SKIRT_BOTTOM} ${PLATFORM.frontL},${SKIRT_BOTTOM}`} fill="url(#mv-apron)" />
@@ -459,12 +561,12 @@ export const ArenaBack = memo(function ArenaBack({
         <rect key={x} x={x - 6} y={232} width={12} height={MAT.backY - 232} fill="#2b2f38" />
       ))}
       {ROPES_BACK.map((y) => (
-        <line key={y} x1={MAT.backL} y1={y} x2={MAT.backR} y2={y} stroke={ROPE} strokeWidth={3} strokeLinecap="round" opacity={0.8} />
+        <line key={y} x1={MAT.backL} y1={y} x2={MAT.backR} y2={y} stroke={RING_LOOK[setting.ring].rope} strokeWidth={3} strokeLinecap="round" opacity={0.8} />
       ))}
       <SideRun run="backL" onRef={onSideRope} />
       <SideRun run="backR" onRef={onSideRope} />
       {[MAT.backL, MAT.backR].map((x) =>
-        ROPES_BACK.map((y) => <rect key={`${x}-${y}`} x={x - 9} y={y - 7} width={18} height={14} rx={4} fill={corners ? corners[x === MAT.backL ? 0 : 1].accent : accent} />),
+        ROPES_BACK.map((y) => <rect key={`${x}-${y}`} x={x - 9} y={y - 7} width={18} height={14} rx={4} fill={RING_LOOK[setting.ring].pad ?? (corners ? corners[x === MAT.backL ? 0 : 1].accent : accent)} />),
       )}
 
       {cage && (
@@ -495,7 +597,10 @@ export const ArenaFront = memo(function ArenaFront({
   accent,
   corners,
   onSideRope,
+  ring = 'pro',
 }: {
+  /** What the ring is made of (RING_LOOK). */
+  ring?: Setting['ring'];
   noRing?: boolean;
   ropesRef: React.Ref<SVGGElement>;
   /** The near wall of a cage, between the camera and the wrestlers. */
@@ -514,7 +619,7 @@ export const ArenaFront = memo(function ArenaFront({
             {ROPES_FRONT.map((y) => (
               <g key={y} strokeLinecap="round">
                 <line x1={MAT.frontL} y1={y + 1.5} x2={MAT.frontR} y2={y + 1.5} stroke="#000" strokeWidth={6} opacity={0.3} />
-                <line x1={MAT.frontL} y1={y} x2={MAT.frontR} y2={y} stroke={ROPE} strokeWidth={4} />
+                <line x1={MAT.frontL} y1={y} x2={MAT.frontR} y2={y} stroke={RING_LOOK[ring].rope} strokeWidth={ring === 'plywood' ? 3 : 4} />
               </g>
             ))}
           </g>
@@ -523,7 +628,7 @@ export const ArenaFront = memo(function ArenaFront({
               <rect x={x - 7} y={286} width={14} height={MAT.frontY - 286 + 6} fill="#343944" />
               <rect x={x - 7} y={286} width={5} height={MAT.frontY - 286 + 6} fill="#4c5260" />
               {ROPES_FRONT.map((y) => (
-                <rect key={y} x={x - 11} y={y - 9} width={22} height={18} rx={5} fill={corners ? corners[x === MAT.frontL ? 0 : 1].accent : accent} stroke="#000" strokeOpacity={0.35} />
+                <rect key={y} x={x - 11} y={y - 9} width={22} height={18} rx={5} fill={RING_LOOK[ring].pad ?? (corners ? corners[x === MAT.frontL ? 0 : 1].accent : accent)} stroke="#000" strokeOpacity={0.35} />
               ))}
             </g>
           ))}

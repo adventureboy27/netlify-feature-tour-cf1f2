@@ -324,3 +324,8 @@
 .mv-starbanner.mv-starhold { animation-name: mv-starbanner-hold; }
 @keyframes mv-starbanner-hold { 0% { transform: scaleY(0); } 14% { transform: scaleY(1.04); } 20%, 100% { transform: scaleY(1); } }
 @media (prefers-reduced-motion: reduce) { .mv-confetti { display: none; } .mv-starscreen, .mv-starbanner { animation-duration: 0.01s; } }
+
+/* String lights over a backyard: each bulb with its own flicker. */
+.mv-bulb { animation: mv-bulb 2.6s ease-in-out infinite alternate; }
+@keyframes mv-bulb { from { opacity: 0.55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .mv-bulb { animation: none; } }

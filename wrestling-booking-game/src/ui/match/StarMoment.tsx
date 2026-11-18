@@ -48,7 +48,7 @@ function Bust({ star }: { star: Wrestler }) {
   );
 }
 
-export const StarMoment = memo(function StarMoment({ star, mood, victory, color, u, caption }: { star: Wrestler; mood: Mood; victory: boolean; color: string; /** Pixels per hundredth of the stage's width. */ u: number; /** What the screen would have said (YOUR WINNER!, NEW CHAMPION!): said under their name. */ caption?: string | null }) {
+export const StarMoment = memo(function StarMoment({ star, mood, victory, color, u, caption, screen = true, banners = true }: { star: Wrestler; mood: Mood; victory: boolean; color: string; /** Pixels per hundredth of the stage's width. */ u: number; /** What the screen would have said (YOUR WINNER!, NEW CHAMPION!): said under their name. */ caption?: string | null; /** There is a big screen to put them on. */ screen?: boolean; /** There is a rig to hang banners from. */ banners?: boolean }) {
   const angry = mood === 'boo';
   const name = star.name.toUpperCase();
   const surname = star.name.trim().split(/\s+/).pop()!.toUpperCase();
@@ -56,7 +56,7 @@ export const StarMoment = memo(function StarMoment({ star, mood, victory, color,
   return (
     <div className="pointer-events-none absolute inset-0" aria-hidden>
       {/* The big screen: their face and their name, flashing. */}
-      <div
+      {screen && <div
         className={`${victory ? "mv-starscreen mv-starhold" : "mv-starscreen"} absolute overflow-hidden`}
         style={{ left: pct(SCREEN.x, VIEW.w), top: pct(SCREEN.y, VIEW.h), width: pct(SCREEN.w, VIEW.w), height: pct(SCREEN.h, VIEW.h), borderRadius: 6, background: `linear-gradient(110deg, ${tint} 0%, #0b0c12 70%)`, boxShadow: `0 0 24px ${tint}` }}
       >
@@ -73,9 +73,9 @@ export const StarMoment = memo(function StarMoment({ star, mood, victory, color,
             </span>
           )}
         </div>
-      </div>
+      </div>}
       {/* Banners either side of the screen, dropping from the rig. */}
-      {[300, 900].map((x) => (
+      {banners && [300, 900].map((x) => (
         <div
           key={x}
           className={`${victory ? "mv-starbanner mv-starhold" : "mv-starbanner"} absolute flex items-center justify-center`}

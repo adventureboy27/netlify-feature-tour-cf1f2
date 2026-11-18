@@ -19,6 +19,7 @@ import { Prize, PrizeHung, prizeKind, type BeltLook } from './Belt';
 import { bell, boo, cheer, crowd, hit, hitFor, mixed, ooh } from './sound';
 import type { Mood, Reaction } from './crowd';
 import { Confetti, StarMoment, starColorOf } from './StarMoment';
+import { FULL_PRODUCTION, type Setting } from './setting';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { playPlan, settle } from './playback';
@@ -346,6 +347,7 @@ export function MatchStage({
   entrance = [],
   finale,
   signs,
+  setting = FULL_PRODUCTION,
   corners,
   eventName,
   prize,
@@ -415,6 +417,8 @@ export function MatchStage({
   finale?: Reaction;
   /** What the signs in the front row say. */
   signs?: readonly string[];
+  /** The room, and what was in it that night (ui/match/setting.ts). */
+  setting?: Setting;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
@@ -986,10 +990,10 @@ export function MatchStage({
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
       {w > 0 && (
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
-          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} starColor={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : undefined} signs={signs} onSideRope={onSideRope} />
+          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} starColor={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : undefined} signs={signs} setting={setting} onSideRope={onSideRope} />
 
           {/* The apron is the nearest thing this building has to a nameplate. */}
-          {conduct?.noRing ? null : corners ? (
+          {conduct?.noRing || (setting.ring !== 'pro' && !corners) ? null : corners ? (
             corners.map((corner, n) => (
               <div
                 key={n}
@@ -1029,7 +1033,7 @@ export function MatchStage({
           {/* A star's moment: the building is theirs. */}
           {mood?.star && (
             <div key={`star-${mood.key}`} className="pointer-events-none absolute inset-0" style={{ zIndex: 1 }}>
-              <StarMoment star={mood.star} mood={mood.mood} victory={Boolean(mood.victory)} color={starColorOf(mood.star)} u={u} caption={callout} />
+              <StarMoment star={mood.star} mood={mood.mood} victory={Boolean(mood.victory)} color={starColorOf(mood.star)} u={u} caption={callout} screen={setting.screen} banners={setting.lights} />
             </div>
           )}
           {mood?.star && mood.victory && mood.mood !== 'boo' && (
@@ -1144,6 +1148,30 @@ export function MatchStage({
               <Person id={`rs-${person.id}`} outfit="suit" face={person.face} held={over ? undefined : corner.find((c) => c.id === person.id)?.weapon} onParts={handlersFor(person.id).parts} />
             </div>
           ))}
+
+          {/* What was bought for the night, standing where it stands: security
+              at either end of the ringside floor, the medical team by the
+              steps, the hard camera on its tripod at the near corner. */}
+          {setting.security &&
+            [-1, 1].map((side) => (
+              <div key={`security-${side}`} data-testid="security" className="pointer-events-none absolute" style={{ left: w / 2 + side * (RING.half + 20) * u - personW / 2, top: feetY - FLOOR * u - personH, width: personW, zIndex: 4 }}>
+                <Person id={`security-${side}`} outfit="security" face={{}} onParts={() => undefined} />
+              </div>
+            ))}
+          {setting.medical && (
+            <div data-testid="medic" className="pointer-events-none absolute" style={{ left: w / 2 - (RING.half + 13) * u - personW / 2, top: feetY - FLOOR * u - personH, width: personW, zIndex: 4 }}>
+              <Person id="medic" outfit="medic" face={{}} onParts={() => undefined} />
+            </div>
+          )}
+          {setting.cameras && !conduct?.noRing && (
+            <svg viewBox="0 0 60 90" data-testid="hard-camera" className="pointer-events-none absolute" style={{ left: w / 2 + (RING.half + 14) * u, top: feetY - FRONT_FLOOR * u - 13 * u, width: 8.5 * u, height: 13 * u, zIndex: 13 }} aria-hidden>
+              <path d="M 22,40 L 10,88 M 30,40 L 30,88 M 38,40 L 50,88" stroke="#22252b" strokeWidth={3} />
+              <rect x={12} y={20} width={34} height={20} rx={3} fill="#1a1c21" stroke="#3a3e48" strokeWidth={2} />
+              <rect x={2} y={24} width={12} height={12} rx={2} fill="#2a2d34" />
+              <circle cx={5} cy={30} r={3.5} fill="#5b7bbf" />
+              <circle cx={44} cy={24} r={2} fill="#e33" />
+            </svg>
+          )}
 
           {/* Furniture a beat calls for: a ladder to climb, a table to go through. */}
           {scene === 'ladder' && plan && (
@@ -1279,7 +1307,7 @@ export function MatchStage({
             );
           })}
 
-          <ArenaFront ropesRef={ropesRef} cage={conduct?.cage} noRing={conduct?.noRing} accent={accent} corners={corners} onSideRope={onSideRope} />
+          <ArenaFront ropesRef={ropesRef} cage={conduct?.cage} noRing={conduct?.noRing} accent={accent} corners={corners} onSideRope={onSideRope} ring={setting.ring} />
 
           {/* A casket at ringside, shut on somebody — and its lid coming back up. */}
           {scene === 'casketOpen' && target && plan && (() => {
@@ -1433,7 +1461,7 @@ export function MatchStage({
               : [w * 0.18, w * 0.82]
             ).map((x) => <PyroBurst key={`${beatKey}-pyro-${x}`} left={x} bottom={feetY + 0.5 * u} width={9 * u} height={26 * u} />)}
 
-          {callout && !mood?.star && (
+          {callout && !(mood?.star && setting.screen) && (
             <div
               key={`callout-${beatKey}-${over}`}
               className="pointer-events-none absolute flex items-center justify-center px-2 text-center"

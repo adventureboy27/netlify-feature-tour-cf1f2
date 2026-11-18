@@ -18,6 +18,7 @@ import { maskWorn } from '../paperdoll/maskWorn';
 import { MatchStage, type Aftermath, type Bystander, type CornerCue, type RingsidePerson, type StageFighter, type Stain } from '../match/MatchStage';
 import { initialsOf } from '../match/Ringside';
 import { entranceOf, finaleFor, reactionTo, standingOf } from '../match/crowd';
+import { settingOf } from '../match/setting';
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
 import { isNonDecisiveFinish } from '../../engine/sim/finish';
@@ -791,6 +792,7 @@ export function MatchViewerScreen({
           entrance={combined.slice(0, 4).map(entranceOf)}
           finale={finaleFor(combined.filter((w) => winnerIds.has(w.id)))}
           signs={crowdSigns}
+          setting={settingOf(show)}
           referee={{ guest: segment.guestRefereeId ? (world.wrestlers[segment.guestRefereeId] ?? null) : null }}
           ringside={ringsidePeople}
           corner={cornerCues}

@@ -17,7 +17,7 @@ import { BODY_RIG } from './rig';
 import type { Wrestler } from '../../engine/types';
 
 /** What a person at ringside is wearing. */
-export type Outfit = 'stripes' | 'suit';
+export type Outfit = 'stripes' | 'suit' | 'security' | 'medic';
 
 /** The parts MatchStage animates. */
 export interface PersonParts {
@@ -101,13 +101,17 @@ function Head({ face, cx, cy, r }: { face: Face; cx: number; cy: number; r: numb
 
 /** Shirt and trousers. `dy` lowers the upper body (kneeling). */
 function Torso({ outfit, dy, stripes }: { outfit: Outfit; dy: number; stripes: string }) {
-  const shirt = outfit === 'stripes' ? `url(#${stripes})` : '#262a36';
+  const shirt = outfit === 'stripes' ? `url(#${stripes})` : outfit === 'security' ? '#f2c230' : outfit === 'medic' ? '#f4f3ef' : '#262a36';
   return (
     <g transform={`translate(0 ${dy})`}>
       {/* The far arm, hanging. */}
-      <path d="M 19,40 C 15,52 15,62 16,74" stroke={outfit === 'stripes' ? '#e9e6df' : '#262a36'} strokeWidth={7} strokeLinecap="round" fill="none" />
+      <path d="M 19,40 C 15,52 15,62 16,74" stroke={outfit === 'stripes' || outfit === 'medic' ? '#e9e6df' : outfit === 'security' ? '#f2c230' : '#262a36'} strokeWidth={7} strokeLinecap="round" fill="none" />
       <path d="M 16,66 L 16,76" stroke={SKIN} strokeWidth={6} strokeLinecap="round" />
       <path d="M 19,34 Q 30,30 41,34 L 43,58 L 41,86 L 19,86 L 17,58 Z" fill={shirt} stroke={INK} strokeWidth={1.6} strokeLinejoin="round" />
+      {outfit === 'security' && (
+        <text x={30} y={60} textAnchor="middle" fontSize={5.6} fontWeight={900} fill="#111" letterSpacing={0.2}>SECURITY</text>
+      )}
+      {outfit === 'medic' && <path d="M 27,48 L 33,48 L 33,54 L 39,54 L 39,60 L 33,60 L 33,66 L 27,66 L 27,60 L 21,60 L 21,54 L 27,54 Z" fill="#d22" />}
       {outfit === 'suit' ? (
         <>
           <path d="M 26,33 L 30,50 L 34,33 Z" fill="#f1efe8" stroke={INK} strokeWidth={0.8} />
@@ -144,7 +148,7 @@ function ArmShape({ outfit, held }: { outfit: Outfit; held?: PersonHeld }) {
   return (
     <>
       {held && <HeldThing held={held} />}
-      <path d={`M ${SHOULDER.x},${SHOULDER.y} L ${SHOULDER.x + 1},${SHOULDER.y + 20}`} stroke={outfit === 'stripes' ? '#e9e6df' : '#262a36'} strokeWidth={7} strokeLinecap="round" />
+      <path d={`M ${SHOULDER.x},${SHOULDER.y} L ${SHOULDER.x + 1},${SHOULDER.y + 20}`} stroke={outfit === 'stripes' || outfit === 'medic' ? '#e9e6df' : outfit === 'security' ? '#f2c230' : '#262a36'} strokeWidth={7} strokeLinecap="round" />
       <path d={`M ${SHOULDER.x},${SHOULDER.y} L ${SHOULDER.x + 1},${SHOULDER.y + 20}`} stroke={INK} strokeWidth={8.6} strokeLinecap="round" opacity={0.25} />
       <path d={`M ${SHOULDER.x + 1},${SHOULDER.y + 18} L ${SHOULDER.x + 1.5},${SHOULDER.y + 34}`} stroke={SKIN} strokeWidth={6} strokeLinecap="round" />
       <circle cx={SHOULDER.x + 1.5} cy={SHOULDER.y + 35} r={3.4} fill={SKIN} stroke={INK} strokeWidth={1} />
