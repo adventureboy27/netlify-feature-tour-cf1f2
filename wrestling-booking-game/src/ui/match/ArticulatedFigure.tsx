@@ -231,6 +231,74 @@ function Steps({ at }: { at: { left: string; top: string } }) {
   );
 }
 
+/**
+ * What the match has done to the body, drawn on the torso art in its own
+ * 512 canvas: bruises that come up as the beating does (a rib first, then
+ * the eye, then the rest), and a pyro burn — reddened, blistered skin down
+ * one side of the chest with soot over it, and soot on the face.
+ */
+function Damage({ rig, wear, burned, bare, face }: { rig: BodyRig; wear: number; burned: boolean; bare: boolean; face: boolean }) {
+  const { cx, head } = rig;
+  const hw = head.halfWidth;
+  const at = (y: number) => head.top + head.tall * y;
+  const shade = (from: number) => Math.min(0.85, 0.45 + (wear - from) * 0.9);
+  // Where each one comes up, and from how beaten up. Body marks only on bare
+  // skin, face marks only on a face that is showing (not under a mask).
+  const bruises: [x: number, y: number, rx: number, ry: number, from: number, where: 'body' | 'face'][] = [
+    [cx - 58, 345, 40, 27, 0.2, 'body'],
+    [cx + hw * 0.4, at(0.48), hw * 0.42, head.tall * 0.16, 0.3, 'face'],
+    [cx + 50, 262, 34, 23, 0.45, 'body'],
+    [cx - hw * 0.42, at(0.7), hw * 0.32, head.tall * 0.11, 0.6, 'face'],
+    [cx + 14, 425, 42, 26, 0.75, 'body'],
+  ];
+  const shows = (where: 'body' | 'face') => (where === 'body' ? bare : face);
+  return (
+    <svg
+      viewBox="0 0 512 512"
+      className="pointer-events-none absolute"
+      style={{ left: `${px(0)}%`, width: `${px(512) - px(0)}%`, top: `${py(0)}%`, height: `${py(512) - py(0)}%` }}
+      aria-hidden
+    >
+      <defs>
+        <filter id="mv-soft" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" />
+        </filter>
+        <radialGradient id="mv-bruise">
+          <stop offset="0%" stopColor="#36124a" />
+          <stop offset="50%" stopColor="#5e2156" />
+          <stop offset="85%" stopColor="#8a2e44" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#8a2e44" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      {bruises.filter(([, , , , from, where]) => wear >= from && shows(where)).map(([x, y, rx, ry, from], i) => (
+        // Blotchy, not a dot: a yellowed edge, the deep part off-centre, a second lobe.
+        <g key={i} opacity={shade(from)} filter="url(#mv-soft)" transform={`rotate(${(i % 2 ? 1 : -1) * 18} ${x} ${y})`}>
+          <ellipse cx={x} cy={y} rx={rx * 1.15} ry={ry * 1.15} fill="#9a8a3a" opacity={0.35} />
+          <ellipse cx={x} cy={y} rx={rx} ry={ry} fill="url(#mv-bruise)" />
+          <ellipse cx={x + rx * 0.45} cy={y - ry * 0.35} rx={rx * 0.55} ry={ry * 0.6} fill="url(#mv-bruise)" />
+        </g>
+      ))}
+      {burned && (
+        <g>
+          {/* Down one side of the chest: raw skin, or scorched cloth. */}
+          <path
+            d={`M ${cx + 34},200 C ${cx + 100},192 ${cx + 135},240 ${cx + 126},305 C ${cx + 118},355 ${cx + 70},372 ${cx + 48},336 C ${cx + 24},300 ${cx + 14},238 ${cx + 34},200 Z`}
+            fill={bare ? '#a8322a' : '#3a2416'}
+            opacity={bare ? 0.55 : 0.6}
+            filter="url(#mv-soft)"
+          />
+          {bare && <ellipse cx={cx + 84} cy={258} rx={14} ry={10} fill="#e8a383" opacity={0.6} filter="url(#mv-soft)" />}
+          {bare && <ellipse cx={cx + 64} cy={302} rx={10} ry={7} fill="#e8a383" opacity={0.5} filter="url(#mv-soft)" />}
+          {[[cx + 100, 230, 8], [cx + 56, 244, 6], [cx + 96, 320, 7], [cx + 74, 282, 5], [cx + 112, 276, 6], [cx + 84, 210, 5]].map(([x, y, r], i) => (
+            <circle key={i} cx={x} cy={y} r={r} fill="#1c110b" opacity={0.85} />
+          ))}
+          {face && <ellipse cx={cx + hw * 0.45} cy={at(0.74)} rx={hw * 0.36} ry={head.tall * 0.12} fill="#2b2420" opacity={0.55} filter="url(#mv-soft)" />}
+        </g>
+      )}
+    </svg>
+  );
+}
+
 /** A dented steel trash can, swung by the rim. */
 function TrashCan({ at }: { at: { left: string; top: string } }) {
   return (
@@ -250,6 +318,8 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
   weapon = "chair",
   blindfold = false,
   bloody = false,
+  burned = false,
+  wear = 0,
 }: {
   /** Which SCREEN-side hand has something in it, if either. */
   held?: 'left' | 'right';
@@ -259,6 +329,10 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
   blindfold?: boolean;
   /** Busted open. */
   bloody?: boolean;
+  /** Caught by the pyro. */
+  burned?: boolean;
+  /** How beaten up, 0-1: the bruises come up as it rises. */
+  wear?: number;
   wrestler: Wrestler;
   /** Called with the figure's joints once they exist, and with null when it goes away. */
   onJoints: (joints: Joints | null) => void;
@@ -369,6 +443,7 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
               style={{ left: `${px(rig.cx - rig.head.halfWidth * 1.1)}%`, width: `${px(rig.cx + rig.head.halfWidth * 1.1) - px(rig.cx - rig.head.halfWidth * 1.1)}%`, top: `${py(rig.head.top + rig.head.tall * 0.4)}%`, height: `${py(rig.head.top + rig.head.tall * 0.62) - py(rig.head.top + rig.head.tall * 0.4)}%` }}
             />
           )}
+          {(wear >= 0.2 || burned) && <Damage rig={rig} wear={wear} burned={burned} bare={!look.top && !look.outer} face={!wrestler.masked} />}
           {bloody && (
             <div
               className="absolute"

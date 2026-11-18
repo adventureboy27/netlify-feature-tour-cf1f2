@@ -46,6 +46,8 @@ export interface PlaybackBeat {
   weapon?: MatchWeapon;
   /** What the write-up line says physically happened, if it says. */
   action?: MatchAction;
+  /** Who this beat busted open, if anybody. */
+  bleeding?: Id;
 }
 
 /** Beats with no clean "one side did something to the other" shape — a ring-side effect, not a pose. */
@@ -158,6 +160,7 @@ export function buildPlaybackTimeline(
       ...(beat.spot ? { spot: beat.spot } : {}),
       ...(beat.weapon ? { weapon: beat.weapon } : {}),
       ...(beat.action ? { action: beat.action } : {}),
+      ...(beat.bleeding ? { bleeding: beat.bleeding } : {}),
     };
   });
 }

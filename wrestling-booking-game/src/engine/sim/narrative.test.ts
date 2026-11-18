@@ -302,3 +302,33 @@ describe('a line that says what physically happened records it', () => {
     }
   });
 });
+
+describe('blood is recorded where it happens, and said', () => {
+  const rulesFor = (id: string) => effectiveRules(RIVAL_MATCH_RULES, stipulationById(id) ?? null);
+  const many = (id: string) =>
+    Array.from({ length: 40 }, (_, i) => generateBeats(rngFromSeed(`blood-${id}-${i}`), ctxFor({ rating: 90, stipulation: stipulationById(id) ?? null, rules: rulesFor(id), spotSeed: `blood-${id}-${i}` })));
+
+  it('a violent match sometimes opens somebody up, on a hard spot, and the write-up says so', () => {
+    const reels = many('hardcore');
+    const bleeding = reels.flat().filter((b) => b.bleeding);
+    expect(bleeding.length).toBeGreaterThan(0);
+    for (const b of bleeding) {
+      expect(b.spot, b.text).toBeDefined();
+      expect(b.bleeding).toBe(b.targetId);
+      expect(b.text).toMatch(/busted open|bleeding|blood/);
+    }
+    // Once each.
+    for (const reel of reels) {
+      const ids = reel.filter((b) => b.bleeding).map((b) => b.bleeding);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  it('a first-blood match bleeds only at the finish, and it is the loser', () => {
+    const [a, b] = pair();
+    const reel = generateBeats(rngFromSeed('fb'), { winnerMembers: [a], loserMembers: [b], finish: 'knockout', stars: 4, rating: 90, rules: { ...RIVAL_MATCH_RULES, aim: 'firstBlood', ruleStrictness: 'none' } });
+    const bled = reel.filter((x) => x.bleeding);
+    expect(bled.map((x) => x.kind)).toEqual(['finish']);
+    expect(bled[0]!.bleeding).toBe(b.id);
+  });
+});

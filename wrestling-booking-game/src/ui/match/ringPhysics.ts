@@ -97,6 +97,8 @@ export interface PlanFighter {
   /** Where the last beat left them, if they were in it. */
   from: WorldPose | undefined;
   taggedIn: boolean;
+  /** How beaten up they are, 0-1: somebody battered is slower off the mat. */
+  wear?: number;
 }
 
 export interface Plan {
@@ -258,7 +260,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
     const distance = Math.abs(f.from.x - (home(f, centre) + f.dir * first[1]));
     const settled = distance < 0.3 && Math.abs(f.from.rot - f.dir * first[3]) < 2 && Math.abs(f.from.y - first[2]) < 0.2;
     if (settled) continue;
-    lead = Math.max(lead, clamp(0.09 + distance / 85 + (lying(f.from) ? 0.1 : 0), 0.1, 0.4));
+    lead = Math.max(lead, clamp(0.09 + distance / 85 + (lying(f.from) ? 0.1 + 0.18 * (f.wear ?? 0) : 0), 0.1, 0.5));
   }
 
   // ---- the frames, in the ring ---------------------------------------------

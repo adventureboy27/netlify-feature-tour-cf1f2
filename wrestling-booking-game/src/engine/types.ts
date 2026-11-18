@@ -1431,6 +1431,11 @@ export interface MatchBeat {
   weapon?: MatchWeapon;
   /** What the line says physically happened, if it says (see MatchAction). */
   action?: MatchAction;
+  /**
+   * Who was busted open by this beat, if anybody — said in its text, and
+   * bleeding from here to the end of the match in the viewer.
+   */
+  bleeding?: Id;
   text: string;
   significant: boolean; // only significant beats render in the highlight, §11.5
   /**

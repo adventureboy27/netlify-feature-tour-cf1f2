@@ -13,7 +13,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../../state/store';
-import { buildPlaybackTimeline } from '../../engine/sim/matchPlayback';
+import { buildPlaybackTimeline, type PlaybackBeat } from '../../engine/sim/matchPlayback';
 import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { maskWorn } from '../paperdoll/maskWorn';
 import { MatchStage, type Aftermath, type Bystander, type StageFighter } from '../match/MatchStage';
@@ -282,7 +282,31 @@ export function MatchViewerScreen({
       const surname = who.name.trim().split(/\s+/).pop()!.toUpperCase();
       staged.moments[at] = { ...moment, staged: { ...moment.staged, choreo: { ...moment.staged.choreo, shouts: [...(moment.staged.choreo.shouts ?? []), { at: 0.7, text: `${surname} IS HURT!` }] } } };
     }
-    return { ...sides, timeline, conduct, hurtFrom, ...staged };
+    // What the match has done to them, read off the record: when somebody was
+    // busted open or burned (the beat the sim says), and how beaten up each
+    // of them is by every point — the hits the recorded match says they took.
+    // A battered wrestler moves slower: their own moves take longer.
+    const recordedAt = (beat: PlaybackBeat) => staged.moments.findIndex((m) => m.beat === beat && !m.filler);
+    const bleedFrom = new Map<Id, number>();
+    const burnedFrom = new Map<Id, number>();
+    for (const beat of timeline) {
+      const at = recordedAt(beat);
+      if (at < 0) continue;
+      if (beat.bleeding && !bleedFrom.has(beat.bleeding)) bleedFrom.set(beat.bleeding, at);
+      if (beat.kind === 'pyroBurn' && beat.actorId && !burnedFrom.has(beat.actorId)) burnedFrom.set(beat.actorId, at);
+    }
+    const wearAt: Map<Id, number>[] = [];
+    const wear = new Map<Id, number>();
+    staged.moments = staged.moments.map((m, i) => {
+      wearAt.push(new Map(wear));
+      const slow = 1 + 0.3 * (m.actorId ? (wear.get(m.actorId) ?? 0) : 0);
+      const taken = 0.05 + ((m.staged.choreo.impacts ?? []).some((hit) => hit[3]) ? 0.07 : 0) + (m.beat.spot ? 0.06 : 0) + (m.beat.pose === 'finish' ? 0.1 : 0);
+      if (m.targetId && m.staged.move !== 'standOver' && m.staged.move !== 'still') wear.set(m.targetId, Math.min(1, (wear.get(m.targetId) ?? 0) + taken + (bleedFrom.get(m.targetId) === i ? 0.1 : 0)));
+      if (m.actorId && m.beat.kind === 'pyroBurn') wear.set(m.actorId, Math.min(1, (wear.get(m.actorId) ?? 0) + 0.15));
+      if (m.actorId) wear.set(m.actorId, Math.min(1, (wear.get(m.actorId) ?? 0) + 0.015));
+      return slow > 1.02 ? { ...m, holdMs: Math.round(m.holdMs * slow), staged: { ...m.staged, duration: Math.round(m.staged.duration * slow) } } : m;
+    });
+    return { ...sides, timeline, conduct, hurtFrom, bleedFrom, burnedFrom, wearAt, ...staged };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
@@ -539,8 +563,15 @@ export function MatchViewerScreen({
   // Anybody really injured carries it from the moment it happened.
   const hurt = new Set([...(staging?.hurtFrom ?? [])].filter(([, at]) => beatIndex > at).map(([id]) => id));
   const injuredHere = (result.injuries ?? []).filter((injury) => combined.some((w) => w.id === injury.wrestlerId));
-  // First blood: whoever lost is the one wearing it.
-  const bloody = conduct.finish === 'blood' && beatIndex >= lastBeat ? new Set(combined.filter((w) => !winnerIds.has(w.id)).map((w) => w.id)) : undefined;
+  // Busted open or burned from the beat it happened — shown from the one
+  // after it, once the move that did it has landed — and the finish's own
+  // blood (a first-blood match) at the finish.
+  const marked = (from: ReadonlyMap<Id, number> | undefined) => new Set([...(from ?? [])].filter(([, at]) => beatIndex > at || (at === lastBeat && beatIndex >= lastBeat)).map(([id]) => id));
+  const bloody = marked(staging?.bleedFrom);
+  // A first-blood result recorded before blood was: whoever lost is wearing it.
+  if (conduct.finish === 'blood' && beatIndex >= lastBeat && bloody.size === 0) for (const w of combined) if (!winnerIds.has(w.id)) bloody.add(w.id);
+  const burned = marked(staging?.burnedFrom);
+  const wear = staging?.wearAt[Math.min(Math.max(beatIndex, 0), lastBeat)] ?? new Map<Id, number>();
 
   // Nothing is staged before the bell, or once the last beat has played out.
   const staged = moment && beatIndex <= lastBeat ? moment.staged : null;
@@ -666,6 +697,8 @@ export function MatchViewerScreen({
           departed={departed}
           aftermath={aftermath}
           bloody={bloody}
+          burned={burned}
+          wear={wear}
           prize={segment.titleIds.length > 0 ? 'belt' : 'case'}
           hurt={hurt}
           belt={beltLook}

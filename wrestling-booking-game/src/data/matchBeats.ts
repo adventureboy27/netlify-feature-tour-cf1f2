@@ -329,3 +329,13 @@ export const LINE_ACTIONS: Readonly<Record<string, { action: MatchAction; by?: '
   'There was nothing worked about this one, folks. They were hitting each other for real.': { action: 'strikes' },
   'The referee flat-out stopped trying to separate these two somewhere in the second act.': { action: 'brawl' },
 };
+
+/** Said after a spot that busted somebody open (narrative.ts). {target} is who. */
+export const BLEEDING_LINES: readonly string[] = [
+  '{target} was busted open.',
+  '{target} came up from that one bleeding.',
+  'There was blood on {target} after that, and plenty of it.',
+];
+
+/** The spots hard enough to open somebody up. */
+export const BLOODY_SPOTS: readonly MatchSpot[] = ['weaponShot', 'ladderShot', 'stepsShot', 'tableThrough', 'intoCage', 'cageTop', 'ladderDive'];

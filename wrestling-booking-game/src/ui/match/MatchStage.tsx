@@ -136,6 +136,8 @@ export function MatchStage({
   departed,
   aftermath,
   bloody,
+  burned,
+  wear,
   corners,
   eventName,
   prize,
@@ -178,6 +180,10 @@ export function MatchStage({
   /** Set once the last beat has played: the match is over and this is how. */
   aftermath?: Aftermath;
   bloody?: ReadonlySet<Id>;
+  /** Caught by the pyro earlier in the match. */
+  burned?: ReadonlySet<Id>;
+  /** How beaten up each of them is by now, 0-1: bruises, and slower. */
+  wear?: ReadonlyMap<Id, number>;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
@@ -262,6 +268,7 @@ export function MatchStage({
       dir: dirOf(f.slot),
       from: leftAt.current.get(f.wrestler.id),
       taggedIn: Boolean(f.taggedIn),
+      wear: wear?.get(f.wrestler.id) ?? 0,
     }));
 
     if (!staged) {
@@ -645,7 +652,7 @@ export function MatchStage({
                 {/* Drawn to their own height; always breathing, so a body that
                     has finished its move is still a living one. */}
                 <div style={{ transform: `scale(${tall})`, transformOrigin: '50% 100%' }}>
-                  <div className={`mv-breathe ${hurt?.has(id) ? 'mv-hurt' : ''}`}>
+                  <div className={`mv-breathe ${hurt?.has(id) ? 'mv-hurt' : (wear?.get(id) ?? 0) >= 0.55 ? 'mv-winded' : ''}`}>
                     {hurt?.has(id) && (
                       <div data-testid="ring-hurt" className="mv-hurt-mark absolute left-1/2 flex items-center justify-center rounded-full bg-red-600 font-black leading-none text-white" style={{ top: '-9%', width: '22%', aspectRatio: '1', fontSize: 2.2 * u, zIndex: 3 }} aria-label="injured">
                         +
@@ -657,6 +664,8 @@ export function MatchStage({
                       weapon={staged?.prop}
                       blindfold={conduct?.blindfold}
                       bloody={bloody?.has(id)}
+                      burned={burned?.has(id)}
+                      wear={wear?.get(id) ?? 0}
                       onJoints={(joints) => {
                         if (joints) jointRefs.current.set(id, joints);
                         else jointRefs.current.delete(id);

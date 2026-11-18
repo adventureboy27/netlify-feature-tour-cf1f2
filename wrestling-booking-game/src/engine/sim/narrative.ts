@@ -30,6 +30,8 @@ import {
   WEAPONS,
   SPOT_BEATS,
   LINE_ACTIONS,
+  BLEEDING_LINES,
+  BLOODY_SPOTS,
   type BeatTemplate,
 } from '../../data/matchBeats';
 
@@ -303,7 +305,14 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
   // And how the room felt about it, if there is anything left to say.
   if (beats.length < budget && chance(rng, AFTERMATH_CHANCE)) push('control', AFTERMATH_BEATS);
 
-  return withSpots(beats, ctx, budget);
+  const reel = withSpots(beats, ctx, budget);
+  // A first-blood match ends with the loser bleeding: recorded on the finish.
+  if (ctx.rules?.aim === 'firstBlood' && ctx.finish !== 'timeLimitDraw' && ctx.finish !== 'doubleKO') {
+    const at = reel.findIndex((b) => b.kind === 'finish');
+    const loserId = ctx.pinnedId ?? ctx.loserMembers[0]?.id;
+    if (at >= 0 && loserId) reel[at] = { ...reel[at]!, bleeding: loserId };
+  }
+  return reel;
 }
 
 /**
@@ -410,6 +419,22 @@ function withSpots(beats: MatchBeat[], ctx: NarrativeContext, budget: number): M
     if (budget >= 6 && pool.length > 0) {
       const back = out.findIndex((b) => b.kind === 'hopeSpot');
       if (back >= 0) out.splice(back + 1, 0, write(take(), 'control', loserId, winnerId));
+    }
+  }
+  // Blood, last, so it never changes which spots were picked: a spot hard
+  // enough to open somebody up sometimes does, more often the more violent
+  // the match. Once each, and said. In a first-blood match the only blood
+  // is the finish's — anybody bleeding earlier would have ended it.
+  const firstBlood = ctx.rules?.aim === 'firstBlood';
+  const bled = new Set<Id>();
+  if (!firstBlood) {
+    const odds = 0.12 + 0.07 * (ctx.stipulation?.violenceLevel ?? 0);
+    for (let i = 0; i < out.length; i++) {
+      const b = out[i]!;
+      if (!b.spot || !BLOODY_SPOTS.includes(b.spot) || !b.targetId || bled.has(b.targetId)) continue;
+      if (rng.next() >= odds) continue;
+      bled.add(b.targetId);
+      out[i] = { ...b, text: `${b.text} ${pick(rng, BLEEDING_LINES).replace(/\{target\}/g, nameOf(b.targetId))}`, bleeding: b.targetId };
     }
   }
   return out;

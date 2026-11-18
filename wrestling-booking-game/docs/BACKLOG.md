@@ -6877,3 +6877,12 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Tests: tagged lines exist in the pools; the doer is recorded; the commentator calls the action about the doer; every action stages as itself; post-finish, falls-count-anywhere and gear-failure staging. Audited across 40 seeds × every match type with the real simulator: every recorded action and spot staged as itself.
 
 **Pyro accidents** are staged too: the charge goes off right behind whoever it caught, who is thrown forward from it, drops to a knee and gets back up. The pyro used to fire for any ring-side event — a gear-failure beat set it off as well — and the burned wrestler just stood there.
+
+## Damage you can see: burns, blood, bruises, and slowing down
+
+All of it read off what the simulation recorded — nothing a wrestler wears in the ring that the write-up does not account for.
+- **Blood:** the sim now records who a hard spot (chair, ladder, steps, table, cage, ladder dive) busts open (`MatchBeat.bleeding`), more often the more violent the match, once per person, and the write-up says so ("...was busted open."). A first-blood match records the loser bleeding at the finish and never before. Drawn on the spot's victim from the beat after it lands.
+- **Burns:** whoever the pyro caught carries it for the rest of the match — reddened, blistered skin and soot down one side of a bare chest, scorched cloth on a covered one, soot on the face.
+- **Bruises:** come up as the beating the recorded match describes does (each move taken, more for a big impact, a spot, the finish): ribs first, then a black eye, then the rest. On bare skin and showing faces only — never on a shirt or under a mask.
+- **Slower when beaten up:** a battered wrestler's own moves take longer (up to 30%), they are slower getting up off the mat, and past a point they stand breathing hard and stooped between moves.
+- Checked in the real match viewer with a recorded hardcore match: burn after the pyro beat, blood after the chair shot, winded by the late beats.
