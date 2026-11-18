@@ -184,6 +184,114 @@ export function crowd(size: 'pop' | 'roar' = 'pop', delayMs = 0): void {
  * synthesised voice sounds like a machine, not a person in pain. If recorded
  * grunts are ever supplied, this is the one function to fill in.
  */
+/**
+ * A building full of voices on one vowel: a chorus of low, slightly
+ * detuned tones, each its own person coming in a beat apart, shaped into
+ * an "oo" and given breath. Falling, it is a boo; rising, the "ooh" of a
+ * two-count. Not a recording, and does not pretend to be one — but it is a
+ * crowd telling you how it feels about somebody.
+ */
+function chorus(a: NonNullable<ReturnType<typeof audio>>, when: number, o: { voices: number; low: number; high: number; long: number; bend: number; gain: number }) {
+  const out = a.ctx.createGain();
+  out.gain.value = 1;
+  // The vowel: a dark "oo" — most of the energy low, a soft second formant.
+  const f1 = a.ctx.createBiquadFilter();
+  f1.type = 'bandpass';
+  f1.frequency.value = 380;
+  f1.Q.value = 1.4;
+  const f2 = a.ctx.createBiquadFilter();
+  f2.type = 'bandpass';
+  f2.frequency.value = 820;
+  f2.Q.value = 2.2;
+  const f2gain = a.ctx.createGain();
+  f2gain.gain.value = 0.35;
+  const dark = a.ctx.createBiquadFilter();
+  dark.type = 'lowpass';
+  dark.frequency.value = 1400;
+  out.connect(f1).connect(dark);
+  out.connect(f2).connect(f2gain).connect(dark);
+  const level = a.ctx.createGain();
+  level.gain.setValueAtTime(0.0001, when);
+  level.gain.exponentialRampToValueAtTime(o.gain, when + Math.min(0.35, o.long * 0.3));
+  level.gain.setValueAtTime(o.gain, when + o.long * 0.7);
+  level.gain.exponentialRampToValueAtTime(0.0001, when + o.long);
+  dark.connect(level).connect(a.out);
+  for (let i = 0; i < o.voices; i++) {
+    const start = when + Math.random() * 0.22;
+    const pitch = o.low + Math.random() * (o.high - o.low);
+    const osc = a.ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(pitch, start);
+    osc.frequency.linearRampToValueAtTime(pitch * o.bend, when + o.long);
+    // Everybody wobbles a little, and not together.
+    const wobble = a.ctx.createOscillator();
+    wobble.frequency.value = 4 + Math.random() * 3;
+    const depth = a.ctx.createGain();
+    depth.gain.value = pitch * 0.012;
+    wobble.connect(depth).connect(osc.frequency);
+    const g = a.ctx.createGain();
+    g.gain.value = 1 / o.voices;
+    osc.connect(g).connect(out);
+    osc.start(start);
+    wobble.start(start);
+    osc.stop(when + o.long + 0.05);
+    wobble.stop(when + o.long + 0.05);
+  }
+  // Breath under it.
+  const air = a.ctx.createBufferSource();
+  air.buffer = a.noise;
+  air.loop = true;
+  const airGain = a.ctx.createGain();
+  airGain.gain.value = 0.35;
+  air.connect(airGain).connect(out);
+  air.start(when);
+  air.stop(when + o.long + 0.05);
+}
+
+/** The crowd booing somebody. */
+export function boo(size: 'pop' | 'roar' = 'pop', delayMs = 0): void {
+  const a = audio();
+  if (!a) return;
+  chorus(a, a.ctx.currentTime + delayMs / 1000, { voices: size === 'roar' ? 22 : 14, low: 92, high: 170, long: size === 'roar' ? 2.8 : 1.7, bend: 0.82, gain: size === 'roar' ? 0.42 : 0.3 });
+}
+
+/** The "ooh" when a shoulder comes up at two. */
+export function ooh(delayMs = 0): void {
+  const a = audio();
+  if (!a) return;
+  chorus(a, a.ctx.currentTime + delayMs / 1000, { voices: 16, low: 120, high: 210, long: 1.1, bend: 1.3, gain: 0.3 });
+}
+
+/** The crowd on somebody's side: the roar, and a couple of whistles in it when it is big. */
+export function cheer(size: 'pop' | 'roar' = 'pop', delayMs = 0): void {
+  crowd(size, delayMs);
+  const a = audio();
+  if (!a || size !== 'roar') return;
+  for (let i = 0; i < 3; i++) {
+    const t = a.ctx.currentTime + delayMs / 1000 + 0.2 + Math.random() * 0.9;
+    const osc = a.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1700 + Math.random() * 400, t);
+    osc.frequency.linearRampToValueAtTime(2500 + Math.random() * 500, t + 0.18);
+    osc.frequency.linearRampToValueAtTime(1900, t + 0.36);
+    const g = a.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.05, t + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+    osc.connect(g).connect(a.out);
+    osc.start(t);
+    osc.stop(t + 0.42);
+  }
+}
+
+/** Some for, some against. */
+export function mixed(size: 'pop' | 'roar' = 'pop', delayMs = 0): void {
+  crowd(size, delayMs);
+  const a = audio();
+  if (!a) return;
+  chorus(a, a.ctx.currentTime + delayMs / 1000, { voices: 9, low: 92, high: 160, long: size === 'roar' ? 2.2 : 1.4, bend: 0.85, gain: 0.18 });
+}
+
 export function voice(_gender: 'm' | 'f', _kind: 'effort' | 'pain', _delayMs = 0): void {
   // No recordings exist yet.
 }

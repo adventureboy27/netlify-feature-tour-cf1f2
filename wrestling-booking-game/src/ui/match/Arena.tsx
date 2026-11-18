@@ -85,53 +85,91 @@ function seeded(seed: number) {
   return () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 }
 
-function Crowd() {
+/**
+ * The crowd. Everybody sways; a big moment has them on their feet. Most of
+ * them also react to what the room thinks (`mood`, MatchStage): arms up for
+ * somebody they are behind, thumbs down at somebody they are not, hands on
+ * heads at a two-count — and, split, some of each. A few in the front row
+ * hold signs about the people in this match.
+ */
+const Crowd = memo(function Crowd({ signs = [] }: { signs?: readonly string[] }) {
   const rows = useMemo(() => {
     const rnd = seeded(11);
     const spec = [
-      { y: 222, r: 7.5, gap: 20, light: 8 },
-      { y: 252, r: 9, gap: 24, light: 10 },
-      { y: 285, r: 10.5, gap: 28, light: 12 },
-      { y: 320, r: 12.5, gap: 33, light: 15 },
+      { y: 222, r: 7.5, gap: 20, light: 8, signs: 0.035 },
+      { y: 252, r: 9, gap: 24, light: 10, signs: 0.035 },
+      { y: 285, r: 10.5, gap: 28, light: 12, signs: 0.035 },
+      { y: 320, r: 12.5, gap: 33, light: 15, signs: 0.13 },
     ];
     return spec.map((row, k) => {
       const people = [];
       for (let x = -10 + rnd() * row.gap; x < VIEW.w + 10; x += row.gap * (0.85 + rnd() * 0.3)) {
         const y = row.y + (rnd() - 0.5) * 6;
-        people.push({ x, y, l: row.light + rnd() * 5, hue: 215 + rnd() * 30, armsUp: rnd() < 0.14, sign: rnd() < 0.035 });
+        people.push({ x, y, l: row.light + rnd() * 5, hue: 215 + rnd() * 30, armsUp: rnd() < 0.14, sign: rnd() < row.signs, reacts: rnd() < 0.72, fan: rnd() < 0.55, thumbs: rnd() < 0.6 });
       }
       return { ...row, k, people };
     });
   }, []);
+  let signAt = 0;
+  let signClear = -Infinity;
   return (
     <>
-      {rows.map((row) => (
+      {rows.map((row) => {
+        signClear = -Infinity;
+        return (
         <g key={row.k} className={`mv-crowd mv-crowd-${row.k}`}>
           {row.people.map((p, i) => {
             const fill = `hsl(${p.hue}, 12%, ${p.l}%)`;
+            const r = row.r;
+            const sx = p.x;
+            const sy = p.y;
+            const arm = { strokeWidth: r * 0.55, strokeLinecap: 'round' as const, fill: 'none' };
+            // Arms thrown up (or out) catch the light: a shade lighter and
+            // thicker than the body, so a reacting crowd reads from the back.
+            const lit = { ...arm, strokeWidth: r * 0.7, stroke: `hsl(${p.hue}, 16%, ${p.l + 16}%)` };
+            const up = `M ${sx - r * 1.2},${sy + r * 1.4} L ${sx - r * 1.9},${sy - r * 1.6} M ${sx + r * 1.2},${sy + r * 1.4} L ${sx + r * 1.9},${sy - r * 1.6}`;
+            // An arm thrust up and out at the ring, thumb turned down — one side or the other.
+            const side = p.thumbs ? 1 : -1;
+            const down = `M ${sx + side * r * 1.2},${sy + r * 1.4} L ${sx + side * r * 2.4},${sy - r * 0.9} M ${sx + side * r * 2.4},${sy - r * 0.9} L ${sx + side * r * 2.5},${sy + r * 0.1}`;
+            const head = `M ${sx - r * 1.2},${sy + r * 1.4} L ${sx - r * 1.4},${sy - r * 0.4} L ${sx - r * 0.5},${sy - r * 1.05} M ${sx + r * 1.2},${sy + r * 1.4} L ${sx + r * 1.4},${sy - r * 0.4} L ${sx + r * 0.5},${sy - r * 1.05}`;
+            let text = p.sign && row.k === 3 && signs.length > 0 ? signs[signAt % signs.length]! : null;
+            const signW = text ? Math.max(r * 4, text.length * r * 0.62) : r * 4;
+            // Nobody holds a sign up over the one next to theirs.
+            const showSign = p.sign && sx - signW / 2 > signClear;
+            if (showSign) signClear = sx + signW / 2 + r;
+            else text = null;
+            if (text) signAt++;
             return (
-              <g key={i} fill={fill} stroke={fill}>
-                <ellipse cx={p.x} cy={p.y + row.r * 2.3} rx={row.r * 1.5} ry={row.r * 1.5} stroke="none" />
-                <circle cx={p.x} cy={p.y} r={row.r} stroke="none" />
-                {p.armsUp && (
-                  <path
-                    d={`M ${p.x - row.r * 1.2},${p.y + row.r * 1.4} L ${p.x - row.r * 1.9},${p.y - row.r * 1.6} M ${p.x + row.r * 1.2},${p.y + row.r * 1.4} L ${p.x + row.r * 1.9},${p.y - row.r * 1.6}`}
-                    strokeWidth={row.r * 0.55}
-                    strokeLinecap="round"
-                    fill="none"
-                  />
+              <g key={i} fill={fill} stroke={fill} className={`${p.reacts ? 'mv-r' : ''}${p.fan ? ' mv-fan' : ''}`}>
+                <ellipse cx={sx} cy={sy + r * 2.3} rx={r * 1.5} ry={r * 1.5} stroke="none" />
+                <circle cx={sx} cy={sy} r={r} stroke="none" />
+                {p.armsUp && <path className="mv-p-idle" d={up} {...arm} />}
+                {p.reacts && (
+                  <>
+                    <path className="mv-p mv-p-cheer" d={up} {...lit} />
+                    <path className="mv-p mv-p-boo" d={down} {...lit} />
+                    <path className="mv-p mv-p-ooh" d={head} {...lit} />
+                  </>
                 )}
-                {p.sign && (
-                  <rect x={p.x - row.r * 2} y={p.y - row.r * 3.6} width={row.r * 4} height={row.r * 2.4} rx={1.5} fill={`hsl(${p.hue}, 14%, ${p.l + 14}%)`} stroke="none" />
+                {showSign && (
+                  <g className={text ? 'mv-sign' : undefined}>
+                    <rect x={sx - signW / 2} y={sy - r * 3.6} width={signW} height={r * 2.4} rx={1.5} fill={text ? '#e9e4d6' : `hsl(${p.hue}, 14%, ${p.l + 14}%)`} stroke="none" />
+                    {text && (
+                      <text x={sx} y={sy - r * 2.05} textAnchor="middle" fontSize={r * 0.95} fontWeight={900} fill="#1d1a16" stroke="none" style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}>
+                        {text}
+                      </text>
+                    )}
+                  </g>
                 )}
               </g>
             );
           })}
         </g>
-      ))}
+        );
+      })}
     </>
   );
-}
+});
 
 function Flashes() {
   const dots = useMemo(() => {
@@ -176,8 +214,14 @@ export const ArenaBack = memo(function ArenaBack({
   eventName,
   noRing = false,
   stepsGone = false,
+  mood = null,
+  signs,
   onSideRope,
 }: {
+  /** How the room feels right now (see ui/match/crowd.ts). */
+  mood?: 'cheer' | 'boo' | 'ooh' | 'mixed' | null;
+  /** What the signs in the front row say. */
+  signs?: readonly string[];
   /** Somebody has taken the steel steps off the corner: they are not there any more. */
   stepsGone?: boolean;
   /** Hands over the far halves of the side ropes, so a body hitting them can make them give. */
@@ -198,7 +242,7 @@ export const ArenaBack = memo(function ArenaBack({
   showName: boolean;
 }) {
   return (
-    <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className={`absolute inset-0 h-full w-full ${hype ? 'mv-hype' : ''}`} aria-hidden>
+    <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className={`absolute inset-0 h-full w-full ${hype ? 'mv-hype' : ''}${mood ? ` mv-mood mv-mood-${mood}` : ''}`} aria-hidden>
       <defs>
         <radialGradient id="mv-bg" cx="50%" cy="62%" r="75%">
           <stop offset="0%" stopColor="#1b2030" />
@@ -296,7 +340,7 @@ export const ArenaBack = memo(function ArenaBack({
         </g>
       ))}
 
-      <Crowd />
+      <Crowd signs={signs} />
       <Flashes />
 
       {/* Barricade. */}

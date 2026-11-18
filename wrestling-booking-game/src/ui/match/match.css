@@ -15,6 +15,17 @@
 .mv-crowd-2 { animation-duration: 1.5s; animation-delay: -0.9s; }
 .mv-crowd-3 { animation-duration: 0.95s; animation-delay: -0.2s; }
 .mv-hype .mv-crowd { animation-name: mv-jump; animation-duration: 0.26s; }
+/* The room reacting (ui/match/crowd.ts): each reacting fan shows the pose for
+   the mood; split, the ones on one side cheer and the rest boo. */
+.mv-p { display: none; }
+.mv-mood .mv-r .mv-p-idle { display: none; }
+.mv-mood-cheer .mv-r .mv-p-cheer,
+.mv-mood-boo .mv-r .mv-p-boo,
+.mv-mood-ooh .mv-r .mv-p-ooh,
+.mv-mood-mixed .mv-r.mv-fan .mv-p-cheer,
+.mv-mood-mixed .mv-r:not(.mv-fan) .mv-p-boo { display: inline; }
+.mv-mood-boo .mv-crowd { animation-name: mv-jeer; animation-duration: 0.5s; }
+@keyframes mv-jeer { from { transform: translateY(0); } to { transform: translateY(2px); } }
 
 @keyframes mv-sway {
   from { transform: rotate(-5deg); }

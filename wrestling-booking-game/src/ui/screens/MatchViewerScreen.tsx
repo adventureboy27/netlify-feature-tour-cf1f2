@@ -17,6 +17,7 @@ import { buildPlaybackTimeline, type PlaybackBeat } from '../../engine/sim/match
 import { maskWorn } from '../paperdoll/maskWorn';
 import { MatchStage, type Aftermath, type Bystander, type CornerCue, type RingsidePerson, type StageFighter, type Stain } from '../match/MatchStage';
 import { initialsOf } from '../match/Ringside';
+import { entranceOf, finaleFor, reactionTo, standingOf } from '../match/crowd';
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
 import { isNonDecisiveFinish } from '../../engine/sim/finish';
@@ -595,6 +596,13 @@ export function MatchViewerScreen({
   const other = (corner: Corner): Corner => (clash && corner.name !== world.promotion.name ? { ...corner, accent: '#64748b' } : corner);
   const corners: readonly [Corner, Corner] | undefined = left && right ? [other(left), clash && left.name !== world.promotion.name && right.name !== world.promotion.name ? { ...right, accent: '#64748b' } : other(right)] : undefined;
 
+  // What the front row has written on their signs: for the faces, against the heels.
+  const crowdSigns = combined.flatMap((w) => {
+    const surname = w.name.trim().split(/\s+/).pop()!.toUpperCase();
+    const standing = standingOf(w);
+    return standing === 'face' ? [`GO ${surname}!`, `${surname}!!`] : standing === 'heel' ? [`${surname} SUCKS`, `BOO ${surname}`] : [`${surname}!`];
+  });
+
   // How it came out. The winners leave with a belt if the match was for one
   // and they are the ones holding it now — won tonight, or kept.
   const winnerIds = new Set(result.winnerSide === null ? [] : result.winnerWrestlerIds);
@@ -779,6 +787,10 @@ export function MatchViewerScreen({
           stains={earlierStains}
           entrancePyro={entrancePyro}
           tagOuts={tagOuts}
+          reaction={moment && beatIndex <= lastBeat ? reactionTo(moment.beat, actorWrestler ?? undefined, targetWrestler ?? undefined) : null}
+          entrance={combined.slice(0, 4).map(entranceOf)}
+          finale={finaleFor(combined.filter((w) => winnerIds.has(w.id)))}
+          signs={crowdSigns}
           referee={{ guest: segment.guestRefereeId ? (world.wrestlers[segment.guestRefereeId] ?? null) : null }}
           ringside={ringsidePeople}
           corner={cornerCues}

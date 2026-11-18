@@ -16,7 +16,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { maskOnly } from '../paperdoll/ComposedPortrait';
 import { ArenaBack, ArenaFront, FEET_Y, ROPE_CROSS_X, SIDE_ROPE_POST, STEPS_X, VIEW, type Corner, type SideRopeKey } from './Arena';
 import { Prize, PrizeHung, prizeKind, type BeltLook } from './Belt';
-import { bell, crowd, hit, hitFor } from './sound';
+import { bell, boo, cheer, crowd, hit, hitFor, mixed, ooh } from './sound';
+import type { Mood, Reaction } from './crowd';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { playPlan, settle } from './playback';
@@ -327,6 +328,10 @@ export function MatchStage({
   referee,
   ringside = [],
   corner = [],
+  reaction = null,
+  entrance = [],
+  finale,
+  signs,
   corners,
   eventName,
   prize,
@@ -388,6 +393,14 @@ export function MatchStage({
   ringside?: readonly RingsidePerson[];
   /** This beat: what the people outside the ropes are doing. */
   corner?: readonly CornerCue[];
+  /** How the room takes this beat (ui/match/crowd.ts), if it takes it any way at all. */
+  reaction?: Reaction | null;
+  /** Before the bell: the room for each of them as they stand there, in turn. */
+  entrance?: readonly Reaction[];
+  /** When it is over: the room for whoever won. */
+  finale?: Reaction;
+  /** What the signs in the front row say. */
+  signs?: readonly string[];
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
@@ -459,6 +472,22 @@ export function MatchStage({
   const [litter, setLitter] = useState<Litter[]>([]);
   const litterKey = useRef(0);
   const [stepsGone, setStepsGone] = useState(false);
+  // How the room feels right now: shown in the crowd for a moment, then gone.
+  const [mood, setMood] = useState<Mood | null>(null);
+  const moodTimers = useRef<number[]>([]);
+  /** The crowd reacting, `delay` ms from now: heard, and seen in the stands. */
+  const react = useCallback((r: Reaction, delay: number) => {
+    const play = { cheer, boo, mixed, ooh: (_size: 'pop' | 'roar', ms: number) => ooh(ms) }[r.mood];
+    play(r.size, delay);
+    moodTimers.current.push(
+      window.setTimeout(() => {
+        setMood(r.mood);
+        if (r.mood === 'cheer' && r.size === 'roar') setHype(true);
+      }, delay),
+      window.setTimeout(() => setMood((m) => (m === r.mood ? null : m)), delay + (r.size === 'roar' ? 2600 : 1700)),
+    );
+  }, []);
+  useEffect(() => () => moodTimers.current.forEach((t) => window.clearTimeout(t)), []);
   const onRefParts = useCallback((parts: PersonParts | null) => {
     refParts.current = parts;
   }, []);
@@ -549,6 +578,8 @@ export function MatchStage({
         if (parts) people.push(...playPerson(parts, [at], 10, u));
       }
       setPlan(null);
+      // The introductions: the room for each of them in turn.
+      entrance.forEach((r, i) => react(r, 150 + i * 750));
       return () => settle(people);
     }
 
@@ -696,7 +727,14 @@ export function MatchStage({
     for (const impact of next.impacts) hit(hitFor(staged.move, Boolean(impact.big), staged.prop, staged.scene), impact.at * duration);
     const counted = countable(next);
     if (counted) for (let i = 0; i < counted.count; i++) hit('count', (next.lead + (counted.from + ((counted.to - counted.from) * (i + 0.35)) / counted.count) * (1 - next.lead)) * duration);
-    for (const shout of staged.choreo.shouts ?? []) crowd('pop', (next.lead + shout.at * (1 - next.lead)) * duration);
+    if (reaction) {
+      // At the moment it lands: the biggest impact, or where the beat says.
+      const big = next.impacts.find((i) => i.big) ?? next.impacts[0];
+      const at = reaction.at !== undefined ? T(reaction.at) : big ? big.at * duration : T(0.75);
+      react(reaction, Math.max(0, at));
+    } else {
+      for (const shout of staged.choreo.shouts ?? []) crowd('pop', (next.lead + shout.at * (1 - next.lead)) * duration);
+    }
     if (beatKey === 0) bell(1);
     for (const impact of next.impacts) {
       if (!impact.big) continue;
@@ -862,7 +900,8 @@ export function MatchStage({
     }
     setHype(true);
     bell(3);
-    crowd('roar', 250);
+    // For whoever won it — or not.
+    react(finale ?? { mood: 'cheer', size: 'roar' }, 250);
     const loop: Animation[] = [];
     const timer = window.setTimeout(() => {
       const cheering = cast.filter((f) => cheers.has(f.id));
@@ -930,7 +969,7 @@ export function MatchStage({
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
       {w > 0 && (
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
-          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} onSideRope={onSideRope} />
+          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood} signs={signs} onSideRope={onSideRope} />
 
           {/* The apron is the nearest thing this building has to a nameplate. */}
           {conduct?.noRing ? null : corners ? (
