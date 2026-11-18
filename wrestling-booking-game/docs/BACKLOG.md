@@ -7064,3 +7064,13 @@ A new top ring, the **Broadcast Ring** ($600,000, $1,800 upkeep a show; +3 show 
 - **Kept per show:** each show records the canvas it had (`ShowStaging.mat`), so changing colour later does not repaint old replays; older shows are classic white. On a company-colour canvas the border band and medallion go black so they still stand out. Plywood and the plain mat-and-ropes ring keep their own canvas.
 - Interpromotional nights draw no logo (the ring belongs to two companies).
 - Checked in renders: midnight + logo on the premium ring, crimson on the broadcast ring, company colour + logo on a professional ring, blackout on the premium ring; and a real played show records its mat. Not rendered: the Ring canvas picker itself on the Equipment page.
+
+## The Broadcast Ring's screen, made to look like a real LED wall
+
+The apron screen was flat colour panels that slid in and then sat still. It now moves the whole time, like a real arena wall (ui/match/ApronScreen.tsx, ScreenShader.tsx, match.css `.mv-tv-*`):
+- **A moving picture behind everything,** drawn on the graphics card by one small WebGL shader: ribbons of energy flowing through two colours (the title, the VS card in each side's colour, somebody the crowd cannot make up its mind about), flames climbing the screen (a heel), light turning out from behind the face (a fan favourite, a star, the winner in gold), and a lit grid racing toward the camera (what the match is for; a move landing, at speed). Sparks glint over all of it. No WebGL: it draws nothing and the panels show over black.
+- **Titles a letter at a time:** every name and title flies in letter by letter, big and blurred to sharp, in chrome (or gold for titles and the winner), then a glint runs through the letters.
+- **Real cuts:** each new scene wipes in on a slant behind a bar of light with a lens flare across it. Faces are scanned in from the bottom behind a bright line, then push in slowly, rim-lit, with a sheen across the glass. A move landing jolts the picture.
+- **A physical screen:** a fine LED pixel grid over the picture, a little bloom, a glow round the screen in the scene's colour, and that colour spilling onto the floor in front of the ring.
+- Reduced motion: one still frame of the backdrop, no letter flights, swipes or flares.
+- Checked in renders (headless Chromium has WebGL): the title card (energy, letters landing), the VS card (each side's energy, VS), both packages (energy for a tweener, rays for a fan favourite), the cut to a move (racing grid), the winner (gold rays). Not seen: flames for a heel, the battle-royal reel, the red boo break-up, a star's moment; frame rate on a slow machine (the shader is capped at ~33 fps and the screen is small, but it was not measured).

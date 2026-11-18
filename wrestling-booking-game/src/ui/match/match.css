@@ -358,59 +358,111 @@
 
 /* ---- The broadcast ring's apron screen (ApronScreen.tsx) ---------------- */
 .mv-tv { background: #05060a; }
-.mv-tv-cut { animation: mv-tv-cut 0.35s ease-out both; }
-@keyframes mv-tv-cut { 0% { filter: brightness(3) saturate(0); transform: scaleY(0.04); } 45% { transform: scaleY(1); } 100% { filter: none; } }
+/* A touch of bloom: LED walls run hot. */
+.mv-tv-picture { filter: saturate(1.2) contrast(1.06); }
 
-.mv-tv-scan {
-  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0.28) 0 1px, transparent 1px 3px);
+/* The wall is made of LEDs: a fine dark grid, so it reads as a screen and not a page. */
+.mv-tv-pixels {
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.38) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.38) 0 1px, transparent 1px 3px);
   mix-blend-mode: multiply;
+  opacity: 0.3;
 }
 .mv-tv-sheen {
-  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.16) 48%, transparent 56%);
+  background: linear-gradient(100deg, transparent 38%, rgba(255,255,255,0.10) 48%, transparent 58%);
   background-size: 260% 100%;
-  animation: mv-tv-sheen 4.5s linear infinite;
+  animation: mv-tv-sheen 6s linear infinite;
 }
 @keyframes mv-tv-sheen { from { background-position: 130% 0; } to { background-position: -130% 0; } }
+/* Its light on the floor in front of it. */
+.mv-tv-spill { mix-blend-mode: screen; opacity: 0.45; filter: blur(6px); transition: background 0.4s; }
 
-.mv-tv-chrome {
+/* Cuts: the new picture wipes in on a slant behind a bar of light, with a flare. */
+.mv-tv-wipe { animation: mv-tv-wipe 0.5s cubic-bezier(0.6, 0, 0.2, 1) both; }
+@keyframes mv-tv-wipe { from { clip-path: polygon(0 0, 0 0, -10% 100%, 0 100%); } to { clip-path: polygon(0 0, 110% 0, 100% 100%, 0 100%); } }
+.mv-tv-swipe {
+  width: 14%;
+  left: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.95) 45%, #fff 50%, rgba(255,255,255,0.95) 55%, transparent);
+  transform: skewX(-18deg);
+  filter: blur(1px);
+  mix-blend-mode: screen;
+  animation: mv-tv-swipe 0.5s cubic-bezier(0.6, 0, 0.2, 1) both;
+}
+@keyframes mv-tv-swipe { from { transform: translateX(-120%) skewX(-18deg); opacity: 1; } 90% { opacity: 1; } to { transform: translateX(780%) skewX(-18deg); opacity: 0; } }
+.mv-tv-flare {
+  top: 50%;
+  left: 0;
+  width: 70%;
+  height: 3px;
+  margin-top: -1.5px;
+  background: radial-gradient(ellipse at center, #ffffff, rgba(150,210,255,0.8) 25%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: mv-tv-flare 0.9s ease-out both;
+}
+@keyframes mv-tv-flare { from { transform: translateX(-60%) scaleY(1); opacity: 0; } 25% { opacity: 1; transform: translateX(10%) scaleY(3); } to { transform: translateX(90%) scaleY(1); opacity: 0; } }
+
+/* Chrome and gold lettering, a letter at a time. */
+.mv-tv-chrometext > span, .mv-tv-goldtext > span {
   display: inline-block;
-  background: linear-gradient(180deg, #ffffff 0%, #dfe6f0 38%, #7d8796 52%, #f4f7fb 66%, #b6c0cc 100%), linear-gradient(100deg, transparent 40%, #fff 50%, transparent 60%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 0.05em 0 #000) drop-shadow(0 0 0.18em var(--tv-accent, #4cc3ff));
-  padding: 0 0.12em;
+  padding: 0 0.02em;
+  background-repeat: no-repeat;
+  background-size: 300% 100%, 100% 100%;
+  background-position: 150% 0, 0 0;
 }
-.mv-tv-gold {
-  background: linear-gradient(180deg, #fff6c8 0%, #ffd34d 40%, #9a6a00 54%, #ffe58a 68%, #c48a00 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  filter: drop-shadow(0 0.05em 0 #000) drop-shadow(0 0 0.2em #ffb400);
+.mv-tv-chrometext > span {
+  background-image: linear-gradient(100deg, transparent 38%, rgba(255,255,255,0.95) 50%, transparent 62%), linear-gradient(180deg, #ffffff 0%, #e6ecf4 36%, #7a8494 50%, #f7f9fc 64%, #aab4c2 100%);
+  filter: drop-shadow(0 0.05em 0 #000) drop-shadow(0 0 0.14em var(--tv-accent, #4cc3ff));
 }
-.mv-tv-gold-bg { background: linear-gradient(180deg, #fff1a8, #ffcc33 50%, #b07c00); }
+.mv-tv-goldtext > span {
+  background-image: linear-gradient(100deg, transparent 38%, rgba(255,255,240,0.95) 50%, transparent 62%), linear-gradient(180deg, #fff8d0 0%, #ffd34d 38%, #8f6200 52%, #ffe68f 66%, #c38900 100%);
+  filter: drop-shadow(0 0.05em 0 #000) drop-shadow(0 0 0.18em #ffb400);
+}
+/* In: big and blurred to sharp. Then the glint passes through. */
+.mv-tv-letter { animation: mv-tv-letter 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) both, mv-tv-glint 0.5s ease-in-out both; }
+@keyframes mv-tv-letter { from { transform: translateY(-55%) scale(1.9); opacity: 0; filter: blur(8px); } to { transform: none; opacity: 1; } }
+.mv-tv-letterslide { animation: mv-tv-letterslide 0.45s cubic-bezier(0.2, 1.2, 0.4, 1) both, mv-tv-glint 0.5s ease-in-out both; }
+@keyframes mv-tv-letterslide { from { transform: translateX(120%) skewX(-30deg); opacity: 0; filter: blur(6px); } to { transform: none; opacity: 1; } }
+@keyframes mv-tv-glint { from { background-position: 150% 0, 0 0; } to { background-position: -50% 0, 0 0; } }
+/* Somebody the crowd cannot make up its mind about: their name will not hold still. */
+.mv-tv-glitchwrap { display: inline-block; animation: mv-tv-glitch 1.8s 1s steps(1) infinite; }
+@keyframes mv-tv-glitch {
+  0%, 84%, 100% { transform: none; filter: none; }
+  86% { transform: translateX(3px) skewX(-10deg); filter: drop-shadow(-3px 0 #ff2a6a) drop-shadow(3px 0 #2af5ff); clip-path: inset(0 0 45% 0); }
+  90% { transform: translateX(-4px); filter: drop-shadow(3px 0 #ff2a6a) drop-shadow(-3px 0 #2af5ff); clip-path: inset(40% 0 0 0); }
+}
 
-.mv-tv-inl { animation: mv-tv-inl 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
-.mv-tv-inr { animation: mv-tv-inr 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
-@keyframes mv-tv-inl { from { transform: translateX(-140%); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes mv-tv-inr { from { transform: translateX(140%); opacity: 0; } to { transform: none; opacity: 1; } }
-.mv-tv-pop { animation: mv-tv-pop 0.4s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
-@keyframes mv-tv-pop { from { transform: scale(0.3); opacity: 0; } to { transform: none; opacity: 1; } }
-.mv-tv-punch { display: inline-block; animation: mv-tv-punch 0.6s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
-@keyframes mv-tv-punch { 0% { transform: scale(2.6); opacity: 0; filter: blur(6px); } 100% { transform: none; opacity: 1; filter: none; } }
-.mv-tv-slam { display: inline-block; animation: mv-tv-slam 0.45s cubic-bezier(0.3, 1.5, 0.5, 1) both, mv-tv-jolt 0.25s 0.45s 2; }
-@keyframes mv-tv-slam { 0% { transform: translateX(60%) skewX(-25deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
-@keyframes mv-tv-jolt { 50% { transform: translate(2px, -2px); } }
+/* Faces: scanned in from the bottom behind a bright line, then a slow push in. */
+.mv-tv-reveal { animation: mv-tv-reveal 0.6s cubic-bezier(0.5, 0, 0.2, 1) both; }
+@keyframes mv-tv-reveal { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
+.mv-tv-scanline { height: 2px; bottom: 0; background: #fff; animation: mv-tv-scanline 0.6s cubic-bezier(0.5, 0, 0.2, 1) both; }
+@keyframes mv-tv-scanline { from { transform: translateY(0); opacity: 1; } 95% { opacity: 1; } to { transform: translateY(var(--tv-face, -60px)); opacity: 0; } }
+.mv-tv-kenburns { animation: mv-tv-kenburns 4.5s ease-out both; }
+@keyframes mv-tv-kenburns { from { transform: scale(1.2) translateY(5%); } to { transform: scale(1.02); } }
+.mv-tv-facesheen {
+  background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.45) 50%, transparent 60%);
+  background-size: 300% 100%;
+  background-position: 150% 0;
+  mix-blend-mode: screen;
+  animation: mv-tv-sheenpass 1s ease-in-out both;
+}
+@keyframes mv-tv-sheenpass { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+
+.mv-tv-inl { animation: mv-tv-inl 0.55s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+.mv-tv-inr { animation: mv-tv-inr 0.55s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+@keyframes mv-tv-inl { from { transform: translateX(-110%); } to { transform: none; } }
+@keyframes mv-tv-inr { from { transform: translateX(110%); } to { transform: none; } }
 .mv-tv-fadeup { display: inline-block; animation: mv-tv-fadeup 0.5s ease-out both; }
 @keyframes mv-tv-fadeup { from { transform: translateY(60%); opacity: 0; } to { transform: none; opacity: 1; } }
-.mv-tv-tag { animation: mv-tv-pop 0.4s 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both; clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%); }
-.mv-tv-flash { background: #fff; opacity: 0; animation: mv-tv-flash 0.5s ease-out both; pointer-events: none; }
-@keyframes mv-tv-flash { 0% { opacity: 0.9; } 100% { opacity: 0; } }
-
-.mv-tv-kenburns { animation: mv-tv-kenburns 4s ease-out both; }
-@keyframes mv-tv-kenburns { from { transform: scale(1.18) translateY(4%); } to { transform: scale(1); } }
-
-.mv-tv-streak { left: 0; animation: mv-tv-streak 1.3s linear infinite; opacity: 0.85; }
-@keyframes mv-tv-streak { from { transform: translateX(300%); } to { transform: translateX(-120%); } }
+.mv-tv-tag { animation: mv-tv-pop 0.4s 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) both; clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%); box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+@keyframes mv-tv-pop { from { transform: scale(0.3); opacity: 0; } to { transform: none; opacity: 1; } }
+.mv-tv-gold-bg { background: linear-gradient(180deg, #fff1a8, #ffcc33 50%, #b07c00); }
+.mv-tv-flash { background: #fff; opacity: 0; animation: mv-tv-flash 0.5s ease-out both; pointer-events: none; mix-blend-mode: screen; }
+@keyframes mv-tv-flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
 
 .mv-tv-vs {
   display: inline-block;
@@ -419,7 +471,7 @@
   background-clip: text;
   color: transparent;
   filter: drop-shadow(0 0 0.12em #fff) drop-shadow(0.05em 0.05em 0 #000);
-  animation: mv-tv-vs 0.7s 0.45s cubic-bezier(0.2, 1.8, 0.4, 1) both, mv-tv-throb 1.2s 1.2s ease-in-out infinite;
+  animation: mv-tv-vs 0.7s 0.65s cubic-bezier(0.2, 1.8, 0.4, 1) both, mv-tv-throb 1.2s 1.4s ease-in-out infinite;
 }
 @keyframes mv-tv-vs { from { transform: scale(4) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes mv-tv-throb { 50% { transform: scale(1.12); } }
@@ -431,48 +483,16 @@
 }
 @keyframes mv-tv-bolt { 0%, 30%, 34%, 100% { opacity: 0; } 31%, 36%, 38% { opacity: 1; } }
 
-/* A heel: flames up from the bottom of the screen. */
-.mv-tv-flames {
-  background:
-    radial-gradient(ellipse 18% 70% at 20% 110%, #ffcc33cc, transparent 70%),
-    radial-gradient(ellipse 14% 90% at 45% 110%, #ff5a1fcc, transparent 70%),
-    radial-gradient(ellipse 20% 75% at 70% 110%, #ff2a12cc, transparent 70%),
-    radial-gradient(ellipse 16% 85% at 92% 110%, #ffa31acc, transparent 70%);
-  mix-blend-mode: screen;
-  transform-origin: bottom;
-  animation: mv-tv-flicker 0.32s steps(2) infinite alternate;
-}
-@keyframes mv-tv-flicker { from { transform: scaleY(1) translateX(0); opacity: 0.85; } to { transform: scaleY(1.18) translateX(1.5%); opacity: 1; } }
-/* A face: light turning behind them. */
-.mv-tv-rays {
-  /* Five screens wide and tall, so it covers the screen as it turns; the centre sits behind the face on the left. */
-  background: repeating-conic-gradient(from 0deg at 41.5% 50%, color-mix(in srgb, var(--tv-c, #fff) 55%, transparent) 0deg 5deg, transparent 5deg 15deg);
-  mix-blend-mode: screen;
-  animation: mv-tv-spin 14s linear infinite;
-  transform-origin: 41.5% 50%;
-  inset: -200% !important;
-}
-@keyframes mv-tv-spin { to { transform: rotate(360deg); } }
-/* Neither: the picture will not settle. */
-.mv-tv-static {
-  background: repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 5px);
-  animation: mv-tv-roll 0.6s steps(6) infinite;
-}
-@keyframes mv-tv-roll { to { background-position: 0 30px; } }
-.mv-tv-glitchtext { animation: mv-tv-inr 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both, mv-tv-glitch 1.8s 0.6s steps(1) infinite; }
-@keyframes mv-tv-glitch {
-  0%, 86%, 100% { text-shadow: 0.06em 0.06em 0 #000; transform: none; }
-  88% { text-shadow: -0.07em 0 #ff2a6a, 0.07em 0 #2af5ff; transform: translateX(2px) skewX(-8deg); }
-  92% { text-shadow: 0.08em 0 #ff2a6a, -0.08em 0 #2af5ff; transform: translateX(-3px); }
-}
-/* A move landing: speed lines rushing past. */
+/* A move landing: speed lines rushing past, and the picture jolts. */
 .mv-tv-speed {
-  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.0) 0 22px, rgba(255,255,255,0.22) 22px 24px, rgba(255,255,255,0) 24px 60px);
-  animation: mv-tv-rush 0.35s linear infinite;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0) 0 22px, rgba(255,255,255,0.22) 22px 24px, rgba(255,255,255,0) 24px 60px);
+  animation: mv-tv-rush 0.3s linear infinite;
 }
 @keyframes mv-tv-rush { to { background-position: -60px 0; } }
+.mv-tv-shake { animation: mv-tv-shake 0.35s 0.05s steps(4) both; }
+@keyframes mv-tv-shake { 25% { transform: translate(3px, -2px); } 50% { transform: translate(-3px, 2px); } 75% { transform: translate(2px, 1px); } }
 /* A crowd of faces going by. */
-.mv-tv-belt { animation: mv-tv-belt 4.5s linear both; }
+.mv-tv-belt { animation: mv-tv-belt 5s linear both; }
 @keyframes mv-tv-belt { to { transform: translateX(-100%); } }
 /* The room furious: red, breaking up. */
 .mv-tv-redglitch {
@@ -484,4 +504,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mv-tv *, .mv-tv { animation: none !important; }
+  .mv-tv-swipe, .mv-tv-flare, .mv-tv-scanline { display: none; }
 }
