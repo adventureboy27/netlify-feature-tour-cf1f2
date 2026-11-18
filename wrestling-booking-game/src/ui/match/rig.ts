@@ -78,6 +78,10 @@ export const STANCES = {
   stomp: s(-6, [30, 60], [-30, 70], [74, 94], [-6, 8]),
   knee: s(-8, [40, 90], [30, 95], [84, 98], [-8, 8]),
   kneel: s(10, [30, 60], [26, 70], [80, 98], [-12, 90]),
+  // Snapped back by a hit: head and chest thrown back, arms flung, a knee giving.
+  recoil: s(-18, [-40, 40], [-52, 30], [14, 22], [-10, 12], -14),
+  // Hurt, between moves: hunched over it, a hand on the lower back.
+  sellBack: s(24, [30, 70], [-70, 110], [14, 24], [-8, 16], 8),
   // A tag, in the corner, from both sides of the ropes: each reaches straight
   // up — the one coming in with the hand nearer the ring, the one going out
   // with the hand nearer the corner — and the two meet over the post.

@@ -611,6 +611,24 @@ export function MatchStage({
             </div>
           )}
 
+          {/* A big spot: a burst of camera flashes through the crowd, the
+              instant it lands. */}
+          {!over && plan && plan.impacts.some((i) => i.big) && (
+            <div key={`flashes-${beatKey}`} className="pointer-events-none absolute inset-0" style={{ zIndex: 1 }} aria-hidden>
+              {plan.impacts
+                .filter((i) => i.big)
+                .flatMap((impact, k) =>
+                  SPARKLES.filter((_, i) => (i + k * 3 + beatKey) % 3 === 0).map((sp, i) => (
+                    <span
+                      key={`${k}-${i}`}
+                      className="mv-flashpop absolute"
+                      style={{ left: `${sp.x}%`, top: `${sp.y}%`, width: sp.size * u * 1.2, height: sp.size * u * 1.2, animationDelay: `${Math.round(impact.at * duration + (i % 5) * 45)}ms` }}
+                    />
+                  )),
+                )}
+            </div>
+          )}
+
           {/* A champion with the belt in the air: every camera in the building
               goes off. Flashes scattered through the crowd, behind the ring,
               each on its own beat so the stands glitter rather than blink. */}

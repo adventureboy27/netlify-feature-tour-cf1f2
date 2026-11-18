@@ -418,6 +418,20 @@ const BODIES = {
     actor: [STAND, [0.18, -1, 0, 0], [0.28, 1.5, 0, 22], [0.42, 2.5, 0, 14, 0.86], [0.75, 2, 0, 8, 0.86], [1, 1, 0, 0]],
     target: [STAND, [0.3, 0, 0, 0], [0.5, -1, 0, -6], [1, -1, 0, 0]],
   },
+  // A charge into the corner that finds only turnbuckle: the target ducks out
+  // under it and the attacker hits the buckles chest-first and staggers out.
+  whiffCorner: {
+    actor: [STAND, [0.12, 4, 0, 8], [0.28, 6, 0, -10], [0.42, 18, 0, 16], [0.52, 27, 0.6, 24], [0.6, 26, 0, -22], [0.78, 23, 0, -30], [1, 21, 0, -8]],
+    target: [STAND, [0.12, 3, 0, 8], [0.3, -15, 0, -6], [0.42, -15.5, 0, -4], [0.48, -14, 0, 10, 0.72], [0.58, -4, 0, 6, 0.8], [0.75, 3, 0, 0], [1, 4, 0, 0]],
+    impacts: [[0.52, -16, 12]],
+    ropes: 0.3,
+  },
+  // An elbow drop onto empty mat: the one it was meant for rolls clear.
+  whiffElbow: {
+    actor: [STAND, [0.1, 3, 0, 0], [0.3, 1, 0, 0], [0.45, 3, 7, 20], [0.6, 5, 3.4, 82], [0.66, 5, DOWN, 90], [0.8, 5, DOWN + 0.4, 84], [0.92, 4, 0.6, 30], [1, 3, 0, 10]],
+    target: [[0, 1, DOWN, -90], [0.36, 1, DOWN, -90], [0.46, -6, DOWN + 0.8, -80], [0.56, -11, DOWN, -90], [1, -11, DOWN, -90]],
+    impacts: [[0.66, -2, 2]],
+  },
   // After the bell: the winner stands over the one who is still down.
   standOver: {
     actor: [STAND, [0.4, 1, 0, 0], [1, 1, 0, 0]],
@@ -552,6 +566,8 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   tablePowerbomb: { actor: '- reach carry carry carry crouch guard -', target: '- bend shoulders shoulders fall flat flat flat flat' },
   floorDive: { actor: '- reach punch guard guard run fly fly fly pin flat', target: '- bend spear flat flat flat flat flat flat flat' },
   standOver: { actor: 'guard guard guard' },
+  whiffCorner: { actor: '- reach wind run run stagger stagger guard', target: '- guard ropes ropes crouch crouch guard guard' },
+  whiffElbow: { actor: '- punch guard elbowUp elbowUp flat flat kneel kneel', target: 'flat flat flat flat flat' },
   pyroBurn: { actor: '- guard stagger kneel kneel guard', target: '- guard stagger guard' },
   ladderCollapse: { actor: '- punch guard climb climb climb lift fall flat flat', target: '- stagger flat flat' },
   ladderPull: { actor: '- punch guard climb climb lift lift fall flat flat', target: '- stagger flat flat kneel reach lift stagger guard' },
@@ -630,6 +646,8 @@ export const META: Partial<Record<MoveId, MoveMeta>> = {
   ladderPull: { knockdownBy: 0.22, atCentre: true },
   ladderDive: { knockdownBy: 0.22 },
   standOver: { needsDown: true },
+  whiffCorner: { anchor: { who: 'target', at: -17.5 } },
+  whiffElbow: { needsDown: true },
   ladderCollapse: { knockdownBy: 0.22, atCentre: true },
   stomp: { needsDown: true },
   legDrop: { needsDown: true },
@@ -1430,6 +1448,17 @@ export function stageMatch(
       if (corner.length > 1 && fillerIndex % 3 === 1) working = corner[(corner.indexOf(working) + 1) % corner.length]!;
       // 1000+ keeps a filler's "index" (which only rotates its choice of move) clear of the real beats'.
       stage({ kind: 'control', pose: 'control', text: '', significant: false, actorId: working, targetId: taking, moveName: null }, 1000 + fillerIndex++, [], true, coming ? [coming] : []);
+      // Now and then in the unspoken stretches, a miss: the charge that finds
+      // only turnbuckle, the elbow that finds only mat. It changes nothing —
+      // whoever was on top carries on — but a match is not a queue of hits.
+      if (fillerIndex % 6 === 4 && !conduct.noRing && !conduct.squash) {
+        const down = downId === taking;
+        const move: MoveId = down ? 'whiffElbow' : 'whiffCorner';
+        const missed = moments[moments.length - 1]!;
+        moments[moments.length - 1] = { ...missed, staged: { ...stageMove(move, 1900) }, holdMs: 1900 };
+        recent.push(move);
+        downId = down ? taking : null;
+      }
     }
   });
   return { moments, before, after, synced };

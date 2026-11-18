@@ -801,3 +801,13 @@ describe('a battle royal elimination is over the top and onto the floor, every t
     for (const m of outs) expect(META[m.staged.move]?.exits).toBeDefined();
   });
 });
+
+describe('a match is not a queue of hits', () => {
+  it('misses happen in the unspoken stretches, never on a beat the simulation recorded', () => {
+    const long = Array.from({ length: 10 }, (_, i) => beat(i === 0 ? 'exchange' : i === 9 ? 'finish' : 'control'));
+    const moments = stageMatch(long, [], cast, 'cleanPin', { conduct: rulebook(null) }).moments;
+    const misses = moments.filter((m) => m.staged.move === 'whiffCorner' || m.staged.move === 'whiffElbow');
+    expect(misses.length).toBeGreaterThan(0);
+    for (const m of misses) expect(m.filler).toBe(true);
+  });
+});

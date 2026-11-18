@@ -6939,3 +6939,11 @@ The figures bent at one point, the waist, and only lightly — so a body taking 
 - **A joint at the middle of the back** (`ArticulatedFigure.tsx` `SPINE_Y`, about the bottom of the ribs). The torso art is drawn in two overlapping pieces, belly-and-hips and chest-head-arms; the bend is shared between the waist and the middle of the back (playback.ts), so the back curves instead of hinging. Arms ride on the chest.
 - **Poses can curl the back further** (`Stance.c`), and the selling and in-a-move poses now bend a good deal more: doubled over from a knee or body shot, arched back from a chop with the knees going, curled tight when tucked, crunched up off the mat on a kickout, the back bent across a knee or under a Boston crab.
 - Tuned against a visible kink at the seam: most of the bend sits at the waist, the rest in the back. Rechecked the reworked moves (powerbomb, stunner, backbreaker, Boston crab, suplex, clothesline) — all still read.
+
+## More action, more chaos
+
+- **Nobody stands frozen** (playback.ts `enliven`). Wherever a move holds a body still for a while, it moves in it: on their feet, the one on top shifts a step and leans in, the one taking it hunches over with a hand on the lower back; down, they roll half onto a side with a knee coming up. Only in loose poses — never a hold, a pin, a climb, a tag.
+- **Every hit snaps somebody back.** At each impact, a body on its feet that the move has not already got reacting recoils — thrown back half a step, chest and head flung back (the new back bend) — then carries on with the move. Applies to the background fights too.
+- **Misses.** In the unspoken stretches between recorded beats, now and then a charge into the corner that finds only turnbuckle (the target ducks out under it) or an elbow drop onto empty mat (the target rolls clear). They change nothing — whoever was on top carries on — and they never land on a beat the sim recorded.
+- **The crowd goes off on big spots:** a burst of camera flashes through the stands the instant a big bump lands (alongside the existing ring shake and rope wobble). Before, the cameras only went off for a belt held up at the end.
+- Not done: a referee bump — the viewer has no referee figure to bump.
