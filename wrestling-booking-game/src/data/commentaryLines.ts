@@ -60,7 +60,7 @@
 //   {oldHand} {oldHandYears}     needs 'longCareer'
 
 import type { CommentaryFact, Speaker } from '../engine/sim/commentary';
-import type { FinishType, MatchBeatKind } from '../engine/types';
+import type { FinishType, MatchAction, MatchBeatKind } from '../engine/types';
 
 /** Which way the colour man leans, and therefore what he is willing to say. */
 export type Leaning = 'heel' | 'face' | 'analyst';
@@ -187,6 +187,43 @@ export const PLAY_BY_PLAY: Partial<Record<MatchBeatKind, readonly string[]>> = {
     '{winner} put {loseThem} away, and {loser} has no answer for it.',
     'It is over. {winner} stands, {loser} does not.',
   ],
+};
+
+// ---------------------------------------------------------------------------
+// The call for a beat whose write-up line says what physically happened
+// (data/matchBeats.ts LINE_ACTIONS). Said about whoever the line says did it
+// — {onTop} — to {inTrouble}, and saying the same thing the line says, so the
+// highlight, the call and the ring are one event.
+// ---------------------------------------------------------------------------
+
+export const ACTION_CALLS: Record<MatchAction, readonly string[]> = {
+  lockup: ['And they lock up. Neither one of them giving an inch.', 'Collar and elbow — and neither of them is moving.'],
+  feelingOut: ['They circle. Feeling each other out, nobody committing yet.', 'Slow start — {onTop} and {inTrouble} sizing each other up.'],
+  brawl: ['No handshake — {onTop} just starts swinging!', '{onTop} is throwing hands, and {inTrouble} is throwing them right back!'],
+  matWork: ['{onTop} takes {lowThem} down to the mat and grinds away.', 'Down on the mat, and {onTop} is working for position.'],
+  jumpStart: ['{onTop} jumps {inTrouble} before the bell — the referee has lost this already!', 'Before the bell! {onTop} attacks, and this is chaos!'],
+  slam: ['{onTop} scoops {lowThem} up — body slam!', '{onTop} picks {lowThem} up and throws {lowThem} down!'],
+  liftDrive: ['{onTop} lifts {lowThem} up — and drives {lowThem} straight through the mat!', 'Powerbomb! {onTop} folds {lowThem} up like a deckchair!'],
+  limbWork: ['{onTop} has the arm and {topThey} is not letting go of it.', '{onTop} twisting the wrist, working that arm over.'],
+  groundHold: ['{onTop} grounds {lowThem} with another hold, and {inTrouble} is reaching for the ropes.', 'Another hold from {onTop}. {inTrouble} is stretched out on the mat.'],
+  headlock: ['Side headlock from {onTop}, and {topThey} is grinding it in.', '{onTop} cranks the headlock. Back to basics.'],
+  topRope: ['{onTop} up top now. {Top} is going to fly.', 'Off the top rope! {onTop} connects!'],
+  floorDive: ['{onTop} sends {lowThem} to the floor — and dives out after {lowThem}!', 'Over the top rope! {onTop} wipes out {inTrouble} on the floor!'],
+  aerialCombo: ['Dropkick! {onTop} will not let {lowThem} land!', '{onTop} in the air again — {inTrouble} cannot keep up!'],
+  barricade: ['They are on the floor — {onTop} whips {lowThem} into the guardrail!', 'Into the barricade! {inTrouble} hits it hard!'],
+  crowdBrawl: ['They are out on the floor and fighting right in front of the front row!', '{onTop} drags {lowThem} out to the floor, and it is a street fight out there!'],
+  strikes: ['Right hands. One after another, and {inTrouble} has nowhere to go.', 'Elbow. Elbow. Another one. {inTrouble} is in serious trouble.'],
+  chops: ['A stiff chop from {onTop} echoes around the building.', 'Chop! And another! {inTrouble} is lit up.'],
+  kick: ['What a kick! {onTop} caught {lowThem} flush!', 'Superkick from {onTop}! {inTrouble} goes down!'],
+  bodyShots: ['{onTop} drives a knee into the midsection and {inTrouble} doubles over.', 'Knee to the body from {onTop}, and another.'],
+  armDrag: ['Arm drag from {onTop}! {inTrouble} goes flying!', 'Up and over — {onTop} with the arm drag!'],
+  counter: ['{onTop} counters! {Top} saw that coming a mile away.', '{inTrouble} goes for it — and {onTop} has the counter waiting!'],
+  bigBoot: ['{onTop} gets a boot up, and {inTrouble} runs straight into it!', 'Big boot! {inTrouble} ran right into that one.'],
+  noSell: ['{inTrouble} throws everything at {onTop}, and {onTop} just shoves {lowThem} away.', '{onTop} will not move! {inTrouble} gets shoved halfway across the ring!'],
+  taunt: ['{onTop} stops to play to the crowd — and they are eating it up.', '{onTop} poses in the middle of the ring while {inTrouble} is down!'],
+  fireUp: ['{onTop} fires back! Out of nowhere!', '{onTop} will not stay down. {Top} is throwing bombs!'],
+  doubleDown: ['Both of them go down at the same time! The referee starts counting them both!', 'Double clothesline — and nobody is moving!'],
+  finisherKickout: ['{winnerFinisher}! Cover — one, two — NO! {inTrouble} kicked out!', 'The {winnerFinisher}, and the cover — and {inTrouble} gets a shoulder up! Unbelievable!'],
 };
 
 // ---------------------------------------------------------------------------

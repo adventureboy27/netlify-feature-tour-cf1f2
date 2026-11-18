@@ -884,3 +884,23 @@ describe('a line knows which beat it is calling', () => {
     expect(counted.test(pins)).toBe(true);
   });
 });
+
+describe('a line that says what happened is called as that', () => {
+  it('calls the recorded action, about who the write-up says did it', () => {
+    const base = bare();
+    const doer = base.sideB[0]!;
+    const done = base.sideA[0]!;
+    const beats: MatchBeat[] = [
+      { kind: 'openingExchange', text: 'x', significant: true },
+      // The loser jumped the winner: the call has to be about the loser doing it.
+      { kind: 'control', text: 'jumped', significant: true, actorId: doer.id, targetId: done.id, action: 'jumpStart' },
+      { kind: 'finish', text: 'done', significant: true },
+    ];
+    const lines = callTheMatch(rngFromSeed('action'), { ...base, beats });
+    const call = lines.find((l) => l.speaker === 'play' && l.beat === 1)!;
+    expect(call.actorId).toBe(doer.id);
+    expect(call.targetId).toBe(done.id);
+    expect(call.text).toMatch(/before the bell/i);
+    expect(call.text).toContain(doer.name);
+  });
+});

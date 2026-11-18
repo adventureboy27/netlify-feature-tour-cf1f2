@@ -574,7 +574,7 @@ export function MatchStage({
 
           {/* Furniture a beat calls for: a ladder to climb, a table to go through. */}
           {scene === 'ladder' && plan && (
-            <svg viewBox="0 0 60 150" className="pointer-events-none absolute" style={{ left: sx(plan.centre) - 3.6 * u, top: sy(17.5), width: 7.2 * u, height: 18 * u, zIndex: 2 }} aria-hidden>
+            <svg viewBox="0 0 60 150" className={`pointer-events-none absolute${staged?.move === 'ladderCollapse' ? ' mv-topple' : ''}`} style={{ left: sx(plan.centre) - 3.6 * u, top: sy(17.5), width: 7.2 * u, height: 18 * u, zIndex: 2, animationDelay: `${when(0.7)}ms` }} aria-hidden>
               <path d="M 14,4 L 6,148 M 46,4 L 54,148" stroke="#c9a23a" strokeWidth={5} strokeLinecap="round" />
               {Array.from({ length: 9 }, (_, i) => (
                 <line key={i} x1={13 - i * 0.8} y1={16 + i * 15} x2={47 + i * 0.8} y2={16 + i * 15} stroke="#e2c15a" strokeWidth={4} />
@@ -592,7 +592,7 @@ export function MatchStage({
             </div>
           )}
           {(scene === 'table' || scene === 'flamingTable') && targetEnd && (
-            <div className="pointer-events-none absolute" style={{ left: sx(staged?.sceneIntact && plan ? plan.centre + 2.6 * (targetEnd.x - plan.centre) : midBody(targetEnd).x) - 9 * u, top: sy(4), width: 18 * u, height: 4.4 * u, zIndex: 2 }}>
+            <div className="pointer-events-none absolute" style={{ left: sx(staged?.sceneIntact && plan && staged.move !== 'tablePowerbomb' ? plan.centre + 2.6 * (targetEnd.x - plan.centre) : midBody(targetEnd).x) - 9 * u, top: sy(4), width: 18 * u, height: 4.4 * u, zIndex: 2 }}>
               <svg viewBox="0 0 180 44" className={`${staged?.sceneIntact ? '' : 'mv-until '}absolute inset-0 h-full w-full`} style={{ animationDelay: `${sceneAt * duration}ms` }} aria-hidden>
                 <rect x={4} y={2} width={172} height={9} rx={2} fill="#8a5a2c" stroke="#4d3015" strokeWidth={2} />
                 <path d="M 24,11 L 20,42 M 156,11 L 160,42" stroke="#4b5260" strokeWidth={5} strokeLinecap="round" />

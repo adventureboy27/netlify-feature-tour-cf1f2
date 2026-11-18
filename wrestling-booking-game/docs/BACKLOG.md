@@ -6864,3 +6864,16 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - Tests: the sim and viewer agree on every stipulation's near thing; every recorded spot stages as itself; unrecorded matches stage no props.
 
 **Still not synced (pre-existing, generic lines):** some style control lines describe things the viewer approximates ("that guardrail took punishment", "a dive to the floor" stage as ordinary moves); a falls-count-anywhere pin is written as on the floor but staged in the ring; an equipment-failure draw is staged as an ordinary draw.
+
+## The write-up, the call and the ring describe the same match
+
+- **Write-up lines that say what physically happened are recorded with it** (`MatchBeat.action`, tagged in `data/matchBeats.ts` `LINE_ACTIONS`): "a dive to the floor", "that guardrail took punishment", "jumped them before the bell", "put a boot straight up", "played to the crowd", and the rest. Lines about the crowd, the mood or the stakes stay untagged. The beat now names who the line says did it: a jump-start or a comeback is the loser's, everything else the winner's.
+- **The play-by-play calls that action** about that person (`data/commentaryLines.ts` `ACTION_CALLS`), instead of a random move from the beat-kind pool. "Snap suplex!" over a line about a dive to the floor can no longer happen.
+- **The ring stages it.** New: a dive over the top rope to the floor; the guardrail and the crowd brawl go out to the floor and back. Plus the existing moves for the rest (taunt, big boot, arm drag, finisher-kicked-out cover...).
+- **Impossible lines are no longer written:** a steel cage match never "dives to the floor", "brawls in the crowd" or hits the guardrail; an arena-floor match never climbs a rope.
+- **After the finish nothing more is wrestled:** an aftermath line stages the winner standing over the loser.
+- **Falls count anywhere:** the pin happens out on the floor, as written.
+- **An equipment-failure ending** is staged as the gear failing: the ladder topples with the climber ("IT GAVE WAY!"), the table holds under the powerbomb ("IT HELD!"), the cage gives way on the climb.
+- Tests: tagged lines exist in the pools; the doer is recorded; the commentator calls the action about the doer; every action stages as itself; post-finish, falls-count-anywhere and gear-failure staging. Audited across 40 seeds × every match type with the real simulator: every recorded action and spot staged as itself.
+
+**Still loose:** a pyro accident is written up but the viewer shows nothing for it.

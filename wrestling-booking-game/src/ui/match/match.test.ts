@@ -590,6 +590,37 @@ describe('the fixes to the match types', () => {
     }
   });
 
+  it('a line that says what physically happened is staged as that', () => {
+    const cases: [NonNullable<PlaybackBeat['action']>, MoveId][] = [
+      ['lockup', 'lockup'], ['slam', 'slam'], ['liftDrive', 'powerbomb'], ['taunt', 'taunt'], ['kick', 'superkick'],
+      ['armDrag', 'backBodyDrop'], ['bigBoot', 'counter'], ['doubleDown', 'doubleDown'], ['fireUp', 'fireUp'], ['floorDive', 'floorDive'],
+    ];
+    for (const [action, move] of cases) {
+      const moments = stageMatch([beat('exchange'), beat('control', { action }), beat('finish')], [], cast, 'cleanPin', { conduct: rulebook(null) }).moments.filter((m) => !m.filler);
+      expect(moments[1]!.staged.move, action).toBe(move);
+    }
+    // The guardrail is out on the floor, and back in again after.
+    const out = stageMatch([beat('exchange'), beat('control', { action: 'barricade' }), beat('finish')], [], cast, 'cleanPin', { conduct: rulebook(null) }).moments;
+    const seq = out.map((m) => `${m.staged.move}@${m.staged.zone ?? 'ring'}`);
+    const at = seq.indexOf('whip@floor');
+    expect(seq.slice(at - 1, at + 2)).toEqual(['tossOutside@out', 'whip@floor', 'rollInside@in']);
+    expect(out[at]!.filler).toBe(false);
+  });
+
+  it('nothing is wrestled after the finish', () => {
+    const moments = stageMatch([beat('exchange'), beat('control'), beat('finish'), beat('control', { action: 'brawl' })], [], cast, 'cleanPin', { conduct: rulebook(null) }).moments;
+    expect(moments[moments.length - 1]!.staged.move).toBe('standOver');
+  });
+
+  it('a falls count anywhere pin is out on the floor, and a gear failure is the gear failing', () => {
+    const fca = stageMatch([beat('exchange'), beat('finish')], [], cast, 'cleanPin', { conduct: rulebook('fallsCountAnywhere') }).moments;
+    expect(fca[fca.length - 1]!.staged.zone).toBe('floor');
+    const ladder = stageMatch([beat('exchange'), beat('finish')], [], cast, 'equipmentFailure', { conduct: rulebook('ladder', 'equipmentFailure') }).moments;
+    expect(ladder[ladder.length - 1]!.staged.move).toBe('ladderCollapse');
+    const tables = stageMatch([beat('exchange'), beat('finish')], [], cast, 'equipmentFailure', { conduct: rulebook('tables', 'equipmentFailure') }).moments;
+    expect(tables[tables.length - 1]!.staged.sceneIntact).toBe(true);
+  });
+
   it('every recorded spot is staged as itself', () => {
     const cases: [NonNullable<PlaybackBeat['spot']>, string | null, MoveId][] = [
       ['ladderShot', 'ladder', 'ladderShot'], ['stepsShot', 'hardcore', 'stepsShot'], ['tableThrough', 'hardcore', 'tablePowerbomb'],

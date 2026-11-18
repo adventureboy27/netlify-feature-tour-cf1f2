@@ -1383,6 +1383,43 @@ export type MatchSpot =
   | 'holdEscape'
   | 'countBeaten';
 
+/**
+ * What an ordinary write-up line says physically happened, when it says
+ * something specific ("a dive to the floor", "jumped them before the bell").
+ * Recorded on the beat so the play-by-play calls that same thing and the
+ * match viewer stages it — see data/matchBeats.ts's LINE_ACTIONS. A line that
+ * only describes the crowd or the mood has none, and the call and the ring
+ * are free to show any move that fits the moment.
+ */
+export type MatchAction =
+  | 'lockup'
+  | 'feelingOut'
+  | 'brawl'
+  | 'matWork'
+  | 'jumpStart'
+  | 'slam'
+  | 'liftDrive'
+  | 'limbWork'
+  | 'groundHold'
+  | 'headlock'
+  | 'topRope'
+  | 'floorDive'
+  | 'aerialCombo'
+  | 'barricade'
+  | 'crowdBrawl'
+  | 'strikes'
+  | 'chops'
+  | 'kick'
+  | 'bodyShots'
+  | 'armDrag'
+  | 'counter'
+  | 'bigBoot'
+  | 'noSell'
+  | 'taunt'
+  | 'fireUp'
+  | 'doubleDown'
+  | 'finisherKickout';
+
 /** What somebody gets hit with — only the things the match viewer can draw. */
 export type MatchWeapon = 'chair' | 'kendo' | 'can';
 
@@ -1392,6 +1429,8 @@ export interface MatchBeat {
   spot?: MatchSpot;
   /** The weapon in it, for a weapon shot (or a finish written with one). */
   weapon?: MatchWeapon;
+  /** What the line says physically happened, if it says (see MatchAction). */
+  action?: MatchAction;
   text: string;
   significant: boolean; // only significant beats render in the highlight, §11.5
   /**

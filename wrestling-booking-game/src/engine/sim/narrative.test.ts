@@ -5,7 +5,7 @@ import { generateWrestlers } from '../generate/wrestler';
 import { createStartingTitles } from '../../data/titles';
 import { stipulationById, effectiveRules } from '../../data/stipulations';
 import { RIVAL_MATCH_RULES } from '../world/rivalBooking';
-import { BATTLE_ROYAL_ELIMINATION_BEATS, BATTLE_ROYAL_ELIMINATION_BY_BEATS, BATTLE_ROYAL_FINAL_BEATS } from '../../data/matchBeats';
+import { BATTLE_ROYAL_ELIMINATION_BEATS, BATTLE_ROYAL_ELIMINATION_BY_BEATS, BATTLE_ROYAL_FINAL_BEATS, LINE_ACTIONS, OPENING_BEATS, CONTROL_BEATS, HOPE_SPOT_BEATS, BIG_SPOT_BEATS, GRUDGE_BEATS } from '../../data/matchBeats';
 import type { Wrestler } from '../types';
 
 function pair(): [Wrestler, Wrestler] {
@@ -271,5 +271,34 @@ describe('a special match records the spots it is built around', () => {
     };
     expect(counted(undefined)).toBeGreaterThan(0);
     expect(counted(rulesFor('ladder'))).toBe(counted(undefined));
+  });
+});
+
+describe('a line that says what physically happened records it', () => {
+  it('every tagged line is a line the reel can actually say', () => {
+    const lines = new Set([...OPENING_BEATS, ...HOPE_SPOT_BEATS, ...BIG_SPOT_BEATS, ...GRUDGE_BEATS].map((t) => t.text).concat(Object.values(CONTROL_BEATS).flat()));
+    for (const text of Object.keys(LINE_ACTIONS)) expect(lines.has(text), text).toBe(true);
+  });
+
+  it('records the action, and that the one the line names did it', () => {
+    const [a, b] = pair();
+    for (const seed of ['p', 'q', 'r', 's', 't', 'u', 'v', 'w']) {
+      const beats = generateBeats(rngFromSeed(seed), { winnerMembers: [a], loserMembers: [b], finish: 'cleanPin', stars: 4, rating: 85, shootHeat: 80 });
+      for (const beat of beats) {
+        if (!beat.action) continue;
+        // The comeback and the jump-start are the loser's; everything else the winner's.
+        const doer = beat.action === 'fireUp' || beat.action === 'jumpStart' ? b : a;
+        expect(beat.actorId, beat.text).toBe(doer.id);
+      }
+    }
+  });
+
+  it('never writes up a cage match leaving the cage, or a ring in a match without one', () => {
+    for (let i = 0; i < 30; i++) {
+      const cage = reel({ rating: 90, stipulation: stipulationById('steelCage') ?? null }, `cage-${i}`);
+      for (const b of cage) expect(b.text, b.text).not.toMatch(/dive to the floor|guardrail|into the crowd|first three rows/i);
+      const floor = reel({ rating: 90, stipulation: stipulationById('arenaFloor') ?? null }, `floor-${i}`);
+      for (const b of floor.filter((x) => x.kind !== 'finish')) expect(b.text, b.text).not.toMatch(/rope|apron|turnbuckle|guardrail/i);
+    }
   });
 });

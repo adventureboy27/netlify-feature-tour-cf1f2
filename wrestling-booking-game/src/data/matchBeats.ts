@@ -19,7 +19,7 @@
 // you about afterwards — not as play-by-play. "They locked up" is not a
 // highlight. "They locked up and did not break for ninety seconds" is.
 
-import type { MatchSpot, MatchWeapon } from '../engine/types';
+import type { MatchAction, MatchSpot, MatchWeapon } from '../engine/types';
 
 export interface BeatTemplate {
   text: string;
@@ -243,4 +243,89 @@ export const SPOT_BEATS: Record<MatchSpot, readonly string[]> = {
   teeter: ['{target} was halfway over the top rope and somehow hung on.', '{actor} had {target} over the top, feet dangling, and {target} would not go.'],
   holdEscape: ['{actor} had the hold cinched in and {target} fought their way out of it.', '{target} was a breath away from tapping to {actor} and broke the hold instead.'],
   countBeaten: ['{actor} left {target} down, and {target} beat the referee\'s count at eight.', 'The referee counted to eight over {target} and they were up again.'],
+};
+
+/**
+ * What the write-up lines above say physically happened, keyed by the line
+ * as written. A line in here is recorded with its action (types.ts
+ * MatchAction): the play-by-play calls that action and the ring stages it, so
+ * the highlight, the call and the picture never describe three different
+ * matches. `by: 'loser'` — the line's {loser} is the one doing it.
+ * Lines about the crowd, the mood or the stakes are deliberately absent.
+ */
+export const LINE_ACTIONS: Readonly<Record<string, { action: MatchAction; by?: 'loser' }>> = {
+  // the opening
+  'A cautious feeling-out process to start — both of them circling, neither one committing to anything just yet.': { action: 'feelingOut' },
+  'The bell rang and it was fists from the jump. No feeling-out process. No handshake. Just business.': { action: 'brawl' },
+  'A slow, grinding, mat-based build, and this one was in no hurry to get anywhere fast.': { action: 'matWork' },
+  '{winner} and {loser} locked up at the bell and neither one budged for a full minute — a genuine standoff to open the show.': { action: 'lockup' },
+  '{loser} jumped {winner} before the bell ever rang, and the referee lost this thing before it even got started.': { action: 'jumpStart', by: 'loser' },
+  'This building was locked in from the very first lock-up. You could feel it.': { action: 'lockup' },
+  'Physical from the opening bell — this read like a fight wearing a wrestling match as a disguise.': { action: 'brawl' },
+  // powerhouse
+  '{winner} threw {loser} around like a rag doll — pure, brutal strength on full display.': { action: 'slam' },
+  '{winner} plucked {loser} right out of the air and turned it into something downright ugly.': { action: 'slam' },
+  '{winner} hoisted {loser} up like they weighed nothing and drove them back down like they meant every ounce of it.': { action: 'liftDrive' },
+  'Every single time {loser} tried to build a head of steam, {winner} just picked them up and moved them somewhere worse.': { action: 'slam' },
+  // technical
+  '{winner} went to work on a limb and simply never let go — textbook, relentless, mean.': { action: 'limbWork' },
+  '{winner} tied {loser} up in a knot the hard way, and this crowd started counting the submission attempts out loud.': { action: 'groundHold' },
+  '{winner} broke the hold clean, reset, and immediately found something even more painful.': { action: 'limbWork' },
+  // high flyer
+  '{winner} climbed to the top rope and this whole building rose right up with them.': { action: 'topRope' },
+  '{winner} launched a dive to the floor that absolutely nobody in this building was ready for.': { action: 'floorDive' },
+  '{winner} strung together three moves in mid-air before {loser} had even landed from the first — pure, gravity-defying offense.': { action: 'aerialCombo' },
+  'That guardrail took just as much punishment tonight as {loser} did.': { action: 'barricade' },
+  // submission
+  '{winner} hunted that arm for five straight minutes and would not let it go.': { action: 'limbWork' },
+  '{loser} got one finger on the bottom rope and this place absolutely lost it.': { action: 'groundHold' },
+  '{winner} switched submissions twice, and {loser} never got a single full breath in between.': { action: 'groundHold' },
+  'That hold is not coming off without the referee getting involved, and {loser} knows it better than anybody here.': { action: 'groundHold' },
+  // hardcore (the weapon lines are spots: see narrative.ts spotInLine)
+  'This one spilled out into the crowd and stayed there a good long while.': { action: 'crowdBrawl' },
+  'Nobody sitting in the first three rows left this building with a dry seat.': { action: 'crowdBrawl' },
+  // striker
+  '{winner} lit {loser} up with strikes loud enough to make the front row wince.': { action: 'strikes' },
+  'One kick landed flush and {loser} genuinely went a different color.': { action: 'kick' },
+  '{winner} worked the body so hard and so often that {loser} eventually stopped even trying to block it.': { action: 'bodyShots' },
+  'You could hear every single one of those strikes land, all the way from the cheap seats.': { action: 'strikes' },
+  // luchador
+  '{winner} strung together a sequence so fast that nobody in this building could follow all of it.': { action: 'aerialCombo' },
+  'A rope-walk straight into an armdrag brought this entire house down.': { action: 'armDrag' },
+  '{winner} went to the apron, then the top rope, then somewhere that should not have been physically possible.': { action: 'topRope' },
+  'That exchange looked like it had been rehearsed for a month — and it very likely had not been.': { action: 'counter' },
+  // showman
+  '{winner} stopped mid-match to play to the crowd, and shockingly, got away with it.': { action: 'taunt' },
+  '{winner} hit the signature pose. This crowd hit it right back.': { action: 'taunt' },
+  '{winner} narrated the entire sequence to the front row like {loser} was not even in the building.': { action: 'taunt' },
+  'That was more entrance than offense, and this crowd ate up every last second of it.': { action: 'taunt' },
+  // giant
+  '{winner} simply would not go down, and {loser} was flat-out running out of ideas.': { action: 'noSell' },
+  '{winner} put a boot straight up and {loser} ran right into it — full speed, no brakes.': { action: 'bigBoot' },
+  'It took three of {loser}\'s absolute best shots just to move {winner} a single inch.': { action: 'noSell' },
+  '{winner} just stood there in the middle of the ring and let {loser} come to them. That was the entire game plan, and it worked.': { action: 'noSell' },
+  // bruiser
+  '{winner} beat {loser} from one corner of this ring clean to the other.': { action: 'brawl' },
+  'Somewhere in there this stopped being a wrestling match and turned into a flat-out fight.': { action: 'brawl' },
+  '{winner} did not bother with a single hold tonight. Just hands.': { action: 'strikes' },
+  'The referee\'s warnings stopped meaning a single thing after about the second one.': { action: 'brawl' },
+  // old school
+  '{winner} worked a plain old headlock for four straight minutes and had this crowd hanging on every twitch.': { action: 'headlock' },
+  'Clean breaks, hard chops, and not one wasted motion the entire way through.': { action: 'chops' },
+  // all-rounder
+  '{winner} had an answer ready for absolutely everything {loser} tried.': { action: 'counter' },
+  'Whatever {loser} reached for, {winner} had already scouted it and had a counter waiting.': { action: 'counter' },
+  '{winner} matched {loser} strike for strike, hold for hold, and still looked like they had another gear left.': { action: 'strikes' },
+  // the comeback
+  '{loser} caught fire out of absolutely nowhere, and this place came alive right along with them.': { action: 'fireUp', by: 'loser' },
+  '{loser} started firing back with everything they had, and simply would not stop.': { action: 'fireUp', by: 'loser' },
+  '{loser} kept getting back up off that mat — and honestly, that alone was a highlight.': { action: 'fireUp', by: 'loser' },
+  // the big one
+  '{winner} hit something off the top rope that should not have been survivable — and the building knew it.': { action: 'topRope' },
+  'Both of them went down at the exact same time, and the referee started counting them both out.': { action: 'doubleDown' },
+  'They stood in the middle of that ring and traded strikes until neither one of them could stand up straight.': { action: 'strikes' },
+  '{loser} kicked out of the {finisher}. Nobody kicks out of the {finisher} — and this building knows it.': { action: 'finisherKickout' },
+  // the grudge
+  'There was nothing worked about this one, folks. They were hitting each other for real.': { action: 'strikes' },
+  'The referee flat-out stopped trying to separate these two somewhere in the second act.': { action: 'brawl' },
 };

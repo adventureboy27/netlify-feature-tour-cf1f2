@@ -29,6 +29,7 @@ import {
   BATTLE_ROYAL_FINAL_BEATS,
   WEAPONS,
   SPOT_BEATS,
+  LINE_ACTIONS,
   type BeatTemplate,
 } from '../../data/matchBeats';
 
@@ -175,6 +176,9 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
   // (its own prose momentum) and matchPlayback.ts (its rotation-guess
   // fallback). A third small copy here, purely to stamp real ids as beats are
   // created — none of the existing text generation below changes.
+  // The two a line's {winner} and {loser} name.
+  const winnerId = winner?.id ?? null;
+  const loserId = loser?.id ?? null;
   let onTop: readonly Wrestler[] = ctx.winnerMembers;
   let inTrouble: readonly Wrestler[] = ctx.loserMembers;
 
@@ -191,14 +195,19 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
     extra?: (text: string) => string,
     idOverride?: { actorId: Id | null; targetId: Id | null },
   ): boolean => {
-    const options = usable(templates, ctx.rating).filter((t) => !used.has(t.text));
+    const options = usable(templates, ctx.rating).filter((t) => !used.has(t.text) && possibleHere(t.text, ctx.stipulation?.id ?? null));
     if (options.length === 0) return false;
     const template = pick(rng, options);
     used.add(template.text);
     const text = extra ? extra(fill(template.text)) : fill(template.text);
-    const actorId = idOverride ? idOverride.actorId : (onTop[0]?.id ?? null);
-    const targetId = idOverride ? idOverride.targetId : (inTrouble[0]?.id ?? null);
-    beats.push({ kind, text, significant: true, actorId, targetId, ...spotInLine(template.text, lastWeapon) });
+    // A line that says what physically happened says who did it, too: the
+    // {winner} of the line, or its {loser} where the line is theirs.
+    const tagged = LINE_ACTIONS[template.text];
+    const doer = tagged?.by === 'loser' ? loserId : winnerId;
+    const other = tagged?.by === 'loser' ? winnerId : loserId;
+    const actorId = idOverride ? idOverride.actorId : tagged && doer && other ? doer : (onTop[0]?.id ?? null);
+    const targetId = idOverride ? idOverride.targetId : tagged && doer && other ? other : (inTrouble[0]?.id ?? null);
+    beats.push({ kind, text, significant: true, actorId, targetId, ...spotInLine(template.text, lastWeapon), ...(tagged ? { action: tagged.action } : {}) });
     return true;
   };
   const push = (kind: MatchBeatKind, templates: readonly BeatTemplate[]): void => {
@@ -295,6 +304,19 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
   if (beats.length < budget && chance(rng, AFTERMATH_CHANCE)) push('control', AFTERMATH_BEATS);
 
   return withSpots(beats, ctx, budget);
+}
+
+/**
+ * Whether a line can be true of this kind of match at all. Nobody leaves a
+ * steel cage to brawl in the crowd or dive to the floor; a match on the bare
+ * arena floor has no ropes to climb or ring to dive out of.
+ */
+const NOT_IN_A_CAGE = /dive to the floor|guardrail|into the crowd|first three rows|timekeeper/i;
+const NOT_WITHOUT_A_RING = /rope|apron|dive to the floor|turnbuckle|corner of this ring|guardrail/i;
+function possibleHere(template: string, stipulation: string | null): boolean {
+  if (stipulation === 'steelCage') return !NOT_IN_A_CAGE.test(template);
+  if (stipulation === 'arenaFloor') return !NOT_WITHOUT_A_RING.test(template);
+  return true;
 }
 
 /** A line that describes a spot names it: recorded, so the viewer shows that. */

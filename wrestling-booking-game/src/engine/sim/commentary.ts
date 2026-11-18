@@ -41,6 +41,7 @@ import { Cap, HE, pronounsFor } from '../career/pronouns';
 import type { FinishType, Id, MatchBeat, MatchBeatKind, Title, Wrestler, WorldSettings } from '../types';
 import {
   PLAY_BY_PLAY,
+  ACTION_CALLS,
   FINISH_CALLS,
   FINISH_CALLS_PLAIN,
   COLOUR,
@@ -697,7 +698,13 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     // A special match's spot is called as what it was: the ladder, the
     // table, the lid coming up — the same words the write-up has, so the
     // ring the viewer stages it in is never contradicted by the call.
-    const options = beat.spot ? [] : (PLAY_BY_PLAY[beat.kind] ?? []).filter((t) => !usedPlay.has(t));
+    const options = beat.spot ? [] : (beat.action ? ACTION_CALLS[beat.action] : (PLAY_BY_PLAY[beat.kind] ?? [])).filter((t) => !usedPlay.has(t));
+    // A line about something that happened is said about who did it.
+    const everyone = [...ctx.sideA, ...ctx.sideB];
+    const doer = beat.action ? everyone.find((w) => w.id === beat.actorId) : undefined;
+    const done = beat.action ? everyone.find((w) => w.id === beat.targetId) : undefined;
+    const held = momentum;
+    if (doer && done) momentum = { onTop: [doer], inTrouble: [done] };
     if (options.length > 0) {
       const line = pick(rng, options);
       usedPlay.add(line);
@@ -712,6 +719,7 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
       // makes it a better fallback than saying the same thing twice.
       play(beat.text);
     }
+    momentum = held;
 
     // And then the man beside him — but only if there is something real to
     // say. This is the whole discipline: no fact, no line.

@@ -191,3 +191,12 @@
 }
 .mv-toss { animation: mv-toss 2.2s cubic-bezier(0.3, 0, 0.6, 1) 0.15s both; }
 
+
+/* A ladder giving way: over on its side, from the foot. */
+@keyframes mv-topple {
+  0% { transform: rotate(0deg); }
+  70% { transform: rotate(84deg); }
+  85% { transform: rotate(76deg); }
+  100% { transform: rotate(80deg); }
+}
+.mv-topple { transform-origin: 50% 100%; animation: mv-topple 0.6s ease-in both; }

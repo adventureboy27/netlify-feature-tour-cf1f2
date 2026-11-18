@@ -399,6 +399,24 @@ const BODIES = {
     impacts: [[0.1, 2, 12]],
   },
   // ---- what the furniture and the props are for ---------------------------
+  // Out to the floor, and the attacker comes over the top rope after them.
+  floorDive: {
+    actor: [STAND, [0.09, 7, 0, 10], [0.17, 7, 0, 24], [0.25, 7, 0, 0], [0.4, -3, 0, 0], [0.52, 4, 0, 16], [0.6, 8, 11, 45], [0.68, 6, 6, 70], [0.74, 3, G + 4, 86], [0.78, 0.5, G + DOWN + 2.6, 90], [1, 0.5, G + DOWN + 2.6, 90]],
+    target: [STAND, [0.09, 2, 0, 12], [0.17, 2, 1, 70], [0.23, 2, 0.6, 90], [0.3, 2, G + 4, 90], [0.33, 2, G + DOWN, 90, 0.9], [0.77, 2, G + DOWN, 90], [0.8, 2, G + DOWN - 0.4, 90, 0.86], [0.88, 2, G + DOWN, 90], [1, 2, G + DOWN, 90]],
+    impacts: [[0.33, 8, G + 1, true], [0.78, 11, G + 0.5, true]],
+    ropes: 0.22,
+  },
+  // Up the ladder for the prize, and the ladder goes out from under them.
+  ladderCollapse: {
+    actor: [STAND, [0.1, 6, 0, 14], [0.22, 4, 0, 0], [0.4, 7, 4, 0], [0.56, 7, 9, 0], [0.66, 7, 12, 0], [0.72, 7, 11, -10], [0.82, 6, 4, -60], [0.9, 5, DOWN, -90], [1, 5, DOWN, -90]],
+    target: [STAND, [0.1, 1, 0, -14], [0.22, 0, DOWN, -90], [1, 0, DOWN, -90]],
+    impacts: [[0.1, 2, 12], [0.9, 9, 2, true]],
+  },
+  // After the bell: the winner stands over the one who is still down.
+  standOver: {
+    actor: [STAND, [0.4, 1, 0, 0], [1, 1, 0, 0]],
+    target: [[0, 0, DOWN, -90], [1, 0, DOWN, -90]],
+  },
   // A powerbomb with a table under it: the table is the scene's (MatchStage).
   tablePowerbomb: {
     actor: [STAND, [0.15, 7, 0, 13], [0.32, 7, 0, -4], [0.48, 7, 0, -6], [0.58, 7, 0, 6], [0.68, 7.5, 0, 34, 0.92], [0.85, 7.5, 0, 18], [1, 7, 0, 0]],
@@ -526,6 +544,9 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   climbLadder: { actor: '- punch run climb climb climb lift celebrate', target: '- stagger flat flat' },
   throwOut: { actor: '- reach punch guard celebrate', target: '- bend spear flat flat flat flat' },
   tablePowerbomb: { actor: '- reach carry carry carry crouch guard -', target: '- bend shoulders shoulders fall flat flat flat flat' },
+  floorDive: { actor: '- reach punch guard guard run fly fly fly pin flat', target: '- bend spear flat flat flat flat flat flat flat' },
+  standOver: { actor: 'guard guard guard' },
+  ladderCollapse: { actor: '- punch guard climb climb climb lift fall flat flat', target: '- stagger flat flat' },
   ladderPull: { actor: '- punch guard climb climb lift lift fall flat flat', target: '- stagger flat flat kneel reach lift stagger guard' },
   ladderDive: { actor: '- punch guard climb climb crouch fly cover cover cover', target: '- stagger flat flat flat flat flat' },
   ladderShot: { actor: '- swingUp swingDown guard -', target: '- guard fall flat flat' },
@@ -601,6 +622,8 @@ export const META: Partial<Record<MoveId, MoveMeta>> = {
   climbLadder: { knockdownBy: 0.22, atCentre: true },
   ladderPull: { knockdownBy: 0.22, atCentre: true },
   ladderDive: { knockdownBy: 0.22 },
+  standOver: { needsDown: true },
+  ladderCollapse: { knockdownBy: 0.22, atCentre: true },
   stomp: { needsDown: true },
   legDrop: { needsDown: true },
   groundPound: { needsDown: true },
@@ -993,6 +1016,27 @@ export function stageBeat(
       }
     }
   }
+  // Likewise an ordinary line that says what physically happened: the call
+  // said the same thing (commentary.ts ACTION_CALLS), and so does the ring.
+  if (beat.action) {
+    const action = beat.action;
+    if (action === 'finisherKickout') {
+      const finisher = actor ? forMove(actor.moveSet.finisher) : 'slam';
+      const lead: MoveId = NEAR_FALL_LEADS.includes(grounded(finisher)) ? grounded(finisher) : 'slam';
+      return built(lead, withCover(MOVES[lead], 0.5, 2), 2600);
+    }
+    if (action === 'topRope') return pick(grounded(fresh(TOP_ROPE)), 1900);
+    if (action === 'floorDive') return conduct.cage || conduct.noRing || !actorInRing ? pick(grounded('crossbody')) : { ...pick('floorDive', 2600), zone: 'out' };
+    if (action === 'barricade' && conduct.cage) return pick('intoCage');
+    const ACTION_MOVES: Partial<Record<typeof action, MoveId>> = {
+      lockup: 'lockup', feelingOut: 'sprawl', brawl: 'flurry', matWork: 'takedown', jumpStart: 'flurry', slam: 'slam', liftDrive: 'powerbomb',
+      limbWork: 'hold', groundHold: 'groundHold', headlock: 'hold', aerialCombo: 'dropkick', strikes: 'flurry', chops: 'strike', kick: 'superkick',
+      bodyShots: 'kneeLift', armDrag: 'backBodyDrop', counter: 'counter', bigBoot: 'counter', noSell: 'shove', taunt: 'taunt', fireUp: 'fireUp',
+      doubleDown: 'doubleDown', barricade: 'whip', crowdBrawl: 'flurry',
+    };
+    const move = ACTION_MOVES[action];
+    if (move) return pick(grounded(move), move === 'powerbomb' || move === 'doubleDown' ? 2000 : 1800);
+  }
   switch (beat.pose) {
     case 'interference':
       return actorInRing ? pick('strike') : pick('blindside');
@@ -1048,6 +1092,12 @@ export function stageBeat(
           return { ...shouting(pick('chairShot', 1900), 'DISQUALIFIED!', 0.72), prop: 'chair' };
         case 'draw':
           return shouting(pick('lockup', 1900), "TIME'S UP!", 0.7);
+        case 'gearFailure':
+          // What gave out is what the match was built on.
+          if (conduct.furniture === 'ladder') return { ...shouting(pick('ladderCollapse', 3000), 'IT GAVE WAY!', 0.8), scene: 'ladder' };
+          if (conduct.furniture === 'table' || conduct.furniture === 'flamingTable') return { ...shouting(built('tablePowerbomb', { ...MOVES.tablePowerbomb, shouts: [] }, 2400), 'IT HELD!', 0.75), scene: conduct.furniture, sceneIntact: true };
+          if (conduct.cage) return shouting(pick('cageClimb', 2800), 'IT BROKE!', 0.8);
+          return shouting(pick('doubleDown', 2200), 'IT BROKE!', 0.75);
         case 'doubleKO':
           // In a tables match the two of them go through it together.
           if (conduct.furniture === 'table' || conduct.furniture === 'flamingTable') return { ...shouting(pick('doubleDown', 2200), 'BOTH DOWN!', 0.75), scene: conduct.furniture };
@@ -1154,8 +1204,27 @@ export function stageMatch(
   const recent: MoveId[] = [];
   let downId: Id | null = null;
   const moments: MatchMoment[] = [];
+  // After the last finish there is no more wrestling, whatever the reel says
+  // about the room: the winner stands over the one still down.
+  const lastFinish = timeline.map((b) => b.pose).lastIndexOf('finish');
   const stage = (beat: PlaybackBeat, index: number, lines: readonly CalledLine[], filler: boolean, avoid: readonly MoveId[] = []) => {
     const call = lines.find((line) => line.speaker === 'play');
+    if (!filler && lastFinish >= 0 && index > lastFinish) {
+      const staged = stageMove('standOver', 1800);
+      moments.push({ beat, actorId: beat.actorId ?? null, targetId: beat.targetId ?? null, staged, lines, holdMs: staged.duration, filler });
+      return;
+    }
+    // A line that takes it to the floor (the guardrail, the front row) goes
+    // out, does it there, and comes back — where there is a floor to go to.
+    const outThere = !filler && (beat.action === 'barricade' || beat.action === 'crowdBrawl') && !conduct.cage && !conduct.noRing && beat.actorId && beat.targetId;
+    // Falls count anywhere, and the write-up has it won out past the
+    // barricades: so that is where the pin is.
+    const pinnedOutThere = !filler && beat.pose === 'finish' && conduct.fallsAnywhere && conduct.finish === 'pin' && beat.actorId && beat.targetId;
+    if (outThere || pinnedOutThere) {
+      const out = { ...stageMove('tossOutside', 1900), zone: 'out' as const };
+      moments.push({ beat: { kind: 'control', pose: 'control', text: '', significant: false, actorId: beat.actorId, targetId: beat.targetId, moveName: null }, actorId: beat.actorId, targetId: beat.targetId, staged: out, lines: [], holdMs: 1900, filler: true });
+      recent.push('tossOutside');
+    }
     // If the call names who is on top, those are the two in the ring: the
     // ring may never show one person winning while the words name the other.
     let actorId = call?.actorId ?? beat.actorId;
@@ -1175,8 +1244,10 @@ export function stageMatch(
     // the commentary to finish: the time it takes to read what was said is
     // covered by the exchanges that follow (see `between` below).
     moments.push({ beat, actorId: actorId ?? null, targetId: targetId ?? null, staged, lines, holdMs: staged.duration, filler });
-    // Out of the casket and still in the match: back into the ring with them.
-    if (staged.move === 'casketNear' && actorId && targetId) {
+    if (outThere || pinnedOutThere) moments[moments.length - 1] = { ...moments[moments.length - 1]!, staged: { ...staged, zone: 'floor' } };
+    // Out on the floor (the casket, a dive, the guardrail) and still in the
+    // match: back into the ring with them.
+    if ((staged.move === 'casketNear' || staged.move === 'floorDive' || outThere) && actorId && targetId) {
       const back = { ...stageMove('rollInside', 1900), zone: 'in' as const };
       moments.push({ beat: { kind: 'control', pose: 'control', text: '', significant: false, actorId, targetId, moveName: null }, actorId, targetId, staged: back, lines: [], holdMs: 1900, filler: true });
       recent.push('rollInside');
@@ -1238,7 +1309,7 @@ export function stageMatch(
     const gaps = timeline.map((_, i) => i).filter((i) => i >= 1 && i < timeline.length - 2 && i !== outsideAfter && CARRIES_ON.includes(timeline[i]!.pose) && timeline[i]!.actorId && timeline[i]!.targetId && !sameSide(timeline[i]!.actorId, timeline[i]!.targetId));
     const theirs = gaps.find((i) => sameSide(timeline[i]!.actorId, winner));
     const other = gaps.find((i) => !sameSide(timeline[i]!.actorId, winner) && i !== theirs);
-    const drawn = conduct.finish === 'draw' || conduct.finish === 'doubleKO';
+    const drawn = conduct.finish === 'draw' || conduct.finish === 'doubleKO' || conduct.finish === 'gearFailure';
     if (theirs !== undefined && (!drawn || other !== undefined)) {
       const order = [theirs, ...(other !== undefined ? [other] : [])].sort((a, b) => a - b);
       order.forEach((i, n) => fallAfter.set(i, n === 0 ? 'FIRST FALL!' : 'ONE FALL EACH!'));

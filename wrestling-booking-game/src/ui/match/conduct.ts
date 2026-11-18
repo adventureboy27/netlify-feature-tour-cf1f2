@@ -48,7 +48,8 @@ export interface Conduct {
   /** How somebody leaves a match that eliminates people. */
   elimination: 'overTop' | 'fall';
   /** What the last thing that happens looks like. */
-  finish: 'pin' | 'submission' | 'knockout' | 'count10' | 'overTop' | 'escape' | 'climb' | 'table' | 'flamingTable' | 'casket' | 'countOut' | 'dq' | 'draw' | 'doubleKO' | 'blood' | 'stoppage';
+  /** `gearFailure`: the ladder, the table or the cage gave out, and nobody won. */
+  finish: 'pin' | 'submission' | 'knockout' | 'count10' | 'overTop' | 'escape' | 'climb' | 'table' | 'flamingTable' | 'casket' | 'countOut' | 'dq' | 'draw' | 'doubleKO' | 'blood' | 'stoppage' | 'gearFailure';
 }
 
 /** An ordinary one-fall match. */
@@ -71,7 +72,9 @@ export const STANDARD: Conduct = {
 };
 
 function finishOf(finish: FinishType, stipulation: string | null, rules: MatchRules, battleRoyal: boolean): Conduct['finish'] {
-  if (finish === 'timeLimitDraw' || finish === 'equipmentFailure') return 'draw';
+  if (finish === 'timeLimitDraw') return 'draw';
+  // Written as the gear giving out under them, and staged that way.
+  if (finish === 'equipmentFailure') return 'gearFailure';
   if (finish === 'doubleKO') return 'doubleKO';
   if (battleRoyal) return 'overTop';
   if (finish === 'disqualification') return 'dq';
