@@ -1696,6 +1696,25 @@ export interface Show {
    * Absent on shows from before this was recorded, and on rivals' shows.
    */
   pyro?: boolean;
+  /**
+   * What was physically in the building: the production gear that fitted the
+   * room and worked tonight, and the extras bought for this show. The match
+   * viewer draws exactly this — the ring, the lights, the screen, the stage.
+   * Absent on shows from before it was recorded, and on rivals' shows.
+   */
+  staging?: ShowStaging;
+}
+
+/** One piece of what can be in a building on a show night. */
+export type StagingGear = 'matRopes' | 'ring' | 'sound' | 'lights' | 'cameras' | 'stage' | 'screen' | 'pyro' | 'barricades' | 'merch';
+
+export interface ShowStaging {
+  /** The kind of building, and whether it had a roof — a residency's home is in no list to look up. */
+  venueKind: VenueKind;
+  outdoor: boolean;
+  gear: StagingGear[];
+  /** Show extras bought for this night (data/production.ts SHOW_EXTRAS ids). */
+  extras: Id[];
 }
 
 // ============================================================================

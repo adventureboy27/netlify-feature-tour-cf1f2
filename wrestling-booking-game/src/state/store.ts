@@ -526,6 +526,7 @@ import {
   openAirWeather,
   productionInRoom,
   venueAtmosphereModifier,
+  stagingTonight,
 } from '../engine/economy/venue';
 import { nightAtTheTables } from '../engine/economy/stands';
 import {
@@ -1487,6 +1488,21 @@ export const useGameStore = create<GameStore>()(
           (residentHome
             ? venueForHome(residentHome, world.settings)
             : venueById(world.showSetup.venueId)) ?? fallbackVenue();
+        // What will physically be in the building: the ladder's rungs the room
+        // takes, the gear bought outright that fits and still works, and the
+        // extras bought for tonight. Recorded on the show for the viewer, and
+        // the pyro read off it — a rig left on the truck fires nothing.
+        const staging = stagingTonight({
+          rungs: world.productionRungs,
+          assetsInRoom: world.ownedAssetIds.filter((id) => {
+            const asset = productionAssetById(id);
+            if (!asset || (asset.minVenueCapacity && venue.capacity < asset.minVenueCapacity)) return false;
+            const state = world.assetConditions.find((c) => c.assetId === id);
+            return !state || !assetHasFailed(state, world.settings);
+          }),
+          extras: world.showSetup.extraIds,
+          venue,
+        });
         const open = openAirWeather(
           rolled.draw,
           rolled.cancelled,
@@ -2191,8 +2207,7 @@ export const useGameStore = create<GameStore>()(
             // The pyro rung is a standing purchase that fires every show it's
             // owned; pyroCharges is bought fresh, per show. Either one means
             // tonight's entrances have real fire in them. See sim/pyro.ts.
-            pyroActive:
-              world.productionRungs.includes('pyro') || world.showSetup.extraIds.includes('pyroCharges'),
+            pyroActive: staging.pyro,
             // Real match hardware, not the abstract production ladder — see
             // engine/economy/matchProps.ts. Empty/zero whenever nothing was
             // actually assigned, which is deliberate: booking the stipulation
@@ -4573,7 +4588,8 @@ export const useGameStore = create<GameStore>()(
           showStars,
           broadcast: true,
           priceReaction: reaction,
-          pyro: world.productionRungs.includes('pyro') || world.showSetup.extraIds.includes('pyroCharges'),
+          pyro: staging.pyro,
+          staging: { venueKind: staging.venueKind, outdoor: staging.outdoor, gear: staging.gear, extras: staging.extras },
         });
 
         // ---- what the fans made of it -----------------------------------

@@ -10,7 +10,7 @@
 // sentence; nothing reaches into the world.
 
 import { clamp } from '../rng';
-import type { Id, Venue, WorldSettings } from '../types';
+import type { Id, ShowStaging, StagingGear, Venue, WorldSettings } from '../types';
 import type { WeatherSeverity } from '../../data/weather';
 import { PRODUCTION_LADDER, rungById } from './production';
 
@@ -198,4 +198,42 @@ export function venueRigLine(venue: Venue): string {
   if (share >= 0.6) return 'Takes most of the production';
   if (share >= 0.3) return 'Takes about half the production';
   return 'Takes very little production';
+}
+
+// ---------------------------------------------------------------- what was there
+
+/** The bought-outright gear (data/production.ts) as the piece of the building it is. */
+const ASSET_GEAR: Record<string, StagingGear> = {
+  ringUpgrade: 'ring',
+  soundSystem: 'sound',
+  lightingRig: 'lights',
+  entranceStage: 'stage',
+  bigScreen: 'screen',
+  pyroRig: 'pyro',
+  productionTruck: 'cameras',
+  steelBarricades: 'barricades',
+  merchTruck: 'merch',
+};
+
+/**
+ * What is physically in the building tonight: the production ladder's rungs
+ * the room will take, plus the gear bought outright that fits it and still
+ * works — and whether the entrances have fire in them. The pyro needs the rig
+ * in the room: a rig left on the truck fires nothing, charges or not.
+ */
+export function stagingTonight(ctx: {
+  rungs: readonly Id[];
+  /** Bought-outright gear that fits this room and has not failed. */
+  assetsInRoom: readonly Id[];
+  extras: readonly Id[];
+  venue: Venue;
+}): ShowStaging & { pyro: boolean } {
+  const rungsIn = productionInRoom(ctx.rungs, ctx.venue);
+  const gear = new Set<StagingGear>(rungsIn as StagingGear[]);
+  for (const id of ctx.assetsInRoom) {
+    const piece = ASSET_GEAR[id];
+    if (piece) gear.add(piece);
+  }
+  const pyro = rungsIn.includes('pyro') || (ctx.extras.includes('pyroCharges') && ctx.assetsInRoom.includes('pyroRig'));
+  return { venueKind: ctx.venue.kind, outdoor: ctx.venue.outdoor, gear: [...gear], extras: [...ctx.extras], pyro };
 }
