@@ -22,6 +22,7 @@ import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { playPlan, settle } from './playback';
 import { FieldBrawl } from './FieldBrawl';
 import { DOWN, FLOOR, FRONT_FLOOR, GAP, type StagedBeat } from './choreography';
+import { PyroBurst } from './Pyro';
 import { RING, apronX, midBody, onFrontFloor, planBeat, type Plan, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
 import type { Conduct } from './conduct';
 import type { Id, Wrestler } from '../../engine/types';
@@ -869,25 +870,9 @@ export function MatchStage({
             // Where it went off: right behind whoever it caught, if anybody
             // was; otherwise both sides of the entrance.
             (actor && plan?.tracks.get(actor.wrestler.id)?.[0]
-              ? [`${sx(plan.tracks.get(actor.wrestler.id)![0]!.x - dirOf(actor.slot) * 3)}px`]
-              : ['18%', '82%']
-            ).map((x) => (
-              <div
-                key={`${beatKey}-pyro-${x}`}
-                className="mv-pyro pointer-events-none absolute"
-                style={{
-                  left: x,
-                  bottom: '12%',
-                  width: 7 * u,
-                  height: 26 * u,
-                  marginLeft: -3.5 * u,
-                  background: 'linear-gradient(to top, #fff3b0, #ff9d2e 35%, rgba(255,80,20,0.5) 70%, transparent)',
-                  filter: 'blur(1.5px)',
-                  borderRadius: '50% 50% 20% 20%',
-                  zIndex: 6,
-                }}
-              />
-            ))}
+              ? [sx(plan.tracks.get(actor.wrestler.id)![0]!.x - dirOf(actor.slot) * 3)]
+              : [w * 0.18, w * 0.82]
+            ).map((x) => <PyroBurst key={`${beatKey}-pyro-${x}`} left={x} bottom={feetY + 0.5 * u} width={9 * u} height={26 * u} />)}
 
           {callout && (
             <div

@@ -51,12 +51,46 @@
 }
 .mv-count { opacity: 0; animation: mv-count 0.55s ease-out both; }
 
+/* A pyro charge: up out of the floor all at once, roaring, then dying down. */
 @keyframes mv-pyro {
-  0% { opacity: 0; transform: translateY(0) scaleY(0.2); }
-  20% { opacity: 1; transform: translateY(-10%) scaleY(1); }
-  100% { opacity: 0; transform: translateY(-30%) scaleY(1.2); }
+  0% { opacity: 0; transform: scaleY(0.1) scaleX(0.6); }
+  12% { opacity: 1; transform: scaleY(1.1) scaleX(1.05); }
+  22% { transform: scaleY(0.95) scaleX(1); }
+  70% { opacity: 1; transform: scaleY(1) scaleX(1); }
+  100% { opacity: 0; transform: scaleY(0.55) scaleX(0.8) translateY(-6%); }
 }
-.mv-pyro { opacity: 0; transform-origin: 50% 100%; animation: mv-pyro 1.1s ease-out both; }
+.mv-pyro { opacity: 0; transform-origin: 50% 100%; animation: mv-pyro 1.3s ease-out both; }
+@keyframes mv-pyro-glow { 0% { opacity: 0; } 15%, 70% { opacity: 1; } 100% { opacity: 0; } }
+.mv-pyro-glow { opacity: 0; animation: mv-pyro-glow 1.3s ease-out both; }
+/* The tongues of flame, each at its own speed so they never move together. */
+@keyframes mv-flick {
+  0% { transform: scaleX(1) scaleY(1) skewX(0deg); }
+  25% { transform: scaleX(0.93) scaleY(1.06) skewX(-4deg); }
+  50% { transform: scaleX(1.05) scaleY(0.96) skewX(3deg); }
+  75% { transform: scaleX(0.97) scaleY(1.04) skewX(-2deg); }
+  100% { transform: scaleX(1.02) scaleY(0.99) skewX(1deg); }
+}
+.mv-flick-a { animation: mv-flick 0.24s ease-in-out infinite alternate; }
+.mv-flick-b { animation: mv-flick 0.17s ease-in-out infinite alternate-reverse; }
+.mv-flick-c { animation: mv-flick 0.12s ease-in-out infinite alternate; }
+/* A spark popping inside it: there, bright, gone. */
+@keyframes mv-spark {
+  0% { opacity: 0; transform: scale(0.2) rotate(0deg); }
+  30% { opacity: 1; transform: scale(1.5) rotate(25deg); }
+  60% { opacity: 0.85; transform: scale(0.8) rotate(40deg); }
+  100% { opacity: 0; transform: scale(0.3) rotate(60deg); }
+}
+.mv-spark { opacity: 0; transform-box: fill-box; transform-origin: center; animation: mv-spark 0.42s ease-out 2 both; }
+/* Embers thrown off the top. --mv-drift is which way. */
+@keyframes mv-ember {
+  0% { opacity: 0; transform: translate(0, 0); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--mv-drift), -46px); }
+}
+.mv-ember { opacity: 0; animation: mv-ember 0.9s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .mv-flick-a, .mv-flick-b, .mv-flick-c, .mv-spark, .mv-ember { animation: none; }
+}
 
 /* A thing that is there until a moment, and a thing that is there from it
    (a table, and the same table in two pieces). The delay is the moment. */

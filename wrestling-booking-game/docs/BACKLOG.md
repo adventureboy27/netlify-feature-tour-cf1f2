@@ -6891,3 +6891,7 @@ All of it read off what the simulation recorded — nothing a wrestler wears in 
 
 - **Toned down** on request ("let's not go gross"): bruises are plain dark marks; being busted open is a few blood splats on the face and chest (no streak); a pyro burn is soot (no raw skin or blisters).
 - **Blood on the mat for the rest of the night:** a bleeding wrestler leaves splats on the mat where they are (lying, or now and then standing) beat by beat, and they stay through the end of the match. Every later match on the same show starts with splats for everybody the record says bled in the earlier ones (placed from a seed, so the same show always looks the same). Ring mat only, not the floor.
+
+## Pyro, hand-drawn
+
+The pyro burst was a blurred gradient column. It is now drawn in the wrestlers' ink (`ui/match/Pyro.tsx`): three uneven tongues of flame inside one another — ink outline, orange, yellow, a white-hot core — each flickering at its own speed, sparkles popping inside it, embers thrown off the top, and a warm glow on the mat. It shoots up out of the floor, roars, and dies down over 1.3 s. Reduced-motion users get the flame without the flicker and sparks.
