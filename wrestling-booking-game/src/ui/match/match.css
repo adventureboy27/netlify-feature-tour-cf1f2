@@ -355,3 +355,133 @@
 @media (prefers-reduced-motion: reduce) {
   .mv-ledpost, .mv-ledpost-held { animation: none; }
 }
+
+/* ---- The broadcast ring's apron screen (ApronScreen.tsx) ---------------- */
+.mv-tv { background: #05060a; }
+.mv-tv-cut { animation: mv-tv-cut 0.35s ease-out both; }
+@keyframes mv-tv-cut { 0% { filter: brightness(3) saturate(0); transform: scaleY(0.04); } 45% { transform: scaleY(1); } 100% { filter: none; } }
+
+.mv-tv-scan {
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0.28) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+.mv-tv-sheen {
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.16) 48%, transparent 56%);
+  background-size: 260% 100%;
+  animation: mv-tv-sheen 4.5s linear infinite;
+}
+@keyframes mv-tv-sheen { from { background-position: 130% 0; } to { background-position: -130% 0; } }
+
+.mv-tv-chrome {
+  display: inline-block;
+  background: linear-gradient(180deg, #ffffff 0%, #dfe6f0 38%, #7d8796 52%, #f4f7fb 66%, #b6c0cc 100%), linear-gradient(100deg, transparent 40%, #fff 50%, transparent 60%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0.05em 0 #000) drop-shadow(0 0 0.18em var(--tv-accent, #4cc3ff));
+  padding: 0 0.12em;
+}
+.mv-tv-gold {
+  background: linear-gradient(180deg, #fff6c8 0%, #ffd34d 40%, #9a6a00 54%, #ffe58a 68%, #c48a00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0.05em 0 #000) drop-shadow(0 0 0.2em #ffb400);
+}
+.mv-tv-gold-bg { background: linear-gradient(180deg, #fff1a8, #ffcc33 50%, #b07c00); }
+
+.mv-tv-inl { animation: mv-tv-inl 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+.mv-tv-inr { animation: mv-tv-inr 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes mv-tv-inl { from { transform: translateX(-140%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes mv-tv-inr { from { transform: translateX(140%); opacity: 0; } to { transform: none; opacity: 1; } }
+.mv-tv-pop { animation: mv-tv-pop 0.4s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes mv-tv-pop { from { transform: scale(0.3); opacity: 0; } to { transform: none; opacity: 1; } }
+.mv-tv-punch { display: inline-block; animation: mv-tv-punch 0.6s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+@keyframes mv-tv-punch { 0% { transform: scale(2.6); opacity: 0; filter: blur(6px); } 100% { transform: none; opacity: 1; filter: none; } }
+.mv-tv-slam { display: inline-block; animation: mv-tv-slam 0.45s cubic-bezier(0.3, 1.5, 0.5, 1) both, mv-tv-jolt 0.25s 0.45s 2; }
+@keyframes mv-tv-slam { 0% { transform: translateX(60%) skewX(-25deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes mv-tv-jolt { 50% { transform: translate(2px, -2px); } }
+.mv-tv-fadeup { display: inline-block; animation: mv-tv-fadeup 0.5s ease-out both; }
+@keyframes mv-tv-fadeup { from { transform: translateY(60%); opacity: 0; } to { transform: none; opacity: 1; } }
+.mv-tv-tag { animation: mv-tv-pop 0.4s 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both; clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%); }
+.mv-tv-flash { background: #fff; opacity: 0; animation: mv-tv-flash 0.5s ease-out both; pointer-events: none; }
+@keyframes mv-tv-flash { 0% { opacity: 0.9; } 100% { opacity: 0; } }
+
+.mv-tv-kenburns { animation: mv-tv-kenburns 4s ease-out both; }
+@keyframes mv-tv-kenburns { from { transform: scale(1.18) translateY(4%); } to { transform: scale(1); } }
+
+.mv-tv-streak { left: 0; animation: mv-tv-streak 1.3s linear infinite; opacity: 0.85; }
+@keyframes mv-tv-streak { from { transform: translateX(300%); } to { transform: translateX(-120%); } }
+
+.mv-tv-vs {
+  display: inline-block;
+  background: linear-gradient(180deg, #fff 0%, #ffe28a 45%, #ff8a00 55%, #fff1b0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 0.12em #fff) drop-shadow(0.05em 0.05em 0 #000);
+  animation: mv-tv-vs 0.7s 0.45s cubic-bezier(0.2, 1.8, 0.4, 1) both, mv-tv-throb 1.2s 1.2s ease-in-out infinite;
+}
+@keyframes mv-tv-vs { from { transform: scale(4) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes mv-tv-throb { 50% { transform: scale(1.12); } }
+.mv-tv-bolt {
+  background: linear-gradient(180deg, transparent, #bfe9ff 30%, #ffffff 50%, #bfe9ff 70%, transparent);
+  clip-path: polygon(55% 0, 30% 45%, 52% 45%, 38% 100%, 72% 38%, 50% 38%, 68% 0);
+  filter: drop-shadow(0 0 6px #7fd3ff);
+  animation: mv-tv-bolt 1.6s steps(1) infinite;
+}
+@keyframes mv-tv-bolt { 0%, 30%, 34%, 100% { opacity: 0; } 31%, 36%, 38% { opacity: 1; } }
+
+/* A heel: flames up from the bottom of the screen. */
+.mv-tv-flames {
+  background:
+    radial-gradient(ellipse 18% 70% at 20% 110%, #ffcc33cc, transparent 70%),
+    radial-gradient(ellipse 14% 90% at 45% 110%, #ff5a1fcc, transparent 70%),
+    radial-gradient(ellipse 20% 75% at 70% 110%, #ff2a12cc, transparent 70%),
+    radial-gradient(ellipse 16% 85% at 92% 110%, #ffa31acc, transparent 70%);
+  mix-blend-mode: screen;
+  transform-origin: bottom;
+  animation: mv-tv-flicker 0.32s steps(2) infinite alternate;
+}
+@keyframes mv-tv-flicker { from { transform: scaleY(1) translateX(0); opacity: 0.85; } to { transform: scaleY(1.18) translateX(1.5%); opacity: 1; } }
+/* A face: light turning behind them. */
+.mv-tv-rays {
+  /* Five screens wide and tall, so it covers the screen as it turns; the centre sits behind the face on the left. */
+  background: repeating-conic-gradient(from 0deg at 41.5% 50%, color-mix(in srgb, var(--tv-c, #fff) 55%, transparent) 0deg 5deg, transparent 5deg 15deg);
+  mix-blend-mode: screen;
+  animation: mv-tv-spin 14s linear infinite;
+  transform-origin: 41.5% 50%;
+  inset: -200% !important;
+}
+@keyframes mv-tv-spin { to { transform: rotate(360deg); } }
+/* Neither: the picture will not settle. */
+.mv-tv-static {
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 5px);
+  animation: mv-tv-roll 0.6s steps(6) infinite;
+}
+@keyframes mv-tv-roll { to { background-position: 0 30px; } }
+.mv-tv-glitchtext { animation: mv-tv-inr 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both, mv-tv-glitch 1.8s 0.6s steps(1) infinite; }
+@keyframes mv-tv-glitch {
+  0%, 86%, 100% { text-shadow: 0.06em 0.06em 0 #000; transform: none; }
+  88% { text-shadow: -0.07em 0 #ff2a6a, 0.07em 0 #2af5ff; transform: translateX(2px) skewX(-8deg); }
+  92% { text-shadow: 0.08em 0 #ff2a6a, -0.08em 0 #2af5ff; transform: translateX(-3px); }
+}
+/* A move landing: speed lines rushing past. */
+.mv-tv-speed {
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.0) 0 22px, rgba(255,255,255,0.22) 22px 24px, rgba(255,255,255,0) 24px 60px);
+  animation: mv-tv-rush 0.35s linear infinite;
+}
+@keyframes mv-tv-rush { to { background-position: -60px 0; } }
+/* A crowd of faces going by. */
+.mv-tv-belt { animation: mv-tv-belt 4.5s linear both; }
+@keyframes mv-tv-belt { to { transform: translateX(-100%); } }
+/* The room furious: red, breaking up. */
+.mv-tv-redglitch {
+  background: repeating-linear-gradient(0deg, rgba(255,30,20,0.45) 0 3px, transparent 3px 7px), rgba(150,0,0,0.35);
+  mix-blend-mode: hard-light;
+  animation: mv-tv-tear 0.4s steps(3) infinite;
+}
+@keyframes mv-tv-tear { 33% { transform: translateX(-2%); clip-path: inset(10% 0 40% 0); } 66% { transform: translateX(2%); clip-path: inset(50% 0 5% 0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mv-tv *, .mv-tv { animation: none !important; }
+}

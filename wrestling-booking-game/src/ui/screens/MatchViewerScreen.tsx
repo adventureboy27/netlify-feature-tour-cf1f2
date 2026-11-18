@@ -793,6 +793,16 @@ export function MatchViewerScreen({
           finale={finaleFor(combined.filter((w) => winnerIds.has(w.id)))}
           signs={crowdSigns}
           setting={settingOf(show)}
+          broadcast={{
+            show: { event: show?.name || world.promotion.name, promotion: world.promotion.name, sides: [combined.filter((w) => onSideA.has(w.id)), combined.filter((w) => !onSideA.has(w.id))], stipulation: stipulation?.name ?? null, title: titleNames[0] ?? null },
+            // The ring, cut to when something worth it lands: a named move, or a near fall — the same words the commentary uses.
+            action:
+              current && actorWrestler && (current.moveName || current.pose === 'nearFall')
+                ? { key: beatIndex, actor: actorWrestler, text: current.moveName ?? 'NEAR FALL!' }
+                : null,
+            winners: decided ? combined.filter((w) => winnerIds.has(w.id)) : [],
+            caption: over ? calloutText : null,
+          }}
           marquee={{
             event: show?.name || world.promotion.name,
             promotion: world.promotion.name,

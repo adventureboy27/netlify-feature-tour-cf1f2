@@ -13,8 +13,8 @@ export interface Setting {
   family: VenueFamily;
   /** The venue itself, for touches only one room has. */
   venueId?: string;
-  /** Plywood and rope off a trailer; a real mat and ropes; a professional ring; one with an LED apron. */
-  ring: 'plywood' | 'basic' | 'pro' | 'premium';
+  /** Plywood and rope off a trailer; a real mat and ropes; a professional ring; one with an LED apron; one with a TV screen for an apron. */
+  ring: 'plywood' | 'basic' | 'pro' | 'premium' | 'broadcast';
   /** The lighting rig is in, or it is the house lights. */
   lights: boolean;
   screen: boolean;
@@ -72,7 +72,7 @@ export function settingOf(show: Pick<Show, 'staging' | 'venueId' | 'attendance' 
   return {
     family,
     venueId,
-    ring: has('premiumRing') ? 'premium' : has('ring') ? 'pro' : has('matRopes') ? 'basic' : 'plywood',
+    ring: has('broadcastRing') ? 'broadcast' : has('premiumRing') ? 'premium' : has('ring') ? 'pro' : has('matRopes') ? 'basic' : 'plywood',
     lights: has('lights'),
     screen: has('screen'),
     stage: has('stage'),
@@ -84,3 +84,6 @@ export function settingOf(show: Pick<Show, 'staging' | 'venueId' | 'attendance' 
     fill: show.venueCapacity > 0 ? Math.max(0, Math.min(1, show.attendance / show.venueCapacity)) : 0.9,
   };
 }
+
+/** The top two rings share the dressing — the printed canvas, the black-and-gold pads, the LED posts — and differ in the apron. */
+export const isFancyRing = (ring: Setting['ring']) => ring === 'premium' || ring === 'broadcast';

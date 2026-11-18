@@ -804,6 +804,8 @@ export interface ProductionAsset {
   minVenueCapacity?: number;
   /** Built round a professional ring (from either shop): not sold without one. */
   requiresProRing?: boolean;
+  /** Built on another piece bought outright: not sold without it. */
+  requiresAsset?: Id;
   /** false = never offered in a fire sale — the training facility is a school, not show-night gear. Omit for everything else. */
   fireSaleEligible?: boolean;
 }
@@ -1708,7 +1710,7 @@ export interface Show {
 }
 
 /** One piece of what can be in a building on a show night. */
-export type StagingGear = 'matRopes' | 'ring' | 'sound' | 'lights' | 'cameras' | 'stage' | 'screen' | 'pyro' | 'barricades' | 'merch' | 'premiumRing';
+export type StagingGear = 'matRopes' | 'ring' | 'sound' | 'lights' | 'cameras' | 'stage' | 'screen' | 'pyro' | 'barricades' | 'merch' | 'premiumRing' | 'broadcastRing';
 
 export interface ShowStaging {
   /** The kind of building, and whether it had a roof — a residency's home is in no list to look up. */

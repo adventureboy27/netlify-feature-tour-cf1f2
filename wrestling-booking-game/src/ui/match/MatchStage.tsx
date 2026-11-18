@@ -31,6 +31,7 @@ import { playPerson, restingAt, slaps, waving, type PersonMoment } from './offic
 import { RING, TAG_TOUCH, apronX, midBody, onFrontFloor, pinHeld, planBeat, type Plan, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
 import type { Conduct } from './conduct';
 import { LedApron, type Marquee } from './LedApron';
+import { ApronScreen, type Broadcast, type ScreenAction } from './ApronScreen';
 import type { Id, RingItem, Wrestler } from '../../engine/types';
 
 /** Figure width in stage units (hundredths of the stage's width). */
@@ -358,7 +359,10 @@ export function MatchStage({
   champions,
   spoils,
   marquee,
+  broadcast,
 }: {
+  /** What the broadcast ring's apron screen shows: the night and the cast, the move landing this beat, who won. */
+  broadcast?: { show: Broadcast; action: ScreenAction | null; winners: readonly Wrestler[]; caption: string | null };
   /** What the premium ring's LED apron has to say: the night, the names, the match. */
   marquee?: Marquee;
   /** The title this match is for: what the belt looks like wherever one is drawn. */
@@ -1007,6 +1011,22 @@ export function MatchStage({
               star={mood?.star?.name.trim().split(/\s+/).pop()}
               winners={over ? marquee.winners : undefined}
               belt={aftermath?.belt}
+            />
+          )}
+          {/* The broadcast ring: the apron is a television. */}
+          {setting.ring === 'broadcast' && !conduct?.noRing && !corners && broadcast && (
+            <ApronScreen
+              w={w}
+              h={h}
+              show={broadcast.show}
+              accent={accent}
+              holders={new Set([...(champions ?? new Map()).entries()].filter(([, belts]) => belts.length > 0).map(([id]) => id))}
+              action={over ? null : broadcast.action}
+              mood={mood?.mood ?? null}
+              big={mood?.big ?? false}
+              star={mood?.star}
+              winners={over ? broadcast.winners : undefined}
+              caption={over ? broadcast.caption : null}
             />
           )}
           {/* The apron is the nearest thing this building has to a nameplate. */}

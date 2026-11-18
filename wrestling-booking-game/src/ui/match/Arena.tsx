@@ -16,7 +16,7 @@
 
 import { memo, useMemo } from 'react';
 import { Entrance, HouseLights, NoScreen, Room, SoundStacks } from './Venue';
-import { FULL_PRODUCTION, type Setting } from './setting';
+import { FULL_PRODUCTION, isFancyRing, type Setting } from './setting';
 import { RING } from './ringPhysics';
 import './match.css';
 
@@ -350,6 +350,8 @@ export const RING_LOOK = {
   pro: { platform: '#8e95a3', mat: ['#b9bec9', '#dfe2e8'], skirt: null as string | null, rope: '#e9e9ec', pad: null as string | null },
   // The professional ring with the front skirt swapped for a black LED housing: the bulbs themselves are LedApron.tsx.
   premium: { platform: '#8e95a3', mat: ['#bcc1cc', '#e3e6ec'], skirt: '#050507', rope: '#f2f2f5', pad: null as string | null },
+  // The same ring with a screen for an apron (ApronScreen.tsx).
+  broadcast: { platform: '#8e95a3', mat: ['#bcc1cc', '#e3e6ec'], skirt: '#050507', rope: '#f2f2f5', pad: null as string | null },
   // Real mat and ropes, no frills: a plain black skirt, black pads, no logo.
   basic: { platform: '#7f838d', mat: ['#a9adb5', '#cdd0d6'], skirt: '#141519', rope: '#e2e2e2', pad: '#18191d' },
   // Off the trailer: plywood under a tarp, hemp rope, tape for pads.
@@ -608,9 +610,9 @@ export const ArenaBack = memo(function ArenaBack({
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="url(#mv-mat)" />
       {/* Where the canvas turns down under the ropes to the apron: a crease, not a wall. */}
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="none" stroke="#000" strokeOpacity={0.22} strokeWidth={2} />
-      {setting.ring === 'premium' && !corners && <PremiumCanvas accent={accent} name={name} />}
-      {(setting.ring === 'pro' || (setting.ring === 'premium' && corners)) && <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />}
-      {(setting.ring === 'pro' || (setting.ring === 'premium' && corners)) && <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />}
+      {isFancyRing(setting.ring) && !corners && <PremiumCanvas accent={accent} name={name} />}
+      {(setting.ring === 'pro' || (isFancyRing(setting.ring) && corners)) && <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />}
+      {(setting.ring === 'pro' || (isFancyRing(setting.ring) && corners)) && <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />}
       {setting.ring === 'plywood' && (
         // A tarp over plywood: creased, patched with tape.
         <path d="M 420,396 L 470,436 M 690,384 L 760,404 M 330,440 L 420,446 M 560,380 L 590,392" stroke="#4c5866" strokeWidth={2} opacity={0.7} />
@@ -643,7 +645,7 @@ export const ArenaBack = memo(function ArenaBack({
 
       {/* Back posts, back ropes, and the far half of each side run: all of it further from the camera than anybody in the ring. */}
       {[MAT.backL, MAT.backR].map((x, n) =>
-        setting.ring === 'premium' ? (
+        isFancyRing(setting.ring) ? (
           <LedPost key={x} x={x} top={232} bottom={MAT.backY} width={12} delay={n * 0.5 + 1} color={ledColor} />
         ) : (
           <rect key={x} x={x - 6} y={232} width={12} height={MAT.backY - 232} fill="#2b2f38" />
@@ -655,7 +657,7 @@ export const ArenaBack = memo(function ArenaBack({
       <SideRun run="backL" onRef={onSideRope} />
       <SideRun run="backR" onRef={onSideRope} />
       {[MAT.backL, MAT.backR].map((x) =>
-        ROPES_BACK.map((y) => <Pad key={`${x}-${y}`} x={x} y={y} w={18} h={14} premium={setting.ring === 'premium'} fill={RING_LOOK[setting.ring].pad ?? (corners ? corners[x === MAT.backL ? 0 : 1].accent : accent)} />),
+        ROPES_BACK.map((y) => <Pad key={`${x}-${y}`} x={x} y={y} w={18} h={14} premium={isFancyRing(setting.ring)} fill={RING_LOOK[setting.ring].pad ?? (corners ? corners[x === MAT.backL ? 0 : 1].accent : accent)} />),
       )}
 
       {cage && (
@@ -717,7 +719,7 @@ export const ArenaFront = memo(function ArenaFront({
           </g>
           {[MAT.frontL, MAT.frontR].map((x, n) => (
             <g key={x}>
-              {ring === 'premium' ? (
+              {isFancyRing(ring) ? (
                 <LedPost x={x} top={286} bottom={MAT.frontY + 6} width={14} delay={n * 0.5} color={led} />
               ) : (
                 <>
@@ -726,7 +728,7 @@ export const ArenaFront = memo(function ArenaFront({
                 </>
               )}
               {ROPES_FRONT.map((y) => (
-                <Pad key={y} x={x} y={y} w={22} h={18} premium={ring === 'premium'} stroke fill={RING_LOOK[ring].pad ?? (corners ? corners[x === MAT.frontL ? 0 : 1].accent : accent)} />
+                <Pad key={y} x={x} y={y} w={22} h={18} premium={isFancyRing(ring)} stroke fill={RING_LOOK[ring].pad ?? (corners ? corners[x === MAT.frontL ? 0 : 1].accent : accent)} />
               ))}
             </g>
           ))}

@@ -37,6 +37,16 @@ export const PRODUCTION_ASSETS: ProductionAsset[] = [
     effects: { showRating: 4, attendanceMultiplier: 1.04, tvRating: 0.2, merchMultiplier: 1.06 },
   },
   {
+    id: 'broadcastRing',
+    name: 'Broadcast Ring',
+    cost: 600000,
+    upkeepPerShow: 1800,
+    blurb: 'The premium ring with a full-colour screen for an apron: the night, the faces, VS, every big move as it lands. Built for the camera.',
+    // The screen goes where the bulbs were, on the same frame.
+    requiresAsset: 'premiumRing',
+    effects: { showRating: 3, tvRating: 0.4, attendanceMultiplier: 1.03, merchMultiplier: 1.05 },
+  },
+  {
     id: 'soundSystem',
     name: 'Touring Sound System',
     cost: 24000,
@@ -123,6 +133,7 @@ export function productionAssetById(id: string): ProductionAsset | undefined {
 /** Whether what an asset is built on is already owned. A professional ring counts from either shop. */
 export function assetRequirementMet(asset: ProductionAsset, ownedAssetIds: readonly string[], productionRungs: readonly string[]): boolean {
   if (asset.requiresProRing && !ownedAssetIds.includes('ringUpgrade') && !productionRungs.includes('ring')) return false;
+  if (asset.requiresAsset && !ownedAssetIds.includes(asset.requiresAsset)) return false;
   return true;
 }
 

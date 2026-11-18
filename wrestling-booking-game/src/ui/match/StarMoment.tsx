@@ -36,7 +36,7 @@ const CONFETTI = Array.from({ length: 60 }, (_, i) => {
 });
 
 /** Head and shoulders, from their own art (or their photo). */
-function Bust({ star }: { star: Wrestler }) {
+export function Bust({ star }: { star: Wrestler }) {
   if (star.photoDataUrl) return <img src={star.photoDataUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />;
   const subject = lookSubjectOf(star);
   const look = subject ? assignLook(subject) : null;

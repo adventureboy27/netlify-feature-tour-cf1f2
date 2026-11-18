@@ -206,6 +206,7 @@ export function venueRigLine(venue: Venue): string {
 const ASSET_GEAR: Record<string, StagingGear> = {
   ringUpgrade: 'ring',
   premiumRing: 'premiumRing',
+  broadcastRing: 'broadcastRing',
   soundSystem: 'sound',
   lightingRig: 'lights',
   entranceStage: 'stage',

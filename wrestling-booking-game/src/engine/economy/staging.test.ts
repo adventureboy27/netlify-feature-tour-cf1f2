@@ -41,4 +41,12 @@ describe('what is in the building tonight', () => {
     // Everything without a requirement is always on sale.
     expect(assetRequirementMet(productionAssetById('soundSystem')!, [], [])).toBe(true);
   });
+
+  it('sells the broadcast ring only over the premium ring', () => {
+    const broadcast = productionAssetById('broadcastRing')!;
+    expect(assetRequirementMet(broadcast, ['ringUpgrade'], ['ring'])).toBe(false);
+    expect(assetRequirementMet(broadcast, ['ringUpgrade', 'premiumRing'], [])).toBe(true);
+    const arena = venueById('civicArena')!;
+    expect(stagingTonight({ rungs: [], assetsInRoom: ['broadcastRing'], extras: [], venue: arena }).gear).toContain('broadcastRing');
+  });
 });

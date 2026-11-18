@@ -383,7 +383,7 @@ export function PromotionScreen() {
                     {owned && <span className="ml-1 text-sky-400">owned</span>}
                   </div>
                   <div className="text-[10px] text-neutral-500">{asset.blurb}</div>
-                  {needsRing && <div className="text-[10px] text-amber-500">Needs a professional ring first.</div>}
+                  {needsRing && <div className="text-[10px] text-amber-500">{asset.requiresAsset ? `Needs the ${productionAssetById(asset.requiresAsset)?.name ?? 'piece it is built on'} first.` : 'Needs a professional ring first.'}</div>}
                   {owned && (
                     <div className="text-[10px] text-neutral-600">
                       upkeep <Money amount={asset.upkeepPerShow} /> per show
