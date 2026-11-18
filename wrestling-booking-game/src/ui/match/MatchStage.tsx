@@ -123,6 +123,16 @@ const planOf = (tracks: Map<Id, WorldFrame[]>): Plan => ({
   end: new Map([...tracks].map(([id, frames]) => [id, { x: frames[frames.length - 1]!.x, y: frames[frames.length - 1]!.y, rot: frames[frames.length - 1]!.rot }])),
 });
 
+const MAT_SPLAT = 'M 0,-9 C 6,-10 10,-4 8,1 C 12,4 9,10 3,8 C 1,13 -6,11 -6,6 C -12,6 -11,-1 -7,-3 C -9,-8 -4,-10 0,-9 Z M 13,-6 a 2.5,2.5 0 1,0 0.1,0 Z M -12,9 a 2,2 0 1,0 0.1,0 Z M 11,11 a 1.5,1.5 0 1,0 0.1,0 Z';
+
+/** A splat of blood on the mat: where (ring x, and how far up or down the canvas), how big, which way. */
+export interface Stain {
+  x: number;
+  depth: number;
+  size: number;
+  turn: number;
+}
+
 export function MatchStage({
   beatKey,
   fighters,
@@ -138,6 +148,7 @@ export function MatchStage({
   bloody,
   burned,
   wear,
+  stains = [],
   corners,
   eventName,
   prize,
@@ -184,6 +195,8 @@ export function MatchStage({
   burned?: ReadonlySet<Id>;
   /** How beaten up each of them is by now, 0-1: bruises, and slower. */
   wear?: ReadonlyMap<Id, number>;
+  /** Blood already on the mat from earlier matches tonight. */
+  stains?: readonly Stain[];
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
@@ -240,6 +253,9 @@ export function MatchStage({
   const u = w / 100;
   const [hype, setHype] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
+  // Blood that has hit the mat in this match: wherever somebody who is
+  // bleeding was when a beat began, and it stays for the rest of the night.
+  const [dripped, setDripped] = useState<Stain[]>([]);
 
   const feetY = (FEET_Y / VIEW.h) * h;
   const sx = (x: number) => w / 2 + x * u;
@@ -291,6 +307,17 @@ export function MatchStage({
       const el = figureRefs.current.get(f.id);
       if (el) el.style.transform = '';
     }
+    const drops: Stain[] = [];
+    for (const f of cast) {
+      if (!bloody?.has(f.id) || !f.from || onFrontFloor(f.from) || Math.abs(f.from.x) > RING.half - 2) continue;
+      // One splat a beat at most, and not from somebody just standing about.
+      const lying = Math.abs(Math.abs(f.from.rot) - 90) < 30;
+      const n = beatKey * 7 + f.id.length;
+      if (!lying && n % 2 === 0) continue;
+      const x = lying ? midBody(f.from).x : f.from.x;
+      drops.push({ x, depth: ((n * 37) % 30) / 10 - 1.5, size: 0.8 + ((n * 13) % 7) / 10, turn: (n * 53) % 360 });
+    }
+    if (drops.length > 0) setDripped((d) => [...d, ...drops].slice(-14));
     const running = playPlan(next, cast, (id) => figureRefs.current.get(id), (id) => jointRefs.current.get(id), u, figureW, duration);
 
     const timers: number[] = [];
@@ -616,6 +643,20 @@ export function MatchStage({
               )}
             </div>
           )}
+
+          {/* Blood on the mat: tonight's earlier matches, and this one's. */}
+          {[...stains, ...dripped].map((st, i) => (
+            <svg
+              key={`stain-${i}`}
+              viewBox="-16 -16 32 32"
+              className="pointer-events-none absolute"
+              style={{ left: sx(st.x) - 2.2 * st.size * u, top: feetY + st.depth * u - 1 * st.size * u, width: 4.4 * st.size * u, height: 2 * st.size * u, zIndex: 1 }}
+              preserveAspectRatio="none"
+              aria-hidden
+            >
+              <path d={MAT_SPLAT} fill="#5e0a0a" opacity={0.85} transform={`rotate(${st.turn})`} />
+            </svg>
+          ))}
 
           {/* The first mask that came off is picked up by the first winner and
               held up with the belt; the copy on the mat is taken with it. */}

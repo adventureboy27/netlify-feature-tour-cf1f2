@@ -16,7 +16,7 @@ import { useGameStore } from '../../state/store';
 import { buildPlaybackTimeline, type PlaybackBeat } from '../../engine/sim/matchPlayback';
 import { PaperDoll, lookSubjectOf } from '../paperdoll/PaperDoll';
 import { maskWorn } from '../paperdoll/maskWorn';
-import { MatchStage, type Aftermath, type Bystander, type StageFighter } from '../match/MatchStage';
+import { MatchStage, type Aftermath, type Bystander, type StageFighter, type Stain } from '../match/MatchStage';
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
 import { isNonDecisiveFinish } from '../../engine/sim/finish';
@@ -29,7 +29,8 @@ import type { Corner } from '../match/Arena';
 import { CUP_NAME } from '../../engine/world/cup';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, promotionTheme } from '../components/chrome';
-import { stipulationById } from '../../data/stipulations';
+import { effectiveRules, stipulationById } from '../../data/stipulations';
+import { rngFromSeed } from '../../engine/rng';
 import type { Id, PromotionArchetype, FinishType, SegmentRole, Title, Wrestler } from '../../engine/types';
 
 /**
@@ -247,6 +248,22 @@ export function MatchViewerScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [special?.kind, special?.index, world?.lastCup, world?.lastSupershow]);
   const show = special ? undefined : world?.showHistory.find((s) => s.week === matchWeek);
+  // Blood from the matches before this one tonight is still on the mat: a
+  // few splats for everybody the record says was busted open in them.
+  const earlierStains = useMemo(() => {
+    const out: Stain[] = [];
+    for (const seg of show?.segments ?? []) {
+      if (seg.slot >= matchSlot || !seg.result) continue;
+      // (A first-blood result from before blood was recorded still drew blood.)
+      const firstBlood = seg.result.finish !== 'timeLimitDraw' && effectiveRules(seg.rules, seg.stipulation ? (stipulationById(seg.stipulation) ?? null) : null).aim === 'firstBlood';
+      const bled = seg.result.beats.filter((b) => b.bleeding).length || (firstBlood ? 1 : 0);
+      for (let n = 0; n < bled * 3; n++) {
+        const rng = rngFromSeed(`stain:${show!.week}:${seg.slot}:${n}`);
+        out.push({ x: rng.next() * 36 - 18, depth: rng.next() * 3 - 1.5, size: 0.8 + rng.next() * 0.6, turn: rng.next() * 360 });
+      }
+    }
+    return out;
+  }, [show, matchSlot]);
   const booked = show?.segments.find((s) => s.slot === matchSlot);
   const segment = exhibition?.segment ?? booked;
   const result = exhibition?.result ?? booked?.result;
@@ -699,6 +716,7 @@ export function MatchViewerScreen({
           bloody={bloody}
           burned={burned}
           wear={wear}
+          stains={earlierStains}
           prize={segment.titleIds.length > 0 ? 'belt' : 'case'}
           hurt={hurt}
           belt={beltLook}

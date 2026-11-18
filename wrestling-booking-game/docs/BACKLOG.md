@@ -6886,3 +6886,8 @@ All of it read off what the simulation recorded — nothing a wrestler wears in 
 - **Bruises:** come up as the beating the recorded match describes does (each move taken, more for a big impact, a spot, the finish): ribs first, then a black eye, then the rest. On bare skin and showing faces only — never on a shirt or under a mask.
 - **Slower when beaten up:** a battered wrestler's own moves take longer (up to 30%), they are slower getting up off the mat, and past a point they stand breathing hard and stooped between moves.
 - Checked in the real match viewer with a recorded hardcore match: burn after the pyro beat, blood after the chair shot, winded by the late beats.
+
+## Kept plain, and blood stays on the mat
+
+- **Toned down** on request ("let's not go gross"): bruises are plain dark marks; being busted open is a few blood splats on the face and chest (no streak); a pyro burn is soot (no raw skin or blisters).
+- **Blood on the mat for the rest of the night:** a bleeding wrestler leaves splats on the mat where they are (lying, or now and then standing) beat by beat, and they stay through the end of the match. Every later match on the same show starts with splats for everybody the record says bled in the earlier ones (placed from a seed, so the same show always looks the same). Ring mat only, not the floor.
