@@ -626,6 +626,19 @@ export function MatchStage({
             wrestlers={bystanders.filter((b) => b.place === 'ring').map((b) => b.wrestler)}
             // Anybody coming in from an apron (a tag match breaking down) comes in from their own side.
             sides={conduct?.tags ? new Map(bystanders.filter((b) => b.place === 'ring').map((b) => [b.wrestler.id, dirOf(b.slot)])) : undefined}
+            focus={
+              plan && actor && target && !over
+                ? {
+                    actorX: plan.tracks.get(actor.wrestler.id)?.[0]?.x ?? 0,
+                    targetX: plan.tracks.get(target.wrestler.id)?.[0]?.x ?? 0,
+                    down: Boolean(targetEnd && Math.abs(Math.abs(targetEnd.rot) - 90) < 30 && targetEnd.y < 5),
+                  }
+                : undefined
+            }
+            bump={(() => {
+              const big = !over && plan?.impacts.find((i) => i.big);
+              return big ? { key: beatKey, x: big.x, at: big.at * duration } : undefined;
+            })()}
             stageWidth={w}
             stageHeight={h}
             figureWidth={figureW}

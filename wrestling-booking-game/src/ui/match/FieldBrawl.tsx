@@ -23,9 +23,9 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
-import { VIEW } from './Arena';
+import { FEET_Y, VIEW } from './Arena';
 import { BRAWL, DOWN, GAP, stageMove, type MoveId } from './choreography';
-import { FIELD, planBeat, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
+import { RING, planBeat, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
 import { playPlan, settle } from './playback';
 import type { Id, Wrestler } from '../../engine/types';
 
@@ -46,8 +46,13 @@ const FIELD_MOVES: readonly MoveId[] = [...BRAWL, 'whip', 'suplex', 'cornerWhip'
 // Jointed figures cost five copies of a portrait each. Up to this many the
 // field gets them; past it, plain figures that are thrown about whole.
 const JOINTED_UP_TO = 10;
-/** Pairs to a row before starting another. */
-const PAIRS_PER_ROW = 4;
+/**
+ * How big somebody standing with their feet at this height of the picture
+ * is, against somebody on the front line (Arena.tsx's perspective: the
+ * ring's sides run to a point 172 units down the picture).
+ */
+const VANISH = 172;
+const depthScale = (feet: number) => (feet - VANISH) / (FEET_Y - VANISH);
 
 interface Shared {
   figures: Map<Id, HTMLDivElement>;
@@ -56,7 +61,22 @@ interface Shared {
   leftAt: Map<Id, WorldPose>;
 }
 
+/** The featured exchange, as the field sees it: where its two are, and whether the one taking it is down. */
+export interface Focus {
+  actorX: number;
+  targetX: number;
+  down: boolean;
+}
+/** A big bump in the featured exchange: where it lands, and when (ms into the beat). */
+export interface Bump {
+  key: number;
+  x: number;
+  at: number;
+}
+
 interface Station {
+  /** This row's size against a front-row figure: x here times this is ring x. */
+  scale: number;
   x: number;
   /** Pixels per unit for this row, and how wide its figures are. */
   unit: number;
@@ -65,11 +85,44 @@ interface Station {
 }
 
 /** One pair (or one wrestler with nobody to fight yet), looping. Draws nothing. */
-function Pair({ a, b, station, shared }: { a: Wrestler; b: Wrestler | undefined; station: Station; shared: Shared }) {
+function Pair({ a, b, station, shared, focus, bump }: { a: Wrestler; b: Wrestler | undefined; station: Station; shared: Shared; focus?: Focus; bump?: Bump }) {
   const [round, setRound] = useState(0);
   const seed = hash(a.id + (b?.id ?? ''));
+  // A big bump from the featured exchange landing on top of this pair
+  // knocks them both down: the key of the bump that did, once it has landed.
+  const [knocked, setKnocked] = useState<number | null>(null);
+  const played = useRef<number | null>(null);
+  useEffect(() => {
+    if (!bump || !b || station.unit === 0) return;
+    const here = (shared.leftAt.get(a.id)?.x ?? station.x) * station.scale;
+    if (Math.abs(here - bump.x) > 9) return;
+    const timer = window.setTimeout(() => setKnocked(bump.key), bump.at);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bump?.key]);
   useEffect(() => {
     if (station.unit === 0) return;
+    const hit = knocked !== null && played.current !== knocked;
+    if (hit) played.current = knocked;
+    // Nobody left to pair with: they pile in on whoever is taking the move up
+    // front — from the far side of them, so they never stand in the attacker.
+    if (!b && focus) {
+      const dir: 1 | -1 = focus.targetX >= focus.actorX ? -1 : 1;
+      const move = focus.down ? 'stomp' : (['strike', 'kneeLift', 'clothesline'] as const)[round % 3]!;
+      const duration = 1500;
+      const cast: PlanFighter[] = [{ id: a.id, role: 'actor', dir, from: shared.leftAt.get(a.id), taggedIn: false }];
+      const tx = focus.targetX / station.scale;
+      const plan = planBeat({ ...stageMove(move), duration }, cast, tx - (dir * GAP) / 2, { half: station.half, near: tx - (dir * GAP) / 2 });
+      for (const [id, pose] of plan.end) shared.leftAt.set(id, pose);
+      const el = shared.figures.get(a.id);
+      if (el) el.style.transform = '';
+      const running = playPlan(plan, cast, (id) => shared.figures.get(id), (id) => shared.joints.get(id), station.unit, station.width, duration);
+      const timer = window.setTimeout(() => setRound((n) => n + 1), duration);
+      return () => {
+        settle(running);
+        window.clearTimeout(timer);
+      };
+    }
     const cast: PlanFighter[] = b
       ? [
           // They take turns: whoever threw the last one takes the next.
@@ -79,7 +132,7 @@ function Pair({ a, b, station, shared }: { a: Wrestler; b: Wrestler | undefined;
       : [{ id: a.id, role: 'actor', dir: 1, from: shared.leftAt.get(a.id), taggedIn: false }];
     // An odd one out has nobody to hit yet, so they prowl their patch
     // looking for somebody: a few steps one way, a few the other.
-    const move = b ? FIELD_MOVES[(seed + round * 5) % FIELD_MOVES.length]! : (['taunt', 'strike', 'fireUp'] as const)[round % 3]!;
+    const move = hit ? 'doubleDown' : b ? FIELD_MOVES[(seed + round * 5) % FIELD_MOVES.length]! : (['taunt', 'strike', 'fireUp'] as const)[round % 3]!;
     // And they do not stand still: each exchange happens a few steps from
     // the last, wandering their part of the ring (a whip takes them to its
     // edge and back on its own).
@@ -99,7 +152,7 @@ function Pair({ a, b, station, shared }: { a: Wrestler; b: Wrestler | undefined;
       window.clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [a.id, b?.id, station.x, station.unit, round]);
+  }, [a.id, b?.id, station.x, station.unit, round, knocked]);
   return null;
 }
 
@@ -146,7 +199,13 @@ export const FieldBrawl = memo(function FieldBrawl({
   winners,
   belt,
   sides,
+  focus,
+  bump,
 }: {
+  /** The two the camera is on, so the field keeps clear of them and a spare one can pile in. */
+  focus?: Focus;
+  /** The featured exchange's big bump this beat, if any: a pair it lands on goes down. */
+  bump?: Bump;
   /** The field, in an order that does not change as people come and go. */
   wrestlers: readonly Wrestler[];
   /** Which side each of them works from; somebody new arrives from there, through the ropes. */
@@ -173,28 +232,43 @@ export const FieldBrawl = memo(function FieldBrawl({
   // their own side, so they come in rather than appear.
   for (const w of wrestlers) {
     const side = sides?.get(w.id);
-    if (side && !shared.leftAt.has(w.id)) shared.leftAt.set(w.id, { x: -side * (FIELD.half + 2), y: 0, rot: 0 });
+    if (side && !shared.leftAt.has(w.id)) shared.leftAt.set(w.id, { x: -side * (RING.half + 2), y: 0, rot: 0 });
   }
   const pairs = Math.ceil(wrestlers.length / 2);
-  const rows = Math.ceil(pairs / PAIRS_PER_ROW);
-  // More rows, smaller people: three rows of a thirty-man battle royal have
-  // to fit between the back ropes and the two at the front.
-  const scale = FIELD.scale * (rows === 1 ? 1 : rows === 2 ? 0.9 : rows === 3 ? 0.8 : 0.7);
+  // DESIGN: everybody in an all-in match is legal and fighting, so the field
+  // is the same people on the same mat, not a crowd of little figures behind
+  // it. A row stands just behind the two up front, drawn at the true
+  // perspective size for that depth; only a field too big for one row goes
+  // further back (and so smaller), as it would standing there.
+  const perRow = pairs <= 3 ? 3 : 4;
+  const rows = Math.ceil(pairs / perRow);
+  const feetOf = (row: number) => FEET_Y - 16 - (rows === 1 ? 0 : (row * 30) / (rows - 1));
   const jointed = wrestlers.length <= JOINTED_UP_TO;
-  /** Row 0 is the back of the ring; each row after it stands a little nearer. */
+  // Keep clear of the two up front: a pair whose spot would stand right on
+  // them moves out to the side.
+  const clear = (x: number, scale: number) => {
+    if (!focus) return x;
+    const fx = (focus.actorX + focus.targetX) / 2 / scale;
+    const gap = 13 / scale;
+    return Math.abs(x - fx) >= gap ? x : fx + (x >= fx ? gap : -gap);
+  };
   const stationOf = (k: number): Station & { feet: number; row: number } => {
-    const row = Math.floor(k / PAIRS_PER_ROW);
-    const inRow = Math.min(PAIRS_PER_ROW, pairs - row * PAIRS_PER_ROW);
-    const slot = k - row * PAIRS_PER_ROW;
-    const half = (FIELD.half * FIELD.scale) / scale + row * 2.5;
+    const row = Math.floor(k / perRow);
+    const inRow = Math.min(perRow, pairs - row * perRow);
+    const slot = k - row * perRow;
+    const feet = feetOf(row);
+    const scale = depthScale(feet);
+    const half = (RING.half - 1) / scale;
     // Alternate rows are offset, so nobody stands directly behind anybody.
     const spread = inRow === 1 ? 0 : ((slot + 0.5) / inRow) * 2 - 1;
+    const x = spread * (half - 8) + (row % 2 ? 4 : 0);
     return {
-      x: spread * (half - 3) + (row % 2 ? 3 : 0),
+      scale,
+      x: Math.max(-half + 8, Math.min(half - 8, row === 0 ? clear(x, scale) : x)),
       unit: (stageWidth / 100) * scale,
       width: figureWidth * scale,
       half,
-      feet: ((FIELD.feetY - 8 + row * 13) / VIEW.h) * stageHeight,
+      feet: (feet / VIEW.h) * stageHeight,
       row,
     };
   };
@@ -240,7 +314,7 @@ export const FieldBrawl = memo(function FieldBrawl({
       {ready &&
         (winners
           ? wrestlers.map((wrestler, i) => <Ending key={wrestler.id} wrestler={wrestler} won={winners.has(wrestler.id)} station={stationOf(Math.floor(i / 2))} shared={shared} />)
-          : Array.from({ length: pairs }, (_, k) => <Pair key={k} a={wrestlers[k * 2]!} b={wrestlers[k * 2 + 1]} station={stationOf(k)} shared={shared} />))}
+          : Array.from({ length: pairs }, (_, k) => <Pair key={k} a={wrestlers[k * 2]!} b={wrestlers[k * 2 + 1]} station={stationOf(k)} shared={shared} focus={focus} bump={bump} />))}
     </>
   );
 });
