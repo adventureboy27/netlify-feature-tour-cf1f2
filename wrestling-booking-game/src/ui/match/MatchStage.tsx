@@ -23,7 +23,7 @@ import { playPlan, settle } from './playback';
 import { FieldBrawl } from './FieldBrawl';
 import { DOWN, FLOOR, FRONT_FLOOR, GAP, TAG_VAULT_HEIGHT, type StagedBeat } from './choreography';
 import { PyroBurst } from './Pyro';
-import { PERSON_VIEW, Person, type Face, type PersonParts } from './Ringside';
+import { PERSON_VIEW, Person, type Face, type PersonHeld, type PersonParts } from './Ringside';
 import { playPerson, restingAt, slaps, waving, type PersonMoment } from './officiate';
 import { RING, TAG_TOUCH, apronX, midBody, onFrontFloor, pinHeld, planBeat, type Plan, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
 import type { Conduct } from './conduct';
@@ -72,6 +72,8 @@ export interface RingsidePerson {
 export interface CornerCue {
   id: Id;
   act: 'apron' | 'mug';
+  /** With something in the hand. */
+  weapon?: PersonHeld;
 }
 
 /** Somebody in the match but not in this beat. */
@@ -1038,7 +1040,7 @@ export function MatchStage({
           {/* The managers, on the floor by their man's corner. */}
           {ringside.map((person) => (
             <div key={person.id} ref={handlersFor(person.id).box} data-testid="ringside-person" className="pointer-events-none absolute" style={{ left: w / 2 - personW / 2, top: feetY - personH, width: personW, zIndex: 4 }}>
-              <Person id={`rs-${person.id}`} outfit="suit" face={person.face} onParts={handlersFor(person.id).parts} />
+              <Person id={`rs-${person.id}`} outfit="suit" face={person.face} held={over ? undefined : corner.find((c) => c.id === person.id)?.weapon} onParts={handlersFor(person.id).parts} />
             </div>
           ))}
 

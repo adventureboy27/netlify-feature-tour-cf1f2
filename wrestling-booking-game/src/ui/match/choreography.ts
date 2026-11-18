@@ -994,12 +994,12 @@ export function stageBeat(
     const item = beat.fetched.item;
     return { ...stageMove('fetch', item === 'table' || item === 'ladder' ? 3600 : 3200), zone: 'out', fetch: beat.fetched, ...(item !== 'table' ? { prop: item } : {}) };
   }
-  const own = beat.official ? officialBeat(beat.official, Boolean(beat.ringsideId), conduct, context, beat.weapon) : null;
+  const own = beat.official ? officialBeat(beat.official, Boolean(beat.ringsideId), conduct, context, beat.weapon, beat.spot) : null;
   if (own) return own;
   const staged = stagePlain(beat, index, actor, actorInRing, context);
   // The finish after somebody was caught or ran in, in a disqualification:
   // the bell is what is left of it.
-  if (beat.pose === 'finish' && conduct.finish === 'dq' && (context.previousOfficial === 'caught' || context.previousOfficial === 'runIn')) {
+  if (beat.pose === 'finish' && conduct.finish === 'dq' && (context.previousOfficial === 'caught' || context.previousOfficial === 'runIn' || context.previousOfficial === 'sawIt')) {
     return { ...withShout(stageMove('still', 2200), 'DISQUALIFIED!', 0.4), referee: { act: 'bell', at: 0.25 } };
   }
   const called = beat.official ? officiated(staged, beat.official) : staged;
@@ -1034,9 +1034,20 @@ function finishCue(conduct: Conduct): RefCue | undefined {
  * A moment that is the official's own — somebody ran in, a corner mugged
  * somebody, he missed something — staged as what the write-up says.
  */
-function officialBeat(official: OfficialMoment, fromOutside: boolean, conduct: Conduct, context: BeatContext, weapon?: MatchBeat['weapon']): StagedBeat | null {
+function officialBeat(official: OfficialMoment, fromOutside: boolean, conduct: Conduct, context: BeatContext, weapon?: MatchBeat['weapon'], spot?: MatchBeat['spot']): StagedBeat | null {
   const move = (id: MoveId, duration: number) => ({ ...stageMove(id, duration), ...propsFor(id, conduct, context.recent.length) });
   switch (official) {
+    case 'cheapShot':
+    case 'sawIt': {
+      // Something used where it is not allowed. With his back turned it
+      // stands; in front of him it is the end of the match (the bell, next).
+      const seen = official === 'sawIt';
+      const shout = seen ? 'THE REF SAW IT!' : "BEHIND THE REF'S BACK!";
+      // From a manager on the floor: the one he is after is put out to him first.
+      if (fromOutside) return { ...withShout(move('tossOutside', 3000), shout, 0.88), zone: 'out', referee: { act: seen ? 'watch' : 'turned' } };
+      const shot = spot === 'stepsShot' ? move('stepsShot', 2200) : { ...stageMove('chairShot', 2000), prop: weapon ?? 'chair' };
+      return { ...withShout(shot, shout, 0.75), referee: { act: seen ? 'watch' : 'turned' } };
+    }
     case 'runIn':
       // Down the aisle with a chair: it is the chair that does it.
       if (weapon) return { ...withShout({ ...stageMove('chairShot', 2400), prop: weapon }, 'RUN-IN!', 0.15), referee: { act: 'turned' } };
@@ -1435,7 +1446,7 @@ export function stageMatch(
     // A corner's moment (somebody at ringside holds the referee): the one in
     // the ring with the victim is the one who takes advantage of it. The
     // people outside are drawn by MatchStage, not as one of the two.
-    if (!filler && (beat.official === 'mugging' || beat.official === 'distracted' || beat.official === 'caught') && !(actorId && wrestlers.has(actorId))) {
+    if (!filler && (beat.official === 'mugging' || beat.official === 'distracted' || beat.official === 'caught' || ((beat.official === 'cheapShot' || beat.official === 'sawIt') && beat.ringsideId)) && !(actorId && wrestlers.has(actorId))) {
       const last = [...moments].reverse().find((m) => (m.actorId === targetId || m.targetId === targetId) && m.actorId && m.targetId);
       const opponent = last ? (last.actorId === targetId ? last.targetId : last.actorId) : [...wrestlers.keys()].find((id) => id !== targetId);
       actorId = opponent ?? null;
@@ -1461,7 +1472,8 @@ export function stageMatch(
     if (outThere || pinnedOutThere) moments[moments.length - 1] = { ...moments[moments.length - 1]!, staged: { ...staged, zone: 'floor' } };
     // Out on the floor (the casket, a dive, the guardrail) and still in the
     // match: back into the ring with them.
-    if ((staged.move === 'casketNear' || staged.move === 'floorDive' || outThere || beat.official === 'mugging') && actorId && targetId) {
+    const atTheFloor = beat.official === 'mugging' || (beat.official === 'cheapShot' && Boolean(beat.ringsideId));
+    if ((staged.move === 'casketNear' || staged.move === 'floorDive' || outThere || atTheFloor) && actorId && targetId) {
       const back = { ...stageMove('rollInside', 1900), zone: 'in' as const };
       moments.push({ beat: { kind: 'control', pose: 'control', text: '', significant: false, actorId, targetId, moveName: null }, actorId, targetId, staged: back, lines: [], holdMs: 1900, filler: true });
       recent.push('rollInside');
@@ -1585,6 +1597,8 @@ export function stageMatch(
     // Back in with something in the hand: it is used next, not carried
     // through a couple of unrelated exchanges first.
     if (beat.fetched && beat.fetched.from !== 'brought') return;
+    // He saw it, or caught somebody: the next thing is the bell.
+    if (beat.official === 'sawIt' || beat.official === 'caught') return;
     const fall = fallAfter.get(index);
     if (fall) {
       const lead: MoveId = (['slam', 'suplex', 'powerbomb', 'superkick'] as const)[index % 4]!;

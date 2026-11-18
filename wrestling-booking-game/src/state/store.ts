@@ -101,6 +101,7 @@ import {
   guestRefereeHealthCost,
 } from '../engine/sim/ringside';
 import { refereeMissById } from '../data/refereeMisses';
+import { planCheat } from '../engine/sim/cheating';
 import { PINFALL_FINISHES, countsAFall, countsNearFalls, pickRunIn, placeGuestCounts, placeMiss, placeMugging, placeRunIn } from '../engine/sim/officiating';
 import {
   managerFromWrestler,
@@ -2143,7 +2144,33 @@ export const useGameStore = create<GameStore>()(
               : 0;
           const gearSpectacleBonusValue = spectacleBonus(assignedGearUnits.length, world.settings);
 
+          // Behind the referee's back (sim/cheating.ts). Only where it is
+          // cheating — disqualifications on, two sides — and decided on its
+          // own seeded stream, never the shared one.
+          const cheatRules = effectiveRules(segment.rules, stipulation);
+          const cheatSides = [...new Set(segment.participants.filter((p) => p.role === 'competitor').map((p) => p.side))];
+          const cheat =
+            cheatRules.ruleStrictness !== 'none' && cheatSides.length === 2 && stipulation?.id !== 'factionDestroyer' && stipulation?.id !== 'battleRoyal'
+              ? planCheat(rngFromSeed(`${world.settings.seed}-cheat-${world.week}-${i}`), {
+                  sides: cheatSides.map((side) => ({
+                    side,
+                    wrestlers: segment.participants
+                      .filter((p) => p.role === 'competitor' && p.side === side)
+                      .map((p) => wrestlerById.get(p.wrestlerId)!)
+                      .filter(Boolean),
+                    managers: (segment.managerIds ?? [])
+                      .filter((m) => m.forSide === side)
+                      .map((m) => findManager(world, m.managerId))
+                      .filter((m): m is NonNullable<typeof m> => Boolean(m)),
+                  })),
+                  referee: officiatingWrestler ? null : (assignedReferee ?? null),
+                  guest: officiatingWrestler ? { favoursSide: agenda?.favoursSide ?? null } : null,
+                  settings: world.settings,
+                })
+              : null;
+
           const result = simulateMatch(rng, simParticipants, wrestlerById, {
+            cheat,
             relationshipHeat: relHeat,
             rules: segment.rules,
             stipulation,
@@ -2300,7 +2327,10 @@ export const useGameStore = create<GameStore>()(
 
             const runInFor = result.finish === 'interference' ? winners : result.finish === 'disqualification' && !result.caughtManagerId ? losers : [];
             const runInAt = result.finish === 'interference' ? losers : winners;
-            if (runInFor.length > 0 && runInAt.length > 0) {
+            // A disqualification the official called on something he saw
+            // needs nobody running in to explain it.
+            const alreadyExplained = result.beats.some((b) => b.official === 'sawIt' || b.official === 'caught');
+            if (runInFor.length > 0 && runInAt.length > 0 && !alreadyExplained) {
               const helped = new Set(runInFor.map((w) => w.id));
               const eligible = (w: Wrestler | undefined): w is Wrestler =>
                 Boolean(w) && !inTheMatch.has(w!.id) && w!.role === 'wrestler' && canWork(w!, world.settings, world.week);

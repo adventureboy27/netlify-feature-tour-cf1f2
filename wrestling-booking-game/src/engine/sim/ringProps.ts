@@ -65,7 +65,8 @@ export function withRingProps(
     // Going to get it is a moment of its own, just before the one that uses
     // it: its own line in the write-up, its own call, its own beat in the
     // ring. (Breaking is something happening to what is already there.)
-    if (item && !inRing.has(item) && beat.kind !== 'gearFailure') {
+    // (A manager who brought it with him needs nothing fetched.)
+    if (item && !inRing.has(item) && beat.kind !== 'gearFailure' && !beat.fetched) {
       const from = item === 'steps' ? 'corner' : 'underRing';
       const actor = (beat.actorId && ctx.nameOf(beat.actorId)) || 'Somebody';
       const pool =

@@ -481,6 +481,9 @@ export function MatchViewerScreen({
       if (muscle) cornerCues.push({ id: muscle, act: 'mug' });
     } else if (outside && (current.official === 'distracted' || current.official === 'caught' || current.official === 'missedInterference')) {
       cornerCues.push({ id: outside, act: 'apron' });
+    } else if (outside && (current.official === 'cheapShot' || current.official === 'sawIt')) {
+      // The manager himself, with it in his hand, into the one put out to him.
+      cornerCues.push({ id: outside, act: 'mug', weapon: current.weapon ?? 'chair' });
     }
   }
 

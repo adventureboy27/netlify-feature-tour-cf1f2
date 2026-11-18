@@ -1359,6 +1359,22 @@ export function defaultWorldSettings(): WorldSettings {
     // talker cuts that by up to two thirds, and a bent referee never sees a
     // thing. The client eats the disqualification, not the manager.
     managerCaughtChanceMax: 0.18,
+    // Anything at all, used when the referee is not looking (sim/cheating.ts).
+    // A dyed-in-the-wool heel tries it about one match in five; a face almost
+    // never; a devious manager in the corner adds up to a quarter on top.
+    // Whether it is seen is the official's: a sharp, straight referee sees
+    // about half of them, a bent one hardly any. Seen, the one it was used on
+    // wins by disqualification. Unseen, it is a real lean toward the cheat —
+    // a guest referee's agenda's worth.
+    cheatChanceBase: 0.02,
+    cheatChanceHeel: 0.18,
+    cheatChanceManager: 0.25,
+    cheatSeenBase: 0.1,
+    cheatSeenSharp: 0.45,
+    cheatSeenBent: 0.3,
+    cheatSeenMin: 0.03,
+    cheatSeenMax: 0.75,
+    cheatWinShift: 10,
     managerSlicknessMax: 0.65,
     // Bigger when it lands, and it rarely lands. A permanent few points off
     // the other man was overplayed by construction — every match, forever,

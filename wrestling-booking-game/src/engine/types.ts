@@ -1504,7 +1504,11 @@ export type OfficialMoment =
   /** The mouthpiece holds him while the muscle goes to work on the floor. */
   | 'mugging'
   /** Somebody who is not in the match hit the ring. */
-  | 'runIn';
+  | 'runIn'
+  /** A weapon used with his back turned: it stands, and it helped. */
+  | 'cheapShot'
+  /** A weapon used and he saw it: disqualified, and the one it was used on wins. */
+  | 'sawIt';
 
 // DESIGN: SegmentResult is referenced by Segment but never defined.
 export interface SegmentResult {
@@ -3333,6 +3337,20 @@ export interface WorldSettings {
   managerTalentMinMic: number;
   /** How often a crooked manager is caught, and how far talking gets him. */
   managerCaughtChanceMax: number;
+  /** Behind the referee's back (sim/cheating.ts): how often anybody tries it, per side, per match with disqualifications on. */
+  cheatChanceBase: number;
+  /** ...more for a heel, scaled by how far heel. */
+  cheatChanceHeel: number;
+  /** ...and for a manager at ringside, scaled by deviousness. */
+  cheatChanceManager: number;
+  /** Whether the official sees it: a floor, plus how sharp he is, less how bent. Clamped. */
+  cheatSeenBase: number;
+  cheatSeenSharp: number;
+  cheatSeenBent: number;
+  cheatSeenMin: number;
+  cheatSeenMax: number;
+  /** What it is worth to the side that got away with it (deck-stacking points, same scale as a guest referee's bias). */
+  cheatWinShift: number;
   managerSlicknessMax: number;
   managerOpponentPenaltyMax: number;
   /** How often a manager actually pulls somebody's attention. */

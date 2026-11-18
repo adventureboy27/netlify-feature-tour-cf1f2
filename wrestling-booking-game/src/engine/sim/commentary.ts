@@ -73,6 +73,8 @@ const OWN_TEXT: ReadonlySet<OfficialMoment> = new Set([
   'outOfPosition',
   'mugging',
   'runIn',
+  'cheapShot',
+  'sawIt',
 ]);
 
 /**

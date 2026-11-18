@@ -69,9 +69,20 @@ const finishAt = (beats: readonly MatchBeat[]) => {
   return -1;
 };
 
-/** Just before the finish — or at the end, for a reel without one. */
+/**
+ * Where the match ended: the finish — or, if the official saw something or
+ * caught somebody first, that moment. Nothing goes after it but the bell.
+ */
+function endedAt(beats: readonly MatchBeat[]): number {
+  const fi = finishAt(beats);
+  const stopped = beats.findIndex((b) => b.official === 'sawIt' || b.official === 'caught');
+  if (stopped >= 0 && (fi < 0 || stopped < fi)) return stopped;
+  return fi;
+}
+
+/** Just before the end of the match — or at the end, for a reel without one. */
 function beforeFinish(beats: readonly MatchBeat[], beat: MatchBeat): MatchBeat[] {
-  const i = finishAt(beats);
+  const i = endedAt(beats);
   const at = i < 0 ? beats.length : i;
   return [...beats.slice(0, at), beat, ...beats.slice(at)];
 }

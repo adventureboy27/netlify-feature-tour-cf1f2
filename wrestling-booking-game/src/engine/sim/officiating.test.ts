@@ -150,3 +150,14 @@ describe('which matches have a count in them', () => {
     expect(missed.some((b) => b.official)).toBe(false);
   });
 });
+
+describe('after the official has seen it', () => {
+  it('puts nothing between what he saw and the bell', () => {
+    const seen: MatchBeat = { kind: 'control', text: 'He saw it.', significant: true, official: 'sawIt', actorId: 'b', targetId: 'a' };
+    const beats = [...reel().slice(0, 3), seen, reel()[3]!];
+    const out = placeMiss(beats, miss('lowBlow'), { winnerIds: ['a'], loserIds: ['b'], finish: 'disqualification' });
+    const at = out.findIndex((b) => b.official === 'sawIt');
+    expect(out[at + 1]!.kind).toBe('finish');
+    expect(out.findIndex((b) => b.official === 'lowBlow')).toBeLessThan(at);
+  });
+});

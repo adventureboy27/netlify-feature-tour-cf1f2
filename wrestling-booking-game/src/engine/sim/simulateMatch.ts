@@ -2,6 +2,7 @@
 // -> rating -> narrative into the single entry point callers use.
 
 import { withRingProps } from './ringProps';
+import { cheatLine, type CheatPlan } from './cheating';
 import { REPLACED_FROM_UNDER_THE_RING, TABLE_HELD_LINES, THROUGH_A_TABLE_WINS } from '../../data/ringProps';
 import type { Rng } from '../rng';
 import { chance, clamp, weightedPick, rngFromSeed, pick } from '../rng';
@@ -53,6 +54,13 @@ export interface SimulateMatchContext {
   deckStackingShiftsBySide?: Record<number, number>;
   /** Managers, referee and any guest referee at ringside (§10). */
   ringside?: RingsideTotals;
+  /**
+   * Somebody used something with the referee's back turned — or not turned
+   * (sim/cheating.ts, planned by the caller on its own seeded stream). Seen,
+   * the one it was used on wins by disqualification; unseen, it leans the
+   * match the cheat's way.
+   */
+  cheat?: CheatPlan | null;
   /**
    * 0-1. What the owned ring/mat cuts off the odds of getting hurt tonight —
    * a real ring is a safer ring for everyone standing in it, not just the
@@ -231,6 +239,12 @@ export function simulateMatch(
   )) {
     stackingShifts[side] = (booked[side] ?? 0) + (ringsideShifts[side] ?? 0) + (distracted[side] ?? 0);
   }
+  // Got away with it: it helped. Applied as a net lean on the first side,
+  // since a two-sided match reads its odds off that side alone.
+  if (ctx.cheat && !ctx.cheat.seen && sides.length === 2) {
+    const first = sides[0]!;
+    stackingShifts[first] = (stackingShifts[first] ?? 0) + (ctx.cheat.side === first ? 1 : -1) * ctx.settings.cheatWinShift;
+  }
   const winProbabilitiesBySide: Record<number, number> = {};
   let winnerSide: number;
 
@@ -277,6 +291,10 @@ export function simulateMatch(
     caughtManagerId = ctx.ringside?.caughtById?.[winnerSide] ?? null;
     winnerSide = sides.find((sd) => sd !== winnerSide) ?? winnerSide;
   }
+  // Seen using something: that is the match, and the one it was used on
+  // has won it. Whatever else happened at ringside, this is what ended it.
+  const cheatSeen = Boolean(ctx.cheat?.seen) && !isFactionDestroyer && sides.length === 2;
+  if (cheatSeen) winnerSide = ctx.cheat!.victimSide;
 
   const winnerProbability = winProbabilitiesBySide[winnerSide]!;
   const isUpset = winnerProbability < 0.5;
@@ -437,7 +455,7 @@ export function simulateMatch(
   const gearGaveOut = rolledFinish === 'equipmentFailure';
   const replacedFinish = gearGaveOut ? REPLACED_FROM_UNDER_THE_RING[ctx.stipulation?.gearFamilyId ?? ''] : undefined;
   // A tables match is won by putting somebody through one — never both at once.
-  const finish: FinishType = replacedFinish ?? THROUGH_A_TABLE_WINS[ctx.stipulation?.gearFamilyId ?? '']?.[rolledFinish] ?? rolledFinish;
+  const finish: FinishType = cheatSeen ? 'disqualification' : (replacedFinish ?? THROUGH_A_TABLE_WINS[ctx.stipulation?.gearFamilyId ?? '']?.[rolledFinish] ?? rolledFinish);
   const draw = isDrawFinish(finish);
 
   const allParticipants = sides.flatMap((s) => sideMembers.get(s)!);
@@ -536,7 +554,27 @@ export function simulateMatch(
       ]
     : [];
 
-  const cornerBeat: MatchBeat[] = caughtManager
+  // What was used, by whom, on whom — and whether he saw it.
+  const cheat = ctx.cheat && sides.length === 2 && !isFactionDestroyer ? ctx.cheat : null;
+  const cheatVictim = cheat ? sideMembers.get(cheat.victimSide)?.[0] : undefined;
+  const cheatBeat: MatchBeat[] =
+    cheat && cheatVictim
+      ? [
+          {
+            kind: 'control' as const,
+            significant: true,
+            text: cheatLine(cheat, cheatVictim.name, ctx.week),
+            ...(cheat.weapon === 'steps' ? { spot: 'stepsShot' as const } : { spot: 'weaponShot' as const, weapon: cheat.weapon }),
+            official: cheat.seen ? ('sawIt' as const) : ('cheapShot' as const),
+            actorId: cheat.actorId,
+            targetId: cheatVictim.id,
+            // A manager brings it with him; a wrestler goes and gets it (sim/ringProps.ts).
+            ...(cheat.byManager ? { ringsideId: cheat.actorId, fetched: { item: cheat.weapon, from: 'brought' as const } } : {}),
+          },
+        ]
+      : [];
+
+  const cornerBeat: MatchBeat[] = caughtManager && !cheatSeen
     ? [
         {
           kind: 'finish' as const,
@@ -595,8 +633,8 @@ export function simulateMatch(
     // was left lying about (sim/ringProps.ts).
     beats: withRingProps(
       replacedFinish
-        ? justBeforeFinish([...botchBeat, ...pyroBurnBeat, ...beats], [...gearFailureBeat, ...distractionBeat, ...cornerBeat])
-        : justBeforeFinish([...botchBeat, ...pyroBurnBeat, ...gearFailureBeat, ...beats], [...distractionBeat, ...cornerBeat]),
+        ? justBeforeFinish([...botchBeat, ...pyroBurnBeat, ...beats], [...gearFailureBeat, ...distractionBeat, ...cheatBeat, ...cornerBeat])
+        : justBeforeFinish([...botchBeat, ...pyroBurnBeat, ...gearFailureBeat, ...beats], [...distractionBeat, ...cheatBeat, ...cornerBeat]),
       {
         gearFamilyId: ctx.stipulation?.gearFamilyId,
         nameOf: (id) => allParticipants.find((w) => w.id === id)?.name ?? null,

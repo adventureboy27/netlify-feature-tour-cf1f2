@@ -121,10 +121,29 @@ function Torso({ outfit, dy, stripes }: { outfit: Outfit; dy: number; stripes: s
   );
 }
 
-function ArmShape({ outfit }: { outfit: Outfit }) {
+/** Something in the working hand: drawn hanging from the fist, turning with the arm. */
+export type PersonHeld = 'chair' | 'can' | 'kendo';
+
+function HeldThing({ held }: { held: PersonHeld }) {
+  const hx = SHOULDER.x + 1.5;
+  const hy = SHOULDER.y + 35;
+  if (held === 'kendo') return <path d={`M ${hx},${hy - 4} L ${hx + 1},${hy + 40}`} stroke="#c9a873" strokeWidth={3} strokeLinecap="round" />;
+  if (held === 'can')
+    return <path d={`M ${hx - 9},${hy + 2} L ${hx + 9},${hy + 2} L ${hx + 7},${hy + 26} L ${hx - 7},${hy + 26} Z`} fill="#9aa3b2" stroke="#4b5260" strokeWidth={1.5} />;
+  return (
+    <g stroke="#4b5260" strokeWidth={1.5}>
+      <path d={`M ${hx - 8},${hy + 2} L ${hx + 8},${hy + 2} L ${hx + 9},${hy + 16} L ${hx - 9},${hy + 16} Z`} fill="#9aa3b2" />
+      <path d={`M ${hx - 9},${hy + 17} L ${hx + 9},${hy + 17} L ${hx + 10},${hy + 20} L ${hx - 10},${hy + 20} Z`} fill="#7b8494" />
+      <path d={`M ${hx - 8},${hy + 20} L ${hx - 10},${hy + 34} M ${hx + 8},${hy + 20} L ${hx + 10},${hy + 34}`} fill="none" strokeWidth={2} />
+    </g>
+  );
+}
+
+function ArmShape({ outfit, held }: { outfit: Outfit; held?: PersonHeld }) {
   // Hanging straight down from the shoulder; turned about it to point or count.
   return (
     <>
+      {held && <HeldThing held={held} />}
       <path d={`M ${SHOULDER.x},${SHOULDER.y} L ${SHOULDER.x + 1},${SHOULDER.y + 20}`} stroke={outfit === 'stripes' ? '#e9e6df' : '#262a36'} strokeWidth={7} strokeLinecap="round" />
       <path d={`M ${SHOULDER.x},${SHOULDER.y} L ${SHOULDER.x + 1},${SHOULDER.y + 20}`} stroke={INK} strokeWidth={8.6} strokeLinecap="round" opacity={0.25} />
       <path d={`M ${SHOULDER.x + 1},${SHOULDER.y + 18} L ${SHOULDER.x + 1.5},${SHOULDER.y + 34}`} stroke={SKIN} strokeWidth={6} strokeLinecap="round" />
@@ -137,10 +156,13 @@ export const Person = memo(function Person({
   outfit,
   face,
   id,
+  held,
   onParts,
 }: {
   outfit: Outfit;
   face: Face;
+  /** What is in the working hand, if anything. */
+  held?: PersonHeld;
   /** Unique on the page: names the stripe pattern. */
   id: string;
   onParts: (parts: PersonParts | null) => void;
@@ -181,7 +203,7 @@ export const Person = memo(function Person({
           <Torso outfit={outfit} dy={0} stripes={stripes} />
           <Head face={face} cx={30} cy={19} r={10} />
           <g ref={register('arm')} style={origin(0)}>
-            <ArmShape outfit={outfit} />
+            <ArmShape outfit={outfit} held={held} />
           </g>
         </g>
         {/* Down on one knee, beside a cover. */}

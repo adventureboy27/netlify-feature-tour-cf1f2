@@ -475,6 +475,29 @@ describe('simulateMatch', () => {
     expect(finishes.has('knockout')).toBe(true);
   });
 
+  it('caught using something, the one it was used on wins by disqualification; not caught, it helps the one who did it', () => {
+    const roster = makeRoster(19, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const plan = (seen: boolean) => ({ side: 1, victimSide: 0, actorId: roster[1]!.id, actorName: roster[1]!.name, byManager: false, weapon: 'chair' as const, seen });
+    for (let i = 0; i < 100; i++) {
+      const caught = simulateMatch(rngFromSeed(`seen-${i}`), participants, byId, baseContext({ cheat: plan(true) }));
+      expect(caught.finish).toBe('disqualification');
+      expect(caught.winnerSide).toBe(0);
+      expect(caught.beats.some((b) => b.official === 'sawIt' && b.actorId === roster[1]!.id && b.targetId === roster[0]!.id)).toBe(true);
+    }
+    // Whichever side the odds are against does it, so the lean is not lost to the odds clamp.
+    const clean = simulateMatch(rngFromSeed('unseen'), participants, byId, baseContext());
+    const under = clean.winProbabilitiesBySide[0]! < clean.winProbabilitiesBySide[1]! ? 0 : 1;
+    const sneak = { ...plan(false), side: under, victimSide: 1 - under, actorId: roster[under]!.id, actorName: roster[under]!.name };
+    const dirty = simulateMatch(rngFromSeed('unseen'), participants, byId, baseContext({ cheat: sneak }));
+    expect(dirty.winProbabilitiesBySide[under]).toBeGreaterThan(clean.winProbabilitiesBySide[under]!);
+    expect(dirty.beats.some((b) => b.official === 'cheapShot')).toBe(true);
+  });
+
   it('a tag match finish names a real, resolvable pinned/pinner pair — not always the first-listed member', () => {
     const roster = makeRoster(17, 4);
     const byId = new Map(roster.map((w) => [w.id, w]));
