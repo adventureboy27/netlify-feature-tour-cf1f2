@@ -24,7 +24,7 @@ import { promoTopicById } from '../../data/promoTopics';
 import { confrontationById } from '../../data/confrontations';
 import { HAULAGE, haulageById, nextHaulage, ladderStatus } from '../../engine/economy/production';
 import { nextCardSizeTier } from '../../data/cardSize';
-import { productionAssetById } from '../../data/production';
+import { assetRequirementMet, productionAssetById } from '../../data/production';
 import { newAssetCondition, repairAsset, repairCost } from '../../engine/economy/showBudget';
 import { fireSaleEligible, fireSaleValue } from '../../engine/economy/fireSale';
 import {
@@ -292,6 +292,7 @@ export const createShowAndProductionSlice: StateCreator<
       const asset = productionAssetById(assetId);
       if (!world || !asset) return;
       if (world.ownedAssetIds.includes(assetId)) return;
+      if (!assetRequirementMet(asset, world.ownedAssetIds, world.productionRungs)) return;
       // No warnings (§0) — but you cannot spend money you do not have.
       if (world.promotion.bankBalance < asset.cost) return;
       world.promotion.bankBalance -= asset.cost;

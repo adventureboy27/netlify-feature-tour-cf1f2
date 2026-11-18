@@ -205,6 +205,7 @@ export function venueRigLine(venue: Venue): string {
 /** The bought-outright gear (data/production.ts) as the piece of the building it is. */
 const ASSET_GEAR: Record<string, StagingGear> = {
   ringUpgrade: 'ring',
+  premiumRing: 'premiumRing',
   soundSystem: 'sound',
   lightingRig: 'lights',
   entranceStage: 'stage',

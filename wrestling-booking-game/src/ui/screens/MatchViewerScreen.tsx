@@ -793,6 +793,14 @@ export function MatchViewerScreen({
           finale={finaleFor(combined.filter((w) => winnerIds.has(w.id)))}
           signs={crowdSigns}
           setting={settingOf(show)}
+          marquee={{
+            event: show?.name || world.promotion.name,
+            promotion: world.promotion.name,
+            sides: [sideA.map((w) => w.name), sideB.map((w) => w.name)],
+            stipulation: stipulation?.name ?? null,
+            title: titleNames[0] ?? null,
+            winners: decided ? combined.filter((w) => winnerIds.has(w.id)).map((w) => w.name) : [],
+          }}
           referee={{ guest: segment.guestRefereeId ? (world.wrestlers[segment.guestRefereeId] ?? null) : null }}
           ringside={ringsidePeople}
           corner={cornerCues}

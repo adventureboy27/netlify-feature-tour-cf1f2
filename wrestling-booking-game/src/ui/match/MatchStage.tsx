@@ -30,6 +30,7 @@ import { PERSON_VIEW, Person, type Face, type PersonHeld, type PersonParts } fro
 import { playPerson, restingAt, slaps, waving, type PersonMoment } from './officiate';
 import { RING, TAG_TOUCH, apronX, midBody, onFrontFloor, pinHeld, planBeat, type Plan, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
 import type { Conduct } from './conduct';
+import { LedApron, type Marquee } from './LedApron';
 import type { Id, RingItem, Wrestler } from '../../engine/types';
 
 /** Figure width in stage units (hundredths of the stage's width). */
@@ -356,7 +357,10 @@ export function MatchStage({
   belt,
   champions,
   spoils,
+  marquee,
 }: {
+  /** What the premium ring's LED apron has to say: the night, the names, the match. */
+  marquee?: Marquee;
   /** The title this match is for: what the belt looks like wherever one is drawn. */
   belt?: BeltLook;
   /** Every belt each of them walked in with, the one on the line first. Worn until the bell. */
@@ -992,6 +996,19 @@ export function MatchStage({
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
           <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} starColor={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : undefined} signs={signs} setting={setting} onSideRope={onSideRope} />
 
+          {/* The premium ring: the whole front of the apron is a bulb sign. */}
+          {setting.ring === 'premium' && !conduct?.noRing && !corners && marquee && (
+            <LedApron
+              w={w}
+              h={h}
+              marquee={marquee}
+              mood={mood?.mood ?? null}
+              big={mood?.big ?? false}
+              star={mood?.star?.name.trim().split(/\s+/).pop()}
+              winners={over ? marquee.winners : undefined}
+              belt={aftermath?.belt}
+            />
+          )}
           {/* The apron is the nearest thing this building has to a nameplate. */}
           {conduct?.noRing || (setting.ring !== 'pro' && !corners) ? null : corners ? (
             corners.map((corner, n) => (

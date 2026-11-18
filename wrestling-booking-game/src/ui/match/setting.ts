@@ -13,8 +13,8 @@ export interface Setting {
   family: VenueFamily;
   /** The venue itself, for touches only one room has. */
   venueId?: string;
-  /** Plywood and rope off a trailer; a real mat and ropes; a professional ring. */
-  ring: 'plywood' | 'basic' | 'pro';
+  /** Plywood and rope off a trailer; a real mat and ropes; a professional ring; one with an LED apron. */
+  ring: 'plywood' | 'basic' | 'pro' | 'premium';
   /** The lighting rig is in, or it is the house lights. */
   lights: boolean;
   screen: boolean;
@@ -72,7 +72,7 @@ export function settingOf(show: Pick<Show, 'staging' | 'venueId' | 'attendance' 
   return {
     family,
     venueId,
-    ring: has('ring') ? 'pro' : has('matRopes') ? 'basic' : 'plywood',
+    ring: has('premiumRing') ? 'premium' : has('ring') ? 'pro' : has('matRopes') ? 'basic' : 'plywood',
     lights: has('lights'),
     screen: has('screen'),
     stage: has('stage'),

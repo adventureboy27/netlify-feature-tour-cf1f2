@@ -43,13 +43,13 @@ const scaleAt = (y: number) => (y - VANISH_Y) / (FEET_Y - VANISH_Y);
 const APRON_DEPTH = (RING.apron * (MAT.frontY - MAT.backY)) / (RING.half * 2);
 const platformX = (side: -1 | 1, y: number) => VIEW.w / 2 + side * (RING.half + RING.apron) * UNIT * scaleAt(y);
 /** The whole platform: canvas inside the ropes, and the apron round it. */
-const PLATFORM = (() => {
+export const PLATFORM = (() => {
   const backY = MAT.backY - APRON_DEPTH;
   const frontY = MAT.frontY + APRON_DEPTH;
   return { backY, frontY, backL: platformX(-1, backY), backR: platformX(1, backY), frontL: platformX(-1, frontY), frontR: platformX(1, frontY) };
 })();
 /** The bottom of the skirt hanging off the front of the platform. */
-const SKIRT_BOTTOM = PLATFORM.frontY + 86;
+export const SKIRT_BOTTOM = PLATFORM.frontY + 86;
 /** Where the ring steps stand on the floor in front of the near left corner, in stage units. */
 export const STEPS_X = (PLATFORM.frontL - 40 - VIEW.w / 2) / UNIT;
 
@@ -268,6 +268,8 @@ function wrapName(name: string): string[] {
 /** What the ring is made of, as drawn: the canvas, the apron and its skirt, the ropes, the pads. */
 export const RING_LOOK = {
   pro: { platform: '#8e95a3', mat: ['#b9bec9', '#dfe2e8'], skirt: null as string | null, rope: '#e9e9ec', pad: null as string | null },
+  // The professional ring with the front skirt swapped for a black LED housing: the bulbs themselves are LedApron.tsx.
+  premium: { platform: '#8e95a3', mat: ['#bcc1cc', '#e3e6ec'], skirt: '#050507', rope: '#f2f2f5', pad: null as string | null },
   // Real mat and ropes, no frills: a plain black skirt, black pads, no logo.
   basic: { platform: '#7f838d', mat: ['#a9adb5', '#cdd0d6'], skirt: '#141519', rope: '#e2e2e2', pad: '#18191d' },
   // Off the trailer: plywood under a tarp, hemp rope, tape for pads.
@@ -524,8 +526,8 @@ export const ArenaBack = memo(function ArenaBack({
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="url(#mv-mat)" />
       {/* Where the canvas turns down under the ropes to the apron: a crease, not a wall. */}
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="none" stroke="#000" strokeOpacity={0.22} strokeWidth={2} />
-      {setting.ring === 'pro' && <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />}
-      {setting.ring === 'pro' && <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />}
+      {(setting.ring === 'pro' || setting.ring === 'premium') && <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />}
+      {(setting.ring === 'pro' || setting.ring === 'premium') && <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />}
       {setting.ring === 'plywood' && (
         // A tarp over plywood: creased, patched with tape.
         <path d="M 420,396 L 470,436 M 690,384 L 760,404 M 330,440 L 420,446 M 560,380 L 590,392" stroke="#4c5866" strokeWidth={2} opacity={0.7} />

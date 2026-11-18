@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { stagingTonight } from './venue';
 import { venueById } from '../../data/venues';
+import { assetRequirementMet, productionAssetById } from '../../data/production';
 
 describe('what is in the building tonight', () => {
   it('takes only the rungs the room has space for, bottom of the ladder up', () => {
@@ -28,5 +29,16 @@ describe('what is in the building tonight', () => {
     const staged = stagingTonight({ rungs: [], assetsInRoom: ['bigScreen', 'steelBarricades', 'ringUpgrade'], extras: ['security'], venue: arena });
     expect(staged.gear).toEqual(expect.arrayContaining(['screen', 'barricades', 'ring']));
     expect(staged.extras).toEqual(['security']);
+  });
+
+  it('puts the premium ring in the building as its own piece, and sells it only over a professional ring', () => {
+    const arena = venueById('civicArena')!;
+    expect(stagingTonight({ rungs: [], assetsInRoom: ['ringUpgrade', 'premiumRing'], extras: [], venue: arena }).gear).toEqual(expect.arrayContaining(['ring', 'premiumRing']));
+    const premium = productionAssetById('premiumRing')!;
+    expect(assetRequirementMet(premium, [], ['matRopes'])).toBe(false);
+    expect(assetRequirementMet(premium, ['ringUpgrade'], [])).toBe(true);
+    expect(assetRequirementMet(premium, [], ['matRopes', 'ring'])).toBe(true);
+    // Everything without a requirement is always on sale.
+    expect(assetRequirementMet(productionAssetById('soundSystem')!, [], [])).toBe(true);
   });
 });

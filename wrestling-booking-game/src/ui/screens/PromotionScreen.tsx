@@ -12,7 +12,7 @@
 import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { VENUES, venueById } from '../../data/venues';
-import { PRODUCTION_ASSETS, SHOW_EXTRAS, productionAssetById, showExtraById } from '../../data/production';
+import { PRODUCTION_ASSETS, SHOW_EXTRAS, assetRequirementMet, productionAssetById, showExtraById } from '../../data/production';
 import {
   computeShowCosts,
   computeAttendanceForShow,
@@ -354,6 +354,7 @@ export function PromotionScreen() {
           {PRODUCTION_ASSETS.map((asset) => {
             const owned = world.ownedAssetIds.includes(asset.id);
             const affordable = world.promotion.bankBalance >= asset.cost;
+            const needsRing = !owned && !assetRequirementMet(asset, world.ownedAssetIds, world.productionRungs);
             const tooBig = asset.minVenueCapacity && venue.capacity < asset.minVenueCapacity;
             const condition = world.assetConditions.find((c) => c.assetId === asset.id);
             const fixCost = condition ? repairCost(condition, asset.cost, world.settings) : 0;
@@ -366,12 +367,12 @@ export function PromotionScreen() {
               <button
                 type="button"
                 data-testid={`asset-${asset.id}`}
-                disabled={owned || !affordable}
+                disabled={owned || !affordable || needsRing}
                 onClick={() => buyAsset(asset.id)}
                 className={`flex items-start gap-2 rounded border p-2 text-left text-xs ${
                   owned
                     ? 'border-sky-800 bg-sky-950/30'
-                    : affordable
+                    : affordable && !needsRing
                       ? 'border-neutral-800 bg-neutral-900 hover:border-neutral-600'
                       : 'border-neutral-900 bg-neutral-950 opacity-50'
                 }`}
@@ -382,6 +383,7 @@ export function PromotionScreen() {
                     {owned && <span className="ml-1 text-sky-400">owned</span>}
                   </div>
                   <div className="text-[10px] text-neutral-500">{asset.blurb}</div>
+                  {needsRing && <div className="text-[10px] text-amber-500">Needs a professional ring first.</div>}
                   {owned && (
                     <div className="text-[10px] text-neutral-600">
                       upkeep <Money amount={asset.upkeepPerShow} /> per show
