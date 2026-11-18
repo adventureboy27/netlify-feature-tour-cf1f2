@@ -761,3 +761,12 @@ describe('who held the belt on the night', () => {
     expect(heldGoingIn({ history: [] }, 3, false)).toEqual([]);
   });
 });
+
+describe('ring-side accidents', () => {
+  it('the pyro catching somebody is staged on them; a gear failure beat sets nothing off', () => {
+    const pyro = stageMatch([beat('environmental', { kind: 'pyroBurn' }), beat('exchange'), beat('finish')], [], cast, 'cleanPin', { conduct: rulebook(null) }).moments;
+    expect(pyro[0]!.staged.move).toBe('pyroBurn');
+    const gear = stageMatch([beat('environmental', { kind: 'gearFailure' }), beat('exchange'), beat('finish')], [], cast, 'cleanPin', { conduct: rulebook(null) }).moments;
+    expect(gear[0]!.staged.move).toBe('still');
+  });
+});

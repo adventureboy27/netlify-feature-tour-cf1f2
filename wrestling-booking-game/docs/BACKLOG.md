@@ -6876,4 +6876,4 @@ who was not hurt (never on a DQ); a match that cannot happen touches no record.
 - **An equipment-failure ending** is staged as the gear failing: the ladder topples with the climber ("IT GAVE WAY!"), the table holds under the powerbomb ("IT HELD!"), the cage gives way on the climb.
 - Tests: tagged lines exist in the pools; the doer is recorded; the commentator calls the action about the doer; every action stages as itself; post-finish, falls-count-anywhere and gear-failure staging. Audited across 40 seeds × every match type with the real simulator: every recorded action and spot staged as itself.
 
-**Still loose:** a pyro accident is written up but the viewer shows nothing for it.
+**Pyro accidents** are staged too: the charge goes off right behind whoever it caught, who is thrown forward from it, drops to a knee and gets back up. The pyro used to fire for any ring-side event — a gear-failure beat set it off as well — and the burned wrestler just stood there.

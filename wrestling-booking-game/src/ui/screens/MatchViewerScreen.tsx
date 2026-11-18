@@ -660,7 +660,7 @@ export function MatchViewerScreen({
           corners={corners}
           eventName={special ? (special.kind === 'cup' ? CUP_NAME : special.kind === 'breakfast' ? 'The Breakfast Belt' : 'Supershow') : undefined}
           callout={calloutText}
-          pyro={!over && current?.pose === 'environmental'}
+          pyro={!over && current?.kind === 'pyroBurn'}
           bystanders={bystanders}
           conduct={conduct}
           departed={departed}

@@ -412,6 +412,12 @@ const BODIES = {
     target: [STAND, [0.1, 1, 0, -14], [0.22, 0, DOWN, -90], [1, 0, DOWN, -90]],
     impacts: [[0.1, 2, 12], [0.9, 9, 2, true]],
   },
+  // Caught by the pyro: the flash beside them, thrown back from it, down on
+  // a knee with an arm over the face, and slowly back up.
+  pyroBurn: {
+    actor: [STAND, [0.18, -1, 0, 0], [0.28, 1.5, 0, 22], [0.42, 2.5, 0, 14, 0.86], [0.75, 2, 0, 8, 0.86], [1, 1, 0, 0]],
+    target: [STAND, [0.3, 0, 0, 0], [0.5, -1, 0, -6], [1, -1, 0, 0]],
+  },
   // After the bell: the winner stands over the one who is still down.
   standOver: {
     actor: [STAND, [0.4, 1, 0, 0], [1, 1, 0, 0]],
@@ -546,6 +552,7 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   tablePowerbomb: { actor: '- reach carry carry carry crouch guard -', target: '- bend shoulders shoulders fall flat flat flat flat' },
   floorDive: { actor: '- reach punch guard guard run fly fly fly pin flat', target: '- bend spear flat flat flat flat flat flat flat' },
   standOver: { actor: 'guard guard guard' },
+  pyroBurn: { actor: '- guard stagger kneel kneel guard', target: '- guard stagger guard' },
   ladderCollapse: { actor: '- punch guard climb climb climb lift fall flat flat', target: '- stagger flat flat' },
   ladderPull: { actor: '- punch guard climb climb lift lift fall flat flat', target: '- stagger flat flat kneel reach lift stagger guard' },
   ladderDive: { actor: '- punch guard climb climb crouch fly cover cover cover', target: '- stagger flat flat flat flat flat' },
@@ -1043,7 +1050,9 @@ export function stageBeat(
     case 'botch':
       return pick('botch');
     case 'environmental':
-      return pick('still');
+      // The pyro caught somebody: that, where they are. A gear failure is the
+      // finish's to show (the ladder going over, the table holding), not here.
+      return beat.kind === 'pyroBurn' ? pick('pyroBurn', 2000) : pick('still');
     case 'elimination': {
       if (conduct.elimination === 'overTop') return shouting(pick(spoken && OVER_THE_TOP.includes(spoken) ? spoken : fresh(OVER_THE_TOP)), 'ELIMINATED!', 0.82);
       // Anywhere else somebody is eliminated the ordinary way: beaten.

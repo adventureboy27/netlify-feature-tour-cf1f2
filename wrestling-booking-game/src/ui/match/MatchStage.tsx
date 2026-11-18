@@ -816,12 +816,17 @@ export function MatchStage({
             ))}
 
           {pyro &&
-            [18, 82].map((x) => (
+            // Where it went off: right behind whoever it caught, if anybody
+            // was; otherwise both sides of the entrance.
+            (actor && plan?.tracks.get(actor.wrestler.id)?.[0]
+              ? [`${sx(plan.tracks.get(actor.wrestler.id)![0]!.x - dirOf(actor.slot) * 3)}px`]
+              : ['18%', '82%']
+            ).map((x) => (
               <div
                 key={`${beatKey}-pyro-${x}`}
                 className="mv-pyro pointer-events-none absolute"
                 style={{
-                  left: `${x}%`,
+                  left: x,
                   bottom: '12%',
                   width: 7 * u,
                   height: 26 * u,
