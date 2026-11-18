@@ -76,11 +76,12 @@ function finishOf(finish: FinishType, stipulation: string | null, rules: MatchRu
   // Written as the gear giving out under them, and staged that way.
   if (finish === 'equipmentFailure') return 'gearFailure';
   if (finish === 'doubleKO') return 'doubleKO';
+  // Stopped because somebody could not go on: nobody climbs a ladder after
+  // that, and nobody throws them over the top rope either.
+  if (finish === 'injuryStoppage' || finish === 'refereeStoppage') return 'stoppage';
   if (battleRoyal) return 'overTop';
   if (finish === 'disqualification') return 'dq';
   if (finish === 'countOut') return 'countOut';
-  // Stopped because somebody could not go on: nobody climbs a ladder after that.
-  if (finish === 'injuryStoppage' || finish === 'refereeStoppage') return 'stoppage';
   if (finish === 'escape') return 'escape';
   if (finish === 'submission') return 'submission';
   // Somebody won it, by some decisive means. What that looks like is the

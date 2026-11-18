@@ -1467,6 +1467,13 @@ export interface SegmentResult {
    * 'lastFactionStanding'.
    */
   factionEliminationOrder?: Id[];
+  /**
+   * A battle royal's full elimination order, first out first — every one of
+   * them, where `beats` names only a few. The match viewer walks the
+   * unnamed ones out in this order between the named eliminations, so the
+   * ring empties the way the match actually went.
+   */
+  battleRoyalOrder?: Id[];
   titleChanged: boolean;
   /**
    * Everybody hurt in this match, with the sentence explaining how — see

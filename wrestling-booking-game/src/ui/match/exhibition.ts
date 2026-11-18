@@ -10,7 +10,7 @@ export type WatchSegment = Pick<Segment, 'participants' | 'stipulation' | 'rules
   rules: MatchRules;
 };
 /** A match's result, as stored: the same shape whatever night it was on. */
-export type WatchResult = Pick<SegmentResult, 'beats' | 'finish' | 'winnerSide' | 'winnerWrestlerIds' | 'titleChanged' | 'injuries' | 'commentary'>;
+export type WatchResult = Pick<SegmentResult, 'beats' | 'finish' | 'winnerSide' | 'winnerWrestlerIds' | 'titleChanged' | 'injuries' | 'commentary'> & Partial<Pick<SegmentResult, 'battleRoyalOrder'>>;
 
 /** The company in a corner, on a night with more than one company in the building. */
 export interface Corner {

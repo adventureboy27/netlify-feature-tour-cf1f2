@@ -3018,6 +3018,7 @@ export const useGameStore = create<GameStore>()(
             ratingBreakdown: result.ratingBreakdown,
             beats: result.beats,
             factionEliminationOrder: result.factionEliminationOrder,
+            battleRoyalOrder: result.battleRoyalOrder,
             titleChanged,
             injuries: injuriesTonight,
             refereeMisses: misses,

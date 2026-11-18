@@ -324,7 +324,34 @@ export function MatchViewerScreen({
       if (m.actorId) wear.set(m.actorId, Math.min(1, (wear.get(m.actorId) ?? 0) + 0.015));
       return slow > 1.02 ? { ...m, holdMs: Math.round(m.holdMs * slow), staged: { ...m.staged, duration: Math.round(m.staged.duration * slow) } } : m;
     });
-    return { ...sides, timeline, conduct, hurtFrom, bleedFrom, burnedFrom, wearAt, ...staged };
+    // A battle royal names only a few of its eliminations. The rest happened
+    // too, in the order the sim recorded: each one goes between the named
+    // eliminations either side of it in that order, spread evenly, and the
+    // last before the finish — so the ring has emptied by the end the way the
+    // match actually went, rather than the field still lying about in it.
+    const outAt = new Map<Id, number>();
+    const order = result.battleRoyalOrder ?? [];
+    if (order.length > 0) {
+      const named = new Map<Id, number>();
+      staged.moments.forEach((m, i) => {
+        if (m.beat.pose === 'elimination' && m.targetId && !m.filler) named.set(m.targetId, i);
+      });
+      const finishAt = staged.moments.map((m) => m.beat.pose).lastIndexOf('finish');
+      const end = finishAt >= 0 ? finishAt : staged.moments.length - 1;
+      let from = 0;
+      let k = 0;
+      while (k < order.length) {
+        // The run of unnamed ones up to the next named elimination (or the finish).
+        let j = k;
+        while (j < order.length && !named.has(order[j]!)) j++;
+        const to = j < order.length ? named.get(order[j]!)! : end;
+        const run = order.slice(k, j);
+        run.forEach((id, n) => outAt.set(id, Math.min(to, from + Math.floor(((n + 1) * (to - from)) / (run.length + 1)))));
+        if (j < order.length) from = named.get(order[j]!)!;
+        k = j + 1;
+      }
+    }
+    return { ...sides, timeline, conduct, hurtFrom, bleedFrom, burnedFrom, wearAt, outAt, ...staged };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
@@ -468,9 +495,11 @@ export function MatchViewerScreen({
   // than tracked as its own state — `timeline`/`beatIndex` already say
   // everything about "what's happened up to now," so a separate synced Set
   // would just be one more thing to keep in step with them.
-  const eliminated = new Set(
-    moments.slice(0, beatIndex + 1).flatMap((m) => (m.beat.pose === 'elimination' && m.targetId ? [m.targetId] : [])),
-  );
+  const eliminated = new Set([
+    ...moments.slice(0, beatIndex + 1).flatMap((m) => (m.beat.pose === 'elimination' && m.targetId ? [m.targetId] : [])),
+    // The ones the write-up did not name, out on the sim's schedule.
+    ...[...(staging?.outAt ?? [])].filter(([, at]) => beatIndex >= at).map(([id]) => id),
+  ]);
 
   // Before the bell the two who open the match are the ones standing in it.
   const onNow = moment ?? moments[0];

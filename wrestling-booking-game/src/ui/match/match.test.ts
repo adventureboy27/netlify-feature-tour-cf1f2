@@ -770,3 +770,10 @@ describe('ring-side accidents', () => {
     expect(gear[0]!.staged.move).toBe('still');
   });
 });
+
+describe('a battle royal stopped for an injury', () => {
+  it('is staged as the stoppage it was written as, not as over the top', () => {
+    expect(rulebook('battleRoyal', 'injuryStoppage', {}, [1, 7]).finish).toBe('stoppage');
+    expect(rulebook('battleRoyal', 'cleanPin', {}, [1, 7]).finish).toBe('overTop');
+  });
+});

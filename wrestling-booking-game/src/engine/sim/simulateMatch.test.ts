@@ -522,3 +522,16 @@ describe('simulateMatch', () => {
     expect(interferenceBeat!.text).toContain('The Suit');
   });
 });
+
+describe('a battle royal keeps its whole elimination order', () => {
+  it('records everybody but the winner, once each, even the ones the write-up does not name', () => {
+    const roster = makeRoster(77, 8);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = roster.map((w, i) => ({ wrestlerId: w.id, side: i }));
+    const result = simulateMatch(rngFromSeed('royal'), participants, byId, baseContext({ stipulation: stipulationById('battleRoyal') ?? null, rules: baseRules({ preset: 'battleRoyal' }) }));
+    const order = result.battleRoyalOrder ?? [];
+    expect(order).toHaveLength(7);
+    expect(new Set(order).size).toBe(7);
+    for (const id of result.winnerWrestlerIds) expect(order).not.toContain(id);
+  });
+});

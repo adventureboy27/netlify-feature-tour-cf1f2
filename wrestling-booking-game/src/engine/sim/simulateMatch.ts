@@ -144,6 +144,8 @@ export interface MatchSimResult {
    * 'lastFactionStanding'.
    */
   factionEliminationOrder?: Id[];
+  /** A battle royal's full elimination order (types.ts SegmentResult). */
+  battleRoyalOrder?: Id[];
 }
 
 function mean(values: number[]): number {
@@ -562,6 +564,7 @@ export function simulateMatch(
     gearFailureUnitId: gearFailure?.unitId ?? null,
     caughtManagerId,
     factionEliminationOrder: factionElimination?.events.map((e) => e.eliminatedId),
+    battleRoyalOrder: !factionElimination && eliminations ? eliminations.map((e) => e.eliminatedId) : undefined,
     winProbabilitiesBySide,
     injuryMultiplier:
       (ctx.stipulation?.injuryMult ?? 1) *

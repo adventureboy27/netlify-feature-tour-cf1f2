@@ -6899,3 +6899,10 @@ The pyro burst was a blurred gradient column. It is now drawn in the wrestlers' 
 ## Entrance pyro
 
 A show that fired pyro — the pyro rung, or pyro charges bought for that show — now records it (`Show.pyro`), the same condition that lets the pyro catch somebody. In the match viewer every match on that show opens with the hand-drawn pyro going up at both ring posts before the bell, and the moment before the bell holds long enough for it to burn out. Shows without pyro, older saves, and rivals' shows are unchanged.
+
+## Tag match and battle royal render pass
+
+Played a real tag match and a real eight-man battle royal through the game (booked, resolved, watched in the match viewer).
+- **Tag match:** fine — partners wait on the aprons outside the ropes, a tagged-in partner comes over the top rope with "TAG!", a top-rope move goes from the team's own corner.
+- **Battle royal, fixed — the field never left.** The write-up names only a few eliminations, so the other wrestlers lay about in the ring to the very end and were still there when the winner was announced. The sim's full elimination order is now saved on the result (`battleRoyalOrder`), and the viewer walks the unnamed ones out in that order, spread between the named eliminations either side of them. The ring thins out as the match goes and is empty but for the last two at the finish.
+- **Battle royal, fixed — an injury stoppage was staged as over the top.** A battle royal stopped because somebody was hurt now plays as the stoppage the write-up describes ("MATCH STOPPED!"), the injured wrestler left down.
