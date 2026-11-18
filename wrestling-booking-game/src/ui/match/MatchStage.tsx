@@ -150,6 +150,7 @@ export function MatchStage({
   burned,
   wear,
   stains = [],
+  entrancePyro = false,
   corners,
   eventName,
   prize,
@@ -198,6 +199,8 @@ export function MatchStage({
   wear?: ReadonlyMap<Id, number>;
   /** Blood already on the mat from earlier matches tonight. */
   stains?: readonly Stain[];
+  /** The show had pyro: it goes off at the ring posts before the bell. */
+  entrancePyro?: boolean;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
@@ -865,6 +868,10 @@ export function MatchStage({
                 {shout.text}
               </span>
             ))}
+
+          {/* The entrances: tonight's pyro, at both ring posts, before the bell. */}
+          {entrancePyro && !staged && !over &&
+            [-1, 1].map((side) => <PyroBurst key={`entrance-pyro-${side}`} left={sx(side * (RING.half + 1.2))} bottom={feetY + 0.5 * u} width={10 * u} height={30 * u} />)}
 
           {pyro &&
             // Where it went off: right behind whoever it caught, if anybody

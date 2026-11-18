@@ -2077,3 +2077,19 @@ describe('the Crucible and the sponsor tournament go on the record like any matc
     for (const id of Object.keys(before)) if (!expected[id]) expect(after[id]).toEqual(before[id]);
   });
 });
+
+describe('the show remembers its pyro', () => {
+  it('a show with the pyro rung is recorded as having had pyro, and one without is not', () => {
+    useGameStore.getState().newGame(patientOwner());
+    useGameStore.getState().autoFillCard();
+    useGameStore.getState().resolveWeek();
+    let world = useGameStore.getState().world!;
+    expect(world.showHistory[world.showHistory.length - 1]!.pyro).toBe(false);
+
+    useGameStore.setState({ world: { ...world, productionRungs: [...world.productionRungs, 'pyro'] } });
+    useGameStore.getState().autoFillCard();
+    useGameStore.getState().resolveWeek();
+    world = useGameStore.getState().world!;
+    expect(world.showHistory[world.showHistory.length - 1]!.pyro).toBe(true);
+  });
+});

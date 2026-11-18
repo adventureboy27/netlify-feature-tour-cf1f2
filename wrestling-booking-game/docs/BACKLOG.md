@@ -6895,3 +6895,7 @@ All of it read off what the simulation recorded — nothing a wrestler wears in 
 ## Pyro, hand-drawn
 
 The pyro burst was a blurred gradient column. It is now drawn in the wrestlers' ink (`ui/match/Pyro.tsx`): three uneven tongues of flame inside one another — ink outline, orange, yellow, a white-hot core — each flickering at its own speed, sparkles popping inside it, embers thrown off the top, and a warm glow on the mat. It shoots up out of the floor, roars, and dies down over 1.3 s. Reduced-motion users get the flame without the flicker and sparks.
+
+## Entrance pyro
+
+A show that fired pyro — the pyro rung, or pyro charges bought for that show — now records it (`Show.pyro`), the same condition that lets the pyro catch somebody. In the match viewer every match on that show opens with the hand-drawn pyro going up at both ring posts before the bell, and the moment before the bell holds long enough for it to burn out. Shows without pyro, older saves, and rivals' shows are unchanged.

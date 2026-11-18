@@ -4442,6 +4442,7 @@ export const useGameStore = create<GameStore>()(
           showStars,
           broadcast: true,
           priceReaction: reaction,
+          pyro: world.productionRungs.includes('pyro') || world.showSetup.extraIds.includes('pyroCharges'),
         });
 
         // ---- what the fans made of it -----------------------------------

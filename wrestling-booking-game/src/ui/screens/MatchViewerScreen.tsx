@@ -248,6 +248,7 @@ export function MatchViewerScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [special?.kind, special?.index, world?.lastCup, world?.lastSupershow]);
   const show = special ? undefined : world?.showHistory.find((s) => s.week === matchWeek);
+  const entrancePyro = Boolean(show?.pyro);
   // Blood from the matches before this one tonight is still on the mat: a
   // few splats for everybody the record says was busted open in them.
   const earlierStains = useMemo(() => {
@@ -358,7 +359,8 @@ export function MatchViewerScreen({
     if (beatIndex > lastBeat) return;
     // Before the bell there is nothing to wait for but the introductions.
     if (beatIndex < 0 && said < sayable) return;
-    const handle = setTimeout(() => setBeatIndex((n) => n + 1), beatIndex < 0 ? 700 : (moments[beatIndex]?.holdMs ?? 1700));
+    // A show with pyro holds before the bell long enough for it to go off.
+    const handle = setTimeout(() => setBeatIndex((n) => n + 1), beatIndex < 0 ? (entrancePyro ? 1700 : 700) : (moments[beatIndex]?.holdMs ?? 1700));
     return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staging, synced, beatIndex, beatIndex < 0 && said < sayable]);
@@ -382,7 +384,7 @@ export function MatchViewerScreen({
   // to finish together, which is the best that can be done for it.
   useEffect(() => {
     if (!staging || synced || beatIndex > lastBeat) return;
-    const handle = setTimeout(() => setBeatIndex((n) => n + 1), beatIndex < 0 ? 300 : BEAT_PACE_MS);
+    const handle = setTimeout(() => setBeatIndex((n) => n + 1), beatIndex < 0 ? (entrancePyro ? 1700 : 300) : BEAT_PACE_MS);
     return () => clearTimeout(handle);
   }, [staging, synced, beatIndex, lastBeat]);
   useEffect(() => {
@@ -717,6 +719,7 @@ export function MatchViewerScreen({
           burned={burned}
           wear={wear}
           stains={earlierStains}
+          entrancePyro={entrancePyro}
           prize={segment.titleIds.length > 0 ? 'belt' : 'case'}
           hurt={hurt}
           belt={beltLook}

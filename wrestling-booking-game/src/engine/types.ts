@@ -1622,6 +1622,13 @@ export interface Show {
    * shows genuinely have no reaction rather than a defaulted one.
    */
   priceReaction?: PriceReaction;
+  /**
+   * Tonight's entrances had real fire in them — the pyro rung, or pyro
+   * charges bought for this show. The same thing that lets the pyro catch
+   * somebody (sim/pyro.ts); the match viewer fires it before each bell.
+   * Absent on shows from before this was recorded, and on rivals' shows.
+   */
+  pyro?: boolean;
 }
 
 // ============================================================================
