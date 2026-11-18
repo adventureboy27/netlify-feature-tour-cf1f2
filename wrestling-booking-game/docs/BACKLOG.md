@@ -7056,3 +7056,11 @@ A new top ring, the **Broadcast Ring** ($600,000, $1,800 upkeep a show; +3 show 
 - A wrestler whose gear has no real colour (white, black, grey) gets a strong one picked by who they are, so a package never comes up grey.
 - Reduced motion stills the whole screen (scenes still change; nothing moves). Interpromotional nights keep the split skirt.
 - Checked in renders of a forced broadcast-ring show: the title card, the VS card, both packages (a face and a tweener), the cut to a signature move, the winner card. Not seen in a render: a heel's flames, a champion's gold tag, the big-boo red break-up, a star's moment, and the battle-royal face reel — the match rendered had none of those.
+
+## Ring canvas colours, and the logo in the middle
+
+- **Pick the canvas colour** on Promotion → Equipment → Ring canvas, once there is a professional ring (from either shop): Classic white, Midnight blue, Blackout, Crimson, Royal purple, Emerald, Steel, or the company's own colour (data/ringMats.ts; `setRingMat`; `Promotion.ringMat`). It is looks only, so it is free and not rated.
+- **The logo in the middle:** the company's uploaded logo (Identity → Upload logo) is printed flat in the centre of the canvas, in the mat's perspective — on a professional ring on its own, on the premium and broadcast rings inside the gold-rimmed medallion. Without an uploaded logo the professional ring keeps its rings of colour and the premium rings keep the initials.
+- **Kept per show:** each show records the canvas it had (`ShowStaging.mat`), so changing colour later does not repaint old replays; older shows are classic white. On a company-colour canvas the border band and medallion go black so they still stand out. Plywood and the plain mat-and-ropes ring keep their own canvas.
+- Interpromotional nights draw no logo (the ring belongs to two companies).
+- Checked in renders: midnight + logo on the premium ring, crimson on the broadcast ring, company colour + logo on a professional ring, blackout on the premium ring; and a real played show records its mat. Not rendered: the Ring canvas picker itself on the Equipment page.

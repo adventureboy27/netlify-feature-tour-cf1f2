@@ -360,7 +360,10 @@ export function MatchStage({
   spoils,
   marquee,
   broadcast,
+  logo,
 }: {
+  /** The company's uploaded logo, for the middle of the canvas. */
+  logo?: string;
   /** What the broadcast ring's apron screen shows: the night and the cast, the move landing this beat, who won. */
   broadcast?: { show: Broadcast; action: ScreenAction | null; winners: readonly Wrestler[]; caption: string | null };
   /** What the premium ring's LED apron has to say: the night, the names, the match. */
@@ -998,7 +1001,7 @@ export function MatchStage({
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
       {w > 0 && (
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
-          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} starColor={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : undefined} signs={signs} setting={setting} onSideRope={onSideRope} />
+          <ArenaBack accent={accent} name={promotionName} logo={logo} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} starColor={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : undefined} signs={signs} setting={setting} onSideRope={onSideRope} />
 
           {/* The premium ring: the whole front of the apron is a bulb sign. */}
           {setting.ring === 'premium' && !conduct?.noRing && !corners && marquee && (

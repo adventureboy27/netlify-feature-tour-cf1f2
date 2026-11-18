@@ -1719,6 +1719,8 @@ export interface ShowStaging {
   gear: StagingGear[];
   /** Show extras bought for this night (data/production.ts SHOW_EXTRAS ids). */
   extras: Id[];
+  /** The ring canvas's colour that night (data/ringMats.ts). Absent on older shows: classic. */
+  mat?: Id;
 }
 
 // ============================================================================
@@ -1807,6 +1809,8 @@ export interface Promotion {
   ownerPhotoDataUrl?: string;
   /** A real uploaded promotion logo. Absent means PromotionMark falls back to the generated badge. */
   logoDataUrl?: string;
+  /** The colour the ring's canvas is printed (data/ringMats.ts). Absent: classic white. */
+  ringMat?: Id;
   /**
    * The men this company killed. Kept because the business keeps it: it
    * prices the roster and the free-agent market for two years afterwards.

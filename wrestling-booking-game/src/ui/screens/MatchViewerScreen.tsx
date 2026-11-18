@@ -18,7 +18,7 @@ import { maskWorn } from '../paperdoll/maskWorn';
 import { MatchStage, type Aftermath, type Bystander, type CornerCue, type RingsidePerson, type StageFighter, type Stain } from '../match/MatchStage';
 import { initialsOf } from '../match/Ringside';
 import { entranceOf, finaleFor, reactionTo, standingOf } from '../match/crowd';
-import { settingOf } from '../match/setting';
+import { ARENA_ACCENT, settingOf } from '../match/setting';
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
 import { isNonDecisiveFinish } from '../../engine/sim/finish';
@@ -33,7 +33,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, promotionTheme } from '../components/chrome';
 import { effectiveRules, stipulationById } from '../../data/stipulations';
 import { rngFromSeed } from '../../engine/rng';
-import type { Id, PromotionArchetype, FinishType, SegmentRole, Title, Wrestler } from '../../engine/types';
+import type { Id, FinishType, SegmentRole, Title, Wrestler } from '../../engine/types';
 
 /**
  * How long one beat holds for a match whose commentary cannot be tied to
@@ -44,18 +44,6 @@ const BEAT_PACE_MS = 2000;
 /** The gap between one line and the next when several are said in a row. */
 const LINE_PACE_MS = 1300;
 
-// The ring's apron, turnbuckle pads and big screen, in the house colour —
-// the same hues chrome.tsx's promotionTheme uses for buttons, as plain hex
-// because an SVG fill cannot take a Tailwind class.
-const ARENA_ACCENT: Record<PromotionArchetype, string> = {
-  territory: '#d97706',
-  hardcore: '#b91c1c',
-  technical: '#0369a1',
-  sportsEntertainment: '#a21caf',
-  lucha: '#ea580c',
-  oldSchool: '#78716c',
-  athletic: '#059669',
-};
 
 /** Which match of an interpromotional night to play. */
 export interface SpecialMatch {
@@ -793,6 +781,7 @@ export function MatchViewerScreen({
           finale={finaleFor(combined.filter((w) => winnerIds.has(w.id)))}
           signs={crowdSigns}
           setting={settingOf(show)}
+          logo={corners ? undefined : world.promotion.logoDataUrl}
           broadcast={{
             show: { event: show?.name || world.promotion.name, promotion: world.promotion.name, sides: [combined.filter((w) => onSideA.has(w.id)), combined.filter((w) => !onSideA.has(w.id))], stipulation: stipulation?.name ?? null, title: titleNames[0] ?? null },
             // The ring, cut to when something worth it lands: a named move, or a near fall — the same words the commentary uses.

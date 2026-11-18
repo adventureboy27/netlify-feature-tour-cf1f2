@@ -3,7 +3,7 @@
 // viewer is the room the night was rated in: the backyard with a ring off a
 // trailer, the school gym with the scoreboard on, the arena with the rig.
 
-import type { Show, StagingGear } from '../../engine/types';
+import type { PromotionArchetype, Show, StagingGear } from '../../engine/types';
 import { venueById } from '../../data/venues';
 
 /** The kinds of room, as drawn. */
@@ -27,6 +27,8 @@ export interface Setting {
   medical: boolean;
   /** How full it was, 0-1. */
   fill: number;
+  /** The canvas's colour (data/ringMats.ts), on a professional ring or better. */
+  mat?: string;
 }
 
 /** What every match looked like before the night's staging was recorded, and on nights that are not ours. */
@@ -81,9 +83,23 @@ export function settingOf(show: Pick<Show, 'staging' | 'venueId' | 'attendance' 
     barricades: has('barricades'),
     security: staging.extras.includes('security'),
     medical: staging.extras.includes('medicalStaff'),
+    mat: staging.mat,
     fill: show.venueCapacity > 0 ? Math.max(0, Math.min(1, show.attendance / show.venueCapacity)) : 0.9,
   };
 }
 
 /** The top two rings share the dressing — the printed canvas, the black-and-gold pads, the LED posts — and differ in the apron. */
 export const isFancyRing = (ring: Setting['ring']) => ring === 'premium' || ring === 'broadcast';
+
+// The ring's apron, turnbuckle pads and big screen, in the house colour —
+// the same hues chrome.tsx's promotionTheme uses for buttons, as plain hex
+// because an SVG fill cannot take a Tailwind class.
+export const ARENA_ACCENT: Record<PromotionArchetype, string> = {
+  territory: '#d97706',
+  hardcore: '#b91c1c',
+  technical: '#0369a1',
+  sportsEntertainment: '#a21caf',
+  lucha: '#ea580c',
+  oldSchool: '#78716c',
+  athletic: '#059669',
+};

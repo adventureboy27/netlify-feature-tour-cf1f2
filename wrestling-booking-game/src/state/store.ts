@@ -795,6 +795,8 @@ export interface GameStore {
   setPromotionIdentity: (name: string, archetype: PromotionArchetype) => void;
   /** A real uploaded logo, or null to go back to the generated mark. Never locked — cosmetic only. */
   setPromotionLogo: (logoDataUrl: string | null) => void;
+  /** What colour the ring's canvas is printed. Looks only; free. */
+  setRingMat: (matId: Id) => void;
   /** A real uploaded photo of the owner, or null to go back to the generated placeholder. */
   setOwnerPhoto: (photoDataUrl: string | null) => void;
   // Roster moves
@@ -4589,7 +4591,7 @@ export const useGameStore = create<GameStore>()(
           broadcast: true,
           priceReaction: reaction,
           pyro: staging.pyro,
-          staging: { venueKind: staging.venueKind, outdoor: staging.outdoor, gear: staging.gear, extras: staging.extras },
+          staging: { venueKind: staging.venueKind, outdoor: staging.outdoor, gear: staging.gear, extras: staging.extras, mat: world.promotion.ringMat ?? 'classic' },
         });
 
         // ---- what the fans made of it -----------------------------------

@@ -1,3 +1,4 @@
+import { RING_MATS } from '../../data/ringMats';
 // Tag teams, and the two things you cannot change once the doors are open:
 // a wrestler's own name and look, and the promotion's house identity.
 //
@@ -28,6 +29,7 @@ type TagTeamsAndIdentitySlice = Pick<
   | 'retireWrestler'
   | 'setPromotionIdentity'
   | 'setPromotionLogo'
+  | 'setRingMat'
   | 'setOwnerPhoto'
 >;
 
@@ -164,6 +166,14 @@ export const createTagTeamsAndIdentitySlice: StateCreator<
       const world = state.world;
       if (!world) return;
       world.promotion.logoDataUrl = logoDataUrl ?? undefined;
+    });
+  },
+
+  setRingMat: (matId) => {
+    set((state) => {
+      const world = state.world;
+      if (!world || !RING_MATS.some((m) => m.id === matId)) return;
+      world.promotion.ringMat = matId;
     });
   },
 

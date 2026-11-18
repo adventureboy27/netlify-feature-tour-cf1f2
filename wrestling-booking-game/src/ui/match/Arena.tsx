@@ -17,6 +17,7 @@
 import { memo, useMemo } from 'react';
 import { Entrance, HouseLights, NoScreen, Room, SoundStacks } from './Venue';
 import { FULL_PRODUCTION, isFancyRing, type Setting } from './setting';
+import { ringMatById } from '../../data/ringMats';
 import { RING } from './ringPhysics';
 import './match.css';
 
@@ -265,6 +266,32 @@ function wrapName(name: string): string[] {
 }
 
 
+/** A hex colour mixed toward black by `k` (0-1). */
+const darken = (hex: string, k: number) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1]!, 16);
+  const ch = (v: number) => Math.round(v * (1 - k)).toString(16).padStart(2, '0');
+  return `#${ch((n >> 16) & 255)}${ch((n >> 8) & 255)}${ch(n & 255)}`;
+};
+
+/** The canvas colours tonight: the ring's own for anything below a professional ring, the printed colour from there up. */
+function canvasOf(setting: Setting, accent: string): { colours: [string, string]; dark: boolean; company: boolean } {
+  if (setting.ring === 'plywood' || setting.ring === 'basic') return { colours: RING_LOOK[setting.ring].mat as [string, string], dark: false, company: false };
+  const mat = ringMatById(setting.mat);
+  if (!mat.canvas) return { colours: [darken(accent, 0.55), darken(accent, 0.15)], dark: true, company: true };
+  return { colours: mat.canvas, dark: mat.dark, company: false };
+}
+
+/** The company's uploaded logo, printed flat on the canvas: drawn upright, then laid down into the mat's perspective. */
+function MatLogo({ href, cx, cy, size, squash }: { href: string; cx: number; cy: number; size: number; squash: number }) {
+  return (
+    <g transform={`translate(${cx} ${cy}) scale(1 ${squash}) translate(${-cx} ${-cy})`}>
+      <image href={href} x={cx - size / 2} y={cy - size / 2} width={size} height={size} preserveAspectRatio="xMidYMid meet" opacity={0.95} />
+    </g>
+  );
+}
+
 // ---- the premium ring's dressing -------------------------------------------
 
 /** The company's initials, printed in the middle of a premium canvas. */
@@ -314,7 +341,7 @@ function Pad({ x, y, w, h, fill, premium, stroke }: { x: number; y: number; w: n
  * initials laid flat in a gold-rimmed medallion — all in the mat's own
  * perspective.
  */
-function PremiumCanvas({ accent, name }: { accent: string; name: string }) {
+function PremiumCanvas({ accent, name, logo, company }: { accent: string; name: string; logo?: string; company?: boolean }) {
   const cx = 600;
   const cy = 412;
   const inset = (k: number) => {
@@ -330,17 +357,21 @@ function PremiumCanvas({ accent, name }: { accent: string; name: string }) {
   const initials = initialsOf(name);
   return (
     <g>
-      <polygon points={inset(0.035)} fill="none" stroke={accent} strokeWidth={9} opacity={0.85} />
+      <polygon points={inset(0.035)} fill="none" stroke={company ? '#0b0b0e' : accent} strokeWidth={9} opacity={0.85} />
       <polygon points={inset(0.075)} fill="none" stroke={GOLD} strokeWidth={1.6} opacity={0.9} />
       {rays.map((r) => (
         <line key={r.i} x1={r.x0} y1={r.y0} x2={r.x1} y2={r.y1} stroke={r.i % 2 ? GOLD : accent} strokeWidth={r.i % 2 ? 2 : 4} opacity={0.35} strokeLinecap="round" />
       ))}
-      <ellipse cx={cx} cy={cy} rx={104} ry={21} fill={accent} opacity={0.92} />
+      <ellipse cx={cx} cy={cy} rx={104} ry={21} fill={company ? '#0b0b0e' : accent} opacity={0.92} />
       <ellipse cx={cx} cy={cy} rx={104} ry={21} fill="none" stroke={GOLD} strokeWidth={3} />
       <ellipse cx={cx} cy={cy} rx={92} ry={17.5} fill="none" stroke="#ffffff" strokeWidth={1.2} opacity={0.6} />
-      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" transform={`translate(${cx} ${cy}) scale(1 0.24) translate(${-cx} ${-cy})`} fontSize={Math.min(104, 260 / Math.max(1, initials.length))} fontWeight={900} fontStyle="italic" fill="#ffffff" stroke="#000" strokeOpacity={0.35} strokeWidth={4} style={{ letterSpacing: '0.04em' }}>
-        {initials}
-      </text>
+      {logo ? (
+        <MatLogo href={logo} cx={cx} cy={cy} size={190} squash={0.2} />
+      ) : (
+        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" transform={`translate(${cx} ${cy}) scale(1 0.24) translate(${-cx} ${-cy})`} fontSize={Math.min(104, 260 / Math.max(1, initials.length))} fontWeight={900} fontStyle="italic" fill="#ffffff" stroke="#000" strokeOpacity={0.35} strokeWidth={4} style={{ letterSpacing: '0.04em' }}>
+          {initials}
+        </text>
+      )}
     </g>
   );
 }
@@ -383,6 +414,7 @@ const LAMP_MOTION = LAMPS.map((_, i) => {
 export const ArenaBack = memo(function ArenaBack({
   accent,
   name,
+  logo,
   hype,
   showName,
   cage = false,
@@ -397,6 +429,8 @@ export const ArenaBack = memo(function ArenaBack({
   setting = FULL_PRODUCTION,
   onSideRope,
 }: {
+  /** The company's uploaded logo, printed in the middle of a professional canvas. */
+  logo?: string;
   /** The room and what was in it (ui/match/setting.ts). */
   setting?: Setting;
   /** How the room feels right now (see ui/match/crowd.ts). */
@@ -427,6 +461,7 @@ export const ArenaBack = memo(function ArenaBack({
   showName: boolean;
 }) {
   // The LED posts: held on a star's colour, or red when the room is furious; otherwise cycling.
+  const canvas = canvasOf(setting, accent);
   const ledColor = starColor ?? (mood === 'boo' && moodBig ? '#ff2b25' : undefined);
   return (
     <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className={`absolute inset-0 h-full w-full ${hype ? 'mv-hype' : ''}${mood ? ` mv-mood mv-mood-${mood}${moodBig ? ' mv-mood-big' : ''}` : ''}${starColor ? ' mv-starlit' : ''}`} aria-hidden>
@@ -464,8 +499,8 @@ export const ArenaBack = memo(function ArenaBack({
           </linearGradient>
         )}
         <linearGradient id="mv-mat" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={RING_LOOK[setting.ring].mat[0]} />
-          <stop offset="100%" stopColor={RING_LOOK[setting.ring].mat[1]} />
+          <stop offset="0%" stopColor={canvas.colours[0]} />
+          <stop offset="100%" stopColor={canvas.colours[1]} />
         </linearGradient>
         <linearGradient id="mv-apron" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={accent} />
@@ -610,9 +645,10 @@ export const ArenaBack = memo(function ArenaBack({
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="url(#mv-mat)" />
       {/* Where the canvas turns down under the ropes to the apron: a crease, not a wall. */}
       <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="none" stroke="#000" strokeOpacity={0.22} strokeWidth={2} />
-      {isFancyRing(setting.ring) && !corners && <PremiumCanvas accent={accent} name={name} />}
+      {isFancyRing(setting.ring) && !corners && <PremiumCanvas accent={accent} name={name} logo={logo} company={canvas.company} />}
       {(setting.ring === 'pro' || (isFancyRing(setting.ring) && corners)) && <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />}
-      {(setting.ring === 'pro' || (isFancyRing(setting.ring) && corners)) && <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />}
+      {setting.ring === 'pro' && !corners && logo && <MatLogo href={logo} cx={600} cy={412} size={150} squash={0.2} />}
+      {(setting.ring === 'pro' || (isFancyRing(setting.ring) && corners)) && !(logo && !corners) && <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />}
       {setting.ring === 'plywood' && (
         // A tarp over plywood: creased, patched with tape.
         <path d="M 420,396 L 470,436 M 690,384 L 760,404 M 330,440 L 420,446 M 560,380 L 590,392" stroke="#4c5866" strokeWidth={2} opacity={0.7} />

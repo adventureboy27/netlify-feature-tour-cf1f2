@@ -12,6 +12,8 @@
 import { useMemo, useState } from 'react';
 import { useGameStore } from '../../state/store';
 import { VENUES, venueById } from '../../data/venues';
+import { RING_MATS } from '../../data/ringMats';
+import { ARENA_ACCENT } from '../match/setting';
 import { PRODUCTION_ASSETS, SHOW_EXTRAS, assetRequirementMet, productionAssetById, showExtraById } from '../../data/production';
 import {
   computeShowCosts,
@@ -57,6 +59,7 @@ export function PromotionScreen() {
   const setTicketPrice = useGameStore((s) => s.setTicketPrice);
   const toggleExtra = useGameStore((s) => s.toggleShowExtra);
   const buyAsset = useGameStore((s) => s.buyProductionAsset);
+  const setRingMat = useGameStore((s) => s.setRingMat);
   const repair = useGameStore((s) => s.repairProductionAsset);
   const sellAsset = useGameStore((s) => s.sellProductionAsset);
   const buyPropUnit = useGameStore((s) => s.buyPropUnit);
@@ -347,6 +350,34 @@ export function PromotionScreen() {
 
       {tab === 'gear' && (
         <>
+      {/* ---- the canvas ------------------------------------------------- */}
+      {(world.productionRungs.includes('ring') || world.ownedAssetIds.includes('ringUpgrade')) && (
+        <section data-testid="ring-mat">
+          <h2 className="mb-1 text-sm font-medium text-neutral-300">Ring canvas</h2>
+          <p className="mb-2 text-[11px] text-neutral-500">
+            What colour the canvas is printed. {world.promotion.logoDataUrl ? 'Your logo goes in the middle.' : 'Upload a logo under Identity and it goes in the middle.'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {RING_MATS.map((mat) => {
+              const chosen = (world.promotion.ringMat ?? 'classic') === mat.id;
+              const [far, near] = mat.canvas ?? [ARENA_ACCENT[world.promotion.identity] ?? '#e0a030', ARENA_ACCENT[world.promotion.identity] ?? '#e0a030'];
+              return (
+                <button
+                  key={mat.id}
+                  type="button"
+                  data-testid={`ring-mat-${mat.id}`}
+                  onClick={() => setRingMat(mat.id)}
+                  className={`flex items-center gap-2 rounded border px-2 py-1 text-xs ${chosen ? 'border-sky-500 bg-sky-950/40 text-sky-100' : 'border-neutral-800 bg-neutral-900 text-neutral-300 hover:border-neutral-600'}`}
+                >
+                  <span className="inline-block h-4 w-6 rounded-sm border border-black/50" style={{ background: `linear-gradient(180deg, ${far}, ${near})` }} />
+                  {mat.name}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* ---- capital purchases ------------------------------------------ */}
       <section>
         <h2 className="mb-2 text-sm font-medium text-neutral-300">Bought once — travels to every show</h2>
