@@ -1374,6 +1374,8 @@ export type MatchSpot =
   | 'blindSwing'
   | 'intoCage'
   | 'cageTop'
+  // A tag match falling apart: all four in the ring at once.
+  | 'breakdown'
   // The near thing, in a match that is not won by a pin.
   | 'ladderPull'
   | 'tableFightOff'

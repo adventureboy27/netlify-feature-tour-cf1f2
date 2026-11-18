@@ -24,7 +24,7 @@ import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArticulatedFigure, type Joints } from './ArticulatedFigure';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
 import { VIEW } from './Arena';
-import { BRAWL, DOWN, GAP, stageMove } from './choreography';
+import { BRAWL, DOWN, GAP, stageMove, type MoveId } from './choreography';
 import { FIELD, planBeat, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
 import { playPlan, settle } from './playback';
 import type { Id, Wrestler } from '../../engine/types';
@@ -34,6 +34,14 @@ const hash = (text: string) => {
   for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
   return h;
 };
+
+/**
+ * What the field does to each other. The standing brawl, plus the ring work
+ * that makes it look like a ring full of fights rather than a queue: whips
+ * into the ropes and the corner, suplexes, body drops, a spear. Nothing that
+ * climbs — a top-rope move back there would be lost, and in the way.
+ */
+const FIELD_MOVES: readonly MoveId[] = [...BRAWL, 'whip', 'suplex', 'cornerWhip', 'backBodyDrop', 'shoulderBlock', 'spear', 'clothesline', 'backbreaker'];
 
 // Jointed figures cost five copies of a portrait each. Up to this many the
 // field gets them; past it, plain figures that are thrown about whole.
@@ -71,10 +79,14 @@ function Pair({ a, b, station, shared }: { a: Wrestler; b: Wrestler | undefined;
       : [{ id: a.id, role: 'actor', dir: 1, from: shared.leftAt.get(a.id), taggedIn: false }];
     // An odd one out has nobody to hit yet, so they prowl their patch
     // looking for somebody: a few steps one way, a few the other.
-    const move = b ? BRAWL[(seed + round * 5) % BRAWL.length]! : (['taunt', 'strike', 'fireUp'] as const)[round % 3]!;
+    const move = b ? FIELD_MOVES[(seed + round * 5) % FIELD_MOVES.length]! : (['taunt', 'strike', 'fireUp'] as const)[round % 3]!;
+    // And they do not stand still: each exchange happens a few steps from
+    // the last, wandering their part of the ring (a whip takes them to its
+    // edge and back on its own).
+    const drift = b ? ((((seed >> 3) + round * 7) % 11) - 5) * 1.2 : 0;
     // Each pair keeps its own time, so the field never moves in step.
     const duration = b ? 1500 + (seed % 6) * 110 : 1400;
-    const plan = planBeat({ ...stageMove(move), duration }, cast, station.x, { half: station.half, near: b ? station.x : station.x + GAP / 2 + (round % 2 ? 5 : -5) });
+    const plan = planBeat({ ...stageMove(move), duration }, cast, station.x, { half: station.half, near: b ? station.x + drift : station.x + GAP / 2 + (round % 2 ? 5 : -5) });
     for (const [id, pose] of plan.end) shared.leftAt.set(id, pose);
     for (const f of cast) {
       const el = shared.figures.get(f.id);
@@ -133,9 +145,12 @@ export const FieldBrawl = memo(function FieldBrawl({
   figureWidth,
   winners,
   belt,
+  sides,
 }: {
   /** The field, in an order that does not change as people come and go. */
   wrestlers: readonly Wrestler[];
+  /** Which side each of them works from; somebody new arrives from there, through the ropes. */
+  sides?: ReadonlyMap<Id, 1 | -1>;
   stageWidth: number;
   stageHeight: number;
   /** Width of a front-row figure; the field is drawn smaller than this. */
@@ -154,6 +169,12 @@ export const FieldBrawl = memo(function FieldBrawl({
   for (const id of shared.leftAt.keys()) if (!present.has(id)) shared.leftAt.delete(id);
 
   if (wrestlers.length === 0 || stageWidth === 0) return null;
+  // Somebody arriving (a tag partner off the apron) starts at the ropes on
+  // their own side, so they come in rather than appear.
+  for (const w of wrestlers) {
+    const side = sides?.get(w.id);
+    if (side && !shared.leftAt.has(w.id)) shared.leftAt.set(w.id, { x: -side * (FIELD.half + 2), y: 0, rot: 0 });
+  }
   const pairs = Math.ceil(wrestlers.length / 2);
   const rows = Math.ceil(pairs / PAIRS_PER_ROW);
   // More rows, smaller people: three rows of a thirty-man battle royal have

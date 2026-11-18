@@ -236,6 +236,7 @@ export const SPOT_BEATS: Record<MatchSpot, readonly string[]> = {
   blindSwing: ['{actor} threw a haymaker at thin air, and then the two of them walked straight into each other.', 'Neither of them could see a thing: {actor} swung at nothing and {target} stumbled right into the follow-up.'],
   intoCage: ['{actor} sent {target} face-first into the steel of the cage.', '{actor} rammed {target} into the cage wall, and the whole structure shook.'],
   cageTop: ['They fought on top of the cage itself, and {target} came off it the hard way.', '{actor} met {target} at the top of the cage and knocked them back down to the mat.'],
+  breakdown: ['It broke down — all four of them in the ring at once, and the referee lost control of the whole thing.', 'The partners came in, it was all four of them at once, and nobody was going back to the apron for a while.'],
   ladderPull: ['{actor} had a hand on the prize when {target} dragged them back off the ladder.', '{actor} was at the top of the ladder, fingertips on it, and {target} pulled them down.'],
   tableFightOff: ['{actor} had {target} up for the powerbomb with the table right there, and {target} fought their way free.', '{target} was one second from going through the table and punched out of {actor}\'s grip.'],
   casketNear: ['{actor} got {target} into the casket — and the lid came flying back open before it could be shut.', '{target} was in the casket with the lid coming down and somehow forced it back open.'],

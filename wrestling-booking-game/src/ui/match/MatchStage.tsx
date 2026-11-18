@@ -624,6 +624,8 @@ export function MatchStage({
               their corner, and any more of the team on the floor beside it. */}
           <FieldBrawl
             wrestlers={bystanders.filter((b) => b.place === 'ring').map((b) => b.wrestler)}
+            // Anybody coming in from an apron (a tag match breaking down) comes in from their own side.
+            sides={conduct?.tags ? new Map(bystanders.filter((b) => b.place === 'ring').map((b) => [b.wrestler.id, dirOf(b.slot)])) : undefined}
             stageWidth={w}
             stageHeight={h}
             figureWidth={figureW}

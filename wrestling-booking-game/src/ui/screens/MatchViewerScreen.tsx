@@ -526,8 +526,11 @@ export function MatchViewerScreen({
   const departed = gone.size > 0 ? new Set([...eliminated, ...gone]) : eliminated;
 
   const waiting = combined.filter((w) => !activeIds.has(w.id) && !departed.has(w.id) && !tagOuts.some((t) => t.wrestler.id === w.id));
+  // A tag match that has broken down — the sim recorded it, or it ended in
+  // the chaos of interference — has everybody in the ring for that beat.
+  const brokenDown = isTagMatch && !over && Boolean(moment) && (current?.spot === 'breakdown' || (current?.pose === 'finish' && result.finish === 'interference'));
   const bystanders: Bystander[] = isTagMatch
-    ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: 'apron' as const }))
+    ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: brokenDown ? ('ring' as const) : ('apron' as const) }))
     : isFieldMatch
       ? waiting.map((w) => ({ wrestler: w, slot: slotOf(w), place: 'ring' as const }))
       : [];

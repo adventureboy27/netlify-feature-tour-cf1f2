@@ -340,7 +340,7 @@ function spotInLine(template: string, weapon: MatchWeapon): Pick<MatchBeat, 'spo
  * Mirrors ui/match/conduct.ts's reading of the same rules — the two have to
  * agree, or the write-up says one thing and the ring shows another.
  */
-export function spotsFor(stipulation: string | null, rules: MatchRules | undefined): { control: MatchSpot[]; nearFall: MatchSpot | null } {
+export function spotsFor(stipulation: string | null, rules: MatchRules | undefined, teams = false): { control: MatchSpot[]; nearFall: MatchSpot | null; breakdown: boolean } {
   const weapons = rules?.ruleStrictness === 'none';
   const furniture = stipulation === 'ladder' || stipulation === 'tables' || stipulation === 'flamingTables' || stipulation === 'casket';
   const control: MatchSpot[] = [];
@@ -364,7 +364,10 @@ export function spotsFor(stipulation: string | null, rules: MatchRules | undefin
     : knockoutOnly ? 'countBeaten'
     : subsOnly ? 'holdEscape'
     : null;
-  return { control: [...new Set(control)], nearFall };
+  // A tag match falls apart near the end: they nearly all do. Not where
+  // everybody is in at once anyway, or where a cage keeps the partners out.
+  const breakdown = teams && !battleRoyal && stipulation !== 'steelCage' && rules?.preset !== 'tornado';
+  return { control: [...new Set(control)], nearFall, breakdown };
 }
 
 /**
@@ -375,8 +378,9 @@ export function spotsFor(stipulation: string | null, rules: MatchRules | undefin
  * a ladder match gets its ladder however short its write-up.
  */
 function withSpots(beats: MatchBeat[], ctx: NarrativeContext, budget: number): MatchBeat[] {
-  const plan = spotsFor(ctx.stipulation?.id ?? null, ctx.rules);
-  if (plan.control.length === 0 && !plan.nearFall) return beats;
+  const teams = ctx.winnerMembers.length > 1 && ctx.loserMembers.length > 1;
+  const plan = spotsFor(ctx.stipulation?.id ?? null, ctx.rules, teams);
+  if (plan.control.length === 0 && !plan.nearFall && !plan.breakdown) return beats;
   const rng = rngFromSeed(ctx.spotSeed ?? `spots:${ctx.winnerMembers.map((w) => w.id).join(',')}:${ctx.loserMembers.map((w) => w.id).join(',')}:${ctx.rating}`);
   const everybody = [...ctx.winnerMembers, ...ctx.loserMembers];
   const nameOf = (id: Id | null | undefined) => everybody.find((w) => w.id === id)?.name ?? 'their opponent';
@@ -421,6 +425,14 @@ function withSpots(beats: MatchBeat[], ctx: NarrativeContext, budget: number): M
       if (back >= 0) out.splice(back + 1, 0, write(take(), 'control', loserId, winnerId));
     }
   }
+  // The breakdown: just before the near thing if there is one, else just
+  // before the finish — the stretch where a tag match comes apart.
+  if (plan.breakdown) {
+    const near = out.findIndex((b) => b.kind === 'nearFall');
+    const at = near >= 0 ? near : out.findIndex((b) => b.kind === 'finish');
+    out.splice(at >= 0 ? at : out.length, 0, write('breakdown', 'control', winnerId, loserId));
+  }
+
   // Blood, last, so it never changes which spots were picked: a spot hard
   // enough to open somebody up sometimes does, more often the more violent
   // the match. Once each, and said. In a first-blood match the only blood

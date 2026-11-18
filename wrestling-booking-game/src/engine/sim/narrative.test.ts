@@ -332,3 +332,18 @@ describe('blood is recorded where it happens, and said', () => {
     expect(bled[0]!.bleeding).toBe(b.id);
   });
 });
+
+describe('a tag match breaks down', () => {
+  it('records one breakdown, before the near thing or the finish — and a singles match has none', () => {
+    const [a, b, c, d] = generateWrestlers(rngFromSeed('tagteams'), 4, { currentYear: 1985 });
+    const rules = { ...RIVAL_MATCH_RULES, preset: 'tag' as const, format: 'teams' as const };
+    const tag = generateBeats(rngFromSeed('tag-reel'), { winnerMembers: [a!, b!], loserMembers: [c!, d!], finish: 'cleanPin', stars: 3, rating: 70, rules });
+    const at = tag.findIndex((x) => x.spot === 'breakdown');
+    expect(tag.filter((x) => x.spot === 'breakdown')).toHaveLength(1);
+    const after = tag.findIndex((x) => x.kind === 'nearFall' || x.kind === 'finish');
+    expect(at).toBeLessThan(after);
+    expect(tag[at]!.text).toMatch(/all four/);
+    const singles = generateBeats(rngFromSeed('tag-reel'), { winnerMembers: [a!], loserMembers: [c!], finish: 'cleanPin', stars: 3, rating: 70, rules: RIVAL_MATCH_RULES });
+    expect(singles.some((x) => x.spot === 'breakdown')).toBe(false);
+  });
+});
