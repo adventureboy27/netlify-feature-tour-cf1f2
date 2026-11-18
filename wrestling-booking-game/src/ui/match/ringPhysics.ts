@@ -128,7 +128,7 @@ export const onFrontFloor = (pose: WorldPose) => pose.y < FLOOR - 0.2;
 const lying = (pose: WorldPose) => isDown([0, pose.y - (onFrontFloor(pose) ? FRONT_FLOOR : 0), pose.rot]);
 
 /** Where a track has a body at time `t`: between its two frames either side, straight-line. */
-function poseAt(frames: readonly WorldFrame[], t: number): WorldFrame | undefined {
+export function poseAt(frames: readonly WorldFrame[], t: number): WorldFrame | undefined {
   if (frames.length === 0) return undefined;
   if (t <= frames[0]!.at) return frames[0];
   for (let i = 0; i < frames.length - 1; i++) {
@@ -382,6 +382,34 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
   }
 
   const when = (at: number) => (lead === 0 ? at : lead + at * (1 - lead));
+  // A cover is a cover. Whatever the move did with the one going down — threw
+  // them behind the attacker, into the ropes and back — the one pinning them
+  // lies across where they actually are, chest over chest, for every count,
+  // and gets up from there. The referee never counts over empty mat.
+  const actorFighter = fighters.find((f) => f.role === 'actor');
+  const actorFrames = actorFighter ? tracks.get(actorFighter.id) : undefined;
+  const targetFrames2 = target ? tracks.get(target.id) : undefined;
+  if (choreo.cover && choreo.cover.count <= 3 && actorFrames && targetFrames2) {
+    let shift = 0;
+    let pinned = false;
+    for (const frame of actorFrames) {
+      if (frame.stance === 'pin') {
+        const under = poseAt(targetFrames2, frame.at) ?? targetFrames2[targetFrames2.length - 1]!;
+        const body = midBody(under);
+        // Lying the same way they are, centred on them, a body's thickness up.
+        const x = body.x - (Math.sin(rad(under.rot)) * RING.tall) / 2;
+        shift = x - frame.x;
+        frame.x = x;
+        frame.rot = under.rot;
+        frame.y = under.y + PIN_ON_TOP;
+        pinned = true;
+      } else if (pinned) {
+        // Thrown off at a kickout, or getting up after the three: from where they were.
+        frame.x += shift;
+      }
+    }
+  }
+
   // A move that says it uses the ropes (a whip, a run off them, a corner):
   // whoever is up against the rope line at that moment goes into the ropes by
   // as much as they give — the same as a body that collides with them above —
@@ -432,4 +460,28 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
 /** When, through a tag's lead-in, the two hands meet (both sides use it). */
 export const TAG_TOUCH = 0.55;
 
+/** How far above the one pinned the one pinning lies: a body's thickness. */
+const PIN_ON_TOP = 2.6;
+
 export const midBody = (pose: WorldPose) => ({ x: (pose.x + headX(pose.x, pose.rot)) / 2, y: (pose.y + headY(pose.y, pose.rot)) / 2 });
+
+/**
+ * Whether a cover is a real pin at every count: the one being pinned flat on
+ * their back, the one pinning lying across them, chest over chest. The
+ * referee does not count anything else.
+ */
+export function pinHeld(plan: Plan, cover: { from: number; to: number; count: number }, actorId: Id, targetId: Id): boolean {
+  const a = plan.tracks.get(actorId);
+  const b = plan.tracks.get(targetId);
+  if (!a || !b) return false;
+  const flat = (rot: number) => Math.abs(Math.abs(normalizeRot(rot)) - 90) < 15;
+  for (let i = 0; i < cover.count; i++) {
+    const at = cover.from + ((cover.to - cover.from) * (i + 0.35)) / cover.count;
+    const t = plan.lead + at * (1 - plan.lead);
+    const top = poseAt(a, t);
+    const under = poseAt(b, t);
+    if (!top || !under || !flat(top.rot) || !flat(under.rot)) return false;
+    if (Math.abs(midBody(top).x - midBody(under).x) > 4 || top.y - under.y < 0.5 || top.y - under.y > 5) return false;
+  }
+  return true;
+}

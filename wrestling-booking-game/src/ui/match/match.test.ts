@@ -13,10 +13,10 @@ import { rngFromSeed } from '../../engine/rng';
 import type { PlaybackBeat } from '../../engine/sim/matchPlayback';
 import { spotsFor } from '../../engine/sim/narrative';
 import { STIPULATIONS, effectiveRules } from '../../data/stipulations';
-import { BRAWL, DOWN, FLOOR, FRONT_FLOOR, GAP, META, MOVE_IDS, endPose, isDown, moveSaid, stageMatch, stageMove, understands, type MoveId } from './choreography';
+import { BRAWL, DOWN, FLOOR, FRONT_FLOOR, GAP, META, MOVE_IDS, endPose, isDown, moveSaid, stageBeat, stageMatch, stageMove, understands, type MoveId } from './choreography';
 import { STANDARD, conductOf, type Conduct } from './conduct';
 import type { FinishType, MatchRules } from '../../engine/types';
-import { FIELD, RING, onFrontFloor, planBeat, type PlanFighter, type WorldPose } from './ringPhysics';
+import { FIELD, RING, onFrontFloor, pinHeld, planBeat, type PlanFighter, type WorldPose } from './ringPhysics';
 
 const [alpha, bravo] = generateWrestlers(rngFromSeed('match-viewer'), 2) as [ReturnType<typeof generateWrestlers>[number], ReturnType<typeof generateWrestlers>[number]];
 const cast = new Map([alpha, bravo].map((w) => [w.id, w] as const));
@@ -809,5 +809,33 @@ describe('a match is not a queue of hits', () => {
     const misses = moments.filter((m) => m.staged.move === 'whiffCorner' || m.staged.move === 'whiffElbow');
     expect(misses.length).toBeGreaterThan(0);
     for (const m of misses) expect(m.filler).toBe(true);
+  });
+});
+
+describe('the referee only counts a real pin', () => {
+  it('has the one pinning lying across the one pinned at every count of every cover, wherever in the ring', () => {
+    let covers = 0;
+    for (const pose of ['nearFall', 'finish'] as const) {
+      for (let index = 0; index < 24; index++) {
+        for (const targetDown of [false, true]) {
+          for (const centre of [-22, -12, 0, 12, 22]) {
+            for (const dir of [1, -1] as const) {
+              const beat: PlaybackBeat = { kind: pose, pose, text: '', significant: true, actorId: 'a', targetId: 'b', moveName: null };
+              const staged = stageBeat(beat, index, undefined, true, { said: null, targetDown, recent: [] });
+              const cover = staged.choreo.cover;
+              if (!cover || cover.count > 3) continue;
+              const from: WorldPose = targetDown ? { x: centre + dir * 4, y: DOWN, rot: dir * 90 } : { x: centre + dir * 7, y: 0, rot: 0 };
+              const plan = planBeat(staged, [
+                { id: 'a', role: 'actor', dir, from: { x: centre - dir * 7, y: 0, rot: 0 }, taggedIn: false },
+                { id: 'b', role: 'target', dir: (-dir) as 1 | -1, from, taggedIn: false },
+              ], centre);
+              covers++;
+              expect(pinHeld(plan, cover, 'a', 'b'), `${staged.move} at ${centre} facing ${dir}${targetDown ? ', already down' : ''}`).toBe(true);
+            }
+          }
+        }
+      }
+    }
+    expect(covers).toBeGreaterThan(200);
   });
 });

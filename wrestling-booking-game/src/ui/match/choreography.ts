@@ -790,14 +790,17 @@ export const isDown = (pose: readonly [x: number, y: number, rot: number]) => Ma
  * Plays `base` in the first `split` of the beat, then has the attacker hook
  * the leg. `count` 2 is a kickout; 3 is the finish.
  */
-function withCover(base: Choreo, split: number, count: 2 | 3): Choreo {
+export function withCover(base: Choreo, split: number, count: 2 | 3): Choreo {
   const actor = scale(base.actor, split);
   const target = scale(base.target, split);
   const last = target[target.length - 1]!;
   // The cover only reads if the target is flat on their back.
   const flat = Math.abs(normalizeRot(last[3]) + 90) < 1;
   const tx = flat ? last[1] : Math.max(0, last[1] - 2);
-  if (!flat) target.push([split + 0.07, tx, DOWN, -90, 1, 'flat']);
+  // Kept as the move left it (a suplex lands at 270, which is -90 the long
+  // way round): written as -90 the body would spin a full turn mid-count.
+  const lie = flat ? last[3] : -90;
+  if (!flat) target.push([split + 0.07, tx, DOWN, lie, 1, 'flat']);
   // The target's feet, seen from the attacker's mark, are GAP - tx away; the
   // body lies beyond that. Dropping forward from just short of the feet lays
   // the attacker across it.
@@ -811,14 +814,14 @@ function withCover(base: Choreo, split: number, count: 2 | 3): Choreo {
   const ropes = base.ropes === undefined ? undefined : base.ropes * split;
   if (count === 3) {
     actor.push([1, ax, onTop, 90, 1, 'pin']);
-    target.push([1, tx, DOWN, -90, 1, 'flat']);
+    target.push([1, tx, DOWN, lie, 1, 'flat']);
     return { ...base, actor, target, impacts, ropes, cover: { from: down, to: 0.97, count, at: tx } };
   }
   // The kickout: a shoulder up and a bridge that throws the attacker off.
   // They go up and back off the body, come down, and are on a knee by the
   // end — not straight up onto their feet.
   actor.push([0.86, ax, onTop, 90, 1, 'pin'], [0.91, ax - 2.5, onTop + 3, 60, 1, 'fall'], [0.96, ax - 4.5, 1.2, 30, 1, 'crouch'], [1, ax - 5, 0, 8, 1, 'kneel']);
-  target.push([0.86, tx, DOWN, -90, 1, 'flat'], [0.9, tx, DOWN + 1.8, -66, 1, 'kickout'], [0.96, tx, DOWN + 0.8, -76, 1, 'kickout'], [1, tx, DOWN, -84, 1, 'flat']);
+  target.push([0.86, tx, DOWN, lie, 1, 'flat'], [0.9, tx, DOWN + 1.8, lie + 24, 1, 'kickout'], [0.96, tx, DOWN + 0.8, lie + 14, 1, 'kickout'], [1, tx, DOWN, lie + 6, 1, 'flat']);
   return { ...base, actor, target, impacts, ropes, cover: { from: down, to: 0.86, count, at: tx }, shouts: [{ at: 0.87, text: 'KICK OUT!!' }] };
 }
 
@@ -1071,7 +1074,8 @@ function officiated(staged: StagedBeat, official: OfficialMoment): StagedBeat {
       if (!cover) return staged;
       // A near fall he was slow on gets to one before the shoulder is up.
       const slow = cover.count < 3 ? { ...cover, from: cover.from + (cover.to - cover.from) * 0.4, count: 1 } : cover;
-      return withShout({ ...staged, choreo: { ...staged.choreo, cover: slow } }, 'SLOW COUNT!', cover.count < 3 ? at : cover.from + (cover.to - cover.from) * 0.5);
+      // Said while he is taking his time — before the one, not over the kickout.
+      return withShout({ ...staged, choreo: { ...staged.choreo, cover: slow } }, 'SLOW COUNT!', cover.count < 3 ? cover.from + (cover.to - cover.from) * 0.12 : cover.from + (cover.to - cover.from) * 0.5);
     }
     case 'footOnRope':
       return held(withShout(staged, 'FOOT ON THE ROPE!', at));

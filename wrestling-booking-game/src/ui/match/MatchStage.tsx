@@ -25,7 +25,7 @@ import { DOWN, FLOOR, FRONT_FLOOR, GAP, TAG_VAULT_HEIGHT, type StagedBeat } from
 import { PyroBurst } from './Pyro';
 import { PERSON_VIEW, Person, type Face, type PersonParts } from './Ringside';
 import { playPerson, restingAt, slaps, waving, type PersonMoment } from './officiate';
-import { RING, TAG_TOUCH, apronX, midBody, onFrontFloor, planBeat, type Plan, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
+import { RING, TAG_TOUCH, apronX, midBody, onFrontFloor, pinHeld, planBeat, type Plan, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
 import type { Conduct } from './conduct';
 import type { Id, Wrestler } from '../../engine/types';
 
@@ -433,6 +433,20 @@ export function MatchStage({
   const tagging = over ? [] : tagOuts.filter((t) => !inBeat.has(t.wrestler.id));
   const drawn = [...fighters, ...ending, ...leavers, ...tagging];
 
+  /**
+   * The cover the referee counts, if it is one. A count to three is only
+   * made over a real pin (ringPhysics.ts pinHeld); a count to ten is over
+   * somebody down, standing over them, and needs no pin.
+   */
+  const countable = (p: Plan | null) => {
+    const c = staged?.choreo.cover;
+    if (!c || !p) return undefined;
+    if (c.count > 3) return c;
+    const a = fighters.find((f) => f.role === 'actor');
+    const t = fighters.find((f) => f.role === 'target');
+    return a && t && pinHeld(p, c, a.wrestler.id, t.wrestler.id) ? c : undefined;
+  };
+
   // ---- the beat ---------------------------------------------------------
   useLayoutEffect(() => {
     if (u === 0 || over) return;
@@ -524,7 +538,8 @@ export function MatchStage({
     const apronPerson = onApron ? ringside.find((p) => p.id === onApron.id) : undefined;
     const refSide: 1 | -1 = apronPerson ? (-dirOf(apronPerson.slot) as 1 | -1) : runner ? dirOf(runner.slot) : next.centre >= 0 ? -1 : 1;
     if (refParts.current) {
-      const moments = refereeMoments(refAt.current, next, staged, targetLast, refSide, T, duration);
+      const counting = countable(next);
+      const moments = refereeMoments(refAt.current, next, counting === staged.choreo.cover ? staged : { ...staged, choreo: { ...staged.choreo, cover: counting } }, targetLast, refSide, T, duration);
       refAt.current = restingAt(moments.reduce((a, b) => (b.t >= a.t ? b : a)));
       running.push(...playPerson(refParts.current, moments, duration, u));
     }
@@ -564,7 +579,7 @@ export function MatchStage({
     // crowd for anything shouted. Scheduled on the audio clock, so it lands
     // on the frame it belongs to however busy the page is.
     for (const impact of next.impacts) hit(hitFor(staged.move, Boolean(impact.big), staged.prop, staged.scene), impact.at * duration);
-    const counted = staged.choreo.cover;
+    const counted = countable(next);
     if (counted) for (let i = 0; i < counted.count; i++) hit('count', (next.lead + (counted.from + ((counted.to - counted.from) * (i + 0.35)) / counted.count) * (1 - next.lead)) * duration);
     for (const shout of staged.choreo.shouts ?? []) crowd('pop', (next.lead + shout.at * (1 - next.lead)) * duration);
     if (beatKey === 0) bell(1);
@@ -783,7 +798,7 @@ export function MatchStage({
   };
   const target = fighters.find((f) => f.role === 'target');
   const actor = fighters.find((f) => f.role === 'actor');
-  const cover = over ? undefined : staged?.choreo.cover;
+  const cover = over ? undefined : countable(plan);
   const targetEnd = target && plan?.end.get(target.wrestler.id);
   const when = (at: number) => ((plan?.lead ?? 0) + at * (1 - (plan?.lead ?? 0))) * duration;
   const scene = over ? undefined : staged?.scene;
