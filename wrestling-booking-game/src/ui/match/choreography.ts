@@ -22,7 +22,7 @@
 // Nothing here decides anything about the match. It only stages a beat the
 // simulation already produced.
 
-import type { FinishType, Id, Move, MoveStyle, MoveType, OfficialMoment, Wrestler } from '../../engine/types';
+import type { FinishType, Id, MatchBeat, Move, MoveStyle, MoveType, OfficialMoment, Wrestler } from '../../engine/types';
 import type { PlaybackBeat } from '../../engine/sim/matchPlayback';
 import type { StanceId } from './rig';
 import { STANDARD, type Conduct } from './conduct';
@@ -499,6 +499,9 @@ const BODIES = {
     ropes: 0.5,
   },
   still: { actor: [STAND, [1, 0, 0, 0]], target: [STAND, [1, 0, 0, 0]] },
+  // Going to get something. Placeholder frames: MatchStage plans this one
+  // itself, from wherever they are to the floor and back (StagedBeat.fetch).
+  fetch: { actor: [STAND, [1, 0, 0, 0]], target: [STAND, [1, 0, 0, 0]] },
 } as const satisfies Record<string, Choreo>;
 
 export type MoveId = keyof typeof BODIES;
@@ -911,6 +914,11 @@ export interface StagedBeat {
    */
   referee?: RefCue;
   /**
+   * Going to get something this beat: out to the floor, under the ring (or
+   * the steps off the corner), and back in with it.
+   */
+  fetch?: NonNullable<MatchBeat['fetched']>;
+  /**
    * Milliseconds the picture holds after the move before the next beat: long
    * enough to read what was shouted over the end of it (a foot on the rope).
    */
@@ -981,7 +989,12 @@ export function stageBeat(
   context: BeatContext = { said: null, targetDown: false, recent: [] },
 ): StagedBeat {
   const conduct = context.conduct ?? STANDARD;
-  const own = beat.official ? officialBeat(beat.official, Boolean(beat.ringsideId), conduct, context) : null;
+  // Off to get something (sim/ringProps.ts): out, under the ring, back in with it.
+  if (beat.fetched && beat.fetched.from !== 'brought' && !beat.spot && !beat.official) {
+    const item = beat.fetched.item;
+    return { ...stageMove('fetch', item === 'table' || item === 'ladder' ? 3600 : 3200), zone: 'out', fetch: beat.fetched, ...(item !== 'table' ? { prop: item } : {}) };
+  }
+  const own = beat.official ? officialBeat(beat.official, Boolean(beat.ringsideId), conduct, context, beat.weapon) : null;
   if (own) return own;
   const staged = stagePlain(beat, index, actor, actorInRing, context);
   // The finish after somebody was caught or ran in, in a disqualification:
@@ -1021,10 +1034,12 @@ function finishCue(conduct: Conduct): RefCue | undefined {
  * A moment that is the official's own — somebody ran in, a corner mugged
  * somebody, he missed something — staged as what the write-up says.
  */
-function officialBeat(official: OfficialMoment, fromOutside: boolean, conduct: Conduct, context: BeatContext): StagedBeat | null {
+function officialBeat(official: OfficialMoment, fromOutside: boolean, conduct: Conduct, context: BeatContext, weapon?: MatchBeat['weapon']): StagedBeat | null {
   const move = (id: MoveId, duration: number) => ({ ...stageMove(id, duration), ...propsFor(id, conduct, context.recent.length) });
   switch (official) {
     case 'runIn':
+      // Down the aisle with a chair: it is the chair that does it.
+      if (weapon) return { ...withShout({ ...stageMove('chairShot', 2400), prop: weapon }, 'RUN-IN!', 0.15), referee: { act: 'turned' } };
       // In full view for a disqualification; behind his back otherwise.
       return { ...withShout(move('blindside', 2400), 'RUN-IN!', 0.15), referee: { act: conduct.finish === 'dq' ? 'watch' : 'turned' } };
     case 'missedInterference':
@@ -1217,7 +1232,13 @@ function stagePlain(
     case 'environmental':
       // The pyro caught somebody: that, where they are. A gear failure is the
       // finish's to show (the ladder going over, the table holding), not here.
-      return beat.kind === 'pyroBurn' ? pick('pyroBurn', 2000) : pick('still');
+      if (beat.kind === 'pyroBurn') return pick('pyroBurn', 2000);
+      // The gear giving out in the middle of it (a replaceable one: the
+      // match goes on, with another from under the ring).
+      if (beat.kind === 'gearFailure' && conduct.furniture === 'ladder') return { ...shouting(pick('ladderCollapse', 3000), 'IT GAVE WAY!', 0.8), scene: 'ladder' };
+      if (beat.kind === 'gearFailure' && (conduct.furniture === 'table' || conduct.furniture === 'flamingTable'))
+        return { ...shouting(pick('tableEscape', 2400), 'IT GAVE WAY!', 0.6), scene: conduct.furniture, sceneIntact: false };
+      return pick('still');
     case 'elimination': {
       if (conduct.elimination === 'overTop') return shouting(pick(spoken && OVER_THE_TOP.includes(spoken) ? spoken : fresh(OVER_THE_TOP)), 'ELIMINATED!', 0.82);
       // Anywhere else somebody is eliminated the ordinary way: beaten.
@@ -1559,6 +1580,9 @@ export function stageMatch(
     const last = moments[moments.length - 1]!;
     const next = timeline[index + 1];
     if (!next || !last.actorId || !last.targetId || !CARRIES_ON.includes(beat.pose)) return;
+    // Back in with something in the hand: it is used next, not carried
+    // through a couple of unrelated exchanges first.
+    if (beat.fetched && beat.fetched.from !== 'brought') return;
     const fall = fallAfter.get(index);
     if (fall) {
       const lead: MoveId = (['slam', 'suplex', 'powerbomb', 'superkick'] as const)[index % 4]!;

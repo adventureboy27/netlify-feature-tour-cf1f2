@@ -101,7 +101,7 @@ import {
   guestRefereeHealthCost,
 } from '../engine/sim/ringside';
 import { refereeMissById } from '../data/refereeMisses';
-import { pickRunIn, placeGuestCounts, placeMiss, placeMugging, placeRunIn } from '../engine/sim/officiating';
+import { PINFALL_FINISHES, countsAFall, countsNearFalls, pickRunIn, placeGuestCounts, placeMiss, placeMugging, placeRunIn } from '../engine/sim/officiating';
 import {
   managerFromWrestler,
   learnOnTheJob,
@@ -360,6 +360,7 @@ import {
   stipulationRequirementsMet,
   stipulationConsequence,
   stipulationConsequenceLine,
+  effectiveRules,
 } from '../data/stipulations';
 import { isNonDecisiveFinish } from '../engine/sim/finish';
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
@@ -2270,6 +2271,14 @@ export const useGameStore = create<GameStore>()(
             guestRefereeUses += 1;
           }
 
+          // How the officiating sees the finish. A ladder match, a tables
+          // match or a casket match scored as a pin is won on the ladder, the
+          // table or the lid: nobody counted anything, so nothing about a
+          // count (a foot on the rope, a fast three) can have happened in it.
+          const rulebook = effectiveRules(segment.rules, stipulation);
+          const countedAs: FinishType = countsAFall(result.finish, stipulation, rulebook) || !PINFALL_FINISHES.has(result.finish) ? result.finish : 'knockout';
+          const nearFallsCounted = countsNearFalls(stipulation, rulebook);
+
           // ---- who else was in it ----------------------------------------
           // Somebody ran in, and a guest referee did something with his
           // hand. Both are decided above (the finish, the agenda); this puts
@@ -2325,7 +2334,8 @@ export const useGameStore = create<GameStore>()(
               result.beats = placeGuestCounts(result.beats, {
                 guestName: officiatingWrestler.name,
                 favoured: new Set((competitorsBySide.get(agenda.favoursSide) ?? []).map((w) => w.id)),
-                finish: result.finish,
+                finish: countedAs,
+                nearFallsCounted,
                 nameOf: (id) => wrestlerById.get(id)?.name ?? 'somebody',
                 rng: officiating,
               });
@@ -2353,7 +2363,7 @@ export const useGameStore = create<GameStore>()(
                 competitorIds: participantIds,
                 hasTags: [...sideSizes.values()].some((n) => n > 1),
                 hadInterference: result.finish === 'interference' || result.finish === 'disqualification',
-                finish: result.finish,
+                finish: countedAs,
                 loserIds: participantIds.filter(
                   (id) =>
                     !result.winnerWrestlerIds.includes(id) &&
@@ -2376,7 +2386,8 @@ export const useGameStore = create<GameStore>()(
                     !result.winnerWrestlerIds.includes(id) &&
                     segment.participants.some((p) => p.wrestlerId === id && p.role === 'competitor'),
                 ),
-                finish: result.finish,
+                finish: countedAs,
+                nearFallsCounted,
               });
               // A blown call costs the match on the night and costs the
               // wrestler it went against real morale — which is exactly why
@@ -3058,6 +3069,7 @@ export const useGameStore = create<GameStore>()(
                   shootHeat: rivalry?.shootHeat ?? 0,
                   isMainEvent: i === world.currentCard.length - 1,
                   finish: result.finish,
+                  noCount: !countsAFall(result.finish, stipulation, effectiveRules(segment.rules, stipulation)),
                   rating: result.rating,
                   beats: result.beats,
                   injuries: injuriesTonight.map((casualty) => ({ name: casualty.name, text: casualty.text })),

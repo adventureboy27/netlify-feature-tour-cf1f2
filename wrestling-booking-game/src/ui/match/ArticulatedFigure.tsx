@@ -128,12 +128,15 @@ function Arm({
   cut,
   register,
   held = false,
+  heldFrom,
 }: {
   look: ComposedLook;
   cut: ReturnType<typeof cuts>;
   register: (part: "shoulder" | "elbow", el: JointEl | null) => void;
   /** This hand has something in it. */
   held?: Prop | false;
+  /** Only from this many milliseconds into the beat: picked up partway through it. */
+  heldFrom?: number;
 }) {
   return (
     <div
@@ -152,11 +155,13 @@ function Arm({
         <div className={FILL} style={{ clipPath: cut.fore }}>
           <ComposedPortrait look={look} alt="" inked />
         </div>
-        {held === "chair" && <Chair at={cut.hand} />}
-        {held === "kendo" && <Kendo at={cut.hand} />}
-        {held === "can" && <TrashCan at={cut.hand} />}
-        {held === "ladder" && <Ladder at={cut.hand} />}
-        {held === "steps" && <Steps at={cut.hand} />}
+        <div className={heldFrom ? `${FILL} mv-from` : FILL} style={heldFrom ? { animationDelay: `${heldFrom}ms` } : undefined}>
+          {held === "chair" && <Chair at={cut.hand} />}
+          {held === "kendo" && <Kendo at={cut.hand} />}
+          {held === "can" && <TrashCan at={cut.hand} />}
+          {held === "ladder" && <Ladder at={cut.hand} />}
+          {held === "steps" && <Steps at={cut.hand} />}
+        </div>
       </div>
     </div>
   );
@@ -317,6 +322,7 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
   wrestler,
   onJoints,
   held,
+  heldFrom,
   weapon = "chair",
   blindfold = false,
   bloody = false,
@@ -325,6 +331,8 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
 }: {
   /** Which SCREEN-side hand has something in it, if either. */
   held?: 'left' | 'right';
+  /** Picked up partway through the beat: in the hand from this many milliseconds. */
+  heldFrom?: number;
   /** What that something is. */
   weapon?: Prop;
   /** A blindfold match: both of them wear one. */
@@ -478,12 +486,14 @@ export const ArticulatedFigure = memo(function ArticulatedFigure({
             cut={geometry.left}
             register={(part, el) => register(`l.${part}`)(el)}
             held={held === "left" && weapon}
+            heldFrom={heldFrom}
           />
           <Arm
             look={look}
             cut={geometry.right}
             register={(part, el) => register(`r.${part}`)(el)}
             held={held === "right" && weapon}
+            heldFrom={heldFrom}
           />
         </div>
       </div>

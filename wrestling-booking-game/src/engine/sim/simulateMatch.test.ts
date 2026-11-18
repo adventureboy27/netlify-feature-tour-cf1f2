@@ -399,29 +399,46 @@ describe('simulateMatch', () => {
     }
   });
 
-  it('reaches equipmentFailure when a gear family is on the line and the break chance is high, and names the unit that gave out', () => {
-    const roster = makeRoster(16, 2);
+  const gearRun = (seed: number, family: string, unit: { id: string; name: string }) => {
+    const roster = makeRoster(seed, 2);
     const byId = new Map(roster.map((w) => [w.id, w]));
     const participants: SimParticipant[] = [
       { wrestlerId: roster[0]!.id, side: 0 },
       { wrestlerId: roster[1]!.id, side: 1 },
     ];
-    const results = Array.from({ length: 500 }, (_, i) =>
+    return Array.from({ length: 500 }, (_, i) =>
       simulateMatch(
         rngFromSeed(`gear-family-${i}`),
         participants,
         byId,
         baseContext({
-          stipulation: stipWith({ hardwareGearSensitive: true, gearFamilyId: 'ladder' }),
+          stipulation: stipWith({ hardwareGearSensitive: true, gearFamilyId: family }),
           gearFailureChance: 1,
-          gearUnitsInPlay: [{ id: 'ladder-unit-1', name: 'Wooden Ladder', condition: 5 }],
+          gearUnitsInPlay: [{ ...unit, condition: 5 }],
         }),
       ),
     );
-    const failed = results.find((r) => r.finish === 'equipmentFailure');
+  };
+
+  it('ends a match with nobody winning when gear that cannot be replaced gives out, and names the unit', () => {
+    const failed = gearRun(16, 'steelCage', { id: 'cage-unit-1', name: 'Chain-Link Cage' }).find((r) => r.finish === 'equipmentFailure');
     expect(failed).toBeTruthy();
     expect(failed!.winnerSide).toBeNull();
-    expect(failed!.gearFailureUnitId).toBe('ladder-unit-1');
+    expect(failed!.gearFailureUnitId).toBe('cage-unit-1');
+  });
+
+  it('carries on when a ladder gives out — another comes out from under the ring — and is still won, with the unit still blamed', () => {
+    const results = gearRun(16, 'ladder', { id: 'ladder-unit-1', name: 'Wooden Ladder' });
+    expect(results.some((r) => r.finish === 'equipmentFailure')).toBe(false);
+    const broke = results.find((r) => r.gearFailureUnitId === 'ladder-unit-1');
+    expect(broke).toBeTruthy();
+    expect(broke!.winnerSide).not.toBeNull();
+    const at = broke!.beats.findIndex((b) => b.kind === 'gearFailure');
+    const finishAt = broke!.beats.map((b) => b.kind).lastIndexOf('finish');
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(at).toBeLessThan(finishAt);
+    // Something after it had to fetch a new one.
+    expect(broke!.beats.slice(at + 1, finishAt).some((b) => b.fetched?.item === 'ladder' && b.fetched.from === 'underRing')).toBe(true);
   });
 
   it('a tag match finish names a real, resolvable pinned/pinner pair — not always the first-listed member', () => {

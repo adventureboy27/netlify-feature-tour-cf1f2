@@ -1463,7 +1463,17 @@ export interface MatchBeat {
    * them where they were.
    */
   ringsideId?: Id;
+  /**
+   * Where what this beat needed came from, when it was not already in the
+   * ring: pulled out from under it, or the steel steps taken off the corner.
+   * The write-up says so and the viewer has them go and get it first. See
+   * sim/ringProps.ts.
+   */
+  fetched?: { item: RingItem; from: 'underRing' | 'corner' | 'brought' };
 }
+
+/** What can be brought into a ring and left lying in it. */
+export type RingItem = 'chair' | 'can' | 'kendo' | 'steps' | 'ladder' | 'table';
 
 /**
  * The official's part in a beat. The referee misses (data/refereeMisses.ts)

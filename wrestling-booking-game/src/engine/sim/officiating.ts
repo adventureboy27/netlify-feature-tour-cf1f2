@@ -12,9 +12,10 @@
 // own just before the finish. Nothing here rolls the shared stream: line
 // choice uses the rng the caller seeds from the segment.
 import { pick, type Rng } from '../rng';
-import type { FinishType, Id, MatchBeat, OfficialMoment, RefereeMissRecord } from '../types';
+import type { FinishType, Id, MatchBeat, MatchRules, OfficialMoment, RefereeMissRecord } from '../types';
 import { refereeMissById } from '../../data/refereeMisses';
 import {
+  ARMED_RUN_IN_LINES,
   DQ_RUN_IN_LINES,
   FAST_COUNT_LINES,
   RUN_IN_LINES,
@@ -22,8 +23,42 @@ import {
   SLOW_NOT_ENOUGH_LINES,
 } from '../../data/officiating';
 
+/** How often a run-in for the winning side comes down armed. Its own seeded stream (store.ts). */
+const RUN_IN_ARMED_SHARE = 0.4;
+
 /** Finishes the referee's hand counted three on. */
 export const PINFALL_FINISHES: ReadonlySet<FinishType> = new Set(['cleanPin', 'rollup', 'interference']);
+
+/**
+ * Matches won some other way however the finish is scored: at the top of a
+ * ladder, through a table, with a lid shut. Nobody counts a fall in them.
+ */
+const WON_WITHOUT_A_COUNT: ReadonlySet<string> = new Set(['ladder', 'tables', 'flamingTables', 'casket']);
+
+type Rulebook = Pick<MatchRules, 'falls' | 'aim' | 'preset'>;
+
+/** Rules under which nothing is won by being pinned: knockouts only, submissions only, last one standing. */
+const noPins = (rules: Rulebook | undefined) =>
+  Boolean(rules && (rules.falls === 'knockout' || rules.falls === 'subsOnly' || rules.aim === 'lastStanding' || rules.aim === 'submissionOnly'));
+
+/** Whether the referee counted a fall to end this one. */
+export function countsAFall(finish: FinishType, stipulation: { id: string } | null | undefined, rules?: Rulebook): boolean {
+  return PINFALL_FINISHES.has(finish) && !WON_WITHOUT_A_COUNT.has(stipulation?.id ?? '') && !noPins(rules);
+}
+
+/**
+ * Whether the near things in this match are covers the referee counts. In a
+ * ladder match they are somebody pulled off the ladder; in a cage, somebody
+ * dragged back off the wall; in a battle royal, somebody hanging on to the
+ * top rope — the same as the viewer stages them (ui/match/conduct.ts).
+ */
+export function countsNearFalls(stipulation: { id: string } | null | undefined, rules?: Rulebook): boolean {
+  const id = stipulation?.id ?? '';
+  if (WON_WITHOUT_A_COUNT.has(id) || noPins(rules)) return false;
+  if (id === 'battleRoyal' || rules?.preset === 'battleRoyal') return false;
+  if (id === 'steelCage' && rules?.aim === 'escape') return false;
+  return true;
+}
 
 /**
  * The finish that ended it: the last one. A manager caught at ringside is
@@ -53,7 +88,7 @@ const say = (template: string, names: Record<string, string>) =>
 export function placeMiss(
   beats: readonly MatchBeat[],
   miss: RefereeMissRecord,
-  ctx: { winnerIds: readonly Id[]; loserIds: readonly Id[]; finish: FinishType },
+  ctx: { winnerIds: readonly Id[]; loserIds: readonly Id[]; finish: FinishType; nearFallsCounted?: boolean },
 ): MatchBeat[] {
   const kind = refereeMissById(miss.missId);
   if (!kind) return [...beats];
@@ -67,7 +102,7 @@ export function placeMiss(
   }
   if (kind.when === 'counts') {
     for (const [i, b] of out.entries()) {
-      const counted = b.kind === 'nearFall' || (i === fi && PINFALL_FINISHES.has(ctx.finish));
+      const counted = (b.kind === 'nearFall' && ctx.nearFallsCounted !== false) || (i === fi && PINFALL_FINISHES.has(ctx.finish));
       if (counted && !b.official) b.official = official;
     }
     return out;
@@ -105,6 +140,8 @@ export function placeGuestCounts(
     finish: FinishType;
     nameOf: (id: Id) => string;
     rng: Rng;
+    /** The near things are covers he counts (see countsNearFalls). */
+    nearFallsCounted?: boolean;
   },
 ): MatchBeat[] {
   const out = beats.map((b) => ({ ...b }));
@@ -118,7 +155,7 @@ export function placeGuestCounts(
   const forHim = (b: MatchBeat) => Boolean(b.actorId && ctx.favoured.has(b.actorId));
 
   // The first cover he slow-counted.
-  const near = out.find((b) => b.kind === 'nearFall' && !b.official && against(b));
+  const near = ctx.nearFallsCounted === false ? undefined : out.find((b) => b.kind === 'nearFall' && !b.official && against(b));
   if (near) {
     near.official = 'guestSlowCount';
     near.significant = true;
@@ -148,7 +185,9 @@ export function placeRunIn(
   beats: readonly MatchBeat[],
   ctx: { runnerId: Id; runnerName: string; victimId: Id; victimName: string; disqualified: boolean; rng: Rng },
 ): MatchBeat[] {
-  const line = pick(ctx.rng, ctx.disqualified ? DQ_RUN_IN_LINES : RUN_IN_LINES);
+  // Behind his back, somebody running in sometimes brings a chair with them.
+  const armed = !ctx.disqualified && ctx.rng.next() < RUN_IN_ARMED_SHARE;
+  const line = pick(ctx.rng, ctx.disqualified ? DQ_RUN_IN_LINES : armed ? ARMED_RUN_IN_LINES : RUN_IN_LINES);
   return beforeFinish(beats, {
     kind: 'interference',
     significant: true,
@@ -157,6 +196,7 @@ export function placeRunIn(
     ringsideId: ctx.runnerId,
     actorId: ctx.runnerId,
     targetId: ctx.victimId,
+    ...(armed ? { weapon: 'chair' as const, fetched: { item: 'chair' as const, from: 'brought' as const } } : {}),
   });
 }
 

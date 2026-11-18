@@ -38,3 +38,9 @@ export const SLOW_NOT_ENOUGH_LINES = [
   "{guest} could not have counted it any slower, and {pinned} still could not get a shoulder up.",
   "{guest} dragged that count out as long as anybody could, and it still got to three on {pinned}.",
 ];
+
+/** ...with a chair brought down the aisle with them. {runner} {victim} */
+export const ARMED_RUN_IN_LINES = [
+  '{runner} came down the aisle with a steel chair, slid in and wrapped it around {victim}.',
+  '{runner} hit the ring carrying a chair, and {victim} never saw it coming.',
+];

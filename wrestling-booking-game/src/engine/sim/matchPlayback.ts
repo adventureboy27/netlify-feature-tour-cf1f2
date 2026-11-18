@@ -52,6 +52,8 @@ export interface PlaybackBeat {
   official?: OfficialMoment;
   /** Somebody outside the match who was in it: a manager, a man running in. */
   ringsideId?: Id;
+  /** Where what this beat needed came from (see sim/ringProps.ts). */
+  fetched?: MatchBeat['fetched'];
 }
 
 /** Beats with no clean "one side did something to the other" shape — a ring-side effect, not a pose. */
@@ -167,6 +169,7 @@ export function buildPlaybackTimeline(
       ...(beat.bleeding ? { bleeding: beat.bleeding } : {}),
       ...(beat.official ? { official: beat.official } : {}),
       ...(beat.ringsideId ? { ringsideId: beat.ringsideId } : {}),
+      ...(beat.fetched ? { fetched: beat.fetched } : {}),
     };
   });
 }

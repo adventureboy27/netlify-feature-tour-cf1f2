@@ -43,6 +43,7 @@ import {
   PLAY_BY_PLAY,
   ACTION_CALLS,
   OFFICIAL_CALLS,
+  FETCH_CALLS,
   FINISH_CALLS,
   FINISH_CALLS_PLAIN,
   COLOUR,
@@ -213,6 +214,8 @@ export interface CommentaryContext {
   championWeeks: number;
   titleChanged: boolean;
   stipulationName: string | null;
+  /** Won without a count however it is scored (a ladder, a table, a lid): no one-two-three call. */
+  noCount?: boolean;
   /** Real animosity, 0-100. */
   shootHeat: number;
   isMainEvent: boolean;
@@ -609,6 +612,20 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     play(line);
   };
 
+  /** Somebody going to get something: said about whoever is going. */
+  const callFetch = (beat: MatchBeat) => {
+    if (!beat.fetched) return;
+    const pool = FETCH_CALLS[beat.fetched.from].filter((t) => !usedPlay.has(t));
+    if (pool.length === 0) return;
+    const goer = [...ctx.sideA, ...ctx.sideB].find((w) => w.id === beat.actorId);
+    const was = momentum;
+    if (goer) momentum = { onTop: [goer], inTrouble: momentum.inTrouble };
+    const line = pick(rng, pool);
+    usedPlay.add(line);
+    play(line);
+    momentum = was;
+  };
+
   // ---- who, and what for -------------------------------------------------
   // A genuine one-on-one gets a real tale of the tape below — the debut and
   // lineage openers would just repeat what that is about to say, so they sit
@@ -728,6 +745,11 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     // ring the viewer stages it in is never contradicted by the call.
     // A moment of its own the official was in (a run-in, a mugging, what he
     // missed) is said the way the write-up says it: those are its names.
+    // Going to get something is called as it happens ("he's gone under the ring!").
+    if (beat.fetched && !beat.official) {
+      callFetch(beat);
+      continue;
+    }
     const ownWords = beat.spot || (beat.official && beat.ringsideId) || (beat.official && OWN_TEXT.has(beat.official));
     const options = ownWords ? [] : (beat.action ? ACTION_CALLS[beat.action] : (PLAY_BY_PLAY[beat.kind] ?? [])).filter((t) => !usedPlay.has(t));
     // A line about something that happened is said about who did it.
@@ -793,7 +815,7 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
   // Called the way it actually ended. The pinfall calls count to three; a
   // match that ended in a hold, a knockout or a disqualification gets a call
   // written for that, and anything else gets one that does not say how.
-  const finishPool = isPinfall(ctx.finish)
+  const finishPool = isPinfall(ctx.finish) && !ctx.noCount
     ? (PLAY_BY_PLAY.finish ?? [])
     : (FINISH_CALLS[ctx.finish] ?? FINISH_CALLS_PLAIN);
   const finishCalls = finishPool.filter((t) => !usedPlay.has(t));

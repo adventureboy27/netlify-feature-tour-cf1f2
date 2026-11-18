@@ -1,6 +1,8 @@
 // Match simulation orchestrator — wires kayfabe -> win probability -> finish
 // -> rating -> narrative into the single entry point callers use.
 
+import { withRingProps } from './ringProps';
+import { REPLACED_FROM_UNDER_THE_RING } from '../../data/ringProps';
 import type { Rng } from '../rng';
 import { chance, clamp, weightedPick, rngFromSeed, pick } from '../rng';
 import type {
@@ -388,7 +390,7 @@ export function simulateMatch(
     ? (ctx.gearFailureChance ?? 0) * ctx.settings.equipmentFailureWeightScale
     : 0;
 
-  const finish: FinishType = isFactionDestroyer
+  const rolledFinish: FinishType = isFactionDestroyer
     ? // The match ends the instant one side has nobody left — never rolled,
       // same non-negotiable as every other finish, just decided structurally
       // instead of by rollFinish.
@@ -426,6 +428,15 @@ export function simulateMatch(
         }
       : undefined,
       });
+  // DESIGN: a ladder or a table that gives out does not end the match any
+  // more. There is an endless supply of both under the ring: they drag out
+  // another one and carry on, and the match is won the way the stipulation
+  // says it is won. Only gear that cannot be replaced mid-match (a cage)
+  // still ends it with nobody winning. The unit still failed — the booker
+  // still pays for it (store.ts gearFailureUnitId).
+  const gearGaveOut = rolledFinish === 'equipmentFailure';
+  const replacedFinish = gearGaveOut ? REPLACED_FROM_UNDER_THE_RING[ctx.stipulation?.gearFamilyId ?? ''] : undefined;
+  const finish: FinishType = replacedFinish ?? rolledFinish;
   const draw = isDrawFinish(finish);
 
   const allParticipants = sides.flatMap((s) => sideMembers.get(s)!);
@@ -484,9 +495,18 @@ export function simulateMatch(
   // itself already landed on 'equipmentFailure', the narrowest form of
   // "only draw when the feature is actively engaged": this is already the
   // rare tail of an already-rare weighted pick. See sim/gearFailure.ts.
-  const gearFailure = finish === 'equipmentFailure' ? rollGearFailure(rng, ctx.gearUnitsInPlay ?? []) : null;
+  const gearFailure = gearGaveOut ? rollGearFailure(rng, ctx.gearUnitsInPlay ?? []) : null;
+  // Replaced, it is a moment in the match — somebody was on it when it went
+  // — rather than the end of it.
   const gearFailureBeat: MatchBeat[] = gearFailure
-    ? [{ kind: 'gearFailure' as const, significant: true, text: gearFailure.text }]
+    ? [
+        {
+          kind: 'gearFailure' as const,
+          significant: true,
+          text: gearFailure.text,
+          ...(replacedFinish ? { actorId: loserMembers[0]?.id ?? null, targetId: winnerMembers[0]?.id ?? null } : {}),
+        },
+      ]
     : [];
 
   const finalRating = clamp(rating - (botch?.ratingCost ?? 0) - (pyroBurn?.ratingCost ?? 0), 3, 100);
@@ -565,7 +585,17 @@ export function simulateMatch(
     // swung it and the manager caught doing it come just before the finish
     // they decided, not at the top — the call and the ring play the reel in
     // order, and the bell cannot ring at the opening lock-up.
-    beats: justBeforeFinish([...botchBeat, ...pyroBurnBeat, ...gearFailureBeat, ...beats], [...distractionBeat, ...cornerBeat]),
+    // Then where everything they hit each other with came from, and what
+    // was left lying about (sim/ringProps.ts).
+    beats: withRingProps(
+      replacedFinish
+        ? justBeforeFinish([...botchBeat, ...pyroBurnBeat, ...beats], [...gearFailureBeat, ...distractionBeat, ...cornerBeat])
+        : justBeforeFinish([...botchBeat, ...pyroBurnBeat, ...gearFailureBeat, ...beats], [...distractionBeat, ...cornerBeat]),
+      {
+        gearFamilyId: ctx.stipulation?.gearFamilyId,
+        nameOf: (id) => allParticipants.find((w) => w.id === id)?.name ?? null,
+      },
+    ),
     /** Who blew a spot, if anybody did. The caller decides what it costs them. */
     botchedById: botch?.workerId ?? null,
     /** Which owned unit gave out, if the finish was 'equipmentFailure'. The caller applies the consequence. */

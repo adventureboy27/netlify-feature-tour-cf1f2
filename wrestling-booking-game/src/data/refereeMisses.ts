@@ -173,6 +173,7 @@ export const REFEREE_MISSES: RefereeMiss[] = [
     context: 'any',
     severity: 0.35,
     when: 'counts',
+    needs: 'pin',
   },
   {
     id: 'outOfPosition',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { rngFromSeed } from '../rng';
 import type { MatchBeat, RefereeMissRecord } from '../types';
-import { placeGuestCounts, placeMiss, placeMugging, placeRunIn } from './officiating';
+import { countsAFall, countsNearFalls, placeGuestCounts, placeMiss, placeMugging, placeRunIn } from './officiating';
 import { REFEREE_MISSES, missesFor } from '../../data/refereeMisses';
 
 const reel = (): MatchBeat[] => [
@@ -126,5 +126,27 @@ describe('people outside the ropes', () => {
   it('puts the mugging in the match, with the muscle on the victim and the mouthpiece on the official', () => {
     const out = placeMugging(reel(), { muscleId: 'm', distractorId: 'd', victimId: 'b', text: 'D had the referee; M put B into the barricade.' });
     expect(out[3]).toMatchObject({ official: 'mugging', actorId: 'm', targetId: 'b', ringsideId: 'd' });
+  });
+});
+
+describe('which matches have a count in them', () => {
+  it('counts no fall in a match won on a ladder, through a table or with a lid shut, however the finish is scored', () => {
+    for (const id of ['ladder', 'tables', 'flamingTables', 'casket']) {
+      expect(countsAFall('cleanPin', { id })).toBe(false);
+      expect(countsNearFalls({ id })).toBe(false);
+    }
+    expect(countsAFall('cleanPin', null)).toBe(true);
+    expect(countsAFall('submission', null)).toBe(false);
+    expect(countsAFall('cleanPin', null, { falls: 'knockout' } as never)).toBe(false);
+    expect(countsNearFalls({ id: 'battleRoyal' })).toBe(false);
+    expect(countsNearFalls({ id: 'steelCage' }, { aim: 'escape' } as never)).toBe(false);
+    expect(countsNearFalls({ id: 'streetFight' })).toBe(true);
+  });
+
+  it('never slow-counts a near thing that was not a cover', () => {
+    const out = placeGuestCounts(reel(), { guestName: 'Guest', favoured: new Set(['a']), finish: 'knockout', nameOf: (id) => id, rng: rngFromSeed('g'), nearFallsCounted: false });
+    expect(out.some((b) => b.official)).toBe(false);
+    const missed = placeMiss(reel(), miss('slowCount'), { winnerIds: ['a'], loserIds: ['b'], finish: 'knockout', nearFallsCounted: false });
+    expect(missed.some((b) => b.official)).toBe(false);
   });
 });

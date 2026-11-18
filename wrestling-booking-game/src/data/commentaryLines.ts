@@ -245,6 +245,13 @@ export const OFFICIAL_CALLS: Partial<Record<OfficialMoment, readonly string[]>> 
   ],
 };
 
+/** Somebody going to get something, called as they go. {onTop} is the one going. */
+export const FETCH_CALLS: Record<'underRing' | 'corner' | 'brought', readonly string[]> = {
+  underRing: ["{onTop}'s gone under the ring — what's coming out of there?", 'Look out — {onTop} is going under the apron!'],
+  corner: ['{onTop} is pulling the steel steps off the corner!', 'Not the steps — {onTop} has the steps!'],
+  brought: ['And there is a chair coming down that aisle!', "Somebody's coming with a chair!"],
+};
+
 export const ACTION_CALLS: Record<MatchAction, readonly string[]> = {
   lockup: ['And they lock up. Neither one of them giving an inch.', 'Collar and elbow — and neither of them is moving.'],
   feelingOut: ['They circle. Feeling each other out, nobody committing yet.', 'Slow start — {onTop} and {inTrouble} sizing each other up.'],

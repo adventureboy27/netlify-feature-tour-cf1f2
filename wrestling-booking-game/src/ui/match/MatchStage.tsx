@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { maskOnly } from '../paperdoll/ComposedPortrait';
-import { ArenaBack, ArenaFront, FEET_Y, ROPE_CROSS_X, SIDE_ROPE_POST, VIEW, type Corner, type SideRopeKey } from './Arena';
+import { ArenaBack, ArenaFront, FEET_Y, ROPE_CROSS_X, SIDE_ROPE_POST, STEPS_X, VIEW, type Corner, type SideRopeKey } from './Arena';
 import { Prize, PrizeHung, prizeKind, type BeltLook } from './Belt';
 import { bell, crowd, hit, hitFor } from './sound';
 import { FIGURE_ASPECT, MatchFigure, heightScale } from './MatchFigure';
@@ -27,7 +27,7 @@ import { PERSON_VIEW, Person, type Face, type PersonParts } from './Ringside';
 import { playPerson, restingAt, slaps, waving, type PersonMoment } from './officiate';
 import { RING, TAG_TOUCH, apronX, midBody, onFrontFloor, pinHeld, planBeat, type Plan, type PlanFighter, type WorldFrame, type WorldPose } from './ringPhysics';
 import type { Conduct } from './conduct';
-import type { Id, Wrestler } from '../../engine/types';
+import type { Id, RingItem, Wrestler } from '../../engine/types';
 
 /** Figure width in stage units (hundredths of the stage's width). */
 const FIGURE_W = 12.8;
@@ -161,6 +161,70 @@ export interface Stain {
   depth: number;
   size: number;
   turn: number;
+}
+
+/** Something lying in the ring (or by it): dropped after use, or left in pieces. */
+interface Litter {
+  key: number;
+  item: RingItem | 'tableBroken' | 'ladderBroken';
+  x: number;
+  y: number;
+}
+
+/** When, through a fetch, the thing comes out from under the ring — and, for a table, when it is slid in. */
+const FETCH_GRAB = 0.58;
+const FETCH_SLIDE = 0.72;
+
+/**
+ * Going to get something (StagedBeat.fetch): down and out under the bottom
+ * rope to the floor in front of the ring, onto a knee at the apron, up with
+ * it, and back in — or along the floor to the steps at the near corner for
+ * those. Whoever is waiting stays where they are.
+ */
+function fetchPlan(staged: StagedBeat, cast: readonly PlanFighter[], centre: number): Plan {
+  const fetch = staged.fetch!;
+  const tracks = new Map<Id, WorldFrame[]>();
+  const edge = RING.half - 4;
+  const inside = (x: number) => Math.max(-edge, Math.min(edge, x));
+  for (const f of cast) {
+    const from = f.from ?? { x: centre - (f.dir * GAP) / 2, y: 0, rot: 0 };
+    const lying = Math.abs(Math.abs(from.rot) - 90) < 30;
+    if (f.role !== 'actor') {
+      tracks.set(f.id, [frame(0, from, lying ? 'flat' : undefined), frame(1, from, lying ? 'flat' : 'stagger')]);
+      continue;
+    }
+    const out = !onFrontFloor(from) && Math.abs(from.x) <= RING.half + 1;
+    const x0 = out ? inside(from.x) : from.x;
+    const corner = fetch.from === 'corner';
+    const at = corner ? STEPS_X + 5 : x0;
+    const back = corner ? -(RING.half - 6) : inside(at);
+    const frames: WorldFrame[] = [frame(0, from, lying ? 'flat' : undefined)];
+    if (lying) frames.push(frame(0.07, { x: from.x, y: 0, rot: from.rot * 0.2 }, 'kneel'));
+    if (out) {
+      frames.push(
+        frame(0.14, { x: x0, y: 0, rot: 0 }, 'crouch'),
+        frame(0.22, { x: x0, y: FRONT_FLOOR * 0.45, rot: f.dir * 90 }, 'tuck'),
+        frame(0.3, { x: x0, y: FRONT_FLOOR, rot: 0 }, 'crouch'),
+      );
+    }
+    if (Math.abs(at - x0) > 2) frames.push(frame(0.4, { x: (x0 + at) / 2, y: FRONT_FLOOR, rot: Math.sign(at - x0) * 8 }, 'run'));
+    frames.push(
+      frame(0.46, { x: at, y: FRONT_FLOOR, rot: 0 }, 'kneel'),
+      frame(FETCH_GRAB - 0.04, { x: at, y: FRONT_FLOOR, rot: 0 }, 'kneel'),
+      frame(FETCH_GRAB + 0.04, { x: at, y: FRONT_FLOOR, rot: 0 }, 'lift'),
+    );
+    // A table goes in ahead of them, slid under the bottom rope.
+    if (fetch.item === 'table') frames.push(frame(FETCH_SLIDE, { x: at, y: FRONT_FLOOR, rot: 0 }, 'punch'));
+    frames.push(
+      frame(0.8, { x: at, y: FRONT_FLOOR, rot: 0 }, 'guard'),
+      frame(0.88, { x: (at + back) / 2, y: TAG_VAULT_HEIGHT * 0.5, rot: 0 }, 'climb'),
+      frame(0.95, { x: back, y: 0.4, rot: 0 }, 'crouch'),
+      frame(1, { x: back, y: 0, rot: 0 }, 'guard'),
+    );
+    tracks.set(f.id, frames);
+  }
+  const plan = planOf(tracks);
+  return { ...plan, centre };
 }
 
 /**
@@ -388,6 +452,11 @@ export function MatchStage({
   const personParts = useRef(new Map<Id, PersonParts>());
   const personBox = useRef(new Map<Id, HTMLDivElement>());
   const personAt = useRef(new Map<Id, PersonMoment>());
+  // What has been left lying about this match, and whether the steps are
+  // still on the corner.
+  const [litter, setLitter] = useState<Litter[]>([]);
+  const litterKey = useRef(0);
+  const [stepsGone, setStepsGone] = useState(false);
   const onRefParts = useCallback((parts: PersonParts | null) => {
     refParts.current = parts;
   }, []);
@@ -481,7 +550,7 @@ export function MatchStage({
       return () => settle(people);
     }
 
-    const next = planBeat(staged, cast, centre.current);
+    const next = staged.fetch ? fetchPlan(staged, cast, centre.current) : planBeat(staged, cast, centre.current);
     centre.current = next.centre;
     for (const [id, pose] of next.end) leftAt.current.set(id, pose);
     setPlan(next);
@@ -529,6 +598,7 @@ export function MatchStage({
     // ---- the referee, and the people on the floor --------------------------
     const T = (at: number) => (next.lead + at * (1 - next.lead)) * duration;
     const targetCast = cast.find((f) => f.role === 'target');
+    const actorCast = cast.find((f) => f.role === 'actor');
     const targetLast = targetCast ? next.end.get(targetCast.id) : undefined;
     const runner = fighters.find((f) => f.runIn);
     // Which ropes he goes to with his back to the ring: the manager up on the
@@ -575,6 +645,49 @@ export function MatchStage({
     }
 
     const timers: number[] = [];
+    // ---- what is lying about ----------------------------------------------
+    // Picked up again when this beat uses it (the thing in the hand, the
+    // table or ladder the move needs) — and left where it fell after.
+    const actorEnd = actorCast ? next.end.get(actorCast.id) : undefined;
+    const handProp = !staged.fetch && staged.prop ? staged.prop : undefined;
+    const uses = new Set<Litter['item']>([
+      ...(handProp ? [handProp] : []),
+      ...(staged.scene === 'table' || staged.scene === 'flamingTable' ? (['table'] as const) : []),
+      ...(staged.scene === 'ladder' ? (['ladder'] as const) : []),
+    ]);
+    if (uses.size > 0) {
+      setLitter((all) => {
+        const left = [...all];
+        for (const item of uses) {
+          const i = left.findIndex((l) => l.item === item);
+          if (i >= 0) left.splice(i, 1);
+        }
+        return left;
+      });
+    }
+    const left: Omit<Litter, 'key'>[] = [];
+    const floorOf = (pose: WorldPose | undefined) => (pose && onFrontFloor(pose) ? FRONT_FLOOR : pose && pose.y < FLOOR / 2 ? FLOOR : 0);
+    if (staged.fetch) {
+      const fetchedAt = actorEnd ?? { x: 0, y: 0, rot: 0 };
+      if (staged.fetch.item === 'table') left.push({ item: 'table', x: fetchedAt.x + 4, y: 0 });
+      if (staged.fetch.item === 'ladder') left.push({ item: 'ladder', x: fetchedAt.x + (fetchedAt.x > 0 ? -5 : 5), y: 0 });
+      if (staged.fetch.from === 'corner') timers.push(window.setTimeout(() => setStepsGone(true), FETCH_GRAB * duration));
+    } else if (handProp && handProp !== 'ladder' && actorEnd && actorCast) {
+      left.push({ item: handProp, x: actorEnd.x + actorCast.dir * 4, y: floorOf(actorEnd) });
+    } else if (handProp === 'ladder' && actorEnd && actorCast) {
+      left.push({ item: 'ladder', x: actorEnd.x + actorCast.dir * 5, y: floorOf(actorEnd) });
+    }
+    if ((staged.scene === 'table' || staged.scene === 'flamingTable') && targetLast) {
+      const x = staged.sceneIntact && staged.move !== 'tablePowerbomb' ? next.centre + 2.6 * (targetLast.x - next.centre) : midBody(targetLast).x;
+      left.push({ item: staged.sceneIntact ? 'table' : 'tableBroken', x, y: 0 });
+    }
+    if (staged.scene === 'ladder') left.push({ item: staged.move === 'ladderCollapse' ? 'ladderBroken' : 'ladder', x: next.centre, y: 0 });
+    // Left lying once the beat is over — when the next one takes over (a
+    // timer at the end of the move would be cancelled by the next beat
+    // starting on the same instant).
+    const leave = () => {
+      if (left.length > 0) setLitter((all) => [...all, ...left.map((d) => ({ ...d, key: litterKey.current++ }))].slice(-12));
+    };
     // What it sounds like: every impact, the hand on the mat for a count, the
     // crowd for anything shouted. Scheduled on the audio clock, so it lands
     // on the frame it belongs to however busy the page is.
@@ -627,6 +740,7 @@ export function MatchStage({
       // would blink everyone back to the centre for a frame.
       settle(running);
       timers.forEach((t) => window.clearTimeout(t));
+      leave();
     };
     // `fighters`/`staged` are rebuilt every render; the beat key and stage
     // size are what actually mean "play this again".
@@ -814,7 +928,7 @@ export function MatchStage({
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
       {w > 0 && (
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
-          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} onSideRope={onSideRope} />
+          <ArenaBack accent={accent} name={promotionName} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} onSideRope={onSideRope} />
 
           {/* The apron is the nearest thing this building has to a nameplate. */}
           {conduct?.noRing ? null : corners ? (
@@ -966,6 +1080,22 @@ export function MatchStage({
             </div>
           )}
 
+          {/* Whatever has been left lying about: a chair dropped after it was
+              used, a table in pieces, a ladder standing in the corner or
+              lying wrecked — until somebody picks it up again. */}
+          {litter.map((l) => (
+            <div key={l.key} data-testid="litter" data-item={l.item} data-x={Math.round(l.x)}>
+              <LitterArt item={l.item} left={sx(l.x)} feet={sy(l.y)} u={u} zIndex={l.y <= FRONT_FLOOR + 0.5 ? 12 : 1} />
+            </div>
+          ))}
+          {/* A table coming out from under the ring, slid in under the bottom rope. */}
+          {!over && staged?.fetch?.item === 'table' && plan && actor && (() => {
+            const track = plan.tracks.get(actor.wrestler.id) ?? [];
+            const at = track[track.length - 1];
+            if (!at) return null;
+            return <div key={`fetched-table-${beatKey}`} className="mv-from pointer-events-none absolute" style={{ animationDelay: `${Math.round(FETCH_SLIDE * duration)}ms`, left: 0, top: 0, zIndex: 1 }}><LitterArt item="table" left={sx(at.x + 4)} feet={sy(0)} u={u} zIndex={1} /></div>;
+          })()}
+
           {/* Blood on the mat: tonight's earlier matches, and this one's. */}
           {[...stains, ...dripped].map((st, i) => (
             <svg
@@ -1024,6 +1154,7 @@ export function MatchStage({
                     <ArticulatedFigure
                       wrestler={fighter.wrestler}
                       held={!over && !leaving && staged?.prop && fighter === actor ? (dirOf(fighter.slot) === 1 ? 'right' : 'left') : undefined}
+                      heldFrom={staged?.fetch && fighter === actor ? Math.round(FETCH_GRAB * duration) : undefined}
                       weapon={staged?.prop}
                       blindfold={conduct?.blindfold}
                       bloody={bloody?.has(id)}
@@ -1217,4 +1348,76 @@ export function MatchStage({
       )}
     </div>
   );
+}
+
+/** Something left lying in or by the ring, drawn where it is. */
+function LitterArt({ item, left, feet, u, zIndex }: { item: Litter['item']; left: number; feet: number; u: number; zIndex: number }) {
+  const box = (w: number, h: number) => ({ left: left - (w * u) / 2, top: feet - h * u, width: w * u, height: h * u, zIndex });
+  switch (item) {
+    case 'chair':
+      // Folded flat and kicked aside.
+      return (
+        <svg viewBox="0 0 80 24" className="pointer-events-none absolute" style={box(6.4, 1.9)} aria-hidden>
+          <path d="M 4,18 L 70,8 L 76,14 L 10,22 Z" fill="#9aa3b2" stroke="#4b5260" strokeWidth={2} />
+          <path d="M 14,20 L 66,12" stroke="#4b5260" strokeWidth={2} />
+        </svg>
+      );
+    case 'can':
+      return (
+        <svg viewBox="0 0 60 36" className="pointer-events-none absolute" style={box(4.6, 2.8)} aria-hidden>
+          <path d="M 6,8 L 52,4 L 54,30 L 8,32 Z" fill="#9aa3b2" stroke="#4b5260" strokeWidth={2} />
+          <ellipse cx={53} cy={17} rx={5} ry={13} fill="#c3cad6" stroke="#4b5260" strokeWidth={2} />
+          <path d="M 20,8 L 24,20 L 18,30" stroke="#4b5260" strokeWidth={2} fill="none" />
+        </svg>
+      );
+    case 'kendo':
+      return (
+        <svg viewBox="0 0 100 10" className="pointer-events-none absolute" style={box(7.5, 0.75)} aria-hidden>
+          <path d="M 4,7 L 96,3" stroke="#c9a873" strokeWidth={4} strokeLinecap="round" />
+          <path d="M 4,7 L 26,6" stroke="#3a2a1c" strokeWidth={5} strokeLinecap="round" />
+        </svg>
+      );
+    case 'steps':
+      return (
+        <svg viewBox="0 0 80 40" className="pointer-events-none absolute" style={box(6, 3)} aria-hidden>
+          <path d="M 2,38 L 2,18 L 30,18 L 30,4 L 78,4 L 78,38 Z" fill="#3a3f4a" stroke="#22252c" strokeWidth={2} />
+          <path d="M 2,18 L 30,18 L 30,4 L 78,4" fill="none" stroke="#565c69" strokeWidth={3} />
+        </svg>
+      );
+    case 'table':
+      // Standing, legs out, waiting for somebody.
+      return (
+        <svg viewBox="0 0 180 44" className="pointer-events-none absolute" style={box(18, 4.4)} aria-hidden>
+          <rect x={4} y={2} width={172} height={9} rx={2} fill="#8a5a2c" stroke="#4d3015" strokeWidth={2} />
+          <path d="M 24,11 L 20,42 M 156,11 L 160,42" stroke="#4b5260" strokeWidth={5} strokeLinecap="round" />
+        </svg>
+      );
+    case 'tableBroken':
+      return (
+        <svg viewBox="0 0 180 44" className="pointer-events-none absolute" style={box(18, 4.4)} aria-hidden>
+          <path d="M 4,30 L 80,38 L 78,44 L 2,38 Z M 98,40 L 176,28 L 178,36 L 100,44 Z" fill="#8a5a2c" stroke="#4d3015" strokeWidth={2} />
+          <path d="M 84,40 L 92,36 L 96,42 M 60,26 L 66,22" stroke="#6b4320" strokeWidth={3} />
+          <path d="M 18,38 L 28,22 M 162,36 L 150,20" stroke="#4b5260" strokeWidth={5} strokeLinecap="round" />
+        </svg>
+      );
+    case 'ladder':
+      return (
+        <svg viewBox="0 0 60 150" className="pointer-events-none absolute" style={box(7.2, 18)} aria-hidden>
+          <path d="M 14,4 L 6,148 M 46,4 L 54,148" stroke="#c9a23a" strokeWidth={5} strokeLinecap="round" />
+          {Array.from({ length: 9 }, (_, i) => (
+            <line key={i} x1={13 - i * 0.8} y1={16 + i * 15} x2={47 + i * 0.8} y2={16 + i * 15} stroke="#e2c15a" strokeWidth={4} />
+          ))}
+        </svg>
+      );
+    case 'ladderBroken':
+      // On its side, bent in the middle, rungs gone.
+      return (
+        <svg viewBox="0 0 150 30" className="pointer-events-none absolute" style={box(18, 3.6)} aria-hidden>
+          <path d="M 4,24 L 70,18 L 146,26 M 6,10 L 72,6 L 144,14" stroke="#c9a23a" strokeWidth={5} strokeLinecap="round" fill="none" />
+          {[18, 34, 50, 96, 112, 128].map((x, i) => (
+            <line key={i} x1={x} y1={9 - (x > 72 ? -2 : 0)} x2={x + 1} y2={22 + (x > 72 ? 3 : 0)} stroke="#e2c15a" strokeWidth={4} />
+          ))}
+        </svg>
+      );
+  }
 }

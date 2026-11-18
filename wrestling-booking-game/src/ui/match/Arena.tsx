@@ -48,6 +48,8 @@ const PLATFORM = (() => {
 })();
 /** The bottom of the skirt hanging off the front of the platform. */
 const SKIRT_BOTTOM = PLATFORM.frontY + 86;
+/** Where the ring steps stand on the floor in front of the near left corner, in stage units. */
+export const STEPS_X = (PLATFORM.frontL - 40 - VIEW.w / 2) / UNIT;
 
 /** The four runs of side rope that give when somebody hits them: far and near half, left and right. */
 export type SideRopeKey = 'backL' | 'backR' | 'frontL' | 'frontR';
@@ -173,8 +175,11 @@ export const ArenaBack = memo(function ArenaBack({
   corners,
   eventName,
   noRing = false,
+  stepsGone = false,
   onSideRope,
 }: {
+  /** Somebody has taken the steel steps off the corner: they are not there any more. */
+  stepsGone?: boolean;
   /** Hands over the far halves of the side ropes, so a body hitting them can make them give. */
   onSideRope?: (key: SideRopeKey, el: SVGGElement | null) => void;
   /** An arena-floor match: no ring is drawn at all. */
@@ -323,8 +328,10 @@ export const ArenaBack = memo(function ArenaBack({
       ) : (
         <g>
       {/* Ring steps, up to the apron at the near left corner. */}
+      {!stepsGone && <>
       <polygon points={`${PLATFORM.frontL - 80},${SKIRT_BOTTOM - 4} ${PLATFORM.frontL + 2},${SKIRT_BOTTOM - 4} ${PLATFORM.frontL + 2},${PLATFORM.frontY + 10} ${PLATFORM.frontL - 34},${PLATFORM.frontY + 10} ${PLATFORM.frontL - 34},${PLATFORM.frontY + 40} ${PLATFORM.frontL - 80},${PLATFORM.frontY + 40}`} fill="#3a3f4a" />
       <polygon points={`${PLATFORM.frontL - 80},${PLATFORM.frontY + 40} ${PLATFORM.frontL - 34},${PLATFORM.frontY + 40} ${PLATFORM.frontL - 34},${PLATFORM.frontY + 10} ${PLATFORM.frontL + 2},${PLATFORM.frontY + 10} ${PLATFORM.frontL + 2},${PLATFORM.frontY + 16} ${PLATFORM.frontL - 28},${PLATFORM.frontY + 16} ${PLATFORM.frontL - 28},${PLATFORM.frontY + 46} ${PLATFORM.frontL - 80},${PLATFORM.frontY + 46}`} fill="#565c69" />
+      </>}
 
       {/* The platform: the apron all round, then the canvas inside the ropes. */}
       <polygon points={`${PLATFORM.backL},${PLATFORM.backY} ${PLATFORM.backR},${PLATFORM.backY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontL},${PLATFORM.frontY}`} fill="#8e95a3" />
