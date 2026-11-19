@@ -7195,6 +7195,6 @@ This isn't a mature game: no sexual innuendo, no slurs or stereotypes, no sweari
   - Fan forum names: ringrat79, kayfabe_karen, blade_job_bob → ringside_ray79, kayfabe_kate, backbreaker_bob.
   - The jealousy confrontation's arm-around-the-waist line is now flowers.
   - The sombrero is out of the hat library.
-- **Guard:** `src/data/familyFriendly.test.ts` reads every string literal under `src/` and fails on a list of sexual, crude, hateful, stereotyping, alcohol and drug terms. Only the real-name blocklist and camelCase ids are exempt. A second test proves the scanner catches each kind of string.
+- **Guard:** `src/data/familyFriendly.test.ts` reads every string literal under `src/`, and the text written directly into the screens, and fails on a list of sexual, crude, hateful, stereotyping, alcohol and drug terms. Only the real-name blocklist and camelCase ids are exempt. A second test proves the scanner catches each kind of string.
 
 Not changed: the violence the game is built on (blood, chairs, tables, hardcore matches) and gambling as a mechanic (the "gamble" option in events, the Casino Showroom venue, the Double or Nothing team).

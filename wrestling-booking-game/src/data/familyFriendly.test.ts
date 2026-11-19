@@ -9,14 +9,15 @@
 // it, rephrase the line rather than loosening the pattern.
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+
+/** Every source file under src/, read as text (Vite's raw glob, as engine/career/pronouns.test.ts does). */
+const FILES = import.meta.glob('../**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 const NOT_FOR_THIS_GAME = new RegExp(
   [
     // sexual
     'sexy', '\\bsex\\b', 'seduc', '\\blust', 'naked', '\\bnude', 'stripper', 'hooker', 'booty', '\\bboob', '\\bthong',
-    'lingerie', '\\bpimp', 'playboy', '\\bvixen', 'temptress', 'harlot', 'horny', 'kinky', 'fetish', 'bombshell', '\\bslut',
+    'lingerie', '\\bpimp', 'playboy', '\\bvixen', 'temptress', '\\bharlot', 'horny', 'kinky', 'fetish', 'bombshell', '\\bslut',
     '\\bwhore', '\\bbimbo', '\\bhussy', 'ring ?rat', 'cockburn', 'total package',
     // drinking and drugs
     '\\bdrunk', '\\bbooze', '\\bbeer\\b', '\\blager\\b', 'whiskey', '\\bvodka', 'liquor', 'moonshin', 'hangover',
@@ -42,33 +43,28 @@ const SKIP = new Set([
   'src/data/matchBeats.ts:NOT_IN_SUMO',
 ]);
 
-function sources(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const path = join(dir, name);
-    if (statSync(path).isDirectory()) return sources(path);
-    return /\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name) ? [path] : [];
-  });
-}
-
-/** The contents of every string and template literal in a file, comments left out. */
-function literals(code: string): string[] {
+/**
+ * The contents of every string and template literal in a file, comments left
+ * out — and in a screen, the text written straight into the markup too.
+ */
+function literals(code: string, jsx = false): string[] {
   const withoutComments = code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
   const out: string[] = [];
   const re = /'((?:\\.|[^'\\\n])*)'|"((?:\\.|[^"\\\n])*)"|`((?:\\.|[^`\\])*)`/g;
   for (const m of withoutComments.matchAll(re)) out.push(m[1] ?? m[2] ?? m[3] ?? '');
+  if (jsx) for (const m of withoutComments.matchAll(/>([^<>{}]*[A-Za-z][^<>{}]*)</g)) out.push(m[1]!);
   return out;
 }
 
 describe('a game for everybody', () => {
   it('says nothing suggestive, offensive, crude, or about drink or drugs', () => {
-    const root = join(__dirname, '..');
-    const files = sources(root);
+    const files = Object.entries(FILES).filter(([path]) => !/\.test\.tsx?$/.test(path));
     expect(files.length).toBeGreaterThan(100);
     const found: string[] = [];
-    for (const file of files) {
-      const rel = `src/${relative(root, file)}`;
+    for (const [path, code] of files) {
+      const rel = path.startsWith('./') ? `src/data/${path.slice(2)}` : `src/${path.replace(/^\.\.\//, '')}`;
       if (SKIP.has(rel)) continue;
-      for (const text of literals(readFileSync(file, 'utf8'))) {
+      for (const text of literals(code, path.endsWith('.tsx'))) {
         // The sumo filter is a list of words a line must not contain; it is not a line.
         if (text.startsWith('rope|turnbuckle')) continue;
         // A camelCase id (a gimmick's, a sponsor's) is stored in saves and never shown; its display name is checked.
@@ -81,8 +77,8 @@ describe('a game for everybody', () => {
   });
 
   it('really does catch them, in any kind of string', () => {
-    const sample = "const a = 'The Bombshells'; const b = `${name} SUCKS`; const c = \"a hotel bar fight\"; // a comment saying hell is fine";
-    const caught = literals(sample).filter((t) => NOT_FOR_THIS_GAME.test(t));
-    expect(caught).toEqual(['The Bombshells', '${name} SUCKS', 'a hotel bar fight']);
+    const sample = "const a = 'The Bombshells'; const b = `${name} SUCKS`; const c = \"a hotel bar fight\"; // a comment saying hell is fine\nconst d = <p>What the hell</p>;";
+    const caught = literals(sample, true).filter((t) => NOT_FOR_THIS_GAME.test(t));
+    expect(caught).toEqual(['The Bombshells', '${name} SUCKS', 'a hotel bar fight', 'What the hell']);
   });
 });
