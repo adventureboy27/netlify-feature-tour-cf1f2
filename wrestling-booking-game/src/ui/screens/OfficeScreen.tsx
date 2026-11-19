@@ -49,6 +49,7 @@ import { networkDemandOptions, type NetworkDemandChoice } from '../../engine/wor
 import { FAREWELL_TOUR_OPTIONS, type FarewellTourOptionId } from '../../engine/world/farewellTour';
 import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
+import { SPONSOR_AUDIENCE_WORDS } from '../../data/audience';
 import { GIMMICKS, gimmickCategories } from '../../data/gimmicks';
 import { GROUP_GIMMICKS, tagTeamGimmicks, factionGimmicks } from '../../data/groupGimmicks';
 import { canFormGroup, groupOf, TEAM_PROBLEM_TEXT } from '../../engine/world/tagTeams';
@@ -635,6 +636,7 @@ function DealOffers() {
                     ↓ {condition.text}
                   </div>
                 ))}
+                {sponsor.audience && <div className="text-[10px] text-sky-400">{SPONSOR_AUDIENCE_WORDS[sponsor.audience]}</div>}
                 <button
                   type="button"
                   data-testid={`sign-sponsor-${sponsor.id}`}

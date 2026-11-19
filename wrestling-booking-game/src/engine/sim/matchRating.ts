@@ -49,6 +49,8 @@ export interface MatchRatingContext {
   territoryFit: number;
   /** How well these workers suit the company they are working for. */
   houseStyleFit: number;
+  /** Who is watching, and whether this is what they came for. Optional: zero with a mixed crowd. */
+  audienceFit?: number;
   /**
    * Friends and enemies in the same match. Allies work a smoother, better
    * match; enemies work a stiffer, more dangerous one that the crowd can
@@ -187,6 +189,8 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
   const instructionMod = term('Instruction', ctx.instructionModifier);
   const territoryFit = term('Territory fit', ctx.territoryFit);
   const houseStyle = term('House style', ctx.houseStyleFit);
+  // Only listed when the crowd leans one way: a mixed crowd adds nothing to explain.
+  const audience = ctx.audienceFit ? term("Who's watching", ctx.audienceFit) : 0;
   const relationships = term('History between them', ctx.relationshipHeat ?? 0);
   const pairChemistry = term('Pair chemistry', ctx.pairChemistryBonus);
   const overexposure = term('Overexposure', -Math.abs(ctx.overexposurePenalty));
@@ -238,6 +242,7 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
     instructionMod +
     territoryFit +
     houseStyle +
+    audience +
     relationships +
     pairChemistry +
     overexposure +

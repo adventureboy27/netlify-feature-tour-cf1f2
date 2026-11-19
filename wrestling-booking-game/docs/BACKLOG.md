@@ -7254,3 +7254,13 @@ The standard is what network wrestling shows on a Friday night. Blood, chairs, h
 - **Kept:** every stereotype and trademark change, and the beer sponsor's switch to a sports drink.
 - **The guard test** now lets "hell", "damn" and "sucks" through; real swearing still fails.
 - **CLAUDE.md's** "Rated PG" rule now reads "Friday-night network TV".
+
+## Who's watching: sponsors change the crowd
+
+Each company now has an audience, one value from families (0) to grown-ups (100) on `World.audienceAge`, read through `engine/world/audience.ts`. Old saves have no value and read as a mixed crowd, so nothing changes for them. The numbers live in `data/audience.ts` rather than `WorldSettings`, so no save-version bump was needed.
+
+- **Sponsors set the direction** (`Sponsor.audience`). Sunbright Cereal brings families in and Ironhead Sports Drink brings an older, rowdier crowd; the local and apparel sponsors are neutral. The crowd moves about 8% of the way toward the sponsors' target each week, so a change of sponsor takes about two months to show, and the crowd drifts back once they're gone.
+- **It tilts each match** ("Who's watching" in the rating breakdown, listed only when the crowd leans). Families reward flyers, masked wrestlers, showmen, giants and faces. Grown-ups reward brawlers, hardcore, submission and old-school wrestlers, heels, and violent stipulations. It's worth at most about ±3.6 points at the extremes and about ±2 with one leaning sponsor. A mixed crowd adds nothing.
+- **On screen:** the Television and sponsors panel says who's watching, in words, and which way it's heading. Each leaning sponsor's card, signed or on offer, says who it brings in.
+- **Tests:** `engine/world/audience.test.ts` covers the direction, the drift speed, the tilt each way, the cap, the words, and which sponsors lean.
+- **Probe:** the probe doesn't sign sponsors, so its show numbers are unchanged by this. Measuring the effect would need a save with a sponsor signed.

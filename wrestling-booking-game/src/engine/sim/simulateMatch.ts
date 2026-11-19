@@ -98,6 +98,8 @@ export interface SimulateMatchContext {
   territoryFit?: number;
   /** Rating points for suiting (or clashing with) the promotion's house style. */
   houseStyleFit?: number;
+  /** Rating points for suiting, or not suiting, who is watching (engine/world/audience.ts). */
+  audienceFit?: number;
   /** Friends or enemies across the ring. See career/relationships.ts. */
   relationshipHeat?: number;
   /** Belts on the line, so the highlight can say what the match was for. */
@@ -483,6 +485,7 @@ export function simulateMatch(
     paceCeiling: pace.ratingCeiling,
     territoryFit: ctx.territoryFit ?? 0,
     houseStyleFit: ctx.houseStyleFit ?? 0,
+    audienceFit: ctx.audienceFit ?? 0,
     relationshipHeat: ctx.relationshipHeat ?? 0,
     pairChemistryBonus: ctx.pairChemistryBonus ?? 0,
     overexposurePenalty: ctx.overexposurePenalty ?? 0,

@@ -27,6 +27,11 @@ export interface Sponsor {
   weeklyFee: number;
   conditions: SponsorCondition[];
   blurb: string;
+  /**
+   * Who their customers are, and so who they bring into the building
+   * (engine/world/audience.ts). Absent: nobody in particular.
+   */
+  audience?: 'family' | 'grownUp';
 }
 
 export const SPONSORS: Sponsor[] = [
@@ -52,6 +57,7 @@ export const SPONSORS: Sponsor[] = [
   {
     id: 'nationalBrand',
     name: 'Sunbright Cereal',
+    audience: 'family',
     requiresRating: 78,
     weeklyFee: 45_000,
     conditions: [
@@ -62,6 +68,7 @@ export const SPONSORS: Sponsor[] = [
   {
     id: 'beerBrand',
     name: 'Ironhead Sports Drink',
+    audience: 'grownUp',
     requiresRating: 70,
     weeklyFee: 38_000,
     conditions: [

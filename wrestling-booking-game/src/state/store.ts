@@ -367,6 +367,8 @@ import { isNonDecisiveFinish } from '../engine/sim/finish';
 import { simulateMatch, type SimParticipant } from '../engine/sim/simulateMatch';
 import { houseStyleRatingBonus, violenceTolerancePenalty } from '../engine/sim/houseStyle';
 import { driftFanTaste, styleRunShare } from '../engine/world/fanTaste';
+import { audienceRatingBonus, driftAudience } from '../engine/world/audience';
+import { AUDIENCE } from '../data/audience';
 import { computeAftermath, applyAftermath, restWeek } from '../engine/sim/aftermath';
 import { resolveDarkMatch } from '../engine/sim/darkMatch';
 import { stoppageVictimOf, rollMatchCasualties, callInterpromotional } from '../engine/sim/interpromotional';
@@ -2234,6 +2236,9 @@ export const useGameStore = create<GameStore>()(
               world.settings,
               world.promotion.fanTaste,
             ),
+            // Who is watching — what the sponsors have brought in — and
+            // whether this is what they came for (engine/world/audience.ts).
+            audienceFit: audienceRatingBonus(participantWrestlers, stipulation?.violenceLevel ?? 0, world.audienceAge ?? AUDIENCE.neutral),
             usedBeats,
             titles: titlesOnTheLine,
             isMainEvent: i === world.currentCard.length - 1,
@@ -4459,6 +4464,11 @@ export const useGameStore = create<GameStore>()(
         // leaves tonightsStyles empty, which correctly nudges everything
         // very slightly toward neutral rather than doing nothing at all.
         driftFanTaste(world.promotion.fanTaste, styleRunShare(tonightsStyles), world.settings);
+        // And who is in the building drifts toward who the sponsors bring in.
+        world.audienceAge = driftAudience(
+          world.audienceAge ?? AUDIENCE.neutral,
+          world.sponsorIds.map((id) => sponsorById(id)).filter((sp): sp is NonNullable<typeof sp> => Boolean(sp)),
+        );
 
         // ---- what the night did to the map ------------------------------
         // Following is earned here and nowhere else. Everything the player

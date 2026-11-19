@@ -594,6 +594,12 @@ export interface World {
   broadcastDealId: string | null;
   /** Sponsors currently on the banner. */
   sponsorIds: string[];
+  /**
+   * Who is watching: 0 families, 100 grown-ups, drifting toward what the
+   * sponsors bring in (engine/world/audience.ts). Absent on an older save,
+   * which reads as a mixed crowd.
+   */
+  audienceAge?: number;
   /** A deal on the table, awaiting an answer. */
   pendingBroadcastOffer: string | null;
   pendingSponsorOffers: string[];

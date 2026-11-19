@@ -42,6 +42,8 @@ import { stipulationById } from '../../data/stipulations';
 import { Money } from '../components/display';
 import { broadcasterById } from '../../data/broadcasters';
 import { sponsorById } from '../../data/sponsors';
+import { AUDIENCE, SPONSOR_AUDIENCE_WORDS } from '../../data/audience';
+import { audienceTarget, audienceWords } from '../../engine/world/audience';
 import { weeklyBroadcastIncome, broadcastVerdict } from '../../engine/economy/broadcast';
 import { FileTransfer } from '../components/FileTransfer';
 import { VenuePicker } from '../components/VenuePicker';
@@ -972,6 +974,10 @@ function BroadcastPanel() {
 
   const breachOn = (key: string) => world.breachWeeks[key] ?? 0;
   const grace = world.settings.broadcastWeeksOfGrace;
+  // Who is in the building, and which way the sponsors are pulling it.
+  const audienceNow = world.audienceAge ?? AUDIENCE.neutral;
+  const audienceHeading = audienceTarget(sponsors);
+  const drifting = Math.abs(audienceHeading - audienceNow) > 4 ? (audienceHeading > audienceNow ? 'getting older' : 'getting younger') : null;
 
   return (
     <section className="mb-4">
@@ -981,6 +987,10 @@ function BroadcastPanel() {
           <Money amount={weekly} /> a week
         </span>
       </div>
+      <p data-testid="audience" className="mb-2 text-xs text-neutral-400">
+        Who&apos;s watching: <span className="text-neutral-200">{audienceWords(audienceNow)}</span>
+        {drifting && <span className="text-neutral-500"> — and {drifting}, with these sponsors</span>}
+      </p>
 
       {!deal && sponsors.length === 0 ? (
         <p className="text-xs text-neutral-500">
@@ -1050,6 +1060,7 @@ function BroadcastPanel() {
                   {condition.text}
                 </div>
               ))}
+              {sponsor.audience && <div className="text-[10px] text-sky-400">{SPONSOR_AUDIENCE_WORDS[sponsor.audience]}</div>}
               <div className="mt-1 flex items-center justify-between gap-2">
                 {breachOn(sponsor.id) > 0 ? (
                   <span className="text-[10px] text-rose-400">
