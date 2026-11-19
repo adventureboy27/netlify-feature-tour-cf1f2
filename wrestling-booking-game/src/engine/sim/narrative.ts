@@ -303,7 +303,7 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
   // Sumo's deciding fall is the winner's second: the loser's own falls say
   // whether it went the distance.
   const sumoScore: [number, number] | null =
-    ctx.finish === 'ringOut' ? [2, (ctx.falls ?? []).filter((f) => !ctx.winnerMembers.some((w) => w.id === f.byId)).length] : null;
+    ctx.finish === 'ringOut' ? [2, (ctx.falls ?? []).filter((f) => !f.both && !ctx.winnerMembers.some((w) => w.id === f.byId)).length] : null;
   const finishLine = (flavor ? `${winnerName} ${fill(flavor)}.` : FINISH_LINES[ctx.finish](winnerName, loserName)).replace(
     /\{score\}/g,
     sumoScore ? `two falls to ${sumoScore[1] === 1 ? 'one' : 'none'}` : '',
@@ -480,7 +480,7 @@ function withSpots(beats: MatchBeat[], ctx: NarrativeContext, budget: number): M
 function withFalls(beats: MatchBeat[], ctx: NarrativeContext): MatchBeat[] {
   const falls = ctx.falls ?? [];
   if (falls.length === 0) return beats;
-  const rng = rngFromSeed(`falls:${ctx.spotSeed ?? ''}:${falls.map((f) => f.outId).join(',')}`);
+  const rng = rngFromSeed(`falls:${ctx.spotSeed ?? ''}:${falls.map((f) => `${f.outId}${f.both ? '+' : ''}`).join(',')}`);
   const everybody = [...ctx.winnerMembers, ...ctx.loserMembers];
   const nameOf = (id: Id) => everybody.find((w) => w.id === id)?.name ?? 'their opponent';
   const out = [...beats];
@@ -490,6 +490,11 @@ function withFalls(beats: MatchBeat[], ctx: NarrativeContext): MatchBeat[] {
   const at = falls.map((_, k) => Math.max(1, Math.round(((k + 1) * end) / (falls.length + 1))));
   falls.forEach((fall, k) => {
     const fill = (t: string) => t.replace(/\{actor\}/g, nameOf(fall.byId)).replace(/\{target\}/g, nameOf(fall.outId));
+    if (fall.both) {
+      // Off together: no fall, and no score to say — it stands where it stood.
+      out.splice(at[k]! + k, 0, { kind: 'control', text: fill(pick(rng, SPOT_BEATS.bothOff)), significant: true, actorId: fall.byId, targetId: fall.outId, spot: 'bothOff' });
+      return;
+    }
     const score = SUMO_SCORE_LINES[`${fall.score[0]}-${fall.score[1]}`] ?? [];
     const text = `${fill(pick(rng, SPOT_BEATS.pushedOff))}${score.length > 0 ? ` ${fill(pick(rng, score))}` : ''}`;
     out.splice(at[k]! + k, 0, { kind: 'control', text, significant: true, actorId: fall.byId, targetId: fall.outId, spot: 'pushedOff', score: fall.score });

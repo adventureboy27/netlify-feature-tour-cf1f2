@@ -252,6 +252,11 @@ export const SPOT_BEATS: Record<MatchSpot, readonly string[]> = {
     'Belly to belly, step by step, {actor} walked {target} backwards until there was no ring left behind them.',
     '{actor} threw {target} off the platform by the belt, and that is a fall.',
   ],
+  bothOff: [
+    '{actor} charged, {target} would not give an inch, and the two of them went over the edge together. Both on the floor at once — no fall. Back in, both of them.',
+    '{actor} and {target} locked up right at the edge and fell off it as one. Nobody gets that fall; the referee waved them both back into the ring.',
+    'They went off together — {actor} on top of {target}, both down on the floor. No fall to anybody, and up they climbed to go again.',
+  ],
   edgeHold: [
     '{actor} had {target} at the very edge, heels hanging over nothing, and {target} would not go.',
     '{target} was on one foot on the edge of the ring and somehow stayed on it.',
@@ -261,11 +266,12 @@ export const SPOT_BEATS: Record<MatchSpot, readonly string[]> = {
 
 /**
  * Sumo: what a line cannot say, in the write-up or on commentary. No ropes or
- * corners, nothing won by a pin, a hold or a count, no weapons, and the floor
- * is where you go when you have lost a fall.
+ * corners, nothing won by a pin, a tap-out or a count, no weapons, and the
+ * floor is where you go when you have lost a fall. Strikes, slams, throws and
+ * holds are all still fair — they just do not win it.
  */
 export const NOT_IN_SUMO =
-  /rope|turnbuckle|corner|guardrail|dive|kick(s|ed)? out|kickout|near-fall|two and a half|count|submission|hold|tap|limb|\barm\b|in a knot|crowd and stayed|under that ring|\{weapon\}|timekeeper|first three rows|floor|apron|mid-air|cover|\bpin|lock|sleeper|chair|table|ladder|bell rings at two/i;
+  /rope|turnbuckle|corner|guardrail|dive|kick(s|ed)? out|kickout|near-fall|two and a half|count|submission|tap|crowd and stayed|under that ring|\{weapon\}|timekeeper|first three rows|floor|apron|mid-air|cover|\bpin|chair|table|ladder|bell rings at two|referee getting involved/i;
 
 /**
  * Sumo, after a fall: where it stands. {actor} took the fall; {target} gave it up.

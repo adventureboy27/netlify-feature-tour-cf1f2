@@ -217,8 +217,8 @@ describe('the ring is solid', () => {
   }
 
   it('the only way out is over the top rope, and it ends on the floor', () => {
-    // Sumo's shove off the edge only happens with the ropes down: below, by itself.
-    for (const move of MOVE_IDS.filter((id) => META[id]?.exits !== undefined && id !== 'shoveOff')) {
+    // Sumo's two ways off the edge only happen with the ropes down: below, by themselves.
+    for (const move of MOVE_IDS.filter((id) => META[id]?.exits !== undefined && id !== 'shoveOff' && id !== 'bothOff')) {
       for (const dirs of [[1, -1], [-1, 1]] as const) {
         const plan = planBeat(stageMove(move), [fighter('a', 'actor', dirs[0]), fighter('t', 'target', dirs[1])], 0);
         const frames = plan.tracks.get('t')!;
@@ -252,6 +252,20 @@ describe('the ring is solid', () => {
         expect(Math.abs(frame.x)).toBeLessThanOrEqual(RING.half + RING.apron);
         expect(frame.y).toBeGreaterThanOrEqual(-0.01);
       }
+    }
+  });
+
+  it('with the ropes down, a charge can carry them both off the edge together', () => {
+    for (const dirs of [[1, -1], [-1, 1]] as const) {
+      const plan = planBeat(stageMove('bothOff'), [fighter('a', 'actor', dirs[0]), fighter('t', 'target', dirs[1])], 0, { ropeless: true });
+      for (const id of ['a', 't']) {
+        const frames = plan.tracks.get(id)!;
+        const last = frames[frames.length - 1]!;
+        expect(Math.abs(last.x), id).toBeGreaterThan(RING.half + RING.apron);
+        expect(last.y, id).toBeLessThan(FLOOR / 2);
+        expect(last.y, id).toBeGreaterThanOrEqual(FLOOR - 0.01);
+      }
+      expect(plan.ropeHits).toEqual([]);
     }
   });
 

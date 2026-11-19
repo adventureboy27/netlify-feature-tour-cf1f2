@@ -1401,7 +1401,9 @@ export type MatchSpot =
   // Sumo (sim/sumo.ts): a fall that counted — {actor} put {target} off the
   // edge of the platform — and the near thing, heels over the edge and still on.
   | 'pushedOff'
-  | 'edgeHold';
+  | 'edgeHold'
+  // ...and both of them going off together: no fall to either, back in and go again.
+  | 'bothOff';
 
 /**
  * What an ordinary write-up line says physically happened, when it says

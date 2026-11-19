@@ -7147,3 +7147,9 @@ A new stipulation, **Sumo Match** (`data/stipulations.ts` id `sumo`). Whatever r
 - A sumo disqualification is fists, not a chair.
 
 Checked by rendering real matches, sumo booked on a card and played: an arena match that went 2-1, plus the backyard and Premium rings. New tests cover the sim (`sim/sumo.test.ts`) and the viewer (`match.test.ts`: off the edge with no rope contact, climbing back up). Two existing viewer tests were extended to cover sumo's spots and moves.
+
+## Sumo: both off together, and the fighting in between
+
+- **Both off, no fall.** Sometimes a charge carries both of them off the edge at once. Nobody gets that fall, and both climb back in to go again. `sim/sumo.ts` decides it after the real falls, on the same seeded stream, so it changes none of them. It happens once in about 28% of matches and twice in about 8%, at any point before the finish. It's written as its own beat (spot `bothOff`, no score), called in the same words, and staged as `bothOff`: both go over the edge, "NO FALL!" appears as they land, and both climb back up the side of the ring.
+- **Punches, kicks and wrestling moves.** These were always staged between falls (strikes, slams, takedowns), but the write-up and commentary filter was too strict: it also threw out holds and arm work. Now only lines about winning by a pin, a tap-out or a count are out, along with ropes, corners, the floor and weapons. A new test confirms the fighting beats are still there.
+- **Commentary pronouns.** Fixed four intro lines that put a pronoun at the start of a sentence ("…needs this one. he has dropped 3 in a row.") or with a verb that is wrong for they/them wrestlers ("they is hot").

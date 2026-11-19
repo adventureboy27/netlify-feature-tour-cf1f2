@@ -375,6 +375,13 @@ const BODIES = {
     target: [STAND, [0.25, 0, 0, -4], [0.4, -2, 0, -14], [0.52, -5, 0, -22], [0.6, -8, 0, -30], [0.66, -10, 0, -42], [0.74, -12.5, -4, -50], [0.82, -13.5, FLOOR, -28, 0.92], [0.9, -13.5, FLOOR, -12], [1, -13.5, FLOOR, -10]],
     impacts: [[0.25, 1, 12, true], [0.82, -13.5, FLOOR + 2, true]],
   },
+  // Sumo: the charge carries them both off the edge together. Nobody gets the
+  // fall; the attacker lands on their knees beside the one they drove out.
+  bothOff: {
+    actor: [STAND, [0.15, 6, 0, 12, 0.95], [0.25, 10.5, 0, 22, 0.92], [0.4, 13, 0, 26, 0.92], [0.52, 16, 0, 28, 0.92], [0.6, 19, 0, 30], [0.66, 22, 0, 34], [0.74, 25, -4, 40], [0.82, 26, FLOOR, 12, 0.92], [1, 26, FLOOR, 4]],
+    target: [STAND, [0.25, 0, 0, -4], [0.4, -2, 0, -14], [0.52, -5, 0, -22], [0.6, -8, 0, -30], [0.66, -11, 0, -44], [0.74, -14, -4, -52], [0.82, -15, FLOOR, -28, 0.92], [0.9, -15, FLOOR, -12], [1, -15, FLOOR, -10]],
+    impacts: [[0.25, 1, 12, true], [0.82, -14, FLOOR + 2, true]],
+  },
   // Sumo's near thing: driven to the very edge, heels over nothing, and still on.
   edgeTeeter: {
     actor: [STAND, [0.15, 6, 0, 12], [0.25, 11, 0, 20], [0.4, 13, 0, 24], [0.55, 18, 0, 24], [0.7, 17.5, 0, 10], [0.85, 14, 0, 0], [1, 12, 0, 0]],
@@ -598,6 +605,7 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   blindSwing: { actor: '- reach wind punch stagger reach reach stagger guard', target: '- reach crouch reach reach reach stagger guard' },
   rollInside: { actor: 'guard bend lift guard crouch crouch guard', target: 'flat flat fall flat flat flat' },
   shoveOff: { actor: '- crouch spear spear spear reach guard guard guard', target: '- guard stagger stagger stagger fall fall seated seated seated' },
+  bothOff: { actor: '- crouch spear spear spear spear fall fall kneel kneel', target: '- guard stagger stagger stagger fall fall seated seated seated' },
   edgeTeeter: { actor: '- crouch spear spear spear stagger guard guard', target: '- guard stagger stagger reach reach stagger guard' },
 };
 
@@ -662,6 +670,7 @@ export const META: Partial<Record<MoveId, MoveMeta>> = {
   teeter: { anchor: { who: 'target', at: -9.5 } },
   shoveOff: { anchor: { who: 'target', at: -8 }, exits: 0.6 },
   edgeTeeter: { anchor: { who: 'target', at: -8 } },
+  bothOff: { anchor: { who: 'target', at: -8 }, exits: 0.6, actorExits: 0.64 },
   cageClimb: { anchor: { who: 'actor', at: -13 }, knockdownBy: 0.22 },
   cageTop: { anchor: { who: 'actor', at: -13 } },
   escapeCage: { anchor: { who: 'actor', at: -13 }, actorExits: 0.6, knockdownBy: 0.22 },
@@ -1166,7 +1175,7 @@ function stagePlain(
   const grounded = (id: MoveId): MoveId => {
     if (conduct.noRing && needsRing(id)) return 'slam';
     // Sumo: no ropes to run or corners to use. The edge is for the falls alone.
-    if (conduct.noRopes && needsRing(id) && id !== 'shoveOff' && id !== 'edgeTeeter') return 'shove';
+    if (conduct.noRopes && needsRing(id) && id !== 'shoveOff' && id !== 'edgeTeeter' && id !== 'bothOff') return 'shove';
     if (!conduct.cage && (id === 'intoCage' || id === 'cageTop')) return 'cornerWhip';
     // No weapons where they are illegal, whatever was said.
     if (!conduct.weapons && ARMED.includes(id)) return id === 'tablePowerbomb' ? 'powerbomb' : 'strike';
@@ -1245,6 +1254,8 @@ function stagePlain(
         return shouting(pick('shoveOff', 2600), fallCall(beat.score), 0.86);
       case 'edgeHold':
         return shouting(pick('edgeTeeter', 2200), 'STAYS ON!', 0.72);
+      case 'bothOff':
+        return shouting(pick('bothOff', 2800), 'NO FALL!', 0.86);
       case 'countBeaten': {
         const lead = fresh(NEAR_FALL_LEADS);
         return built(lead, withCount(MOVES[lead], 0.42, 8, true), 3200);

@@ -26,6 +26,7 @@ describe('sumo', () => {
   it('is won off the edge of the ring, two falls to one or none, and every fall is in the write-up with its score', () => {
     let ringOuts = 0;
     let wentThree = 0;
+    let together = 0;
     for (let i = 0; i < 150; i++) {
       const roster = pair(100 + i);
       const byId = new Map(roster.map((w) => [w.id, w]));
@@ -34,6 +35,16 @@ describe('sumo', () => {
       // No pins, holds, counts or draws in a ring-out match.
       expect(['ringOut', 'disqualification', 'injuryStoppage']).toContain(r.finish);
       const falls = r.beats.filter((b) => b.spot === 'pushedOff');
+      // Both off together: said, and nobody scores from it.
+      const both = r.beats.filter((b) => b.spot === 'bothOff');
+      together += both.length;
+      for (const b of both) {
+        expect(b.score).toBeUndefined();
+        expect(b.actorId).toBeTruthy();
+        expect(b.targetId).toBeTruthy();
+        expect(b.actorId).not.toBe(b.targetId);
+        expect(b.text).toMatch(/no fall|nobody gets/i);
+      }
       for (const b of falls) {
         expect(b.actorId).toBeTruthy();
         expect(b.targetId).toBeTruthy();
@@ -61,6 +72,20 @@ describe('sumo', () => {
     // Some go the distance, most do not have to.
     expect(wentThree).toBeGreaterThan(5);
     expect(wentThree).toBeLessThan(ringOuts);
+    // Some matches have them both go off together; most do not.
+    expect(together).toBeGreaterThan(10);
+    expect(together).toBeLessThan(150);
+  });
+
+  it('still has the punches, kicks and holds in it — only winning by them is out', () => {
+    let fighting = 0;
+    for (let i = 0; i < 60; i++) {
+      const roster = pair(300 + i);
+      const byId = new Map(roster.map((w) => [w.id, w]));
+      const r = simulateMatch(rngFromSeed(`fight-${i}`), roster.map((w, side) => ({ wrestlerId: w.id, side })), byId, ctx());
+      fighting += r.beats.filter((b) => !b.spot && (b.kind === 'control' || b.kind === 'hopeSpot' || b.kind === 'signature')).length;
+    }
+    expect(fighting).toBeGreaterThan(40);
   });
 
   it('is the same match every time from the same seed', () => {
