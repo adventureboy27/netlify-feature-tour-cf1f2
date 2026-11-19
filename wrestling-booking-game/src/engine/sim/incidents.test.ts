@@ -226,7 +226,7 @@ describe('what an incident does', () => {
       ],
       winnerIds: [winner.id],
       loserIds: [a.id, b.id],
-      groups: [{ id: 'g1', name: 'The Twin Towers', memberIds: [a.id, b.id] }],
+      groups: [{ id: 'g1', name: 'The Twin Peaks', memberIds: [a.id, b.id] }],
       // Nothing else about this match is eligible, so the turn is the only
       // thing that can fire.
       rating: 55,
@@ -237,7 +237,7 @@ describe('what an incident does', () => {
 
     const incident = forced(ctx)!;
     expect(incident.id).toBe('partnerTurn');
-    expect(incident.headline).toContain('The Twin Towers');
+    expect(incident.headline).toContain('The Twin Peaks');
     expect(incident.effects).toContainEqual({ kind: 'disbandStable', stableId: 'g1' });
     // Somebody flipped, and it was one of the two who lost.
     const turn = incident.effects.find((e) => e.kind === 'alignmentTurn');

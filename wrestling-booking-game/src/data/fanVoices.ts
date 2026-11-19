@@ -32,8 +32,8 @@ export interface TweetTemplate {
 
 /** Handles. Deliberately period-appropriate and a bit sad. */
 export const FAN_HANDLES = [
-  'markoutmarv', 'kayfabe_kate', 'suplex_city_dave', 'ringside_ray79', 'thatsnotwrestling',
-  'armdrag_annie', 'bookerT_truther', 'smarkhunter', 'popcornguy88', 'chairshot_charlie',
+  'markoutmarv', 'kayfabe_kate', 'suplex_station_dave', 'ringside_ray79', 'thatsnotwrestling',
+  'armdrag_annie', 'booker_truther', 'smarkhunter', 'popcornguy88', 'chairshot_charlie',
   'ladderMatchLarry', 'the_real_workrate', 'canvas_crusader', 'turnbuckle_tina', 'gorillaposition',
   'dirtsheetdan', 'frontrowfrank', 'bodyslam_betty', 'heelturnhenry', 'tapeTraderTom',
   'main_event_mike', 'jobber_justice', 'nearfall_nancy', 'cagematch_cal', 'wrestlingdad42',
@@ -154,7 +154,7 @@ export const GIMMICK_DEBUT_TWEETS: TweetTemplate[] = [
   { text: '{name} deserved so much better than {gimmick}', tone: 'criticism' },
   { text: '{gimmick} is not going to work and i do not know why nobody told them that', tone: 'criticism' },
   { text: 'not {name} coming in as {gimmick} like it is still 1987', tone: 'joke' },
-  { text: '{gimmick} really said sir this is a wendy\'s', tone: 'joke' },
+  { text: '{gimmick} really showed up to a wrestling show dressed for a different event entirely', tone: 'joke' },
   { text: 'give {gimmick} a solid six months before you scrap it, i am literally begging', tone: 'demand' },
   { text: 'everybody hating on {gimmick} and honestly i think it slaps', tone: 'contrarian' },
 ];

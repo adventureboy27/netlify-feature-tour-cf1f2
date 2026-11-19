@@ -43,7 +43,7 @@ export const MAIN_EVENT_NICKNAMES = [
 
 export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
   mic: [
-    'The Mouth of the South',
+    'The Mouth That Roared',
     'The Loudest Man Alive',
     'The Silver Tongue',
     'The Living Legend in Their Own Mind',
@@ -98,7 +98,7 @@ export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
   ],
   heel: [
     'The Snake',
-    'The Rattlesnake',
+    'The Copperhead',
     'The Villain',
     'The Cheat',
     'The Most Hated Man in Wrestling',
@@ -138,7 +138,7 @@ export const NICKNAMES_BY_STYLE: Partial<Record<WrestlingStyle, string[]>> = {
   bruiser: ['The Brawler', 'The Backyard King', 'The Bruiser', 'The Scrapyard Dog'],
   technical: ['The Technical Wizard', 'The Mechanic', 'The Wrestling Machine', 'The Craft'],
   powerhouse: ['The Strongest Man Alive', 'The Powerlifter', 'The Titan', 'The Beast'],
-  allRounder: ['The Complete Athlete', 'The All-Rounder', 'The Total Athlete', 'The Best in the World'],
+  allRounder: ['The Complete Athlete', 'The All-Rounder', 'The Total Athlete', 'The Best Around'],
 };
 
 /** A fallback keyed on archetype, for anyone the other pools have nothing for. */

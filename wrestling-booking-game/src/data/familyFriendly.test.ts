@@ -1,5 +1,8 @@
 // This is not a mature game: no sexual innuendo, no slurs or stereotypes, no
-// swearing, no drinking or drugs. Every string the game can show a player
+// swearing, no drinking or drugs. And it may be sold, so nothing that belongs
+// to somebody else either: a wrestling company's events and catchphrases, a
+// real team's or wrestler's name (data/blocklist.ts keeps real ring names out
+// of generation; this keeps them out of everything else), a real brand. Every string the game can show a player
 // lives in a string literal somewhere under src/, so this reads them all and
 // fails on anything from the list below. A word that is fine in a code
 // identifier (a "strip" of lights, a "screwy" finish weight) is never in a
@@ -30,6 +33,11 @@ const NOT_FOR_THIS_GAME = new RegExp(
     'confederate', '\\bslave', '\\bghetto', 'wetback', 'beaner', '\\bkaren\\b', 'sombrero',
     // organised crime as a brand
     '\\bcartel', '\\bmafia',
+    // other people's property: wrestling companies, their events and catchphrases, real teams and nicknames
+    '\\bwwe\\b', '\\bwcw\\b', '\\becw\\b', '\\baew\\b', '\\btna\\b', 'wrestlemania', 'summerslam', 'royal rumble', 'starrcade',
+    'smackdown', 'survivor series', 'hell in a cell', 'suplex city', 'twin towers', 'midnight express',
+    'jumping bomb angels', 'mouth of the south', 'rattlesnake', 'best in the world', 'total package', 'junkyard dog',
+    '\\bhitman\\b', 'booker ?t\\b', 'wendy',
   ].join('|'),
   'i',
 );

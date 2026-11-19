@@ -32,7 +32,7 @@ export const UNIVERSAL_PPV_NAMES = [
 export const PPV_SETS: PPVSet[] = [
   {
     archetype: 'oldSchool',
-    names: ['Starrcade Classic', 'The Territories Cup', 'Homecoming', 'Iron Man Invitational', 'Founders Night'],
+    names: ['Starlight Classic', 'The Territories Cup', 'Homecoming', 'Iron Man Invitational', 'Founders Night'],
   },
   {
     archetype: 'athletic',

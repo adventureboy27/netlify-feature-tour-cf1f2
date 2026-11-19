@@ -7202,3 +7202,23 @@ Not changed: the violence the game is built on (blood, chairs, tables, hardcore 
 ## Rated PG, written down
 
 Added to CLAUDE.md's non-negotiables. Humour is welcome, and relationships and breakups are in. Nothing goes past PG: no innuendo, slurs, stereotypes, swearing, drinking or drugs. `familyFriendly.test.ts` enforces it. I checked the existing relationship content (labels, partner reasons in bidding, the jealousy confrontation, team splits) and it's already PG.
+
+## Nothing that belongs to somebody else
+
+Real wrestling trademarks and real people's names are a bigger risk for a game that may be sold than tone is. `data/blocklist.ts` already kept real ring names out of name generation, but some had got into other lists. Changed:
+
+- **Show names:** "Starrcade Classic" → "Starlight Classic".
+- **Team names (real tag teams):**
+  - The Midnight Express → The Midnight Freight.
+  - The Motor City Machine → The Motor City Mechanics.
+  - The Jumping Bomb Angels → The High-Flying Angels.
+  - The Twin Towers → The Twin Peaks (also a 9/11 sensitivity).
+- **Nicknames (real wrestlers'):**
+  - The Mouth of the South → The Mouth That Roared.
+  - The Rattlesnake → The Copperhead.
+  - The Best in the World → The Best Around.
+- **Fan forum names:** "suplex_city" (a WWE-trademarked catchphrase) and "bookerT" (a real wrestler) are changed, and a fan post's Wendy's joke is gone.
+
+`familyFriendly.test.ts` now also fails on wrestling companies and their event names, those catchphrases, these real team names and nicknames, and that brand.
+
+Left as judgement calls: generic phrases that are also film or song titles (The Rat Pack, The Wild Bunch, Steel Magnolias, The Steel Curtain), and common nicknames like "The Franchise" and "The Icon".

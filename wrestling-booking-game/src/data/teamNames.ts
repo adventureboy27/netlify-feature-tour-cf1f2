@@ -11,7 +11,7 @@
 /** Proper team names. Deliberately 1980s-shaped. */
 export const TEAM_NAMES = [
   'The Brass Knuckle Boys',
-  'The Midnight Express',
+  'The Midnight Freight',
   'The Steel Curtain',
   'The Wrecking Crew',
   'The Iron Brotherhood',
@@ -25,7 +25,7 @@ export const TEAM_NAMES = [
   'The Last Stand',
   'The Long Riders',
   'The Fifth Avenue Boys',
-  'The Motor City Machine',
+  'The Motor City Mechanics',
   'The Southern Storm',
   'The Chain Reaction',
   'The Cutting Crew',
@@ -39,7 +39,7 @@ export const TEAM_NAMES = [
   'The Dynasty',
   'The Deadbolts',
   'The Silver Dollars',
-  'The Twin Towers',
+  'The Twin Peaks',
   'The Night Patrol',
   'The Hard Chargers',
   'The Rat Pack',
@@ -55,7 +55,7 @@ export const TEAM_NAMES = [
 /** Names for a women's team. Kept separate so the flavour lands. */
 export const WOMENS_TEAM_NAMES = [
   'The Glamour Squad',
-  'The Jumping Bomb Angels',
+  'The High-Flying Angels',
   'The Velvet Hammers',
   'The Trailblazers',
   'The Firecrackers',
