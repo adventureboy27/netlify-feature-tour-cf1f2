@@ -649,10 +649,10 @@ describe('every fact has something to say about it', () => {
 
 describe('the tale of the tape', () => {
   // A fresh placeholder vocabulary, unrelated to the match-wide one above —
-  // introName/introRecord/introOpponent/introThey/introTheir/introThem are
+  // introName/introRecord/introOpponent/introThey/IntroThey/introTheir/introThem are
   // always resolvable (every wrestler has a record and pronouns), the rest
   // need their matching introXxx fact. Mirrors checkPool's own discipline.
-  const INTRO_ALWAYS_SAFE = new Set(['introName', 'introRecord', 'introOpponent', 'introThey', 'introTheir', 'introThem']);
+  const INTRO_ALWAYS_SAFE = new Set(['introName', 'introRecord', 'introOpponent', 'introThey', 'IntroThey', 'introTheir', 'introThem']);
   const INTRO_BACKED_BY: Record<string, string[]> = {
     introParent: ['introSecondGeneration'],
     introStreak: ['introHotStreak'],
@@ -926,5 +926,19 @@ describe('what the official did', () => {
     const lines = callTheMatch(rngFromSeed('run'), bare({ beats }));
     const line = lines.find((l) => l.text === runIn.text);
     expect(line?.beat).toBe(beats.length - 2);
+  });
+});
+
+describe('pronouns at the start of a sentence', () => {
+  it('are always the capitalised form', async () => {
+    const lines = await import('../../data/commentaryLines');
+    const texts = Object.values(lines)
+      .flatMap((v) => (Array.isArray(v) ? v : typeof v === 'object' && v ? Object.values(v).flat() : []))
+      .map((t) => (typeof t === 'string' ? t : (t as { text?: string })?.text))
+      .filter((t): t is string => typeof t === 'string');
+    expect(texts.length).toBeGreaterThan(100);
+    // "...needs this one. he has dropped..." — a lower-case pronoun placeholder opening a sentence.
+    const bad = texts.filter((t) => /(^|[.!?]\s+)\{(introThey|introTheir|introThem|topThey|topTheir|topThem|lowThey|lowTheir|lowThem)\}/.test(t));
+    expect(bad).toEqual([]);
   });
 });

@@ -389,7 +389,7 @@ export const OPENERS: readonly ColourTemplate[] = [
 //
 //   {introName} {introRecord}      always known — the record itself
 //   {introOpponent}                the other corner, for a direct comparison
-//   {introThey} {introTheir} {introThem}   pronouns for {introName}
+//   {introThey} {introTheir} {introThem}   pronouns for {introName} ({IntroThey} to start a sentence)
 //   {introStreak}                  needs 'introHotStreak' — a positive number
 //   {introSlump}                   needs 'introSlump' — a positive number
 //   {introParent}                  needs 'introSecondGeneration'
@@ -412,7 +412,7 @@ export const INTRO_COLOUR: readonly ColourTemplate[] = [
     text: '{introName} has not lost lately — {introThey} won {introStreak} straight coming in.',
     needs: ['introHotStreak'],
   },
-  { text: 'You do not want to run into {introName} right now. Red hot.', needs: ['introHotStreak'] },
+  { text: 'You do not want to run into {introName} right now — {introThey} is hot.', needs: ['introHotStreak'] },
   {
     text: '{introName} is in the middle of a real run of form — {introStreak} in a row.',
     needs: ['introHotStreak'],
@@ -423,7 +423,7 @@ export const INTRO_COLOUR: readonly ColourTemplate[] = [
     needs: ['introSlump'],
   },
   {
-    text: '{introName} needs this one — {introSlump} straight losses coming in.',
+    text: '{introName} needs this one. {IntroThey} has dropped {introSlump} in a row.',
     needs: ['introSlump'],
   },
   {
@@ -451,7 +451,7 @@ export const INTRO_COLOUR: readonly ColourTemplate[] = [
   },
   { text: 'A debut. {introName} has never worked a match for us before tonight.', needs: ['introDebut'] },
   {
-    text: '{introName} has been doing this a long time, and has seen every trick {introOpponent} is about to try.',
+    text: '{introName} has been doing this a long time. {IntroThey} has seen every trick {introOpponent} is about to try.',
     needs: ['introVeteran'],
   },
   {
@@ -464,7 +464,7 @@ export const INTRO_COLOUR: readonly ColourTemplate[] = [
     needs: ['introRookie'],
   },
   {
-    text: "{introName} is green. Nothing wrong with that, but it is a hard way to learn, most nights.",
+    text: "{introName} is green. Nothing wrong with that, but {introThey} is finding it out the hard way most nights.",
     needs: ['introRookie'],
     leaning: 'heel',
   },

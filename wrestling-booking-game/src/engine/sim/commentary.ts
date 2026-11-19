@@ -672,6 +672,8 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
         introRecord: formatRecord(w),
         introOpponent: opponent.name,
         introThey: pronouns.they,
+        // The same, starting a sentence.
+        IntroThey: Cap(pronouns.they),
         introTheir: pronouns.their,
         introThem: pronouns.them,
         introStreak: String(Math.max(1, w.career.streak)),
