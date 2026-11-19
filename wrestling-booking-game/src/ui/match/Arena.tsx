@@ -19,6 +19,7 @@ import { Entrance, HouseLights, NoScreen, Room, SoundStacks } from './Venue';
 import { FULL_PRODUCTION, isFancyRing, type Setting } from './setting';
 import { ringMatById } from '../../data/ringMats';
 import { RING } from './ringPhysics';
+import { ScrapPad, ScrapPlatform, ScrapPost, ScrapRope, ScrapRopeRun, type ScrapGeo } from './ScrapRing';
 import './match.css';
 
 export const VIEW = { w: 1200, h: 600 } as const;
@@ -51,6 +52,10 @@ export const PLATFORM = (() => {
 })();
 /** The bottom of the skirt hanging off the front of the platform. */
 export const SKIRT_BOTTOM = PLATFORM.frontY + 86;
+/** Where the plywood ring is drawn (ScrapRing.tsx). */
+const SCRAP_GEO: ScrapGeo = { mat: MAT, platform: PLATFORM, skirtBottom: SKIRT_BOTTOM };
+/** Each corner's padding on the plywood ring, top rope down: towel, noodle, pillow, tape. */
+const SCRAP_PADS = { backL: [2, 3, 3], backR: [3, 1, 3], frontL: [0, 3, 3], frontR: [1, 1, 3] } as const;
 /** Where the ring steps stand on the floor in front of the near left corner, in stage units. */
 export const STEPS_X = (PLATFORM.frontL - 40 - VIEW.w / 2) / UNIT;
 
@@ -62,7 +67,7 @@ export const SIDE_ROPE_POST: Record<SideRopeKey, number> = { backL: MAT.backL, b
 export const ROPE_CROSS_X = CROSS_X;
 
 /** One side's run of three ropes, from its post to where they cross the wrestlers' line. */
-function SideRun({ run, onRef }: { run: SideRopeKey; onRef?: (key: SideRopeKey, el: SVGGElement | null) => void }) {
+function SideRun({ run, onRef, scrap = false }: { run: SideRopeKey; onRef?: (key: SideRopeKey, el: SVGGElement | null) => void; scrap?: boolean }) {
   const back = run === 'backL' || run === 'backR';
   const left = run === 'backL' || run === 'frontL';
   const postX = SIDE_ROPE_POST[run];
@@ -76,9 +81,13 @@ function SideRun({ run, onRef }: { run: SideRopeKey; onRef?: (key: SideRopeKey, 
       opacity={back ? 0.8 : 0.95}
       style={{ transformOrigin: `${postX}px 0px`, transformBox: 'view-box' }}
     >
-      {ROPES_BACK.map((y, i) => (
-        <line key={y} x1={postX} y1={back ? y : ROPES_FRONT[i]} x2={crossX} y2={CROSS_Y[i]} />
-      ))}
+      {ROPES_BACK.map((y, i) =>
+        scrap ? (
+          <ScrapRope key={y} x1={postX} y1={back ? y : ROPES_FRONT[i]!} x2={crossX} y2={CROSS_Y[i]!} kind={i} w={back ? 3 : 3.4} sag={1} />
+        ) : (
+          <line key={y} x1={postX} y1={back ? y : ROPES_FRONT[i]} x2={crossX} y2={CROSS_Y[i]} />
+        ),
+      )}
     </g>
   );
 }
@@ -640,20 +649,23 @@ export const ArenaBack = memo(function ArenaBack({
       </>}
 
       {/* The platform: the apron all round, then the canvas inside the ropes. */}
-      <polygon points={`${PLATFORM.backL},${PLATFORM.backY} ${PLATFORM.backR},${PLATFORM.backY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontL},${PLATFORM.frontY}`} fill={RING_LOOK[setting.ring].platform} />
-      <polygon points={`${PLATFORM.backL},${PLATFORM.backY} ${PLATFORM.backR},${PLATFORM.backY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontL},${PLATFORM.frontY}`} fill="none" stroke={corners ? GOLD : accent} strokeOpacity={0.55} strokeWidth={2.5} />
-      <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="url(#mv-mat)" />
-      {/* Where the canvas turns down under the ropes to the apron: a crease, not a wall. */}
-      <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="none" stroke="#000" strokeOpacity={0.22} strokeWidth={2} />
+      {setting.ring === 'plywood' ? (
+        // Built out of scrap by people who had a weekend: its own drawing, front face and all.
+        <ScrapPlatform geo={SCRAP_GEO} name={name} />
+      ) : (
+        <>
+        <polygon points={`${PLATFORM.backL},${PLATFORM.backY} ${PLATFORM.backR},${PLATFORM.backY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontL},${PLATFORM.frontY}`} fill={RING_LOOK[setting.ring].platform} />
+        <polygon points={`${PLATFORM.backL},${PLATFORM.backY} ${PLATFORM.backR},${PLATFORM.backY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontL},${PLATFORM.frontY}`} fill="none" stroke={corners ? GOLD : accent} strokeOpacity={0.55} strokeWidth={2.5} />
+        <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="url(#mv-mat)" />
+        {/* Where the canvas turns down under the ropes to the apron: a crease, not a wall. */}
+        <polygon points={`${MAT.backL},${MAT.backY} ${MAT.backR},${MAT.backY} ${MAT.frontR},${MAT.frontY} ${MAT.frontL},${MAT.frontY}`} fill="none" stroke="#000" strokeOpacity={0.22} strokeWidth={2} />
+        </>
+      )}
       {isFancyRing(setting.ring) && !corners && <PremiumCanvas accent={accent} name={name} logo={logo} company={canvas.company} />}
       {(setting.ring === 'pro' || (isFancyRing(setting.ring) && corners)) && <ellipse cx={600} cy={412} rx={92} ry={20} fill="none" stroke={corners ? GOLD : accent} strokeWidth={5} opacity={corners ? 0.6 : 0.35} />}
       {setting.ring === 'pro' && !corners && logo && <MatLogo href={logo} cx={600} cy={412} size={150} squash={0.2} />}
       {(setting.ring === 'pro' || (isFancyRing(setting.ring) && corners)) && !(logo && !corners) && <ellipse cx={600} cy={412} rx={58} ry={12} fill={corners ? GOLD : accent} opacity={0.22} />}
-      {setting.ring === 'plywood' && (
-        // A tarp over plywood: creased, patched with tape.
-        <path d="M 420,396 L 470,436 M 690,384 L 760,404 M 330,440 L 420,446 M 560,380 L 590,392" stroke="#4c5866" strokeWidth={2} opacity={0.7} />
-      )}
-      {corners ? (
+      {setting.ring === 'plywood' ? null : corners ? (
         <g>
           {/* The skirt is split down a slant: one company's half, and the other's. */}
           <polygon points={`${PLATFORM.frontL},${PLATFORM.frontY} 624,${PLATFORM.frontY} 576,${SKIRT_BOTTOM} ${PLATFORM.frontL},${SKIRT_BOTTOM}`} fill="url(#mv-apron-0)" />
@@ -663,37 +675,33 @@ export const ArenaBack = memo(function ArenaBack({
       ) : RING_LOOK[setting.ring].skirt ? (
         <g>
           <polygon points={`${PLATFORM.frontL},${PLATFORM.frontY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontR},${SKIRT_BOTTOM} ${PLATFORM.frontL},${SKIRT_BOTTOM}`} fill={RING_LOOK[setting.ring].skirt!} />
-          {setting.ring === 'plywood' &&
-            // Bare plywood sheets, and cinder blocks under the corners.
-            Array.from({ length: 8 }, (_, i) => {
-              const x = PLATFORM.frontL + ((PLATFORM.frontR - PLATFORM.frontL) * (i + 1)) / 8;
-              return <line key={i} x1={x} y1={PLATFORM.frontY} x2={x} y2={SKIRT_BOTTOM - 26} stroke="#4f3a24" strokeWidth={2} />;
-            })}
-          {setting.ring === 'plywood' &&
-            [PLATFORM.frontL + 10, (PLATFORM.frontL + PLATFORM.frontR) / 2 - 30, PLATFORM.frontR - 70].map((x) => (
-              <rect key={x} x={x} y={SKIRT_BOTTOM - 26} width={60} height={26} fill="#8d8f93" stroke="#5c5e62" strokeWidth={2} />
-            ))}
         </g>
       ) : (
         <polygon points={`${PLATFORM.frontL},${PLATFORM.frontY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontR},${SKIRT_BOTTOM} ${PLATFORM.frontL},${SKIRT_BOTTOM}`} fill="url(#mv-apron)" />
       )}
-      <rect x={PLATFORM.frontL} y={PLATFORM.frontY} width={PLATFORM.frontR - PLATFORM.frontL} height={5} fill="#ffffff" opacity={0.35} />
+      {setting.ring !== 'plywood' && <rect x={PLATFORM.frontL} y={PLATFORM.frontY} width={PLATFORM.frontR - PLATFORM.frontL} height={5} fill="#ffffff" opacity={0.35} />}
 
       {/* Back posts, back ropes, and the far half of each side run: all of it further from the camera than anybody in the ring. */}
       {[MAT.backL, MAT.backR].map((x, n) =>
         isFancyRing(setting.ring) ? (
           <LedPost key={x} x={x} top={232} bottom={MAT.backY} width={12} delay={n * 0.5 + 1} color={ledColor} />
+        ) : setting.ring === 'plywood' ? (
+          <ScrapPost key={x} x={x} top={234} bottom={MAT.backY} width={12} lean={n ? 1.2 : -0.8} tone={n + 2} />
         ) : (
           <rect key={x} x={x - 6} y={232} width={12} height={MAT.backY - 232} fill="#2b2f38" />
         ),
       )}
-      {ROPES_BACK.map((y) => (
-        <line key={y} x1={MAT.backL} y1={y} x2={MAT.backR} y2={y} stroke={RING_LOOK[setting.ring].rope} strokeWidth={3} strokeLinecap="round" opacity={0.8} />
-      ))}
-      <SideRun run="backL" onRef={onSideRope} />
-      <SideRun run="backR" onRef={onSideRope} />
+      {ROPES_BACK.map((y, i) =>
+        setting.ring === 'plywood' ? (
+          <ScrapRopeRun key={y} x1={MAT.backL} x2={MAT.backR} y={y} kind={i} sag={3 + i} w={3} />
+        ) : (
+          <line key={y} x1={MAT.backL} y1={y} x2={MAT.backR} y2={y} stroke={RING_LOOK[setting.ring].rope} strokeWidth={3} strokeLinecap="round" opacity={0.8} />
+        ),
+      )}
+      <SideRun run="backL" onRef={onSideRope} scrap={setting.ring === 'plywood'} />
+      <SideRun run="backR" onRef={onSideRope} scrap={setting.ring === 'plywood'} />
       {[MAT.backL, MAT.backR].map((x) =>
-        ROPES_BACK.map((y) => <Pad key={`${x}-${y}`} x={x} y={y} w={18} h={14} premium={isFancyRing(setting.ring)} fill={RING_LOOK[setting.ring].pad ?? (corners ? corners[x === MAT.backL ? 0 : 1].accent : accent)} />),
+        ROPES_BACK.map((y, i) => setting.ring === 'plywood' ? <ScrapPad key={`${x}-${y}`} x={x} y={y} w={16} h={13} kind={SCRAP_PADS[x === MAT.backL ? 'backL' : 'backR'][i]!} /> : <Pad key={`${x}-${y}`} x={x} y={y} w={18} h={14} premium={isFancyRing(setting.ring)} fill={RING_LOOK[setting.ring].pad ?? (corners ? corners[x === MAT.backL ? 0 : 1].accent : accent)} />),
       )}
 
       {cage && (
@@ -743,13 +751,16 @@ export const ArenaFront = memo(function ArenaFront({
     <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 10 }} aria-hidden>
       {!noRing && (
         <g>
-          <SideRun run="frontL" onRef={onSideRope} />
-          <SideRun run="frontR" onRef={onSideRope} />
+          <SideRun run="frontL" onRef={onSideRope} scrap={ring === 'plywood'} />
+          <SideRun run="frontR" onRef={onSideRope} scrap={ring === 'plywood'} />
           <g ref={ropesRef}>
-            {ROPES_FRONT.map((y) => (
+            {ROPES_FRONT.map((y, i) => ring === 'plywood' ? (
+              // Sags a little: nobody owned a ratchet.
+              <ScrapRopeRun key={y} x1={MAT.frontL} x2={MAT.frontR} y={y} kind={i} sag={4 + i} w={4.6} shadow />
+            ) : (
               <g key={y} strokeLinecap="round">
                 <line x1={MAT.frontL} y1={y + 1.5} x2={MAT.frontR} y2={y + 1.5} stroke="#000" strokeWidth={6} opacity={0.3} />
-                <line x1={MAT.frontL} y1={y} x2={MAT.frontR} y2={y} stroke={RING_LOOK[ring].rope} strokeWidth={ring === 'plywood' ? 3 : 4} />
+                <line x1={MAT.frontL} y1={y} x2={MAT.frontR} y2={y} stroke={RING_LOOK[ring].rope} strokeWidth={4} />
               </g>
             ))}
           </g>
@@ -757,13 +768,17 @@ export const ArenaFront = memo(function ArenaFront({
             <g key={x}>
               {isFancyRing(ring) ? (
                 <LedPost x={x} top={286} bottom={MAT.frontY + 6} width={14} delay={n * 0.5} color={led} />
+              ) : ring === 'plywood' ? (
+                <ScrapPost x={x} top={284} bottom={MAT.frontY + 6} width={15} lean={n ? -1 : 1.5} tone={n} />
               ) : (
                 <>
                   <rect x={x - 7} y={286} width={14} height={MAT.frontY - 286 + 6} fill="#343944" />
                   <rect x={x - 7} y={286} width={5} height={MAT.frontY - 286 + 6} fill="#4c5260" />
                 </>
               )}
-              {ROPES_FRONT.map((y) => (
+              {ROPES_FRONT.map((y, i) => ring === 'plywood' ? (
+                <ScrapPad key={y} x={x} y={y} w={20} h={17} kind={SCRAP_PADS[x === MAT.frontL ? 'frontL' : 'frontR'][i]!} />
+              ) : (
                 <Pad key={y} x={x} y={y} w={22} h={18} premium={isFancyRing(ring)} stroke fill={RING_LOOK[ring].pad ?? (corners ? corners[x === MAT.frontL ? 0 : 1].accent : accent)} />
               ))}
             </g>

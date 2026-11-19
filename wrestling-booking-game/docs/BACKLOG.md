@@ -7090,3 +7090,15 @@ The faces on the apron screen were small framed squares. They are now as big as 
 ## One professional ring, sold in one place
 
 The professional ring was for sale twice: as the production ladder's "Professional ring" rung (Finance → Production) and as the one-time "Professional Ring" asset (Promotion → Equipment). The asset is now `noLongerSold`: it no longer appears in the Equipment tab, and `buyProductionAsset` refuses it. The ladder is the one place to buy it. The definition stays, so saves that already own it keep its upkeep, wear, fire-sale value and the Premium Ring unlock, and its card still shows for them. The Premium Ring's locked line now says where to buy the ring. New store test: the old asset can't be bought.
+
+## The plywood ring, rebuilt out of scrap
+
+The starting ring (`Setting.ring === 'plywood'`) is now its own drawing, `src/ui/match/ScrapRing.tsx`, and looks like some teenagers built it from whatever was lying around:
+
+- **Platform:** boards of every length and colour round the apron. They run across at the front and back and lengthways down the sides, with the odd painted board.
+- **Front:** a patchwork. Flat boards, upright fence pickets, a shipping pallet on its edge, a chipped green door panel, a board from a "NO TRESPASSING" sign, and a crooked brace. The company's name is spray-painted across it with drips, and the whole ring sits on cinder blocks, a tyre and two bricks.
+- **Canvas:** a blue tarp. It's sun-faded and stained, with folds fanning out from the corners. There's a hole torn through to the boards, a split by the near ropes, and duct tape over a rip. Grommets show along the front hem.
+- **Ropes:** real rope, a different one for each row: hemp on top, blue poly in the middle, yellow ski rope at the bottom. They sag, are visibly twisted, and are knotted round each post with loose ends hanging.
+- **Posts and pads:** posts are leaning fence posts. The pads are a striped beach towel, pool noodle, a pillow and duct tape.
+
+Every detail comes from a fixed seed, so it's the same ring every show. The rope and post positions are unchanged, so rope bounces and side-rope give work as before. No other ring changes. On a two-company show, the plywood ring keeps its scrap front instead of the split company skirt. The steel steps are unchanged: they're a prop that can be picked up.
