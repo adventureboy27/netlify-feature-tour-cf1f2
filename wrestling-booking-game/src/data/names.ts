@@ -48,8 +48,8 @@ export const SURNAMES: string[] = [
 export const EPITHET_NOUNS: string[] = [
   'Midwinter', 'Boomtown', 'Hailstone', 'Cyclone', 'Ironside', 'Blackout', 'Sundown', 'Fever',
   'Rampage', 'Vanguard', 'Riptide', 'Grit', 'Havoc', 'Wildfire', 'Bulldog', 'Sledge',
-  'Wreckage', 'Thornapple', 'Backlash', 'Crossfire', 'Grimstone', 'Longshot', 'Payback', 'Redline',
-  'Thunderhead', 'Undertow', 'Warpath', 'Zero', 'Ashcroft', 'Bonecrusher', 'Sidewinder', 'Doomsday',
+  'Wreckage', 'Thornapple', 'Gravyquake', 'Crossfire', 'Grimstone', 'Longshot', 'Pogostick', 'Redline',
+  'Thunderhead', 'Undertow', 'Warpath', 'Zero', 'Ashcroft', 'Bonecrusher', 'Sidewinder', 'Moonbiscuit',
 ];
 
 export const EPITHET_ADJECTIVES: string[] = [

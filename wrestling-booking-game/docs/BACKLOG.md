@@ -7222,3 +7222,26 @@ Real wrestling trademarks and real people's names are a bigger risk for a game t
 `familyFriendly.test.ts` now also fails on wrestling companies and their event names, those catchphrases, these real team names and nicknames, and that brand.
 
 Left as judgement calls: generic phrases that are also film or song titles (The Rat Pack, The Wild Bunch, Steel Magnolias, The Steel Curtain), and common nicknames like "The Franchise" and "The Icon".
+
+## If in doubt, two zany words
+
+The rule from now on: any name that might belong to somebody (a company's event, a real team or wrestler, a comic-book, film or TV name) becomes two zany words thrown together. It's in CLAUDE.md, and `familyFriendly.test.ts` enforces it. Changed:
+
+- **Teams:**
+  - The Steel Curtain → Steel Spatulas, The Wild Bunch → Wild Walruses, The Rat Pack → Disco Llamas.
+  - The Steel Magnolias → Steel Daisies, The Heavy Machinery → Bulldozer Ballet, The Riot Squad → Kazoo Squad.
+  - The Wrecking Crew → Wrecking Raccoons, The Firm → Waffle Firm, The Dynasty → Noodle Dynasty.
+  - The Twin Peaks (my own earlier pick, a TV show) → Twin Turnips.
+  - The others: Pickle Pilots, Banjo Bandits, Thunder Muffins, Rodeo Comets, Cactus Crew, Rumble Ducks, Lunchbox Union, Plaid Outfit, Velvet Hurricanes.
+- **Group gimmicks:** Double or Nothing (an AEW event) → The Dice Goblins, The Wrecking Crew → The Wrecking Raccoons, The Union → The Lunchbox Brigade.
+- **Gimmicks:** Daredevil → Pogo Rocket, The Franchise → Turbo Mascot.
+- **Show names:** All In → Thunder Waffle, Best of the Best → Turbo Pancake, The Main Event → Velvet Avalanche, Iron Man Invitational → Marathon Invitational.
+- **Ring-name words:** Backlash → Gravyquake, Payback → Pogostick, Doomsday → Moonbiscuit.
+- **Nicknames:**
+  - The Franchise → The Rocket Biscuit, The Icon → The Velvet Thunder, The King of Hardcore → The Duke of Dumpsters.
+  - The Showstopper → The Disco Tornado, The Beast → The Grizzly Blender, The Masked Marvel → The Masked Marmot.
+  - The Skywalker / Daredevil / Man Without Fear → The Cloud Hopper / Pogo Rocket / Fearless Flamingo.
+  - Plus The Top Banana, The Gilded Goose, The Slippery Eel, The Midnight Pickle and others.
+- **Storyline titles:** "Bad Blood" → "Sour Grapes".
+
+Ids are unchanged, so saves still load. Ordinary phrases in sentences ("the main event", "bad blood between them") and the Iron Man match type, a general wrestling term, stay.

@@ -4,7 +4,7 @@
 // somebody who has a folder of real photos and a roster to match them to.
 //
 // Gender is never guessed, from a filename or from anything else. The file
-// has to declare it: M-<name> or F-<name>, e.g. "M-Doomsday.png" or
+// has to declare it: M-<name> or F-<name>, e.g. "M-Moonbiscuit.png" or
 // "F-Wren Stillwater.jpg" — any number of words in the name, spaces or
 // underscores both fine. A file with no valid prefix gets no match and
 // cannot be applied, full stop, until it's renamed. Once the gender is
@@ -31,7 +31,7 @@ interface Row {
 }
 
 const GENDER_LABEL: Record<Wrestler['gender'], string> = { m: 'M', f: 'F' };
-const NAMING_HELP = 'Name the file starting with M- or F- (e.g. "M-Doomsday.png") — gender is never guessed.';
+const NAMING_HELP = 'Name the file starting with M- or F- (e.g. "M-Moonbiscuit.png") — gender is never guessed.';
 
 /** Strip the extension, fold separators to spaces, drop anything that isn't a letter or digit. */
 function normalizeName(s: string): string {
@@ -148,7 +148,7 @@ export function BatchPhotoImport() {
       <p className="mb-2 text-[11px] text-neutral-500">
         Pick as many photos at once as you like. Name each file starting with <span className="text-neutral-300">M-</span> or{' '}
         <span className="text-neutral-300">F-</span> and then the wrestler's name — e.g.{' '}
-        <span className="text-neutral-300">M-Doomsday.png</span> or{' '}
+        <span className="text-neutral-300">M-Moonbiscuit.png</span> or{' '}
         <span className="text-neutral-300">F-Wren Stillwater.jpg</span>. Gender is never guessed: a file with no
         prefix gets no match. Nothing is saved until you hit Apply, and every row shows exactly who it is about to
         land on before it does.

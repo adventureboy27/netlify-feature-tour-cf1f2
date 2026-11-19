@@ -52,7 +52,7 @@ export const BEAT_WEIGHTS: Record<StorylineBeatKind, number> = {
  */
 export const STORYLINE_NAME_PATTERNS: readonly string[] = [
   '{a} vs {b}',
-  'Bad Blood: {a} and {b}',
+  'Sour Grapes: {a} and {b}',
   'The {a}–{b} Problem',
   'Unfinished Business',
   '{a} Wants {b}',
@@ -61,7 +61,7 @@ export const STORYLINE_NAME_PATTERNS: readonly string[] = [
   'Something Personal',
   'The {b} Situation',
   'Settle It',
-  'Bad Blood in {town}',
+  'Sour Grapes in {town}',
   'The Reckoning',
 ];
 

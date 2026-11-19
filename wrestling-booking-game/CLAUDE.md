@@ -42,6 +42,11 @@ sections relevant to the current milestone.
   swearing, no drinking or drugs. `src/data/familyFriendly.test.ts` scans every
   string and screen for the hard lines; grow its list when something slips
   through, and rephrase the line rather than loosening the pattern.
+- **Nothing that belongs to somebody else.** It may be sold. No wrestling
+  company's names, events or catchphrases; no real wrestler's, team's or
+  brand's name; no comic-book, film or TV names. If in doubt about a name,
+  throw two zany words together instead ("The Thunder Muffins", "Turbo
+  Pancake"). The same test guards this.
 
 ## Architecture rules
 

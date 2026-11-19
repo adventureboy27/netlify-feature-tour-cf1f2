@@ -38,6 +38,9 @@ const NOT_FOR_THIS_GAME = new RegExp(
     'smackdown', 'survivor series', 'hell in a cell', 'suplex city', 'twin towers', 'midnight express',
     'jumping bomb angels', 'mouth of the south', 'rattlesnake', 'best in the world', 'total package', 'junkyard dog',
     '\\bhitman\\b', 'booker ?t\\b', 'wendy',
+    'double or nothing', 'twin peaks', 'masked marvel', 'skywalker', 'the daredevil', 'man without fear', 'iron man invitational',
+    'steel curtain', 'rat pack', 'heavy machinery', 'riot squad', 'wrecking crew', 'the franchise', 'the icon\\b', 'king of hardcore',
+    'showstopper', 'human highlight reel', '\\bbacklash\\b', '\\bpayback\\b', '\\bdoomsday\\b', 'best of the best',
   ].join('|'),
   'i',
 );

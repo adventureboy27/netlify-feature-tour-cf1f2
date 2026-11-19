@@ -29,16 +29,16 @@ export type NicknameSource =
  * called The Franchise is a joke, and the game should not make it.
  */
 export const MAIN_EVENT_NICKNAMES = [
-  'The Franchise',
-  'The Icon',
+  'The Rocket Biscuit',
+  'The Velvet Thunder',
   'The Standard',
-  'The Main Event',
-  'The Chosen One',
+  'The Marquee Moose',
+  'The Lucky Comet',
   'The Measuring Stick',
   'The Headliner',
   'The Big Deal',
-  'The Real Deal',
-  'The Ace',
+  'The Honest Hurricane',
+  'The Top Banana',
 ];
 
 export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
@@ -70,7 +70,7 @@ export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
     'The Textbook',
   ],
   speed: [
-    'The Human Highlight Reel',
+    'The Human Fireworks Show',
     'The Blur',
     'The Comet',
     'The Cat',
@@ -80,7 +80,7 @@ export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
   ],
   toughness: [
     'The Man They Cannot Hurt',
-    'The Iron Man',
+    'The Cast-Iron Kettle',
     'The Anvil-Headed',
     'The Bad Man',
     'The Hardest Man in the Business',
@@ -89,7 +89,7 @@ export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
   ],
   ego: [
     'The Self-Proclaimed Greatest',
-    'The Golden Boy',
+    'The Gilded Goose',
     'The Millionaire',
     'The Genius',
     'The Untouchable',
@@ -97,7 +97,7 @@ export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
     'The Gift',
   ],
   heel: [
-    'The Snake',
+    'The Slippery Eel',
     'The Copperhead',
     'The Villain',
     'The Cheat',
@@ -109,7 +109,7 @@ export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
     'The People’s Choice',
     'The Hometown Hero',
     'The Working Man',
-    'The Common Man',
+    'The Lunch-Pail Legend',
     'The One They Came to See',
     'The Heart of the Company',
     'The Favorite Son',
@@ -127,17 +127,17 @@ export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
 
 /** A style says a lot about what somebody gets called. */
 export const NICKNAMES_BY_STYLE: Partial<Record<WrestlingStyle, string[]>> = {
-  hardcore: ['The King of Hardcore', 'The Wrecking Ball', 'The Barbed Wire King', 'The Wild Card'],
-  luchador: ['El Rayo', 'The Masked Marvel', 'El Fantasma', 'The Flying Saint'],
-  highFlyer: ['The High Flyer', 'The Skywalker', 'The Daredevil', 'The Man Without Fear'],
+  hardcore: ['The Duke of Dumpsters', 'The Wrecking Ball', 'The Barbed Wire King', 'The Wild Card'],
+  luchador: ['El Rayo', 'The Masked Marmot', 'El Relámpago Azul', 'The Flying Saint'],
+  highFlyer: ['The High Flyer', 'The Cloud Hopper', 'The Pogo Rocket', 'The Fearless Flamingo'],
   submission: ['The Human Vice', 'The Closer', 'The Snapmare Man', 'The Limb Collector'],
-  giant: ['The Giant', 'The Monster', 'The Colossus', 'The Mountain'],
-  showman: ['The Showstopper', 'The Entertainer', 'The Main Attraction', 'The Spectacle'],
+  giant: ['The Walking Mountain', 'The Monster', 'The Colossus', 'The Mountain'],
+  showman: ['The Disco Tornado', 'The Entertainer', 'The Main Attraction', 'The Spectacle'],
   oldSchool: ['The Old School', 'The Purist', 'The Traditionalist', 'The Throwback'],
   striker: ['The Knockout Artist', 'The Heavy Hitter', 'The Sniper', 'The Enforcer'],
   bruiser: ['The Brawler', 'The Backyard King', 'The Bruiser', 'The Scrapyard Dog'],
   technical: ['The Technical Wizard', 'The Mechanic', 'The Wrestling Machine', 'The Craft'],
-  powerhouse: ['The Strongest Man Alive', 'The Powerlifter', 'The Titan', 'The Beast'],
+  powerhouse: ['The Strongest Man Alive', 'The Powerlifter', 'The Titan', 'The Grizzly Blender'],
   allRounder: ['The Complete Athlete', 'The All-Rounder', 'The Total Athlete', 'The Best Around'],
 };
 
@@ -148,7 +148,7 @@ export const NICKNAMES_BY_ARCHETYPE: Record<Archetype, string[]> = {
   highFlyer: ['The Highspot', 'The Acrobat'],
   brawler: ['The Streetfighter', 'The Tough'],
   showman: ['The Character', 'The Draw'],
-  monster: ['The Nightmare', 'The Thing'],
+  monster: ['The Midnight Pickle', 'The Thing'],
   veteran: ['The Old Hand', 'The Lifer'],
   rookie: ['The Kid', 'The Newcomer'],
 };

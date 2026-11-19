@@ -32,11 +32,11 @@ export const UNIVERSAL_PPV_NAMES = [
 export const PPV_SETS: PPVSet[] = [
   {
     archetype: 'oldSchool',
-    names: ['Starlight Classic', 'The Territories Cup', 'Homecoming', 'Iron Man Invitational', 'Founders Night'],
+    names: ['Starlight Classic', 'The Territories Cup', 'Homecoming', 'Marathon Invitational', 'Founders Night'],
   },
   {
     archetype: 'athletic',
-    names: ['Peak Performance', 'The Proving Ground', 'Velocity', 'Best of the Best', 'Limit Break'],
+    names: ['Peak Performance', 'The Proving Ground', 'Velocity', 'Turbo Pancake', 'Limit Break'],
   },
   {
     archetype: 'hardcore',
@@ -44,7 +44,7 @@ export const PPV_SETS: PPVSet[] = [
   },
   {
     archetype: 'sportsEntertainment',
-    names: ['Spectacle', 'The Main Event', 'Prime Time', 'All In', 'Center Stage'],
+    names: ['Spectacle', 'Velvet Avalanche', 'Prime Time', 'Thunder Waffle', 'Center Stage'],
   },
   {
     archetype: 'territory',
