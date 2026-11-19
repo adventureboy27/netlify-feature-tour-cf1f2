@@ -552,19 +552,29 @@ function CardboardSign({ name, x, floorY, w, h, tilt, seed }: { name: string; x:
 }
 
 /** Every wrestler's sign, leaned against the front of the ring on their own side. */
-export const CardboardSigns = memo(function CardboardSigns({ geo, left, right }: { geo: ScrapGeo; left: readonly string[]; right: readonly string[] }) {
+export const CardboardSigns = memo(function CardboardSigns({ geo, left, right, active }: { geo: ScrapGeo; left: readonly { id: string; name: string }[]; right: readonly { id: string; name: string }[]; active: string | null }) {
   const p = geo.platform;
   const floorY = geo.skirtBottom + 10;
   const w = 122;
   const h = 62;
-  const place = (names: readonly string[], side: -1 | 1) =>
-    names.slice(0, MAX_SIGNS_PER_SIDE).map((name, i) => {
+  const place = (people: readonly { id: string; name: string }[], side: -1 | 1) =>
+    people.slice(0, MAX_SIGNS_PER_SIDE).map(({ id, name }, i) => {
       // From the corner inward on the left (clear of the steps), and in from the corner on the right.
       // Side by side, not overlapped: every name has to stay readable. Three a side just fit.
       const x = side < 0 ? p.frontL + 30 + i * (w + 6) : p.frontR - 30 - w - i * (w + 6);
       const seed = hashOf(`${name}:${side}:${i}`);
       const tilt = ((seed % 70) / 10 - 3.5) + side * 1.5;
-      return <CardboardSign key={`${side}-${i}-${name}`} name={name} x={x} floorY={floorY - (i % 2) * 4} w={w} h={h} tilt={tilt} seed={seed} />;
+      const foot = floorY - (i % 2) * 4;
+      // The one making the move rocks on its bottom edge, as if somebody kicked the box.
+      return (
+        <g
+          key={`${side}-${i}-${id}`}
+          className={id === active ? 'mv-sign-wobble' : undefined}
+          style={{ transformBox: 'view-box', transformOrigin: `${(x + w / 2).toFixed(1)}px ${foot.toFixed(1)}px` }}
+        >
+          <CardboardSign name={name} x={x} floorY={foot} w={w} h={h} tilt={tilt} seed={seed} />
+        </g>
+      );
     });
   return (
     <g>

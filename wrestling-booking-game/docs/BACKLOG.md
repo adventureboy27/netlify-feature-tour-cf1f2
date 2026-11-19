@@ -7116,3 +7116,7 @@ The signs sit side by side and never overlap. They're capped at three a side, wh
 On the plywood ring, the yellow and black name plates under the picture are hidden for anybody whose cardboard sign is leaned against the apron. The sign already says who they are. In a match with more than three a side, the wrestlers without a sign still get a plate. Every other ring keeps its plates as before.
 
 On the plywood ring, nothing now marks which wrestler is making the move each moment; the yellow plate used to do that.
+
+## The active wrestler's cardboard sign wobbles
+
+On the plywood ring, the cardboard sign of whoever is making the move this beat rocks on its bottom edge, as if somebody kicked the box. It's the same wrestler the yellow name plate used to light up, so the cue the plates gave isn't lost. It moves from sign to sign as the action does, and every sign goes still once the match is over. Under reduced motion, the active sign is lifted a little and lit instead of rocking. Checked in a singles match (one-sided, so the same sign the whole way, still at the end) and a tag match (switches from Bram Isley to Cardinal Reggie on "throwing bombs", and back when it breaks down).

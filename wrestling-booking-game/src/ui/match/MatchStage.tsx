@@ -430,7 +430,7 @@ export function MatchStage({
   /** What the signs in the front row say. */
   signs?: readonly string[];
   /** Each side's names, for the cardboard signs against a plywood ring. */
-  nameCards?: { left: readonly string[]; right: readonly string[] };
+  nameCards?: { left: readonly { id: string; name: string }[]; right: readonly { id: string; name: string }[]; active?: string | null };
   /** The room, and what was in it that night (ui/match/setting.ts). */
   setting?: Setting;
 }) {

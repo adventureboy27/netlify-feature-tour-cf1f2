@@ -781,7 +781,12 @@ export function MatchViewerScreen({
           entrance={combined.slice(0, 4).map(entranceOf)}
           finale={finaleFor(combined.filter((w) => winnerIds.has(w.id)))}
           signs={crowdSigns}
-          nameCards={{ left: sideA.map((w) => w.name), right: sideB.map((w) => w.name) }}
+          nameCards={{
+            left: sideA.map((w) => ({ id: w.id, name: w.name })),
+            right: sideB.map((w) => ({ id: w.id, name: w.name })),
+            // Whoever is making the move: their sign rocks, as the yellow plate used to light up.
+            active: over ? null : (fighters.find((f) => f.role === 'actor')?.wrestler.id ?? null),
+          }}
           setting={settingOf(show)}
           logo={corners ? undefined : world.promotion.logoDataUrl}
           broadcast={{

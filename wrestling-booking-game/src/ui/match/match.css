@@ -509,3 +509,17 @@
 /* A big face: a slow push in, toward the eyes. */
 .mv-tv-facepush { transform-origin: 50% 38%; animation: mv-tv-facepush 5s ease-out both; }
 @keyframes mv-tv-facepush { from { transform: scale(1); } to { transform: scale(1.09); } }
+
+/* The cardboard name sign of whoever is making the move (ScrapRing.tsx): it rocks on its bottom edge. */
+.mv-sign-wobble { animation: mv-sign-wobble 0.9s ease-in-out infinite; }
+@keyframes mv-sign-wobble {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  20% { transform: rotate(-4.5deg) translateY(-2px); }
+  45% { transform: rotate(3.5deg) translateY(-1px); }
+  70% { transform: rotate(-2deg) translateY(-1.5px); }
+  85% { transform: rotate(1deg) translateY(0); }
+}
+/* Held still, it is lifted a little and lit instead, so it still stands out. */
+@media (prefers-reduced-motion: reduce) {
+  .mv-sign-wobble { animation: none; transform: translateY(-4px); filter: brightness(1.18) drop-shadow(0 0 3px rgba(255, 220, 140, 0.7)); }
+}
