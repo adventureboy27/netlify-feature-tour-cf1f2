@@ -523,3 +523,20 @@
 @media (prefers-reduced-motion: reduce) {
   .mv-sign-wobble { animation: none; transform: translateY(-4px); filter: brightness(1.18) drop-shadow(0 0 3px rgba(255, 220, 140, 0.7)); }
 }
+
+/* ---- the stars after the match (StarReveal.tsx) ---- */
+.mv-star-backdrop {
+  background: radial-gradient(ellipse at 50% 45%, rgba(36, 25, 4, 0.9) 0%, rgba(0, 0, 0, 0.93) 70%);
+  animation: mv-star-backdrop-in 0.5s ease-out both;
+}
+@keyframes mv-star-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+.mv-star { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 14px rgba(255, 196, 40, 0.0)); transition: filter 0.4s ease-out; }
+.mv-star-pop { animation: mv-star-pop 0.42s cubic-bezier(0.2, 1.6, 0.4, 1) both; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 16px rgba(255, 196, 40, 0.55)); }
+@keyframes mv-star-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.18) rotate(-4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mv-star-backdrop, .mv-star-pop { animation: none; }
+}

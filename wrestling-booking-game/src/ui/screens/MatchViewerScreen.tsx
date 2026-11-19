@@ -34,6 +34,9 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Panel, promotionTheme } from '../components/chrome';
 import { effectiveRules, stipulationById } from '../../data/stipulations';
 import { rngFromSeed } from '../../engine/rng';
+import { StarReveal } from '../match/StarReveal';
+import { ratingToStars } from '../../engine/economy/showRating';
+import { starQuote } from '../match/starQuote';
 import type { Id, FinishType, SegmentRole, Title, Wrestler } from '../../engine/types';
 
 /**
@@ -63,6 +66,9 @@ export interface SpecialMatch {
  * side actually landed on here, which is not always sideA (sideA is always
  * the *winners*, not always side 0).
  */
+/** How long the winner has the screen before the stars come up. */
+const STARS_AFTER_MS = 2600;
+
 function deriveSides(
   competitors: SegmentRole[],
   result: WatchResult,
@@ -187,6 +193,7 @@ export function MatchViewerScreen({
           winnerWrestlerIds: [bout.winnerId],
           titleChanged: Boolean(title),
           injuries: bout.injuries ?? [],
+          stars: ratingToStars(bout.rating),
         } satisfies WatchResult,
       };
     }
@@ -213,6 +220,7 @@ export function MatchViewerScreen({
           winnerWrestlerIds: [bout.winnerId],
           titleChanged: false,
           injuries: bout.injuries ?? [],
+          stars: ratingToStars(bout.rating),
         } satisfies WatchResult,
       };
     }
@@ -234,6 +242,7 @@ export function MatchViewerScreen({
         winnerWrestlerIds: match.winnerIds,
         titleChanged: false,
         injuries: match.injuries ?? [],
+        stars: match.stars,
       } satisfies WatchResult,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -328,6 +337,20 @@ export function MatchViewerScreen({
   const synced = staging?.synced ?? false;
   const commentary = result?.commentary ?? [];
   const lastBeat = moments.length - 1;
+  // The stars come up once it is over — after the winner has had a moment —
+  // and go away when clicked.
+  const [starsUp, setStarsUp] = useState(false);
+  const [starsGone, setStarsGone] = useState(false);
+  const finished = moments.length > 0 && beatIndex > lastBeat;
+  useEffect(() => {
+    if (!finished) {
+      setStarsUp(false);
+      setStarsGone(false);
+      return;
+    }
+    const t = window.setTimeout(() => setStarsUp(true), STARS_AFTER_MS);
+    return () => window.clearTimeout(t);
+  }, [finished]);
 
   // The call as one script, and where each step's lines sit in it. Step -1
   // is everything before the bell; one past the last beat is the sign-off.
@@ -889,6 +912,13 @@ export function MatchViewerScreen({
             .map((manager) => renderRingsideManager(manager, 'right'))}
         </div>
 
+        {starsUp && !starsGone && result.stars !== undefined && (
+          <StarReveal
+            stars={result.stars}
+            quote={starQuote(result.stars, result.ratingBreakdown, `${result.beats.length}:${result.beats[0]?.text ?? ''}:${result.beats[result.beats.length - 1]?.text ?? ''}`)}
+            onDismiss={() => setStarsGone(true)}
+          />
+        )}
       </Panel>
 
       {/* ---- commentary, bottom third ------------------------------------ */}

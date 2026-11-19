@@ -23,7 +23,7 @@ describe("who's watching", () => {
   });
 
   it('changes over a couple of months, not overnight — and drifts back once they are gone', () => {
-    let age = AUDIENCE.neutral;
+    let age: number = AUDIENCE.neutral;
     age = driftAudience(age, [drink]);
     // One week moves it a little, nowhere near the target.
     expect(age).toBeGreaterThan(AUDIENCE.neutral);

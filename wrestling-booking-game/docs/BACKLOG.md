@@ -7264,3 +7264,15 @@ Each company now has an audience, one value from families (0) to grown-ups (100)
 - **On screen:** the Television and sponsors panel says who's watching, in words, and which way it's heading. Each leaning sponsor's card, signed or on offer, says who it brings in.
 - **Tests:** `engine/world/audience.test.ts` covers the direction, the drift speed, the tilt each way, the cap, the words, and which sponsors lean.
 - **Probe:** the probe doesn't sign sponsors, so its show numbers are unchanged by this. Measuring the effect would need a save with a sponsor signed.
+
+## The stars, big, after the match
+
+When a match ends in the viewer, the winner gets the screen for 2.6 seconds. Then the stars come up big over the ring (`ui/match/StarReveal.tsx`):
+
+- **The stars:** five slots, each a bevelled 3D gold star with ten facets lit from the top left, a dark rim, a glossy highlight and a glint clipped inside the shape, and a drop shadow. They fill a quarter at a time, counting up to exactly the rating the sim gave (`SegmentResult.stars`). Each one pops and glows as it completes, and empty slots stay as dark recessed stars.
+- **The quote:** a short line comes in under the stars (`ui/match/starQuote.ts`, wording in `data/starQuotes.ts`). It's a verdict for the star band, then the single biggest real reason from the match's rating breakdown: what helped most for a 3★+ match, what hurt most below that. A reason is only given if it moved the rating by at least 1.5 points. Example: "A decent little match. Those two just do not mesh." It's seeded from the match, so a rewatch says the same thing.
+- **Count-up:** this is only the reveal. The rating is decided once, at the end, and the stars land on it.
+- **Everywhere:** cup bouts, breakfast-belt bouts and special-show matches show their stars too (from their ratings).
+- **Controls:** click or press Enter or Escape to dismiss. Under reduced motion it appears already filled.
+- **Checked** on real matches at 0.75★ and 2.5★. `starQuote.test.ts` covers the band verdicts, the reason picked each way, no reason when nothing clearly drove it, and the same line on a rewatch.
+- **Also fixed:** a type error in last batch's `audience.test.ts` (`let age` inferred the literal 50); the tests ran but the type check failed.
