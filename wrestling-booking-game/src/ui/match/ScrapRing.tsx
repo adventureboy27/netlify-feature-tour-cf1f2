@@ -11,6 +11,7 @@
 // — they built it once.
 
 import { memo, useMemo } from 'react';
+import { markerPath, markerText, markerWidth } from './markerFont';
 
 export type ScrapGeo = {
   mat: { backY: number; frontY: number; backL: number; backR: number; frontL: number; frontR: number };
@@ -464,3 +465,118 @@ export function ScrapRopeRun({ x1, x2, y, kind, sag, w, shadow }: { x1: number; 
     </g>
   );
 }
+
+/**
+ * Each wrestler's name in marker on a bit of cardboard box, leaned against
+ * the front of the ring on the side they start from. Written fast by
+ * somebody kneeling on the grass: letters a little off the line, a little
+ * tilted, a different size — but every one of them readable.
+ */
+/** Most of a side's signs that fit along the front before they bury the ring. */
+const MAX_SIGNS_PER_SIDE = 3;
+
+function hashOf(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+/** Split a long name over two lines at the space nearest the middle. */
+function signLines(name: string): string[] {
+  const t = markerText(name);
+  if (t.length <= 11 || !t.includes(' ')) return [t];
+  const mid = t.length / 2;
+  let best = -1;
+  for (let i = 0; i < t.length; i++) if (t[i] === ' ' && (best < 0 || Math.abs(i - mid) < Math.abs(best - mid))) best = i;
+  return [t.slice(0, best), t.slice(best + 1)];
+}
+
+function CardboardSign({ name, x, floorY, w, h, tilt, seed }: { name: string; x: number; floorY: number; w: number; h: number; tilt: number; seed: number }) {
+  const rnd = lcg(seed % 2147483647 || 1);
+  const lines = signLines(name);
+  const longest = Math.max(...lines.map((l) => markerWidth(l)));
+  // Letter height: as big as fits, smaller when it takes two lines.
+  const size = Math.min(lines.length > 1 ? 17 : 22, (w - 18) / Math.max(1, longest));
+  const top = floorY - h;
+  // A box flap: one corner torn off, the cut edge not straight.
+  const tear = 6 + rnd() * 8;
+  const tornLeft = rnd() < 0.5;
+  const outline = tornLeft
+    ? `M ${x + tear},${top} L ${x + w},${top + 1} L ${x + w - 1},${floorY} L ${x},${floorY} L ${x + 1},${top + tear} L ${x + tear * 0.4},${top + tear * 0.7} Z`
+    : `M ${x},${top + 1} L ${x + w - tear},${top} L ${x + w - tear * 0.5},${top + tear * 0.6} L ${x + w},${top + tear} L ${x + w - 1},${floorY} L ${x + 1},${floorY} Z`;
+  const ink = '#16130f';
+  return (
+    <g transform={`rotate(${tilt} ${x + w / 2} ${floorY})`}>
+      {/* Its shadow on the boards behind, and on the grass. */}
+      <path d={outline} transform="translate(4 -3)" fill="#000" opacity={0.3} />
+      <ellipse cx={x + w / 2} cy={floorY + 1} rx={w * 0.55} ry={3} fill="#000" opacity={0.35} />
+      <path d={outline} fill="#c79e64" stroke="#8a6534" strokeWidth={1.2} strokeLinejoin="round" />
+      {/* Corrugation showing along the cut top, and a crease where the box folded. */}
+      <path d={`M ${x + 3},${top + 3} ${Array.from({ length: Math.floor(w / 4) }, (_, i) => `l 2,${i % 2 ? -1.6 : 1.6}`).join(' ')}`} fill="none" stroke="#9c7742" strokeWidth={0.8} opacity={0.8} />
+      <path d={`M ${x + w * (0.28 + rnd() * 0.1)},${top + 2} l 1,${h - 3}`} stroke="#a9834f" strokeWidth={1.3} opacity={0.7} />
+      {/* Whatever the box said before. */}
+      <text x={x + w - 6} y={floorY - 5} textAnchor="end" fontFamily="Arial, sans-serif" fontWeight={700} fontSize={6} fill="#7a5a2c" opacity={0.55}>
+        {rnd() < 0.5 ? '↑ THIS SIDE UP' : 'FRAGILE'}
+      </text>
+      {/* The name, in marker. */}
+      {lines.map((line, li) => {
+        const baseY = top + h * (lines.length > 1 ? (li === 0 ? 0.45 : 0.82) : 0.68) + (rnd() - 0.5) * 3;
+        const tilt = ((rnd() - 0.5) * 6).toFixed(1);
+        return (
+          <path
+            key={li}
+            d={markerPath(line, x + w / 2 + (rnd() - 0.5) * 6, baseY, size, rnd)}
+            transform={`rotate(${tilt} ${x + w / 2} ${baseY})`}
+            fill="none"
+            stroke={ink}
+            strokeWidth={Math.max(2.2, size * 0.16)}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            filter="url(#mv-marker)"
+          />
+        );
+      })}
+      {/* A marker scribble under it: somebody's idea of a flourish. */}
+      {lines.length === 1 && rnd() < 0.6 && (
+        <path
+          d={`M ${x + w * 0.22},${floorY - 7} q ${w * 0.15},${3 + rnd() * 3} ${w * 0.3},0 t ${w * 0.26},${-1}`}
+          fill="none"
+          stroke={ink}
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          filter="url(#mv-marker)"
+        />
+      )}
+    </g>
+  );
+}
+
+/** Every wrestler's sign, leaned against the front of the ring on their own side. */
+export const CardboardSigns = memo(function CardboardSigns({ geo, left, right }: { geo: ScrapGeo; left: readonly string[]; right: readonly string[] }) {
+  const p = geo.platform;
+  const floorY = geo.skirtBottom + 10;
+  const w = 122;
+  const h = 62;
+  const place = (names: readonly string[], side: -1 | 1) =>
+    names.slice(0, MAX_SIGNS_PER_SIDE).map((name, i) => {
+      // From the corner inward on the left (clear of the steps), and in from the corner on the right.
+      // Side by side, not overlapped: every name has to stay readable. Three a side just fit.
+      const x = side < 0 ? p.frontL + 30 + i * (w + 6) : p.frontR - 30 - w - i * (w + 6);
+      const seed = hashOf(`${name}:${side}:${i}`);
+      const tilt = ((seed % 70) / 10 - 3.5) + side * 1.5;
+      return <CardboardSign key={`${side}-${i}-${name}`} name={name} x={x} floorY={floorY - (i % 2) * 4} w={w} h={h} tilt={tilt} seed={seed} />;
+    });
+  return (
+    <g>
+      <defs>
+        {/* Marker on cardboard: the edges bleed and wobble a little. */}
+        <filter id="mv-marker" x="-5%" y="-20%" width="110%" height="140%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves={2} seed={9} result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale={1.6} />
+        </filter>
+      </defs>
+      {place(left, -1)}
+      {place(right, 1)}
+    </g>
+  );
+});

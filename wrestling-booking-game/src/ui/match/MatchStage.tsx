@@ -349,6 +349,7 @@ export function MatchStage({
   entrance = [],
   finale,
   signs,
+  nameCards,
   setting = FULL_PRODUCTION,
   corners,
   eventName,
@@ -428,6 +429,8 @@ export function MatchStage({
   finale?: Reaction;
   /** What the signs in the front row say. */
   signs?: readonly string[];
+  /** Each side's names, for the cardboard signs against a plywood ring. */
+  nameCards?: { left: readonly string[]; right: readonly string[] };
   /** The room, and what was in it that night (ui/match/setting.ts). */
   setting?: Setting;
 }) {
@@ -1001,7 +1004,7 @@ export function MatchStage({
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
       {w > 0 && (
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
-          <ArenaBack accent={accent} name={promotionName} logo={logo} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} starColor={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : undefined} signs={signs} setting={setting} onSideRope={onSideRope} />
+          <ArenaBack accent={accent} name={promotionName} logo={logo} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} starColor={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : undefined} signs={signs} nameCards={nameCards} setting={setting} onSideRope={onSideRope} />
 
           {/* The premium ring: the whole front of the apron is a bulb sign. */}
           {setting.ring === 'premium' && !conduct?.noRing && !corners && marquee && (

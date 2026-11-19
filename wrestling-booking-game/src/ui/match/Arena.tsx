@@ -19,7 +19,7 @@ import { Entrance, HouseLights, NoScreen, Room, SoundStacks } from './Venue';
 import { FULL_PRODUCTION, isFancyRing, type Setting } from './setting';
 import { ringMatById } from '../../data/ringMats';
 import { RING } from './ringPhysics';
-import { ScrapPad, ScrapPlatform, ScrapPost, ScrapRope, ScrapRopeRun, type ScrapGeo } from './ScrapRing';
+import { CardboardSigns, ScrapPad, ScrapPlatform, ScrapPost, ScrapRope, ScrapRopeRun, type ScrapGeo } from './ScrapRing';
 import './match.css';
 
 export const VIEW = { w: 1200, h: 600 } as const;
@@ -435,6 +435,7 @@ export const ArenaBack = memo(function ArenaBack({
   moodBig = false,
   starColor,
   signs,
+  nameCards,
   setting = FULL_PRODUCTION,
   onSideRope,
 }: {
@@ -450,6 +451,8 @@ export const ArenaBack = memo(function ArenaBack({
   starColor?: string;
   /** What the signs in the front row say. */
   signs?: readonly string[];
+  /** On the plywood ring: each wrestler's name on cardboard, leaned against the front on their side. */
+  nameCards?: { left: readonly string[]; right: readonly string[] };
   /** Somebody has taken the steel steps off the corner: they are not there any more. */
   stepsGone?: boolean;
   /** Hands over the far halves of the side ropes, so a body hitting them can make them give. */
@@ -679,6 +682,7 @@ export const ArenaBack = memo(function ArenaBack({
       ) : (
         <polygon points={`${PLATFORM.frontL},${PLATFORM.frontY} ${PLATFORM.frontR},${PLATFORM.frontY} ${PLATFORM.frontR},${SKIRT_BOTTOM} ${PLATFORM.frontL},${SKIRT_BOTTOM}`} fill="url(#mv-apron)" />
       )}
+      {setting.ring === 'plywood' && nameCards && <CardboardSigns geo={SCRAP_GEO} left={nameCards.left} right={nameCards.right} />}
       {setting.ring !== 'plywood' && <rect x={PLATFORM.frontL} y={PLATFORM.frontY} width={PLATFORM.frontR - PLATFORM.frontL} height={5} fill="#ffffff" opacity={0.35} />}
 
       {/* Back posts, back ropes, and the far half of each side run: all of it further from the camera than anybody in the ring. */}

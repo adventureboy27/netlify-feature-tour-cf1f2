@@ -780,6 +780,7 @@ export function MatchViewerScreen({
           entrance={combined.slice(0, 4).map(entranceOf)}
           finale={finaleFor(combined.filter((w) => winnerIds.has(w.id)))}
           signs={crowdSigns}
+          nameCards={{ left: sideA.map((w) => w.name), right: sideB.map((w) => w.name) }}
           setting={settingOf(show)}
           logo={corners ? undefined : world.promotion.logoDataUrl}
           broadcast={{

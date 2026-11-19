@@ -7102,3 +7102,11 @@ The starting ring (`Setting.ring === 'plywood'`) is now its own drawing, `src/ui
 - **Posts and pads:** posts are leaning fence posts. The pads are a striped beach towel, pool noodle, a pillow and duct tape.
 
 Every detail comes from a fixed seed, so it's the same ring every show. The rope and post positions are unchanged, so rope bounces and side-rope give work as before. No other ring changes. On a two-company show, the plywood ring keeps its scrap front instead of the split company skirt. The steel steps are unchanged: they're a prop that can be picked up.
+
+## Cardboard name signs round the plywood ring
+
+On the plywood ring, each wrestler's name is written in marker on a piece of cardboard box and leaned against the front of the ring on their own side: side A on the left, side B on the right, the same sides they start from. Each sign has a torn corner, a crease, a faint "THIS SIDE UP" or "FRAGILE", and sometimes a scribble under a one-line name. Long names wrap onto two lines.
+
+The handwriting is a hand-drawn stroke alphabet in `src/ui/match/markerFont.ts`, not a font. The game is offline and players' machines vary, so a "marker" system font wasn't dependable; this build machine had none at all. Every letter is drawn as round-capped marker strokes, and each letter rides up or down, leans, and lands a little off. It's seeded per name, so a sign is the same every time.
+
+The signs sit side by side and never overlap. They're capped at three a side, which is what fits along the front, so in bigger matches only the first three on each side get one. They're checked in a singles match and a tag match.
