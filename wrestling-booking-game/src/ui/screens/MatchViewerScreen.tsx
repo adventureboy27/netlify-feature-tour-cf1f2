@@ -19,6 +19,7 @@ import { MatchStage, type Aftermath, type Bystander, type CornerCue, type Ringsi
 import { initialsOf } from '../match/Ringside';
 import { entranceOf, finaleFor, reactionTo, standingOf } from '../match/crowd';
 import { ARENA_ACCENT, settingOf } from '../match/setting';
+import { MAX_SIGNS_PER_SIDE } from '../match/ScrapRing';
 import { stageMatch } from '../match/choreography';
 import { conductOf, STANDARD } from '../match/conduct';
 import { isNonDecisiveFinish } from '../../engine/sim/finish';
@@ -852,7 +853,12 @@ export function MatchViewerScreen({
           )}
           {(['left', 'right'] as const).map((slot) => {
             const fighter = over ? undefined : fighters.find((f) => f.slot === slot);
-            return fighter ? (
+            // On the plywood ring their name is already on cardboard against the
+            // apron; the plate would only say it twice. Only the ones past the
+            // signs that fit along the front still get one.
+            const signed =
+              fighter && settingOf(show).ring === 'plywood' && !conduct.noRing && (slot === 'left' ? sideA : sideB).slice(0, MAX_SIGNS_PER_SIDE).some((w) => w.id === fighter.wrestler.id);
+            return fighter && !signed ? (
               <span
                 key={slot}
                 className={`max-w-[220px] truncate rounded px-2 py-0.5 ${fighter.role === 'actor' ? 'bg-amber-400 text-neutral-950' : 'bg-neutral-950/85 text-neutral-200'}`}

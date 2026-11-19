@@ -473,7 +473,7 @@ export function ScrapRopeRun({ x1, x2, y, kind, sag, w, shadow }: { x1: number; 
  * tilted, a different size — but every one of them readable.
  */
 /** Most of a side's signs that fit along the front before they bury the ring. */
-const MAX_SIGNS_PER_SIDE = 3;
+export const MAX_SIGNS_PER_SIDE = 3;
 
 function hashOf(text: string): number {
   let h = 2166136261;

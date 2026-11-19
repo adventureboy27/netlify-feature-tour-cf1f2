@@ -7110,3 +7110,9 @@ On the plywood ring, each wrestler's name is written in marker on a piece of car
 The handwriting is a hand-drawn stroke alphabet in `src/ui/match/markerFont.ts`, not a font. The game is offline and players' machines vary, so a "marker" system font wasn't dependable; this build machine had none at all. Every letter is drawn as round-capped marker strokes, and each letter rides up or down, leans, and lands a little off. It's seeded per name, so a sign is the same every time.
 
 The signs sit side by side and never overlap. They're capped at three a side, which is what fits along the front, so in bigger matches only the first three on each side get one. They're checked in a singles match and a tag match.
+
+## No name plates where the cardboard signs are
+
+On the plywood ring, the yellow and black name plates under the picture are hidden for anybody whose cardboard sign is leaned against the apron. The sign already says who they are. In a match with more than three a side, the wrestlers without a sign still get a plate. Every other ring keeps its plates as before.
+
+On the plywood ring, nothing now marks which wrestler is making the move each moment; the yellow plate used to do that.
