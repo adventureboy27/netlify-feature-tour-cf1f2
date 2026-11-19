@@ -239,8 +239,8 @@ export function simulateMatch(
   )) {
     stackingShifts[side] = (booked[side] ?? 0) + (ringsideShifts[side] ?? 0) + (distracted[side] ?? 0);
   }
-  // Got away with it: it helped. Applied as a net lean on the first side,
-  // since a two-sided match reads its odds off that side alone.
+  // Got away with it: it helped. Applied as a net lean on the first side;
+  // a two-sided match nets both sides' leans, so either way reads the same.
   if (ctx.cheat && !ctx.cheat.seen && sides.length === 2) {
     const first = sides[0]!;
     stackingShifts[first] = (stackingShifts[first] ?? 0) + (ctx.cheat.side === first ? 1 : -1) * ctx.settings.cheatWinShift;
@@ -253,7 +253,10 @@ export function simulateMatch(
     const p = pairWinProbability(
       sideKayfabe.get(a)!,
       sideKayfabe.get(b)!,
-      stackingShifts[a] ?? 0,
+      // Both sides' leans count: whatever favours B counts against A. Reading
+      // A's alone silently threw away every agenda, manager and distraction
+      // that worked for the second side.
+      (stackingShifts[a] ?? 0) - (stackingShifts[b] ?? 0),
       ctx.settings.oddsClampMin,
       ctx.settings.oddsClampMax,
     );

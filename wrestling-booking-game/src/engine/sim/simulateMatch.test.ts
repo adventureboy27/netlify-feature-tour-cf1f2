@@ -475,6 +475,29 @@ describe('simulateMatch', () => {
     expect(finishes.has('knockout')).toBe(true);
   });
 
+  it('a booked lean counts the same whichever side of a two-sided match it favours', () => {
+    const roster = makeRoster(23, 2);
+    const byId = new Map(roster.map((w) => [w.id, w]));
+    const participants: SimParticipant[] = [
+      { wrestlerId: roster[0]!.id, side: 0 },
+      { wrestlerId: roster[1]!.id, side: 1 },
+    ];
+    const odds = (shifts?: Record<number, number>) =>
+      simulateMatch(rngFromSeed('lean'), participants, byId, baseContext({ deckStackingShiftsBySide: shifts })).winProbabilitiesBySide;
+    const clean = odds();
+    const forA = odds({ 0: 10 });
+    const forB = odds({ 1: 10 });
+    expect(forA[0]!).toBeGreaterThan(clean[0]!);
+    expect(forB[1]!).toBeGreaterThan(clean[1]!);
+    // Same size of push either way, unless the clamp cut one short.
+    const lo = defaultWorldSettings().oddsClampMin, hi = defaultWorldSettings().oddsClampMax;
+    if (forA[0]! < hi && forB[1]! < hi && forA[0]! > lo && forB[1]! > lo) {
+      expect(forA[0]! - clean[0]!).toBeCloseTo(forB[1]! - clean[1]!, 5);
+    }
+    // Equal leans on both sides cancel out.
+    expect(odds({ 0: 10, 1: 10 })[0]!).toBeCloseTo(clean[0]!, 5);
+  });
+
   it('caught using something, the one it was used on wins by disqualification; not caught, it helps the one who did it', () => {
     const roster = makeRoster(19, 2);
     const byId = new Map(roster.map((w) => [w.id, w]));

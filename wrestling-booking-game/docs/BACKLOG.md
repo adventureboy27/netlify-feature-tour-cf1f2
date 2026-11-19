@@ -7082,3 +7082,7 @@ The faces on the apron screen were small framed squares. They are now as big as 
 - The packages, the cut to a move, a star's moment and the winner (two at most): the face on the left, the name to the right of it; the rays come from behind the face.
 - The battle-royal reel of everybody keeps small faces (there can be thirty).
 - Tuning lives in three constants at the top of the file (`FACE_WIDE`, `FACE_ZOOM`, `FACE_LIFT`). Checked in renders on the VS card, two packages and the winner, with drawn art. Not checked: an uploaded photo (it is cropped the same way, centred, and where the face sits depends on the photo).
+
+## Fair odds for both sides of a two-sided match
+
+`simulateMatch` read a two-sided match's odds off the first side's lean alone, so anything favouring the second side was silently thrown away: a booking agenda for side B, a manager's ringside win bonus for B, a distraction against A. The odds now use the net of both sides' leans (`A − B`). The [8%, 92%] clamp is unchanged. New test: the same lean pushes the odds equally whichever side it favours, and equal leans on both sides cancel. Multi-man matches already counted every side, so they are untouched.
