@@ -7245,3 +7245,12 @@ The rule from now on: any name that might belong to somebody (a company's event,
 - **Storyline titles:** "Bad Blood" → "Sour Grapes".
 
 Ids are unchanged, so saves still load. Ordinary phrases in sentences ("the main event", "bad blood between them") and the Iron Man match type, a general wrestling term, stay.
+
+## Recalibrated: Friday-night network TV, not a kids' game
+
+The standard is what network wrestling shows on a Friday night. Blood, chairs, hardcore, gambling, humour, relationships and mild language all stay. Sexual innuendo, slurs, stereotypes, trademarks, real swearing, and drink or drug content stay out.
+
+- **Put back** (the earlier pass went too far): commentary's "hell of a match", the "… SUCKS" crowd signs, and the bars in a venue, a residency and a territory blurb.
+- **Kept:** every stereotype and trademark change, and the beer sponsor's switch to a sports drink.
+- **The guard test** now lets "hell", "damn" and "sucks" through; real swearing still fails.
+- **CLAUDE.md's** "Rated PG" rule now reads "Friday-night network TV".

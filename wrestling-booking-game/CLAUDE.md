@@ -35,11 +35,11 @@ sections relevant to the current milestone.
   status icon on a roster card. If a system can hurt somebody, that system
   owes the write-up a sentence.
 - Fully offline. No network calls anywhere.
-- **Rated PG.** Young wrestling fans play this too. Commentary, news and
-  write-ups can be funny, and wrestlers can date, marry, split up and be
-  jealous about it — but nothing goes past PG: no sexual innuendo, no slurs or
-  stereotypes (a culture is a costume theme at most, never a joke), no
-  swearing, no drinking or drugs. `src/data/familyFriendly.test.ts` scans every
+- **Friday-night network TV.** Not a kids' game, and it has to be fun for
+  adults: blood, chairs, hardcore, gambling, a "hell" or a "sucks", humour,
+  dating, marriage and breakups are all fine. What is not: sexual innuendo,
+  slurs, stereotypes (a culture is a costume theme at most, never a joke), real
+  swearing, and drink or drug content. `src/data/familyFriendly.test.ts` scans every
   string and screen for the hard lines; grow its list when something slips
   through, and rephrase the line rather than loosening the pattern.
 - **Nothing that belongs to somebody else.** It may be sold. No wrestling

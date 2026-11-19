@@ -1,5 +1,6 @@
-// This is not a mature game: no sexual innuendo, no slurs or stereotypes, no
-// swearing, no drinking or drugs. And it may be sold, so nothing that belongs
+// The bar is Friday-night network wrestling: blood, chairs, gambling and a
+// "hell" or a "sucks" are all fine. Sexual innuendo, slurs, stereotypes,
+// real swearing, and drink or drug content are not. And it may be sold, so nothing that belongs
 // to somebody else either: a wrestling company's events and catchphrases, a
 // real team's or wrestler's name (data/blocklist.ts keeps real ring names out
 // of generation; this keeps them out of everything else), a real brand. Every string the game can show a player
@@ -25,8 +26,8 @@ const NOT_FOR_THIS_GAME = new RegExp(
     // drinking and drugs
     '\\bdrunk', '\\bbooze', '\\bbeer\\b', '\\blager\\b', 'whiskey', '\\bvodka', 'liquor', 'moonshin', 'hangover',
     'bar fight', 'cocaine', 'heroin', 'junkie', '\\bstoned\\b',
-    // swearing
-    '\\bdamn', '\\bhell\\b', 'bastard', '\\bbitch', '\\bcrap\\b', '\\bpiss', '\\bshit', '\\bfuck', '\\bsucks\\b',
+    // swearing past what network TV allows ("hell", "damn" and "sucks" are fine on a Friday night)
+    'bastard', '\\bbitch', '\\bpiss', '\\bshit', '\\bfuck', '\\basshole',
     // slurs, stereotypes and hate
     'retard', 'midget', '\\bspaz', 'tranny', '\\bfag', '\\bdyke', '\\bgyps', 'eskimo', 'redskin', '\\bsavage', '\\binjun',
     '\\bsquaw', '\\bchink', '\\bjap\\b', 'oriental', 'voodoo', 'cannibal', '\\bnazi', 'hitler', '\\bkkk\\b', 'stormfront',
@@ -88,8 +89,9 @@ describe('a game for everybody', () => {
   });
 
   it('really does catch them, in any kind of string', () => {
-    const sample = "const a = 'The Bombshells'; const b = `${name} SUCKS`; const c = \"a hotel bar fight\"; // a comment saying hell is fine\nconst d = <p>What the hell</p>;";
+    const sample = "const a = 'The Bombshells'; const b = `${name} is a bastard`; const c = \"a hotel bar fight\"; // a comment saying bastard is not checked\nconst d = <p>Starrcade tonight</p>; const e = 'What the hell, that sucks';";
     const caught = literals(sample, true).filter((t) => NOT_FOR_THIS_GAME.test(t));
-    expect(caught).toEqual(['The Bombshells', '${name} SUCKS', 'a hotel bar fight', 'What the hell']);
+    // Network-TV language passes; the rest is caught wherever it is written.
+    expect(caught).toEqual(['The Bombshells', '${name} is a bastard', 'a hotel bar fight', 'Starrcade tonight']);
   });
 });
