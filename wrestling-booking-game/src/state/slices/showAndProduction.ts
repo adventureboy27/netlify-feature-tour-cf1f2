@@ -292,6 +292,7 @@ export const createShowAndProductionSlice: StateCreator<
       const asset = productionAssetById(assetId);
       if (!world || !asset) return;
       if (world.ownedAssetIds.includes(assetId)) return;
+      if (asset.noLongerSold) return;
       if (!assetRequirementMet(asset, world.ownedAssetIds, world.productionRungs)) return;
       // No warnings (§0) — but you cannot spend money you do not have.
       if (world.promotion.bankBalance < asset.cost) return;

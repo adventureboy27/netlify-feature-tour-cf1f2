@@ -806,6 +806,11 @@ export interface ProductionAsset {
   requiresProRing?: boolean;
   /** Built on another piece bought outright: not sold without it. */
   requiresAsset?: Id;
+  /**
+   * Withdrawn from sale but still owned in older saves, which keep its
+   * upkeep, wear and fire-sale value. Shown only to a promotion that has it.
+   */
+  noLongerSold?: boolean;
   /** false = never offered in a fire sale — the training facility is a school, not show-night gear. Omit for everything else. */
   fireSaleEligible?: boolean;
 }

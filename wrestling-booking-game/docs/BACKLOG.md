@@ -7086,3 +7086,7 @@ The faces on the apron screen were small framed squares. They are now as big as 
 ## Fair odds for both sides of a two-sided match
 
 `simulateMatch` read a two-sided match's odds off the first side's lean alone, so anything favouring the second side was silently thrown away: a booking agenda for side B, a manager's ringside win bonus for B, a distraction against A. The odds now use the net of both sides' leans (`A − B`). The [8%, 92%] clamp is unchanged. New test: the same lean pushes the odds equally whichever side it favours, and equal leans on both sides cancel. Multi-man matches already counted every side, so they are untouched.
+
+## One professional ring, sold in one place
+
+The professional ring was for sale twice: as the production ladder's "Professional ring" rung (Finance → Production) and as the one-time "Professional Ring" asset (Promotion → Equipment). The asset is now `noLongerSold`: it no longer appears in the Equipment tab, and `buyProductionAsset` refuses it. The ladder is the one place to buy it. The definition stays, so saves that already own it keep its upkeep, wear, fire-sale value and the Premium Ring unlock, and its card still shows for them. The Premium Ring's locked line now says where to buy the ring. New store test: the old asset can't be bought.

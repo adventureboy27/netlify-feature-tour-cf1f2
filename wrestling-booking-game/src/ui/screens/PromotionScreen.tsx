@@ -382,7 +382,7 @@ export function PromotionScreen() {
       <section>
         <h2 className="mb-2 text-sm font-medium text-neutral-300">Bought once — travels to every show</h2>
         <div className="grid gap-1 sm:grid-cols-2">
-          {PRODUCTION_ASSETS.map((asset) => {
+          {PRODUCTION_ASSETS.filter((asset) => !asset.noLongerSold || world.ownedAssetIds.includes(asset.id)).map((asset) => {
             const owned = world.ownedAssetIds.includes(asset.id);
             const affordable = world.promotion.bankBalance >= asset.cost;
             const needsRing = !owned && !assetRequirementMet(asset, world.ownedAssetIds, world.productionRungs);
@@ -414,7 +414,7 @@ export function PromotionScreen() {
                     {owned && <span className="ml-1 text-sky-400">owned</span>}
                   </div>
                   <div className="text-[10px] text-neutral-500">{asset.blurb}</div>
-                  {needsRing && <div className="text-[10px] text-amber-500">{asset.requiresAsset ? `Needs the ${productionAssetById(asset.requiresAsset)?.name ?? 'piece it is built on'} first.` : 'Needs a professional ring first.'}</div>}
+                  {needsRing && <div className="text-[10px] text-amber-500">{asset.requiresAsset ? `Needs the ${productionAssetById(asset.requiresAsset)?.name ?? 'piece it is built on'} first.` : 'Needs a professional ring first — Finance, Production.'}</div>}
                   {owned && (
                     <div className="text-[10px] text-neutral-600">
                       upkeep <Money amount={asset.upkeepPerShow} /> per show

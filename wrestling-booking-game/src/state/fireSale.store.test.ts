@@ -99,3 +99,16 @@ describe('selling gear to keep the lights on', () => {
     expect(world.promotion.bankBalance).toBe(before);
   });
 });
+
+describe('the professional ring is sold in one place', () => {
+  it('the old one-time Professional Ring cannot be bought any more; the production ladder sells it', () => {
+    useGameStore.setState((s) => {
+      s.world!.promotion.bankBalance = 1_000_000;
+    });
+    const before = useGameStore.getState().world!.promotion.bankBalance;
+    useGameStore.getState().buyProductionAsset('ringUpgrade');
+    const world = useGameStore.getState().world!;
+    expect(world.ownedAssetIds).not.toContain('ringUpgrade');
+    expect(world.promotion.bankBalance).toBe(before);
+  });
+});

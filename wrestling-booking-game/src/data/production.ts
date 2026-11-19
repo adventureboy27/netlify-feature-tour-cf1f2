@@ -24,6 +24,9 @@ export const PRODUCTION_ASSETS: ProductionAsset[] = [
     upkeepPerShow: 120,
     blurb: 'A genuine professional ring instead of the one that showed up on a trailer.',
     effects: { showRating: 3, injuryReduction: 0.12 },
+    // The production ladder's 'ring' rung is the professional ring now; this
+    // was the same ring sold twice. Older saves that bought it keep it.
+    noLongerSold: true,
   },
   {
     id: 'premiumRing',
