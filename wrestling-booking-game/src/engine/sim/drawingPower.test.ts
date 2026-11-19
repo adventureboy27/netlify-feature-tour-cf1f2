@@ -33,6 +33,40 @@ function pair(quality: number): Wrestler[] {
   return [a, b];
 }
 
+/**
+ * What the match was worth before the top of the star scale gets harder to
+ * climb (data/ratingCurve.ts): every term but that one. The curve compresses
+ * differences between great matches by design — it is tested on its own in
+ * matchRating.test.ts — so a test about what a finish or a squash costs is
+ * asked of the match's quality, not of how much of it survived the curve.
+ */
+function quality(participants: Wrestler[], finish: FinishType, over: Partial<MatchRatingContext> = {}): number {
+  return computeMatchRating(mulberry32(1), {
+    participants,
+    settings,
+    winProbability: 0.5,
+    isPPV: false,
+    stipulation: null,
+    requirementsMet: true,
+    matchLengthMinutes: 12,
+    simVariance: 0,
+    finish,
+    titlePrestige: null,
+    rivalryHeat: 0,
+    shootHeatBonus: 0,
+    hardcoreSaturation: 0,
+    slotExpectedPopularity: null,
+    instructionModifier: 0,
+    territoryFit: 0,
+    houseStyleFit: 0,
+    pairChemistryBonus: 0,
+    overexposurePenalty: 0,
+    paceBonus: 0,
+    paceCeiling: 100,
+    ...over,
+  }).breakdown.filter((t) => t.label !== 'A classic is hard to earn').reduce((sum, t) => sum + t.value, 0);
+}
+
 function rate(participants: Wrestler[], finish: FinishType, over: Partial<MatchRatingContext> = {}): number {
   // simVariance 0 so these compare cleanly.
   return computeMatchRating(mulberry32(1), {
@@ -97,8 +131,8 @@ describe('how a match ends changes what it was worth', () => {
   it('wastes a great match harder than a bad one', () => {
     // The crowd resents a screwjob in proportion to how good the match had
     // been. Losing a classic to a count-out costs more than losing a dud.
-    const greatsLoss = rate(pair(70), 'cleanPin') - rate(pair(70), 'countOut');
-    const dudsLoss = rate(pair(15), 'cleanPin') - rate(pair(15), 'countOut');
+    const greatsLoss = quality(pair(70), 'cleanPin') - quality(pair(70), 'countOut');
+    const dudsLoss = quality(pair(15), 'cleanPin') - quality(pair(15), 'countOut');
     expect(greatsLoss).toBeGreaterThan(dudsLoss);
   });
 
@@ -110,7 +144,7 @@ describe('how a match ends changes what it was worth', () => {
 
 describe('two great wrestlers given room to work', () => {
   it('rates far above a one-sided squash', () => {
-    const greats = rate(pair(62), 'cleanPin');
+    const greats = quality(pair(62), 'cleanPin');
     const squash = computeMatchRating(mulberry32(1), {
       participants: pair(62),
       settings,

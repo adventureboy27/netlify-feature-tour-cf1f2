@@ -7276,3 +7276,7 @@ When a match ends in the viewer, the winner gets the screen for 2.6 seconds. The
 - **Controls:** click or press Enter or Escape to dismiss. Under reduced motion it appears already filled.
 - **Checked** on real matches at 0.75★ and 2.5★. `starQuote.test.ts` covers the band verdicts, the reason picked each way, no reason when nothing clearly drove it, and the same line on a rewatch.
 - **Also fixed:** a type error in last batch's `audience.test.ts` (`let age` inferred the literal 50); the tests ran but the type check failed.
+
+## Stars are earned, not handed out
+
+The top of the star scale is steeper (`data/ratingCurve.ts`; numbers in docs/BALANCE.md "Stars are earned"). Matches under about 3★ are untouched. Above that, each point of quality is worth a bit less than the last. Legends can still have the five-star night, but it's about a 1-in-20 thing for the very best at their peak, not 1-in-4. In an ordinary company, 4★ is rare and 4½★ belongs to stars and legends. The probe's shows report now prints the star distribution. Tests are in `engine/sim/ratingCurve.test.ts`, and two `drawingPower` checks are re-expressed against raw quality.

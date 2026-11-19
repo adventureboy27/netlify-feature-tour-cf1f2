@@ -281,3 +281,27 @@ The odds fix (`simulateMatch` now counts the second side's lean as well as the f
 The after build also includes sumo, the content renames and the audience model. The probe signs no sponsors, so the audience stays neutral and adds nothing; sumo and the renames don't touch these numbers. Any change to the sim moves every later random roll, so the six saves grow different rosters from week one. The roster averages moving by a point show that's happening here, so a shift of a point or two is within what diverging saves produce. Nothing moved far enough to retune. Watch openers: they're the one number that moved more than the rest.
 
 Reproduce: `node tools/probe.mjs --report shows --seeds 6 --weeks 104`, against the same command run in a worktree at 35cd621.
+
+## Stars are earned — measured 2026-11-19
+
+Match stars were scarce in an ordinary save but free at the top. Two wrestlers rated 95 at everything, in a pay-per-view main event with a title on it, got 5★ 24% of the time and 4½★+ 50%. All-80s got 5★ 9% of the time, and all-65s reached 4★ 28% of the time. `data/ratingCurve.ts` now makes the top steeper. Below a raw 60 (3★) nothing changes. Above it, a smoothstep takes back up to 13 points by a raw 95. It's listed in the breakdown as "A classic is hard to earn", so the breakdown still adds up to the rating.
+
+Sim-level, 400 pay-per-view main events per tier, title on the line:
+
+| All stats | 4★+ before → after | 4½★+ | 5★ |
+|---|---|---|---|
+| 95 | 79% → 43% | 50% → 18% | 24% → 4.8% |
+| 80 | 49% → 19% | 24% → 3.8% | 8.8% → 0.5% |
+| 65 | 28% → 5.3% | 7.2% → 0.3% | 0.8% → 0% |
+
+Ordinary saves, `--report shows --seeds 6 --weeks 104` (the report now prints the star distribution):
+
+| | Before | After |
+|---|---|---|
+| Mean match stars | 1.7 | 1.8 |
+| ≥3★ / ≥3½★ | 10.8% / 4.4% | 13.1% / 4.4% |
+| ≥4★ / ≥4½★ / 5★ | 1.2% / 0.2% / 0% | 0.2% / 0% / 0% |
+| Best match | 4.75 | 4.25 |
+| Mean show rating | 43.7 | 44.4 |
+
+Everyday matches and show ratings don't move; only the top got rarer. In an ordinary company, a 4★ match is now about a one-in-500 event, and 4½★+ belongs to real stars and legends. `engine/sim/ratingCurve.test.ts` guards the shape. Two `drawingPower.test.ts` checks, about what a finish or a squash costs, are re-expressed against the match's raw quality, because the curve compresses differences at the top by design.

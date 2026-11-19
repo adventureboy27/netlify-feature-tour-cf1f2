@@ -306,6 +306,14 @@ function shows(runs) {
       `pop ${round(mean(list.map((s) => s.avgPop ?? 0)))}  ` +
       `rawWork ${round(mean(list.map(rawWorkOf)))}  ` +
       `health ${round(mean(list.map((s) => s.avgHealth ?? 0)))}  n=${list.length}`;
+    // How freely the stars are handed out: match rating to stars is rating/20
+    // in quarter steps (engine/economy/showRating.ts ratingToStars).
+    const starsOf = (s) => Math.round((s.rating / 20) * 4) / 4;
+    const atLeast = (n) => pct(segs.filter((s) => starsOf(s) >= n).length, segs.length);
+    lines.push(
+      `  match stars        mean ${round(mean(segs.map(starsOf)))}  best ${Math.max(...segs.map(starsOf))}  n=${segs.length}`,
+      `  share of matches   >=3★ ${atLeast(3)}  >=3.5★ ${atLeast(3.5)}  >=4★ ${atLeast(4)}  >=4.5★ ${atLeast(4.5)}  5★ ${atLeast(5)}`,
+    );
     lines.push(line('openers', bucket(isOpener)));
     lines.push(line('main events', bucket(isMainEvent)));
     // The thing this setting change was actually for: a skilled worker who

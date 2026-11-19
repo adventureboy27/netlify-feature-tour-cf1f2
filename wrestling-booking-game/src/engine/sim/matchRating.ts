@@ -9,6 +9,7 @@
 // today and each system lights up its term the moment it lands — no
 // rewrite needed here later.
 
+import { RATING_CURVE } from '../../data/ratingCurve';
 import type { Rng } from '../rng';
 import { gaussian, clamp } from '../rng';
 import type { Wrestler, RatingBreakdownEntry, Stipulation, FinishType, WorldSettings } from '../types';
@@ -258,10 +259,17 @@ export function computeMatchRating(rng: Rng, ctx: MatchRatingContext): MatchRati
     finishSatisfaction +
     randomness;
 
+  // Greatness is rare. Above the knee each point of quality is worth a little
+  // less than the last (data/ratingCurve.ts), so the top of the star scale is
+  // earned rather than reached. Listed in the breakdown, so it still adds up.
+  const climb = clamp((total - RATING_CURVE.knee) / (RATING_CURVE.full - RATING_CURVE.knee), 0, 1);
+  const rarity = term('A classic is hard to earn', -RATING_CURVE.maxOffset * climb * climb * (3 - 2 * climb));
+  if (rarity === 0) breakdown.pop();
+
   // The pace ceiling binds last, after everything else has been counted. A
   // sprint with two of the best in the world in it is still a sprint: it can
   // be the best short match you ever ran and it is not a classic.
-  const rating = clamp(Math.min(total, ctx.paceCeiling), 3, 100);
+  const rating = clamp(Math.min(total + rarity, ctx.paceCeiling), 3, 100);
   // Same conversion as the show rating — quarter stars, one source of truth.
   const stars = ratingToStars(rating);
 
