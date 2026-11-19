@@ -7157,3 +7157,44 @@ Checked by rendering real matches, sumo booked on a card and played: an arena ma
 ## Pronouns: he and she only
 
 The game only has he and she: every wrestler is `gender: 'm' | 'f'`, and `career/pronouns.ts` only ever gives one of the two. The previous batch's rewording for "they is…" guarded against a case that cannot happen, so those two intro lines are back as they were. The real bug was a lowercase pronoun opening a sentence ("…needs this one. he has dropped 3 in a row."). That's now fixed with a capitalised placeholder, `{IntroThey}`, and the two lines keep their pronoun. A new test fails if any commentary line opens a sentence with a lowercase pronoun placeholder.
+
+## Family-friendly content pass
+
+This isn't a mature game: no sexual innuendo, no slurs or stereotypes, no swearing, no drinking or drugs. I went through every list a player can see and changed what didn't fit. Ids are unchanged, so saves still load; only the words a player reads changed.
+
+- **Name generation:**
+  - Vixen → Vivian, Priss → Pearl, Cockburn → Colburn.
+  - "Stormfront" (the name of a hate site) → Thunderhead.
+  - Savage → Rugged (in names and move names), Needles → Hailstone, Cutthroat → Sidewinder, Vandal → Vanguard.
+- **Nicknames:**
+  - The Death Merchant / Barbed Wire Messiah / Sick Man → The Wrecking Ball / Barbed Wire King / Wild Card.
+  - The Executioner → The Closer, The Hitman → The Heavy Hitter.
+  - The Barroom King → The Backyard King, The Junkyard Dog → The Scrapyard Dog.
+  - The Complete/Total Package → Athlete.
+- **Team names:**
+  - The Last Call → The Last Stand, The Southern Comfort → The Southern Storm, The Chain Gang → The Chain Reaction.
+  - The Border Patrol → The Night Patrol, The Hell Raisers → The Hard Chargers, The Hitmen → The Heavy Hitters.
+  - The Main Street Mafia → Muscle, The Glamour Girls → Squad, The Bombshells → The Firecrackers.
+  - The Sirens → The Storm Chasers, The Heartbreakers → The Trailblazers.
+  - Manager stables: "Cartel" → "Collective".
+- **Gimmicks:**
+  - Cult Leader → Doomsayer, Preacher → The Motivator, The Reverend (a bible used as a weapon) → The Showman Prophet.
+  - The Moonshiner → The Mountaineer, Last Call → Order Up, Happy Hour → Second Helping.
+  - Shell Shock (combat trauma) → Boot Camp, The Deserter → The Lone Recruit.
+  - Hex lost its voodoo dolls and pins for a crystal ball; The Snake Charmer → The Reptile Keeper.
+  - Border Crossing → Passing Through.
+  - Cousin Dell is no longer "hillbilly" with a corncob pipe; Ringmaster's riding crop → a top hat and cane.
+  - Bar references are gone from Honky Tonk Heartbreak, Table Stakes and Roughhouse.
+  - Stables: The Congregation → The Masquerade, Last Rites → Lights Out, Last Call Local 12 → Night Crew Local 12.
+- **Elsewhere:**
+  - The beer sponsor is now a sports drink, and the "Full bar" stand is a "Full kitchen".
+  - Venue, territory and misfortune lines lost their bars and bar fights.
+  - The hardcore show names lost "Massacre", "Meat Grinder" and "Hell".
+  - Commentary's "hell of a match" → "heck".
+  - Crowd signs say "BOO …" / "… STINKS", not "… SUCKS".
+  - Fan forum names: ringrat79, kayfabe_karen, blade_job_bob → ringside_ray79, kayfabe_kate, backbreaker_bob.
+  - The jealousy confrontation's arm-around-the-waist line is now flowers.
+  - The sombrero is out of the hat library.
+- **Guard:** `src/data/familyFriendly.test.ts` reads every string literal under `src/` and fails on a list of sexual, crude, hateful, stereotyping, alcohol and drug terms. Only the real-name blocklist and camelCase ids are exempt. A second test proves the scanner catches each kind of string.
+
+Not changed: the violence the game is built on (blood, chairs, tables, hardcore matches) and gambling as a mechanic (the "gamble" option in events, the Casino Showroom venue, the Double or Nothing team).

@@ -590,7 +590,7 @@ export function MatchViewerScreen({
   const crowdSigns = combined.flatMap((w) => {
     const surname = w.name.trim().split(/\s+/).pop()!.toUpperCase();
     const standing = standingOf(w);
-    return standing === 'face' ? [`GO ${surname}!`, `${surname}!!`] : standing === 'heel' ? [`${surname} SUCKS`, `BOO ${surname}`] : [`${surname}!`];
+    return standing === 'face' ? [`GO ${surname}!`, `${surname}!!`] : standing === 'heel' ? [`BOO ${surname}`, `${surname} STINKS`] : [`${surname}!`];
   });
 
   // How it came out. The winners leave with a belt if the match was for one

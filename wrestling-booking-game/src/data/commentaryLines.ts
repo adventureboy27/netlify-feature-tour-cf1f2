@@ -935,7 +935,7 @@ export const COLOUR: readonly ColourTemplate[] = [
     provocative: true,
   },
   {
-    text: 'This one has been a hell of a match and we are not close to done.',
+    text: 'This one has been a heck of a match and we are not close to done.',
     needs: ['greatMatch'],
     after: ['nearFall', 'signature'],
   },

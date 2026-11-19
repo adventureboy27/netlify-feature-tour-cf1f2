@@ -61,7 +61,7 @@ export const SPONSORS: Sponsor[] = [
   },
   {
     id: 'beerBrand',
-    name: 'Ironhead Lager',
+    name: 'Ironhead Sports Drink',
     requiresRating: 70,
     weeklyFee: 38_000,
     conditions: [

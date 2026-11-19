@@ -141,7 +141,7 @@ export const CONFRONTATIONS: ConfrontationDefinition[] = [
   {
     id: 'jealousyOverAPartner',
     name: 'Jealous over a partner',
-    blurb: 'Somebody makes a play at another wrestler’s other half, right there on camera.',
+    blurb: 'Somebody makes a big show of being sweet on another wrestler’s other half, right there on camera.',
     intent: 'jealousy',
     venues: ['ring', 'backstage'],
     requires: 'romance',
@@ -150,7 +150,7 @@ export const CONFRONTATIONS: ConfrontationDefinition[] = [
     openers: [
       '{a} spent the entire segment talking straight to {c} and never once so much as glanced at {b}.',
       '{a} told {b}, in front of this whole building, exactly what {c} had said behind their back.',
-      '{a} slid an arm right around {c} while {b} was still standing there holding the microphone.',
+      '{a} handed {c} a bunch of flowers in the middle of the ring while {b} was still standing there holding the microphone.',
     ],
   },
   {

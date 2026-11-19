@@ -32,12 +32,12 @@ export interface TweetTemplate {
 
 /** Handles. Deliberately period-appropriate and a bit sad. */
 export const FAN_HANDLES = [
-  'markoutmarv', 'kayfabe_karen', 'suplex_city_dave', 'ringrat79', 'thatsnotwrestling',
+  'markoutmarv', 'kayfabe_kate', 'suplex_city_dave', 'ringside_ray79', 'thatsnotwrestling',
   'armdrag_annie', 'bookerT_truther', 'smarkhunter', 'popcornguy88', 'chairshot_charlie',
   'ladderMatchLarry', 'the_real_workrate', 'canvas_crusader', 'turnbuckle_tina', 'gorillaposition',
   'dirtsheetdan', 'frontrowfrank', 'bodyslam_betty', 'heelturnhenry', 'tapeTraderTom',
   'main_event_mike', 'jobber_justice', 'nearfall_nancy', 'cagematch_cal', 'wrestlingdad42',
-  'sundaynightsam', 'theresmartmark', 'lucha_lou', 'oldschoolotis', 'blade_job_bob',
+  'sundaynightsam', 'theresmartmark', 'lucha_lou', 'oldschoolotis', 'backbreaker_bob',
 ];
 
 export const SHOW_TWEETS: TweetTemplate[] = [

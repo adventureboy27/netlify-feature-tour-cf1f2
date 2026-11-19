@@ -127,18 +127,18 @@ export const NICKNAMES_BY_SOURCE: Record<NicknameSource, string[]> = {
 
 /** A style says a lot about what somebody gets called. */
 export const NICKNAMES_BY_STYLE: Partial<Record<WrestlingStyle, string[]>> = {
-  hardcore: ['The King of Hardcore', 'The Death Merchant', 'The Barbed Wire Messiah', 'The Sick Man'],
+  hardcore: ['The King of Hardcore', 'The Wrecking Ball', 'The Barbed Wire King', 'The Wild Card'],
   luchador: ['El Rayo', 'The Masked Marvel', 'El Fantasma', 'The Flying Saint'],
   highFlyer: ['The High Flyer', 'The Skywalker', 'The Daredevil', 'The Man Without Fear'],
-  submission: ['The Human Vice', 'The Executioner', 'The Snapmare Man', 'The Limb Collector'],
+  submission: ['The Human Vice', 'The Closer', 'The Snapmare Man', 'The Limb Collector'],
   giant: ['The Giant', 'The Monster', 'The Colossus', 'The Mountain'],
   showman: ['The Showstopper', 'The Entertainer', 'The Main Attraction', 'The Spectacle'],
   oldSchool: ['The Old School', 'The Purist', 'The Traditionalist', 'The Throwback'],
-  striker: ['The Knockout Artist', 'The Hitman', 'The Sniper', 'The Enforcer'],
-  bruiser: ['The Brawler', 'The Barroom King', 'The Bruiser', 'The Junkyard Dog'],
+  striker: ['The Knockout Artist', 'The Heavy Hitter', 'The Sniper', 'The Enforcer'],
+  bruiser: ['The Brawler', 'The Backyard King', 'The Bruiser', 'The Scrapyard Dog'],
   technical: ['The Technical Wizard', 'The Mechanic', 'The Wrestling Machine', 'The Craft'],
   powerhouse: ['The Strongest Man Alive', 'The Powerlifter', 'The Titan', 'The Beast'],
-  allRounder: ['The Complete Package', 'The All-Rounder', 'The Total Package', 'The Best in the World'],
+  allRounder: ['The Complete Athlete', 'The All-Rounder', 'The Total Athlete', 'The Best in the World'],
 };
 
 /** A fallback keyed on archetype, for anyone the other pools have nothing for. */

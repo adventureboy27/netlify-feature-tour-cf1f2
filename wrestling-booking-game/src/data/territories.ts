@@ -161,7 +161,7 @@ export const TERRITORIES: TerritoryDefinition[] = [
     capacity: 3600,
     revenueMult: 0.85,
     preferenceWeights: { hardcore: 0.5, faces: 0.4, womensWrestling: -0.3, highFlying: -0.2 },
-    blurb: 'Mining money hits the bar every Friday. Nothing subtle survives one week in this town.',
+    blurb: 'Mining money hits Main Street every Friday. Nothing subtle survives one week in this town.',
   },
   {
     id: 'harborlineMetro',

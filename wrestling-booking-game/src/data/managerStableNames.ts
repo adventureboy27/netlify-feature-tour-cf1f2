@@ -7,7 +7,7 @@ export const MANAGER_STABLE_NAMES: string[] = [
   "{manager}'s Family",
   'The {manager} Corporation',
   "{manager}'s Court",
-  'The {manager} Cartel',
+  'The {manager} Collective',
   "{manager}'s Circle",
   'The {manager} Alliance',
   "{manager}'s Syndicate",

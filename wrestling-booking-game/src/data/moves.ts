@@ -5,7 +5,7 @@
 // at the seams (adjective x concept x noun already yields thousands of names).
 
 export const MOVE_ADJECTIVES: string[] = [
-  'Crimson', 'Steel', 'Midnight', 'Iron', 'Savage', 'Silent', 'Final', 'Broken',
+  'Crimson', 'Steel', 'Midnight', 'Iron', 'Rugged', 'Silent', 'Final', 'Broken',
   'Golden', 'Wicked', 'Twisted', 'Sudden', 'Last', 'Cold', 'Burning', 'Shattered',
 ];
 

@@ -95,7 +95,7 @@ export const VENUES: Venue[] = [
     rentalCost: 650,
     prestige: 6,
     minCompanyRating: 0,
-    blurb: 'Low ceiling, dirt-cheap bar, and regulars loyal enough to run through a wall for this place.',
+    blurb: 'Low ceiling, dirt-cheap snack counter, and regulars loyal enough to run through a wall for this place.',
     houseCut: 0,
     // The bar is the whole reason they rent to you, and it is yours.
     concessionsPerHead: 2.6,

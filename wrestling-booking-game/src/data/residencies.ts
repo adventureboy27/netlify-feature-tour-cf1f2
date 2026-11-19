@@ -99,7 +99,7 @@ export const RESIDENCY_HOMES: ResidencyHome[] = [
     merchMultiplier: 0.4,
     productionCapacity: 5,
     atmosphere: 7,
-    blurb: 'Rows of folding chairs, a bar at the back, and the exact same faces in the exact same seats, every single week.',
+    blurb: 'Rows of folding chairs, a snack counter at the back, and the exact same faces in the exact same seats, every single week.',
   },
   {
     id: 'oldCinema',

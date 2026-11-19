@@ -37,7 +37,7 @@ export const GIMMICK_CATEGORY_PROP_KEYWORDS: Record<string, readonly string[]> =
   'Tech and modern': ['visor', 'glasses'],
   'School and education': ['glasses'],
   'Food and hospitality': ['chef', 'bowtie'],
-  'Travel and exploration': ['sombrero', 'lei', 'fez', 'strawhat', 'goggles', 'hawaiian', 'long-coat'],
+  'Travel and exploration': ['lei', 'fez', 'strawhat', 'goggles', 'hawaiian', 'long-coat'],
   'Intellectual and eccentric': ['monocle', 'bowtie', 'glasses', 'wizard', 'beret', 'fez', 'lab-coat'],
   'Everyman-with-an-edge': ['beanie', 'cap', 'nose-bandage'],
   Classic: ['robe', 'towel'],
@@ -93,7 +93,7 @@ export const THEMED_ONLY_IDS: readonly string[] = [
 // are mostly held back, so the roster is not half traffic cones.
 export const GOOFY_IDS: readonly string[] = [
   'chef-hat', 'party-hat', 'propeller-beanie', 'traffic-cone', 'jester-hat', 'bunny-ears', 'halo', 'santa-hat',
-  'fez', 'sombrero', 'wizard-hat', 'ten-gallon-cowboy-hat', 'viking-helmet', 'devil-horns',
+  'fez', 'wizard-hat', 'ten-gallon-cowboy-hat', 'viking-helmet', 'devil-horns',
   'clown-nose', 'groucho-glasses', '3d-glasses', 'heart-shades', 'cat-whiskers', 'monocle',
   'clown-paint', 'cheek-hearts', 'rosy-cheeks',
   'lei', 'feather-boa',

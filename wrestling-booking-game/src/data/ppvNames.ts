@@ -40,7 +40,7 @@ export const PPV_SETS: PPVSet[] = [
   },
   {
     archetype: 'hardcore',
-    names: ['Blood Harvest', 'Barbed Wire Massacre', 'The Meat Grinder', 'Scars', 'Hell in the Valley'],
+    names: ['Blood Harvest', 'Barbed Wire Brawl', 'The Grinder', 'Scars', 'Havoc in the Valley'],
   },
   {
     archetype: 'sportsEntertainment',

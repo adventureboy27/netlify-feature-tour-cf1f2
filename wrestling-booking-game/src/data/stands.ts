@@ -151,12 +151,12 @@ export const CONCESSIONS: Stand[] = [
   },
   {
     id: 'fullBar',
-    name: 'Full bar',
+    name: 'Full kitchen',
     costPerShow: 900,
     perHead: 3.4,
     fit: 'none',
     needsBarRights: true,
-    blurb: 'The single best line of business in this entire industry, and it needs a real license to run.',
+    blurb: 'Burgers, fries and the works: the single best line of business in this entire industry, and it needs a real permit to run.',
   },
   {
     id: 'foodTrucks',

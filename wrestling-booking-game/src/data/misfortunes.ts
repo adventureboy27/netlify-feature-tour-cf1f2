@@ -150,10 +150,10 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     weight: 4,
     requires: 'healthy',
     lines: [
-      '{name} is spending tonight in a holding cell over something that started, of all places, in a hotel bar.',
+      '{name} is spending tonight in a holding cell over something that started, of all places, in a hotel lobby.',
       '{name} got picked up on the way to the building tonight and has not been released since.',
       '{name} is out on bail as of tonight, and the lawyer is telling everybody in the building to stop asking questions.',
-      'Whatever happened at that bar last night, {name} is explaining it to a desk sergeant as we speak.',
+      'Whatever happened at that diner last night, {name} is explaining it to a desk sergeant as we speak.',
     ],
   },
   {
@@ -265,9 +265,9 @@ export const MISFORTUNES: MisfortuneDefinition[] = [
     requires: 'healthy',
     weeks: [1, 4],
     lines: [
-      '{name} got into it with some guy in a bar who had absolutely no idea who they were picking a fight with.',
+      '{name} got into it with some guy in a parking lot who had absolutely no idea who they were picking a fight with.',
       '{name} broke a hand on a face that had absolutely nothing to do with the show.',
-      'Somebody recognized {name} at exactly the wrong bar tonight and simply would not let it go.',
+      'Somebody recognized {name} at exactly the wrong diner tonight and simply would not let it go.',
       '{name} got dragged into a fight that was not even theirs, and came out of it a lot worse for it.',
     ],
   },

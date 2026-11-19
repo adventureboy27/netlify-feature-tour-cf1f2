@@ -23,7 +23,7 @@ export const MASCULINE_FIRST_NAMES: string[] = [
 export const FEMININE_FIRST_NAMES: string[] = [
   'Roxy', 'Delilah', 'Marlowe', 'Sable', 'Vesper', 'Harlow', 'Junie', 'Cricket', 'Blaze', 'Ember',
   'Frankie', 'Reyna', 'Dutchess', 'Coral', 'Wren', 'Scout', 'Nova', 'Zara', 'Piper', 'Sasha',
-  'Vixen', 'Talon', 'Raine', 'Josie', 'Lux', 'Mabel', 'Odessa', 'Priss', 'Quinn', 'Rowan',
+  'Vivian', 'Talon', 'Raine', 'Josie', 'Lux', 'Mabel', 'Odessa', 'Pearl', 'Quinn', 'Rowan',
   'Sable', 'Tamsin', 'Ursa', 'Valentina', 'Winnie', 'Xiomara', 'Yolanda', 'Zelda', 'Agatha', 'Birdie',
 ];
 
@@ -37,7 +37,7 @@ export const SURNAMES: string[] = [
   'Quiller', 'Ravenscroft', 'Steadman', 'Thackeray', 'Underhill', 'Voss', 'Wexford', 'Yancey', 'Ziegler', 'Ambrose',
   'Blackwood', 'Cartwright', 'Delacroix', 'Emerson', 'Fairbanks', 'Grissom', 'Hatcher', 'Isley', 'Jarrett', 'Kirkland',
   'Lambert', 'Montague', 'Norwood', 'Ogden', 'Pruitt', 'Quintero', 'Radcliffe', 'Sinclair', 'Thorne', 'Upton',
-  'Vaughn', 'Wallace', 'Xander', 'Yates', 'Zane', 'Applewhite', 'Bramwell', 'Cockburn', 'Dinsmore', 'Everhart',
+  'Vaughn', 'Wallace', 'Xander', 'Yates', 'Zane', 'Applewhite', 'Bramwell', 'Colburn', 'Dinsmore', 'Everhart',
   'Fitch', 'Gables', 'Hollis', 'Ipswich', 'Jencks', 'Kettering', 'Lowry', 'Mabry', 'Nixon', 'Overstreet',
   'Pemberton', 'Quaid', 'Rourke', 'Stillwater', 'Tanner', 'Usher', 'Vantage', 'Winters', 'Yeager', 'Zorn',
   'Ashby', 'Blythe', 'Corliss', 'Duvall', 'Eldridge', 'Frost', 'Gunderson', 'Haywood', 'Ivers', 'Jessop',
@@ -46,14 +46,14 @@ export const SURNAMES: string[] = [
 
 // Pattern B — epithet nouns and adjective+noun combos.
 export const EPITHET_NOUNS: string[] = [
-  'Midwinter', 'Boomtown', 'Needles', 'Cyclone', 'Ironside', 'Blackout', 'Sundown', 'Fever',
-  'Rampage', 'Vandal', 'Riptide', 'Grit', 'Havoc', 'Wildfire', 'Bulldog', 'Sledge',
+  'Midwinter', 'Boomtown', 'Hailstone', 'Cyclone', 'Ironside', 'Blackout', 'Sundown', 'Fever',
+  'Rampage', 'Vanguard', 'Riptide', 'Grit', 'Havoc', 'Wildfire', 'Bulldog', 'Sledge',
   'Wreckage', 'Thornapple', 'Backlash', 'Crossfire', 'Grimstone', 'Longshot', 'Payback', 'Redline',
-  'Stormfront', 'Undertow', 'Warpath', 'Zero', 'Ashcroft', 'Bonecrusher', 'Cutthroat', 'Doomsday',
+  'Thunderhead', 'Undertow', 'Warpath', 'Zero', 'Ashcroft', 'Bonecrusher', 'Sidewinder', 'Doomsday',
 ];
 
 export const EPITHET_ADJECTIVES: string[] = [
-  'Iron', 'Crimson', 'Wild', 'Midnight', 'Diamond', 'Savage', 'Steel', 'Golden',
+  'Iron', 'Crimson', 'Wild', 'Midnight', 'Diamond', 'Rugged', 'Steel', 'Golden',
   'Rogue', 'Copper', 'Neon', 'Silver', 'Wicked', 'Solar', 'Frost', 'Vicious',
   'Royal', 'Toxic', 'Velvet', 'Granite',
 ];
