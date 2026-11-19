@@ -85,6 +85,10 @@ export function rollFinish(rng: Rng, ctx: FinishRollContext): FinishType {
   const escape = ctx.rules.aim === 'escape' ? 5 : 0;
   entries.push(['escape', escape]);
 
+  // Sumo only: off the edge of the ring. Zero for every other match, the same as 'escape'.
+  const ringOut = ctx.rules.aim === 'ringOut' ? 60 : 0;
+  entries.push(['ringOut', ringOut]);
+
   // Somebody has to make the call. With nobody in the shirt there is no
   // stoppage available, however badly one is needed.
   const refereeStoppage =

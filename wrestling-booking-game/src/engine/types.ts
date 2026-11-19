@@ -1172,6 +1172,8 @@ export interface Stipulation {
   heatRequirement?: number;
   avgStatRequirement?: { stat: 'agility' | 'stamina' | 'skill'; min: number };
   minParticipants?: number;
+  /** One on one only, say: more than this and it does not make sense (sumo). */
+  maxParticipants?: number;
   popGapRequirement?: number; // e.g. squash: pop gap >= 35
   archetypeFit: Archetype[];
   /**
@@ -1253,7 +1255,8 @@ export interface MatchRules {
     | 'tornado';
   format: 'individuals' | 'teams' | 'elimination';
   ruleStrictness: 'strict' | 'lenient' | 'none';
-  aim: 'firstFall' | 'twoOfThree' | 'ironMan' | 'lastStanding' | 'firstBlood' | 'submissionOnly' | 'escape';
+  /** `ringOut`: sumo. No ropes; a fall is going off the edge of the platform, best two of three. */
+  aim: 'firstFall' | 'twoOfThree' | 'ironMan' | 'lastStanding' | 'firstBlood' | 'submissionOnly' | 'escape' | 'ringOut';
   falls: 'pinsAndSubs' | 'pinsOnly' | 'subsOnly' | 'knockout' | 'anyMeans';
   timeLimit: 0 | 5 | 10 | 15 | 20 | 30 | 60; // 0 = no limit
   stoppage: 'none' | 'referee' | 'doctor' | 'towel';
@@ -1320,6 +1323,8 @@ export type FinishType =
   | 'injuryStoppage'
   /** Steel Cage only: over the wall or out the door before anybody's shoulders hit the mat. */
   | 'escape'
+  /** Sumo only: the deciding fall — shoved, thrown or driven off the edge of the platform. See sim/sumo.ts. */
+  | 'ringOut'
   /**
    * The gear gave out mid-match — a ladder buckled, a cage panel came loose,
    * a table didn't break. Nobody wins this one. Only ever reachable when the
@@ -1392,7 +1397,11 @@ export type MatchSpot =
   | 'cageClimb'
   | 'teeter'
   | 'holdEscape'
-  | 'countBeaten';
+  | 'countBeaten'
+  // Sumo (sim/sumo.ts): a fall that counted — {actor} put {target} off the
+  // edge of the platform — and the near thing, heels over the edge and still on.
+  | 'pushedOff'
+  | 'edgeHold';
 
 /**
  * What an ordinary write-up line says physically happened, when it says
@@ -1438,6 +1447,11 @@ export interface MatchBeat {
   kind: MatchBeatKind;
   /** The special-match spot this beat is, if it is one. */
   spot?: MatchSpot;
+  /**
+   * Sumo: the falls each way once this beat's fall has counted — the side
+   * that just took it first. On every 'pushedOff' spot and on a ring-out finish.
+   */
+  score?: [number, number];
   /** The weapon in it, for a weapon shot (or a finish written with one). */
   weapon?: MatchWeapon;
   /** What the line says physically happened, if it says (see MatchAction). */

@@ -42,6 +42,8 @@ export interface PlaybackBeat {
   moveName: string | null;
   /** The special-match spot the sim recorded here, if any: what the viewer stages, exactly. */
   spot?: MatchSpot;
+  /** Sumo: falls each way once this beat's fall counted (MatchBeat.score). */
+  score?: [number, number];
   /** What was in the hand for it. */
   weapon?: MatchWeapon;
   /** What the write-up line says physically happened, if it says. */
@@ -164,6 +166,7 @@ export function buildPlaybackTimeline(
       targetId: beat.targetId ?? resolvedTarget?.id ?? null,
       moveName,
       ...(beat.spot ? { spot: beat.spot } : {}),
+      ...(beat.score ? { score: beat.score } : {}),
       ...(beat.weapon ? { weapon: beat.weapon } : {}),
       ...(beat.action ? { action: beat.action } : {}),
       ...(beat.bleeding ? { bleeding: beat.bleeding } : {}),
@@ -200,6 +203,8 @@ export function finishCallout(finish: FinishType): string {
       return "IT'S OVER!";
     case 'escape':
       return 'ESCAPE!';
+    case 'ringOut':
+      return 'OUT OF THE RING!';
     case 'equipmentFailure':
       return 'IT BROKE!';
     case 'lastFactionStanding':

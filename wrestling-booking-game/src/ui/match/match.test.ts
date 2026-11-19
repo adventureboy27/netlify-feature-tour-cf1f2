@@ -217,7 +217,8 @@ describe('the ring is solid', () => {
   }
 
   it('the only way out is over the top rope, and it ends on the floor', () => {
-    for (const move of MOVE_IDS.filter((id) => META[id]?.exits !== undefined)) {
+    // Sumo's shove off the edge only happens with the ropes down: below, by itself.
+    for (const move of MOVE_IDS.filter((id) => META[id]?.exits !== undefined && id !== 'shoveOff')) {
       for (const dirs of [[1, -1], [-1, 1]] as const) {
         const plan = planBeat(stageMove(move), [fighter('a', 'actor', dirs[0]), fighter('t', 'target', dirs[1])], 0);
         const frames = plan.tracks.get('t')!;
@@ -233,6 +234,36 @@ describe('the ring is solid', () => {
         for (const frame of plan.tracks.get('a')!) expect(Math.abs(frame.x), `${move} attacker`).toBeLessThanOrEqual(RING.half);
       }
     }
+  });
+
+  it('with the ropes down (sumo), out is off the edge of the platform, and it ends on the floor', () => {
+    for (const dirs of [[1, -1], [-1, 1]] as const) {
+      const plan = planBeat(stageMove('shoveOff'), [fighter('a', 'actor', dirs[0]), fighter('t', 'target', dirs[1])], 0, { ropeless: true });
+      const frames = plan.tracks.get('t')!;
+      const last = frames[frames.length - 1]!;
+      // Past the apron, not just past where the ropes would be.
+      expect(Math.abs(last.x)).toBeGreaterThan(RING.half + RING.apron);
+      expect(last.y).toBeLessThan(FLOOR + DOWN + 1);
+      expect(last.y).toBeGreaterThanOrEqual(FLOOR - 0.01);
+      // Nothing to bounce off on the way.
+      expect(plan.ropeHits).toEqual([]);
+      // And the one who did it is still up on the ring.
+      for (const frame of plan.tracks.get('a')!) {
+        expect(Math.abs(frame.x)).toBeLessThanOrEqual(RING.half + RING.apron);
+        expect(frame.y).toBeGreaterThanOrEqual(-0.01);
+      }
+    }
+  });
+
+  it('with the ropes down, whoever went off climbs back up for the next fall', () => {
+    const off = { x: 33, y: FLOOR, rot: -10 };
+    const plan = planBeat(stageMove('lockup'), [{ ...fighter('a', 'actor', 1), from: { x: 0, y: 0, rot: 0 } }, { ...fighter('t', 'target', -1), from: off }], 0, { ropeless: true });
+    const frames = plan.tracks.get('t')!;
+    expect(frames[0]!.y).toBeLessThan(FLOOR / 2);
+    // Up the side of the ring, not through it: on the floor while outside the platform, on the platform once over it.
+    for (const frame of frames) if (Math.abs(frame.x) > RING.half + RING.apron + 0.5) expect(frame.y).toBeLessThan(0);
+    expect(frames.some((f) => f.stance === 'climb')).toBe(true);
+    expect(frames[frames.length - 1]!.y).toBeGreaterThanOrEqual(-0.01);
   });
 });
 
@@ -581,7 +612,7 @@ describe('the fixes to the match types', () => {
   });
 
   it("the simulation and the ring agree on what every match type's near thing is", () => {
-    const shape: Record<string, Conduct['nearFall']> = { ladderPull: 'ladder', tableFightOff: 'table', casketNear: 'casket', cageClimb: 'climb', teeter: 'teeter', countBeaten: 'count', holdEscape: 'hold' };
+    const shape: Record<string, Conduct['nearFall']> = { ladderPull: 'ladder', tableFightOff: 'table', casketNear: 'casket', cageClimb: 'climb', teeter: 'teeter', countBeaten: 'count', holdEscape: 'hold', edgeHold: 'edge' };
     for (const stip of [null, ...STIPULATIONS.map((x) => x.id)]) {
       const conduct = rulebook(stip);
       const rules = effectiveRules(PLAIN_RULES as MatchRules, stip ? (STIPULATIONS.find((x) => x.id === stip) ?? null) : null);

@@ -436,6 +436,7 @@ export const ArenaBack = memo(function ArenaBack({
   starColor,
   signs,
   nameCards,
+  noRopes = false,
   setting = FULL_PRODUCTION,
   onSideRope,
 }: {
@@ -451,6 +452,8 @@ export const ArenaBack = memo(function ArenaBack({
   starColor?: string;
   /** What the signs in the front row say. */
   signs?: readonly string[];
+  /** Sumo: the posts and ropes are down, whatever ring it is. */
+  noRopes?: boolean;
   /** On the plywood ring: each wrestler's name on cardboard, leaned against the front on their side. */
   nameCards?: { left: readonly { id: string; name: string }[]; right: readonly { id: string; name: string }[]; active?: string | null };
   /** Somebody has taken the steel steps off the corner: they are not there any more. */
@@ -685,6 +688,9 @@ export const ArenaBack = memo(function ArenaBack({
       {setting.ring === 'plywood' && nameCards && <CardboardSigns geo={SCRAP_GEO} left={nameCards.left} right={nameCards.right} active={nameCards.active ?? null} />}
       {setting.ring !== 'plywood' && <rect x={PLATFORM.frontL} y={PLATFORM.frontY} width={PLATFORM.frontR - PLATFORM.frontL} height={5} fill="#ffffff" opacity={0.35} />}
 
+      {/* Sumo: the posts and ropes have been taken down. Just the platform. */}
+      {!noRopes && (
+        <>
       {/* Back posts, back ropes, and the far half of each side run: all of it further from the camera than anybody in the ring. */}
       {[MAT.backL, MAT.backR].map((x, n) =>
         isFancyRing(setting.ring) ? (
@@ -706,6 +712,8 @@ export const ArenaBack = memo(function ArenaBack({
       <SideRun run="backR" onRef={onSideRope} scrap={setting.ring === 'plywood'} />
       {[MAT.backL, MAT.backR].map((x) =>
         ROPES_BACK.map((y, i) => setting.ring === 'plywood' ? <ScrapPad key={`${x}-${y}`} x={x} y={y} w={16} h={13} kind={SCRAP_PADS[x === MAT.backL ? 'backL' : 'backR'][i]!} /> : <Pad key={`${x}-${y}`} x={x} y={y} w={18} h={14} premium={isFancyRing(setting.ring)} fill={RING_LOOK[setting.ring].pad ?? (corners ? corners[x === MAT.backL ? 0 : 1].accent : accent)} />),
+      )}
+        </>
       )}
 
       {cage && (
@@ -738,7 +746,10 @@ export const ArenaFront = memo(function ArenaFront({
   onSideRope,
   ring = 'pro',
   led,
+  noRopes = false,
 }: {
+  /** Sumo: no posts, no ropes. The ropes' hook is kept, holding nothing. */
+  noRopes?: boolean;
   /** What the ring is made of (RING_LOOK). */
   ring?: Setting['ring'];
   /** The LED posts held on one colour: a star's, or red for fury. Absent: cycling. */
@@ -753,7 +764,8 @@ export const ArenaFront = memo(function ArenaFront({
 }) {
   return (
     <svg viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 10 }} aria-hidden>
-      {!noRing && (
+      {noRopes && !noRing && <g ref={ropesRef} />}
+      {!noRing && !noRopes && (
         <g>
           <SideRun run="frontL" onRef={onSideRope} scrap={ring === 'plywood'} />
           <SideRun run="frontR" onRef={onSideRope} scrap={ring === 'plywood'} />

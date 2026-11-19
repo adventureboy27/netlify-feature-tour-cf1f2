@@ -7120,3 +7120,30 @@ On the plywood ring, nothing now marks which wrestler is making the move each mo
 ## The active wrestler's cardboard sign wobbles
 
 On the plywood ring, the cardboard sign of whoever is making the move this beat rocks on its bottom edge, as if somebody kicked the box. It's the same wrestler the yellow name plate used to light up, so the cue the plates gave isn't lost. It moves from sign to sign as the action does, and every sign goes still once the match is over. Under reduced motion, the active sign is lifted a little and lit instead of rocking. Checked in a singles match (one-sided, so the same sign the whole way, still at the end) and a tag match (switches from Bram Isley to Cardinal Reggie on "throwing bombs", and back when it breaks down).
+
+## Sumo match
+
+A new stipulation, **Sumo Match** (`data/stipulations.ts` id `sumo`). Whatever ring the company owns, the posts and ropes come down. A fall is shoving, throwing or driving your opponent off the edge of the platform, and it's best two falls out of three. It's in the match setup screen from the start, and isn't locked.
+
+**Sim**
+- A new rule (`aim: 'ringOut'`) and finish (`'ringOut'`). As with the cage's `escape`, only this match can reach them. Pins, submissions, knockouts, count-outs, draws, interference and referee stoppages are all switched off. A disqualification is still possible, rarely, for whoever stops pushing and starts swinging, and so is an injury stoppage.
+- Strength counts for much more and agility for less (`sim/kayfabe.ts`). The referee has no counts to make (`countsAFall` / `countsNearFalls`).
+- It's one on one: booking more than two participants is a mismatch (`maxParticipants`).
+- `sim/sumo.ts` decides the falls before the deciding one, on its own seeded stream, after the winner is already decided. A ring-out finish is the winner's second fall. The loser took one of their own before it more often the closer the two were (`2-1`), otherwise none (`2-0`). A match cut short stands wherever it was, never at two for anybody.
+
+**Write-up and commentary**
+- Each earlier fall is its own beat: spot `pushedOff`, with the pusher, who went off, and the running score (`MatchBeat.score`), followed by where it stands ("First fall to …", "One fall each…").
+- The near thing is `edgeHold`: heels hanging off the edge, and still on.
+- The finish names the score: "…for the deciding fall, two falls to one."
+- Ordinary lines that can't be true here are filtered out of both the write-up and the call (`NOT_IN_SUMO`): ropes, corners, pins, counts, holds, weapons, the floor. A botch on the top rope becomes one at the edge of the ring, on the same random draw.
+- Commentary calls each fall in the write-up's words and has its own ring-out finish calls.
+
+**Viewer**
+- No posts, ropes, pads or LED posts on any ring (`noRopes`).
+- Bodies are kept on the platform rather than inside a rope line, and nothing bows a rope.
+- A fall is `shoveOff`: driven back off the edge, landing sitting on the floor beside the ring, with "FIRST FALL!", "ONE FALL EACH!", "TWO STRAIGHT!" or "DECIDING FALL!" called as they land.
+- Whoever went off climbs back up the side of the ring for the next fall.
+- The near thing is `edgeTeeter`. Moves that need ropes or corners become shoves, and the corner-whiff filler is skipped.
+- A sumo disqualification is fists, not a chair.
+
+Checked by rendering real matches, sumo booked on a card and played: an arena match that went 2-1, plus the backyard and Premium rings. New tests cover the sim (`sim/sumo.test.ts`) and the viewer (`match.test.ts`: off the edge with no rope contact, climbing back up). Two existing viewer tests were extended to cover sumo's spots and moves.

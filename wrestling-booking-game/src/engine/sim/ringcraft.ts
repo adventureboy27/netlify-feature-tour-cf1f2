@@ -165,6 +165,8 @@ export function rollBotch(
   workers: readonly Worker[],
   minutes: number,
   settings: WorldSettings,
+  /** False where the ropes are down (sumo): a rope spot cannot go wrong in a ring without any. */
+  ropes = true,
 ): Botch | null {
   if (workers.length === 0) return null;
 
@@ -180,7 +182,9 @@ export function rollBotch(
 
   if (!chance(rng, odds)) return null;
 
-  const phrasing = BLOWN[Math.floor(rng.next() * BLOWN.length)]!;
+  // Same draw either way: without ropes, the rope line becomes the edge of the ring.
+  const drawn = BLOWN[Math.floor(rng.next() * BLOWN.length)]!;
+  const phrasing = !ropes && drawn.includes('rope') ? '{who} slipped right at the edge of the ring and the spot died right there.' : drawn;
   // How badly it went. Most are ugly; a few hurt somebody.
   const severity = rng.next();
   const hurtSomebody = severity > 1 - settings.botchInjuryShare;

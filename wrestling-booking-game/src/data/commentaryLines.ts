@@ -321,6 +321,11 @@ export const FINISH_CALLS: Partial<Record<FinishType, readonly string[]>> = {
     'And there is the bell — we are out of time. This one is a draw.',
     'Time has expired, and neither one of them could finish it.',
   ],
+  ringOut: [
+    '{loser} goes off the edge! {loser} is down on the floor and that is the deciding fall — {winner} wins it!',
+    'Shoved clean off the side of the ring! {winner} takes the deciding fall!',
+    '{winner} drives {loseThem} back, and back, and off! That is two falls, and that is the match!',
+  ],
   doubleKO: [
     'Both of them are down! Neither one is answering the count — it is a double knockout!',
     'Nobody is getting up. The referee has no choice. Nobody wins this one.',

@@ -39,7 +39,7 @@ type Rulebook = Pick<MatchRules, 'falls' | 'aim' | 'preset'>;
 
 /** Rules under which nothing is won by being pinned: knockouts only, submissions only, last one standing. */
 const noPins = (rules: Rulebook | undefined) =>
-  Boolean(rules && (rules.falls === 'knockout' || rules.falls === 'subsOnly' || rules.aim === 'lastStanding' || rules.aim === 'submissionOnly'));
+  Boolean(rules && (rules.falls === 'knockout' || rules.falls === 'subsOnly' || rules.aim === 'lastStanding' || rules.aim === 'submissionOnly' || rules.aim === 'ringOut'));
 
 /** Whether the referee counted a fall to end this one. */
 export function countsAFall(finish: FinishType, stipulation: { id: string } | null | undefined, rules?: Rulebook): boolean {

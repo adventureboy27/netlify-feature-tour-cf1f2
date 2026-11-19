@@ -34,6 +34,8 @@ export interface Conduct {
   fallsAnywhere: boolean;
   /** There is no ring at all: bare floor, and nothing to climb or bounce off. */
   noRing: boolean;
+  /** Sumo: the ring is there, its posts and ropes are not. A fall is going off the edge. */
+  noRopes: boolean;
   /** One of them is there to be beaten, and is. */
   squash: boolean;
   /**
@@ -44,12 +46,12 @@ export interface Conduct {
    * furniture: pulled off the ladder, fighting off the powerbomb at the
    * table, the casket lid coming back up.
    */
-  nearFall: 'cover' | 'hold' | 'count' | 'teeter' | 'climb' | 'ladder' | 'table' | 'casket';
+  nearFall: 'cover' | 'hold' | 'count' | 'teeter' | 'climb' | 'ladder' | 'table' | 'casket' | 'edge';
   /** How somebody leaves a match that eliminates people. */
   elimination: 'overTop' | 'fall';
   /** What the last thing that happens looks like. */
   /** `gearFailure`: the ladder, the table or the cage gave out, and nobody won. */
-  finish: 'pin' | 'submission' | 'knockout' | 'count10' | 'overTop' | 'escape' | 'climb' | 'table' | 'flamingTable' | 'casket' | 'countOut' | 'dq' | 'draw' | 'doubleKO' | 'blood' | 'stoppage' | 'gearFailure';
+  finish: 'pin' | 'submission' | 'knockout' | 'count10' | 'overTop' | 'escape' | 'climb' | 'table' | 'flamingTable' | 'casket' | 'countOut' | 'dq' | 'draw' | 'doubleKO' | 'blood' | 'stoppage' | 'gearFailure' | 'ringOut';
 }
 
 /** An ordinary one-fall match. */
@@ -65,6 +67,7 @@ export const STANDARD: Conduct = {
   multiFall: false,
   fallsAnywhere: false,
   noRing: false,
+  noRopes: false,
   squash: false,
   nearFall: 'cover',
   elimination: 'fall',
@@ -83,6 +86,7 @@ function finishOf(finish: FinishType, stipulation: string | null, rules: MatchRu
   if (finish === 'disqualification') return 'dq';
   if (finish === 'countOut') return 'countOut';
   if (finish === 'escape') return 'escape';
+  if (finish === 'ringOut') return 'ringOut';
   if (finish === 'submission') return 'submission';
   // Somebody won it, by some decisive means. What that looks like is the
   // stipulation's business: a ladder match ends up the ladder however the
@@ -112,12 +116,14 @@ export function conductOf(segment: Pick<Segment, 'stipulation' | 'rules'>, finis
   const furniture: Conduct['furniture'] = stipulation === 'ladder' ? 'ladder' : stipulation === 'tables' ? 'table' : stipulation === 'flamingTables' ? 'flamingTable' : stipulation === 'casket' ? 'casket' : null;
   const weapons = rules.ruleStrictness === 'none';
   const knockoutOnly = rules.falls === 'knockout' || rules.aim === 'lastStanding';
+  const sumo = rules.aim === 'ringOut';
   return {
     allIn,
     tags: !allIn && biggest > 1,
     // Nowhere to go in a cage; a ladder match stays where the ladder is; and
     // in a battle royal the floor is where you go when you have lost.
-    outside: !battleRoyal && !cage && stipulation !== 'ladder' && stipulation !== 'arenaFloor' && (rules.countOuts === 'none' || stipulation === 'arenaFloor' || stipulation === 'fallsCountAnywhere'),
+    // Sumo: the floor is where a fall ends, not somewhere to fight.
+    outside: !sumo && !battleRoyal && !cage && stipulation !== 'ladder' && stipulation !== 'arenaFloor' && (rules.countOuts === 'none' || stipulation === 'arenaFloor' || stipulation === 'fallsCountAnywhere'),
     weapons,
     overTheTop: battleRoyal,
     cage,
@@ -126,9 +132,10 @@ export function conductOf(segment: Pick<Segment, 'stipulation' | 'rules'>, finis
     multiFall: rules.aim === 'twoOfThree' || rules.aim === 'ironMan',
     fallsAnywhere: stipulation === 'fallsCountAnywhere',
     noRing: stipulation === 'arenaFloor',
+    noRopes: sumo,
     squash: stipulation === 'squash',
     // In a cage you win by getting out, so the near thing is nearly getting out.
-    nearFall: cage && rules.aim === 'escape' ? 'climb' : furniture === 'ladder' ? 'ladder' : furniture === 'table' || furniture === 'flamingTable' ? 'table' : furniture === 'casket' ? 'casket' : battleRoyal ? 'teeter' : knockoutOnly ? 'count' : rules.falls === 'subsOnly' || rules.aim === 'submissionOnly' ? 'hold' : 'cover',
+    nearFall: cage && rules.aim === 'escape' ? 'climb' : furniture === 'ladder' ? 'ladder' : furniture === 'table' || furniture === 'flamingTable' ? 'table' : furniture === 'casket' ? 'casket' : battleRoyal ? 'teeter' : sumo ? 'edge' : knockoutOnly ? 'count' : rules.falls === 'subsOnly' || rules.aim === 'submissionOnly' ? 'hold' : 'cover',
     elimination: battleRoyal ? 'overTop' : 'fall',
     finish: finishOf(finish, stipulation, rules, battleRoyal),
   };

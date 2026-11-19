@@ -43,6 +43,7 @@ const FINISH_TEXT: Record<FinishType, string> = {
   refereeStoppage: 'referee stoppage',
   injuryStoppage: 'stopped through injury',
   escape: 'by escape',
+  ringOut: 'by ring-out',
   equipmentFailure: 'no-contest — the gear gave out',
   lastFactionStanding: 'last one standing',
 };

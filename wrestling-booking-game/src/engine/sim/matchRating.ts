@@ -111,6 +111,8 @@ const FINISH_SATISFACTION: Record<FinishType, number> = {
   // A Steel Cage escape is its own kind of decisive finish — the crowd sees
   // the whole climb, not just a cover. Rated with the other clean finishes.
   escape: 3.5,
+  // Sumo's deciding fall: decisive, and everybody saw it.
+  ringOut: 3,
   // Worse than a count-out fizzling out, but a real story rather than
   // nothing happening — the crowd saw something dramatic, it just wasn't a
   // finish.

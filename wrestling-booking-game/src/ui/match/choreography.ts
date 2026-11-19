@@ -365,6 +365,22 @@ const BODIES = {
     target: [STAND, [0.2, -4, 0, -8], [0.4, -9, 0, -20], [0.52, -9.5, 2, -42], [0.7, -9.5, 2.4, -46], [0.85, -8, 0, -15], [1, -6, 0, 0]],
     ropes: 0.5,
   },
+  // Sumo: driven backwards to the edge of the platform and off it, tumbling
+  // down to the floor beside the ring. Anchored so the target starts 8 short of
+  // the edge; the pusher stays up on the ring.
+  shoveOff: {
+    actor: [STAND, [0.15, 6, 0, 12, 0.95], [0.25, 10.5, 0, 22, 0.92], [0.4, 13, 0, 26, 0.92], [0.52, 16, 0, 28, 0.92], [0.6, 19, 0, 24], [0.7, 20, 0, 10], [0.85, 19, 0, 2], [1, 18, 0, 0]],
+    // Lands sitting on the floor beside the ring, back to it: the whole body
+    // stays in the picture, and it reads as what it is — put out, not hurt.
+    target: [STAND, [0.25, 0, 0, -4], [0.4, -2, 0, -14], [0.52, -5, 0, -22], [0.6, -8, 0, -30], [0.66, -10, 0, -42], [0.74, -12.5, -4, -50], [0.82, -13.5, FLOOR, -28, 0.92], [0.9, -13.5, FLOOR, -12], [1, -13.5, FLOOR, -10]],
+    impacts: [[0.25, 1, 12, true], [0.82, -13.5, FLOOR + 2, true]],
+  },
+  // Sumo's near thing: driven to the very edge, heels over nothing, and still on.
+  edgeTeeter: {
+    actor: [STAND, [0.15, 6, 0, 12], [0.25, 11, 0, 20], [0.4, 13, 0, 24], [0.55, 18, 0, 24], [0.7, 17.5, 0, 10], [0.85, 14, 0, 0], [1, 12, 0, 0]],
+    target: [STAND, [0.25, 0, 0, -4], [0.4, -2, 0, -14], [0.55, -7.5, 0, -38], [0.65, -7.8, 0.6, -46], [0.75, -7.6, 0, -40], [0.88, -5, 0, -12], [1, -3, 0, 0]],
+    impacts: [[0.25, 1, 12]],
+  },
   doubleDown: {
     actor: [STAND, [0.3, 5, 0, 10], [0.45, 7, 0, 16], [0.55, 6, 2, -50], [0.7, 4, DOWN, -90, 0.92], [1, 4, DOWN, -90]],
     target: [STAND, [0.3, 5, 0, 10], [0.45, 7, 0, 16], [0.55, 6, 2, -50], [0.7, 4, DOWN, -90, 0.92], [1, 4, DOWN, -90]],
@@ -581,6 +597,8 @@ const LIMBS: Partial<Record<MoveId, { actor?: string; target?: string }>> = {
   casketNear: { actor: '- reach punch guard crouch crouch reach reach stagger guard', target: '- bend spear flat flat flat flat seated seated' },
   blindSwing: { actor: '- reach wind punch stagger reach reach stagger guard', target: '- reach crouch reach reach reach stagger guard' },
   rollInside: { actor: 'guard bend lift guard crouch crouch guard', target: 'flat flat fall flat flat flat' },
+  shoveOff: { actor: '- crouch spear spear spear reach guard guard guard', target: '- guard stagger stagger stagger fall fall seated seated seated' },
+  edgeTeeter: { actor: '- crouch spear spear spear stagger guard guard', target: '- guard stagger stagger reach reach stagger guard' },
 };
 
 function withLimbs(frames: readonly Frame[], words: string | undefined): Frame[] {
@@ -642,6 +660,8 @@ export const META: Partial<Record<MoveId, MoveMeta>> = {
   clotheslineOver: { anchor: { who: 'target', at: -9 }, exits: 0.55 },
   backdropOver: { anchor: { who: 'actor', at: -10 }, exits: 0.55 },
   teeter: { anchor: { who: 'target', at: -9.5 } },
+  shoveOff: { anchor: { who: 'target', at: -8 }, exits: 0.6 },
+  edgeTeeter: { anchor: { who: 'target', at: -8 } },
   cageClimb: { anchor: { who: 'actor', at: -13 }, knockdownBy: 0.22 },
   cageTop: { anchor: { who: 'actor', at: -13 } },
   escapeCage: { anchor: { who: 'actor', at: -13 }, actorExits: 0.6, knockdownBy: 0.22 },
@@ -745,6 +765,17 @@ const BY_TYPE: Record<MoveType, readonly MoveId[]> = {
 };
 const TOP_ROPE: readonly MoveId[] = ['crossbody', 'missileDropkick', 'aerial', 'moonsault'];
 const OVER_THE_TOP: readonly MoveId[] = ['elimination', 'clotheslineOver', 'backdropOver'];
+
+/**
+ * Sumo: what is shouted as a fall lands, from the running score (the side
+ * that just took it first). Said without names or sides, so it reads the
+ * same whichever corner it is.
+ */
+function fallCall(score: readonly [number, number] | undefined): string {
+  if (!score) return 'OFF THE EDGE!';
+  if (score[0] === 2) return score[1] === 0 ? 'TWO STRAIGHT!' : 'DECIDING FALL!';
+  return score[1] === 1 ? 'ONE FALL EACH!' : 'FIRST FALL!';
+}
 
 function forMove(move: Move): MoveId {
   const family = BY_TYPE[move.type];
@@ -1134,6 +1165,8 @@ function stagePlain(
   const needsRing = (id: MoveId) => Boolean(META[id]?.anchor || META[id]?.exits || META[id]?.actorExits) || id === 'tossOutside' || id === 'rollInside';
   const grounded = (id: MoveId): MoveId => {
     if (conduct.noRing && needsRing(id)) return 'slam';
+    // Sumo: no ropes to run or corners to use. The edge is for the falls alone.
+    if (conduct.noRopes && needsRing(id) && id !== 'shoveOff' && id !== 'edgeTeeter') return 'shove';
     if (!conduct.cage && (id === 'intoCage' || id === 'cageTop')) return 'cornerWhip';
     // No weapons where they are illegal, whatever was said.
     if (!conduct.weapons && ARMED.includes(id)) return id === 'tablePowerbomb' ? 'powerbomb' : 'strike';
@@ -1149,7 +1182,7 @@ function stagePlain(
   // The first of these not staged recently; if they all were, rotate.
   const fresh = (options: readonly MoveId[]): MoveId => {
     const usable = options.filter((id) => ((META[id]?.needsDown ?? false) === false || context.targetDown) && grounded(id) === id);
-    const pool = usable.length > 0 ? usable : conduct.noRing ? (['slam'] as const) : options;
+    const pool = usable.length > 0 ? usable : conduct.noRing ? (['slam'] as const) : conduct.noRopes ? (['shove'] as const) : options;
     // Start somewhere different in the list each time, or every knockdown
     // would be followed by the same first two things on it.
     const turn = index % pool.length;
@@ -1208,6 +1241,10 @@ function stagePlain(
         return shouting(pick('teeter', 1900), 'HANGS ON!', 0.72);
       case 'holdEscape':
         return built('submission', holdEscaped(), 2600);
+      case 'pushedOff':
+        return shouting(pick('shoveOff', 2600), fallCall(beat.score), 0.86);
+      case 'edgeHold':
+        return shouting(pick('edgeTeeter', 2200), 'STAYS ON!', 0.72);
       case 'countBeaten': {
         const lead = fresh(NEAR_FALL_LEADS);
         return built(lead, withCount(MOVES[lead], 0.42, 8, true), 3200);
@@ -1261,6 +1298,7 @@ function stagePlain(
     }
     case 'nearFall': {
       if (conduct.nearFall === 'teeter') return shouting(pick('teeter', 1900), 'HANGS ON!', 0.72);
+      if (conduct.nearFall === 'edge') return shouting(pick('edgeTeeter', 2200), 'STAYS ON!', 0.72);
       if (conduct.nearFall === 'hold') return built('submission', holdEscaped(), 2600);
       if (conduct.nearFall === 'climb') return shouting(pick('cageClimb', 2800), 'DRAGGED BACK!', 0.8);
       if (conduct.nearFall === 'ladder') return shouting(pick('ladderPull', 2800), 'PULLED DOWN!', 0.8);
@@ -1287,6 +1325,8 @@ function stagePlain(
           return shouting(pick(fresh(OVER_THE_TOP), 2000), 'ELIMINATED!', 0.82);
         case 'escape':
           return shouting(pick('escapeCage', 2800), 'ESCAPED!', 0.88);
+        case 'ringOut':
+          return shouting(pick('shoveOff', 2800), fallCall(beat.score), 0.86);
         case 'climb':
           return { ...shouting(pick('climbLadder', 3200), 'GOT IT!', 0.9), scene: 'ladder' };
         case 'table':
@@ -1297,6 +1337,8 @@ function stagePlain(
         case 'countOut':
           return { ...shouting(built('throwOut', withCount(MOVES.throwOut, 0.4, 10, false), 4600), 'COUNT OUT!', 0.985), zone: 'out' };
         case 'dq':
+          // Sumo's is the one who stopped pushing and started swinging: fists, not a chair.
+          if (conduct.noRopes) return shouting(pick('flurry', 1900), 'DISQUALIFIED!', 0.72);
           return { ...shouting(pick('chairShot', 1900), 'DISQUALIFIED!', 0.72), prop: 'chair' };
         case 'draw':
           return shouting(pick('lockup', 1900), "TIME'S UP!", 0.7);
@@ -1646,7 +1688,7 @@ export function stageMatch(
       // Now and then in the unspoken stretches, a miss: the charge that finds
       // only turnbuckle, the elbow that finds only mat. It changes nothing —
       // whoever was on top carries on — but a match is not a queue of hits.
-      if (fillerIndex % 6 === 4 && !conduct.noRing && !conduct.squash) {
+      if (fillerIndex % 6 === 4 && !conduct.noRing && !conduct.noRopes && !conduct.squash) {
         const down = downId === taking;
         const move: MoveId = down ? 'whiffElbow' : 'whiffCorner';
         const missed = moments[moments.length - 1]!;

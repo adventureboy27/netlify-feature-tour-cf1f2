@@ -244,6 +244,36 @@ export const SPOT_BEATS: Record<MatchSpot, readonly string[]> = {
   teeter: ['{target} was halfway over the top rope and somehow hung on.', '{actor} had {target} over the top, feet dangling, and {target} would not go.'],
   holdEscape: ['{actor} had the hold cinched in and {target} fought their way out of it.', '{target} was a breath away from tapping to {actor} and broke the hold instead.'],
   countBeaten: ['{actor} left {target} down, and {target} beat the referee\'s count at eight.', 'The referee counted to eight over {target} and they were up again.'],
+  // Sumo. A fall's line is followed by where that leaves it (sim/narrative.ts's sumoScoreLine).
+  pushedOff: [
+    '{actor} got low, got under {target}, and drove them straight off the edge of the ring.',
+    '{actor} caught {target} charging in, turned them, and shoved them off the side.',
+    '{target} leaned in too far, and {actor} let them go — off the edge and down to the floor.',
+    'Belly to belly, step by step, {actor} walked {target} backwards until there was no ring left behind them.',
+    '{actor} threw {target} off the platform by the belt, and that is a fall.',
+  ],
+  edgeHold: [
+    '{actor} had {target} at the very edge, heels hanging over nothing, and {target} would not go.',
+    '{target} was on one foot on the edge of the ring and somehow stayed on it.',
+    '{actor} charged, {target} sidestepped right at the edge, and the two of them teetered there together.',
+  ],
+};
+
+/**
+ * Sumo: what a line cannot say, in the write-up or on commentary. No ropes or
+ * corners, nothing won by a pin, a hold or a count, no weapons, and the floor
+ * is where you go when you have lost a fall.
+ */
+export const NOT_IN_SUMO =
+  /rope|turnbuckle|corner|guardrail|dive|kick(s|ed)? out|kickout|near-fall|two and a half|count|submission|hold|tap|limb|\barm\b|in a knot|crowd and stayed|under that ring|\{weapon\}|timekeeper|first three rows|floor|apron|mid-air|cover|\bpin|lock|sleeper|chair|table|ladder|bell rings at two/i;
+
+/**
+ * Sumo, after a fall: where it stands. {actor} took the fall; {target} gave it up.
+ * Keyed by the score, the side that just scored first.
+ */
+export const SUMO_SCORE_LINES: Record<string, readonly string[]> = {
+  '1-0': ['First fall to {actor}.', 'That is one fall for {actor}. One more and it is over.'],
+  '1-1': ['One fall each, and it all comes down to the next one.', '{actor} has squared it — a fall apiece.'],
 };
 
 /**

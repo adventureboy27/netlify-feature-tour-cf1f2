@@ -28,6 +28,7 @@ import type { RingsideTotals } from './ringside';
 import { ruleAdjustedWeights, kayfabeScore } from './kayfabe';
 import { pairWinProbability, multiManWinProbabilities } from './winProbability';
 import { orderEliminations, pickEliminators } from './battleRoyal';
+import { sumoFalls } from './sumo';
 import { orderFactionEliminations, pickFactionEliminators } from './factionDestroyer';
 import { rollFinish, isDrawFinish, isNonDecisiveFinish } from './finish';
 import { computeMatchRating } from './matchRating';
@@ -494,7 +495,7 @@ export function simulateMatch(
   // it is a thing that happened *in* the match rather than a property of the
   // people in it — and it is charged to the match, said out loud, and
   // occasionally hurts whoever blew it. See sim/ringcraft.ts.
-  const botch = rollBotch(rng, allParticipants, ctx.matchLengthMinutes, ctx.settings);
+  const botch = rollBotch(rng, allParticipants, ctx.matchLengthMinutes, ctx.settings, rules.aim !== 'ringOut');
   const botchBeat: MatchBeat[] = botch
     ? [{ kind: 'botch' as const, significant: true, text: botch.text, actorId: botch.workerId }]
     : [];
@@ -590,6 +591,20 @@ export function simulateMatch(
       ]
     : [];
 
+  // Sumo: the falls before the one that ended it (sim/sumo.ts), decided on
+  // the result already made, off a stream of their own.
+  const falls =
+    rules.aim === 'ringOut' && sides.length === 2 && !draw
+      ? sumoFalls({
+          winnerSide,
+          loserSide: sides.find((s) => s !== winnerSide)!,
+          sideMembers,
+          winnerProbability,
+          endedOnRingOut: finish === 'ringOut',
+          week: ctx.week,
+        })
+      : undefined;
+
   const beats = generateBeats(
     rng,
     {
@@ -603,6 +618,7 @@ export function simulateMatch(
       shootHeat: rivalry?.shootHeat ?? 0,
       isMainEvent: ctx.isMainEvent ?? false,
       eliminations,
+      falls,
       pinnedId,
       pinnerId,
       rules,

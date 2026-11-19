@@ -168,6 +168,12 @@ export interface PlanOptions {
    * of the ring and must not wander into the next one's.
    */
   near?: number;
+  /**
+   * Sumo: the posts and ropes are down. The wall is the edge of the platform,
+   * nothing hits or bows a rope, a body leaving goes straight off the edge to
+   * the floor, and anybody on the floor climbs back up for the next fall.
+   */
+  ropeless?: boolean;
 }
 
 export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], lastCentre: number, options: PlanOptions = {}): Plan {
@@ -179,14 +185,15 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
   const ringHalf = options.half ?? RING.half;
   // The apron, in whatever units this ring is measured in (a battle royal's field is drawn smaller).
   const apronWidth = (ringHalf * RING.apron) / RING.half;
-  const ringEdge = ringHalf - 0.4;
+  const ropeless = Boolean(options.ropeless);
+  const ringEdge = ropeless ? ringHalf + apronWidth - 0.4 : ringHalf - 0.4;
   const edge = zone === 'ring' ? ringEdge : RING.floorHalf;
   // On the way out or back in, a pose is held by whichever it is in at that
   // height: the ropes while it is up on the mat, the barricades once it is
   // down on the floor.
   const edgeAt = (y: number) => (zone === 'ring' ? ringEdge : zone === 'floor' ? RING.floorHalf : y > FLOOR / 2 ? ringEdge : RING.floorHalf);
   // Somebody is "here" for this beat if the last one left them in the place it starts.
-  const here = (pose: WorldPose) => (zone === 'floor' || zone === 'in' ? onFrontFloor(pose) : inRing(pose, ringHalf));
+  const here = (pose: WorldPose) => (zone === 'floor' || zone === 'in' ? onFrontFloor(pose) : inRing(pose, ropeless ? ringHalf + apronWidth : ringHalf));
 
   // ---- the target is already down ----------------------------------------
   const targetWasDown = Boolean(target?.from && here(target.from) && lying(target.from));
@@ -210,7 +217,8 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
   if (meta.anchor && anchored) {
     // Put that wrestler's `at` on the ropes behind them.
     // (On the floor, the thing behind them is a barricade.)
-    const rope = -anchored.dir * ((zone === 'floor' ? RING.floorHalf : ringHalf) - RING.body);
+    // (With the ropes down, the edge of the platform.)
+    const rope = -anchored.dir * ((zone === 'floor' ? RING.floorHalf : ropeless ? ringHalf + apronWidth : ringHalf) - RING.body);
     centre = rope - anchored.dir * meta.anchor.at + (anchored.dir * GAP) / 2;
   } else if (meta.atCentre) {
     // Under the prize: the middle of the ring, wherever they were. Somebody
@@ -238,7 +246,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
       for (const [at, x, y, rot] of local(f)) {
         if (f.role === 'target' && meta.exits !== undefined && at >= meta.exits) continue;
         if (f.role === 'actor' && meta.actorExits !== undefined && at >= meta.actorExits) continue;
-        if (zone === 'ring' && y >= RING.topRope) continue;
+        if (zone === 'ring' && y >= RING.topRope && !ropeless) continue;
         const [lo, hi] = span(home(f, centre) + f.dir * x, f.dir * rot);
         const wall = edgeAt(y + ground);
         needRight = Math.max(needRight, -wall - lo);
@@ -267,6 +275,8 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
     const distance = Math.abs(f.from.x - (home(f, centre) + f.dir * first[1]));
     const settled = distance < 0.3 && Math.abs(f.from.rot - f.dir * first[3]) < 2 && Math.abs(f.from.y - first[2]) < 0.2;
     if (settled) continue;
+    // Climbing back up off the floor takes a while (see the frames below).
+    if (ropeless && zone === 'ring' && f.from.y < FLOOR / 2) lead = Math.max(lead, 0.45);
     lead = Math.max(lead, clamp(0.09 + distance / 85 + (lying(f.from) ? 0.1 + 0.18 * (f.wear ?? 0) : 0), 0.1, 0.5));
   }
 
@@ -299,6 +309,16 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
         frames.push({ at: lead * TAG_TOUCH, x: from, y: 0, rot: 0, sy: 1, stance: 'tagIn' });
         frames.push({ at: lead * 0.8, x: -f.dir * (RING.half - 1), y: TAG_VAULT_HEIGHT, rot: f.dir * 16, sy: 1, stance: 'tuck' });
         frames.push({ at: lead * 0.96, x: to.x, y: 0.4, rot: 0, sy: 1, stance: 'crouch' });
+      } else if (f.from && ropeless && zone === 'ring' && f.from.y < FLOOR / 2) {
+        // Off the edge last fall: up off the floor, back to the side of the
+        // ring, and climb up onto it — there are no ropes to roll under.
+        const side = Math.sign(f.from.x) || 1;
+        const edgeX = side * (ringHalf + apronWidth + 1.5);
+        frames.push({ at: 0, ...f.from, sy: 1, stance: lying(f.from) ? 'flat' : undefined });
+        frames.push({ at: lead * 0.3, x: f.from.x, y: FLOOR, rot: 0, sy: 1, stance: 'kneel' });
+        frames.push({ at: lead * 0.5, x: edgeX, y: FLOOR, rot: -side * 6, sy: 1, stance: 'run' });
+        frames.push({ at: lead * 0.68, x: edgeX - side * 1, y: -4, rot: -side * 30, sy: 1, stance: 'climb' });
+        frames.push({ at: lead * 0.82, x: side * (ringHalf + apronWidth - 2), y: 0, rot: 0, sy: 1, stance: 'crouch' });
       } else if (f.from) {
         frames.push({ at: 0, ...f.from, sy: 1, stance: lying(f.from) ? 'flat' : undefined });
         if (lying(f.from)) {
@@ -328,7 +348,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
         const out = Math.abs(wx);
         const apronEdge = ringHalf + apronWidth;
         const lean = Math.max(0, -Math.cos(rad(wrot)) * RING.tall);
-        if (out > ringHalf - 3 && out <= ringHalf + 1.5) wy = Math.max(wy, RING.topRope + 1);
+        if (out > ringHalf - 3 && out <= ringHalf + 1.5 && !ropeless) wy = Math.max(wy, RING.topRope + 1);
         else if (out > ringHalf + 1.5 && out <= apronEdge) wy = Math.max(wy, lean);
         else if (out > apronEdge) wy = Math.max(wy, FLOOR + lean);
       } else if (zone !== 'ring') {
@@ -341,7 +361,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
         wy = Math.max(wy, FRONT_FLOOR + Math.max(0, -Math.cos(rad(wrot)) * RING.tall));
       } else {
         // The ropes: below the top one, no part of a body gets past them.
-        if (wy < RING.topRope) {
+        if (wy < RING.topRope || ropeless) {
           const [lo, hi] = span(wx, wrot);
           const push = hi > edge ? edge - hi : lo < -edge ? -edge - lo : 0;
           wx += push;
@@ -351,7 +371,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
           // more up than down hits the ropes; one lying on the mat is under the
           // bottom rope and is simply kept in.
           const upright = Math.abs(normalizeRot(wrot)) < 45;
-          if (Math.abs(push) > 0.35 && upright) {
+          if (Math.abs(push) > 0.35 && upright && !ropeless) {
             const side = push < 0 ? 1 : -1;
             ropeHits.push({ at: t, side });
             wx += side * RING.ropeGive;
@@ -416,7 +436,7 @@ export function planBeat(staged: StagedBeat, fighters: readonly PlanFighter[], l
   // and it is their side that bows. Nobody at the line (up on the corner,
   // climbing the cage) and the ropes still take the weight, on the side the
   // move is anchored to, or else the nearer one.
-  if (choreo.ropes !== undefined) {
+  if (choreo.ropes !== undefined && !ropeless) {
     const t = when(choreo.ropes);
     let side: 1 | -1 = anchored ? (-anchored.dir as 1 | -1) : centre >= 0 ? 1 : -1;
     if (zone === 'ring') {

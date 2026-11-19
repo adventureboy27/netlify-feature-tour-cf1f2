@@ -618,7 +618,7 @@ export function MatchStage({
       return () => settle(people);
     }
 
-    const next = staged.fetch ? fetchPlan(staged, cast, centre.current) : planBeat(staged, cast, centre.current);
+    const next = staged.fetch ? fetchPlan(staged, cast, centre.current) : planBeat(staged, cast, centre.current, { ropeless: conduct?.noRopes });
     centre.current = next.centre;
     for (const [id, pose] of next.end) leftAt.current.set(id, pose);
     setPlan(next);
@@ -1004,7 +1004,7 @@ export function MatchStage({
     <div ref={frameRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center overflow-hidden bg-black">
       {w > 0 && (
         <div ref={shakeRef} className="relative overflow-hidden" style={{ width: w, height: h }} data-move={staged?.move} data-beat={beatKey} data-over={over || undefined}>
-          <ArenaBack accent={accent} name={promotionName} logo={logo} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} starColor={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : undefined} signs={signs} nameCards={nameCards} setting={setting} onSideRope={onSideRope} />
+          <ArenaBack accent={accent} name={promotionName} logo={logo} hype={hype} showName={!callout} cage={conduct?.cage} corners={corners} eventName={eventName} noRing={conduct?.noRing} stepsGone={stepsGone} mood={mood?.mood ?? null} moodBig={mood?.big ?? false} starColor={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : undefined} signs={signs} nameCards={nameCards} noRopes={conduct?.noRopes} setting={setting} onSideRope={onSideRope} />
 
           {/* The premium ring: the whole front of the apron is a bulb sign. */}
           {setting.ring === 'premium' && !conduct?.noRing && !corners && marquee && (
@@ -1350,7 +1350,7 @@ export function MatchStage({
             );
           })}
 
-          <ArenaFront ropesRef={ropesRef} cage={conduct?.cage} noRing={conduct?.noRing} accent={accent} corners={corners} onSideRope={onSideRope} ring={setting.ring} led={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : mood?.mood === 'boo' && mood.big ? '#ff2b25' : undefined} />
+          <ArenaFront ropesRef={ropesRef} cage={conduct?.cage} noRing={conduct?.noRing} noRopes={conduct?.noRopes} accent={accent} corners={corners} onSideRope={onSideRope} ring={setting.ring} led={mood?.star ? (mood.mood === 'boo' ? '#ff3a30' : starColorOf(mood.star)) : mood?.mood === 'boo' && mood.big ? '#ff2b25' : undefined} />
 
           {/* A casket at ringside, shut on somebody — and its lid coming back up. */}
           {scene === 'casketOpen' && target && plan && (() => {

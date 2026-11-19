@@ -32,8 +32,11 @@ import {
   LINE_ACTIONS,
   BLEEDING_LINES,
   BLOODY_SPOTS,
+  SUMO_SCORE_LINES,
+  NOT_IN_SUMO,
   type BeatTemplate,
 } from '../../data/matchBeats';
+import type { SumoFall } from './sumo';
 
 const FINISH_LINES: Record<FinishType, (winner: string, loser: string) => string> = {
   cleanPin: (w, l) => `${w} hit the finish clean and got the three count on ${l}.`,
@@ -48,6 +51,7 @@ const FINISH_LINES: Record<FinishType, (winner: string, loser: string) => string
   refereeStoppage: (w, l) => `The referee waved it off — ${w} wins by stoppage over ${l}.`,
   injuryStoppage: (_w, l) => `${l} went down badly and did not get up. The match was stopped and the room went quiet.`,
   escape: (w, l) => `${w} hit the floor first and left ${l} still climbing — a Steel Cage win by escape.`,
+  ringOut: (w, l) => `${w} put ${l} off the edge of the ring for the deciding fall.`,
   equipmentFailure: (w, l) => `The gear gave out on ${w} and ${l} both, and there was no honest way to call a winner out of that.`,
   lastFactionStanding: (w, l) => `${w} was the last one standing once ${l}'s side had nobody left to send out.`,
 };
@@ -89,6 +93,11 @@ export interface NarrativeContext {
    * engine/sim/battleRoyal.ts. Undefined for every other match.
    */
   eliminations?: EliminationEvent[];
+  /**
+   * Sumo only — the falls before the one that ended it, in order (sim/sumo.ts).
+   * Each is written as its own beat; the finish says the final score.
+   */
+  falls?: SumoFall[];
   /**
    * The one wrestler who actually took the fall/tap/knockout/count, and the
    * one who delivered it — decided once, off a side that may have more than
@@ -291,13 +300,21 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
   // {title} too, not just {winner}/{loser} — no reason a hardcore finish
   // couldn't name the weapon just because the pool line beside it can.
   const flavor = ctx.stipulation?.finishFlavor?.[ctx.finish];
-  const finishLine = flavor ? `${winnerName} ${fill(flavor)}.` : FINISH_LINES[ctx.finish](winnerName, loserName);
+  // Sumo's deciding fall is the winner's second: the loser's own falls say
+  // whether it went the distance.
+  const sumoScore: [number, number] | null =
+    ctx.finish === 'ringOut' ? [2, (ctx.falls ?? []).filter((f) => !ctx.winnerMembers.some((w) => w.id === f.byId)).length] : null;
+  const finishLine = (flavor ? `${winnerName} ${fill(flavor)}.` : FINISH_LINES[ctx.finish](winnerName, loserName)).replace(
+    /\{score\}/g,
+    sumoScore ? `two falls to ${sumoScore[1] === 1 ? 'one' : 'none'}` : '',
+  );
   beats.push({
     kind: 'finish',
     text: finishLine,
     significant: true,
     actorId: ctx.pinnerId ?? null,
     targetId: ctx.pinnedId ?? null,
+    ...(sumoScore ? { score: sumoScore } : {}),
     // Finished with something in the hand: the viewer puts that thing there.
     ...(flavor?.includes('{weapon}') ? { weapon: lastWeapon } : {}),
   });
@@ -305,7 +322,7 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
   // And how the room felt about it, if there is anything left to say.
   if (beats.length < budget && chance(rng, AFTERMATH_CHANCE)) push('control', AFTERMATH_BEATS);
 
-  const reel = withSpots(beats, ctx, budget);
+  const reel = withFalls(withSpots(beats, ctx, budget), ctx);
   // A first-blood match ends with the loser bleeding: recorded on the finish.
   if (ctx.rules?.aim === 'firstBlood' && ctx.finish !== 'timeLimitDraw' && ctx.finish !== 'doubleKO') {
     const at = reel.findIndex((b) => b.kind === 'finish');
@@ -323,6 +340,7 @@ export function generateBeats(rng: Rng, ctx: NarrativeContext, usedAcrossCard: S
 const NOT_IN_A_CAGE = /dive to the floor|guardrail|into the crowd|first three rows|timekeeper/i;
 const NOT_WITHOUT_A_RING = /rope|apron|dive to the floor|turnbuckle|corner of this ring|guardrail/i;
 function possibleHere(template: string, stipulation: string | null): boolean {
+  if (stipulation === 'sumo') return !NOT_IN_SUMO.test(template);
   if (stipulation === 'steelCage') return !NOT_IN_A_CAGE.test(template);
   if (stipulation === 'arenaFloor') return !NOT_WITHOUT_A_RING.test(template);
   return true;
@@ -361,6 +379,7 @@ export function spotsFor(stipulation: string | null, rules: MatchRules | undefin
     : stipulation === 'tables' || stipulation === 'flamingTables' ? 'tableFightOff'
     : stipulation === 'casket' ? 'casketNear'
     : battleRoyal ? 'teeter'
+    : rules?.aim === 'ringOut' ? 'edgeHold'
     : knockoutOnly ? 'countBeaten'
     : subsOnly ? 'holdEscape'
     : null;
@@ -449,5 +468,31 @@ function withSpots(beats: MatchBeat[], ctx: NarrativeContext, budget: number): M
       out[i] = { ...b, text: `${b.text} ${pick(rng, BLEEDING_LINES).replace(/\{target\}/g, nameOf(b.targetId))}`, bleeding: b.targetId };
     }
   }
+  return out;
+}
+
+/**
+ * Sumo: each fall before the deciding one, written where it happened — spread
+ * through the reel ahead of the finish, in order, each followed by where that
+ * left it. Structural, like a battle royal's eliminations: every fall is in
+ * the write-up however short it is. Its own stream, so it moves nothing else.
+ */
+function withFalls(beats: MatchBeat[], ctx: NarrativeContext): MatchBeat[] {
+  const falls = ctx.falls ?? [];
+  if (falls.length === 0) return beats;
+  const rng = rngFromSeed(`falls:${ctx.spotSeed ?? ''}:${falls.map((f) => f.outId).join(',')}`);
+  const everybody = [...ctx.winnerMembers, ...ctx.loserMembers];
+  const nameOf = (id: Id) => everybody.find((w) => w.id === id)?.name ?? 'their opponent';
+  const out = [...beats];
+  const finishAt = out.findIndex((b) => b.kind === 'finish');
+  const end = finishAt >= 0 ? finishAt : out.length;
+  // Evenly through the reel before the finish, never ahead of the opening.
+  const at = falls.map((_, k) => Math.max(1, Math.round(((k + 1) * end) / (falls.length + 1))));
+  falls.forEach((fall, k) => {
+    const fill = (t: string) => t.replace(/\{actor\}/g, nameOf(fall.byId)).replace(/\{target\}/g, nameOf(fall.outId));
+    const score = SUMO_SCORE_LINES[`${fall.score[0]}-${fall.score[1]}`] ?? [];
+    const text = `${fill(pick(rng, SPOT_BEATS.pushedOff))}${score.length > 0 ? ` ${fill(pick(rng, score))}` : ''}`;
+    out.splice(at[k]! + k, 0, { kind: 'control', text, significant: true, actorId: fall.byId, targetId: fall.outId, spot: 'pushedOff', score: fall.score });
+  });
   return out;
 }

@@ -58,6 +58,7 @@ import {
   type ColourTemplate,
   type Leaning,
 } from '../../data/commentaryLines';
+import { NOT_IN_SUMO } from '../../data/matchBeats';
 
 /**
  * Official moments that are a beat of their own (sim/officiating.ts), written
@@ -218,6 +219,8 @@ export interface CommentaryContext {
   stipulationName: string | null;
   /** Won without a count however it is scored (a ladder, a table, a lid): no one-two-three call. */
   noCount?: boolean;
+  /** Sumo: the ropes are down. Nothing on the call about ropes, corners, pins or holds. */
+  noRopes?: boolean;
   /** Real animosity, 0-100. */
   shootHeat: number;
   isMainEvent: boolean;
@@ -591,6 +594,9 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
   let calling: number | undefined;
   const stamp = (): Pick<CommentaryLine, 'beat'> => (calling === undefined ? {} : { beat: calling });
   /** `names` — the text is a template about {onTop}/{inTrouble}, so say who those were. */
+  // Sumo: whatever the stock line, it cannot be about a rope, a corner, a pin or a hold.
+  const fits = (text: string) => !ctx.noRopes || !NOT_IN_SUMO.test(text);
+  const fitting = <T extends { text: string }>(list: T[]): T[] => list.filter((t) => fits(t.text));
   const play = (text: string, names = false) => {
     const actor = momentum.onTop[0];
     const target = momentum.inTrouble[0];
@@ -715,11 +721,11 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     }
   }
 
-  const freshStakes = eligible(STAKES, facts, ctx.team.leaning, usedColour, null);
+  const freshStakes = fitting(eligible(STAKES, facts, ctx.team.leaning, usedColour, null));
   const stakes =
     freshStakes.length > 0
       ? freshStakes
-      : leastWorn(eligible(STAKES, facts, ctx.team.leaning, usedThisMatch, null));
+      : fitting(leastWorn(eligible(STAKES, facts, ctx.team.leaning, usedThisMatch, null)));
   if (stakes.length > 0) {
     const chosen = pick(rng, stakes);
     remember(chosen.text);
@@ -753,7 +759,7 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
       continue;
     }
     const ownWords = beat.spot || (beat.official && beat.ringsideId) || (beat.official && OWN_TEXT.has(beat.official));
-    const options = ownWords ? [] : (beat.action ? ACTION_CALLS[beat.action] : (PLAY_BY_PLAY[beat.kind] ?? [])).filter((t) => !usedPlay.has(t));
+    const options = ownWords ? [] : (beat.action ? ACTION_CALLS[beat.action] : (PLAY_BY_PLAY[beat.kind] ?? [])).filter((t) => !usedPlay.has(t) && fits(t));
     // A line about something that happened is said about who did it.
     const everyone = [...ctx.sideA, ...ctx.sideB];
     const doer = beat.action ? everyone.find((w) => w.id === beat.actorId) : undefined;
@@ -786,11 +792,11 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     // used-set if the night has exhausted the pool. A hard night-wide block
     // was systematically silencing him on the last two matches of every card
     // — which is precisely where the main event is.
-    const fresh = eligible(COLOUR, nowFacts, ctx.team.leaning, usedColour, beat.kind);
+    const fresh = fitting(eligible(COLOUR, nowFacts, ctx.team.leaning, usedColour, beat.kind));
     const available =
       fresh.length > 0
         ? fresh
-        : leastWorn(eligible(COLOUR, nowFacts, ctx.team.leaning, usedThisMatch, beat.kind));
+        : fitting(leastWorn(eligible(COLOUR, nowFacts, ctx.team.leaning, usedThisMatch, beat.kind)));
     if (available.length === 0) continue;
     const chosen = pick(rng, available);
     remember(chosen.text);
@@ -799,7 +805,7 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
     // Some of what he says is worth arguing with.
     if (chosen.provocative && lines.length < budget - 2 && chance(rng, s.commentaryComebackChance)) {
       const comebacks = COMEBACKS.filter(
-        (t) => !usedPlay.has(t.text) && (!t.leaning || t.leaning === ctx.team.leaning),
+        (t) => !usedPlay.has(t.text) && (!t.leaning || t.leaning === ctx.team.leaning) && fits(t.text),
       );
       if (comebacks.length > 0) {
         const answer = pick(rng, comebacks);
@@ -820,18 +826,18 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
   const finishPool = isPinfall(ctx.finish) && !ctx.noCount
     ? (PLAY_BY_PLAY.finish ?? [])
     : (FINISH_CALLS[ctx.finish] ?? FINISH_CALLS_PLAIN);
-  const finishCalls = finishPool.filter((t) => !usedPlay.has(t));
+  const finishCalls = finishPool.filter((t) => !usedPlay.has(t) && fits(t));
   play(finishCalls.length > 0 ? pick(rng, finishCalls) : (finishBeat?.text ?? '{winner} takes it.'), true);
   // A fast count, a foot on the rope, the wrong hand raised: said as it happens.
   for (const b of ctx.beats) if (b.kind === 'finish' && b.official) callOfficial(b.official);
   calling = ctx.beats.length;
 
   // ---- and out -----------------------------------------------------------
-  const freshClosers = eligible(CLOSERS, facts, ctx.team.leaning, usedColour, null);
+  const freshClosers = fitting(eligible(CLOSERS, facts, ctx.team.leaning, usedColour, null));
   const closers =
     freshClosers.length > 0
       ? freshClosers
-      : leastWorn(eligible(CLOSERS, facts, ctx.team.leaning, usedThisMatch, null));
+      : fitting(leastWorn(eligible(CLOSERS, facts, ctx.team.leaning, usedThisMatch, null)));
   if (closers.length > 0) {
     const chosen = pick(rng, closers);
     remember(chosen.text);
@@ -843,7 +849,7 @@ export function callTheMatch(rng: Rng, ctx: CommentaryContext): CommentaryLine[]
   // facts like everything else — two men agreeing that was a hell of a match
   // is only worth printing when it was one.
   if (lines.length < budget && chance(rng, s.commentaryBanterChance)) {
-    const banter = eligible(BANTER, facts, ctx.team.leaning, usedColour, null);
+    const banter = fitting(eligible(BANTER, facts, ctx.team.leaning, usedColour, null));
     if (banter.length > 0) {
       const chosen = pick(rng, banter);
       remember(chosen.text);

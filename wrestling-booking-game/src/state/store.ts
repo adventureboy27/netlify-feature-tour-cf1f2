@@ -3117,6 +3117,7 @@ export const useGameStore = create<GameStore>()(
                   isMainEvent: i === world.currentCard.length - 1,
                   finish: result.finish,
                   noCount: !countsAFall(result.finish, stipulation, effectiveRules(segment.rules, stipulation)),
+                  noRopes: effectiveRules(segment.rules, stipulation).aim === 'ringOut',
                   rating: result.rating,
                   beats: result.beats,
                   injuries: injuriesTonight.map((casualty) => ({ name: casualty.name, text: casualty.text })),

@@ -39,6 +39,12 @@ export function ruleAdjustedWeights(rules: MatchRules, isLadderOrHighSpot: boole
     w.stamina *= 1.3;
     w.strength *= 0.8;
   }
+  // Sumo: whoever moves the other one wins. Size and strength, not speed.
+  if (rules.aim === 'ringOut') {
+    w.strength *= 2.2;
+    w.agility *= 0.7;
+    w.skill *= 0.8;
+  }
   if (isLadderOrHighSpot) {
     w.agility *= 1.9;
   }

@@ -404,6 +404,31 @@ export const STIPULATIONS: Stipulation[] = [
     },
   },
   {
+    id: 'sumo',
+    name: 'Sumo Match',
+    blurb: 'The posts and ropes come down. Shove, throw or drive your opponent off the edge of the ring — best two falls out of three.',
+    // DESIGN: no pins, no submissions, no count-outs: the only way to score
+    // is a ring-out (sim/sumo.ts decides the falls before the deciding one).
+    // Strength wins these (sim/kayfabe.ts). One on one only — a tag sumo
+    // match has nobody to tag, and is booked at the mismatch penalty.
+    ratingBonus: 4,
+    violenceLevel: 0,
+    injuryMult: 0.9,
+    maxParticipants: 2,
+    archetypeFit: ['powerhouse', 'monster'],
+    // Nothing to hit anybody with: a weapon is a disqualification, never a spot.
+    impliedRules: { aim: 'ringOut', countOuts: 'none', ruleStrictness: 'lenient' },
+    finishWeights: {
+      cleanPin: 0, rollup: 0, submission: 0, knockout: 0, countOut: 0, timeLimitDraw: 0, doubleKO: 0,
+      interference: 0, refereeStoppage: 0, disqualification: 0.3,
+    },
+    finishFlavor: {
+      // {score} is the falls, filled in by sim/narrative.ts: "two falls to one".
+      ringOut: 'drove {loser} clean off the edge of the ring for the deciding fall, {score}',
+      disqualification: 'was awarded the match when {loser} stopped pushing and started swinging',
+    },
+  },
+  {
     id: 'blindfoldMatch',
     name: 'Blindfold Match',
     blurb: 'Both competitors go in unable to see a thing. Locked until the promotion has been around long enough to risk looking silly.',
@@ -476,6 +501,7 @@ export function stipulationRequirementsMet(stipulation: Stipulation, ctx: Stipul
   }
 
   if (stipulation.minParticipants !== undefined && ctx.participants.length < stipulation.minParticipants) return false;
+  if (stipulation.maxParticipants !== undefined && ctx.participants.length > stipulation.maxParticipants) return false;
 
   if (stipulation.popGapRequirement !== undefined) {
     const pops = ctx.participants.map((p) => p.popularity);
