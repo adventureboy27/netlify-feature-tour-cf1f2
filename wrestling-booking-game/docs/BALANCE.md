@@ -265,3 +265,19 @@ Reproduce: `node tools/probe.mjs --report development --seeds 3 --weeks 104`
 A *passive* booker — never signing anybody — declines to nothing and this is
 correct behaviour, not a bug. Any measurement of long-run health has to restock
 or it is measuring a company that refuses to hire.
+
+## Two-sided odds fix and the sumo/audience batch — measured 2026-11-19
+
+The odds fix (`simulateMatch` now counts the second side's lean as well as the first's) changes results. Six seeds × 104 weeks, `--report shows`, compared with the build just before it (35cd621):
+
+| | Before (35cd621) | After (e11b24a) |
+|---|---|---|
+| Mean show rating | 44.9 (sd 13.5) | 43.7 (sd 14.9) |
+| Opener rating | 26.1 | 23.8 |
+| Main event rating | 47.1 | 47.5 |
+| Low-pop matches rating ≥55 | 2.1% | 2.3% |
+| Raw averages: pop / work / health | 42.6 / 51 / 62.1 | 42.3 / 50 / 61.6 |
+
+The after build also includes sumo, the content renames and the audience model. The probe signs no sponsors, so the audience stays neutral and adds nothing; sumo and the renames don't touch these numbers. Any change to the sim moves every later random roll, so the six saves grow different rosters from week one. The roster averages moving by a point show that's happening here, so a shift of a point or two is within what diverging saves produce. Nothing moved far enough to retune. Watch openers: they're the one number that moved more than the rest.
+
+Reproduce: `node tools/probe.mjs --report shows --seeds 6 --weeks 104`, against the same command run in a worktree at 35cd621.
