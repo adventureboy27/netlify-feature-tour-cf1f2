@@ -7198,3 +7198,7 @@ This isn't a mature game: no sexual innuendo, no slurs or stereotypes, no sweari
 - **Guard:** `src/data/familyFriendly.test.ts` reads every string literal under `src/`, and the text written directly into the screens, and fails on a list of sexual, crude, hateful, stereotyping, alcohol and drug terms. Only the real-name blocklist and camelCase ids are exempt. A second test proves the scanner catches each kind of string.
 
 Not changed: the violence the game is built on (blood, chairs, tables, hardcore matches) and gambling as a mechanic (the "gamble" option in events, the Casino Showroom venue, the Double or Nothing team).
+
+## Rated PG, written down
+
+Added to CLAUDE.md's non-negotiables. Humour is welcome, and relationships and breakups are in. Nothing goes past PG: no innuendo, slurs, stereotypes, swearing, drinking or drugs. `familyFriendly.test.ts` enforces it. I checked the existing relationship content (labels, partner reasons in bidding, the jealousy confrontation, team splits) and it's already PG.
