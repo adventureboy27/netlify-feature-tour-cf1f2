@@ -1,0 +1,349 @@
+import { describe, it, expect } from 'vitest';
+import { generateBeats, beatCount, type NarrativeContext, type EliminationEvent } from './narrative';
+import { rngFromSeed } from '../rng';
+import { generateWrestlers } from '../generate/wrestler';
+import { createStartingTitles } from '../../data/titles';
+import { stipulationById, effectiveRules } from '../../data/stipulations';
+import { RIVAL_MATCH_RULES } from '../world/rivalBooking';
+import { BATTLE_ROYAL_ELIMINATION_BEATS, BATTLE_ROYAL_ELIMINATION_BY_BEATS, BATTLE_ROYAL_FINAL_BEATS, LINE_ACTIONS, OPENING_BEATS, CONTROL_BEATS, HOPE_SPOT_BEATS, BIG_SPOT_BEATS, GRUDGE_BEATS } from '../../data/matchBeats';
+import type { Wrestler } from '../types';
+
+function pair(): [Wrestler, Wrestler] {
+  const [a, b] = generateWrestlers(rngFromSeed('narrative'), 2, { currentYear: 1985 });
+  return [a!, b!];
+}
+
+function ctxFor(over: Partial<NarrativeContext> = {}): NarrativeContext {
+  const [a, b] = pair();
+  return {
+    winnerMembers: [a],
+    loserMembers: [b],
+    finish: 'cleanPin',
+    stars: 3,
+    rating: 60,
+    ...over,
+  };
+}
+
+function reel(over: Partial<NarrativeContext> = {}, seed = 'reel') {
+  return generateBeats(rngFromSeed(seed), ctxFor(over));
+}
+
+describe('how long the reel runs', () => {
+  it('gives a squash almost nothing to say', () => {
+    expect(beatCount(ctxFor({ rating: 12 }))).toBe(3);
+    expect(reel({ rating: 12 }).length).toBeLessThanOrEqual(3);
+  });
+
+  it('gives a classic room to breathe', () => {
+    expect(beatCount(ctxFor({ rating: 92 }))).toBeGreaterThan(beatCount(ctxFor({ rating: 40 })));
+    expect(reel({ rating: 92 }).length).toBeGreaterThan(reel({ rating: 40 }).length);
+  });
+
+  it('pays the main event and a title match an extra beat each', () => {
+    const plain = beatCount(ctxFor({ rating: 70 }));
+    const main = beatCount(ctxFor({ rating: 70, isMainEvent: true }));
+    const titled = beatCount(ctxFor({ rating: 70, titles: createStartingTitles('p', 'Atlas Pro', 'athletic') }));
+    expect(main).toBe(plain + 1);
+    expect(titled).toBe(plain + 1);
+  });
+
+  it('never runs away with itself', () => {
+    const huge = reel({
+      rating: 100,
+      isMainEvent: true,
+      titles: createStartingTitles('p', 'Atlas Pro', 'athletic'),
+      shootHeat: 100,
+    });
+    expect(huge.length).toBeLessThanOrEqual(8);
+  });
+
+  it('always opens and always finishes', () => {
+    for (const rating of [5, 30, 55, 75, 95]) {
+      const beats = reel({ rating });
+      expect(beats[0]!.kind).toBe('openingExchange');
+      expect(beats.some((b) => b.kind === 'finish')).toBe(true);
+    }
+  });
+});
+
+describe('what the reel talks about', () => {
+  it('says what the match was for when a belt was on it', () => {
+    const titles = createStartingTitles('p', 'Southside Championship Wrestling', 'territory');
+    const text = reel({ rating: 75, titles }).map((b) => b.text).join(' ');
+    expect(text).toContain(titles[0]!.name);
+  });
+
+  it('reads as a fight when the animosity is real', () => {
+    const worked = reel({ rating: 75, shootHeat: 0 }).map((b) => b.text).join(' ');
+    const shoot = reel({ rating: 75, shootHeat: 90 }).map((b) => b.text).join(' ');
+    expect(shoot).not.toBe(worked);
+    expect(/properly|separate them|wrestling match|settled/.test(shoot)).toBe(true);
+  });
+
+  it('never repeats a line inside one match', () => {
+    for (let i = 0; i < 40; i++) {
+      const beats = reel({ rating: 90, isMainEvent: true, shootHeat: 60 }, `dupes-${i}`);
+      const texts = beats.map((b) => b.text);
+      expect(new Set(texts).size).toBe(texts.length);
+    }
+  });
+
+  it('fills in every placeholder', () => {
+    for (let i = 0; i < 60; i++) {
+      const titles = createStartingTitles('p', 'Atlas Pro', 'athletic');
+      const beats = reel({ rating: 95, isMainEvent: true, titles, shootHeat: 80 }, `fill-${i}`);
+      for (const beat of beats) expect(beat.text).not.toMatch(/\{[a-z]+\}/);
+    }
+  });
+
+  it('still lets a stipulation describe its own finish', () => {
+    const beats = reel({ rating: 60, finish: 'knockout', stipulation: stipulationById('tables') ?? null });
+    const finish = beats.find((b) => b.kind === 'finish')!;
+    expect(finish.text.toLowerCase()).toContain('table');
+  });
+
+  it('describes a Steel Cage escape by name, not a generic finish', () => {
+    const beats = reel({ rating: 60, finish: 'escape', stipulation: stipulationById('steelCage') ?? null });
+    const finish = beats.find((b) => b.kind === 'finish')!;
+    expect(finish.text.toLowerCase()).toContain('escape');
+  });
+
+  it('lets finishFlavor use the full placeholder vocabulary, not just winner/loser', () => {
+    // hardcore's knockout flavor names {weapon} — this only resolves at all
+    // if finishFlavor text runs through the same fill() every other beat does.
+    const beats = reel({ rating: 60, finish: 'knockout', stipulation: stipulationById('hardcore') ?? null });
+    const finish = beats.find((b) => b.kind === 'finish')!;
+    expect(finish.text).not.toMatch(/\{[a-z]+\}/i);
+  });
+
+  it('an Iron Man time-limit draw reads as a tie on the scorecard, not a generic draw', () => {
+    const beats = reel({ rating: 60, finish: 'timeLimitDraw', stipulation: stipulationById('ironMan') ?? null });
+    const finish = beats.find((b) => b.kind === 'finish')!;
+    expect(finish.text.toLowerCase()).toContain('scorecard');
+  });
+
+  it('names eliminated wrestlers with real ids and reaches a final-two beat for a battle royal', () => {
+    const [a, b] = pair();
+    const eliminations: EliminationEvent[] = [
+      { eliminatedId: 'w-third', eliminatedName: 'Third Wheel', eliminatorId: null, eliminatorName: null },
+      { eliminatedId: 'w-fourth', eliminatedName: 'Fourth Wheel', eliminatorId: a.id, eliminatorName: a.name },
+      { eliminatedId: 'w-fifth', eliminatedName: 'Fifth Wheel', eliminatorId: null, eliminatorName: null },
+    ];
+    const beats = reel({
+      rating: 60,
+      isMainEvent: true,
+      eliminations,
+      winnerMembers: [a],
+      loserMembers: [b],
+    });
+    const text = beats.map((beat) => beat.text).join(' ');
+    expect(text).toContain('Fourth Wheel');
+    const eliminationBeat = beats.find((b) => b.kind === 'elimination' && b.targetId === 'w-fourth');
+    expect(eliminationBeat).toBeDefined();
+    expect(eliminationBeat!.actorId).toBe(a.id);
+    const finalBeatTexts = BATTLE_ROYAL_FINAL_BEATS.map((t) => t.text);
+    expect(beats.some((b) => finalBeatTexts.includes(b.text))).toBe(true);
+  });
+
+  it('never invents more than the elimination-beat cap, even for a huge field', () => {
+    const [a, b] = pair();
+    const eliminations: EliminationEvent[] = Array.from({ length: 15 }, (_, i) => ({
+      eliminatedId: `w-${i}`,
+      eliminatedName: `Wheel ${i}`,
+      eliminatorId: null,
+      eliminatorName: null,
+    }));
+    const beats = reel({ rating: 100, isMainEvent: true, eliminations, winnerMembers: [a], loserMembers: [b] });
+    expect(beats.filter((b) => b.kind === 'elimination').length).toBeLessThanOrEqual(4);
+  });
+
+  it('skips battle royal beats entirely for an ordinary match', () => {
+    const beats = reel({ rating: 60, eliminations: undefined });
+    const battleRoyalTexts = [...BATTLE_ROYAL_ELIMINATION_BEATS, ...BATTLE_ROYAL_ELIMINATION_BY_BEATS, ...BATTLE_ROYAL_FINAL_BEATS].map(
+      (t) => t.text,
+    );
+    expect(beats.some((b) => battleRoyalTexts.includes(b.text))).toBe(false);
+    expect(beats.some((b) => b.kind === 'elimination')).toBe(false);
+  });
+
+  it('does not repeat a control-beat line across the same card', () => {
+    // The exact bug: two winners of the same style on one card both
+    // reading the identical CONTROL_BEATS sentence — the pool only
+    // carries a handful of lines per style, so an unguarded draw collides
+    // fast across several matches.
+    const [a] = pair();
+    const powerhouseA = { ...a, style: 'powerhouse' as const };
+    const usedAcrossCard = new Set<string>();
+    const texts: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const [, loser] = pair();
+      const beats = generateBeats(
+        rngFromSeed(`card-${i}`),
+        { winnerMembers: [powerhouseA], loserMembers: [loser], finish: 'cleanPin', stars: 3, rating: 60 },
+        usedAcrossCard,
+      );
+      const control = beats.find((b) => b.kind === 'control');
+      if (control) texts.push(control.text);
+    }
+    expect(new Set(texts).size).toBe(texts.length);
+  });
+
+  it('leaves independent calls with no shared set unaffected', () => {
+    const [a, b] = pair();
+    const winner = { ...a, style: 'powerhouse' as const };
+    const first = generateBeats(rngFromSeed('solo-a'), {
+      winnerMembers: [winner],
+      loserMembers: [b],
+      finish: 'cleanPin',
+      stars: 3,
+      rating: 60,
+    });
+    expect(first.length).toBeGreaterThan(0);
+  });
+
+  it('uses the winner’s style for the control beat', () => {
+    const [a, b] = pair();
+    const highFlyer = { ...a, style: 'highFlyer' as const };
+    const text = generateBeats(rngFromSeed('style'), {
+      winnerMembers: [highFlyer],
+      loserMembers: [b],
+      finish: 'cleanPin',
+      stars: 4,
+      rating: 80,
+    })
+      .map((beat) => beat.text)
+      .join(' ');
+    expect(/top rope|dive/.test(text)).toBe(true);
+  });
+});
+
+describe('a special match records the spots it is built around', () => {
+  // The write-up, the commentary and the match viewer all read these, so what
+  // the player reads happened is exactly what the ring shows happening.
+  const rulesFor = (id: string | null) => effectiveRules(RIVAL_MATCH_RULES, id ? (stipulationById(id) ?? null) : null);
+  const special = (id: string, rating = 60) => reel({ rating, stipulation: stipulationById(id) ?? null, rules: rulesFor(id) });
+
+  it('a ladder match has its ladder, and its near thing is coming off one', () => {
+    const beats = special('ladder');
+    expect(beats.some((b) => b.spot === 'ladderShot' || b.spot === 'ladderDive')).toBe(true);
+    expect(beats.find((b) => b.kind === 'nearFall')?.spot).toBe('ladderPull');
+  });
+
+  it('even the shortest special match gets its spot', () => {
+    for (const id of ['ladder', 'tables', 'casket', 'steelCage', 'hardcore', 'blindfoldMatch']) {
+      expect(special(id, 12).some((b) => b.spot), id).toBe(true);
+    }
+  });
+
+  it('a near thing that is not a pin, in every match that is not won by one', () => {
+    const want: Record<string, string> = { ladder: 'ladderPull', tables: 'tableFightOff', flamingTables: 'tableFightOff', casket: 'casketNear', steelCage: 'cageClimb', battleRoyal: 'teeter', lastManStanding: 'countBeaten', submissionMatch: 'holdEscape' };
+    for (const [id, spot] of Object.entries(want)) expect(special(id).find((b) => b.kind === 'nearFall')?.spot, id).toBe(spot);
+  });
+
+  it('nothing is put through a table in a tables match before the finish', () => {
+    for (const seed of ['a', 'b', 'c', 'd', 'e']) {
+      const beats = generateBeats(rngFromSeed(seed), ctxFor({ rating: 90, stipulation: stipulationById('tables') ?? null, rules: rulesFor('tables') }));
+      expect(beats.some((b) => b.spot === 'tableThrough')).toBe(false);
+    }
+  });
+
+  it('a weapon named in the write-up is recorded, and is one the viewer can draw', () => {
+    const beats = special('hardcore', 90);
+    for (const b of beats) if (b.spot === 'weaponShot') expect(['chair', 'kendo', 'can']).toContain(b.weapon);
+    const named = beats.filter((b) => /steel chair|kendo stick|trash can/.test(b.text));
+    for (const b of named) expect(b.weapon, b.text).toBeDefined();
+  });
+
+  it('an ordinary match has none', () => {
+    expect(reel({ rules: rulesFor(null) }).some((b) => b.spot)).toBe(false);
+  });
+
+  it('draws nothing extra from the shared stream', () => {
+    // Adding a draw shifts every seeded roll after it (CLAUDE.md), so the
+    // spots come off a stream of their own.
+    const counted = (rules: ReturnType<typeof rulesFor> | undefined) => {
+      const base = rngFromSeed('count');
+      let n = 0;
+      const rng = { next: () => (n++, base.next()) };
+      generateBeats(rng, ctxFor({ rating: 90, stipulation: stipulationById('ladder') ?? null, rules }));
+      return n;
+    };
+    expect(counted(undefined)).toBeGreaterThan(0);
+    expect(counted(rulesFor('ladder'))).toBe(counted(undefined));
+  });
+});
+
+describe('a line that says what physically happened records it', () => {
+  it('every tagged line is a line the reel can actually say', () => {
+    const lines = new Set([...OPENING_BEATS, ...HOPE_SPOT_BEATS, ...BIG_SPOT_BEATS, ...GRUDGE_BEATS].map((t) => t.text).concat(Object.values(CONTROL_BEATS).flat()));
+    for (const text of Object.keys(LINE_ACTIONS)) expect(lines.has(text), text).toBe(true);
+  });
+
+  it('records the action, and that the one the line names did it', () => {
+    const [a, b] = pair();
+    for (const seed of ['p', 'q', 'r', 's', 't', 'u', 'v', 'w']) {
+      const beats = generateBeats(rngFromSeed(seed), { winnerMembers: [a], loserMembers: [b], finish: 'cleanPin', stars: 4, rating: 85, shootHeat: 80 });
+      for (const beat of beats) {
+        if (!beat.action) continue;
+        // The comeback and the jump-start are the loser's; everything else the winner's.
+        const doer = beat.action === 'fireUp' || beat.action === 'jumpStart' ? b : a;
+        expect(beat.actorId, beat.text).toBe(doer.id);
+      }
+    }
+  });
+
+  it('never writes up a cage match leaving the cage, or a ring in a match without one', () => {
+    for (let i = 0; i < 30; i++) {
+      const cage = reel({ rating: 90, stipulation: stipulationById('steelCage') ?? null }, `cage-${i}`);
+      for (const b of cage) expect(b.text, b.text).not.toMatch(/dive to the floor|guardrail|into the crowd|first three rows/i);
+      const floor = reel({ rating: 90, stipulation: stipulationById('arenaFloor') ?? null }, `floor-${i}`);
+      for (const b of floor.filter((x) => x.kind !== 'finish')) expect(b.text, b.text).not.toMatch(/rope|apron|turnbuckle|guardrail/i);
+    }
+  });
+});
+
+describe('blood is recorded where it happens, and said', () => {
+  const rulesFor = (id: string) => effectiveRules(RIVAL_MATCH_RULES, stipulationById(id) ?? null);
+  const many = (id: string) =>
+    Array.from({ length: 40 }, (_, i) => generateBeats(rngFromSeed(`blood-${id}-${i}`), ctxFor({ rating: 90, stipulation: stipulationById(id) ?? null, rules: rulesFor(id), spotSeed: `blood-${id}-${i}` })));
+
+  it('a violent match sometimes opens somebody up, on a hard spot, and the write-up says so', () => {
+    const reels = many('hardcore');
+    const bleeding = reels.flat().filter((b) => b.bleeding);
+    expect(bleeding.length).toBeGreaterThan(0);
+    for (const b of bleeding) {
+      expect(b.spot, b.text).toBeDefined();
+      expect(b.bleeding).toBe(b.targetId);
+      expect(b.text).toMatch(/busted open|bleeding|blood/);
+    }
+    // Once each.
+    for (const reel of reels) {
+      const ids = reel.filter((b) => b.bleeding).map((b) => b.bleeding);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  it('a first-blood match bleeds only at the finish, and it is the loser', () => {
+    const [a, b] = pair();
+    const reel = generateBeats(rngFromSeed('fb'), { winnerMembers: [a], loserMembers: [b], finish: 'knockout', stars: 4, rating: 90, rules: { ...RIVAL_MATCH_RULES, aim: 'firstBlood', ruleStrictness: 'none' } });
+    const bled = reel.filter((x) => x.bleeding);
+    expect(bled.map((x) => x.kind)).toEqual(['finish']);
+    expect(bled[0]!.bleeding).toBe(b.id);
+  });
+});
+
+describe('a tag match breaks down', () => {
+  it('records one breakdown, before the near thing or the finish — and a singles match has none', () => {
+    const [a, b, c, d] = generateWrestlers(rngFromSeed('tagteams'), 4, { currentYear: 1985 });
+    const rules = { ...RIVAL_MATCH_RULES, preset: 'tag' as const, format: 'teams' as const };
+    const tag = generateBeats(rngFromSeed('tag-reel'), { winnerMembers: [a!, b!], loserMembers: [c!, d!], finish: 'cleanPin', stars: 3, rating: 70, rules });
+    const at = tag.findIndex((x) => x.spot === 'breakdown');
+    expect(tag.filter((x) => x.spot === 'breakdown')).toHaveLength(1);
+    const after = tag.findIndex((x) => x.kind === 'nearFall' || x.kind === 'finish');
+    expect(at).toBeLessThan(after);
+    expect(tag[at]!.text).toMatch(/all four/);
+    const singles = generateBeats(rngFromSeed('tag-reel'), { winnerMembers: [a!], loserMembers: [c!], finish: 'cleanPin', stars: 3, rating: 70, rules: RIVAL_MATCH_RULES });
+    expect(singles.some((x) => x.spot === 'breakdown')).toBe(false);
+  });
+});

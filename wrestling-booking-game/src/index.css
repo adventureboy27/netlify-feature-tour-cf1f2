@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   The look of the shell: a wrestling broadcast, not a spreadsheet.
+
+   Dark, with light coming from above the ring; poster lettering for the
+   things that are names and headlines; a faint canvas weave so large flat
+   areas are not dead black. All of it is local — system typefaces, CSS
+   gradients — because the game makes no network calls.
+   --------------------------------------------------------------------------- */
+:root { color-scheme: dark; }
+
+body {
+  background:
+    radial-gradient(1200px 520px at 50% -160px, rgba(255, 255, 255, 0.07), transparent 70%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 6px),
+    #07080b;
+  background-attachment: fixed;
+}
+
+/* Poster lettering: headlines, show names, the versus on a match. */
+.font-display {
+  font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', 'Franklin Gothic Heavy', 'Arial Black', sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* Every screen's own title picks it up, without touching thirty screens. */
+main h1 {
+  font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', 'Franklin Gothic Heavy', 'Arial Black', sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-size: 1.65rem;
+  line-height: 1.05;
+}
+
+/* Thin, quiet scrollbars: there are a lot of scrolling panes. */
+* { scrollbar-width: thin; scrollbar-color: #2b2f38 transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb { background: #2b2f38; border-radius: 9px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: #454b58; background-clip: content-box; border: 2px solid transparent; }
+
+/* Anything focused by keyboard says so. */
+:focus-visible { outline: 2px solid rgba(251, 191, 36, 0.8); outline-offset: 2px; border-radius: 6px; }
+::selection { background: rgba(251, 191, 36, 0.35); }
+
+/* A match on the card: lit from above, lifting when you reach for it. */
+.fight-card {
+  background:
+    radial-gradient(120% 90% at 50% -30%, rgba(255, 255, 255, 0.09), transparent 60%),
+    linear-gradient(180deg, #181a21, #0d0e12);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+button.fight-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.9); }
+.fight-card-empty { background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 8px, transparent 8px 16px); }
+
+/* The step you are on. */
+@keyframes step-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(251, 191, 36, 0); }
+}
+.step-here { animation: step-pulse 2.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .step-here { animation: none; } button.fight-card:hover { transform: none; } }
+
+/* A good night gets said out loud. */
+@keyframes cheer-pop {
+  0% { opacity: 0; transform: scale(1.8) rotate(-6deg); }
+  60% { opacity: 1; transform: scale(0.95) rotate(-3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-3deg); }
+}
+.cheer-pop { animation: cheer-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.cheer-pop:nth-child(2) { animation-delay: 0.15s; }
+.cheer-pop:nth-child(3) { animation-delay: 0.3s; }
+.cheer-pop:nth-child(4) { animation-delay: 0.45s; }
+@media (prefers-reduced-motion: reduce) { .cheer-pop { animation: none; transform: rotate(-3deg); } }

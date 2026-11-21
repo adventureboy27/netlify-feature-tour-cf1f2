@@ -1,0 +1,542 @@
+/* The match viewer's ambient motion: a crowd that never quite sits still,
+   lights that drift, and the one-shot pops (impact bursts, the referee's
+   count). The wrestlers themselves are animated from choreography.ts. */
+
+@keyframes mv-bob {
+  from { transform: translateY(0); }
+  to { transform: translateY(-2.5px); }
+}
+@keyframes mv-jump {
+  from { transform: translateY(1px); }
+  to { transform: translateY(-9px); }
+}
+.mv-crowd { animation: mv-bob 1.3s ease-in-out infinite alternate; }
+.mv-crowd-1 { animation-duration: 1.05s; animation-delay: -0.4s; }
+.mv-crowd-2 { animation-duration: 1.5s; animation-delay: -0.9s; }
+.mv-crowd-3 { animation-duration: 0.95s; animation-delay: -0.2s; }
+.mv-hype .mv-crowd { animation-name: mv-jump; animation-duration: 0.26s; }
+/* The room reacting (ui/match/crowd.ts): each reacting fan shows the pose for
+   the mood; split, the ones on one side cheer and the rest boo. */
+.mv-p { display: none; }
+.mv-mood .mv-r .mv-p-idle { display: none; }
+.mv-mood-cheer .mv-r .mv-p-cheer,
+.mv-mood-boo .mv-r .mv-p-boo,
+.mv-mood-ooh .mv-r .mv-p-ooh,
+.mv-mood-mixed .mv-r.mv-fan .mv-p-cheer,
+.mv-mood-mixed .mv-r:not(.mv-fan) .mv-p-boo { display: inline; }
+.mv-mood-boo .mv-crowd { animation-name: mv-jeer; animation-duration: 0.5s; }
+@keyframes mv-jeer { from { transform: translateY(0); } to { transform: translateY(2px); } }
+/* The big moments. Roaring for somebody: fists up and pumping, the lights
+   up full. Angry: fists shaking at the ring, and the lights go red. */
+.mv-cone-bright, .mv-cone-red { opacity: 0; transition: opacity 0.35s ease-out; }
+.mv-mood-big.mv-mood-cheer .mv-cone-bright { opacity: 1; }
+.mv-mood-big.mv-mood-boo .mv-cone-red { opacity: 1; animation-name: mv-sweep, mv-redpulse; animation-duration: 3s, 0.7s; animation-iteration-count: infinite, infinite; animation-direction: alternate, alternate; }
+@keyframes mv-redpulse { from { opacity: 0.55; } to { opacity: 1; } }
+.mv-mood-big.mv-mood-cheer .mv-r .mv-p-fist-cheer,
+.mv-mood-big.mv-mood-boo .mv-r .mv-p-fist-boo,
+.mv-mood-big.mv-mood-mixed .mv-r.mv-fan .mv-p-fist-cheer,
+.mv-mood-big.mv-mood-mixed .mv-r:not(.mv-fan) .mv-p-fist-boo { display: inline; }
+.mv-mood-big.mv-mood-boo .mv-crowd { animation-name: mv-shake; animation-duration: 0.14s; }
+@keyframes mv-shake { from { transform: translate(-1.5px, 0); } to { transform: translate(1.5px, 1px); } }
+/* Over the whole picture: warm light flooding in, or a red wash. */
+.mv-glow { animation: mv-glow 2.4s ease-out both; mix-blend-mode: screen; }
+@keyframes mv-glow { 0% { opacity: 0; } 15% { opacity: 1; } 70% { opacity: 0.8; } 100% { opacity: 0; } }
+.mv-redwash { animation: mv-redwash 2.6s ease-in-out both; mix-blend-mode: multiply; }
+@keyframes mv-redwash { 0% { opacity: 0; } 12% { opacity: 0.85; } 30% { opacity: 0.55; } 48% { opacity: 0.85; } 66% { opacity: 0.55; } 100% { opacity: 0; } }
+/* Cups and rubbish thrown at the ring: up out of the stands, over, and down onto the apron. */
+.mv-thrown { position: absolute; animation: mv-thrown 1.3s cubic-bezier(0.3, 0, 0.7, 1) both; }
+@keyframes mv-thrown {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+  8% { opacity: 1; }
+  50% { transform: translate(calc(var(--dx) * 0.5), calc(var(--dy) * 0.5 - var(--up))) rotate(260deg); }
+  85% { opacity: 1; transform: translate(var(--dx), var(--dy)) rotate(520deg); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(560deg); }
+}
+@media (prefers-reduced-motion: reduce) { .mv-thrown, .mv-redwash, .mv-glow { animation-duration: 0.01s; } .mv-mood-big.mv-mood-boo .mv-crowd { animation: none; } }
+
+@keyframes mv-sway {
+  from { transform: rotate(-5deg); }
+  to { transform: rotate(5deg); }
+}
+.mv-cone { transform-box: view-box; animation: mv-sweep 5s ease-in-out infinite alternate; }
+/* Each lamp swings its own way, as far as it swings (--sweep, Arena.tsx). */
+@keyframes mv-sweep { from { transform: rotate(calc(-1 * var(--sweep, 5deg))); } to { transform: rotate(var(--sweep, 5deg)); } }
+/* And runs through the gels: mostly white, then gold, magenta, blue, cyan. */
+.mv-gel { animation: mv-gel 10s linear infinite; }
+@keyframes mv-gel { 0%, 18% { stop-color: #ffffff; } 30% { stop-color: #ffc95c; } 46% { stop-color: #ff4fd8; } 62% { stop-color: #4f7bff; } 78% { stop-color: #4ff0ff; } 92%, 100% { stop-color: #ffffff; } }
+.mv-lens { animation: mv-lens 10s linear infinite; }
+@keyframes mv-lens { 0%, 18% { fill: #fff7dc; } 30% { fill: #ffd98a; } 46% { fill: #ff8be6; } 62% { fill: #8faaff; } 78% { fill: #9ff6ff; } 92%, 100% { fill: #fff7dc; } }
+.mv-cone-star { opacity: 0; transition: opacity 0.4s ease-out; }
+.mv-starlit .mv-cone-star { opacity: 1; }
+
+@keyframes mv-flash {
+  0%, 92%, 100% { opacity: 0; }
+  94% { opacity: 1; }
+  96% { opacity: 0.2; }
+}
+.mv-flash { opacity: 0; animation: mv-flash 6s linear infinite; }
+.mv-hype .mv-flash { animation-duration: 0.9s; }
+
+@keyframes mv-burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(-20deg); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(8deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25) rotate(14deg); }
+}
+.mv-burst { opacity: 0; animation: mv-burst 0.42s ease-out both; }
+
+@keyframes mv-shock {
+  0% { opacity: 0.7; transform: translate(-50%, -50%) scale(0.2); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+.mv-shock { opacity: 0; animation: mv-shock 0.5s ease-out both; }
+
+@keyframes mv-count {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.4); }
+  20% { opacity: 1; transform: translate(-50%, -30%) scale(1.25); }
+  70% { opacity: 1; transform: translate(-50%, -45%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -80%) scale(0.9); }
+}
+.mv-count { opacity: 0; animation: mv-count 0.55s ease-out both; }
+
+/* A pyro charge: up out of the floor all at once, roaring, then dying down. */
+@keyframes mv-pyro {
+  0% { opacity: 0; transform: scaleY(0.1) scaleX(0.6); }
+  12% { opacity: 1; transform: scaleY(1.1) scaleX(1.05); }
+  22% { transform: scaleY(0.95) scaleX(1); }
+  70% { opacity: 1; transform: scaleY(1) scaleX(1); }
+  100% { opacity: 0; transform: scaleY(0.55) scaleX(0.8) translateY(-6%); }
+}
+.mv-pyro { opacity: 0; transform-origin: 50% 100%; animation: mv-pyro 1.3s ease-out both; }
+@keyframes mv-pyro-glow { 0% { opacity: 0; } 15%, 70% { opacity: 1; } 100% { opacity: 0; } }
+.mv-pyro-glow { opacity: 0; animation: mv-pyro-glow 1.3s ease-out both; }
+/* The tongues of flame, each at its own speed so they never move together. */
+@keyframes mv-flick {
+  0% { transform: scaleX(1) scaleY(1) skewX(0deg); }
+  25% { transform: scaleX(0.93) scaleY(1.06) skewX(-4deg); }
+  50% { transform: scaleX(1.05) scaleY(0.96) skewX(3deg); }
+  75% { transform: scaleX(0.97) scaleY(1.04) skewX(-2deg); }
+  100% { transform: scaleX(1.02) scaleY(0.99) skewX(1deg); }
+}
+.mv-flick-a { animation: mv-flick 0.24s ease-in-out infinite alternate; }
+.mv-flick-b { animation: mv-flick 0.17s ease-in-out infinite alternate-reverse; }
+.mv-flick-c { animation: mv-flick 0.12s ease-in-out infinite alternate; }
+/* A spark popping inside it: there, bright, gone. */
+@keyframes mv-spark {
+  0% { opacity: 0; transform: scale(0.2) rotate(0deg); }
+  30% { opacity: 1; transform: scale(1.5) rotate(25deg); }
+  60% { opacity: 0.85; transform: scale(0.8) rotate(40deg); }
+  100% { opacity: 0; transform: scale(0.3) rotate(60deg); }
+}
+.mv-spark { opacity: 0; transform-box: fill-box; transform-origin: center; animation: mv-spark 0.42s ease-out 2 both; }
+/* Embers thrown off the top. --mv-drift is which way. */
+@keyframes mv-ember {
+  0% { opacity: 0; transform: translate(0, 0); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--mv-drift), -46px); }
+}
+.mv-ember { opacity: 0; animation: mv-ember 0.9s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .mv-flick-a, .mv-flick-b, .mv-flick-c, .mv-spark, .mv-ember { animation: none; }
+}
+
+/* A thing that is there until a moment, and a thing that is there from it
+   (a table, and the same table in two pieces). The delay is the moment. */
+@keyframes mv-gone { to { opacity: 0; } }
+@keyframes mv-here { to { opacity: 1; } }
+.mv-until { animation: mv-gone 1ms linear both; }
+.mv-from { opacity: 0; animation: mv-here 1ms linear both; }
+
+@keyframes mv-flame {
+  from { transform: scaleY(0.85) translateX(-1%); opacity: 0.85; }
+  to { transform: scaleY(1.15) translateX(1%); opacity: 1; }
+}
+.mv-flame { transform-origin: 50% 100%; animation: mv-flame 0.16s ease-in-out infinite alternate; }
+
+@keyframes mv-breathe {
+  from { transform: scaleY(1); }
+  to { transform: scaleY(1.014) translateY(-0.2%); }
+}
+.mv-breathe { transform-origin: 50% 100%; animation: mv-breathe 0.9s ease-in-out infinite alternate; }
+
+/* A partner on the apron: leaning in, shouting, never quite still. */
+@keyframes mv-cheer {
+  0%, 100% { transform: rotate(-1.5deg) translateY(0); }
+  30% { transform: rotate(2.5deg) translateY(-1.5%); }
+  60% { transform: rotate(-0.5deg) translateY(0); }
+  80% { transform: rotate(2deg) translateY(-2.5%); }
+}
+.mv-cheer { transform-origin: 50% 100%; animation: mv-cheer 1.7s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mv-cheer { animation: none; }
+  .mv-breathe { animation: none; }
+  .mv-crowd, .mv-cone, .mv-flash, .mv-gel, .mv-lens { animation: none; }
+}
+
+/* The referee's voice without the referee: poster lettering, slammed on. */
+.mv-action {
+  font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', 'Franklin Gothic Heavy', 'Arial Black', sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #ffe23d;
+  -webkit-text-stroke: 0.09em #1c0a00;
+  paint-order: stroke fill;
+  text-shadow: 0.06em 0.07em 0 #e0261c, 0.12em 0.14em 0 rgba(0, 0, 0, 0.75);
+  user-select: none;
+}
+.mv-count.mv-action { color: #fff; }
+@keyframes mv-shout {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-10deg) scale(3); }
+  12% { opacity: 1; transform: translate(-50%, -50%) rotate(-5deg) scale(0.9); }
+  20% { transform: translate(-50%, -50%) rotate(-5deg) scale(1.12); }
+  28% { transform: translate(-48%, -52%) rotate(-6deg) scale(1); }
+  36% { transform: translate(-52%, -49%) rotate(-4deg) scale(1.03); }
+  44%, 80% { opacity: 1; transform: translate(-50%, -50%) rotate(-5deg) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -70%) rotate(-5deg) scale(1.25); }
+}
+.mv-shout { opacity: 0; animation: mv-shout 1.25s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+
+/* The company's name on the ring apron: painted on, the full name, sized to fit. */
+.mv-apron-name {
+  font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', 'Franklin Gothic Heavy', 'Arial Black', sans-serif;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 0.06em 0 rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Really hurt: a red pulse round the body and a medic's cross over the head,
+   from the moment it happened to the end of the match. */
+@keyframes mv-hurt {
+  /* Stooped over it, and wincing: favouring whatever it is. */
+  0%, 100% { filter: saturate(0.8) drop-shadow(0 0 2px rgba(225, 30, 30, 0.55)); transform: rotate(4deg) scaleY(0.97); }
+  50% { filter: saturate(0.7) drop-shadow(0 0 9px rgba(235, 30, 30, 0.95)); transform: rotate(6deg) scaleY(0.955); }
+}
+.mv-hurt { position: relative; transform-origin: 50% 100%; animation: mv-hurt 1.1s ease-in-out infinite; }
+@keyframes mv-hurt-mark {
+  0%, 100% { transform: translate(-50%, 0) scale(1); }
+  50% { transform: translate(-50%, -8%) scale(1.15); }
+}
+.mv-hurt-mark { animation: mv-hurt-mark 1.1s ease-in-out infinite; border: 2px solid #fff; }
+
+/* Something dropped on the mat when it is over. */
+@keyframes mv-shed {
+  0% { opacity: 0; transform: translateY(-260%) rotate(-40deg); }
+  60% { opacity: 1; transform: translateY(8%) rotate(8deg); }
+  100% { opacity: 1; transform: translateY(0) rotate(0deg); }
+}
+.mv-shed { animation: mv-shed 0.9s ease-in 0.6s both; }
+
+/* A camera flash in the crowd: a hard white point with a four-point flare,
+   there for an instant and gone. */
+@keyframes mv-sparkle {
+  0%, 72%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.1) rotate(0deg); }
+  78% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(18deg); }
+  86% { opacity: 0.55; transform: translate(-50%, -50%) scale(0.7) rotate(30deg); }
+}
+.mv-sparkle {
+  opacity: 0;
+  background:
+    radial-gradient(circle, #fff 0 12%, rgba(255, 255, 255, 0.55) 13% 26%, transparent 46%),
+    linear-gradient(90deg, transparent 47%, rgba(255, 255, 255, 0.95) 49% 51%, transparent 53%),
+    linear-gradient(0deg, transparent 47%, rgba(255, 255, 255, 0.95) 49% 51%, transparent 53%);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.9));
+  animation: mv-sparkle 1.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .mv-sparkle { animation: none; opacity: 0.5; transform: translate(-50%, -50%) scale(0.6); } }
+
+/* A mask pulled off the head: it lifts and turns away from the face, then
+   drops to the mat where it lands. --mv-pull-x is the side it is pulled to. */
+@keyframes mv-pull {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  35% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 0.6), -70%) rotate(-18deg) scale(1.45); }
+  55% { opacity: 1; transform: translate(var(--mv-pull-x), -110%) rotate(-30deg) scale(1.7); }
+  75% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 1.2), 260%) rotate(40deg) scale(1.25); }
+  100% { opacity: 1; transform: translate(calc(var(--mv-pull-x) * 1.4), 340%) rotate(70deg) scale(1); }
+}
+.mv-pull { animation: mv-pull 2.4s cubic-bezier(0.3, 0, 0.6, 1) 0.15s both; }
+
+/* The mask thrown off the winner's hand: out of the hand as the arm goes out,
+   then down to the mat. --hx/--hy is the hand, --tx/--ty the mat. */
+@keyframes mv-toss {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  40% { opacity: 1; transform: translate(var(--hx), var(--hy)) rotate(-40deg) scale(1); }
+  100% { opacity: 1; transform: translate(var(--tx), var(--ty)) rotate(200deg) scale(1); }
+}
+.mv-toss { animation: mv-toss 2.2s cubic-bezier(0.3, 0, 0.6, 1) 0.15s both; }
+
+
+/* A ladder giving way: over on its side, from the foot. */
+@keyframes mv-topple {
+  0% { transform: rotate(0deg); }
+  70% { transform: rotate(84deg); }
+  85% { transform: rotate(76deg); }
+  100% { transform: rotate(80deg); }
+}
+.mv-topple { transform-origin: 50% 100%; animation: mv-topple 0.6s ease-in both; }
+
+/* Beaten up: breathing hard and heavy, shoulders working, a little stooped. */
+@keyframes mv-winded {
+  from { transform: rotate(2deg) scaleY(0.985); }
+  to { transform: rotate(3deg) scaleY(1.02) translateY(-0.5%); }
+}
+.mv-winded { transform-origin: 50% 100%; animation: mv-winded 0.5s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) { .mv-winded { animation: none; transform: rotate(2deg); } }
+
+/* Cameras going off on a big spot: once each, a hard flash and gone. */
+@keyframes mv-flashpop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(0deg); }
+  12% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(15deg); }
+  45% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.8) rotate(25deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.4) rotate(35deg); }
+}
+.mv-flashpop {
+  opacity: 0;
+  background:
+    radial-gradient(circle, #fff 0 12%, rgba(255, 255, 255, 0.55) 13% 26%, transparent 46%),
+    linear-gradient(90deg, transparent 47%, rgba(255, 255, 255, 0.95) 49% 51%, transparent 53%),
+    linear-gradient(0deg, transparent 47%, rgba(255, 255, 255, 0.95) 49% 51%, transparent 53%);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.9));
+  animation: mv-flashpop 0.6s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) { .mv-flashpop { animation: none; } }
+
+/* A star's moment (StarMoment.tsx): the screen lights up with them, the
+   banners drop, and on a win the confetti comes down. */
+.mv-starscreen { animation: mv-starscreen 2.6s ease-out both; }
+@keyframes mv-starscreen { 0% { opacity: 0; transform: scale(0.94); } 8% { opacity: 1; transform: scale(1.03); } 14% { transform: scale(1); } 22%, 34%, 46% { filter: brightness(1.6); } 28%, 40%, 52% { filter: brightness(1); } 85% { opacity: 1; } 100% { opacity: 0; } }
+.mv-starname { animation: mv-starname 0.5s ease-out both; }
+@keyframes mv-starname { from { transform: translateX(30%) skewX(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.mv-starbanner { transform-origin: 50% 0; animation: mv-starbanner 2.6s ease-out both; }
+@keyframes mv-starbanner { 0% { transform: scaleY(0); } 14% { transform: scaleY(1.04); } 20% { transform: scaleY(1); } 85% { opacity: 1; } 100% { opacity: 0; transform: scaleY(1); } }
+.mv-confetti { animation-name: mv-confetti; animation-timing-function: linear; animation-iteration-count: infinite; }
+@keyframes mv-confetti { from { top: -3%; transform: translateX(0) rotate(0deg); } to { top: 103%; transform: translateX(var(--drift)) rotate(var(--spin)); } }
+/* A star's win stays up: the screen and banners are theirs until it is over. */
+.mv-starscreen.mv-starhold { animation-name: mv-starscreen-hold; }
+@keyframes mv-starscreen-hold { 0% { opacity: 0; transform: scale(0.94); } 8% { opacity: 1; transform: scale(1.03); } 14% { transform: scale(1); } 22%, 34%, 46% { filter: brightness(1.6); } 28%, 40%, 52%, 100% { filter: brightness(1); opacity: 1; } }
+.mv-starbanner.mv-starhold { animation-name: mv-starbanner-hold; }
+@keyframes mv-starbanner-hold { 0% { transform: scaleY(0); } 14% { transform: scaleY(1.04); } 20%, 100% { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .mv-confetti { display: none; } .mv-starscreen, .mv-starbanner { animation-duration: 0.01s; } }
+
+/* String lights over a backyard: each bulb with its own flicker. */
+.mv-bulb { animation: mv-bulb 2.6s ease-in-out infinite alternate; }
+@keyframes mv-bulb { from { opacity: 0.55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .mv-bulb { animation: none; } }
+
+/* The premium ring's LED posts: the light runs through the colours, each post a beat behind the last. */
+.mv-ledpost {
+  color: #ff2b6a;
+  animation: mv-ledcycle 7s linear infinite;
+  filter: drop-shadow(0 0 5px currentColor);
+}
+.mv-ledpost-held {
+  animation: mv-ledpulse 0.9s ease-in-out infinite;
+}
+@keyframes mv-ledcycle {
+  0% { color: #ff2b6a; }
+  16% { color: #b13cff; }
+  33% { color: #3d7bff; }
+  50% { color: #20e3ff; }
+  66% { color: #3cff7a; }
+  83% { color: #ffd23c; }
+  100% { color: #ff2b6a; }
+}
+@keyframes mv-ledpulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mv-ledpost, .mv-ledpost-held { animation: none; }
+}
+
+/* ---- The broadcast ring's apron screen (ApronScreen.tsx) ---------------- */
+.mv-tv { background: #05060a; }
+/* A touch of bloom: LED walls run hot. */
+.mv-tv-picture { filter: saturate(1.2) contrast(1.06); }
+
+/* The wall is made of LEDs: a fine dark grid, so it reads as a screen and not a page. */
+.mv-tv-pixels {
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.38) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.38) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+  opacity: 0.3;
+}
+.mv-tv-sheen {
+  background: linear-gradient(100deg, transparent 38%, rgba(255,255,255,0.10) 48%, transparent 58%);
+  background-size: 260% 100%;
+  animation: mv-tv-sheen 6s linear infinite;
+}
+@keyframes mv-tv-sheen { from { background-position: 130% 0; } to { background-position: -130% 0; } }
+/* Its light on the floor in front of it. */
+.mv-tv-spill { mix-blend-mode: screen; opacity: 0.45; filter: blur(6px); transition: background 0.4s; }
+
+/* Cuts: the new picture wipes in on a slant behind a bar of light, with a flare. */
+.mv-tv-wipe { animation: mv-tv-wipe 0.5s cubic-bezier(0.6, 0, 0.2, 1) both; }
+@keyframes mv-tv-wipe { from { clip-path: polygon(0 0, 0 0, -10% 100%, 0 100%); } to { clip-path: polygon(0 0, 110% 0, 100% 100%, 0 100%); } }
+.mv-tv-swipe {
+  width: 14%;
+  left: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.95) 45%, #fff 50%, rgba(255,255,255,0.95) 55%, transparent);
+  transform: skewX(-18deg);
+  filter: blur(1px);
+  mix-blend-mode: screen;
+  animation: mv-tv-swipe 0.5s cubic-bezier(0.6, 0, 0.2, 1) both;
+}
+@keyframes mv-tv-swipe { from { transform: translateX(-120%) skewX(-18deg); opacity: 1; } 90% { opacity: 1; } to { transform: translateX(780%) skewX(-18deg); opacity: 0; } }
+.mv-tv-flare {
+  top: 50%;
+  left: 0;
+  width: 70%;
+  height: 3px;
+  margin-top: -1.5px;
+  background: radial-gradient(ellipse at center, #ffffff, rgba(150,210,255,0.8) 25%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: mv-tv-flare 0.9s ease-out both;
+}
+@keyframes mv-tv-flare { from { transform: translateX(-60%) scaleY(1); opacity: 0; } 25% { opacity: 1; transform: translateX(10%) scaleY(3); } to { transform: translateX(90%) scaleY(1); opacity: 0; } }
+
+/* Chrome and gold lettering, a letter at a time. */
+.mv-tv-chrometext > span, .mv-tv-goldtext > span {
+  display: inline-block;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  padding: 0 0.02em;
+  background-repeat: no-repeat;
+  background-size: 300% 100%, 100% 100%;
+  background-position: 150% 0, 0 0;
+}
+.mv-tv-chrometext > span {
+  background-image: linear-gradient(100deg, transparent 38%, rgba(255,255,255,0.95) 50%, transparent 62%), linear-gradient(180deg, #ffffff 0%, #e6ecf4 36%, #7a8494 50%, #f7f9fc 64%, #aab4c2 100%);
+  filter: drop-shadow(0 0.05em 0 #000) drop-shadow(0 0 0.14em var(--tv-accent, #4cc3ff));
+}
+.mv-tv-goldtext > span {
+  background-image: linear-gradient(100deg, transparent 38%, rgba(255,255,240,0.95) 50%, transparent 62%), linear-gradient(180deg, #fff8d0 0%, #ffd34d 38%, #8f6200 52%, #ffe68f 66%, #c38900 100%);
+  filter: drop-shadow(0 0.05em 0 #000) drop-shadow(0 0 0.18em #ffb400);
+}
+/* In: big and blurred to sharp. Then the glint passes through. */
+.mv-tv-letter { animation: mv-tv-letter 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) both, mv-tv-glint 0.5s ease-in-out both; }
+@keyframes mv-tv-letter { from { transform: translateY(-55%) scale(1.9); opacity: 0; filter: blur(8px); } to { transform: none; opacity: 1; } }
+.mv-tv-letterslide { animation: mv-tv-letterslide 0.45s cubic-bezier(0.2, 1.2, 0.4, 1) both, mv-tv-glint 0.5s ease-in-out both; }
+@keyframes mv-tv-letterslide { from { transform: translateX(120%) skewX(-30deg); opacity: 0; filter: blur(6px); } to { transform: none; opacity: 1; } }
+@keyframes mv-tv-glint { from { background-position: 150% 0, 0 0; } to { background-position: -50% 0, 0 0; } }
+/* Somebody the crowd cannot make up its mind about: their name will not hold still. */
+.mv-tv-glitchwrap { display: inline-block; animation: mv-tv-glitch 1.8s 1s steps(1) infinite; }
+@keyframes mv-tv-glitch {
+  0%, 84%, 100% { transform: none; filter: none; }
+  86% { transform: translateX(3px) skewX(-10deg); filter: drop-shadow(-3px 0 #ff2a6a) drop-shadow(3px 0 #2af5ff); clip-path: inset(0 0 45% 0); }
+  90% { transform: translateX(-4px); filter: drop-shadow(3px 0 #ff2a6a) drop-shadow(-3px 0 #2af5ff); clip-path: inset(40% 0 0 0); }
+}
+
+/* Faces: scanned in from the bottom behind a bright line, then a slow push in. */
+.mv-tv-reveal { animation: mv-tv-reveal 0.6s cubic-bezier(0.5, 0, 0.2, 1) both; }
+@keyframes mv-tv-reveal { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
+.mv-tv-scanline { height: 2px; bottom: 0; background: #fff; animation: mv-tv-scanline 0.6s cubic-bezier(0.5, 0, 0.2, 1) both; }
+@keyframes mv-tv-scanline { from { transform: translateY(0); opacity: 1; } 95% { opacity: 1; } to { transform: translateY(var(--tv-face, -60px)); opacity: 0; } }
+.mv-tv-kenburns { animation: mv-tv-kenburns 4.5s ease-out both; }
+@keyframes mv-tv-kenburns { from { transform: scale(1.2) translateY(5%); } to { transform: scale(1.02); } }
+.mv-tv-facesheen {
+  background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.45) 50%, transparent 60%);
+  background-size: 300% 100%;
+  background-position: 150% 0;
+  mix-blend-mode: screen;
+  animation: mv-tv-sheenpass 1s ease-in-out both;
+}
+@keyframes mv-tv-sheenpass { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+
+.mv-tv-inl { animation: mv-tv-inl 0.55s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+.mv-tv-inr { animation: mv-tv-inr 0.55s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+@keyframes mv-tv-inl { from { transform: translateX(-110%); } to { transform: none; } }
+@keyframes mv-tv-inr { from { transform: translateX(110%); } to { transform: none; } }
+.mv-tv-fadeup { display: inline-block; animation: mv-tv-fadeup 0.5s ease-out both; }
+@keyframes mv-tv-fadeup { from { transform: translateY(60%); opacity: 0; } to { transform: none; opacity: 1; } }
+.mv-tv-tag { animation: mv-tv-pop 0.4s 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) both; clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%); box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+@keyframes mv-tv-pop { from { transform: scale(0.3); opacity: 0; } to { transform: none; opacity: 1; } }
+.mv-tv-gold-bg { background: linear-gradient(180deg, #fff1a8, #ffcc33 50%, #b07c00); }
+.mv-tv-flash { background: #fff; opacity: 0; animation: mv-tv-flash 0.5s ease-out both; pointer-events: none; mix-blend-mode: screen; }
+@keyframes mv-tv-flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
+
+.mv-tv-vs {
+  display: inline-block;
+  background: linear-gradient(180deg, #fff 0%, #ffe28a 45%, #ff8a00 55%, #fff1b0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 0.12em #fff) drop-shadow(0.05em 0.05em 0 #000);
+  animation: mv-tv-vs 0.7s 0.65s cubic-bezier(0.2, 1.8, 0.4, 1) both, mv-tv-throb 1.2s 1.4s ease-in-out infinite;
+}
+@keyframes mv-tv-vs { from { transform: scale(4) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes mv-tv-throb { 50% { transform: scale(1.12); } }
+.mv-tv-bolt {
+  background: linear-gradient(180deg, transparent, #bfe9ff 30%, #ffffff 50%, #bfe9ff 70%, transparent);
+  clip-path: polygon(55% 0, 30% 45%, 52% 45%, 38% 100%, 72% 38%, 50% 38%, 68% 0);
+  filter: drop-shadow(0 0 6px #7fd3ff);
+  animation: mv-tv-bolt 1.6s steps(1) infinite;
+}
+@keyframes mv-tv-bolt { 0%, 30%, 34%, 100% { opacity: 0; } 31%, 36%, 38% { opacity: 1; } }
+
+/* A move landing: speed lines rushing past, and the picture jolts. */
+.mv-tv-speed {
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0) 0 22px, rgba(255,255,255,0.22) 22px 24px, rgba(255,255,255,0) 24px 60px);
+  animation: mv-tv-rush 0.3s linear infinite;
+}
+@keyframes mv-tv-rush { to { background-position: -60px 0; } }
+.mv-tv-shake { animation: mv-tv-shake 0.35s 0.05s steps(4) both; }
+@keyframes mv-tv-shake { 25% { transform: translate(3px, -2px); } 50% { transform: translate(-3px, 2px); } 75% { transform: translate(2px, 1px); } }
+/* A crowd of faces going by. */
+.mv-tv-belt { animation: mv-tv-belt 5s linear both; }
+@keyframes mv-tv-belt { to { transform: translateX(-100%); } }
+/* The room furious: red, breaking up. */
+.mv-tv-redglitch {
+  background: repeating-linear-gradient(0deg, rgba(255,30,20,0.45) 0 3px, transparent 3px 7px), rgba(150,0,0,0.35);
+  mix-blend-mode: hard-light;
+  animation: mv-tv-tear 0.4s steps(3) infinite;
+}
+@keyframes mv-tv-tear { 33% { transform: translateX(-2%); clip-path: inset(10% 0 40% 0); } 66% { transform: translateX(2%); clip-path: inset(50% 0 5% 0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mv-tv *, .mv-tv { animation: none !important; }
+  .mv-tv-swipe, .mv-tv-flare, .mv-tv-scanline { display: none; }
+}
+/* A big face: a slow push in, toward the eyes. */
+.mv-tv-facepush { transform-origin: 50% 38%; animation: mv-tv-facepush 5s ease-out both; }
+@keyframes mv-tv-facepush { from { transform: scale(1); } to { transform: scale(1.09); } }
+
+/* The cardboard name sign of whoever is making the move (ScrapRing.tsx): it rocks on its bottom edge. */
+.mv-sign-wobble { animation: mv-sign-wobble 0.9s ease-in-out infinite; }
+@keyframes mv-sign-wobble {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  20% { transform: rotate(-4.5deg) translateY(-2px); }
+  45% { transform: rotate(3.5deg) translateY(-1px); }
+  70% { transform: rotate(-2deg) translateY(-1.5px); }
+  85% { transform: rotate(1deg) translateY(0); }
+}
+/* Held still, it is lifted a little and lit instead, so it still stands out. */
+@media (prefers-reduced-motion: reduce) {
+  .mv-sign-wobble { animation: none; transform: translateY(-4px); filter: brightness(1.18) drop-shadow(0 0 3px rgba(255, 220, 140, 0.7)); }
+}
+
+/* ---- the stars after the match (StarReveal.tsx) ---- */
+.mv-star-backdrop {
+  background: radial-gradient(ellipse at 50% 45%, rgba(36, 25, 4, 0.9) 0%, rgba(0, 0, 0, 0.93) 70%);
+  animation: mv-star-backdrop-in 0.5s ease-out both;
+}
+@keyframes mv-star-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+.mv-star { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 14px rgba(255, 196, 40, 0.0)); transition: filter 0.4s ease-out; }
+.mv-star-pop { animation: mv-star-pop 0.42s cubic-bezier(0.2, 1.6, 0.4, 1) both; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 16px rgba(255, 196, 40, 0.55)); }
+@keyframes mv-star-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.18) rotate(-4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mv-star-backdrop, .mv-star-pop { animation: none; }
+}
